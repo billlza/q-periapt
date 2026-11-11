@@ -1,0 +1,2006 @@
+[
+  {
+    "path": "DATABASE_ARCHIVE.json",
+    "bytes": 3893,
+    "compressed_bytes": 757,
+    "crc32": "7530c6b7"
+  },
+  {
+    "path": "DATABASE_INPUTS.json",
+    "bytes": 682584,
+    "compressed_bytes": 98946,
+    "crc32": "4d9be911"
+  },
+  {
+    "path": "EVALUATOR_OBSERVATIONS.json",
+    "bytes": 6148,
+    "compressed_bytes": 1000,
+    "crc32": "06fae3f7"
+  },
+  {
+    "path": "PARTIAL_RESULTS.json",
+    "bytes": 17892,
+    "compressed_bytes": 4119,
+    "crc32": "1b79dbd8"
+  },
+  {
+    "path": "PROCESS_RESOURCES.json",
+    "bytes": 1730,
+    "compressed_bytes": 836,
+    "crc32": "124577fc"
+  },
+  {
+    "path": "PROCESS_RESOURCES.jsonl",
+    "bytes": 7028259,
+    "compressed_bytes": 417193,
+    "crc32": "1188bf3d"
+  },
+  {
+    "path": "RESULT.json",
+    "bytes": 71216,
+    "compressed_bytes": 17004,
+    "crc32": "6d0bcc8b"
+  },
+  {
+    "path": "SOURCE_TRANSPORT.json",
+    "bytes": 874,
+    "compressed_bytes": 470,
+    "crc32": "4fa6442e"
+  },
+  {
+    "path": "SUMMARY_PLAN.json",
+    "bytes": 6858,
+    "compressed_bytes": 2734,
+    "crc32": "a9ebe636"
+  },
+  {
+    "path": "SUMMARY_PLAN_AFTER.json",
+    "bytes": 6858,
+    "compressed_bytes": 2734,
+    "crc32": "a9ebe636"
+  },
+  {
+    "path": "SUMMARY_PLAN_DEPENDENCIES.json.gz",
+    "bytes": 117234,
+    "compressed_bytes": 117274,
+    "crc32": "17653059"
+  },
+  {
+    "path": "SUMMARY_PLAN_ORIGINAL.qlx",
+    "bytes": 208304,
+    "compressed_bytes": 207990,
+    "crc32": "f0238dc5"
+  },
+  {
+    "path": "SUMMARY_PLAN_VENDOR_ORIGINAL.qll",
+    "bytes": 138246,
+    "compressed_bytes": 23044,
+    "crc32": "cbd34645"
+  },
+  {
+    "path": "SUMMARY_PLAN_VENDOR_PATCH.patch",
+    "bytes": 2876,
+    "compressed_bytes": 1052,
+    "crc32": "78140964"
+  },
+  {
+    "path": "evaluator/execute-queries-20261111.112221.390.log",
+    "bytes": 505121903,
+    "compressed_bytes": 29236628,
+    "crc32": "0c0db9ce"
+  },
+  {
+    "path": "execute-help.json",
+    "bytes": 150,
+    "compressed_bytes": 110,
+    "crc32": "2ba9cc05"
+  },
+  {
+    "path": "execute-help.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "execute-help.stdout",
+    "bytes": 11517,
+    "compressed_bytes": 3252,
+    "crc32": "50330eaa"
+  },
+  {
+    "path": "jvm-admission.json",
+    "bytes": 192,
+    "compressed_bytes": 145,
+    "crc32": "3f82f2cc"
+  },
+  {
+    "path": "jvm-admission.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "jvm-admission.stdout",
+    "bytes": 59071,
+    "compressed_bytes": 7102,
+    "crc32": "5f53077d"
+  },
+  {
+    "path": "partial-fresh-AccessAfterLifetime-decoded.json",
+    "bytes": 294,
+    "compressed_bytes": 191,
+    "crc32": "2a1fa745"
+  },
+  {
+    "path": "partial-fresh-AccessAfterLifetime-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-AccessAfterLifetime-decoded.stdout",
+    "bytes": 711,
+    "compressed_bytes": 168,
+    "crc32": "05d628e1"
+  },
+  {
+    "path": "partial-fresh-AccessInvalidPointer-decoded.json",
+    "bytes": 295,
+    "compressed_bytes": 192,
+    "crc32": "2bc4ca36"
+  },
+  {
+    "path": "partial-fresh-AccessInvalidPointer-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-AccessInvalidPointer-decoded.stdout",
+    "bytes": 2509,
+    "compressed_bytes": 448,
+    "crc32": "0a6af181"
+  },
+  {
+    "path": "partial-fresh-AstConsistencyCounts-decoded.json",
+    "bytes": 290,
+    "compressed_bytes": 182,
+    "crc32": "a99b62fd"
+  },
+  {
+    "path": "partial-fresh-AstConsistencyCounts-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-AstConsistencyCounts-decoded.stdout",
+    "bytes": 369,
+    "compressed_bytes": 180,
+    "crc32": "5597eb84"
+  },
+  {
+    "path": "partial-fresh-BrokenCryptoAlgorithm-decoded.json",
+    "bytes": 296,
+    "compressed_bytes": 193,
+    "crc32": "d7a0113a"
+  },
+  {
+    "path": "partial-fresh-BrokenCryptoAlgorithm-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-BrokenCryptoAlgorithm-decoded.stdout",
+    "bytes": 165,
+    "compressed_bytes": 112,
+    "crc32": "29ab9082"
+  },
+  {
+    "path": "partial-fresh-CfgConsistencyCounts-decoded.json",
+    "bytes": 290,
+    "compressed_bytes": 182,
+    "crc32": "42df344e"
+  },
+  {
+    "path": "partial-fresh-CfgConsistencyCounts-decoded.stdout",
+    "bytes": 574,
+    "compressed_bytes": 275,
+    "crc32": "9c485d61"
+  },
+  {
+    "path": "partial-fresh-CfgConsistencyCounts-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-CleartextLogging-decoded.json",
+    "bytes": 291,
+    "compressed_bytes": 189,
+    "crc32": "526d6db6"
+  },
+  {
+    "path": "partial-fresh-CleartextLogging-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-CleartextLogging-decoded.stdout",
+    "bytes": 1117084,
+    "compressed_bytes": 42449,
+    "crc32": "44551c29"
+  },
+  {
+    "path": "partial-fresh-CleartextStorageDatabase-decoded.json",
+    "bytes": 299,
+    "compressed_bytes": 194,
+    "crc32": "0274a378"
+  },
+  {
+    "path": "partial-fresh-CleartextStorageDatabase-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-CleartextStorageDatabase-decoded.stdout",
+    "bytes": 715,
+    "compressed_bytes": 165,
+    "crc32": "1b306fd9"
+  },
+  {
+    "path": "partial-fresh-CleartextTransmission-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-CleartextTransmission-decoded.stdout",
+    "bytes": 715,
+    "compressed_bytes": 165,
+    "crc32": "1b306fd9"
+  },
+  {
+    "path": "partial-fresh-CommandInjection-decoded.json",
+    "bytes": 291,
+    "compressed_bytes": 187,
+    "crc32": "88dfe9fa"
+  },
+  {
+    "path": "partial-fresh-CleartextTransmission-decoded.json",
+    "bytes": 296,
+    "compressed_bytes": 191,
+    "crc32": "457fb4c0"
+  },
+  {
+    "path": "partial-fresh-CommandInjection-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-CommandInjection-decoded.stdout",
+    "bytes": 846682,
+    "compressed_bytes": 23379,
+    "crc32": "cb3bbda1"
+  },
+  {
+    "path": "partial-fresh-DataFlowConsistencyCounts-decoded.json",
+    "bytes": 295,
+    "compressed_bytes": 186,
+    "crc32": "a4046b6c"
+  },
+  {
+    "path": "partial-fresh-DataFlowConsistencyCounts-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-DatabaseQualityDiagnostics-decoded.json",
+    "bytes": 294,
+    "compressed_bytes": 186,
+    "crc32": "6fdc5134"
+  },
+  {
+    "path": "partial-fresh-DatabaseQualityDiagnostics-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-DatabaseQualityDiagnostics-decoded.stdout",
+    "bytes": 274,
+    "compressed_bytes": 134,
+    "crc32": "51bc001f"
+  },
+  {
+    "path": "partial-fresh-DataFlowConsistencyCounts-decoded.stdout",
+    "bytes": 1536,
+    "compressed_bytes": 523,
+    "crc32": "e28048d6"
+  },
+  {
+    "path": "partial-fresh-DisabledCertificateCheck-decoded.json",
+    "bytes": 299,
+    "compressed_bytes": 194,
+    "crc32": "17723ebc"
+  },
+  {
+    "path": "partial-fresh-DisabledCertificateCheck-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-DisabledCertificateCheck-decoded.stdout",
+    "bytes": 653,
+    "compressed_bytes": 160,
+    "crc32": "dbe11a1b"
+  },
+  {
+    "path": "partial-fresh-ExtractedFiles-decoded.json",
+    "bytes": 284,
+    "compressed_bytes": 179,
+    "crc32": "7e1a651d"
+  },
+  {
+    "path": "partial-fresh-ExtractedFiles-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-ExtractedFiles-decoded.stdout",
+    "bytes": 188530,
+    "compressed_bytes": 7803,
+    "crc32": "33650705"
+  },
+  {
+    "path": "partial-fresh-ExtractionErrors-decoded.json",
+    "bytes": 286,
+    "compressed_bytes": 179,
+    "crc32": "a3d74b31"
+  },
+  {
+    "path": "partial-fresh-ExtractionErrors-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-ExtractionWarnings-decoded.json",
+    "bytes": 288,
+    "compressed_bytes": 182,
+    "crc32": "008105fd"
+  },
+  {
+    "path": "partial-fresh-ExtractionWarnings-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-ExtractionErrors-decoded.stdout",
+    "bytes": 122,
+    "compressed_bytes": 98,
+    "crc32": "d52fdd44"
+  },
+  {
+    "path": "partial-fresh-ExtractionWarnings-decoded.stdout",
+    "bytes": 124,
+    "compressed_bytes": 98,
+    "crc32": "b72b271e"
+  },
+  {
+    "path": "partial-fresh-ExtractorInformation-decoded.json",
+    "bytes": 288,
+    "compressed_bytes": 179,
+    "crc32": "0c9cb607"
+  },
+  {
+    "path": "partial-fresh-ExtractorInformation-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-ExtractorInformation-decoded.stdout",
+    "bytes": 975,
+    "compressed_bytes": 345,
+    "crc32": "3a73b699"
+  },
+  {
+    "path": "partial-fresh-HardcodedCryptographicValue-decoded.json",
+    "bytes": 302,
+    "compressed_bytes": 194,
+    "crc32": "fc6f0ae2"
+  },
+  {
+    "path": "partial-fresh-HardcodedCryptographicValue-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-HardcodedCryptographicValue-decoded.stdout",
+    "bytes": 1926875,
+    "compressed_bytes": 62882,
+    "crc32": "11658ac7"
+  },
+  {
+    "path": "partial-fresh-InsecureCookie-decoded.json",
+    "bytes": 289,
+    "compressed_bytes": 183,
+    "crc32": "1be67f9e"
+  },
+  {
+    "path": "partial-fresh-InsecureCookie-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-InsecureCookie-decoded.stdout",
+    "bytes": 653,
+    "compressed_bytes": 160,
+    "crc32": "dbe11a1b"
+  },
+  {
+    "path": "partial-fresh-LinesOfCode-decoded.json",
+    "bytes": 277,
+    "compressed_bytes": 171,
+    "crc32": "b864ab2d"
+  },
+  {
+    "path": "partial-fresh-LinesOfCode-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-LinesOfCode-decoded.stdout",
+    "bytes": 77,
+    "compressed_bytes": 73,
+    "crc32": "c21993e9"
+  },
+  {
+    "path": "partial-fresh-LinesOfUserCode-decoded.json",
+    "bytes": 281,
+    "compressed_bytes": 174,
+    "crc32": "dbb14d4c"
+  },
+  {
+    "path": "partial-fresh-LinesOfUserCode-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-LinesOfUserCode-decoded.stdout",
+    "bytes": 77,
+    "compressed_bytes": 73,
+    "crc32": "c21993e9"
+  },
+  {
+    "path": "partial-fresh-LogInjection-decoded.json",
+    "bytes": 287,
+    "compressed_bytes": 187,
+    "crc32": "7bb457ad"
+  },
+  {
+    "path": "partial-fresh-LogInjection-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-LogInjection-decoded.stdout",
+    "bytes": 109946,
+    "compressed_bytes": 2884,
+    "crc32": "d5ecf17f"
+  },
+  {
+    "path": "partial-fresh-NodesWithTypeAtLengthLimit-decoded.json",
+    "bytes": 292,
+    "compressed_bytes": 185,
+    "crc32": "2868b14a"
+  },
+  {
+    "path": "partial-fresh-NodesWithTypeAtLengthLimit-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-NodesWithTypeAtLengthLimit-decoded.stdout",
+    "bytes": 91,
+    "compressed_bytes": 85,
+    "crc32": "8907ca72"
+  },
+  {
+    "path": "partial-fresh-NumberOfFilesExtractedWithErrors-decoded.json",
+    "bytes": 298,
+    "compressed_bytes": 188,
+    "crc32": "fc67d96e"
+  },
+  {
+    "path": "partial-fresh-NumberOfFilesExtractedWithErrors-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-NumberOfFilesExtractedWithErrors-decoded.stdout",
+    "bytes": 72,
+    "compressed_bytes": 68,
+    "crc32": "c3f398b4"
+  },
+  {
+    "path": "partial-fresh-NumberOfSuccessfullyExtractedFiles-decoded.json",
+    "bytes": 300,
+    "compressed_bytes": 189,
+    "crc32": "b447fd00"
+  },
+  {
+    "path": "partial-fresh-NumberOfSuccessfullyExtractedFiles-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-NumberOfSuccessfullyExtractedFiles-decoded.stdout",
+    "bytes": 75,
+    "compressed_bytes": 71,
+    "crc32": "d1a38605"
+  },
+  {
+    "path": "partial-fresh-QuerySinkCounts-decoded.json",
+    "bytes": 281,
+    "compressed_bytes": 173,
+    "crc32": "54d4534d"
+  },
+  {
+    "path": "partial-fresh-QuerySinkCounts-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-QuerySinkCounts-decoded.stdout",
+    "bytes": 349,
+    "compressed_bytes": 240,
+    "crc32": "8e6ff389"
+  },
+  {
+    "path": "partial-fresh-RegexInjection-decoded.json",
+    "bytes": 289,
+    "compressed_bytes": 188,
+    "crc32": "530bdf8e"
+  },
+  {
+    "path": "partial-fresh-RegexInjection-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-RequestForgery-decoded.json",
+    "bytes": 289,
+    "compressed_bytes": 188,
+    "crc32": "a0aa0bb9"
+  },
+  {
+    "path": "partial-fresh-RequestForgery-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-RegexInjection-decoded.stdout",
+    "bytes": 695,
+    "compressed_bytes": 165,
+    "crc32": "4514e325"
+  },
+  {
+    "path": "partial-fresh-RequestForgery-decoded.stdout",
+    "bytes": 687,
+    "compressed_bytes": 162,
+    "crc32": "8d841147"
+  },
+  {
+    "path": "partial-fresh-SqlInjection-decoded.json",
+    "bytes": 287,
+    "compressed_bytes": 186,
+    "crc32": "5568c0a1"
+  },
+  {
+    "path": "partial-fresh-SqlInjection-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-SqlInjection-decoded.stdout",
+    "bytes": 695,
+    "compressed_bytes": 165,
+    "crc32": "4514e325"
+  },
+  {
+    "path": "partial-fresh-SsaConsistencyCounts-decoded.json",
+    "bytes": 290,
+    "compressed_bytes": 182,
+    "crc32": "873283d9"
+  },
+  {
+    "path": "partial-fresh-SsaConsistencyCounts-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-SsaConsistencyCounts-decoded.stdout",
+    "bytes": 628,
+    "compressed_bytes": 261,
+    "crc32": "c83127e9"
+  },
+  {
+    "path": "partial-fresh-SummaryStatsReduced-decoded.json",
+    "bytes": 285,
+    "compressed_bytes": 172,
+    "crc32": "6fa93928"
+  },
+  {
+    "path": "partial-fresh-SummaryStatsReduced-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-SummaryStatsReduced-decoded.stdout",
+    "bytes": 703,
+    "compressed_bytes": 287,
+    "crc32": "d168eb02"
+  },
+  {
+    "path": "partial-fresh-TaintedPath-decoded.json",
+    "bytes": 286,
+    "compressed_bytes": 185,
+    "crc32": "d03eb939"
+  },
+  {
+    "path": "partial-fresh-TaintedPath-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-TaintedPath-decoded.stdout",
+    "bytes": 3089709,
+    "compressed_bytes": 87091,
+    "crc32": "df402194"
+  },
+  {
+    "path": "partial-fresh-TypeInferenceConsistencyCounts-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-TypeInferenceConsistencyCounts-decoded.json",
+    "bytes": 300,
+    "compressed_bytes": 188,
+    "crc32": "4f131b97"
+  },
+  {
+    "path": "partial-fresh-TypeInferenceConsistencyCounts-decoded.stdout",
+    "bytes": 311,
+    "compressed_bytes": 182,
+    "crc32": "1b742e97"
+  },
+  {
+    "path": "partial-fresh-UncontrolledAllocationSize-decoded.json",
+    "bytes": 301,
+    "compressed_bytes": 193,
+    "crc32": "b02a4e6e"
+  },
+  {
+    "path": "partial-fresh-UncontrolledAllocationSize-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-UncontrolledAllocationSize-decoded.stdout",
+    "bytes": 3147,
+    "compressed_bytes": 555,
+    "crc32": "35834c75"
+  },
+  {
+    "path": "partial-fresh-UnextractedElements-decoded.json",
+    "bytes": 289,
+    "compressed_bytes": 182,
+    "crc32": "57db3634"
+  },
+  {
+    "path": "partial-fresh-UnextractedElements-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-UnextractedElements-decoded.stdout",
+    "bytes": 64,
+    "compressed_bytes": 64,
+    "crc32": "610dfcf2"
+  },
+  {
+    "path": "partial-fresh-UnresolvedMacroCalls-decoded.json",
+    "bytes": 290,
+    "compressed_bytes": 183,
+    "crc32": "0120f5e1"
+  },
+  {
+    "path": "partial-fresh-UnresolvedMacroCalls-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-UnresolvedMacroCalls-decoded.stdout",
+    "bytes": 19761,
+    "compressed_bytes": 512,
+    "crc32": "b76aeca7"
+  },
+  {
+    "path": "partial-fresh-UseOfHttp-decoded.json",
+    "bytes": 284,
+    "compressed_bytes": 186,
+    "crc32": "de99dfa0"
+  },
+  {
+    "path": "partial-fresh-UseOfHttp-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-UseOfHttp-decoded.stdout",
+    "bytes": 695,
+    "compressed_bytes": 165,
+    "crc32": "4514e325"
+  },
+  {
+    "path": "partial-fresh-WeakSensitiveDataHashing-decoded.json",
+    "bytes": 299,
+    "compressed_bytes": 196,
+    "crc32": "aa7b1f34"
+  },
+  {
+    "path": "partial-fresh-WeakSensitiveDataHashing-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-WeakSensitiveDataHashing-decoded.stdout",
+    "bytes": 687,
+    "compressed_bytes": 162,
+    "crc32": "8d841147"
+  },
+  {
+    "path": "partial-fresh-XSS-decoded.json",
+    "bytes": 278,
+    "compressed_bytes": 178,
+    "crc32": "eca5f8a9"
+  },
+  {
+    "path": "partial-fresh-XSS-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "partial-fresh-XSS-decoded.stdout",
+    "bytes": 695,
+    "compressed_bytes": 165,
+    "crc32": "4514e325"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/diagnostics/AstConsistencyCounts.bqrs",
+    "bytes": 615,
+    "compressed_bytes": 374,
+    "crc32": "2728851d"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/diagnostics/CfgConsistencyCounts.bqrs",
+    "bytes": 787,
+    "compressed_bytes": 476,
+    "crc32": "6b820f07"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/diagnostics/DataFlowConsistencyCounts.bqrs",
+    "bytes": 1655,
+    "compressed_bytes": 803,
+    "crc32": "a6938c36"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/diagnostics/ExtractedFiles.bqrs",
+    "bytes": 294661,
+    "compressed_bytes": 28623,
+    "crc32": "474efc97"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/diagnostics/ExtractionErrors.bqrs",
+    "bytes": 339,
+    "compressed_bytes": 225,
+    "crc32": "6f88bf68"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/diagnostics/ExtractionWarnings.bqrs",
+    "bytes": 349,
+    "compressed_bytes": 230,
+    "crc32": "013d0c46"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/diagnostics/SsaConsistencyCounts.bqrs",
+    "bytes": 880,
+    "compressed_bytes": 467,
+    "crc32": "178b5440"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs",
+    "bytes": 591,
+    "compressed_bytes": 349,
+    "crc32": "403996a4"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/diagnostics/UnextractedElements.bqrs",
+    "bytes": 361,
+    "compressed_bytes": 238,
+    "crc32": "366fab62"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/diagnostics/UnresolvedMacroCalls.bqrs",
+    "bytes": 6365,
+    "compressed_bytes": 3137,
+    "crc32": "2e487f5e"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-022/TaintedPath.bqrs",
+    "bytes": 1017352,
+    "compressed_bytes": 402943,
+    "crc32": "3ceec43b"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-020/RegexInjection.bqrs",
+    "bytes": 857,
+    "compressed_bytes": 483,
+    "crc32": "b78322c5"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-078/CommandInjection.bqrs",
+    "bytes": 274704,
+    "compressed_bytes": 105644,
+    "crc32": "e0eb8e25"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-079/XSS.bqrs",
+    "bytes": 646,
+    "compressed_bytes": 391,
+    "crc32": "555651f2"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-089/SqlInjection.bqrs",
+    "bytes": 665,
+    "compressed_bytes": 411,
+    "crc32": "485673fb"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-117/LogInjection.bqrs",
+    "bytes": 40852,
+    "compressed_bytes": 13162,
+    "crc32": "f458df80"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-295/DisabledCertificateCheck.bqrs",
+    "bytes": 676,
+    "compressed_bytes": 407,
+    "crc32": "280b7408"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-311/CleartextTransmission.bqrs",
+    "bytes": 695,
+    "compressed_bytes": 406,
+    "crc32": "47985a89"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-312/CleartextLogging.bqrs",
+    "bytes": 392833,
+    "compressed_bytes": 132085,
+    "crc32": "8e1fd72c"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-312/CleartextStorageDatabase.bqrs",
+    "bytes": 704,
+    "compressed_bytes": 410,
+    "crc32": "2d3e7fcb"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-319/UseOfHttp.bqrs",
+    "bytes": 613,
+    "compressed_bytes": 394,
+    "crc32": "e0f051fe"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs",
+    "bytes": 524,
+    "compressed_bytes": 318,
+    "crc32": "450d64f6"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs",
+    "bytes": 738,
+    "compressed_bytes": 412,
+    "crc32": "bda2e1f6"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-614/InsecureCookie.bqrs",
+    "bytes": 769,
+    "compressed_bytes": 449,
+    "crc32": "ba3e6cc2"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-770/UncontrolledAllocationSize.bqrs",
+    "bytes": 1922,
+    "compressed_bytes": 1022,
+    "crc32": "66f8052b"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-798/HardcodedCryptographicValue.bqrs",
+    "bytes": 622157,
+    "compressed_bytes": 276320,
+    "crc32": "a91e04b6"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-825/AccessAfterLifetime.bqrs",
+    "bytes": 753,
+    "compressed_bytes": 441,
+    "crc32": "a1e21bb4"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-918/RequestForgery.bqrs",
+    "bytes": 623,
+    "compressed_bytes": 393,
+    "crc32": "a29a6d0e"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/security/CWE-825/AccessInvalidPointer.bqrs",
+    "bytes": 1592,
+    "compressed_bytes": 918,
+    "crc32": "c0dd6e54"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/summary/LinesOfCode.bqrs",
+    "bytes": 657,
+    "compressed_bytes": 393,
+    "crc32": "b9677862"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/summary/LinesOfUserCode.bqrs",
+    "bytes": 503,
+    "compressed_bytes": 329,
+    "crc32": "b05e38f9"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/summary/NodesWithTypeAtLengthLimit.bqrs",
+    "bytes": 398,
+    "compressed_bytes": 267,
+    "crc32": "611a383e"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/summary/NumberOfFilesExtractedWithErrors.bqrs",
+    "bytes": 520,
+    "compressed_bytes": 318,
+    "crc32": "6c9325c2"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs",
+    "bytes": 499,
+    "compressed_bytes": 307,
+    "crc32": "c8f3ac2a"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/summary/QuerySinkCounts.bqrs",
+    "bytes": 685,
+    "compressed_bytes": 454,
+    "crc32": "9fd1d042"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/summary/SummaryStatsReduced.bqrs",
+    "bytes": 907,
+    "compressed_bytes": 512,
+    "crc32": "d58f5425"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/telemetry/DatabaseQualityDiagnostics.bqrs",
+    "bytes": 351,
+    "compressed_bytes": 237,
+    "crc32": "b8da38a0"
+  },
+  {
+    "path": "partial-fresh-bqrs/queries/telemetry/ExtractorInformation.bqrs",
+    "bytes": 1113,
+    "compressed_bytes": 552,
+    "crc32": "bd08ff4f"
+  },
+  {
+    "path": "query.json",
+    "bytes": 2758,
+    "compressed_bytes": 1178,
+    "crc32": "9db63095"
+  },
+  {
+    "path": "query.stderr",
+    "bytes": 14081,
+    "compressed_bytes": 1496,
+    "crc32": "5e500a01"
+  },
+  {
+    "path": "query.stdout",
+    "bytes": 59064,
+    "compressed_bytes": 7095,
+    "crc32": "af9c90f3"
+  },
+  {
+    "path": "resolve-ram.json",
+    "bytes": 289,
+    "compressed_bytes": 174,
+    "crc32": "a33dddd1"
+  },
+  {
+    "path": "resolve-ram.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "resolve-ram.stdout",
+    "bytes": 45,
+    "compressed_bytes": 44,
+    "crc32": "ae9b6a76"
+  },
+  {
+    "path": "retained-AccessAfterLifetime-decoded.json",
+    "bytes": 289,
+    "compressed_bytes": 186,
+    "crc32": "834dc156"
+  },
+  {
+    "path": "retained-AccessAfterLifetime-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-AccessAfterLifetime-decoded.stdout",
+    "bytes": 711,
+    "compressed_bytes": 168,
+    "crc32": "05d628e1"
+  },
+  {
+    "path": "retained-AccessInvalidPointer-decoded.json",
+    "bytes": 290,
+    "compressed_bytes": 189,
+    "crc32": "afd3d98e"
+  },
+  {
+    "path": "retained-AccessInvalidPointer-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-AccessInvalidPointer-decoded.stdout",
+    "bytes": 2509,
+    "compressed_bytes": 448,
+    "crc32": "0a6af181"
+  },
+  {
+    "path": "retained-AstConsistencyCounts-decoded.json",
+    "bytes": 285,
+    "compressed_bytes": 178,
+    "crc32": "b2c4d502"
+  },
+  {
+    "path": "retained-AstConsistencyCounts-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-AstConsistencyCounts-decoded.stdout",
+    "bytes": 369,
+    "compressed_bytes": 180,
+    "crc32": "5597eb84"
+  },
+  {
+    "path": "retained-BrokenCryptoAlgorithm-decoded.json",
+    "bytes": 291,
+    "compressed_bytes": 189,
+    "crc32": "129e3d97"
+  },
+  {
+    "path": "retained-BrokenCryptoAlgorithm-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-BrokenCryptoAlgorithm-decoded.stdout",
+    "bytes": 165,
+    "compressed_bytes": 112,
+    "crc32": "29ab9082"
+  },
+  {
+    "path": "retained-CfgConsistencyCounts-decoded.json",
+    "bytes": 285,
+    "compressed_bytes": 177,
+    "crc32": "598083b1"
+  },
+  {
+    "path": "retained-CfgConsistencyCounts-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-CfgConsistencyCounts-decoded.stdout",
+    "bytes": 574,
+    "compressed_bytes": 275,
+    "crc32": "9c485d61"
+  },
+  {
+    "path": "retained-CleartextLogging-decoded.json",
+    "bytes": 286,
+    "compressed_bytes": 185,
+    "crc32": "7f74dd8c"
+  },
+  {
+    "path": "retained-CleartextLogging-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-CleartextLogging-decoded.stdout",
+    "bytes": 1117084,
+    "compressed_bytes": 42449,
+    "crc32": "44551c29"
+  },
+  {
+    "path": "retained-CleartextStorageDatabase-decoded.json",
+    "bytes": 294,
+    "compressed_bytes": 190,
+    "crc32": "2b841b8b"
+  },
+  {
+    "path": "retained-CleartextStorageDatabase-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-CleartextStorageDatabase-decoded.stdout",
+    "bytes": 715,
+    "compressed_bytes": 165,
+    "crc32": "1b306fd9"
+  },
+  {
+    "path": "retained-CleartextTransmission-decoded.json",
+    "bytes": 291,
+    "compressed_bytes": 187,
+    "crc32": "8041986d"
+  },
+  {
+    "path": "retained-CleartextTransmission-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-CleartextTransmission-decoded.stdout",
+    "bytes": 715,
+    "compressed_bytes": 165,
+    "crc32": "1b306fd9"
+  },
+  {
+    "path": "retained-CommandInjection-decoded.json",
+    "bytes": 286,
+    "compressed_bytes": 183,
+    "crc32": "a5c659c0"
+  },
+  {
+    "path": "retained-CommandInjection-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-CommandInjection-decoded.stdout",
+    "bytes": 846682,
+    "compressed_bytes": 23379,
+    "crc32": "cb3bbda1"
+  },
+  {
+    "path": "retained-DataFlowConsistencyCounts-decoded.json",
+    "bytes": 290,
+    "compressed_bytes": 182,
+    "crc32": "201378d4"
+  },
+  {
+    "path": "retained-DataFlowConsistencyCounts-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-DataFlowConsistencyCounts-decoded.stdout",
+    "bytes": 1536,
+    "compressed_bytes": 523,
+    "crc32": "e28048d6"
+  },
+  {
+    "path": "retained-DatabaseQualityDiagnostics-decoded.json",
+    "bytes": 289,
+    "compressed_bytes": 182,
+    "crc32": "c68e3727"
+  },
+  {
+    "path": "retained-DatabaseQualityDiagnostics-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-DisabledCertificateCheck-decoded.json",
+    "bytes": 294,
+    "compressed_bytes": 190,
+    "crc32": "3e82864f"
+  },
+  {
+    "path": "retained-DisabledCertificateCheck-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-DatabaseQualityDiagnostics-decoded.stdout",
+    "bytes": 274,
+    "compressed_bytes": 134,
+    "crc32": "51bc001f"
+  },
+  {
+    "path": "retained-DisabledCertificateCheck-decoded.stdout",
+    "bytes": 653,
+    "compressed_bytes": 160,
+    "crc32": "dbe11a1b"
+  },
+  {
+    "path": "retained-ExtractedFiles-decoded.json",
+    "bytes": 279,
+    "compressed_bytes": 174,
+    "crc32": "e4c7e5e9"
+  },
+  {
+    "path": "retained-ExtractedFiles-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-ExtractedFiles-decoded.stdout",
+    "bytes": 188530,
+    "compressed_bytes": 7803,
+    "crc32": "33650705"
+  },
+  {
+    "path": "retained-ExtractionErrors-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-ExtractionErrors-decoded.json",
+    "bytes": 281,
+    "compressed_bytes": 175,
+    "crc32": "3ebf7675"
+  },
+  {
+    "path": "retained-ExtractionErrors-decoded.stdout",
+    "bytes": 122,
+    "compressed_bytes": 98,
+    "crc32": "d52fdd44"
+  },
+  {
+    "path": "retained-ExtractionWarnings-decoded.json",
+    "bytes": 283,
+    "compressed_bytes": 178,
+    "crc32": "ccfc5e85"
+  },
+  {
+    "path": "retained-ExtractionWarnings-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-ExtractionWarnings-decoded.stdout",
+    "bytes": 124,
+    "compressed_bytes": 98,
+    "crc32": "b72b271e"
+  },
+  {
+    "path": "retained-ExtractorInformation-decoded.json",
+    "bytes": 283,
+    "compressed_bytes": 175,
+    "crc32": "c0e1ed7f"
+  },
+  {
+    "path": "retained-ExtractorInformation-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-ExtractorInformation-decoded.stdout",
+    "bytes": 975,
+    "compressed_bytes": 345,
+    "crc32": "3a73b699"
+  },
+  {
+    "path": "retained-HardcodedCryptographicValue-decoded.json",
+    "bytes": 297,
+    "compressed_bytes": 192,
+    "crc32": "da4c11ee"
+  },
+  {
+    "path": "retained-HardcodedCryptographicValue-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-HardcodedCryptographicValue-decoded.stdout",
+    "bytes": 1926875,
+    "compressed_bytes": 62882,
+    "crc32": "11658ac7"
+  },
+  {
+    "path": "retained-InsecureCookie-decoded.json",
+    "bytes": 284,
+    "compressed_bytes": 183,
+    "crc32": "45f4fbcb"
+  },
+  {
+    "path": "retained-InsecureCookie-decoded.stdout",
+    "bytes": 653,
+    "compressed_bytes": 160,
+    "crc32": "dbe11a1b"
+  },
+  {
+    "path": "retained-LinesOfCode-decoded.json",
+    "bytes": 272,
+    "compressed_bytes": 167,
+    "crc32": "ec99faf6"
+  },
+  {
+    "path": "retained-InsecureCookie-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-LinesOfCode-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-LinesOfCode-decoded.stdout",
+    "bytes": 77,
+    "compressed_bytes": 73,
+    "crc32": "c21993e9"
+  },
+  {
+    "path": "retained-LinesOfUserCode-decoded.json",
+    "bytes": 276,
+    "compressed_bytes": 173,
+    "crc32": "8a8e3d4e"
+  },
+  {
+    "path": "retained-LinesOfUserCode-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-LogInjection-decoded.json",
+    "bytes": 282,
+    "compressed_bytes": 183,
+    "crc32": "0a98ba19"
+  },
+  {
+    "path": "retained-LinesOfUserCode-decoded.stdout",
+    "bytes": 77,
+    "compressed_bytes": 73,
+    "crc32": "c21993e9"
+  },
+  {
+    "path": "retained-LogInjection-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-NodesWithTypeAtLengthLimit-decoded.json",
+    "bytes": 287,
+    "compressed_bytes": 182,
+    "crc32": "ee497148"
+  },
+  {
+    "path": "retained-NodesWithTypeAtLengthLimit-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-NodesWithTypeAtLengthLimit-decoded.stdout",
+    "bytes": 91,
+    "compressed_bytes": 85,
+    "crc32": "8907ca72"
+  },
+  {
+    "path": "retained-LogInjection-decoded.stdout",
+    "bytes": 109946,
+    "compressed_bytes": 2884,
+    "crc32": "d5ecf17f"
+  },
+  {
+    "path": "retained-NumberOfFilesExtractedWithErrors-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-NumberOfSuccessfullyExtractedFiles-decoded.json",
+    "bytes": 295,
+    "compressed_bytes": 185,
+    "crc32": "90daae1e"
+  },
+  {
+    "path": "retained-NumberOfFilesExtractedWithErrors-decoded.stdout",
+    "bytes": 72,
+    "compressed_bytes": 68,
+    "crc32": "c3f398b4"
+  },
+  {
+    "path": "retained-NumberOfFilesExtractedWithErrors-decoded.json",
+    "bytes": 293,
+    "compressed_bytes": 184,
+    "crc32": "d516b217"
+  },
+  {
+    "path": "retained-NumberOfSuccessfullyExtractedFiles-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-NumberOfSuccessfullyExtractedFiles-decoded.stdout",
+    "bytes": 75,
+    "compressed_bytes": 71,
+    "crc32": "d1a38605"
+  },
+  {
+    "path": "retained-QuerySinkCounts-decoded.json",
+    "bytes": 276,
+    "compressed_bytes": 169,
+    "crc32": "05eb234f"
+  },
+  {
+    "path": "retained-QuerySinkCounts-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-QuerySinkCounts-decoded.stdout",
+    "bytes": 349,
+    "compressed_bytes": 240,
+    "crc32": "8e6ff389"
+  },
+  {
+    "path": "retained-RegexInjection-decoded.json",
+    "bytes": 284,
+    "compressed_bytes": 183,
+    "crc32": "0d195bdb"
+  },
+  {
+    "path": "retained-RegexInjection-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-RegexInjection-decoded.stdout",
+    "bytes": 695,
+    "compressed_bytes": 165,
+    "crc32": "4514e325"
+  },
+  {
+    "path": "retained-RequestForgery-decoded.json",
+    "bytes": 284,
+    "compressed_bytes": 183,
+    "crc32": "feb88fec"
+  },
+  {
+    "path": "retained-RequestForgery-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-RequestForgery-decoded.stdout",
+    "bytes": 687,
+    "compressed_bytes": 162,
+    "crc32": "8d841147"
+  },
+  {
+    "path": "retained-SqlInjection-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-SqlInjection-decoded.stdout",
+    "bytes": 695,
+    "compressed_bytes": 165,
+    "crc32": "4514e325"
+  },
+  {
+    "path": "retained-SqlInjection-decoded.json",
+    "bytes": 282,
+    "compressed_bytes": 182,
+    "crc32": "24442d15"
+  },
+  {
+    "path": "retained-SsaConsistencyCounts-decoded.json",
+    "bytes": 285,
+    "compressed_bytes": 178,
+    "crc32": "9c6d3426"
+  },
+  {
+    "path": "retained-SsaConsistencyCounts-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-SsaConsistencyCounts-decoded.stdout",
+    "bytes": 628,
+    "compressed_bytes": 261,
+    "crc32": "c83127e9"
+  },
+  {
+    "path": "retained-SummaryStatsReduced-decoded.json",
+    "bytes": 280,
+    "compressed_bytes": 168,
+    "crc32": "d5e3d2ad"
+  },
+  {
+    "path": "retained-SummaryStatsReduced-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-TaintedPath-decoded.json",
+    "bytes": 281,
+    "compressed_bytes": 181,
+    "crc32": "4d56847d"
+  },
+  {
+    "path": "retained-TaintedPath-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-SummaryStatsReduced-decoded.stdout",
+    "bytes": 703,
+    "compressed_bytes": 287,
+    "crc32": "d168eb02"
+  },
+  {
+    "path": "retained-TaintedPath-decoded.stdout",
+    "bytes": 3089709,
+    "compressed_bytes": 87091,
+    "crc32": "df402194"
+  },
+  {
+    "path": "retained-TypeInferenceConsistencyCounts-decoded.json",
+    "bytes": 295,
+    "compressed_bytes": 184,
+    "crc32": "6b8e4889"
+  },
+  {
+    "path": "retained-TypeInferenceConsistencyCounts-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-TypeInferenceConsistencyCounts-decoded.stdout",
+    "bytes": 311,
+    "compressed_bytes": 182,
+    "crc32": "1b742e97"
+  },
+  {
+    "path": "retained-UncontrolledAllocationSize-decoded.json",
+    "bytes": 296,
+    "compressed_bytes": 188,
+    "crc32": "4a01ee5e"
+  },
+  {
+    "path": "retained-UncontrolledAllocationSize-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-UncontrolledAllocationSize-decoded.stdout",
+    "bytes": 3147,
+    "compressed_bytes": 555,
+    "crc32": "35834c75"
+  },
+  {
+    "path": "retained-UnextractedElements-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-UnextractedElements-decoded.json",
+    "bytes": 284,
+    "compressed_bytes": 177,
+    "crc32": "09c9b261"
+  },
+  {
+    "path": "retained-UnextractedElements-decoded.stdout",
+    "bytes": 64,
+    "compressed_bytes": 64,
+    "crc32": "610dfcf2"
+  },
+  {
+    "path": "retained-UnresolvedMacroCalls-decoded.json",
+    "bytes": 285,
+    "compressed_bytes": 178,
+    "crc32": "1a7f421e"
+  },
+  {
+    "path": "retained-UnresolvedMacroCalls-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-UnresolvedMacroCalls-decoded.stdout",
+    "bytes": 19761,
+    "compressed_bytes": 512,
+    "crc32": "b76aeca7"
+  },
+  {
+    "path": "retained-UseOfHttp-decoded.json",
+    "bytes": 279,
+    "compressed_bytes": 183,
+    "crc32": "44445f54"
+  },
+  {
+    "path": "retained-UseOfHttp-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-UseOfHttp-decoded.stdout",
+    "bytes": 695,
+    "compressed_bytes": 165,
+    "crc32": "4514e325"
+  },
+  {
+    "path": "retained-WeakSensitiveDataHashing-decoded.json",
+    "bytes": 294,
+    "compressed_bytes": 192,
+    "crc32": "838ba7c7"
+  },
+  {
+    "path": "retained-WeakSensitiveDataHashing-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-WeakSensitiveDataHashing-decoded.stdout",
+    "bytes": 687,
+    "compressed_bytes": 162,
+    "crc32": "8d841147"
+  },
+  {
+    "path": "retained-XSS-decoded.json",
+    "bytes": 273,
+    "compressed_bytes": 176,
+    "crc32": "fdf00ea4"
+  },
+  {
+    "path": "retained-XSS-decoded.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "retained-XSS-decoded.stdout",
+    "bytes": 695,
+    "compressed_bytes": 165,
+    "crc32": "4514e325"
+  },
+  {
+    "path": "retained-bqrs/queries/diagnostics/AstConsistencyCounts.bqrs",
+    "bytes": 615,
+    "compressed_bytes": 375,
+    "crc32": "39f19c91"
+  },
+  {
+    "path": "retained-bqrs/queries/diagnostics/CfgConsistencyCounts.bqrs",
+    "bytes": 787,
+    "compressed_bytes": 477,
+    "crc32": "c3d2002c"
+  },
+  {
+    "path": "retained-bqrs/queries/diagnostics/DataFlowConsistencyCounts.bqrs",
+    "bytes": 1655,
+    "compressed_bytes": 804,
+    "crc32": "46dc6bf0"
+  },
+  {
+    "path": "retained-bqrs/queries/diagnostics/ExtractedFiles.bqrs",
+    "bytes": 294661,
+    "compressed_bytes": 28624,
+    "crc32": "050e65b0"
+  },
+  {
+    "path": "retained-bqrs/queries/diagnostics/ExtractionErrors.bqrs",
+    "bytes": 339,
+    "compressed_bytes": 227,
+    "crc32": "8c1c39b5"
+  },
+  {
+    "path": "retained-bqrs/queries/diagnostics/ExtractionWarnings.bqrs",
+    "bytes": 349,
+    "compressed_bytes": 232,
+    "crc32": "9e605919"
+  },
+  {
+    "path": "retained-bqrs/queries/diagnostics/SsaConsistencyCounts.bqrs",
+    "bytes": 880,
+    "compressed_bytes": 468,
+    "crc32": "0bb879cc"
+  },
+  {
+    "path": "retained-bqrs/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs",
+    "bytes": 591,
+    "compressed_bytes": 350,
+    "crc32": "a42b6a82"
+  },
+  {
+    "path": "retained-bqrs/queries/diagnostics/UnextractedElements.bqrs",
+    "bytes": 361,
+    "compressed_bytes": 239,
+    "crc32": "777e8a2b"
+  },
+  {
+    "path": "retained-bqrs/queries/diagnostics/UnresolvedMacroCalls.bqrs",
+    "bytes": 6365,
+    "compressed_bytes": 3138,
+    "crc32": "33e085f4"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-022/TaintedPath.bqrs",
+    "bytes": 1017352,
+    "compressed_bytes": 402945,
+    "crc32": "c16379d0"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-078/CommandInjection.bqrs",
+    "bytes": 274704,
+    "compressed_bytes": 105645,
+    "crc32": "de22fd9b"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-020/RegexInjection.bqrs",
+    "bytes": 857,
+    "compressed_bytes": 483,
+    "crc32": "5003d784"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-079/XSS.bqrs",
+    "bytes": 646,
+    "compressed_bytes": 391,
+    "crc32": "85f3e9bc"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-117/LogInjection.bqrs",
+    "bytes": 40852,
+    "compressed_bytes": 13162,
+    "crc32": "9334a404"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-089/SqlInjection.bqrs",
+    "bytes": 665,
+    "compressed_bytes": 412,
+    "crc32": "afd915ee"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-295/DisabledCertificateCheck.bqrs",
+    "bytes": 676,
+    "compressed_bytes": 409,
+    "crc32": "732c997d"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-312/CleartextLogging.bqrs",
+    "bytes": 392833,
+    "compressed_bytes": 132086,
+    "crc32": "b0d6a492"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-311/CleartextTransmission.bqrs",
+    "bytes": 695,
+    "compressed_bytes": 407,
+    "crc32": "cb6b12d8"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-312/CleartextStorageDatabase.bqrs",
+    "bytes": 704,
+    "compressed_bytes": 411,
+    "crc32": "8e8b0741"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-319/UseOfHttp.bqrs",
+    "bytes": 613,
+    "compressed_bytes": 395,
+    "crc32": "fc77d256"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs",
+    "bytes": 524,
+    "compressed_bytes": 319,
+    "crc32": "0fc538ab"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs",
+    "bytes": 738,
+    "compressed_bytes": 413,
+    "crc32": "0fdf80ca"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-614/InsecureCookie.bqrs",
+    "bytes": 769,
+    "compressed_bytes": 451,
+    "crc32": "ca480efa"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-770/UncontrolledAllocationSize.bqrs",
+    "bytes": 1922,
+    "compressed_bytes": 1022,
+    "crc32": "18313941"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-798/HardcodedCryptographicValue.bqrs",
+    "bytes": 622157,
+    "compressed_bytes": 276321,
+    "crc32": "28c7c76b"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-825/AccessAfterLifetime.bqrs",
+    "bytes": 753,
+    "compressed_bytes": 442,
+    "crc32": "8e3f1a52"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-825/AccessInvalidPointer.bqrs",
+    "bytes": 1592,
+    "compressed_bytes": 918,
+    "crc32": "141db97c"
+  },
+  {
+    "path": "retained-bqrs/queries/security/CWE-918/RequestForgery.bqrs",
+    "bytes": 623,
+    "compressed_bytes": 395,
+    "crc32": "0f632ef5"
+  },
+  {
+    "path": "retained-bqrs/queries/summary/LinesOfCode.bqrs",
+    "bytes": 657,
+    "compressed_bytes": 395,
+    "crc32": "8909fedc"
+  },
+  {
+    "path": "retained-bqrs/queries/summary/LinesOfUserCode.bqrs",
+    "bytes": 503,
+    "compressed_bytes": 330,
+    "crc32": "3359cfe5"
+  },
+  {
+    "path": "retained-bqrs/queries/summary/NodesWithTypeAtLengthLimit.bqrs",
+    "bytes": 398,
+    "compressed_bytes": 268,
+    "crc32": "fe453572"
+  },
+  {
+    "path": "retained-bqrs/queries/summary/NumberOfFilesExtractedWithErrors.bqrs",
+    "bytes": 520,
+    "compressed_bytes": 319,
+    "crc32": "4c92534f"
+  },
+  {
+    "path": "retained-bqrs/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs",
+    "bytes": 499,
+    "compressed_bytes": 308,
+    "crc32": "2f264959"
+  },
+  {
+    "path": "retained-bqrs/queries/summary/QuerySinkCounts.bqrs",
+    "bytes": 685,
+    "compressed_bytes": 455,
+    "crc32": "349159d2"
+  },
+  {
+    "path": "retained-bqrs/queries/summary/SummaryStatsReduced.bqrs",
+    "bytes": 907,
+    "compressed_bytes": 513,
+    "crc32": "da02add6"
+  },
+  {
+    "path": "retained-bqrs/queries/telemetry/ExtractorInformation.bqrs",
+    "bytes": 1113,
+    "compressed_bytes": 553,
+    "crc32": "945c3772"
+  },
+  {
+    "path": "retained-bqrs/queries/telemetry/DatabaseQualityDiagnostics.bqrs",
+    "bytes": 351,
+    "compressed_bytes": 239,
+    "crc32": "59659786"
+  },
+  {
+    "path": "version.json",
+    "bytes": 143,
+    "compressed_bytes": 110,
+    "crc32": "15872887"
+  },
+  {
+    "path": "version.stderr",
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000"
+  },
+  {
+    "path": "version.stdout",
+    "bytes": 7,
+    "compressed_bytes": 9,
+    "crc32": "165df238"
+  }
+]

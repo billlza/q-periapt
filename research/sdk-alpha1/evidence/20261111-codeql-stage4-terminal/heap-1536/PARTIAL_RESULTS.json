@@ -1,0 +1,365 @@
+{
+  "all_expected_bqrs_captured": false,
+  "analysis_completed": false,
+  "budget_exhausted": false,
+  "budget_seconds": 120,
+  "byte_budget_exhausted": false,
+  "capture_errors": {},
+  "captured_query_count": 38,
+  "decoded_query_count": 38,
+  "expected_query_count": 39,
+  "kind": "qperiapt.codeql_summary_control_partial_results",
+  "missing_queries": [
+    "queries/summary/SummaryStats.ql"
+  ],
+  "results": {
+    "queries/diagnostics/AstConsistencyCounts.ql": {
+      "bqrs_sha256": "9ad51f919bf1a9585eba33b7e0dea8c9e1658854b1b74a009f6787a2e35cf2ee",
+      "bytes": 615,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 119,
+      "path": "partial-fresh-bqrs/queries/diagnostics/AstConsistencyCounts.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "6bb5525b1677f980d9b2488623e64bb348c332413935fb1069c09fa67f5e3376"
+    },
+    "queries/diagnostics/CfgConsistencyCounts.ql": {
+      "bqrs_sha256": "16cd1d798a12a29c7eb9df81c2419364cd08dbe09e5330282ceede37adda63df",
+      "bytes": 787,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 119,
+      "path": "partial-fresh-bqrs/queries/diagnostics/CfgConsistencyCounts.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "dbf6ac651cf30d070dec4a1eb98c6c8b57d08ab717e7479afc72cacbbbc5b5cc"
+    },
+    "queries/diagnostics/DataFlowConsistencyCounts.ql": {
+      "bqrs_sha256": "76d681b32bc86616261f3e4da80607aeac1b3344e2917eb10d8761c84aac5bc6",
+      "bytes": 1655,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 118,
+      "path": "partial-fresh-bqrs/queries/diagnostics/DataFlowConsistencyCounts.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "dfecd370b76c891343eedf4fae0733e6d48622511f9485a5524c399cd18e5941"
+    },
+    "queries/diagnostics/ExtractedFiles.ql": {
+      "bqrs_sha256": "59329b40407b766cfb1c997fdbcd1f00ffbcad05d9979346cf35b6be8f970e38",
+      "bytes": 294661,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 118,
+      "path": "partial-fresh-bqrs/queries/diagnostics/ExtractedFiles.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "72b30bd5cba93633146ab2bb2d2fca54b181232c378d6020993f47d18572fcfd"
+    },
+    "queries/diagnostics/ExtractionErrors.ql": {
+      "bqrs_sha256": "cf96196b77ac70d4ccebaffbc88cf0e578d4665cbe5c9b014ae04ada6ef50dd6",
+      "bytes": 339,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 117,
+      "path": "partial-fresh-bqrs/queries/diagnostics/ExtractionErrors.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "84eff2f1825a22b01bd5299d98acddf6026fb2acc3e61f7fb31d7981c6bc3846"
+    },
+    "queries/diagnostics/ExtractionWarnings.ql": {
+      "bqrs_sha256": "fb2f68b928ca16be8f8b60c4aeba2ee86121c2310c1a971b356893c393d62232",
+      "bytes": 349,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 116,
+      "path": "partial-fresh-bqrs/queries/diagnostics/ExtractionWarnings.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "f1b9b0a85db7037951e8ba5fd085edebf14e3a2cc41bda262dc403bbdda11fbb"
+    },
+    "queries/diagnostics/SsaConsistencyCounts.ql": {
+      "bqrs_sha256": "5ea19a4bd3c2027bad2f05c81c3d337c8d11e62518e7330f5abf2a25e141f2f0",
+      "bytes": 880,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 116,
+      "path": "partial-fresh-bqrs/queries/diagnostics/SsaConsistencyCounts.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "7aa0d8dbb68afc128a4d90d5f3436313a79ee11b6e30aad54571b431b4c66252"
+    },
+    "queries/diagnostics/TypeInferenceConsistencyCounts.ql": {
+      "bqrs_sha256": "07f57732acbbd7005160d17b12d5c7fb595fe81ef6c400104d1ee1a759137522",
+      "bytes": 591,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 115,
+      "path": "partial-fresh-bqrs/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "05cf522c996bae06f52d2869dcad7aa83d66a15e49f0d03ff84f7a967f8069c3"
+    },
+    "queries/diagnostics/UnextractedElements.ql": {
+      "bqrs_sha256": "a79bf3175cc9fcdf4f3abcd0af105985e4795b04bbe673ba1bd8c678adede752",
+      "bytes": 361,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 115,
+      "path": "partial-fresh-bqrs/queries/diagnostics/UnextractedElements.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "0a659f12f3e1254761ce9c92d65931a25099b6ddabc323b087829d73a7e62e20"
+    },
+    "queries/diagnostics/UnresolvedMacroCalls.ql": {
+      "bqrs_sha256": "9fde4cc5b6096abda64861580f6c1b6bc5fcc25dbb343576d446c944c044eb03",
+      "bytes": 6365,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 114,
+      "path": "partial-fresh-bqrs/queries/diagnostics/UnresolvedMacroCalls.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "c370f5a203c475d078edd7a4d60868b10133dfc1215af34cb83e77474cf6faac"
+    },
+    "queries/security/CWE-020/RegexInjection.ql": {
+      "bqrs_sha256": "a3d09f0441a4eb2b65b72f3bacf17462793b611a60cbc1b40bbe21037eeedd23",
+      "bytes": 857,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 114,
+      "path": "partial-fresh-bqrs/queries/security/CWE-020/RegexInjection.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+    },
+    "queries/security/CWE-022/TaintedPath.ql": {
+      "bqrs_sha256": "3d1e7d94631dd11d585341c71e24459f9eeb76ef0c0f0cd0590ae9bb7edb6a1e",
+      "bytes": 1017352,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 113,
+      "path": "partial-fresh-bqrs/queries/security/CWE-022/TaintedPath.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "15ad11987d1ba51b7905c0c416f218115bec27978ef0b4f35a42847110ed7542"
+    },
+    "queries/security/CWE-078/CommandInjection.ql": {
+      "bqrs_sha256": "20f443ba91668af91afad2ec114a58fbd1ca6a1874bc8cef39896fbb6b7d4913",
+      "bytes": 274704,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 112,
+      "path": "partial-fresh-bqrs/queries/security/CWE-078/CommandInjection.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "ff43af868ebfe00d7b68ace12bc5425830533cc42d856ee6cd3135c2c4370b82"
+    },
+    "queries/security/CWE-079/XSS.ql": {
+      "bqrs_sha256": "738ea4aab22c210e02fadeff01bd3138b48a8cbab20afd8e9f6d70039304838f",
+      "bytes": 646,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 111,
+      "path": "partial-fresh-bqrs/queries/security/CWE-079/XSS.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+    },
+    "queries/security/CWE-089/SqlInjection.ql": {
+      "bqrs_sha256": "88b86c0d94a48a86dc8cd64dbf05c1cb338a790162defb555dcaba9921ac213d",
+      "bytes": 665,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 111,
+      "path": "partial-fresh-bqrs/queries/security/CWE-089/SqlInjection.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+    },
+    "queries/security/CWE-117/LogInjection.ql": {
+      "bqrs_sha256": "977d9270c3dcba3d9832750ba2e25416185382be78cd62811e95646a22b85e90",
+      "bytes": 40852,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 110,
+      "path": "partial-fresh-bqrs/queries/security/CWE-117/LogInjection.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "800832526b7e6ffaf3214f356dcee115f8aa4d4c0dcb568e7e629c5d2e008a57"
+    },
+    "queries/security/CWE-295/DisabledCertificateCheck.ql": {
+      "bqrs_sha256": "a96ddad41f0947bd8d89e99f9aa79d6d335445efe0a93fb7087922bdf7af6f07",
+      "bytes": 676,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 110,
+      "path": "partial-fresh-bqrs/queries/security/CWE-295/DisabledCertificateCheck.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "d2e254bfad8989c9d0500d31392ef5b9ab46972d9e97f1efe5ddb9d1f6b372e1"
+    },
+    "queries/security/CWE-311/CleartextTransmission.ql": {
+      "bqrs_sha256": "d18ce7ef9745e8fba57b3ed0b9aed5f048bf54710fbb8123d6b6c0ea5a9e2474",
+      "bytes": 695,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 109,
+      "path": "partial-fresh-bqrs/queries/security/CWE-311/CleartextTransmission.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "95f15756992e089283ff0e765613a299c96f5b226001baaa705a8b6c38edce97"
+    },
+    "queries/security/CWE-312/CleartextLogging.ql": {
+      "bqrs_sha256": "efeef27281c432a0ae8a0190715633a8cd65db303ea6ed6937ea03cd95703da7",
+      "bytes": 392833,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 109,
+      "path": "partial-fresh-bqrs/queries/security/CWE-312/CleartextLogging.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "d3baa1526d0257f7eb332e1d69b4810d3b26eb9cbec6451f97e14808a34fb93f"
+    },
+    "queries/security/CWE-312/CleartextStorageDatabase.ql": {
+      "bqrs_sha256": "d224b528a2cd7c07be3f7ff958ab9b62da4a2bb6eb7400c2e6a32e0fa8715016",
+      "bytes": 704,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 108,
+      "path": "partial-fresh-bqrs/queries/security/CWE-312/CleartextStorageDatabase.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "95f15756992e089283ff0e765613a299c96f5b226001baaa705a8b6c38edce97"
+    },
+    "queries/security/CWE-319/UseOfHttp.ql": {
+      "bqrs_sha256": "77178f026a9034d3133424c90847f17c23f80dc2ed5f9c4bf5e9000c8a7548a6",
+      "bytes": 613,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 107,
+      "path": "partial-fresh-bqrs/queries/security/CWE-319/UseOfHttp.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+    },
+    "queries/security/CWE-327/BrokenCryptoAlgorithm.ql": {
+      "bqrs_sha256": "faf3accd9afbc00d5547c00bda0aa82b1afc68271077f7cabd79809bbfd86128",
+      "bytes": 524,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 107,
+      "path": "partial-fresh-bqrs/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "b341c406238eb41a6ae36a0588b7c62b425040d7ac05ca16f2b77d5afb5a6ce9"
+    },
+    "queries/security/CWE-327/WeakSensitiveDataHashing.ql": {
+      "bqrs_sha256": "e0fe6ed152893151c3c454f668a2f0e80bb3e3b7c60e0e1254ae50b90c87a0b0",
+      "bytes": 738,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 106,
+      "path": "partial-fresh-bqrs/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced"
+    },
+    "queries/security/CWE-614/InsecureCookie.ql": {
+      "bqrs_sha256": "9766e8d5a3f43642594a78a0edfc1e74cda557053ad6353850452aebb8a70769",
+      "bytes": 769,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 106,
+      "path": "partial-fresh-bqrs/queries/security/CWE-614/InsecureCookie.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "d2e254bfad8989c9d0500d31392ef5b9ab46972d9e97f1efe5ddb9d1f6b372e1"
+    },
+    "queries/security/CWE-770/UncontrolledAllocationSize.ql": {
+      "bqrs_sha256": "e1924dc7b9a55c99dfe24fb5d421483b326f7b7aee0c4e0bbf1f42de47688d30",
+      "bytes": 1922,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 105,
+      "path": "partial-fresh-bqrs/queries/security/CWE-770/UncontrolledAllocationSize.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "420d8b59728ca9bef5e0a2f5f378c34843017413bee1d17bd5d83687161c365d"
+    },
+    "queries/security/CWE-798/HardcodedCryptographicValue.ql": {
+      "bqrs_sha256": "7e7315e536d28fe0c51b78a3bda8b20cd031ec33f50315bb4d4931f43d901b1e",
+      "bytes": 622157,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 105,
+      "path": "partial-fresh-bqrs/queries/security/CWE-798/HardcodedCryptographicValue.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "48c6f6b8e7e8a6b1686f75534e878f88353bf6e6eec98fcf8cc9dd127a72496f"
+    },
+    "queries/security/CWE-825/AccessAfterLifetime.ql": {
+      "bqrs_sha256": "fd39976e89b95b8c94b3bd4d4753f4e55fe43b93e923f6853b8709a00bc8ba24",
+      "bytes": 753,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 104,
+      "path": "partial-fresh-bqrs/queries/security/CWE-825/AccessAfterLifetime.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "f2a7960593b1718a5d42fc0b50338c0c0357b884a2791f87454f53bb9c6adefa"
+    },
+    "queries/security/CWE-825/AccessInvalidPointer.ql": {
+      "bqrs_sha256": "a1d4ffa67fc69cde3beb23bead28601d92ee73c44d24b10554e1462c903780f4",
+      "bytes": 1592,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 103,
+      "path": "partial-fresh-bqrs/queries/security/CWE-825/AccessInvalidPointer.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "9146778c5c26076dcc08222937805674f34d71111cb5ba7dd5a06dad676987ec"
+    },
+    "queries/security/CWE-918/RequestForgery.ql": {
+      "bqrs_sha256": "5b474604a072ac800192cda73eeb35b70280f1ce33f4f543dacb6fa4b082c6a1",
+      "bytes": 623,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 103,
+      "path": "partial-fresh-bqrs/queries/security/CWE-918/RequestForgery.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced"
+    },
+    "queries/summary/LinesOfCode.ql": {
+      "bqrs_sha256": "e3fa53030f732ad1a92b6ea71bbbabad3b92624a74af4afdfb4426faead497c7",
+      "bytes": 657,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 102,
+      "path": "partial-fresh-bqrs/queries/summary/LinesOfCode.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "e2d1b55fde4146eb72a6cf09ef9ed1c6ce68eb1419f0256836c827b6d6c06d2f"
+    },
+    "queries/summary/LinesOfUserCode.ql": {
+      "bqrs_sha256": "bbff3e2fef97c9444073e63d2796b81c1fd29a1121a796088b0d902285caff5b",
+      "bytes": 503,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 102,
+      "path": "partial-fresh-bqrs/queries/summary/LinesOfUserCode.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "e2d1b55fde4146eb72a6cf09ef9ed1c6ce68eb1419f0256836c827b6d6c06d2f"
+    },
+    "queries/summary/NodesWithTypeAtLengthLimit.ql": {
+      "bqrs_sha256": "444e06e68233718be8c29837d466be22e8adef07bac7cfbc4c5eb16c59111dac",
+      "bytes": 398,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 101,
+      "path": "partial-fresh-bqrs/queries/summary/NodesWithTypeAtLengthLimit.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "3fb32cdc2fe562214054ed2c79dab8bfdbda458574d6774aaec13166c5577679"
+    },
+    "queries/summary/NumberOfFilesExtractedWithErrors.ql": {
+      "bqrs_sha256": "2b5a7074d0a8868ea945c0145fae194365cbfac105e1f8e72ec3cfb719fa73d2",
+      "bytes": 520,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 101,
+      "path": "partial-fresh-bqrs/queries/summary/NumberOfFilesExtractedWithErrors.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "84e831543dc7042284b8f6ab2a0201a49e1af5aa0603c9d627fbc3090e97fdcc"
+    },
+    "queries/summary/NumberOfSuccessfullyExtractedFiles.ql": {
+      "bqrs_sha256": "4bd04c77b4e426a8f1e7f1b24152d9842f1d44e71d4bab98eff2dbf1a27e76b1",
+      "bytes": 499,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 100,
+      "path": "partial-fresh-bqrs/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "79fc88a53fdd3ec543a4dc258f81b7b14c4a984fd882cb182bfdeb574dda228d"
+    },
+    "queries/summary/QuerySinkCounts.ql": {
+      "bqrs_sha256": "f87ea4b33b63043a5b728929568c27e919f430b12ca4cba3c2f8acfe7736326b",
+      "bytes": 685,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 100,
+      "path": "partial-fresh-bqrs/queries/summary/QuerySinkCounts.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "8ef6e1404fc534c393918bd0563102b9de96fbd68f2ca310a51a92427ed994f3"
+    },
+    "queries/summary/SummaryStatsReduced.ql": {
+      "bqrs_sha256": "1c132ca2e17214cff94d96f78e24992ad72e1bc6cb6a3bd2383a5e3512915254",
+      "bytes": 907,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 99,
+      "path": "partial-fresh-bqrs/queries/summary/SummaryStatsReduced.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "08c368f7288a55afc4f3ddaa075fa42a8537b70174e34295a2d06b36e05fad66"
+    },
+    "queries/telemetry/DatabaseQualityDiagnostics.ql": {
+      "bqrs_sha256": "3732122e1fdbe50d23c2b01a565c7893839fd1d66452c003410fa35b86e90194",
+      "bytes": 351,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 98,
+      "path": "partial-fresh-bqrs/queries/telemetry/DatabaseQualityDiagnostics.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "630a5f7a583bc8fb5cc7a007c3d16650e4b93098a0718ae439cff36af3e67dd2"
+    },
+    "queries/telemetry/ExtractorInformation.ql": {
+      "bqrs_sha256": "0a4d8c0432a347c25f9be4ee4474eb89911c76489a10befc5a30f9ac77504ac9",
+      "bytes": 1113,
+      "decode_status": "decoded",
+      "decode_timeout_seconds": 98,
+      "path": "partial-fresh-bqrs/queries/telemetry/ExtractorInformation.bqrs",
+      "retained_semantics_equal": true,
+      "semantic_sha256": "fcc244e412cb6ba89f4e7f1663da9e4e9a3d8774e026c1f3672c3b04c7c8f18e"
+    }
+  },
+  "schema": 1,
+  "seconds": 22.187637074999657,
+  "status": "partial",
+  "uncaptured_queries": [
+    "queries/summary/SummaryStats.ql"
+  ]
+}

@@ -1,0 +1,2410 @@
+{
+  "schema": 1,
+  "experiment_commit": "4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215",
+  "verification_scope": "Existing BQRS bytes and retained CodeQL-decoded JSON were read from the verified archives. No CodeQL, JVM, database extraction, query execution, or new BQRS decoding was run.",
+  "normalizer_source_verification": {
+    "artifact/codeql_summary_control.py": {
+      "pinned_source_sha256": "5ef520a9bece36439ce8b23f8cc079134224e120db926251395e67f4399084c3",
+      "function_ast_sha256": {
+        "require": "1d331d1c09bb05099d3543e36e15dfd2c71dc3a19e84f52b9b10c5b7dcc2c127",
+        "canonical_sha": "7f55effa1ccc28bf4c54e87aed41ed742959d0141ce90ad273bdd14b2907ed4f",
+        "result_semantic_sha": "7d41dcb6c5cead9ff86420bb3cb9e36222093db82dddb3ab24973c850838f109"
+      }
+    },
+    "artifact/evidence_io.py": {
+      "pinned_source_sha256": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d",
+      "function_ast_sha256": {
+        "parse_strict_json_bytes": "edbc4cc9808dff3a3f308577262b74497dcec43903fd4eadf8eeca2c5834913c"
+      }
+    }
+  },
+  "both_profiles_fresh_38_semantics_equal": true,
+  "profiles": [
+    {
+      "profile": "heap-2048",
+      "artifact_id": 13872915159,
+      "archive_bytes": 31837325,
+      "archive_sha256": "e5ea00d64244f9083f3f1665ac847cd7bf24513849b7a4fa757fdbbbbb3cbfa5",
+      "archive_member_count": 334,
+      "fresh_bqrs_count": 38,
+      "retained_bqrs_count": 38,
+      "all_bqrs_hashes_and_sizes_match_receipts": true,
+      "semantic_equal_count": 38,
+      "binary_equal_count": 0,
+      "missing_query": "queries/summary/SummaryStats.ql",
+      "completion_stderr": {
+        "bytes": 13977,
+        "sha256": "7f7543a501b76254766a8c9d9fdc15b403c97a736c6543a601d89e258330e915",
+        "distinct_queries": 38,
+        "queries": [
+          "queries/diagnostics/AstConsistencyCounts.ql",
+          "queries/diagnostics/CfgConsistencyCounts.ql",
+          "queries/diagnostics/DataFlowConsistencyCounts.ql",
+          "queries/diagnostics/ExtractedFiles.ql",
+          "queries/diagnostics/ExtractionErrors.ql",
+          "queries/diagnostics/ExtractionWarnings.ql",
+          "queries/diagnostics/SsaConsistencyCounts.ql",
+          "queries/diagnostics/TypeInferenceConsistencyCounts.ql",
+          "queries/diagnostics/UnextractedElements.ql",
+          "queries/diagnostics/UnresolvedMacroCalls.ql",
+          "queries/security/CWE-020/RegexInjection.ql",
+          "queries/security/CWE-022/TaintedPath.ql",
+          "queries/security/CWE-078/CommandInjection.ql",
+          "queries/security/CWE-079/XSS.ql",
+          "queries/security/CWE-089/SqlInjection.ql",
+          "queries/security/CWE-117/LogInjection.ql",
+          "queries/security/CWE-295/DisabledCertificateCheck.ql",
+          "queries/security/CWE-311/CleartextTransmission.ql",
+          "queries/security/CWE-312/CleartextLogging.ql",
+          "queries/security/CWE-312/CleartextStorageDatabase.ql",
+          "queries/security/CWE-319/UseOfHttp.ql",
+          "queries/security/CWE-327/BrokenCryptoAlgorithm.ql",
+          "queries/security/CWE-327/WeakSensitiveDataHashing.ql",
+          "queries/security/CWE-614/InsecureCookie.ql",
+          "queries/security/CWE-770/UncontrolledAllocationSize.ql",
+          "queries/security/CWE-798/HardcodedCryptographicValue.ql",
+          "queries/security/CWE-825/AccessAfterLifetime.ql",
+          "queries/security/CWE-825/AccessInvalidPointer.ql",
+          "queries/security/CWE-918/RequestForgery.ql",
+          "queries/summary/LinesOfCode.ql",
+          "queries/summary/LinesOfUserCode.ql",
+          "queries/summary/NodesWithTypeAtLengthLimit.ql",
+          "queries/summary/NumberOfFilesExtractedWithErrors.ql",
+          "queries/summary/NumberOfSuccessfullyExtractedFiles.ql",
+          "queries/summary/QuerySinkCounts.ql",
+          "queries/summary/SummaryStatsReduced.ql",
+          "queries/telemetry/DatabaseQualityDiagnostics.ql",
+          "queries/telemetry/ExtractorInformation.ql"
+        ]
+      },
+      "resource_samples": {
+        "member": "PROCESS_RESOURCES.jsonl",
+        "bytes": 7041722,
+        "sha256": "88a52835f761ba9ce49a3a373457efaff173dd38911153c49e24125a9e6fdd59",
+        "count": 8975,
+        "samples_with_processes": 8974,
+        "peak_tree_rss_bytes": 14545317888,
+        "peak_roots_rss_bytes": 1982464,
+        "selected_rows": [
+          "first",
+          "first maximum tree RSS",
+          "last"
+        ]
+      },
+      "queries": [
+        {
+          "query": "queries/diagnostics/AstConsistencyCounts.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/AstConsistencyCounts.bqrs",
+            "bytes": 615,
+            "sha256": "115a6865dea672a14e78dcf77db71be999938e5ea12a0cb58d33536ea44387df"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/AstConsistencyCounts.bqrs",
+            "bytes": 615,
+            "sha256": "40e4c0928199763aceb8f969eff3443885953c1b027e22c81b42603c3b0c783f"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-AstConsistencyCounts-decoded.stdout",
+            "bytes": 369,
+            "sha256": "1617ee7fa7a41633651a62124956a7cd8128cd58452234b4474dc507e742a1bf"
+          },
+          "retained_decoded": {
+            "path": "retained-AstConsistencyCounts-decoded.stdout",
+            "bytes": 369,
+            "sha256": "1617ee7fa7a41633651a62124956a7cd8128cd58452234b4474dc507e742a1bf"
+          },
+          "semantic_sha256": "6bb5525b1677f980d9b2488623e64bb348c332413935fb1069c09fa67f5e3376",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 9
+          }
+        },
+        {
+          "query": "queries/diagnostics/CfgConsistencyCounts.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/CfgConsistencyCounts.bqrs",
+            "bytes": 787,
+            "sha256": "362ea2375b328b77613d377b4444ccb493b8214093627c7d66961518cca623d8"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/CfgConsistencyCounts.bqrs",
+            "bytes": 787,
+            "sha256": "80fb44993e6e33f0da9a98d2545a9b0b4305b85650413e6eb68856146563482f"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-CfgConsistencyCounts-decoded.stdout",
+            "bytes": 574,
+            "sha256": "8da622438249fe020a13d2b6f703709b4901d021b8b98ec893256c6708349bc4"
+          },
+          "retained_decoded": {
+            "path": "retained-CfgConsistencyCounts-decoded.stdout",
+            "bytes": 574,
+            "sha256": "8da622438249fe020a13d2b6f703709b4901d021b8b98ec893256c6708349bc4"
+          },
+          "semantic_sha256": "dbf6ac651cf30d070dec4a1eb98c6c8b57d08ab717e7479afc72cacbbbc5b5cc",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 14
+          }
+        },
+        {
+          "query": "queries/diagnostics/DataFlowConsistencyCounts.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/DataFlowConsistencyCounts.bqrs",
+            "bytes": 1655,
+            "sha256": "e7ff629d63097d3a32e454bb75ee358ee55e1f72a24f8a08502f64429f5abde7"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/DataFlowConsistencyCounts.bqrs",
+            "bytes": 1655,
+            "sha256": "44e1df242764a22edbe8f5bf992f22ca4a806a6740bd5131e6613a48806b9da4"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-DataFlowConsistencyCounts-decoded.stdout",
+            "bytes": 1536,
+            "sha256": "795c465dc0ad34fb9c55e203cb4925c761885b10e6af64537e785f70f1a7f90f"
+          },
+          "retained_decoded": {
+            "path": "retained-DataFlowConsistencyCounts-decoded.stdout",
+            "bytes": 1536,
+            "sha256": "795c465dc0ad34fb9c55e203cb4925c761885b10e6af64537e785f70f1a7f90f"
+          },
+          "semantic_sha256": "dfecd370b76c891343eedf4fae0733e6d48622511f9485a5524c399cd18e5941",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 29
+          }
+        },
+        {
+          "query": "queries/diagnostics/ExtractedFiles.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/ExtractedFiles.bqrs",
+            "bytes": 294661,
+            "sha256": "6d3c11eb413009b8c3adfe2e713852a4071226592af14c6375d417239b62cd26"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/ExtractedFiles.bqrs",
+            "bytes": 294661,
+            "sha256": "3ad33d5d586f9ed828c6dc6f3faa5a360132bfe5c85a6c6cc1934885a5a6cd3c"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-ExtractedFiles-decoded.stdout",
+            "bytes": 188530,
+            "sha256": "bdcf391317744fb00a22995013904baa9b0fe26d29acdcf2fdefa5ba5821ba3c"
+          },
+          "retained_decoded": {
+            "path": "retained-ExtractedFiles-decoded.stdout",
+            "bytes": 188530,
+            "sha256": "bdcf391317744fb00a22995013904baa9b0fe26d29acdcf2fdefa5ba5821ba3c"
+          },
+          "semantic_sha256": "72b30bd5cba93633146ab2bb2d2fca54b181232c378d6020993f47d18572fcfd",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 1173
+          }
+        },
+        {
+          "query": "queries/diagnostics/ExtractionErrors.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/ExtractionErrors.bqrs",
+            "bytes": 339,
+            "sha256": "83be2d1032a0b6b42f02f2d112fc9ef0039cddeaf62cf3914b41db28e76605ae"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/ExtractionErrors.bqrs",
+            "bytes": 339,
+            "sha256": "1640933ebb09c2367e3882b6e387a97341410c5687babd994d0ad1490c6f6d17"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-ExtractionErrors-decoded.stdout",
+            "bytes": 122,
+            "sha256": "2c38be0a7d1935f63300ceccb92fd50f5bb76b829bcd0bac782393521a7665fc"
+          },
+          "retained_decoded": {
+            "path": "retained-ExtractionErrors-decoded.stdout",
+            "bytes": 122,
+            "sha256": "2c38be0a7d1935f63300ceccb92fd50f5bb76b829bcd0bac782393521a7665fc"
+          },
+          "semantic_sha256": "84eff2f1825a22b01bd5299d98acddf6026fb2acc3e61f7fb31d7981c6bc3846",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/diagnostics/ExtractionWarnings.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/ExtractionWarnings.bqrs",
+            "bytes": 349,
+            "sha256": "828ee3a9b70d3af312b5bbf413f8e0dc94887fedc47eb2bddc943d40aa37e2ca"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/ExtractionWarnings.bqrs",
+            "bytes": 349,
+            "sha256": "1a932e1880bf91ece57f3dee9d7559d7b0bbed05df5436f84da0c6d2738b1cfc"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-ExtractionWarnings-decoded.stdout",
+            "bytes": 124,
+            "sha256": "e5bead177c4b977827fade4da62f0a1a616a2150247337901a6bab00620e1fec"
+          },
+          "retained_decoded": {
+            "path": "retained-ExtractionWarnings-decoded.stdout",
+            "bytes": 124,
+            "sha256": "e5bead177c4b977827fade4da62f0a1a616a2150247337901a6bab00620e1fec"
+          },
+          "semantic_sha256": "f1b9b0a85db7037951e8ba5fd085edebf14e3a2cc41bda262dc403bbdda11fbb",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/diagnostics/SsaConsistencyCounts.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/SsaConsistencyCounts.bqrs",
+            "bytes": 880,
+            "sha256": "3c936505957446e90882c69dd3396db2b94ffaf63e795f7b9addd149a6b2f903"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/SsaConsistencyCounts.bqrs",
+            "bytes": 880,
+            "sha256": "c8b0e9da0ef8d72a50d1c11ad0c55014cbdc8337cd96d224285958db6e60c9f2"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-SsaConsistencyCounts-decoded.stdout",
+            "bytes": 628,
+            "sha256": "5b2e6d87b4d635ad07ae3f1495f84de68bfaaaddd6dd717d9bd6c680aca681d8"
+          },
+          "retained_decoded": {
+            "path": "retained-SsaConsistencyCounts-decoded.stdout",
+            "bytes": 628,
+            "sha256": "5b2e6d87b4d635ad07ae3f1495f84de68bfaaaddd6dd717d9bd6c680aca681d8"
+          },
+          "semantic_sha256": "7aa0d8dbb68afc128a4d90d5f3436313a79ee11b6e30aad54571b431b4c66252",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 10
+          }
+        },
+        {
+          "query": "queries/diagnostics/TypeInferenceConsistencyCounts.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs",
+            "bytes": 591,
+            "sha256": "d9cb52d94c05cbe853186045559b30a19a41723be05203114d369640750f94e8"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs",
+            "bytes": 591,
+            "sha256": "b1089a04306af37337c47965066e79b9570c55d6a4b1fbc691050ca6f317a8fc"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-TypeInferenceConsistencyCounts-decoded.stdout",
+            "bytes": 311,
+            "sha256": "8541dc2840f1a2d135334e0e0b14c3a5bdb118c8b979fffcd405227730cd66b5"
+          },
+          "retained_decoded": {
+            "path": "retained-TypeInferenceConsistencyCounts-decoded.stdout",
+            "bytes": 311,
+            "sha256": "8541dc2840f1a2d135334e0e0b14c3a5bdb118c8b979fffcd405227730cd66b5"
+          },
+          "semantic_sha256": "05cf522c996bae06f52d2869dcad7aa83d66a15e49f0d03ff84f7a967f8069c3",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 5
+          }
+        },
+        {
+          "query": "queries/diagnostics/UnextractedElements.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/UnextractedElements.bqrs",
+            "bytes": 361,
+            "sha256": "ca50f5294fd9f85bd0a0887c1f94c59dd5af2f5191679f131ca8723833786056"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/UnextractedElements.bqrs",
+            "bytes": 361,
+            "sha256": "e7b8a4f9a5d0b0e937a1ce953fb254ff9a888692bf4d607fb670abfdb6cde33c"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-UnextractedElements-decoded.stdout",
+            "bytes": 64,
+            "sha256": "5bcdc6b34673dce5054341492ff27156df1f3b6a8de00af00b7782dd7150e37c"
+          },
+          "retained_decoded": {
+            "path": "retained-UnextractedElements-decoded.stdout",
+            "bytes": 64,
+            "sha256": "5bcdc6b34673dce5054341492ff27156df1f3b6a8de00af00b7782dd7150e37c"
+          },
+          "semantic_sha256": "0a659f12f3e1254761ce9c92d65931a25099b6ddabc323b087829d73a7e62e20",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/diagnostics/UnresolvedMacroCalls.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/UnresolvedMacroCalls.bqrs",
+            "bytes": 6365,
+            "sha256": "b5d50ee755f90553fd02ca3f25a3c9ee5f432da1944bede968169cd3b14c638f"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/UnresolvedMacroCalls.bqrs",
+            "bytes": 6365,
+            "sha256": "17639a86ec131576e2826e93c6e5535ba9effc3c62e2e477b7e9a59e3a5cc7fd"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-UnresolvedMacroCalls-decoded.stdout",
+            "bytes": 19761,
+            "sha256": "3ef9f462f39d5cc598a95fc7b0491ae85b9ef2fcaaecd06ace839d4d5e579e90"
+          },
+          "retained_decoded": {
+            "path": "retained-UnresolvedMacroCalls-decoded.stdout",
+            "bytes": 19761,
+            "sha256": "3ef9f462f39d5cc598a95fc7b0491ae85b9ef2fcaaecd06ace839d4d5e579e90"
+          },
+          "semantic_sha256": "c370f5a203c475d078edd7a4d60868b10133dfc1215af34cb83e77474cf6faac",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 273
+          }
+        },
+        {
+          "query": "queries/security/CWE-020/RegexInjection.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-020/RegexInjection.bqrs",
+            "bytes": 857,
+            "sha256": "c4ab3c716d2574922b74c9f7eb6b1c1f643a58ae52e5a730932220625d95a0e4"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-020/RegexInjection.bqrs",
+            "bytes": 857,
+            "sha256": "6d49274841283aed409ddab44511deab5204e244903c88ef2d1b1bee4a799fb6"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-RegexInjection-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "retained_decoded": {
+            "path": "retained-RegexInjection-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-022/TaintedPath.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-022/TaintedPath.bqrs",
+            "bytes": 1017352,
+            "sha256": "287d3da09e4125a2a374c6b01e39eae9d83686ffc228b3b10e7835b03ce5099c"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-022/TaintedPath.bqrs",
+            "bytes": 1017352,
+            "sha256": "30b68b4d0ddb921d5cbf2a4ca61c7b3d92755dc0e8817104c18b4d54f8340f0e"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-TaintedPath-decoded.stdout",
+            "bytes": 3089709,
+            "sha256": "dc697b59f6744e5a083d2dac205191a68dd2189f56ca037d483203cfe443966c"
+          },
+          "retained_decoded": {
+            "path": "retained-TaintedPath-decoded.stdout",
+            "bytes": 3089709,
+            "sha256": "dc697b59f6744e5a083d2dac205191a68dd2189f56ca037d483203cfe443966c"
+          },
+          "semantic_sha256": "15ad11987d1ba51b7905c0c416f218115bec27978ef0b4f35a42847110ed7542",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 16148,
+            "nodes": 13714,
+            "subpaths": 703,
+            "#select": 2823
+          }
+        },
+        {
+          "query": "queries/security/CWE-078/CommandInjection.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-078/CommandInjection.bqrs",
+            "bytes": 274704,
+            "sha256": "77835a5b7b383772a41aead3855619f9fd53d7deed0e0fa8d75e0ac4917ca509"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-078/CommandInjection.bqrs",
+            "bytes": 274704,
+            "sha256": "f92781f942055893f7c3c94661df4aa4a1724028bf07871c6f796e147ad28414"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-CommandInjection-decoded.stdout",
+            "bytes": 846682,
+            "sha256": "3529d04780e8b73a6de6dfdb1a48d2dc3de603f5dc36e8bc0d4ac2a26f4d0fc2"
+          },
+          "retained_decoded": {
+            "path": "retained-CommandInjection-decoded.stdout",
+            "bytes": 846682,
+            "sha256": "3529d04780e8b73a6de6dfdb1a48d2dc3de603f5dc36e8bc0d4ac2a26f4d0fc2"
+          },
+          "semantic_sha256": "ff43af868ebfe00d7b68ace12bc5425830533cc42d856ee6cd3135c2c4370b82",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 5265,
+            "nodes": 4148,
+            "subpaths": 43,
+            "#select": 398
+          }
+        },
+        {
+          "query": "queries/security/CWE-079/XSS.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-079/XSS.bqrs",
+            "bytes": 646,
+            "sha256": "69d56e3e68c54a5594aca14ce2d49adc03164bcd078f1cdbf45f1ce150b37ae5"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-079/XSS.bqrs",
+            "bytes": 646,
+            "sha256": "4cee66f7eb57ce85502b223cac791c54cf554ac0db4fea48fe73883edb4ff1ca"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-XSS-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "retained_decoded": {
+            "path": "retained-XSS-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-089/SqlInjection.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-089/SqlInjection.bqrs",
+            "bytes": 665,
+            "sha256": "90600b7ba9b0269b5bb632b411bd988086851028632df1951f8bb26915fde018"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-089/SqlInjection.bqrs",
+            "bytes": 665,
+            "sha256": "9a89e68d01bdbf847a50377b9bdc5e7c9c694f2c77b8a6a9a770365ab0e835bd"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-SqlInjection-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "retained_decoded": {
+            "path": "retained-SqlInjection-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-117/LogInjection.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-117/LogInjection.bqrs",
+            "bytes": 40852,
+            "sha256": "d3932f6ad07e899ca5c6451b167de9641d47da316b0696d8a8752b55ddf7048e"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-117/LogInjection.bqrs",
+            "bytes": 40852,
+            "sha256": "2de0f4571060b6991436e979efdf13483c59c742212b563f24fecd15560cb8ca"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-LogInjection-decoded.stdout",
+            "bytes": 109946,
+            "sha256": "2bbf502babeef74dfffdbd2c5ac6233d2d06c1021d27d17565280fb8e6c08687"
+          },
+          "retained_decoded": {
+            "path": "retained-LogInjection-decoded.stdout",
+            "bytes": 109946,
+            "sha256": "2bbf502babeef74dfffdbd2c5ac6233d2d06c1021d27d17565280fb8e6c08687"
+          },
+          "semantic_sha256": "800832526b7e6ffaf3214f356dcee115f8aa4d4c0dcb568e7e629c5d2e008a57",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 583,
+            "nodes": 586,
+            "subpaths": 0,
+            "#select": 123
+          }
+        },
+        {
+          "query": "queries/security/CWE-295/DisabledCertificateCheck.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-295/DisabledCertificateCheck.bqrs",
+            "bytes": 676,
+            "sha256": "b369cd04546d4024cd4de6bc1fbdaecf6cf3ea3a1b588c20e2b095d0fb78df64"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-295/DisabledCertificateCheck.bqrs",
+            "bytes": 676,
+            "sha256": "748c40d746c3508f3371dfb2d68637421f1e885dbe0cc925e78a94e29d18c15b"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-DisabledCertificateCheck-decoded.stdout",
+            "bytes": 653,
+            "sha256": "5046b8944b445a23d39227a2d6caa75e9b16ef6d541c954110102ae17fd42bcc"
+          },
+          "retained_decoded": {
+            "path": "retained-DisabledCertificateCheck-decoded.stdout",
+            "bytes": 653,
+            "sha256": "5046b8944b445a23d39227a2d6caa75e9b16ef6d541c954110102ae17fd42bcc"
+          },
+          "semantic_sha256": "d2e254bfad8989c9d0500d31392ef5b9ab46972d9e97f1efe5ddb9d1f6b372e1",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-311/CleartextTransmission.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-311/CleartextTransmission.bqrs",
+            "bytes": 695,
+            "sha256": "11c72e8b15b0495efffaac9cc849a4aef8632ea51307d9aeb05addd57e9017e7"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-311/CleartextTransmission.bqrs",
+            "bytes": 695,
+            "sha256": "9b00a2ad8552b996b1abd1fe1ba35fa7bd7607f43ded3ec182f6bd8a93050632"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-CleartextTransmission-decoded.stdout",
+            "bytes": 715,
+            "sha256": "14547910500ea41bb9aa157ca72c17442a1233736b4fbea867748aa983d14c6f"
+          },
+          "retained_decoded": {
+            "path": "retained-CleartextTransmission-decoded.stdout",
+            "bytes": 715,
+            "sha256": "14547910500ea41bb9aa157ca72c17442a1233736b4fbea867748aa983d14c6f"
+          },
+          "semantic_sha256": "95f15756992e089283ff0e765613a299c96f5b226001baaa705a8b6c38edce97",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-312/CleartextLogging.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-312/CleartextLogging.bqrs",
+            "bytes": 392833,
+            "sha256": "ee60cf8c6f253dd4aa5d9ceb802c88141f4a77b28832be5f86f581d7dd59ef6e"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-312/CleartextLogging.bqrs",
+            "bytes": 392833,
+            "sha256": "917976e5c16784097a72dba836287b59ef452090120aace269cebf5cafa7eef3"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-CleartextLogging-decoded.stdout",
+            "bytes": 1117084,
+            "sha256": "c693c4e5400fb8f10f362b50d93de104c8e9ad637f5d88de6d46c5e0feed1c22"
+          },
+          "retained_decoded": {
+            "path": "retained-CleartextLogging-decoded.stdout",
+            "bytes": 1117084,
+            "sha256": "c693c4e5400fb8f10f362b50d93de104c8e9ad637f5d88de6d46c5e0feed1c22"
+          },
+          "semantic_sha256": "d3baa1526d0257f7eb332e1d69b4810d3b26eb9cbec6451f97e14808a34fb93f",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 5772,
+            "nodes": 4384,
+            "subpaths": 523,
+            "#select": 1373
+          }
+        },
+        {
+          "query": "queries/security/CWE-312/CleartextStorageDatabase.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-312/CleartextStorageDatabase.bqrs",
+            "bytes": 704,
+            "sha256": "9e00d8dd50fe7cfd366ed7b40d966c49bd783c86ca25c4fab5de4b60184e61e7"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-312/CleartextStorageDatabase.bqrs",
+            "bytes": 704,
+            "sha256": "28005ebc57d102cb34fea9230359aeeb6897558df38c863337da0f530b062311"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-CleartextStorageDatabase-decoded.stdout",
+            "bytes": 715,
+            "sha256": "14547910500ea41bb9aa157ca72c17442a1233736b4fbea867748aa983d14c6f"
+          },
+          "retained_decoded": {
+            "path": "retained-CleartextStorageDatabase-decoded.stdout",
+            "bytes": 715,
+            "sha256": "14547910500ea41bb9aa157ca72c17442a1233736b4fbea867748aa983d14c6f"
+          },
+          "semantic_sha256": "95f15756992e089283ff0e765613a299c96f5b226001baaa705a8b6c38edce97",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-319/UseOfHttp.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-319/UseOfHttp.bqrs",
+            "bytes": 613,
+            "sha256": "66ff127bf94f8f1b2a8d81944162add413c0144883b1cc409f0f45f463640a45"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-319/UseOfHttp.bqrs",
+            "bytes": 613,
+            "sha256": "e71a27f76341f63da5f1048af058e3bbfa64e006bf28441599f8f977aa47b550"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-UseOfHttp-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "retained_decoded": {
+            "path": "retained-UseOfHttp-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-327/BrokenCryptoAlgorithm.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs",
+            "bytes": 524,
+            "sha256": "32d4fd97a40e2b85e1c274fdbfa3186cea02f8a3b15cc39b5e64c0a7da66d318"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs",
+            "bytes": 524,
+            "sha256": "bccffdd45153bc74756fd8bfa70cc1b82e150f6a1d49154e5a1e7b4cbaa0568e"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-BrokenCryptoAlgorithm-decoded.stdout",
+            "bytes": 165,
+            "sha256": "370fbdab694496bd9fa20d7adecac7174d338be24e2e194bf68feeb472093496"
+          },
+          "retained_decoded": {
+            "path": "retained-BrokenCryptoAlgorithm-decoded.stdout",
+            "bytes": 165,
+            "sha256": "370fbdab694496bd9fa20d7adecac7174d338be24e2e194bf68feeb472093496"
+          },
+          "semantic_sha256": "b341c406238eb41a6ae36a0588b7c62b425040d7ac05ca16f2b77d5afb5a6ce9",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-327/WeakSensitiveDataHashing.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs",
+            "bytes": 738,
+            "sha256": "bf62d7bdaeb98fd49a6388294edc05da085925feaae457d599014915079a4608"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs",
+            "bytes": 738,
+            "sha256": "d043cada5f766bfe46977ec78f57edbea6eb61f39bc27a46877b49b11fd10921"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-WeakSensitiveDataHashing-decoded.stdout",
+            "bytes": 687,
+            "sha256": "3b5acca664854c6cb612c14f691013646af6fd6a0db895d029a20d2fdeee4ff4"
+          },
+          "retained_decoded": {
+            "path": "retained-WeakSensitiveDataHashing-decoded.stdout",
+            "bytes": 687,
+            "sha256": "3b5acca664854c6cb612c14f691013646af6fd6a0db895d029a20d2fdeee4ff4"
+          },
+          "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-614/InsecureCookie.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-614/InsecureCookie.bqrs",
+            "bytes": 769,
+            "sha256": "5e8ce58acde865d35d2f2c87d01b1cb10cc9c4bed9b15c4f0950e0deb1101bc9"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-614/InsecureCookie.bqrs",
+            "bytes": 769,
+            "sha256": "9f69856bcadf9cce00ce88cf3a1fbda2910558d43215ce504eacad9dcc965054"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-InsecureCookie-decoded.stdout",
+            "bytes": 653,
+            "sha256": "5046b8944b445a23d39227a2d6caa75e9b16ef6d541c954110102ae17fd42bcc"
+          },
+          "retained_decoded": {
+            "path": "retained-InsecureCookie-decoded.stdout",
+            "bytes": 653,
+            "sha256": "5046b8944b445a23d39227a2d6caa75e9b16ef6d541c954110102ae17fd42bcc"
+          },
+          "semantic_sha256": "d2e254bfad8989c9d0500d31392ef5b9ab46972d9e97f1efe5ddb9d1f6b372e1",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-770/UncontrolledAllocationSize.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-770/UncontrolledAllocationSize.bqrs",
+            "bytes": 1922,
+            "sha256": "dcb2690bccdbef3a9e9350d44caa893ef41e0c7ba37e447df81b029c3894a80f"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-770/UncontrolledAllocationSize.bqrs",
+            "bytes": 1922,
+            "sha256": "932ed178e6d2e0fb2a3728bd683f0ca85457a708ef67f1aaeee55462ba5a8892"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-UncontrolledAllocationSize-decoded.stdout",
+            "bytes": 3147,
+            "sha256": "29132d0e2f6e09ffa5479640efccda135467b2aa31071fc8932a0506c021034c"
+          },
+          "retained_decoded": {
+            "path": "retained-UncontrolledAllocationSize-decoded.stdout",
+            "bytes": 3147,
+            "sha256": "29132d0e2f6e09ffa5479640efccda135467b2aa31071fc8932a0506c021034c"
+          },
+          "semantic_sha256": "420d8b59728ca9bef5e0a2f5f378c34843017413bee1d17bd5d83687161c365d",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 16,
+            "nodes": 15,
+            "subpaths": 1,
+            "#select": 2
+          }
+        },
+        {
+          "query": "queries/security/CWE-798/HardcodedCryptographicValue.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-798/HardcodedCryptographicValue.bqrs",
+            "bytes": 622157,
+            "sha256": "290cdd7bbf7fad8952351ef35e1ab1ab983293f15dc8ec75c05e8640853a34c0"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-798/HardcodedCryptographicValue.bqrs",
+            "bytes": 622157,
+            "sha256": "76ec21c75a3378877cf2e55ebe9f078bf3525a9590f94dead3c4fb93d02c7e63"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-HardcodedCryptographicValue-decoded.stdout",
+            "bytes": 1926875,
+            "sha256": "bf6317881c4343e0811237ea068cc0dc4fe5fef374f9fd32baa1386b86928256"
+          },
+          "retained_decoded": {
+            "path": "retained-HardcodedCryptographicValue-decoded.stdout",
+            "bytes": 1926875,
+            "sha256": "bf6317881c4343e0811237ea068cc0dc4fe5fef374f9fd32baa1386b86928256"
+          },
+          "semantic_sha256": "48c6f6b8e7e8a6b1686f75534e878f88353bf6e6eec98fcf8cc9dd127a72496f",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 12471,
+            "nodes": 9399,
+            "subpaths": 138,
+            "#select": 122
+          }
+        },
+        {
+          "query": "queries/security/CWE-825/AccessAfterLifetime.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-825/AccessAfterLifetime.bqrs",
+            "bytes": 753,
+            "sha256": "c3b004aad2833e7776bb61cfcd7dacdb83d15b492fa6d1f0eccf8963ce472f83"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-825/AccessAfterLifetime.bqrs",
+            "bytes": 753,
+            "sha256": "18be8c14d832eccfda2cbfba2e5607469183b5bbad25a58e30c0d5cd87f0482a"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-AccessAfterLifetime-decoded.stdout",
+            "bytes": 711,
+            "sha256": "0583184bbf43d72845eca1f54bde3bf7ae369d0fe982812805d3ce90d84a34d8"
+          },
+          "retained_decoded": {
+            "path": "retained-AccessAfterLifetime-decoded.stdout",
+            "bytes": 711,
+            "sha256": "0583184bbf43d72845eca1f54bde3bf7ae369d0fe982812805d3ce90d84a34d8"
+          },
+          "semantic_sha256": "f2a7960593b1718a5d42fc0b50338c0c0357b884a2791f87454f53bb9c6adefa",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-825/AccessInvalidPointer.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-825/AccessInvalidPointer.bqrs",
+            "bytes": 1592,
+            "sha256": "4ec83bf8387490e90e16d37c9c542c9eebe6b53a13b221e7e3f7195f9bc7e6fc"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-825/AccessInvalidPointer.bqrs",
+            "bytes": 1592,
+            "sha256": "d4831c7d7dc2c555df94b0588e0fb714a0c5b1ec3bf0b07315383237dad2b518"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-AccessInvalidPointer-decoded.stdout",
+            "bytes": 2509,
+            "sha256": "b3cf8fd3c0f39b8c054c436ed7e751939144c3e1c9400596368556e2069144d4"
+          },
+          "retained_decoded": {
+            "path": "retained-AccessInvalidPointer-decoded.stdout",
+            "bytes": 2509,
+            "sha256": "b3cf8fd3c0f39b8c054c436ed7e751939144c3e1c9400596368556e2069144d4"
+          },
+          "semantic_sha256": "9146778c5c26076dcc08222937805674f34d71111cb5ba7dd5a06dad676987ec",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 8,
+            "nodes": 11,
+            "subpaths": 0,
+            "#select": 3
+          }
+        },
+        {
+          "query": "queries/security/CWE-918/RequestForgery.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-918/RequestForgery.bqrs",
+            "bytes": 623,
+            "sha256": "c0ca12652b7807f1ba0f7325b16e2cf88ec897be867e5d9c27850d373560f69f"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-918/RequestForgery.bqrs",
+            "bytes": 623,
+            "sha256": "9966cf7d150087d8a1af06cd0e85b64ee37b526bfb5e61beece3766922fc7d40"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-RequestForgery-decoded.stdout",
+            "bytes": 687,
+            "sha256": "3b5acca664854c6cb612c14f691013646af6fd6a0db895d029a20d2fdeee4ff4"
+          },
+          "retained_decoded": {
+            "path": "retained-RequestForgery-decoded.stdout",
+            "bytes": 687,
+            "sha256": "3b5acca664854c6cb612c14f691013646af6fd6a0db895d029a20d2fdeee4ff4"
+          },
+          "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/summary/LinesOfCode.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/summary/LinesOfCode.bqrs",
+            "bytes": 657,
+            "sha256": "9ca11a459728ecc664996a70e812414ea64ea6b374645004e6b7fdbda02cd9b2"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/summary/LinesOfCode.bqrs",
+            "bytes": 657,
+            "sha256": "37d1b92825b1451ff1b601d9931dfe1038f837166aa8df97a362c53513189696"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-LinesOfCode-decoded.stdout",
+            "bytes": 77,
+            "sha256": "0ee6f14f5d22278210d2f07762f1d63ef8fb5050ade229c7f77f73a231fbc413"
+          },
+          "retained_decoded": {
+            "path": "retained-LinesOfCode-decoded.stdout",
+            "bytes": 77,
+            "sha256": "0ee6f14f5d22278210d2f07762f1d63ef8fb5050ade229c7f77f73a231fbc413"
+          },
+          "semantic_sha256": "e2d1b55fde4146eb72a6cf09ef9ed1c6ce68eb1419f0256836c827b6d6c06d2f",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 1
+          }
+        },
+        {
+          "query": "queries/summary/LinesOfUserCode.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/summary/LinesOfUserCode.bqrs",
+            "bytes": 503,
+            "sha256": "574ae41d518328deeb2056a3f7dcc63415e529583b9c8be0c7ea2382bc8e979c"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/summary/LinesOfUserCode.bqrs",
+            "bytes": 503,
+            "sha256": "9297980aab65444dd8945e35fd70ad5b2695f78dc5c399d0c0f77fce470292dc"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-LinesOfUserCode-decoded.stdout",
+            "bytes": 77,
+            "sha256": "0ee6f14f5d22278210d2f07762f1d63ef8fb5050ade229c7f77f73a231fbc413"
+          },
+          "retained_decoded": {
+            "path": "retained-LinesOfUserCode-decoded.stdout",
+            "bytes": 77,
+            "sha256": "0ee6f14f5d22278210d2f07762f1d63ef8fb5050ade229c7f77f73a231fbc413"
+          },
+          "semantic_sha256": "e2d1b55fde4146eb72a6cf09ef9ed1c6ce68eb1419f0256836c827b6d6c06d2f",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 1
+          }
+        },
+        {
+          "query": "queries/summary/NodesWithTypeAtLengthLimit.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/summary/NodesWithTypeAtLengthLimit.bqrs",
+            "bytes": 398,
+            "sha256": "57a999567a61aa58df6866e92d4c41a087d758ff2772626980694dcf024be748"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/summary/NodesWithTypeAtLengthLimit.bqrs",
+            "bytes": 398,
+            "sha256": "0eaaf1c1ee132918cedd6b7a1103334b56ba4ad2032d40e3ab8679682e069cdd"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-NodesWithTypeAtLengthLimit-decoded.stdout",
+            "bytes": 91,
+            "sha256": "354b0a3fde64008a6fe1da4a0610f5c87b23b1be6bd8758ff6418e1115221313"
+          },
+          "retained_decoded": {
+            "path": "retained-NodesWithTypeAtLengthLimit-decoded.stdout",
+            "bytes": 91,
+            "sha256": "354b0a3fde64008a6fe1da4a0610f5c87b23b1be6bd8758ff6418e1115221313"
+          },
+          "semantic_sha256": "3fb32cdc2fe562214054ed2c79dab8bfdbda458574d6774aaec13166c5577679",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 1
+          }
+        },
+        {
+          "query": "queries/summary/NumberOfFilesExtractedWithErrors.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/summary/NumberOfFilesExtractedWithErrors.bqrs",
+            "bytes": 520,
+            "sha256": "1b16c799a96e1ed41d64363f383470fd02536eedeed5b5e2d53ca5ca14e560ed"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/summary/NumberOfFilesExtractedWithErrors.bqrs",
+            "bytes": 520,
+            "sha256": "18b0dd0cf266e789dbd21c542f48c279c2ef839d7ba8fc03b8903462701c643d"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-NumberOfFilesExtractedWithErrors-decoded.stdout",
+            "bytes": 72,
+            "sha256": "27e2dc59f13a6116c7088ac3234b559bc44c55c6cc893c7d5343a32cc69fd78f"
+          },
+          "retained_decoded": {
+            "path": "retained-NumberOfFilesExtractedWithErrors-decoded.stdout",
+            "bytes": 72,
+            "sha256": "27e2dc59f13a6116c7088ac3234b559bc44c55c6cc893c7d5343a32cc69fd78f"
+          },
+          "semantic_sha256": "84e831543dc7042284b8f6ab2a0201a49e1af5aa0603c9d627fbc3090e97fdcc",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 1
+          }
+        },
+        {
+          "query": "queries/summary/NumberOfSuccessfullyExtractedFiles.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs",
+            "bytes": 499,
+            "sha256": "1a82e8aadc99931b8b69e8ae2b72d00c9ee5308fbeddd86c808060cfb5a0c00f"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs",
+            "bytes": 499,
+            "sha256": "cb601f36fb7b7742f4d3390a7fc79415c4d49f7acef4ad66719fe2a56d4c9b73"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-NumberOfSuccessfullyExtractedFiles-decoded.stdout",
+            "bytes": 75,
+            "sha256": "db6cbedcfa53f2edd15f2dbac15c00322b65de266fc88d639df712f576389d3f"
+          },
+          "retained_decoded": {
+            "path": "retained-NumberOfSuccessfullyExtractedFiles-decoded.stdout",
+            "bytes": 75,
+            "sha256": "db6cbedcfa53f2edd15f2dbac15c00322b65de266fc88d639df712f576389d3f"
+          },
+          "semantic_sha256": "79fc88a53fdd3ec543a4dc258f81b7b14c4a984fd882cb182bfdeb574dda228d",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 1
+          }
+        },
+        {
+          "query": "queries/summary/QuerySinkCounts.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/summary/QuerySinkCounts.bqrs",
+            "bytes": 685,
+            "sha256": "f8caaabb130eb711f147c31c2474441b0aca4dba86bcb55166b76301537563bc"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/summary/QuerySinkCounts.bqrs",
+            "bytes": 685,
+            "sha256": "47216163f632d1bdf665fcc9343e80ae3dc5dec9fce2914f197f6563094b7fe2"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-QuerySinkCounts-decoded.stdout",
+            "bytes": 349,
+            "sha256": "0355b12c628b0f00b39432955143a15ea2c467cce505b8e4602b3d8e031f748f"
+          },
+          "retained_decoded": {
+            "path": "retained-QuerySinkCounts-decoded.stdout",
+            "bytes": 349,
+            "sha256": "0355b12c628b0f00b39432955143a15ea2c467cce505b8e4602b3d8e031f748f"
+          },
+          "semantic_sha256": "8ef6e1404fc534c393918bd0563102b9de96fbd68f2ca310a51a92427ed994f3",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 8
+          }
+        },
+        {
+          "query": "queries/summary/SummaryStatsReduced.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/summary/SummaryStatsReduced.bqrs",
+            "bytes": 907,
+            "sha256": "7a30d9052f4dd0852fc9f0ea0d83be17e0ed1f484c98eb9aba44831b154efd34"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/summary/SummaryStatsReduced.bqrs",
+            "bytes": 907,
+            "sha256": "49e06742cb4fba04ca704e240c3644cfc46bce1670194e68b3ea5ce3a93bb339"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-SummaryStatsReduced-decoded.stdout",
+            "bytes": 703,
+            "sha256": "aec3fbd959e8b9a2dcaad270e1b65538422b3867199951eba5861ebc3b2c043a"
+          },
+          "retained_decoded": {
+            "path": "retained-SummaryStatsReduced-decoded.stdout",
+            "bytes": 703,
+            "sha256": "aec3fbd959e8b9a2dcaad270e1b65538422b3867199951eba5861ebc3b2c043a"
+          },
+          "semantic_sha256": "08c368f7288a55afc4f3ddaa075fa42a8537b70174e34295a2d06b36e05fad66",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 16
+          }
+        },
+        {
+          "query": "queries/telemetry/DatabaseQualityDiagnostics.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/telemetry/DatabaseQualityDiagnostics.bqrs",
+            "bytes": 351,
+            "sha256": "9e7489c6879114bbfb2995cceb52bee2a56c2b295c411fc2abdb2c32ea330869"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/telemetry/DatabaseQualityDiagnostics.bqrs",
+            "bytes": 351,
+            "sha256": "0cf636c4af7a405a49ed116f9fc1f2662d8e9d22f659fd7a5056298e6171d516"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-DatabaseQualityDiagnostics-decoded.stdout",
+            "bytes": 274,
+            "sha256": "260f42c099da61b6a908a63cd604dc70bb5a6b253ff33bf83467aa059097c043"
+          },
+          "retained_decoded": {
+            "path": "retained-DatabaseQualityDiagnostics-decoded.stdout",
+            "bytes": 274,
+            "sha256": "260f42c099da61b6a908a63cd604dc70bb5a6b253ff33bf83467aa059097c043"
+          },
+          "semantic_sha256": "630a5f7a583bc8fb5cc7a007c3d16650e4b93098a0718ae439cff36af3e67dd2",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "diagnosticAttributes": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/telemetry/ExtractorInformation.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/telemetry/ExtractorInformation.bqrs",
+            "bytes": 1113,
+            "sha256": "832319f5703d65134c14d1718ce58a9985be421b88178fbe86da1fba02b55f30"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/telemetry/ExtractorInformation.bqrs",
+            "bytes": 1113,
+            "sha256": "00afb7d63876e5f6f7c5b1229fd37cb11c8f6e1326d965fb50b3fcfffb124a03"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-ExtractorInformation-decoded.stdout",
+            "bytes": 975,
+            "sha256": "ed8e05c5fb29b5f5cb6ac485d4a7a3905b00d1883b4a9a82c84cbe930d403856"
+          },
+          "retained_decoded": {
+            "path": "retained-ExtractorInformation-decoded.stdout",
+            "bytes": 975,
+            "sha256": "ed8e05c5fb29b5f5cb6ac485d4a7a3905b00d1883b4a9a82c84cbe930d403856"
+          },
+          "semantic_sha256": "fcc244e412cb6ba89f4e7f1663da9e4e9a3d8774e026c1f3672c3b04c7c8f18e",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 16
+          }
+        }
+      ]
+    },
+    {
+      "profile": "heap-1536",
+      "artifact_id": 13872940192,
+      "archive_bytes": 32645123,
+      "archive_sha256": "586844529bcbd623c3bdfb84a69992f5e30d157e88616107ee209b620642feba",
+      "archive_member_count": 334,
+      "fresh_bqrs_count": 38,
+      "retained_bqrs_count": 38,
+      "all_bqrs_hashes_and_sizes_match_receipts": true,
+      "semantic_equal_count": 38,
+      "binary_equal_count": 0,
+      "missing_query": "queries/summary/SummaryStats.ql",
+      "completion_stderr": {
+        "bytes": 14081,
+        "sha256": "b6d28dea8f7de31ceee9e6d2d9caefcf22d3e6f04fe5cf66e03d97f9b00d4120",
+        "distinct_queries": 38,
+        "queries": [
+          "queries/diagnostics/AstConsistencyCounts.ql",
+          "queries/diagnostics/CfgConsistencyCounts.ql",
+          "queries/diagnostics/DataFlowConsistencyCounts.ql",
+          "queries/diagnostics/ExtractedFiles.ql",
+          "queries/diagnostics/ExtractionErrors.ql",
+          "queries/diagnostics/ExtractionWarnings.ql",
+          "queries/diagnostics/SsaConsistencyCounts.ql",
+          "queries/diagnostics/TypeInferenceConsistencyCounts.ql",
+          "queries/diagnostics/UnextractedElements.ql",
+          "queries/diagnostics/UnresolvedMacroCalls.ql",
+          "queries/security/CWE-020/RegexInjection.ql",
+          "queries/security/CWE-022/TaintedPath.ql",
+          "queries/security/CWE-078/CommandInjection.ql",
+          "queries/security/CWE-079/XSS.ql",
+          "queries/security/CWE-089/SqlInjection.ql",
+          "queries/security/CWE-117/LogInjection.ql",
+          "queries/security/CWE-295/DisabledCertificateCheck.ql",
+          "queries/security/CWE-311/CleartextTransmission.ql",
+          "queries/security/CWE-312/CleartextLogging.ql",
+          "queries/security/CWE-312/CleartextStorageDatabase.ql",
+          "queries/security/CWE-319/UseOfHttp.ql",
+          "queries/security/CWE-327/BrokenCryptoAlgorithm.ql",
+          "queries/security/CWE-327/WeakSensitiveDataHashing.ql",
+          "queries/security/CWE-614/InsecureCookie.ql",
+          "queries/security/CWE-770/UncontrolledAllocationSize.ql",
+          "queries/security/CWE-798/HardcodedCryptographicValue.ql",
+          "queries/security/CWE-825/AccessAfterLifetime.ql",
+          "queries/security/CWE-825/AccessInvalidPointer.ql",
+          "queries/security/CWE-918/RequestForgery.ql",
+          "queries/summary/LinesOfCode.ql",
+          "queries/summary/LinesOfUserCode.ql",
+          "queries/summary/NodesWithTypeAtLengthLimit.ql",
+          "queries/summary/NumberOfFilesExtractedWithErrors.ql",
+          "queries/summary/NumberOfSuccessfullyExtractedFiles.ql",
+          "queries/summary/QuerySinkCounts.ql",
+          "queries/summary/SummaryStatsReduced.ql",
+          "queries/telemetry/DatabaseQualityDiagnostics.ql",
+          "queries/telemetry/ExtractorInformation.ql"
+        ]
+      },
+      "resource_samples": {
+        "member": "PROCESS_RESOURCES.jsonl",
+        "bytes": 7028259,
+        "sha256": "b73a36f4657ef41e1cac48f1883c72dd7fcdee5e0db1d7f8b81fffe8764248e8",
+        "count": 8954,
+        "samples_with_processes": 8954,
+        "peak_tree_rss_bytes": 14939774976,
+        "peak_roots_rss_bytes": 1847296,
+        "selected_rows": [
+          "first",
+          "first maximum tree RSS",
+          "last"
+        ]
+      },
+      "queries": [
+        {
+          "query": "queries/diagnostics/AstConsistencyCounts.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/AstConsistencyCounts.bqrs",
+            "bytes": 615,
+            "sha256": "9ad51f919bf1a9585eba33b7e0dea8c9e1658854b1b74a009f6787a2e35cf2ee"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/AstConsistencyCounts.bqrs",
+            "bytes": 615,
+            "sha256": "40e4c0928199763aceb8f969eff3443885953c1b027e22c81b42603c3b0c783f"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-AstConsistencyCounts-decoded.stdout",
+            "bytes": 369,
+            "sha256": "1617ee7fa7a41633651a62124956a7cd8128cd58452234b4474dc507e742a1bf"
+          },
+          "retained_decoded": {
+            "path": "retained-AstConsistencyCounts-decoded.stdout",
+            "bytes": 369,
+            "sha256": "1617ee7fa7a41633651a62124956a7cd8128cd58452234b4474dc507e742a1bf"
+          },
+          "semantic_sha256": "6bb5525b1677f980d9b2488623e64bb348c332413935fb1069c09fa67f5e3376",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 9
+          }
+        },
+        {
+          "query": "queries/diagnostics/CfgConsistencyCounts.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/CfgConsistencyCounts.bqrs",
+            "bytes": 787,
+            "sha256": "16cd1d798a12a29c7eb9df81c2419364cd08dbe09e5330282ceede37adda63df"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/CfgConsistencyCounts.bqrs",
+            "bytes": 787,
+            "sha256": "80fb44993e6e33f0da9a98d2545a9b0b4305b85650413e6eb68856146563482f"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-CfgConsistencyCounts-decoded.stdout",
+            "bytes": 574,
+            "sha256": "8da622438249fe020a13d2b6f703709b4901d021b8b98ec893256c6708349bc4"
+          },
+          "retained_decoded": {
+            "path": "retained-CfgConsistencyCounts-decoded.stdout",
+            "bytes": 574,
+            "sha256": "8da622438249fe020a13d2b6f703709b4901d021b8b98ec893256c6708349bc4"
+          },
+          "semantic_sha256": "dbf6ac651cf30d070dec4a1eb98c6c8b57d08ab717e7479afc72cacbbbc5b5cc",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 14
+          }
+        },
+        {
+          "query": "queries/diagnostics/DataFlowConsistencyCounts.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/DataFlowConsistencyCounts.bqrs",
+            "bytes": 1655,
+            "sha256": "76d681b32bc86616261f3e4da80607aeac1b3344e2917eb10d8761c84aac5bc6"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/DataFlowConsistencyCounts.bqrs",
+            "bytes": 1655,
+            "sha256": "44e1df242764a22edbe8f5bf992f22ca4a806a6740bd5131e6613a48806b9da4"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-DataFlowConsistencyCounts-decoded.stdout",
+            "bytes": 1536,
+            "sha256": "795c465dc0ad34fb9c55e203cb4925c761885b10e6af64537e785f70f1a7f90f"
+          },
+          "retained_decoded": {
+            "path": "retained-DataFlowConsistencyCounts-decoded.stdout",
+            "bytes": 1536,
+            "sha256": "795c465dc0ad34fb9c55e203cb4925c761885b10e6af64537e785f70f1a7f90f"
+          },
+          "semantic_sha256": "dfecd370b76c891343eedf4fae0733e6d48622511f9485a5524c399cd18e5941",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 29
+          }
+        },
+        {
+          "query": "queries/diagnostics/ExtractedFiles.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/ExtractedFiles.bqrs",
+            "bytes": 294661,
+            "sha256": "59329b40407b766cfb1c997fdbcd1f00ffbcad05d9979346cf35b6be8f970e38"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/ExtractedFiles.bqrs",
+            "bytes": 294661,
+            "sha256": "3ad33d5d586f9ed828c6dc6f3faa5a360132bfe5c85a6c6cc1934885a5a6cd3c"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-ExtractedFiles-decoded.stdout",
+            "bytes": 188530,
+            "sha256": "bdcf391317744fb00a22995013904baa9b0fe26d29acdcf2fdefa5ba5821ba3c"
+          },
+          "retained_decoded": {
+            "path": "retained-ExtractedFiles-decoded.stdout",
+            "bytes": 188530,
+            "sha256": "bdcf391317744fb00a22995013904baa9b0fe26d29acdcf2fdefa5ba5821ba3c"
+          },
+          "semantic_sha256": "72b30bd5cba93633146ab2bb2d2fca54b181232c378d6020993f47d18572fcfd",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 1173
+          }
+        },
+        {
+          "query": "queries/diagnostics/ExtractionErrors.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/ExtractionErrors.bqrs",
+            "bytes": 339,
+            "sha256": "cf96196b77ac70d4ccebaffbc88cf0e578d4665cbe5c9b014ae04ada6ef50dd6"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/ExtractionErrors.bqrs",
+            "bytes": 339,
+            "sha256": "1640933ebb09c2367e3882b6e387a97341410c5687babd994d0ad1490c6f6d17"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-ExtractionErrors-decoded.stdout",
+            "bytes": 122,
+            "sha256": "2c38be0a7d1935f63300ceccb92fd50f5bb76b829bcd0bac782393521a7665fc"
+          },
+          "retained_decoded": {
+            "path": "retained-ExtractionErrors-decoded.stdout",
+            "bytes": 122,
+            "sha256": "2c38be0a7d1935f63300ceccb92fd50f5bb76b829bcd0bac782393521a7665fc"
+          },
+          "semantic_sha256": "84eff2f1825a22b01bd5299d98acddf6026fb2acc3e61f7fb31d7981c6bc3846",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/diagnostics/ExtractionWarnings.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/ExtractionWarnings.bqrs",
+            "bytes": 349,
+            "sha256": "fb2f68b928ca16be8f8b60c4aeba2ee86121c2310c1a971b356893c393d62232"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/ExtractionWarnings.bqrs",
+            "bytes": 349,
+            "sha256": "1a932e1880bf91ece57f3dee9d7559d7b0bbed05df5436f84da0c6d2738b1cfc"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-ExtractionWarnings-decoded.stdout",
+            "bytes": 124,
+            "sha256": "e5bead177c4b977827fade4da62f0a1a616a2150247337901a6bab00620e1fec"
+          },
+          "retained_decoded": {
+            "path": "retained-ExtractionWarnings-decoded.stdout",
+            "bytes": 124,
+            "sha256": "e5bead177c4b977827fade4da62f0a1a616a2150247337901a6bab00620e1fec"
+          },
+          "semantic_sha256": "f1b9b0a85db7037951e8ba5fd085edebf14e3a2cc41bda262dc403bbdda11fbb",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/diagnostics/SsaConsistencyCounts.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/SsaConsistencyCounts.bqrs",
+            "bytes": 880,
+            "sha256": "5ea19a4bd3c2027bad2f05c81c3d337c8d11e62518e7330f5abf2a25e141f2f0"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/SsaConsistencyCounts.bqrs",
+            "bytes": 880,
+            "sha256": "c8b0e9da0ef8d72a50d1c11ad0c55014cbdc8337cd96d224285958db6e60c9f2"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-SsaConsistencyCounts-decoded.stdout",
+            "bytes": 628,
+            "sha256": "5b2e6d87b4d635ad07ae3f1495f84de68bfaaaddd6dd717d9bd6c680aca681d8"
+          },
+          "retained_decoded": {
+            "path": "retained-SsaConsistencyCounts-decoded.stdout",
+            "bytes": 628,
+            "sha256": "5b2e6d87b4d635ad07ae3f1495f84de68bfaaaddd6dd717d9bd6c680aca681d8"
+          },
+          "semantic_sha256": "7aa0d8dbb68afc128a4d90d5f3436313a79ee11b6e30aad54571b431b4c66252",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 10
+          }
+        },
+        {
+          "query": "queries/diagnostics/TypeInferenceConsistencyCounts.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs",
+            "bytes": 591,
+            "sha256": "07f57732acbbd7005160d17b12d5c7fb595fe81ef6c400104d1ee1a759137522"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs",
+            "bytes": 591,
+            "sha256": "b1089a04306af37337c47965066e79b9570c55d6a4b1fbc691050ca6f317a8fc"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-TypeInferenceConsistencyCounts-decoded.stdout",
+            "bytes": 311,
+            "sha256": "8541dc2840f1a2d135334e0e0b14c3a5bdb118c8b979fffcd405227730cd66b5"
+          },
+          "retained_decoded": {
+            "path": "retained-TypeInferenceConsistencyCounts-decoded.stdout",
+            "bytes": 311,
+            "sha256": "8541dc2840f1a2d135334e0e0b14c3a5bdb118c8b979fffcd405227730cd66b5"
+          },
+          "semantic_sha256": "05cf522c996bae06f52d2869dcad7aa83d66a15e49f0d03ff84f7a967f8069c3",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 5
+          }
+        },
+        {
+          "query": "queries/diagnostics/UnextractedElements.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/UnextractedElements.bqrs",
+            "bytes": 361,
+            "sha256": "a79bf3175cc9fcdf4f3abcd0af105985e4795b04bbe673ba1bd8c678adede752"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/UnextractedElements.bqrs",
+            "bytes": 361,
+            "sha256": "e7b8a4f9a5d0b0e937a1ce953fb254ff9a888692bf4d607fb670abfdb6cde33c"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-UnextractedElements-decoded.stdout",
+            "bytes": 64,
+            "sha256": "5bcdc6b34673dce5054341492ff27156df1f3b6a8de00af00b7782dd7150e37c"
+          },
+          "retained_decoded": {
+            "path": "retained-UnextractedElements-decoded.stdout",
+            "bytes": 64,
+            "sha256": "5bcdc6b34673dce5054341492ff27156df1f3b6a8de00af00b7782dd7150e37c"
+          },
+          "semantic_sha256": "0a659f12f3e1254761ce9c92d65931a25099b6ddabc323b087829d73a7e62e20",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/diagnostics/UnresolvedMacroCalls.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/diagnostics/UnresolvedMacroCalls.bqrs",
+            "bytes": 6365,
+            "sha256": "9fde4cc5b6096abda64861580f6c1b6bc5fcc25dbb343576d446c944c044eb03"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/diagnostics/UnresolvedMacroCalls.bqrs",
+            "bytes": 6365,
+            "sha256": "17639a86ec131576e2826e93c6e5535ba9effc3c62e2e477b7e9a59e3a5cc7fd"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-UnresolvedMacroCalls-decoded.stdout",
+            "bytes": 19761,
+            "sha256": "3ef9f462f39d5cc598a95fc7b0491ae85b9ef2fcaaecd06ace839d4d5e579e90"
+          },
+          "retained_decoded": {
+            "path": "retained-UnresolvedMacroCalls-decoded.stdout",
+            "bytes": 19761,
+            "sha256": "3ef9f462f39d5cc598a95fc7b0491ae85b9ef2fcaaecd06ace839d4d5e579e90"
+          },
+          "semantic_sha256": "c370f5a203c475d078edd7a4d60868b10133dfc1215af34cb83e77474cf6faac",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 273
+          }
+        },
+        {
+          "query": "queries/security/CWE-020/RegexInjection.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-020/RegexInjection.bqrs",
+            "bytes": 857,
+            "sha256": "a3d09f0441a4eb2b65b72f3bacf17462793b611a60cbc1b40bbe21037eeedd23"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-020/RegexInjection.bqrs",
+            "bytes": 857,
+            "sha256": "6d49274841283aed409ddab44511deab5204e244903c88ef2d1b1bee4a799fb6"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-RegexInjection-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "retained_decoded": {
+            "path": "retained-RegexInjection-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-022/TaintedPath.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-022/TaintedPath.bqrs",
+            "bytes": 1017352,
+            "sha256": "3d1e7d94631dd11d585341c71e24459f9eeb76ef0c0f0cd0590ae9bb7edb6a1e"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-022/TaintedPath.bqrs",
+            "bytes": 1017352,
+            "sha256": "30b68b4d0ddb921d5cbf2a4ca61c7b3d92755dc0e8817104c18b4d54f8340f0e"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-TaintedPath-decoded.stdout",
+            "bytes": 3089709,
+            "sha256": "dc697b59f6744e5a083d2dac205191a68dd2189f56ca037d483203cfe443966c"
+          },
+          "retained_decoded": {
+            "path": "retained-TaintedPath-decoded.stdout",
+            "bytes": 3089709,
+            "sha256": "dc697b59f6744e5a083d2dac205191a68dd2189f56ca037d483203cfe443966c"
+          },
+          "semantic_sha256": "15ad11987d1ba51b7905c0c416f218115bec27978ef0b4f35a42847110ed7542",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 16148,
+            "nodes": 13714,
+            "subpaths": 703,
+            "#select": 2823
+          }
+        },
+        {
+          "query": "queries/security/CWE-078/CommandInjection.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-078/CommandInjection.bqrs",
+            "bytes": 274704,
+            "sha256": "20f443ba91668af91afad2ec114a58fbd1ca6a1874bc8cef39896fbb6b7d4913"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-078/CommandInjection.bqrs",
+            "bytes": 274704,
+            "sha256": "f92781f942055893f7c3c94661df4aa4a1724028bf07871c6f796e147ad28414"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-CommandInjection-decoded.stdout",
+            "bytes": 846682,
+            "sha256": "3529d04780e8b73a6de6dfdb1a48d2dc3de603f5dc36e8bc0d4ac2a26f4d0fc2"
+          },
+          "retained_decoded": {
+            "path": "retained-CommandInjection-decoded.stdout",
+            "bytes": 846682,
+            "sha256": "3529d04780e8b73a6de6dfdb1a48d2dc3de603f5dc36e8bc0d4ac2a26f4d0fc2"
+          },
+          "semantic_sha256": "ff43af868ebfe00d7b68ace12bc5425830533cc42d856ee6cd3135c2c4370b82",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 5265,
+            "nodes": 4148,
+            "subpaths": 43,
+            "#select": 398
+          }
+        },
+        {
+          "query": "queries/security/CWE-079/XSS.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-079/XSS.bqrs",
+            "bytes": 646,
+            "sha256": "738ea4aab22c210e02fadeff01bd3138b48a8cbab20afd8e9f6d70039304838f"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-079/XSS.bqrs",
+            "bytes": 646,
+            "sha256": "4cee66f7eb57ce85502b223cac791c54cf554ac0db4fea48fe73883edb4ff1ca"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-XSS-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "retained_decoded": {
+            "path": "retained-XSS-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-089/SqlInjection.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-089/SqlInjection.bqrs",
+            "bytes": 665,
+            "sha256": "88b86c0d94a48a86dc8cd64dbf05c1cb338a790162defb555dcaba9921ac213d"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-089/SqlInjection.bqrs",
+            "bytes": 665,
+            "sha256": "9a89e68d01bdbf847a50377b9bdc5e7c9c694f2c77b8a6a9a770365ab0e835bd"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-SqlInjection-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "retained_decoded": {
+            "path": "retained-SqlInjection-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-117/LogInjection.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-117/LogInjection.bqrs",
+            "bytes": 40852,
+            "sha256": "977d9270c3dcba3d9832750ba2e25416185382be78cd62811e95646a22b85e90"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-117/LogInjection.bqrs",
+            "bytes": 40852,
+            "sha256": "2de0f4571060b6991436e979efdf13483c59c742212b563f24fecd15560cb8ca"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-LogInjection-decoded.stdout",
+            "bytes": 109946,
+            "sha256": "2bbf502babeef74dfffdbd2c5ac6233d2d06c1021d27d17565280fb8e6c08687"
+          },
+          "retained_decoded": {
+            "path": "retained-LogInjection-decoded.stdout",
+            "bytes": 109946,
+            "sha256": "2bbf502babeef74dfffdbd2c5ac6233d2d06c1021d27d17565280fb8e6c08687"
+          },
+          "semantic_sha256": "800832526b7e6ffaf3214f356dcee115f8aa4d4c0dcb568e7e629c5d2e008a57",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 583,
+            "nodes": 586,
+            "subpaths": 0,
+            "#select": 123
+          }
+        },
+        {
+          "query": "queries/security/CWE-295/DisabledCertificateCheck.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-295/DisabledCertificateCheck.bqrs",
+            "bytes": 676,
+            "sha256": "a96ddad41f0947bd8d89e99f9aa79d6d335445efe0a93fb7087922bdf7af6f07"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-295/DisabledCertificateCheck.bqrs",
+            "bytes": 676,
+            "sha256": "748c40d746c3508f3371dfb2d68637421f1e885dbe0cc925e78a94e29d18c15b"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-DisabledCertificateCheck-decoded.stdout",
+            "bytes": 653,
+            "sha256": "5046b8944b445a23d39227a2d6caa75e9b16ef6d541c954110102ae17fd42bcc"
+          },
+          "retained_decoded": {
+            "path": "retained-DisabledCertificateCheck-decoded.stdout",
+            "bytes": 653,
+            "sha256": "5046b8944b445a23d39227a2d6caa75e9b16ef6d541c954110102ae17fd42bcc"
+          },
+          "semantic_sha256": "d2e254bfad8989c9d0500d31392ef5b9ab46972d9e97f1efe5ddb9d1f6b372e1",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-311/CleartextTransmission.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-311/CleartextTransmission.bqrs",
+            "bytes": 695,
+            "sha256": "d18ce7ef9745e8fba57b3ed0b9aed5f048bf54710fbb8123d6b6c0ea5a9e2474"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-311/CleartextTransmission.bqrs",
+            "bytes": 695,
+            "sha256": "9b00a2ad8552b996b1abd1fe1ba35fa7bd7607f43ded3ec182f6bd8a93050632"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-CleartextTransmission-decoded.stdout",
+            "bytes": 715,
+            "sha256": "14547910500ea41bb9aa157ca72c17442a1233736b4fbea867748aa983d14c6f"
+          },
+          "retained_decoded": {
+            "path": "retained-CleartextTransmission-decoded.stdout",
+            "bytes": 715,
+            "sha256": "14547910500ea41bb9aa157ca72c17442a1233736b4fbea867748aa983d14c6f"
+          },
+          "semantic_sha256": "95f15756992e089283ff0e765613a299c96f5b226001baaa705a8b6c38edce97",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-312/CleartextLogging.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-312/CleartextLogging.bqrs",
+            "bytes": 392833,
+            "sha256": "efeef27281c432a0ae8a0190715633a8cd65db303ea6ed6937ea03cd95703da7"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-312/CleartextLogging.bqrs",
+            "bytes": 392833,
+            "sha256": "917976e5c16784097a72dba836287b59ef452090120aace269cebf5cafa7eef3"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-CleartextLogging-decoded.stdout",
+            "bytes": 1117084,
+            "sha256": "c693c4e5400fb8f10f362b50d93de104c8e9ad637f5d88de6d46c5e0feed1c22"
+          },
+          "retained_decoded": {
+            "path": "retained-CleartextLogging-decoded.stdout",
+            "bytes": 1117084,
+            "sha256": "c693c4e5400fb8f10f362b50d93de104c8e9ad637f5d88de6d46c5e0feed1c22"
+          },
+          "semantic_sha256": "d3baa1526d0257f7eb332e1d69b4810d3b26eb9cbec6451f97e14808a34fb93f",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 5772,
+            "nodes": 4384,
+            "subpaths": 523,
+            "#select": 1373
+          }
+        },
+        {
+          "query": "queries/security/CWE-312/CleartextStorageDatabase.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-312/CleartextStorageDatabase.bqrs",
+            "bytes": 704,
+            "sha256": "d224b528a2cd7c07be3f7ff958ab9b62da4a2bb6eb7400c2e6a32e0fa8715016"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-312/CleartextStorageDatabase.bqrs",
+            "bytes": 704,
+            "sha256": "28005ebc57d102cb34fea9230359aeeb6897558df38c863337da0f530b062311"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-CleartextStorageDatabase-decoded.stdout",
+            "bytes": 715,
+            "sha256": "14547910500ea41bb9aa157ca72c17442a1233736b4fbea867748aa983d14c6f"
+          },
+          "retained_decoded": {
+            "path": "retained-CleartextStorageDatabase-decoded.stdout",
+            "bytes": 715,
+            "sha256": "14547910500ea41bb9aa157ca72c17442a1233736b4fbea867748aa983d14c6f"
+          },
+          "semantic_sha256": "95f15756992e089283ff0e765613a299c96f5b226001baaa705a8b6c38edce97",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-319/UseOfHttp.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-319/UseOfHttp.bqrs",
+            "bytes": 613,
+            "sha256": "77178f026a9034d3133424c90847f17c23f80dc2ed5f9c4bf5e9000c8a7548a6"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-319/UseOfHttp.bqrs",
+            "bytes": 613,
+            "sha256": "e71a27f76341f63da5f1048af058e3bbfa64e006bf28441599f8f977aa47b550"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-UseOfHttp-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "retained_decoded": {
+            "path": "retained-UseOfHttp-decoded.stdout",
+            "bytes": 695,
+            "sha256": "73d9c9c7c151d3618c206de5bc6b1cb44168ec6f2f16e00a5a07f056fcc999f2"
+          },
+          "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-327/BrokenCryptoAlgorithm.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs",
+            "bytes": 524,
+            "sha256": "faf3accd9afbc00d5547c00bda0aa82b1afc68271077f7cabd79809bbfd86128"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs",
+            "bytes": 524,
+            "sha256": "bccffdd45153bc74756fd8bfa70cc1b82e150f6a1d49154e5a1e7b4cbaa0568e"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-BrokenCryptoAlgorithm-decoded.stdout",
+            "bytes": 165,
+            "sha256": "370fbdab694496bd9fa20d7adecac7174d338be24e2e194bf68feeb472093496"
+          },
+          "retained_decoded": {
+            "path": "retained-BrokenCryptoAlgorithm-decoded.stdout",
+            "bytes": 165,
+            "sha256": "370fbdab694496bd9fa20d7adecac7174d338be24e2e194bf68feeb472093496"
+          },
+          "semantic_sha256": "b341c406238eb41a6ae36a0588b7c62b425040d7ac05ca16f2b77d5afb5a6ce9",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-327/WeakSensitiveDataHashing.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs",
+            "bytes": 738,
+            "sha256": "e0fe6ed152893151c3c454f668a2f0e80bb3e3b7c60e0e1254ae50b90c87a0b0"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs",
+            "bytes": 738,
+            "sha256": "d043cada5f766bfe46977ec78f57edbea6eb61f39bc27a46877b49b11fd10921"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-WeakSensitiveDataHashing-decoded.stdout",
+            "bytes": 687,
+            "sha256": "3b5acca664854c6cb612c14f691013646af6fd6a0db895d029a20d2fdeee4ff4"
+          },
+          "retained_decoded": {
+            "path": "retained-WeakSensitiveDataHashing-decoded.stdout",
+            "bytes": 687,
+            "sha256": "3b5acca664854c6cb612c14f691013646af6fd6a0db895d029a20d2fdeee4ff4"
+          },
+          "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-614/InsecureCookie.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-614/InsecureCookie.bqrs",
+            "bytes": 769,
+            "sha256": "9766e8d5a3f43642594a78a0edfc1e74cda557053ad6353850452aebb8a70769"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-614/InsecureCookie.bqrs",
+            "bytes": 769,
+            "sha256": "9f69856bcadf9cce00ce88cf3a1fbda2910558d43215ce504eacad9dcc965054"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-InsecureCookie-decoded.stdout",
+            "bytes": 653,
+            "sha256": "5046b8944b445a23d39227a2d6caa75e9b16ef6d541c954110102ae17fd42bcc"
+          },
+          "retained_decoded": {
+            "path": "retained-InsecureCookie-decoded.stdout",
+            "bytes": 653,
+            "sha256": "5046b8944b445a23d39227a2d6caa75e9b16ef6d541c954110102ae17fd42bcc"
+          },
+          "semantic_sha256": "d2e254bfad8989c9d0500d31392ef5b9ab46972d9e97f1efe5ddb9d1f6b372e1",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-770/UncontrolledAllocationSize.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-770/UncontrolledAllocationSize.bqrs",
+            "bytes": 1922,
+            "sha256": "e1924dc7b9a55c99dfe24fb5d421483b326f7b7aee0c4e0bbf1f42de47688d30"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-770/UncontrolledAllocationSize.bqrs",
+            "bytes": 1922,
+            "sha256": "932ed178e6d2e0fb2a3728bd683f0ca85457a708ef67f1aaeee55462ba5a8892"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-UncontrolledAllocationSize-decoded.stdout",
+            "bytes": 3147,
+            "sha256": "29132d0e2f6e09ffa5479640efccda135467b2aa31071fc8932a0506c021034c"
+          },
+          "retained_decoded": {
+            "path": "retained-UncontrolledAllocationSize-decoded.stdout",
+            "bytes": 3147,
+            "sha256": "29132d0e2f6e09ffa5479640efccda135467b2aa31071fc8932a0506c021034c"
+          },
+          "semantic_sha256": "420d8b59728ca9bef5e0a2f5f378c34843017413bee1d17bd5d83687161c365d",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 16,
+            "nodes": 15,
+            "subpaths": 1,
+            "#select": 2
+          }
+        },
+        {
+          "query": "queries/security/CWE-798/HardcodedCryptographicValue.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-798/HardcodedCryptographicValue.bqrs",
+            "bytes": 622157,
+            "sha256": "7e7315e536d28fe0c51b78a3bda8b20cd031ec33f50315bb4d4931f43d901b1e"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-798/HardcodedCryptographicValue.bqrs",
+            "bytes": 622157,
+            "sha256": "76ec21c75a3378877cf2e55ebe9f078bf3525a9590f94dead3c4fb93d02c7e63"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-HardcodedCryptographicValue-decoded.stdout",
+            "bytes": 1926875,
+            "sha256": "bf6317881c4343e0811237ea068cc0dc4fe5fef374f9fd32baa1386b86928256"
+          },
+          "retained_decoded": {
+            "path": "retained-HardcodedCryptographicValue-decoded.stdout",
+            "bytes": 1926875,
+            "sha256": "bf6317881c4343e0811237ea068cc0dc4fe5fef374f9fd32baa1386b86928256"
+          },
+          "semantic_sha256": "48c6f6b8e7e8a6b1686f75534e878f88353bf6e6eec98fcf8cc9dd127a72496f",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 12471,
+            "nodes": 9399,
+            "subpaths": 138,
+            "#select": 122
+          }
+        },
+        {
+          "query": "queries/security/CWE-825/AccessAfterLifetime.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-825/AccessAfterLifetime.bqrs",
+            "bytes": 753,
+            "sha256": "fd39976e89b95b8c94b3bd4d4753f4e55fe43b93e923f6853b8709a00bc8ba24"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-825/AccessAfterLifetime.bqrs",
+            "bytes": 753,
+            "sha256": "18be8c14d832eccfda2cbfba2e5607469183b5bbad25a58e30c0d5cd87f0482a"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-AccessAfterLifetime-decoded.stdout",
+            "bytes": 711,
+            "sha256": "0583184bbf43d72845eca1f54bde3bf7ae369d0fe982812805d3ce90d84a34d8"
+          },
+          "retained_decoded": {
+            "path": "retained-AccessAfterLifetime-decoded.stdout",
+            "bytes": 711,
+            "sha256": "0583184bbf43d72845eca1f54bde3bf7ae369d0fe982812805d3ce90d84a34d8"
+          },
+          "semantic_sha256": "f2a7960593b1718a5d42fc0b50338c0c0357b884a2791f87454f53bb9c6adefa",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/security/CWE-825/AccessInvalidPointer.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-825/AccessInvalidPointer.bqrs",
+            "bytes": 1592,
+            "sha256": "a1d4ffa67fc69cde3beb23bead28601d92ee73c44d24b10554e1462c903780f4"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-825/AccessInvalidPointer.bqrs",
+            "bytes": 1592,
+            "sha256": "d4831c7d7dc2c555df94b0588e0fb714a0c5b1ec3bf0b07315383237dad2b518"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-AccessInvalidPointer-decoded.stdout",
+            "bytes": 2509,
+            "sha256": "b3cf8fd3c0f39b8c054c436ed7e751939144c3e1c9400596368556e2069144d4"
+          },
+          "retained_decoded": {
+            "path": "retained-AccessInvalidPointer-decoded.stdout",
+            "bytes": 2509,
+            "sha256": "b3cf8fd3c0f39b8c054c436ed7e751939144c3e1c9400596368556e2069144d4"
+          },
+          "semantic_sha256": "9146778c5c26076dcc08222937805674f34d71111cb5ba7dd5a06dad676987ec",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 8,
+            "nodes": 11,
+            "subpaths": 0,
+            "#select": 3
+          }
+        },
+        {
+          "query": "queries/security/CWE-918/RequestForgery.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/security/CWE-918/RequestForgery.bqrs",
+            "bytes": 623,
+            "sha256": "5b474604a072ac800192cda73eeb35b70280f1ce33f4f543dacb6fa4b082c6a1"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/security/CWE-918/RequestForgery.bqrs",
+            "bytes": 623,
+            "sha256": "9966cf7d150087d8a1af06cd0e85b64ee37b526bfb5e61beece3766922fc7d40"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-RequestForgery-decoded.stdout",
+            "bytes": 687,
+            "sha256": "3b5acca664854c6cb612c14f691013646af6fd6a0db895d029a20d2fdeee4ff4"
+          },
+          "retained_decoded": {
+            "path": "retained-RequestForgery-decoded.stdout",
+            "bytes": 687,
+            "sha256": "3b5acca664854c6cb612c14f691013646af6fd6a0db895d029a20d2fdeee4ff4"
+          },
+          "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "edges": 0,
+            "nodes": 0,
+            "subpaths": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/summary/LinesOfCode.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/summary/LinesOfCode.bqrs",
+            "bytes": 657,
+            "sha256": "e3fa53030f732ad1a92b6ea71bbbabad3b92624a74af4afdfb4426faead497c7"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/summary/LinesOfCode.bqrs",
+            "bytes": 657,
+            "sha256": "37d1b92825b1451ff1b601d9931dfe1038f837166aa8df97a362c53513189696"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-LinesOfCode-decoded.stdout",
+            "bytes": 77,
+            "sha256": "0ee6f14f5d22278210d2f07762f1d63ef8fb5050ade229c7f77f73a231fbc413"
+          },
+          "retained_decoded": {
+            "path": "retained-LinesOfCode-decoded.stdout",
+            "bytes": 77,
+            "sha256": "0ee6f14f5d22278210d2f07762f1d63ef8fb5050ade229c7f77f73a231fbc413"
+          },
+          "semantic_sha256": "e2d1b55fde4146eb72a6cf09ef9ed1c6ce68eb1419f0256836c827b6d6c06d2f",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 1
+          }
+        },
+        {
+          "query": "queries/summary/LinesOfUserCode.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/summary/LinesOfUserCode.bqrs",
+            "bytes": 503,
+            "sha256": "bbff3e2fef97c9444073e63d2796b81c1fd29a1121a796088b0d902285caff5b"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/summary/LinesOfUserCode.bqrs",
+            "bytes": 503,
+            "sha256": "9297980aab65444dd8945e35fd70ad5b2695f78dc5c399d0c0f77fce470292dc"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-LinesOfUserCode-decoded.stdout",
+            "bytes": 77,
+            "sha256": "0ee6f14f5d22278210d2f07762f1d63ef8fb5050ade229c7f77f73a231fbc413"
+          },
+          "retained_decoded": {
+            "path": "retained-LinesOfUserCode-decoded.stdout",
+            "bytes": 77,
+            "sha256": "0ee6f14f5d22278210d2f07762f1d63ef8fb5050ade229c7f77f73a231fbc413"
+          },
+          "semantic_sha256": "e2d1b55fde4146eb72a6cf09ef9ed1c6ce68eb1419f0256836c827b6d6c06d2f",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 1
+          }
+        },
+        {
+          "query": "queries/summary/NodesWithTypeAtLengthLimit.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/summary/NodesWithTypeAtLengthLimit.bqrs",
+            "bytes": 398,
+            "sha256": "444e06e68233718be8c29837d466be22e8adef07bac7cfbc4c5eb16c59111dac"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/summary/NodesWithTypeAtLengthLimit.bqrs",
+            "bytes": 398,
+            "sha256": "0eaaf1c1ee132918cedd6b7a1103334b56ba4ad2032d40e3ab8679682e069cdd"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-NodesWithTypeAtLengthLimit-decoded.stdout",
+            "bytes": 91,
+            "sha256": "354b0a3fde64008a6fe1da4a0610f5c87b23b1be6bd8758ff6418e1115221313"
+          },
+          "retained_decoded": {
+            "path": "retained-NodesWithTypeAtLengthLimit-decoded.stdout",
+            "bytes": 91,
+            "sha256": "354b0a3fde64008a6fe1da4a0610f5c87b23b1be6bd8758ff6418e1115221313"
+          },
+          "semantic_sha256": "3fb32cdc2fe562214054ed2c79dab8bfdbda458574d6774aaec13166c5577679",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 1
+          }
+        },
+        {
+          "query": "queries/summary/NumberOfFilesExtractedWithErrors.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/summary/NumberOfFilesExtractedWithErrors.bqrs",
+            "bytes": 520,
+            "sha256": "2b5a7074d0a8868ea945c0145fae194365cbfac105e1f8e72ec3cfb719fa73d2"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/summary/NumberOfFilesExtractedWithErrors.bqrs",
+            "bytes": 520,
+            "sha256": "18b0dd0cf266e789dbd21c542f48c279c2ef839d7ba8fc03b8903462701c643d"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-NumberOfFilesExtractedWithErrors-decoded.stdout",
+            "bytes": 72,
+            "sha256": "27e2dc59f13a6116c7088ac3234b559bc44c55c6cc893c7d5343a32cc69fd78f"
+          },
+          "retained_decoded": {
+            "path": "retained-NumberOfFilesExtractedWithErrors-decoded.stdout",
+            "bytes": 72,
+            "sha256": "27e2dc59f13a6116c7088ac3234b559bc44c55c6cc893c7d5343a32cc69fd78f"
+          },
+          "semantic_sha256": "84e831543dc7042284b8f6ab2a0201a49e1af5aa0603c9d627fbc3090e97fdcc",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 1
+          }
+        },
+        {
+          "query": "queries/summary/NumberOfSuccessfullyExtractedFiles.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs",
+            "bytes": 499,
+            "sha256": "4bd04c77b4e426a8f1e7f1b24152d9842f1d44e71d4bab98eff2dbf1a27e76b1"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs",
+            "bytes": 499,
+            "sha256": "cb601f36fb7b7742f4d3390a7fc79415c4d49f7acef4ad66719fe2a56d4c9b73"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-NumberOfSuccessfullyExtractedFiles-decoded.stdout",
+            "bytes": 75,
+            "sha256": "db6cbedcfa53f2edd15f2dbac15c00322b65de266fc88d639df712f576389d3f"
+          },
+          "retained_decoded": {
+            "path": "retained-NumberOfSuccessfullyExtractedFiles-decoded.stdout",
+            "bytes": 75,
+            "sha256": "db6cbedcfa53f2edd15f2dbac15c00322b65de266fc88d639df712f576389d3f"
+          },
+          "semantic_sha256": "79fc88a53fdd3ec543a4dc258f81b7b14c4a984fd882cb182bfdeb574dda228d",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 1
+          }
+        },
+        {
+          "query": "queries/summary/QuerySinkCounts.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/summary/QuerySinkCounts.bqrs",
+            "bytes": 685,
+            "sha256": "f87ea4b33b63043a5b728929568c27e919f430b12ca4cba3c2f8acfe7736326b"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/summary/QuerySinkCounts.bqrs",
+            "bytes": 685,
+            "sha256": "47216163f632d1bdf665fcc9343e80ae3dc5dec9fce2914f197f6563094b7fe2"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-QuerySinkCounts-decoded.stdout",
+            "bytes": 349,
+            "sha256": "0355b12c628b0f00b39432955143a15ea2c467cce505b8e4602b3d8e031f748f"
+          },
+          "retained_decoded": {
+            "path": "retained-QuerySinkCounts-decoded.stdout",
+            "bytes": 349,
+            "sha256": "0355b12c628b0f00b39432955143a15ea2c467cce505b8e4602b3d8e031f748f"
+          },
+          "semantic_sha256": "8ef6e1404fc534c393918bd0563102b9de96fbd68f2ca310a51a92427ed994f3",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 8
+          }
+        },
+        {
+          "query": "queries/summary/SummaryStatsReduced.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/summary/SummaryStatsReduced.bqrs",
+            "bytes": 907,
+            "sha256": "1c132ca2e17214cff94d96f78e24992ad72e1bc6cb6a3bd2383a5e3512915254"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/summary/SummaryStatsReduced.bqrs",
+            "bytes": 907,
+            "sha256": "49e06742cb4fba04ca704e240c3644cfc46bce1670194e68b3ea5ce3a93bb339"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-SummaryStatsReduced-decoded.stdout",
+            "bytes": 703,
+            "sha256": "aec3fbd959e8b9a2dcaad270e1b65538422b3867199951eba5861ebc3b2c043a"
+          },
+          "retained_decoded": {
+            "path": "retained-SummaryStatsReduced-decoded.stdout",
+            "bytes": 703,
+            "sha256": "aec3fbd959e8b9a2dcaad270e1b65538422b3867199951eba5861ebc3b2c043a"
+          },
+          "semantic_sha256": "08c368f7288a55afc4f3ddaa075fa42a8537b70174e34295a2d06b36e05fad66",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 16
+          }
+        },
+        {
+          "query": "queries/telemetry/DatabaseQualityDiagnostics.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/telemetry/DatabaseQualityDiagnostics.bqrs",
+            "bytes": 351,
+            "sha256": "3732122e1fdbe50d23c2b01a565c7893839fd1d66452c003410fa35b86e90194"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/telemetry/DatabaseQualityDiagnostics.bqrs",
+            "bytes": 351,
+            "sha256": "0cf636c4af7a405a49ed116f9fc1f2662d8e9d22f659fd7a5056298e6171d516"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-DatabaseQualityDiagnostics-decoded.stdout",
+            "bytes": 274,
+            "sha256": "260f42c099da61b6a908a63cd604dc70bb5a6b253ff33bf83467aa059097c043"
+          },
+          "retained_decoded": {
+            "path": "retained-DatabaseQualityDiagnostics-decoded.stdout",
+            "bytes": 274,
+            "sha256": "260f42c099da61b6a908a63cd604dc70bb5a6b253ff33bf83467aa059097c043"
+          },
+          "semantic_sha256": "630a5f7a583bc8fb5cc7a007c3d16650e4b93098a0718ae439cff36af3e67dd2",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "diagnosticAttributes": 0,
+            "#select": 0
+          }
+        },
+        {
+          "query": "queries/telemetry/ExtractorInformation.ql",
+          "fresh_bqrs": {
+            "path": "partial-fresh-bqrs/queries/telemetry/ExtractorInformation.bqrs",
+            "bytes": 1113,
+            "sha256": "0a4d8c0432a347c25f9be4ee4474eb89911c76489a10befc5a30f9ac77504ac9"
+          },
+          "retained_bqrs": {
+            "path": "retained-bqrs/queries/telemetry/ExtractorInformation.bqrs",
+            "bytes": 1113,
+            "sha256": "00afb7d63876e5f6f7c5b1229fd37cb11c8f6e1326d965fb50b3fcfffb124a03"
+          },
+          "fresh_decoded": {
+            "path": "partial-fresh-ExtractorInformation-decoded.stdout",
+            "bytes": 975,
+            "sha256": "ed8e05c5fb29b5f5cb6ac485d4a7a3905b00d1883b4a9a82c84cbe930d403856"
+          },
+          "retained_decoded": {
+            "path": "retained-ExtractorInformation-decoded.stdout",
+            "bytes": 975,
+            "sha256": "ed8e05c5fb29b5f5cb6ac485d4a7a3905b00d1883b4a9a82c84cbe930d403856"
+          },
+          "semantic_sha256": "fcc244e412cb6ba89f4e7f1663da9e4e9a3d8774e026c1f3672c3b04c7c8f18e",
+          "semantics_equal": true,
+          "fresh_table_rows": {
+            "#select": 16
+          }
+        }
+      ]
+    }
+  ]
+}

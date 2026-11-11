@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "shared_source_fields": {
+    "codeql_version": "2.27.2",
+    "query_pack": "0.1.44",
+    "query_count": 39,
+    "query_manifest_sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b",
+    "query_source_sha256": "7278d53373afb4f8069122e287c9c036a959ba0d167c152d67cd0de885881d67",
+    "unchanged_other_compiled_queries": 38,
+    "tool_bundle_bytes": 98247028,
+    "tool_bundle_sha256": "acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea"
+  },
+  "stage4_only": {
+    "run_id": 43009319450,
+    "experiment_commit": "4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215",
+    "control_mode": "projection",
+    "dynamic_join_order_mode": "all",
+    "stage_enabled_by_vendor_patch": [
+      "Stage4Param"
+    ],
+    "capsule_bytes": 620156,
+    "capsule_sha256": "1fe6db109a540d6063fca24e25e9d6c56a88f972a5c248d74fd95f7248fb6132",
+    "compiler_inputs_digest": "70fcc50b9809b694b26b77a11722cdbb",
+    "compiled_inventory_sha256": "f1a3d81b2e0a35262ea88d795825478f9217e4f897befdff6146bfbf2f521b14",
+    "vendor_patch": {
+      "bytes": 2876,
+      "dependency_path": "codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll",
+      "effective": {
+        "bytes": 139632,
+        "sha256": "c2578c2642d0e382ca5438c7d72f69415ca115b5b248778eb0b8b1398526ca06"
+      },
+      "path": "codeql_summary_projection.patch",
+      "sha256": "282378060da1b9929c84ae040cbd99f64b7424874a364a76d6f5f46af47ceba9",
+      "upstream": {
+        "bytes": 138246,
+        "sha256": "48abc6ae3a155494379f139d6a71d0d9b27469824e8f2dc5a72ff39a82ce64bf"
+      },
+      "upstream_package": "codeql/dataflow@2.1.15",
+      "upstream_url": "https://github.com/github/codeql/blob/codeql-cli/v2.27.2/shared/dataflow/codeql/dataflow/internal/DataFlowImpl.qll"
+    },
+    "terminal_status": "failure",
+    "primary_stop": "timeout",
+    "full_query_result_count": 38
+  },
+  "stage3_and_stage4": {
+    "run_id": 43016694869,
+    "experiment_commit": "128c8392690b59a98e35c17f67e704cc79cea18e",
+    "control_mode": "projection",
+    "dynamic_join_order_mode": "all",
+    "stage_enabled_by_vendor_patch": [
+      "Stage3Param",
+      "Stage4Param"
+    ],
+    "capsule_bytes": 620230,
+    "capsule_sha256": "5b17fb41cd3c59fea564ec4e9cb49ef586c0ad06ccc3f2445e46b7b5ca8430cb",
+    "compiler_inputs_digest": "6a7530eb694360655ab8331a895c9fcd",
+    "compiled_inventory_sha256": "a63755946874528cfb0788ef967cfd3797d0865fef2fa133757f1ee393a720d0",
+    "vendor_patch": {
+      "bytes": 3235,
+      "dependency_path": "codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll",
+      "effective": {
+        "bytes": 139689,
+        "sha256": "6a444d1baf03a1db4cbf1f98e39320ba3a7d68d2b9b6db7feffb2bf9cd315bde"
+      },
+      "path": "codeql_summary_projection.patch",
+      "sha256": "7eeff3c79e8c808f56f25ce7e8e10b73e6227448e1c15531b583ec7ed13898a8",
+      "upstream": {
+        "bytes": 138246,
+        "sha256": "48abc6ae3a155494379f139d6a71d0d9b27469824e8f2dc5a72ff39a82ce64bf"
+      },
+      "upstream_package": "codeql/dataflow@2.1.15",
+      "upstream_url": "https://github.com/github/codeql/blob/codeql-cli/v2.27.2/shared/dataflow/codeql/dataflow/internal/DataFlowImpl.qll"
+    },
+    "status_at_readback": "in_progress",
+    "conclusion_at_readback": null,
+    "status_readback_utc": "2026-11-11 16:37:06 UTC"
+  },
+  "sources": [
+    "https://github.com/billlza/q-periapt/actions/runs/43009319450",
+    "https://github.com/billlza/q-periapt/actions/runs/43016694869",
+    "https://github.com/billlza/q-periapt/blob/4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215/artifact/codeql_summary_projection.patch",
+    "https://github.com/billlza/q-periapt/blob/128c8392690b59a98e35c17f67e704cc79cea18e/artifact/codeql_summary_projection.patch"
+  ]
+}

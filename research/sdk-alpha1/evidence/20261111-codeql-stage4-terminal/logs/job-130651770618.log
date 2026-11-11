@@ -1,0 +1,303 @@
+﻿2026-11-11T16:23:11.3627683Z Current runner version: '2.338.2'
+2026-11-11T16:23:11.3649435Z ##[group]Runner Image Provisioner
+2026-11-11T16:23:11.3650188Z Hosted Compute Agent
+2026-11-11T16:23:11.3650881Z Version: 20261028.624
+2026-11-11T16:23:11.3651469Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-11T16:23:11.3652082Z Build Date: 2026-10-28T21:51:42Z
+2026-11-11T16:23:11.3652642Z Worker ID: {12162c06-377e-424a-bffe-d0507777b596}
+2026-11-11T16:23:11.3653342Z Region: westus3
+2026-11-11T16:23:11.3653855Z Cloud: Azure
+2026-11-11T16:23:11.3654363Z ##[endgroup]
+2026-11-11T16:23:11.3655799Z ##[group]Operating System
+2026-11-11T16:23:11.3656462Z Ubuntu
+2026-11-11T16:23:11.3656989Z 24.04.5
+2026-11-11T16:23:11.3657471Z LTS
+2026-11-11T16:23:11.3658237Z ##[endgroup]
+2026-11-11T16:23:11.3658741Z ##[group]Runner Image
+2026-11-11T16:23:11.3659283Z Image: ubuntu-24.04
+2026-11-11T16:23:11.3659879Z Version: 20261101.360.1
+2026-11-11T16:23:11.3661149Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-11T16:23:11.3662460Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261101.360
+2026-11-11T16:23:11.3663263Z ##[endgroup]
+2026-11-11T16:23:11.3664347Z ##[group]GITHUB_TOKEN Permissions
+2026-11-11T16:23:11.3666199Z Actions: read
+2026-11-11T16:23:11.3666790Z Contents: read
+2026-11-11T16:23:11.3667276Z Metadata: read
+2026-11-11T16:23:11.3667777Z ##[endgroup]
+2026-11-11T16:23:11.3669648Z Secret source: Actions
+2026-11-11T16:23:11.3670669Z Cache mode: write
+2026-11-11T16:23:11.3671464Z Prepare workflow directory
+2026-11-11T16:23:11.4119084Z Prepare all required actions
+2026-11-11T16:23:11.4159020Z Getting action download info
+2026-11-11T16:23:11.7751746Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-11T16:23:12.1581805Z Download action repository 'actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c' (SHA:3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c)
+2026-11-11T16:23:13.0863420Z Download action repository 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' (SHA:043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
+2026-11-11T16:23:13.3268768Z Complete job name: Require complete equivalent results from both allocations
+2026-11-11T16:23:13.4053893Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-11T16:23:13.4055379Z with:
+2026-11-11T16:23:13.4056126Z   persist-credentials: false
+2026-11-11T16:23:13.4057050Z   sparse-checkout-cone-mode: false
+2026-11-11T16:23:13.4064515Z   sparse-checkout: artifact/codeql_summary_control.py
+artifact/codeql_process_resources.py
+artifact/codeql_summary_plan.py
+artifact/codeql_summary_dynamic_plan.json
+artifact/codeql-summary-dynamic-plan.zip
+artifact/codeql_summary_projection.py
+artifact/codeql_summary_projection.json
+artifact/codeql_summary_projection_dependencies.json.gz
+artifact/codeql_summary_projection.patch
+artifact/codeql-summary-projection-plan.zip
+artifact/codeql-summary-projection-plan.LICENSE
+artifact/codeql_log_recovery.py
+artifact/codeql_rust_queries.json
+artifact/bounded_process.py
+artifact/evidence_io.py
+artifact/python-run.sh
+artifact/python-env.sh
+artifact/python_bootstrap.py
+
+2026-11-11T16:23:13.4071908Z   repository: billlza/q-periapt
+2026-11-11T16:23:13.4078909Z   token: ***
+2026-11-11T16:23:13.4079659Z   ssh-strict: true
+2026-11-11T16:23:13.4080406Z   ssh-user: git
+2026-11-11T16:23:13.4081235Z   clean: true
+2026-11-11T16:23:13.4081958Z   fetch-depth: 1
+2026-11-11T16:23:13.4082787Z   fetch-tags: false
+2026-11-11T16:23:13.4083572Z   show-progress: true
+2026-11-11T16:23:13.4084349Z   lfs: false
+2026-11-11T16:23:13.4085069Z   submodules: false
+2026-11-11T16:23:13.4085847Z   set-safe-directory: true
+2026-11-11T16:23:13.4086727Z   allow-unsafe-pr-checkout: false
+2026-11-11T16:23:13.4087856Z env:
+2026-11-11T16:23:13.4088586Z   SUMMARY_PLAN_MODE: projection
+2026-11-11T16:23:13.4089452Z ##[endgroup]
+2026-11-11T16:23:13.7310241Z Syncing repository: billlza/q-periapt
+2026-11-11T16:23:13.7314251Z ##[group]Getting Git version info
+2026-11-11T16:23:13.7315997Z Working directory is '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T16:23:13.7318606Z [command]/usr/bin/git version
+2026-11-11T16:23:13.7379991Z git version 2.56.0
+2026-11-11T16:23:13.7397085Z ##[endgroup]
+2026-11-11T16:23:13.7407446Z Temporarily overriding HOME='/home/runner/work/_temp/34c6185e-dd0e-4023-b033-dceee000d440' before making global git config changes
+2026-11-11T16:23:13.7411348Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T16:23:13.7414422Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T16:23:13.7468658Z Deleting the contents of '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T16:23:13.7472694Z ##[group]Determining repository object format
+2026-11-11T16:23:13.7474998Z ##[endgroup]
+2026-11-11T16:23:13.7476763Z ##[group]Initializing the repository
+2026-11-11T16:23:13.7479439Z [command]/usr/bin/git init /home/runner/work/q-periapt/q-periapt
+2026-11-11T16:23:13.7567954Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-11T16:23:13.7570999Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-11T16:23:13.7573581Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-11T16:23:13.7575572Z hint: call:
+2026-11-11T16:23:13.7576738Z hint:
+2026-11-11T16:23:13.7578069Z hint: 	git config --global init.defaultBranch <name>
+2026-11-11T16:23:13.7579641Z hint:
+2026-11-11T16:23:13.7581327Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-11T16:23:13.7583693Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-11T16:23:13.7585694Z hint:
+2026-11-11T16:23:13.7587130Z hint: 	git branch -m <name>
+2026-11-11T16:23:13.7588478Z hint:
+2026-11-11T16:23:13.7590196Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-11T16:23:13.7592270Z Initialized empty Git repository in /home/runner/work/q-periapt/q-periapt/.git/
+2026-11-11T16:23:13.7595917Z [command]/usr/bin/git remote add origin https://github.com/billlza/q-periapt
+2026-11-11T16:23:13.7634177Z ##[endgroup]
+2026-11-11T16:23:13.7636364Z ##[group]Disabling automatic garbage collection
+2026-11-11T16:23:13.7638104Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-11T16:23:13.7672430Z ##[endgroup]
+2026-11-11T16:23:13.7674981Z ##[group]Setting up auth
+2026-11-11T16:23:13.7676704Z Removing SSH command configuration
+2026-11-11T16:23:13.7679033Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T16:23:13.7715943Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T16:23:13.8067814Z Removing HTTP extra header
+2026-11-11T16:23:13.8072698Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T16:23:13.8111927Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T16:23:13.8326357Z Removing includeIf entries pointing to credentials config files
+2026-11-11T16:23:13.8329985Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T16:23:13.8368341Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T16:23:13.8582472Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-98a25d0d-d552-41c4-b76c-8805d75cbfed.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-11T16:23:13.8626549Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path /home/runner/work/_temp/git-credentials-98a25d0d-d552-41c4-b76c-8805d75cbfed.config
+2026-11-11T16:23:13.8665546Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-98a25d0d-d552-41c4-b76c-8805d75cbfed.config
+2026-11-11T16:23:13.8704520Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-98a25d0d-d552-41c4-b76c-8805d75cbfed.config
+2026-11-11T16:23:13.8741931Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-98a25d0d-d552-41c4-b76c-8805d75cbfed.config
+2026-11-11T16:23:13.8777652Z ##[endgroup]
+2026-11-11T16:23:13.8778956Z ##[group]Fetching the repository
+2026-11-11T16:23:13.8783807Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --filter=blob:none --depth=1 origin +4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215:refs/remotes/origin/diagnostic/codeql-summary-projection
+2026-11-11T16:23:14.4892480Z From https://github.com/billlza/q-periapt
+2026-11-11T16:23:14.4893824Z  * [new ref]         4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215 -> origin/diagnostic/codeql-summary-projection
+2026-11-11T16:23:14.4901181Z [command]/usr/bin/git branch --list --remote origin/diagnostic/codeql-summary-projection
+2026-11-11T16:23:14.4935133Z   origin/diagnostic/codeql-summary-projection
+2026-11-11T16:23:14.4942171Z [command]/usr/bin/git rev-parse refs/remotes/origin/diagnostic/codeql-summary-projection
+2026-11-11T16:23:14.4973378Z 4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215
+2026-11-11T16:23:14.4976965Z ##[endgroup]
+2026-11-11T16:23:14.4977549Z ##[group]Determining the checkout info
+2026-11-11T16:23:14.4978199Z ##[endgroup]
+2026-11-11T16:23:14.4978784Z ##[group]Setting up sparse checkout
+2026-11-11T16:23:14.4982709Z [command]/usr/bin/git config core.sparseCheckout true
+2026-11-11T16:23:14.5023748Z [command]/usr/bin/git rev-parse --git-path info/sparse-checkout
+2026-11-11T16:23:14.5053275Z .git/info/sparse-checkout
+2026-11-11T16:23:14.5060027Z ##[endgroup]
+2026-11-11T16:23:14.5060770Z ##[group]Checking out the ref
+2026-11-11T16:23:14.5064433Z [command]/usr/bin/git checkout --progress --force -B diagnostic/codeql-summary-projection refs/remotes/origin/diagnostic/codeql-summary-projection
+2026-11-11T16:23:15.7995424Z Updating files:   5% (1/18)
+2026-11-11T16:23:15.7995912Z Updating files:  11% (2/18)
+2026-11-11T16:23:15.8009467Z Updating files:  16% (3/18)
+2026-11-11T16:23:15.8011602Z Updating files:  22% (4/18)
+2026-11-11T16:23:15.8011827Z Updating files:  27% (5/18)
+2026-11-11T16:23:15.8012955Z Updating files:  33% (6/18)
+2026-11-11T16:23:15.8015574Z Updating files:  38% (7/18)
+2026-11-11T16:23:15.8016176Z Updating files:  44% (8/18)
+2026-11-11T16:23:15.8017054Z Updating files:  50% (9/18)
+2026-11-11T16:23:15.8017798Z Updating files:  55% (10/18)
+2026-11-11T16:23:15.8018576Z Updating files:  61% (11/18)
+2026-11-11T16:23:15.8019448Z Updating files:  66% (12/18)
+2026-11-11T16:23:15.8021469Z Updating files:  72% (13/18)
+2026-11-11T16:23:15.8023691Z Updating files:  77% (14/18)
+2026-11-11T16:23:15.8024269Z Updating files:  83% (15/18)
+2026-11-11T16:23:15.8024696Z Updating files:  88% (16/18)
+2026-11-11T16:23:15.8025624Z Updating files:  94% (17/18)
+2026-11-11T16:23:15.8026487Z Updating files: 100% (18/18)
+2026-11-11T16:23:15.8026728Z Updating files: 100% (18/18), done.
+2026-11-11T16:23:15.8155184Z Switched to a new branch 'diagnostic/codeql-summary-projection'
+2026-11-11T16:23:15.8159557Z branch 'diagnostic/codeql-summary-projection' set up to track 'origin/diagnostic/codeql-summary-projection'.
+2026-11-11T16:23:15.8168357Z ##[endgroup]
+2026-11-11T16:23:15.8226075Z [command]/usr/bin/git log -1 --format=%H
+2026-11-11T16:23:15.8259555Z 4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215
+2026-11-11T16:23:15.8271348Z ##[group]Removing auth
+2026-11-11T16:23:15.8271827Z Removing SSH command configuration
+2026-11-11T16:23:15.8272422Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T16:23:15.8310587Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T16:23:15.8558918Z Removing HTTP extra header
+2026-11-11T16:23:15.8562322Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T16:23:15.8616187Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T16:23:15.8852522Z Removing includeIf entries pointing to credentials config files
+2026-11-11T16:23:15.8855344Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T16:23:15.9248353Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T16:23:15.9249018Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T16:23:15.9250009Z includeif.gitdir:/github/workspace/.git.path
+2026-11-11T16:23:15.9250437Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T16:23:15.9260930Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T16:23:15.9300714Z /home/runner/work/_temp/git-credentials-98a25d0d-d552-41c4-b76c-8805d75cbfed.config
+2026-11-11T16:23:15.9380218Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-98a25d0d\-d552\-41c4\-b76c\-8805d75cbfed\.config
+2026-11-11T16:23:15.9382771Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T16:23:15.9392191Z /home/runner/work/_temp/git-credentials-98a25d0d-d552-41c4-b76c-8805d75cbfed.config
+2026-11-11T16:23:15.9400177Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-98a25d0d\-d552\-41c4\-b76c\-8805d75cbfed\.config
+2026-11-11T16:23:15.9441508Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-11T16:23:15.9473537Z /github/runner_temp/git-credentials-98a25d0d-d552-41c4-b76c-8805d75cbfed.config
+2026-11-11T16:23:15.9480160Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-98a25d0d\-d552\-41c4\-b76c\-8805d75cbfed\.config
+2026-11-11T16:23:15.9752982Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T16:23:15.9786336Z /github/runner_temp/git-credentials-98a25d0d-d552-41c4-b76c-8805d75cbfed.config
+2026-11-11T16:23:15.9793922Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-98a25d0d\-d552\-41c4\-b76c\-8805d75cbfed\.config
+2026-11-11T16:23:15.9838064Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T16:23:16.0064034Z Removing credentials config '/home/runner/work/_temp/git-credentials-98a25d0d-d552-41c4-b76c-8805d75cbfed.config'
+2026-11-11T16:23:16.0075495Z ##[endgroup]
+2026-11-11T16:23:16.0583947Z ##[group]Run actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+2026-11-11T16:23:16.0584279Z with:
+2026-11-11T16:23:16.0584467Z   name: codeql-summary-control-heap-2048
+2026-11-11T16:23:16.0584784Z   path: /home/runner/work/_temp/qperiapt-codeql-summary-pair/heap-2048
+2026-11-11T16:23:16.0585091Z   merge-multiple: false
+2026-11-11T16:23:16.0585297Z   repository: billlza/q-periapt
+2026-11-11T16:23:16.0585505Z   run-id: 43009319450
+2026-11-11T16:23:16.0585687Z   skip-decompress: false
+2026-11-11T16:23:16.0585879Z   digest-mismatch: error
+2026-11-11T16:23:16.0586053Z env:
+2026-11-11T16:23:16.0586394Z   SUMMARY_PLAN_MODE: projection
+2026-11-11T16:23:16.0586588Z ##[endgroup]
+2026-11-11T16:23:16.2316533Z Downloading single artifact
+2026-11-11T16:23:16.9224068Z Preparing to download the following artifacts:
+2026-11-11T16:23:16.9224755Z - codeql-summary-control-heap-2048 (ID: 13872915159, Size: 31837325, Expected Digest: sha256:e5ea00d64244f9083f3f1665ac847cd7bf24513849b7a4fa757fdbbbbb3cbfa5)
+2026-11-11T16:23:17.3910640Z Redirecting to blob download url: https://productionresultssa13.blob.core.windows.net/actions-results/7e77d897-b549-8943-891c-deb3981a41d1/workflow-job-run-a66b821e-d6fa-5670-b985-b32f53ddc27e/artifacts/017a5170e6c5c0f13b40b6221c952bb74b9618ff3deb44d6d640a9e770019e64.zip
+2026-11-11T16:23:17.3911763Z Starting download of artifact to: /home/runner/work/_temp/qperiapt-codeql-summary-pair/heap-2048
+2026-11-11T16:23:17.6785604Z (node:2203) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+2026-11-11T16:23:17.6786411Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-11T16:23:19.6146826Z SHA256 digest of downloaded artifact is e5ea00d64244f9083f3f1665ac847cd7bf24513849b7a4fa757fdbbbbb3cbfa5
+2026-11-11T16:23:19.6147311Z Artifact download completed successfully.
+2026-11-11T16:23:19.6147607Z Total of 1 artifact(s) downloaded
+2026-11-11T16:23:19.6152488Z Download artifact has finished successfully
+2026-11-11T16:23:19.6315553Z ##[group]Run actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+2026-11-11T16:23:19.6315897Z with:
+2026-11-11T16:23:19.6316093Z   name: codeql-summary-control-heap-1536
+2026-11-11T16:23:19.6316412Z   path: /home/runner/work/_temp/qperiapt-codeql-summary-pair/heap-1536
+2026-11-11T16:23:19.6316712Z   merge-multiple: false
+2026-11-11T16:23:19.6316915Z   repository: billlza/q-periapt
+2026-11-11T16:23:19.6317127Z   run-id: 43009319450
+2026-11-11T16:23:19.6317315Z   skip-decompress: false
+2026-11-11T16:23:19.6317533Z   digest-mismatch: error
+2026-11-11T16:23:19.6317712Z env:
+2026-11-11T16:23:19.6317889Z   SUMMARY_PLAN_MODE: projection
+2026-11-11T16:23:19.6318100Z ##[endgroup]
+2026-11-11T16:23:19.7461024Z Downloading single artifact
+2026-11-11T16:23:19.9926542Z Preparing to download the following artifacts:
+2026-11-11T16:23:19.9927657Z - codeql-summary-control-heap-1536 (ID: 13872940192, Size: 32645123, Expected Digest: sha256:586844529bcbd623c3bdfb84a69992f5e30d157e88616107ee209b620642feba)
+2026-11-11T16:23:20.4385319Z Redirecting to blob download url: https://productionresultssa13.blob.core.windows.net/actions-results/7e77d897-b549-8943-891c-deb3981a41d1/workflow-job-run-0abf8985-0caf-5149-adcb-ce5323dce64a/artifacts/96ff90c97bb1ea39c2e0775dee381356a8a3aecc801c7899019ac507601b713c.zip
+2026-11-11T16:23:20.4387158Z Starting download of artifact to: /home/runner/work/_temp/qperiapt-codeql-summary-pair/heap-1536
+2026-11-11T16:23:20.7035520Z (node:2218) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+2026-11-11T16:23:20.7036295Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-11T16:23:22.5658823Z SHA256 digest of downloaded artifact is 586844529bcbd623c3bdfb84a69992f5e30d157e88616107ee209b620642feba
+2026-11-11T16:23:22.5659392Z Artifact download completed successfully.
+2026-11-11T16:23:22.5659703Z Total of 1 artifact(s) downloaded
+2026-11-11T16:23:22.5663869Z Download artifact has finished successfully
+2026-11-11T16:23:22.5807594Z ##[group]Run sh artifact/python-run.sh artifact/codeql_summary_control.py compare \
+2026-11-11T16:23:22.5808192Z [36;1msh artifact/python-run.sh artifact/codeql_summary_control.py compare \[0m
+2026-11-11T16:23:22.5808593Z [36;1m  --summary-plan-mode "$SUMMARY_PLAN_MODE" \[0m
+2026-11-11T16:23:22.5809005Z [36;1m  --baseline "$RUNNER_TEMP/qperiapt-codeql-summary-pair/heap-2048/RESULT.json" \[0m
+2026-11-11T16:23:22.5809486Z [36;1m  --candidate "$RUNNER_TEMP/qperiapt-codeql-summary-pair/heap-1536/RESULT.json" \[0m
+2026-11-11T16:23:22.5810110Z [36;1m  --output "$RUNNER_TEMP/SUMMARY_CONTROL_COMPARISON.json"[0m
+2026-11-11T16:23:22.5831064Z shell: /usr/bin/bash -e {0}
+2026-11-11T16:23:22.5831291Z env:
+2026-11-11T16:23:22.5831483Z   SUMMARY_PLAN_MODE: projection
+2026-11-11T16:23:22.5831704Z ##[endgroup]
+2026-11-11T16:23:23.0797211Z Traceback (most recent call last):
+2026-11-11T16:23:23.0797956Z   File "/home/runner/work/q-periapt/q-periapt/artifact/python_bootstrap.py", line 91, in <module>
+2026-11-11T16:23:23.0798410Z     dispatch(sys.argv[1:])
+2026-11-11T16:23:23.0798791Z   File "/home/runner/work/q-periapt/q-periapt/artifact/python_bootstrap.py", line 87, in dispatch
+2026-11-11T16:23:23.0799396Z     runpy.run_path(str(resolved), run_name="__main__")
+2026-11-11T16:23:23.0801208Z   File "<frozen runpy>", line 286, in run_path
+2026-11-11T16:23:23.0801734Z   File "<frozen runpy>", line 98, in _run_module_code
+2026-11-11T16:23:23.0802179Z   File "<frozen runpy>", line 88, in _run_code
+2026-11-11T16:23:23.0802815Z   File "/home/runner/work/q-periapt/q-periapt/artifact/codeql_summary_control.py", line 1034, in <module>
+2026-11-11T16:23:23.0803418Z     main()
+2026-11-11T16:23:23.0803904Z   File "/home/runner/work/q-periapt/q-periapt/artifact/codeql_summary_control.py", line 1028, in main
+2026-11-11T16:23:23.0804701Z     raise RuntimeError("Paired memory comparison is incomplete; inspect its receipt") from None
+2026-11-11T16:23:23.0805309Z RuntimeError: Paired memory comparison is incomplete; inspect its receipt
+2026-11-11T16:23:23.0948638Z ##[error]Process completed with exit code 1.
+2026-11-11T16:23:23.1007119Z ##[group]Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+2026-11-11T16:23:23.1007460Z with:
+2026-11-11T16:23:23.1007660Z   name: codeql-summary-control-comparison
+2026-11-11T16:23:23.1007973Z   path: /home/runner/work/_temp/SUMMARY_CONTROL_COMPARISON.json
+2026-11-11T16:23:23.1008317Z   if-no-files-found: error
+2026-11-11T16:23:23.1008534Z   retention-days: 14
+2026-11-11T16:23:23.1008731Z   compression-level: 6
+2026-11-11T16:23:23.1008919Z   overwrite: false
+2026-11-11T16:23:23.1009108Z   include-hidden-files: false
+2026-11-11T16:23:23.1009319Z   archive: true
+2026-11-11T16:23:23.1009493Z env:
+2026-11-11T16:23:23.1009664Z   SUMMARY_PLAN_MODE: projection
+2026-11-11T16:23:23.1009878Z ##[endgroup]
+2026-11-11T16:23:23.2240023Z With the provided path, there will be 1 file uploaded
+2026-11-11T16:23:23.2245004Z Artifact name is valid!
+2026-11-11T16:23:23.2245507Z Root directory input is valid!
+2026-11-11T16:23:23.5733031Z Uploading artifact: codeql-summary-control-comparison.zip
+2026-11-11T16:23:23.5763872Z Beginning upload of artifact content to blob storage
+2026-11-11T16:23:23.8226298Z Uploaded bytes 352
+2026-11-11T16:23:23.8829642Z Finished uploading artifact content to blob storage!
+2026-11-11T16:23:23.8830404Z SHA256 digest of uploaded artifact is 53cbd65a8285a0c3bccf7b8ce34a1045a718befa3a7d83b6818d964dd06fd2d2
+2026-11-11T16:23:23.8831051Z Finalizing artifact upload
+2026-11-11T16:23:24.4146131Z Artifact codeql-summary-control-comparison successfully finalized. Artifact ID 13872760444
+2026-11-11T16:23:24.4147006Z Artifact codeql-summary-control-comparison has been successfully uploaded! Final size is 352 bytes. Artifact ID is 13872760444
+2026-11-11T16:23:24.4149497Z Artifact download URL: https://github.com/billlza/q-periapt/actions/runs/43009319450/artifacts/13872760444
+2026-11-11T16:23:24.4329808Z Post job cleanup.
+2026-11-11T16:23:24.5068389Z [command]/usr/bin/git version
+2026-11-11T16:23:24.5107376Z git version 2.56.0
+2026-11-11T16:23:24.5137795Z Temporarily overriding HOME='/home/runner/work/_temp/b75f135b-003d-499b-86dc-503591dc11e7' before making global git config changes
+2026-11-11T16:23:24.5139092Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T16:23:24.5143132Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T16:23:24.5180919Z Removing SSH command configuration
+2026-11-11T16:23:24.5187183Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T16:23:24.5227195Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T16:23:24.5464987Z Removing HTTP extra header
+2026-11-11T16:23:24.5466507Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T16:23:24.5505243Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T16:23:24.5739086Z Removing includeIf entries pointing to credentials config files
+2026-11-11T16:23:24.5745983Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T16:23:24.5789777Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T16:23:24.6136386Z Cleaning up orphan processes

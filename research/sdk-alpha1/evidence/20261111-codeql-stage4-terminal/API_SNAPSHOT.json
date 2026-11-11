@@ -1,0 +1,500 @@
+{
+  "schema": 1,
+  "repository": "billlza/q-periapt",
+  "terminal_readback": {
+    "started_utc": "2026-11-11 16:24:00 UTC",
+    "finished_utc": "2026-11-11 16:24:02 UTC",
+    "run": {
+      "id": 43009319450,
+      "name": "Retained SummaryStats allocation control",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_branch": "diagnostic/codeql-summary-projection",
+      "head_sha": "4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215",
+      "path": ".github/workflows/codeql-summary-control.yml",
+      "run_attempt": 1,
+      "created_at": "2026-11-11T11:07:32Z",
+      "run_started_at": "2026-11-11T11:07:32Z",
+      "updated_at": "2026-11-11T16:23:27Z",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43009319450",
+      "display_title": "Reduce CodeQL verification overhead and admit the Stage4 read-target …"
+    },
+    "jobs": {
+      "total_count": 3,
+      "jobs": [
+        {
+          "id": 130484629159,
+          "run_id": 43009319450,
+          "workflow_name": "Retained SummaryStats allocation control",
+          "head_branch": "diagnostic/codeql-summary-projection",
+          "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43009319450",
+          "run_attempt": 1,
+          "node_id": "CR_kwDOTD-aVc8AAAAeYX1upw",
+          "head_sha": "4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215",
+          "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130484629159",
+          "html_url": "https://github.com/billlza/q-periapt/actions/runs/43009319450/job/130484629159",
+          "status": "completed",
+          "conclusion": "failure",
+          "created_at": "2026-11-11T11:07:32Z",
+          "started_at": "2026-11-11T11:20:48Z",
+          "completed_at": "2026-11-11T16:22:28Z",
+          "name": "Retained 56f191f0 macOS database, heap-2048",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1,
+              "started_at": "2026-11-11T11:20:49Z",
+              "completed_at": "2026-11-11T11:20:49Z"
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 2,
+              "started_at": "2026-11-11T11:20:49Z",
+              "completed_at": "2026-11-11T11:20:52Z"
+            },
+            {
+              "name": "Check exact inputs, fresh results and strict paired comparison",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 3,
+              "started_at": "2026-11-11T11:20:52Z",
+              "completed_at": "2026-11-11T11:21:02Z"
+            },
+            {
+              "name": "Install the authenticated Rust CLI 2.27.2 bundle",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 4,
+              "started_at": "2026-11-11T11:21:02Z",
+              "completed_at": "2026-11-11T11:21:04Z"
+            },
+            {
+              "name": "Run all 39 queries from an identical warm cache within five hours",
+              "status": "completed",
+              "conclusion": "failure",
+              "number": 5,
+              "started_at": "2026-11-11T11:21:04Z",
+              "completed_at": "2026-11-11T16:22:03Z"
+            },
+            {
+              "name": "Retain inputs, raw query logs and incomplete evaluation receipts",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 6,
+              "started_at": "2026-11-11T16:22:03Z",
+              "completed_at": "2026-11-11T16:22:09Z"
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 12,
+              "started_at": "2026-11-11T16:22:09Z",
+              "completed_at": "2026-11-11T16:22:10Z"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 13,
+              "started_at": "2026-11-11T16:22:10Z",
+              "completed_at": "2026-11-11T16:22:10Z"
+            }
+          ],
+          "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130484629159",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "runner_id": 1000088943,
+          "runner_name": "GitHub Actions 1000088943",
+          "runner_group_id": 0,
+          "runner_group_name": "GitHub Actions"
+        },
+        {
+          "id": 130484629706,
+          "run_id": 43009319450,
+          "workflow_name": "Retained SummaryStats allocation control",
+          "head_branch": "diagnostic/codeql-summary-projection",
+          "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43009319450",
+          "run_attempt": 1,
+          "node_id": "CR_kwDOTD-aVc8AAAAeYX1wyg",
+          "head_sha": "4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215",
+          "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130484629706",
+          "html_url": "https://github.com/billlza/q-periapt/actions/runs/43009319450/job/130484629706",
+          "status": "completed",
+          "conclusion": "failure",
+          "created_at": "2026-11-11T11:07:32Z",
+          "started_at": "2026-11-11T11:21:30Z",
+          "completed_at": "2026-11-11T16:23:04Z",
+          "name": "Retained 56f191f0 macOS database, heap-1536",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1,
+              "started_at": "2026-11-11T11:21:31Z",
+              "completed_at": "2026-11-11T11:21:32Z"
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 2,
+              "started_at": "2026-11-11T11:21:32Z",
+              "completed_at": "2026-11-11T11:21:34Z"
+            },
+            {
+              "name": "Check exact inputs, fresh results and strict paired comparison",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 3,
+              "started_at": "2026-11-11T11:21:34Z",
+              "completed_at": "2026-11-11T11:21:44Z"
+            },
+            {
+              "name": "Install the authenticated Rust CLI 2.27.2 bundle",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 4,
+              "started_at": "2026-11-11T11:21:44Z",
+              "completed_at": "2026-11-11T11:21:46Z"
+            },
+            {
+              "name": "Run all 39 queries from an identical warm cache within five hours",
+              "status": "completed",
+              "conclusion": "failure",
+              "number": 5,
+              "started_at": "2026-11-11T11:21:46Z",
+              "completed_at": "2026-11-11T16:22:49Z"
+            },
+            {
+              "name": "Retain inputs, raw query logs and incomplete evaluation receipts",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 6,
+              "started_at": "2026-11-11T16:22:49Z",
+              "completed_at": "2026-11-11T16:22:55Z"
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 12,
+              "started_at": "2026-11-11T16:22:55Z",
+              "completed_at": "2026-11-11T16:22:56Z"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 13,
+              "started_at": "2026-11-11T16:22:56Z",
+              "completed_at": "2026-11-11T16:22:56Z"
+            }
+          ],
+          "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130484629706",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "runner_id": 1000088949,
+          "runner_name": "GitHub Actions 1000088949",
+          "runner_group_id": 0,
+          "runner_group_name": "GitHub Actions"
+        },
+        {
+          "id": 130651770618,
+          "run_id": 43009319450,
+          "workflow_name": "Retained SummaryStats allocation control",
+          "head_branch": "diagnostic/codeql-summary-projection",
+          "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43009319450",
+          "run_attempt": 1,
+          "node_id": "CR_kwDOTD-aVc8AAAAea3PO-g",
+          "head_sha": "4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215",
+          "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130651770618",
+          "html_url": "https://github.com/billlza/q-periapt/actions/runs/43009319450/job/130651770618",
+          "status": "completed",
+          "conclusion": "failure",
+          "created_at": "2026-11-11T16:23:05Z",
+          "started_at": "2026-11-11T16:23:10Z",
+          "completed_at": "2026-11-11T16:23:26Z",
+          "name": "Require complete equivalent results from both allocations",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1,
+              "started_at": "2026-11-11T16:23:11Z",
+              "completed_at": "2026-11-11T16:23:13Z"
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 2,
+              "started_at": "2026-11-11T16:23:13Z",
+              "completed_at": "2026-11-11T16:23:16Z"
+            },
+            {
+              "name": "Read 2048 MiB heap evidence",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 3,
+              "started_at": "2026-11-11T16:23:16Z",
+              "completed_at": "2026-11-11T16:23:19Z"
+            },
+            {
+              "name": "Read 1536 MiB heap evidence",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 4,
+              "started_at": "2026-11-11T16:23:19Z",
+              "completed_at": "2026-11-11T16:23:22Z"
+            },
+            {
+              "name": "Admit identical inputs and all 39 complete fresh semantic results",
+              "status": "completed",
+              "conclusion": "failure",
+              "number": 5,
+              "started_at": "2026-11-11T16:23:22Z",
+              "completed_at": "2026-11-11T16:23:23Z"
+            },
+            {
+              "name": "Retain the comparison, including incomplete or mismatched outcomes",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 6,
+              "started_at": "2026-11-11T16:23:23Z",
+              "completed_at": "2026-11-11T16:23:24Z"
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 12,
+              "started_at": "2026-11-11T16:23:24Z",
+              "completed_at": "2026-11-11T16:23:24Z"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 13,
+              "started_at": "2026-11-11T16:23:24Z",
+              "completed_at": "2026-11-11T16:23:24Z"
+            }
+          ],
+          "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130651770618",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "runner_id": 1000089263,
+          "runner_name": "GitHub Actions 1000089263",
+          "runner_group_id": 0,
+          "runner_group_name": "GitHub Actions"
+        }
+      ]
+    }
+  },
+  "subsequent_readback": {
+    "started_utc": "2026-11-11 16:37:05 UTC",
+    "finished_utc": "2026-11-11 16:37:06 UTC",
+    "run": {
+      "id": 43016694869,
+      "name": "Retained SummaryStats allocation control",
+      "event": "push",
+      "status": "in_progress",
+      "conclusion": null,
+      "head_branch": "diagnostic/codeql-summary-projection",
+      "head_sha": "128c8392690b59a98e35c17f67e704cc79cea18e",
+      "path": ".github/workflows/codeql-summary-control.yml",
+      "run_attempt": 1,
+      "created_at": "2026-11-11T12:01:00Z",
+      "run_started_at": "2026-11-11T12:01:00Z",
+      "updated_at": "2026-11-11T16:23:34Z",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43016694869",
+      "display_title": "Evaluate the admitted Stage3 and Stage4 SummaryStats projection"
+    },
+    "jobs": {
+      "total_count": 2,
+      "jobs": [
+        {
+          "id": 130652008407,
+          "run_id": 43016694869,
+          "workflow_name": "Retained SummaryStats allocation control",
+          "head_branch": "diagnostic/codeql-summary-projection",
+          "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43016694869",
+          "run_attempt": 1,
+          "node_id": "CR_kwDOTD-aVc8AAAAea3dv1w",
+          "head_sha": "128c8392690b59a98e35c17f67e704cc79cea18e",
+          "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130652008407",
+          "html_url": "https://github.com/billlza/q-periapt/actions/runs/43016694869/job/130652008407",
+          "status": "in_progress",
+          "conclusion": null,
+          "created_at": "2026-11-11T16:23:29Z",
+          "started_at": "2026-11-11T16:23:34Z",
+          "completed_at": null,
+          "name": "Retained 56f191f0 macOS database, heap-1536",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1,
+              "started_at": "2026-11-11T16:23:35Z",
+              "completed_at": "2026-11-11T16:23:36Z"
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 2,
+              "started_at": "2026-11-11T16:23:36Z",
+              "completed_at": "2026-11-11T16:23:38Z"
+            },
+            {
+              "name": "Check exact inputs, fresh results and strict paired comparison",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 3,
+              "started_at": "2026-11-11T16:23:38Z",
+              "completed_at": "2026-11-11T16:23:48Z"
+            },
+            {
+              "name": "Install the authenticated Rust CLI 2.27.2 bundle",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 4,
+              "started_at": "2026-11-11T16:23:48Z",
+              "completed_at": "2026-11-11T16:23:51Z"
+            },
+            {
+              "name": "Run all 39 queries from an identical warm cache within five hours",
+              "status": "in_progress",
+              "conclusion": null,
+              "number": 5,
+              "started_at": "2026-11-11T16:23:51Z",
+              "completed_at": null
+            },
+            {
+              "name": "Retain inputs, raw query logs and incomplete evaluation receipts",
+              "status": "pending",
+              "conclusion": null,
+              "number": 6,
+              "started_at": null,
+              "completed_at": null
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "pending",
+              "conclusion": null,
+              "number": 12,
+              "started_at": null,
+              "completed_at": null
+            }
+          ],
+          "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130652008407",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "runner_id": 1000089264,
+          "runner_name": "GitHub Actions 1000089264",
+          "runner_group_id": 0,
+          "runner_group_name": "GitHub Actions"
+        },
+        {
+          "id": 130652008751,
+          "run_id": 43016694869,
+          "workflow_name": "Retained SummaryStats allocation control",
+          "head_branch": "diagnostic/codeql-summary-projection",
+          "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43016694869",
+          "run_attempt": 1,
+          "node_id": "CR_kwDOTD-aVc8AAAAea3dxLw",
+          "head_sha": "128c8392690b59a98e35c17f67e704cc79cea18e",
+          "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130652008751",
+          "html_url": "https://github.com/billlza/q-periapt/actions/runs/43016694869/job/130652008751",
+          "status": "in_progress",
+          "conclusion": null,
+          "created_at": "2026-11-11T16:23:29Z",
+          "started_at": "2026-11-11T16:23:33Z",
+          "completed_at": null,
+          "name": "Retained 56f191f0 macOS database, heap-2048",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1,
+              "started_at": "2026-11-11T16:23:34Z",
+              "completed_at": "2026-11-11T16:23:34Z"
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 2,
+              "started_at": "2026-11-11T16:23:34Z",
+              "completed_at": "2026-11-11T16:23:37Z"
+            },
+            {
+              "name": "Check exact inputs, fresh results and strict paired comparison",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 3,
+              "started_at": "2026-11-11T16:23:37Z",
+              "completed_at": "2026-11-11T16:23:46Z"
+            },
+            {
+              "name": "Install the authenticated Rust CLI 2.27.2 bundle",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 4,
+              "started_at": "2026-11-11T16:23:46Z",
+              "completed_at": "2026-11-11T16:23:49Z"
+            },
+            {
+              "name": "Run all 39 queries from an identical warm cache within five hours",
+              "status": "in_progress",
+              "conclusion": null,
+              "number": 5,
+              "started_at": "2026-11-11T16:23:49Z",
+              "completed_at": null
+            },
+            {
+              "name": "Retain inputs, raw query logs and incomplete evaluation receipts",
+              "status": "pending",
+              "conclusion": null,
+              "number": 6,
+              "started_at": null,
+              "completed_at": null
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "pending",
+              "conclusion": null,
+              "number": 12,
+              "started_at": null,
+              "completed_at": null
+            }
+          ],
+          "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130652008751",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "runner_id": 1000089265,
+          "runner_name": "GitHub Actions 1000089265",
+          "runner_group_id": 0,
+          "runner_group_name": "GitHub Actions"
+        }
+      ]
+    },
+    "artifact_count": 0
+  },
+  "actions_taken": "Read-only status, original job logs, original artifact evidence, and repository source readback. No workflow dispatch, rerun, cancellation, extraction, query, or JVM execution."
+}

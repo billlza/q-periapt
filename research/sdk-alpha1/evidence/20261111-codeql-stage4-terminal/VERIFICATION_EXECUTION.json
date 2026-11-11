@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "operation": "verify existing Stage4-only artifact bytes and decoded semantics",
+  "command": [
+    "python3",
+    "/workspace/scratch/qperiapt-recovery-20261111/stage4-verify-archives.py",
+    "--artifact-root",
+    "/workspace/scratch/qperiapt-recovery-20261111/large-stage4-readback",
+    "--source-root",
+    "/workspace/scratch/qperiapt-recovery-20261111/abi-deps-fix",
+    "--output",
+    "/workspace/scratch/qperiapt-recovery-20261111/large-stage4-readback/verification"
+  ],
+  "observed_exit_code": 0,
+  "script_sha256": "d48d71bf6ab61a934747c50da6204e82fdbc9083bd01eda07436d9fea7e117a5",
+  "report_bytes": 104320,
+  "report_sha256": "d07d9afa67309d7b43b06e81762de47e7080b9829f6abfad71fa0f1fa34880d0",
+  "scope": "Existing evidence archives, BQRS bytes, already decoded JSON and resource samples only. No new query, extraction, JVM, CI run, or BQRS decoder execution.",
+  "execution_timestamp": "Not separately recorded; this receipt records the observed completed command without assigning an execution timestamp.",
+  "receipt_written_utc": "2026-11-11T16:41:38.687336+00:00"
+}

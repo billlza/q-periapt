@@ -1,0 +1,94 @@
+--- a/codeql/dataflow/internal/DataFlowImpl.qll
++++ b/codeql/dataflow/internal/DataFlowImpl.qll
+@@ -462,10 +462,13 @@
+ 
+         bindingset[t1, t2]
+         predicate typecheck(Typ t1, Typ t2);
+ 
+         default predicate enableTypeFlow() { any() }
++
++        // Keep the original read relation in stages that do not select this plan.
++        default predicate projectRecursiveReadTargets() { none() }
+       }
+ 
+       module Stage<StageParam Param> implements StageSig {
+         import Param
+ 
+@@ -614,11 +617,15 @@
+             apa = getApprox(ap) and
+             getAnApLengthLowerBound(ap0) < accessPathLimit()
+           )
+           or
+           // read
+-          fwdFlowRead(_, _, _, _, _, node, t, ap, stored, cc, summaryCtx) and
++          (
++            if Param::projectRecursiveReadTargets()
++            then fwdFlowReadTarget(node, t, ap, stored, cc, summaryCtx)
++            else fwdFlowRead(_, _, _, _, _, node, t, ap, stored, cc, summaryCtx)
++          ) and
+           apa = getApprox(ap)
+           or
+           // flow into a callable without summary context
+           fwdFlowInNoFlowThrough(node, cc, summaryCtx, t, ap, stored) and
+           apa = getApprox(ap) and
+@@ -839,10 +846,34 @@
+         ) {
+           exists(ApHeadContent apc |
+             fwdFlow(node1, cc, summaryCtx, t, ap, stored) and
+             apc = getHeadContent(ap) and
+             readStepCand0(node1, apc, c, node2)
++          )
++        }
++
++        /**
++         * The exact target-state projection of the original read join.
++         *
++         * Stages 3 and 4 feed this projection into their forward closures. The
++         * original full relation remains available for reverse/path consumers
++         * after the forward closure; no source/content witness is discarded there.
++         */
++        pragma[nomagic]
++        private predicate fwdFlowReadTarget(
++          Nd node2, Typ t2, Ap ap2, TypOption stored2, Cc cc, SummaryCtx summaryCtx
++        ) {
++          exists(Nd node1, Typ t1, Ap ap1, TypOption stored1, Content c, Typ ct1, Typ ct2 |
++            fwdFlowRead0(t1, ap1, stored1, c, node1, node2, cc, summaryCtx) and
++            fwdFlowConsCand(ct1, ap1, c, ct2, ap2) and
++            typecheck(t1, ct1) and
++            typecheck(t2, ct2) and
++            if ap2 instanceof ApNil
++            then stored2.isNone() and stored1.asSome() = t2
++            else (
++              stored2 = stored1 and t2 = getNodeTyp(node2)
++            )
+           )
+         }
+ 
+         pragma[nomagic]
+         private predicate fwdFlowRead(
+@@ -2847,10 +2878,12 @@
+     private module Stage2 = MkStage<S1>::Stage<Stage2Param>;
+ 
+     private module Stage3Param implements MkStage<Stage2>::StageParam {
+       private module PrevStage = Stage2;
+ 
++      predicate projectRecursiveReadTargets() { any() }
++
+       class Typ = Unit;
+ 
+       class Ap = ApproxAccessPathFront;
+ 
+       class ApNil = ApproxAccessPathFrontNil;
+@@ -2955,10 +2988,12 @@
+       else t = t0
+     }
+ 
+     private module Stage4Param implements MkStage<Stage3>::StageParam {
+       private module PrevStage = Stage3;
++
++      predicate projectRecursiveReadTargets() { any() }
+ 
+       class Typ = Unit;
+ 
+       class Ap = AccessPathFront;
+ 

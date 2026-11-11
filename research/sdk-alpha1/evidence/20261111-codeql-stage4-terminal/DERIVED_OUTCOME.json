@@ -1,0 +1,169 @@
+{
+  "schema": 1,
+  "rows": [
+    {
+      "profile": "heap-2048",
+      "completed": false,
+      "failure": {
+        "message": "operation failed; inspect retained command receipts and logs",
+        "phase": "evaluate",
+        "type": "BoundedProcessError"
+      },
+      "evaluation": {
+        "returncode": null,
+        "seconds": 18000.102768548,
+        "stopped": "timeout",
+        "cleanup_ambiguous": false
+      },
+      "requested": {
+        "deadline_seconds": 18000,
+        "heap_mb": 2048,
+        "native_mb": 10643,
+        "requested_ram_mb": 14000,
+        "reserved_mb": 1309,
+        "threads": 4
+      },
+      "observations": {
+        "evaluator_start_lines": 1,
+        "query_compilations": 0,
+        "query_completions": 38,
+        "query_starts": 39,
+        "max_heap_bytes_observed": [
+          2147483648
+        ],
+        "off_heap_mb_observed": [
+          10643
+        ],
+        "pause_count": 46585,
+        "eviction_pause_count": 46585,
+        "max_taint_stage_iterations": {
+          "1": 216,
+          "2": 671,
+          "3": 756,
+          "4": 285
+        }
+      },
+      "precompiled_query_loads": 39,
+      "partial": {
+        "all_expected_bqrs_captured": false,
+        "analysis_completed": false,
+        "budget_exhausted": false,
+        "budget_seconds": 120,
+        "byte_budget_exhausted": false,
+        "capture_errors": {},
+        "captured_query_count": 38,
+        "decoded_query_count": 38,
+        "expected_query_count": 39,
+        "kind": "qperiapt.codeql_summary_control_partial_results",
+        "missing_queries": [
+          "queries/summary/SummaryStats.ql"
+        ],
+        "schema": 1,
+        "seconds": 18.260860860998946,
+        "status": "partial",
+        "uncaptured_queries": [
+          "queries/summary/SummaryStats.ql"
+        ]
+      },
+      "semantics_equal_retained_count": 38,
+      "semantic_statuses": [
+        "decoded"
+      ],
+      "summary_plan_pre_post_equal": true,
+      "peak_sampled_tree_rss_bytes": 14545317888,
+      "observed_process_cpu_seconds": 25152.78,
+      "resource_samples": 8975,
+      "sampler_cpu_seconds": 43.083685898999995,
+      "source": {
+        "analyzed_commit": "56f191f04a57806869b8a03078ee4d27ffe900ab",
+        "artifact_bytes": 288417501,
+        "artifact_id": 13677417145,
+        "artifact_sha256": "cb0bd89478b9a8d0f635a9ffa2156a06e3fbbf81b0054b8a1a474c045711d43d",
+        "source_head": "3254c81066af26cd23a2881198010fb616ce6b7a",
+        "source_run": 42554273879
+      }
+    },
+    {
+      "profile": "heap-1536",
+      "completed": false,
+      "failure": {
+        "message": "operation failed; inspect retained command receipts and logs",
+        "phase": "evaluate",
+        "type": "BoundedProcessError"
+      },
+      "evaluation": {
+        "returncode": null,
+        "seconds": 18000.029451174,
+        "stopped": "timeout",
+        "cleanup_ambiguous": false
+      },
+      "requested": {
+        "deadline_seconds": 18000,
+        "heap_mb": 1536,
+        "native_mb": 11155,
+        "requested_ram_mb": 14000,
+        "reserved_mb": 1309,
+        "threads": 4
+      },
+      "observations": {
+        "evaluator_start_lines": 1,
+        "query_compilations": 0,
+        "query_completions": 38,
+        "query_starts": 39,
+        "max_heap_bytes_observed": [
+          1610612736
+        ],
+        "off_heap_mb_observed": [
+          11155
+        ],
+        "pause_count": 54051,
+        "eviction_pause_count": 54051,
+        "max_taint_stage_iterations": {
+          "1": 216,
+          "2": 671,
+          "3": 756,
+          "4": 290
+        }
+      },
+      "precompiled_query_loads": 39,
+      "partial": {
+        "all_expected_bqrs_captured": false,
+        "analysis_completed": false,
+        "budget_exhausted": false,
+        "budget_seconds": 120,
+        "byte_budget_exhausted": false,
+        "capture_errors": {},
+        "captured_query_count": 38,
+        "decoded_query_count": 38,
+        "expected_query_count": 39,
+        "kind": "qperiapt.codeql_summary_control_partial_results",
+        "missing_queries": [
+          "queries/summary/SummaryStats.ql"
+        ],
+        "schema": 1,
+        "seconds": 22.187637074999657,
+        "status": "partial",
+        "uncaptured_queries": [
+          "queries/summary/SummaryStats.ql"
+        ]
+      },
+      "semantics_equal_retained_count": 38,
+      "semantic_statuses": [
+        "decoded"
+      ],
+      "summary_plan_pre_post_equal": true,
+      "peak_sampled_tree_rss_bytes": 14939774976,
+      "observed_process_cpu_seconds": 39544.6,
+      "resource_samples": 8954,
+      "sampler_cpu_seconds": 71.834610078,
+      "source": {
+        "analyzed_commit": "56f191f04a57806869b8a03078ee4d27ffe900ab",
+        "artifact_bytes": 288417501,
+        "artifact_id": 13677417145,
+        "artifact_sha256": "cb0bd89478b9a8d0f635a9ffa2156a06e3fbbf81b0054b8a1a474c045711d43d",
+        "source_head": "3254c81066af26cd23a2881198010fb616ce6b7a",
+        "source_run": 42554273879
+      }
+    }
+  ]
+}
