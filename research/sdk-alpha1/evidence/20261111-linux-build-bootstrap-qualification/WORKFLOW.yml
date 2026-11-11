@@ -1,0 +1,140 @@
+name: Linux build bootstrap qualification
+
+on:
+  push:
+    branches: [diagnostic/linux-build-bootstrap]
+
+permissions:
+  contents: read
+
+env:
+  BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+
+jobs:
+  bootstrap:
+    name: Build tools (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-22.04, ubuntu-22.04-arm, ubuntu-24.04, ubuntu-24.04-arm, ubuntu-26.04]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: ${{ env.BOOTSTRAP_SOURCE }}
+      - name: Record exact source and runner
+        run: |
+          test "$(git rev-parse HEAD)" = "$BOOTSTRAP_SOURCE"
+          mkdir -p "$RUNNER_TEMP/bootstrap-evidence"
+          git rev-parse HEAD 'HEAD^{tree}' | tee "$RUNNER_TEMP/bootstrap-evidence/source.txt"
+          {
+            printf 'ImageOS=%s\nImageVersion=%s\n' "$ImageOS" "$ImageVersion"
+            uname -sm
+            cat /etc/os-release
+          } | tee "$RUNNER_TEMP/bootstrap-evidence/runner.txt"
+      - name: Compile and run the existing CMake OpenSSL consumer
+        run: |
+          {
+          : "${RUNNER_TEMP:?RUNNER_TEMP must name the hosted runner temporary directory}"
+          : "${GITHUB_WORKSPACE:?GITHUB_WORKSPACE must name the checked-out source}"
+          probe_root=$(mktemp -d "$RUNNER_TEMP/qperiapt-native-tools.XXXXXXXX")
+          source_root=$(git -C "$GITHUB_WORKSPACE" rev-parse --show-toplevel)
+          command -v cmake pkg-config
+          cmake --version
+          pkg-config --version
+          pkg-config --modversion openssl
+          
+          cat > "$probe_root/CMakeLists.txt" <<'CMAKE'
+          cmake_minimum_required(VERSION 3.20)
+          project(QPeriaptNativeToolsConsumer C)
+          find_package(PkgConfig REQUIRED)
+          pkg_check_modules(OPENSSL REQUIRED IMPORTED_TARGET openssl>=3.0)
+          add_executable(native-tools-consumer
+            "${QPERIAPT_SOURCE_DIR}/bindings/c/ContinuityPackageConsumer/witness_tls_peer.c")
+          target_compile_features(native-tools-consumer PRIVATE c_std_11)
+          target_compile_options(native-tools-consumer PRIVATE -Wall -Wextra -Wpedantic -Werror)
+          target_link_libraries(native-tools-consumer PRIVATE PkgConfig::OPENSSL)
+          enable_testing()
+          add_test(NAME native-tools-consumer COMMAND native-tools-consumer identity)
+          CMAKE
+          
+          cmake -S "$probe_root" -B "$probe_root/build" \
+            -DQPERIAPT_SOURCE_DIR="$source_root" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF \
+            -DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF
+          cmake --build "$probe_root/build"
+          ctest --verbose --test-dir "$probe_root/build" --no-tests=error --output-on-failure
+          printf 'NATIVE_TOOLS_CONSUMER_ROOT=%s\n' "$probe_root"
+          } 2>&1 | tee "$RUNNER_TEMP/bootstrap-evidence/native-consumer.log"
+      - name: Prepare the fixed protobuf compiler and real schema
+        if: matrix.runner == 'ubuntu-24.04'
+        timeout-minutes: 3
+        run: |
+          /usr/bin/time -f 'wall_seconds=%e' -o "$RUNNER_TEMP/bootstrap-evidence/protoc-time.txt" \
+            sh artifact/python-run.sh artifact/ci_protoc.py \
+            | tee "$RUNNER_TEMP/bootstrap-evidence/protoc-receipt.json"
+      - name: Check exported protobuf, OpenSSL, and WASM tools
+        if: matrix.runner == 'ubuntu-24.04'
+        run: |
+          test "$(command -v protoc)" = "$PROTOC"
+          test "$(protoc --version)" = 'libprotoc 3.21.12'
+          {
+            printf 'PROTOC=%s\nPROTOC_INCLUDE=%s\n' "$PROTOC" "$PROTOC_INCLUDE"
+            pkg-config --modversion openssl
+            printf '#include <openssl/ssl.h>\nint main(void) { return TLS_method() == 0; }\n' | \
+              cc -x c - $(pkg-config --cflags --libs openssl) -o "$RUNNER_TEMP/qperiapt-openssl-check"
+            "$RUNNER_TEMP/qperiapt-openssl-check"
+            command -v clang
+            clang --version
+            printf 'int qperiapt_compiler_check(void) { return 0; }\n' | \
+              clang --target=wasm32-unknown-unknown -x c -c - -o "$RUNNER_TEMP/qperiapt-clang-wasm.o"
+            test -s "$RUNNER_TEMP/qperiapt-clang-wasm.o"
+            printf '%s\n' 'PROTOBUF_OPENSSL_WASM_OK'
+          } 2>&1 | tee "$RUNNER_TEMP/bootstrap-evidence/compiler-capabilities.log"
+      - name: Install authenticated Ubuntu cross dependencies
+        if: matrix.runner == 'ubuntu-24.04'
+        timeout-minutes: 8
+        run: |
+          /usr/bin/time -f 'wall_seconds=%e' -o "$RUNNER_TEMP/bootstrap-evidence/apt-time.txt" \
+            bash artifact/ci_apt.sh gcc-aarch64-linux-gnu gcc-riscv64-linux-gnu qemu-user \
+            2>&1 | tee "$RUNNER_TEMP/bootstrap-evidence/apt-install.log"
+      - name: Compile and execute both cross targets
+        if: matrix.runner == 'ubuntu-24.04'
+        run: |
+          {
+            for target in aarch64 riscv64; do
+              "$target-linux-gnu-gcc" --version
+              "qemu-$target" --version
+              printf '#include <stdio.h>\nint main(void) { return puts("CROSS_CONSUMER_OK") < 0; }\n' | \
+                "$target-linux-gnu-gcc" -x c - -o "$RUNNER_TEMP/qperiapt-cross-$target"
+              "qemu-$target" -L "/usr/$target-linux-gnu" "$RUNNER_TEMP/qperiapt-cross-$target"
+            done
+          } 2>&1 | tee "$RUNNER_TEMP/bootstrap-evidence/cross-consumers.log"
+      - name: Install authenticated ARM Memcheck dependencies
+        if: matrix.runner == 'ubuntu-24.04-arm'
+        timeout-minutes: 8
+        run: |
+          /usr/bin/time -f 'wall_seconds=%e' -o "$RUNNER_TEMP/bootstrap-evidence/apt-time.txt" \
+            bash artifact/ci_apt.sh valgrind \
+            2>&1 | tee "$RUNNER_TEMP/bootstrap-evidence/apt-install.log"
+          printf '#include <valgrind/memcheck.h>\nint main(void) { int value = 0; VALGRIND_MAKE_MEM_DEFINED(&value, sizeof(value)); return value; }\n' | \
+            cc -x c - -o "$RUNNER_TEMP/qperiapt-memcheck"
+          valgrind --version | tee "$RUNNER_TEMP/bootstrap-evidence/valgrind-version.txt"
+          valgrind --tool=memcheck --error-exitcode=42 "$RUNNER_TEMP/qperiapt-memcheck" \
+            2>&1 | tee "$RUNNER_TEMP/bootstrap-evidence/memcheck.log"
+      - name: Verify clean source after qualification
+        run: test -z "$(git status --porcelain)"
+      - name: Retain bootstrap source, versions, and execution receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: linux-build-bootstrap-${{ matrix.runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bootstrap-evidence/
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "protoc": {
+    "source_commit": "9053e09e46d490a4f7b1c589cd889e078b9a61b0",
+    "helper_sha256": "6ea077eee5b7d9853546baed0e9b39afdba76dd572f274629c1b4a9e2a62d4ae",
+    "release_id": 86037297,
+    "tag": "v21.12",
+    "asset_id": 88187108,
+    "upstream_digest": null,
+    "url": "https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-linux-x86_64.zip",
+    "archive": {
+      "bytes": 1585982,
+      "sha256": "3a4c1e5f2516c639d3079b1586e703fc7bcfa2136d58bda24d1d54f949c315e8"
+    },
+    "binary": {
+      "bytes": 4654072,
+      "sha256": "e6a75cf6660945fbfec0d321808442ce3649cd7820079eece1098c881b315f55"
+    },
+    "descriptor": {
+      "bytes": 127,
+      "sha256": "5f6b77aa321f19c4ba89552f04b8302b642d9cb4db4d2c8ac148c207305f0e43"
+    },
+    "controls": {
+      "tests": 15,
+      "result": "success",
+      "bootstrap": 6,
+      "existing_workflow_contracts": 9
+    }
+  },
+  "apt": {
+    "source_commit": "102c8dd74cda122a2b4f0bfca49599cf36dcd127",
+    "helper_sha256": "6b1400ed58da149b7be100e22f545b2255ea620db0587ea15841ce06344ee364",
+    "controls": 13,
+    "evidence_manifest_sha256": "e03996f177b97954a6e8bfd505a9bb84fd291ce94bcf34d8a195231923e8c7c8",
+    "ports_manifest_sha256": "ce90fa5bc5d29ece3b4299633685f9ebe39e20ddfc20f8859ceb3f8491e30977"
+  },
+  "large_originals_retained_outside_packet": {
+    "official_protoc_zip": "/workspace/scratch/qperiapt-recovery-20261111/deps-validation/protoc-21.12-linux-x86_64.zip",
+    "ports_metadata_and_packages": "/workspace/scratch/qperiapt-recovery-20261111/apt-validation/ports-readback"
+  },
+  "scope": "Local controls use their documented fixtures; the five hosted artifacts retain actual compiler, APT and execution receipts."
+}

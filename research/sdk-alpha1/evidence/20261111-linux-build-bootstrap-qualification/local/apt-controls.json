@@ -1,0 +1,136 @@
+{
+  "helper_sha256": "6b1400ed58da149b7be100e22f545b2255ea620db0587ea15841ce06344ee364",
+  "scope": "host/tool-location fixtures; no actual APT trust or package installation",
+  "passed": 13,
+  "records": [
+    {
+      "case": "noble-amd64",
+      "status": 0,
+      "stages": [
+        "update",
+        "install"
+      ],
+      "elapsed_seconds": 0.07785775999946054,
+      "stdout": "APT source: https://mirrors.edge.kernel.org/ubuntu; suite=noble; architecture=amd64\n",
+      "stderr": ""
+    },
+    {
+      "case": "jammy-amd64",
+      "status": 0,
+      "stages": [
+        "update",
+        "install"
+      ],
+      "elapsed_seconds": 0.10289264999937586,
+      "stdout": "APT source: https://mirrors.edge.kernel.org/ubuntu; suite=jammy; architecture=amd64\n",
+      "stderr": ""
+    },
+    {
+      "case": "resolute-amd64",
+      "status": 0,
+      "stages": [
+        "update",
+        "install"
+      ],
+      "elapsed_seconds": 0.07739805199980765,
+      "stdout": "APT source: https://mirrors.edge.kernel.org/ubuntu; suite=resolute; architecture=amd64\n",
+      "stderr": ""
+    },
+    {
+      "case": "resolute-amd64v3",
+      "status": 0,
+      "stages": [
+        "update",
+        "install"
+      ],
+      "elapsed_seconds": 0.07869268800004647,
+      "stdout": "APT source: https://mirrors.edge.kernel.org/ubuntu; suite=resolute; architecture=amd64v3\n",
+      "stderr": ""
+    },
+    {
+      "case": "noble-arm64",
+      "status": 0,
+      "stages": [
+        "update",
+        "install"
+      ],
+      "elapsed_seconds": 0.07834461299989925,
+      "stdout": "APT source: https://mirrors.ocf.berkeley.edu/ubuntu-ports; suite=noble; architecture=arm64\n",
+      "stderr": ""
+    },
+    {
+      "case": "unsupported-suite",
+      "status": 2,
+      "stages": [],
+      "elapsed_seconds": 0.003576387000066461,
+      "stdout": "",
+      "stderr": "unsupported Ubuntu suite/architecture: ubuntu:unverified:amd64\n"
+    },
+    {
+      "case": "unsupported-architecture",
+      "status": 2,
+      "stages": [],
+      "elapsed_seconds": 0.003275405999374925,
+      "stdout": "",
+      "stderr": "unsupported Ubuntu suite/architecture: ubuntu:jammy:arm64\n"
+    },
+    {
+      "case": "no-packages",
+      "status": 1,
+      "stages": [],
+      "elapsed_seconds": 0.0014812090003033518,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "case": "options-rejected",
+      "status": 2,
+      "stages": [],
+      "elapsed_seconds": 0.002031774999522895,
+      "stdout": "",
+      "stderr": "expected package names\n"
+    },
+    {
+      "case": "update-fails",
+      "status": 100,
+      "stages": [
+        "update"
+      ],
+      "elapsed_seconds": 0.03565602800063061,
+      "stdout": "APT source: https://mirrors.edge.kernel.org/ubuntu; suite=noble; architecture=amd64\n",
+      "stderr": ""
+    },
+    {
+      "case": "install-fails",
+      "status": 100,
+      "stages": [
+        "update",
+        "install"
+      ],
+      "elapsed_seconds": 0.06545740199999273,
+      "stdout": "APT source: https://mirrors.edge.kernel.org/ubuntu; suite=noble; architecture=amd64\n",
+      "stderr": ""
+    },
+    {
+      "case": "update-deadline",
+      "status": 124,
+      "stages": [
+        "update"
+      ],
+      "elapsed_seconds": 0.31494845199995325,
+      "stdout": "APT source: https://mirrors.edge.kernel.org/ubuntu; suite=noble; architecture=amd64\n",
+      "stderr": ""
+    },
+    {
+      "case": "install-deadline",
+      "status": 124,
+      "stages": [
+        "update",
+        "install"
+      ],
+      "elapsed_seconds": 0.3143528509999669,
+      "stdout": "APT source: https://mirrors.edge.kernel.org/ubuntu; suite=noble; architecture=amd64\n",
+      "stderr": ""
+    }
+  ]
+}

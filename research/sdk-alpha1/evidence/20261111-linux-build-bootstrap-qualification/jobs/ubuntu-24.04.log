@@ -1,0 +1,772 @@
+﻿2026-11-11T16:20:59.1152104Z Current runner version: '2.338.2'
+2026-11-11T16:20:59.1179211Z ##[group]Runner Image Provisioner
+2026-11-11T16:20:59.1180241Z Hosted Compute Agent
+2026-11-11T16:20:59.1180868Z Version: 20261028.624
+2026-11-11T16:20:59.1181929Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-11T16:20:59.1182696Z Build Date: 2026-10-28T21:51:42Z
+2026-11-11T16:20:59.1183390Z Worker ID: {ab8bd22c-1ecf-4855-9fd6-4db57780f6e3}
+2026-11-11T16:20:59.1184188Z Region: westus
+2026-11-11T16:20:59.1184761Z Cloud: Azure
+2026-11-11T16:20:59.1185378Z ##[endgroup]
+2026-11-11T16:20:59.1186883Z ##[group]Operating System
+2026-11-11T16:20:59.1187548Z Ubuntu
+2026-11-11T16:20:59.1188255Z 24.04.5
+2026-11-11T16:20:59.1188795Z LTS
+2026-11-11T16:20:59.1189438Z ##[endgroup]
+2026-11-11T16:20:59.1190036Z ##[group]Runner Image
+2026-11-11T16:20:59.1190662Z Image: ubuntu-24.04
+2026-11-11T16:20:59.1191530Z Version: 20261101.360.1
+2026-11-11T16:20:59.1192854Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-11T16:20:59.1194474Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261101.360
+2026-11-11T16:20:59.1195469Z ##[endgroup]
+2026-11-11T16:20:59.1196641Z ##[group]GITHUB_TOKEN Permissions
+2026-11-11T16:20:59.1198710Z Contents: read
+2026-11-11T16:20:59.1199437Z Metadata: read
+2026-11-11T16:20:59.1200027Z ##[endgroup]
+2026-11-11T16:20:59.1202703Z Secret source: Actions
+2026-11-11T16:20:59.1203855Z Cache mode: write
+2026-11-11T16:20:59.1204553Z Prepare workflow directory
+2026-11-11T16:20:59.1632278Z Prepare all required actions
+2026-11-11T16:20:59.1682447Z Getting action download info
+2026-11-11T16:20:59.5363595Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-11T16:20:59.6677311Z Download action repository 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' (SHA:043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
+2026-11-11T16:20:59.8913118Z Complete job name: Build tools (ubuntu-24.04)
+2026-11-11T16:20:59.9802138Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-11T16:20:59.9803315Z with:
+2026-11-11T16:20:59.9803792Z   persist-credentials: false
+2026-11-11T16:20:59.9804383Z   ref: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:20:59.9805025Z   repository: billlza/q-periapt
+2026-11-11T16:20:59.9808740Z   token: ***
+2026-11-11T16:20:59.9809194Z   ssh-strict: true
+2026-11-11T16:20:59.9809651Z   ssh-user: git
+2026-11-11T16:20:59.9810091Z   clean: true
+2026-11-11T16:20:59.9810555Z   sparse-checkout-cone-mode: true
+2026-11-11T16:20:59.9811300Z   fetch-depth: 1
+2026-11-11T16:20:59.9811755Z   fetch-tags: false
+2026-11-11T16:20:59.9812213Z   show-progress: true
+2026-11-11T16:20:59.9812689Z   lfs: false
+2026-11-11T16:20:59.9813117Z   submodules: false
+2026-11-11T16:20:59.9813585Z   set-safe-directory: true
+2026-11-11T16:20:59.9814114Z   allow-unsafe-pr-checkout: false
+2026-11-11T16:20:59.9814907Z env:
+2026-11-11T16:20:59.9815507Z   BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:20:59.9816177Z ##[endgroup]
+2026-11-11T16:21:00.2985372Z Syncing repository: billlza/q-periapt
+2026-11-11T16:21:00.2987654Z ##[group]Getting Git version info
+2026-11-11T16:21:00.2988472Z Working directory is '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T16:21:00.2989580Z [command]/usr/bin/git version
+2026-11-11T16:21:00.3098558Z git version 2.56.0
+2026-11-11T16:21:00.3123230Z ##[endgroup]
+2026-11-11T16:21:00.3136243Z Temporarily overriding HOME='/home/runner/work/_temp/1373298a-078d-4155-b1fd-268a21c20244' before making global git config changes
+2026-11-11T16:21:00.3139299Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T16:21:00.3142236Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T16:21:00.3198026Z Deleting the contents of '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T16:21:00.3202623Z ##[group]Determining repository object format
+2026-11-11T16:21:00.3204977Z ##[endgroup]
+2026-11-11T16:21:00.3206281Z ##[group]Initializing the repository
+2026-11-11T16:21:00.3209167Z [command]/usr/bin/git init /home/runner/work/q-periapt/q-periapt
+2026-11-11T16:21:00.3337896Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-11T16:21:00.3340245Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-11T16:21:00.3342289Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-11T16:21:00.3343149Z hint: call:
+2026-11-11T16:21:00.3343834Z hint:
+2026-11-11T16:21:00.3344580Z hint: 	git config --global init.defaultBranch <name>
+2026-11-11T16:21:00.3345238Z hint:
+2026-11-11T16:21:00.3346084Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-11T16:21:00.3347819Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-11T16:21:00.3349115Z hint:
+2026-11-11T16:21:00.3349852Z hint: 	git branch -m <name>
+2026-11-11T16:21:00.3350498Z hint:
+2026-11-11T16:21:00.3351452Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-11T16:21:00.3353101Z Initialized empty Git repository in /home/runner/work/q-periapt/q-periapt/.git/
+2026-11-11T16:21:00.3371262Z [command]/usr/bin/git remote add origin https://github.com/billlza/q-periapt
+2026-11-11T16:21:00.3410800Z ##[endgroup]
+2026-11-11T16:21:00.3412033Z ##[group]Disabling automatic garbage collection
+2026-11-11T16:21:00.3415208Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-11T16:21:00.3457568Z ##[endgroup]
+2026-11-11T16:21:00.3458784Z ##[group]Setting up auth
+2026-11-11T16:21:00.3459432Z Removing SSH command configuration
+2026-11-11T16:21:00.3465899Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T16:21:00.3507299Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T16:21:00.3928523Z Removing HTTP extra header
+2026-11-11T16:21:00.3934957Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T16:21:00.3989202Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T16:21:00.4240058Z Removing includeIf entries pointing to credentials config files
+2026-11-11T16:21:00.4245197Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T16:21:00.4289965Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T16:21:00.4557104Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-fdc807b0-5659-4e31-a09f-da798b9e9c23.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-11T16:21:00.4609831Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path /home/runner/work/_temp/git-credentials-fdc807b0-5659-4e31-a09f-da798b9e9c23.config
+2026-11-11T16:21:00.4654115Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-fdc807b0-5659-4e31-a09f-da798b9e9c23.config
+2026-11-11T16:21:00.4698300Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-fdc807b0-5659-4e31-a09f-da798b9e9c23.config
+2026-11-11T16:21:00.4742531Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-fdc807b0-5659-4e31-a09f-da798b9e9c23.config
+2026-11-11T16:21:00.4785438Z ##[endgroup]
+2026-11-11T16:21:00.4786805Z ##[group]Fetching the repository
+2026-11-11T16:21:00.4793470Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:26:01.4810710Z From https://github.com/billlza/q-periapt
+2026-11-11T16:26:01.4811852Z  * branch            251bc2ab4cc488543a5516785f3ac9788b681a0b -> FETCH_HEAD
+2026-11-11T16:26:01.4824324Z [command]/usr/bin/git rev-parse --verify --quiet 251bc2ab4cc488543a5516785f3ac9788b681a0b^{object}
+2026-11-11T16:26:01.4864403Z 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:26:01.4869748Z ##[endgroup]
+2026-11-11T16:26:01.4870459Z ##[group]Determining the checkout info
+2026-11-11T16:26:01.4876571Z ##[endgroup]
+2026-11-11T16:26:01.4892977Z [command]/usr/bin/git sparse-checkout disable
+2026-11-11T16:26:01.4951397Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-11T16:26:01.5000700Z ##[group]Checking out the ref
+2026-11-11T16:26:01.5005572Z [command]/usr/bin/git checkout --progress --force 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:26:02.5758775Z Updating files:  70% (5628/7929)
+2026-11-11T16:26:03.2454582Z Updating files:  71% (5630/7929)
+2026-11-11T16:26:03.5993800Z Updating files:  72% (5709/7929)
+2026-11-11T16:26:03.7274434Z Updating files:  72% (5763/7929)
+2026-11-11T16:26:04.1112625Z Updating files:  73% (5789/7929)
+2026-11-11T16:26:04.4747501Z Updating files:  74% (5868/7929)
+2026-11-11T16:26:04.5343766Z Updating files:  75% (5947/7929)
+2026-11-11T16:26:04.6140111Z Updating files:  75% (5987/7929)
+2026-11-11T16:26:05.3434385Z Updating files:  76% (6027/7929)
+2026-11-11T16:26:05.4997174Z Updating files:  77% (6106/7929)
+2026-11-11T16:26:05.5571961Z Updating files:  78% (6185/7929)
+2026-11-11T16:26:05.6833815Z Updating files:  78% (6206/7929)
+2026-11-11T16:26:06.0786436Z Updating files:  79% (6264/7929)
+2026-11-11T16:26:06.6173937Z Updating files:  80% (6344/7929)
+2026-11-11T16:26:07.5501804Z Updating files:  80% (6390/7929)
+2026-11-11T16:26:07.5512127Z Updating files:  80% (6421/7929)
+2026-11-11T16:26:08.4961848Z Updating files:  81% (6423/7929)
+2026-11-11T16:26:08.5736993Z Updating files:  82% (6502/7929)
+2026-11-11T16:26:08.7819698Z Updating files:  82% (6504/7929)
+2026-11-11T16:26:08.8259328Z Updating files:  83% (6582/7929)
+2026-11-11T16:26:08.8696361Z Updating files:  84% (6661/7929)
+2026-11-11T16:26:09.2995747Z Updating files:  85% (6740/7929)
+2026-11-11T16:26:09.5694730Z Updating files:  86% (6819/7929)
+2026-11-11T16:26:09.5705795Z Updating files:  86% (6859/7929)
+2026-11-11T16:26:10.3643354Z Updating files:  87% (6899/7929)
+2026-11-11T16:26:10.6387501Z Updating files:  88% (6978/7929)
+2026-11-11T16:26:11.6033415Z Updating files:  88% (6992/7929)
+2026-11-11T16:26:11.6539704Z Updating files:  88% (7042/7929)
+2026-11-11T16:26:12.1537493Z Updating files:  89% (7057/7929)
+2026-11-11T16:26:12.6642282Z Updating files:  90% (7137/7929)
+2026-11-11T16:26:12.7079243Z Updating files:  90% (7171/7929)
+2026-11-11T16:26:12.7939065Z Updating files:  91% (7216/7929)
+2026-11-11T16:26:12.7998876Z Updating files:  92% (7295/7929)
+2026-11-11T16:26:12.8070814Z Updating files:  93% (7374/7929)
+2026-11-11T16:26:12.8125183Z Updating files:  94% (7454/7929)
+2026-11-11T16:26:12.8170641Z Updating files:  95% (7533/7929)
+2026-11-11T16:26:12.8287515Z Updating files:  96% (7612/7929)
+2026-11-11T16:26:12.8386624Z Updating files:  97% (7692/7929)
+2026-11-11T16:26:12.8477077Z Updating files:  98% (7771/7929)
+2026-11-11T16:26:12.8561528Z Updating files:  99% (7850/7929)
+2026-11-11T16:26:12.8562507Z Updating files: 100% (7929/7929)
+2026-11-11T16:26:12.8563091Z Updating files: 100% (7929/7929), done.
+2026-11-11T16:26:12.9747373Z Note: switching to '251bc2ab4cc488543a5516785f3ac9788b681a0b'.
+2026-11-11T16:26:12.9748218Z 
+2026-11-11T16:26:12.9748823Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-11T16:26:12.9749859Z changes and commit them, and you can discard any commits you make in this
+2026-11-11T16:26:12.9751128Z state without impacting any branches by switching back to a branch.
+2026-11-11T16:26:12.9751996Z 
+2026-11-11T16:26:12.9752686Z If you want to create a new branch to retain commits you create, you may
+2026-11-11T16:26:12.9753830Z do so (now or later) by using -c with the switch command. Example:
+2026-11-11T16:26:12.9754294Z 
+2026-11-11T16:26:12.9754480Z   git switch -c <new-branch-name>
+2026-11-11T16:26:12.9754821Z 
+2026-11-11T16:26:12.9755038Z Or undo this operation with:
+2026-11-11T16:26:12.9755307Z 
+2026-11-11T16:26:12.9755456Z   git switch -
+2026-11-11T16:26:12.9755658Z 
+2026-11-11T16:26:12.9756024Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-11T16:26:12.9756543Z 
+2026-11-11T16:26:12.9757024Z HEAD is now at 251bc2a Make Linux CI build dependencies reproducible and bound mirror failures
+2026-11-11T16:26:13.0788477Z ##[endgroup]
+2026-11-11T16:26:13.0857395Z [command]/usr/bin/git log -1 --format=%H
+2026-11-11T16:26:13.0911736Z 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:26:13.0918058Z ##[group]Removing auth
+2026-11-11T16:26:13.0918531Z Removing SSH command configuration
+2026-11-11T16:26:13.0923863Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T16:26:13.0979433Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T16:26:13.1245030Z Removing HTTP extra header
+2026-11-11T16:26:13.1249252Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T16:26:13.1295805Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T16:26:13.1557248Z Removing includeIf entries pointing to credentials config files
+2026-11-11T16:26:13.1562494Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T16:26:13.1599576Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T16:26:13.1601181Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T16:26:13.1601771Z includeif.gitdir:/github/workspace/.git.path
+2026-11-11T16:26:13.1602170Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T16:26:13.1609247Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T16:26:13.1645621Z /home/runner/work/_temp/git-credentials-fdc807b0-5659-4e31-a09f-da798b9e9c23.config
+2026-11-11T16:26:13.1655864Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-fdc807b0\-5659\-4e31\-a09f\-da798b9e9c23\.config
+2026-11-11T16:26:13.2126701Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T16:26:13.2164394Z /home/runner/work/_temp/git-credentials-fdc807b0-5659-4e31-a09f-da798b9e9c23.config
+2026-11-11T16:26:13.2173145Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-fdc807b0\-5659\-4e31\-a09f\-da798b9e9c23\.config
+2026-11-11T16:26:13.6237476Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-11T16:26:13.6278984Z /github/runner_temp/git-credentials-fdc807b0-5659-4e31-a09f-da798b9e9c23.config
+2026-11-11T16:26:13.6288981Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-fdc807b0\-5659\-4e31\-a09f\-da798b9e9c23\.config
+2026-11-11T16:26:13.6664052Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T16:26:13.6701791Z /github/runner_temp/git-credentials-fdc807b0-5659-4e31-a09f-da798b9e9c23.config
+2026-11-11T16:26:13.6709306Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-fdc807b0\-5659\-4e31\-a09f\-da798b9e9c23\.config
+2026-11-11T16:26:13.6763345Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T16:26:13.7018322Z Removing credentials config '/home/runner/work/_temp/git-credentials-fdc807b0-5659-4e31-a09f-da798b9e9c23.config'
+2026-11-11T16:26:13.7028597Z ##[endgroup]
+2026-11-11T16:26:13.7234725Z ##[group]Run test "$(git rev-parse HEAD)" = "$BOOTSTRAP_SOURCE"
+2026-11-11T16:26:13.7235252Z [36;1mtest "$(git rev-parse HEAD)" = "$BOOTSTRAP_SOURCE"[0m
+2026-11-11T16:26:13.7235657Z [36;1mmkdir -p "$RUNNER_TEMP/bootstrap-evidence"[0m
+2026-11-11T16:26:13.7236141Z [36;1mgit rev-parse HEAD 'HEAD^{tree}' | tee "$RUNNER_TEMP/bootstrap-evidence/source.txt"[0m
+2026-11-11T16:26:13.7236571Z [36;1m{[0m
+2026-11-11T16:26:13.7236893Z [36;1m  printf 'ImageOS=%s\nImageVersion=%s\n' "$ImageOS" "$ImageVersion"[0m
+2026-11-11T16:26:13.7237313Z [36;1m  uname -sm[0m
+2026-11-11T16:26:13.7237549Z [36;1m  cat /etc/os-release[0m
+2026-11-11T16:26:13.7237863Z [36;1m} | tee "$RUNNER_TEMP/bootstrap-evidence/runner.txt"[0m
+2026-11-11T16:26:13.7262171Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T16:26:13.7262523Z env:
+2026-11-11T16:26:13.7262800Z   BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:26:13.7263131Z ##[endgroup]
+2026-11-11T16:26:13.7371680Z 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:26:13.7372250Z 19a5a6abb8942f146f0f8b3f0cc7d9bd4ad272f1
+2026-11-11T16:26:13.7388094Z ImageOS=ubuntu24
+2026-11-11T16:26:13.7388474Z ImageVersion=20261101.360.1
+2026-11-11T16:26:13.7390721Z Linux x86_64
+2026-11-11T16:26:13.7401965Z PRETTY_NAME="Ubuntu 24.04.5 LTS"
+2026-11-11T16:26:13.7402314Z NAME="Ubuntu"
+2026-11-11T16:26:13.7402577Z VERSION_ID="24.04"
+2026-11-11T16:26:13.7402977Z VERSION="24.04.5 LTS (Noble Numbat)"
+2026-11-11T16:26:13.7403444Z VERSION_CODENAME=noble
+2026-11-11T16:26:13.7403845Z ID=ubuntu
+2026-11-11T16:26:13.7404162Z ID_LIKE=debian
+2026-11-11T16:26:13.7404606Z HOME_URL="https://www.ubuntu.com/"
+2026-11-11T16:26:13.7405167Z SUPPORT_URL="https://help.ubuntu.com/"
+2026-11-11T16:26:13.7405604Z BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+2026-11-11T16:26:13.7406264Z PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+2026-11-11T16:26:13.7406802Z UBUNTU_CODENAME=noble
+2026-11-11T16:26:13.7407040Z LOGO=ubuntu-logo
+2026-11-11T16:26:13.7443490Z ##[group]Run {
+2026-11-11T16:26:13.7443772Z [36;1m{[0m
+2026-11-11T16:26:13.7444122Z [36;1m: "${RUNNER_TEMP:?RUNNER_TEMP must name the hosted runner temporary directory}"[0m
+2026-11-11T16:26:13.7444672Z [36;1m: "${GITHUB_WORKSPACE:?GITHUB_WORKSPACE must name the checked-out source}"[0m
+2026-11-11T16:26:13.7445226Z [36;1mprobe_root=$(mktemp -d "$RUNNER_TEMP/qperiapt-native-tools.XXXXXXXX")[0m
+2026-11-11T16:26:13.7445754Z [36;1msource_root=$(git -C "$GITHUB_WORKSPACE" rev-parse --show-toplevel)[0m
+2026-11-11T16:26:13.7446168Z [36;1mcommand -v cmake pkg-config[0m
+2026-11-11T16:26:13.7446437Z [36;1mcmake --version[0m
+2026-11-11T16:26:13.7446679Z [36;1mpkg-config --version[0m
+2026-11-11T16:26:13.7446952Z [36;1mpkg-config --modversion openssl[0m
+2026-11-11T16:26:13.7447228Z [36;1m[0m
+2026-11-11T16:26:13.7447475Z [36;1mcat > "$probe_root/CMakeLists.txt" <<'CMAKE'[0m
+2026-11-11T16:26:13.7447812Z [36;1mcmake_minimum_required(VERSION 3.20)[0m
+2026-11-11T16:26:13.7448178Z [36;1mproject(QPeriaptNativeToolsConsumer C)[0m
+2026-11-11T16:26:13.7448505Z [36;1mfind_package(PkgConfig REQUIRED)[0m
+2026-11-11T16:26:13.7448885Z [36;1mpkg_check_modules(OPENSSL REQUIRED IMPORTED_TARGET openssl>=3.0)[0m
+2026-11-11T16:26:13.7449295Z [36;1madd_executable(native-tools-consumer[0m
+2026-11-11T16:26:13.7449765Z [36;1m  "${QPERIAPT_SOURCE_DIR}/bindings/c/ContinuityPackageConsumer/witness_tls_peer.c")[0m
+2026-11-11T16:26:13.7450320Z [36;1mtarget_compile_features(native-tools-consumer PRIVATE c_std_11)[0m
+2026-11-11T16:26:13.7451766Z [36;1mtarget_compile_options(native-tools-consumer PRIVATE -Wall -Wextra -Wpedantic -Werror)[0m
+2026-11-11T16:26:13.7452416Z [36;1mtarget_link_libraries(native-tools-consumer PRIVATE PkgConfig::OPENSSL)[0m
+2026-11-11T16:26:13.7452838Z [36;1menable_testing()[0m
+2026-11-11T16:26:13.7453222Z [36;1madd_test(NAME native-tools-consumer COMMAND native-tools-consumer identity)[0m
+2026-11-11T16:26:13.7453641Z [36;1mCMAKE[0m
+2026-11-11T16:26:13.7453848Z [36;1m[0m
+2026-11-11T16:26:13.7454126Z [36;1mcmake -S "$probe_root" -B "$probe_root/build" \[0m
+2026-11-11T16:26:13.7454560Z [36;1m  -DQPERIAPT_SOURCE_DIR="$source_root" \[0m
+2026-11-11T16:26:13.7454875Z [36;1m  -DCMAKE_BUILD_TYPE=Release \[0m
+2026-11-11T16:26:13.7455183Z [36;1m  -DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF \[0m
+2026-11-11T16:26:13.7455525Z [36;1m  -DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF[0m
+2026-11-11T16:26:13.7455855Z [36;1mcmake --build "$probe_root/build"[0m
+2026-11-11T16:26:13.7456307Z [36;1mctest --verbose --test-dir "$probe_root/build" --no-tests=error --output-on-failure[0m
+2026-11-11T16:26:13.7456818Z [36;1mprintf 'NATIVE_TOOLS_CONSUMER_ROOT=%s\n' "$probe_root"[0m
+2026-11-11T16:26:13.7457258Z [36;1m} 2>&1 | tee "$RUNNER_TEMP/bootstrap-evidence/native-consumer.log"[0m
+2026-11-11T16:26:13.7476479Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T16:26:13.7476825Z env:
+2026-11-11T16:26:13.7477103Z   BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:26:13.7477449Z ##[endgroup]
+2026-11-11T16:26:13.7547718Z /usr/local/bin/cmake
+2026-11-11T16:26:13.7548252Z /usr/bin/pkg-config
+2026-11-11T16:26:14.4625313Z cmake version 3.31.6
+2026-11-11T16:26:14.4625707Z 
+2026-11-11T16:26:14.4626138Z CMake suite maintained and supported by Kitware (kitware.com/cmake).
+2026-11-11T16:26:14.4875991Z 1.8.1
+2026-11-11T16:26:14.5233134Z 3.0.13
+2026-11-11T16:26:16.4431888Z -- The C compiler identification is GNU 13.3.0
+2026-11-11T16:26:16.5996140Z -- Detecting C compiler ABI info
+2026-11-11T16:26:16.9607099Z -- Detecting C compiler ABI info - done
+2026-11-11T16:26:16.9784129Z -- Check for working C compiler: /usr/bin/cc - skipped
+2026-11-11T16:26:16.9846232Z -- Detecting C compile features
+2026-11-11T16:26:16.9935844Z -- Detecting C compile features - done
+2026-11-11T16:26:17.0399663Z -- Found PkgConfig: /usr/bin/pkg-config (found version "1.8.1")
+2026-11-11T16:26:17.0407527Z -- Checking for module 'openssl>=3.0'
+2026-11-11T16:26:17.0498721Z --   Found openssl, version 3.0.13
+2026-11-11T16:26:17.0732922Z -- Configuring done (2.5s)
+2026-11-11T16:26:17.0777810Z -- Generating done (0.0s)
+2026-11-11T16:26:17.0781933Z -- Build files have been written to: /home/runner/work/_temp/qperiapt-native-tools.PUleKrS0/build
+2026-11-11T16:26:17.0962279Z [ 50%] Building C object CMakeFiles/native-tools-consumer.dir/home/runner/work/q-periapt/q-periapt/bindings/c/ContinuityPackageConsumer/witness_tls_peer.c.o
+2026-11-11T16:26:18.6605016Z [100%] Linking C executable native-tools-consumer
+2026-11-11T16:26:18.7075779Z [100%] Built target native-tools-consumer
+2026-11-11T16:26:21.3677441Z Internal ctest changing into directory: /home/runner/work/_temp/qperiapt-native-tools.PUleKrS0/build
+2026-11-11T16:26:21.3678615Z UpdateCTestConfiguration  from :/home/runner/work/_temp/qperiapt-native-tools.PUleKrS0/build/DartConfiguration.tcl
+2026-11-11T16:26:21.4618291Z UpdateCTestConfiguration  from :/home/runner/work/_temp/qperiapt-native-tools.PUleKrS0/build/DartConfiguration.tcl
+2026-11-11T16:26:21.4667641Z Test project /home/runner/work/_temp/qperiapt-native-tools.PUleKrS0/build
+2026-11-11T16:26:21.4675823Z Constructing a list of tests
+2026-11-11T16:26:21.4859424Z Done constructing a list of tests
+2026-11-11T16:26:21.4860074Z Updating test list for fixtures
+2026-11-11T16:26:21.4860697Z Added 0 tests to meet fixture requirements
+2026-11-11T16:26:21.5060418Z Checking test dependency graph...
+2026-11-11T16:26:21.5061201Z Checking test dependency graph end
+2026-11-11T16:26:21.5260007Z test 1
+2026-11-11T16:26:21.5260850Z     Start 1: native-tools-consumer
+2026-11-11T16:26:21.5261529Z 
+2026-11-11T16:26:21.5262031Z 1: Test command: /home/runner/work/_temp/qperiapt-native-tools.PUleKrS0/build/native-tools-consumer "identity"
+2026-11-11T16:26:21.5262963Z 1: Working Directory: /home/runner/work/_temp/qperiapt-native-tools.PUleKrS0/build
+2026-11-11T16:26:21.5324378Z 1: Test timeout computed to be: 10000000
+2026-11-11T16:26:21.5345192Z 1: OPENSSL_HEADER OpenSSL 3.0.13 30 Jan 2024
+2026-11-11T16:26:21.5345636Z 1: OPENSSL_RUNTIME OpenSSL 3.0.13 30 Jan 2024
+2026-11-11T16:26:21.5348106Z 1/1 Test #1: native-tools-consumer ............   Passed    0.00 sec
+2026-11-11T16:26:21.5416622Z 
+2026-11-11T16:26:21.5416908Z 100% tests passed, 0 tests failed out of 1
+2026-11-11T16:26:21.5417270Z 
+2026-11-11T16:26:21.5417407Z Total Test time (real) =   0.07 sec
+2026-11-11T16:26:21.5891714Z NATIVE_TOOLS_CONSUMER_ROOT=/home/runner/work/_temp/qperiapt-native-tools.PUleKrS0
+2026-11-11T16:26:21.5960675Z ##[group]Run /usr/bin/time -f 'wall_seconds=%e' -o "$RUNNER_TEMP/bootstrap-evidence/protoc-time.txt" \
+2026-11-11T16:26:21.5961729Z [36;1m/usr/bin/time -f 'wall_seconds=%e' -o "$RUNNER_TEMP/bootstrap-evidence/protoc-time.txt" \[0m
+2026-11-11T16:26:21.5962260Z [36;1m  sh artifact/python-run.sh artifact/ci_protoc.py \[0m
+2026-11-11T16:26:21.5962684Z [36;1m  | tee "$RUNNER_TEMP/bootstrap-evidence/protoc-receipt.json"[0m
+2026-11-11T16:26:21.5983359Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T16:26:21.5983709Z env:
+2026-11-11T16:26:21.5983982Z   BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:26:21.5984321Z ##[endgroup]
+2026-11-11T16:26:22.3845759Z {"bytes": 1585982, "descriptor_sha256": "5f6b77aa321f19c4ba89552f04b8302b642d9cb4db4d2c8ac148c207305f0e43", "directory": "/home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s", "include": "/home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s/include", "protoc": "/home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s/bin/protoc", "sha256": "3a4c1e5f2516c639d3079b1586e703fc7bcfa2136d58bda24d1d54f949c315e8", "url": "https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-linux-x86_64.zip", "version": "libprotoc 3.21.12"}
+2026-11-11T16:26:22.4083148Z ##[group]Run test "$(command -v protoc)" = "$PROTOC"
+2026-11-11T16:26:22.4083555Z [36;1mtest "$(command -v protoc)" = "$PROTOC"[0m
+2026-11-11T16:26:22.4083915Z [36;1mtest "$(protoc --version)" = 'libprotoc 3.21.12'[0m
+2026-11-11T16:26:22.4084236Z [36;1m{[0m
+2026-11-11T16:26:22.4084563Z [36;1m  printf 'PROTOC=%s\nPROTOC_INCLUDE=%s\n' "$PROTOC" "$PROTOC_INCLUDE"[0m
+2026-11-11T16:26:22.4084973Z [36;1m  pkg-config --modversion openssl[0m
+2026-11-11T16:26:22.4085423Z [36;1m  printf '#include <openssl/ssl.h>\nint main(void) { return TLS_method() == 0; }\n' | \[0m
+2026-11-11T16:26:22.4086039Z [36;1m    cc -x c - $(pkg-config --cflags --libs openssl) -o "$RUNNER_TEMP/qperiapt-openssl-check"[0m
+2026-11-11T16:26:22.4086527Z [36;1m  "$RUNNER_TEMP/qperiapt-openssl-check"[0m
+2026-11-11T16:26:22.4086852Z [36;1m  command -v clang[0m
+2026-11-11T16:26:22.4087102Z [36;1m  clang --version[0m
+2026-11-11T16:26:22.4087470Z [36;1m  printf 'int qperiapt_compiler_check(void) { return 0; }\n' | \[0m
+2026-11-11T16:26:22.4088039Z [36;1m    clang --target=wasm32-unknown-unknown -x c -c - -o "$RUNNER_TEMP/qperiapt-clang-wasm.o"[0m
+2026-11-11T16:26:22.4088556Z [36;1m  test -s "$RUNNER_TEMP/qperiapt-clang-wasm.o"[0m
+2026-11-11T16:26:22.4088911Z [36;1m  printf '%s\n' 'PROTOBUF_OPENSSL_WASM_OK'[0m
+2026-11-11T16:26:22.4089332Z [36;1m} 2>&1 | tee "$RUNNER_TEMP/bootstrap-evidence/compiler-capabilities.log"[0m
+2026-11-11T16:26:22.4112561Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T16:26:22.4112912Z env:
+2026-11-11T16:26:22.4113190Z   BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:26:22.4113661Z   PROTOC: /home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s/bin/protoc
+2026-11-11T16:26:22.4114203Z   PROTOC_INCLUDE: /home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s/include
+2026-11-11T16:26:22.4114782Z ##[endgroup]
+2026-11-11T16:26:22.4192157Z PROTOC=/home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s/bin/protoc
+2026-11-11T16:26:22.4193003Z PROTOC_INCLUDE=/home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s/include
+2026-11-11T16:26:22.4193974Z 3.0.13
+2026-11-11T16:26:22.5551433Z /usr/bin/clang
+2026-11-11T16:26:26.5454537Z Ubuntu clang version 18.1.3 (1ubuntu1)
+2026-11-11T16:26:26.5454997Z Target: x86_64-pc-linux-gnu
+2026-11-11T16:26:26.5455315Z Thread model: posix
+2026-11-11T16:26:26.5455603Z InstalledDir: /usr/bin
+2026-11-11T16:26:28.7119001Z PROTOBUF_OPENSSL_WASM_OK
+2026-11-11T16:26:28.7180270Z ##[group]Run /usr/bin/time -f 'wall_seconds=%e' -o "$RUNNER_TEMP/bootstrap-evidence/apt-time.txt" \
+2026-11-11T16:26:28.7181308Z [36;1m/usr/bin/time -f 'wall_seconds=%e' -o "$RUNNER_TEMP/bootstrap-evidence/apt-time.txt" \[0m
+2026-11-11T16:26:28.7182060Z [36;1m  bash artifact/ci_apt.sh gcc-aarch64-linux-gnu gcc-riscv64-linux-gnu qemu-user \[0m
+2026-11-11T16:26:28.7182595Z [36;1m  2>&1 | tee "$RUNNER_TEMP/bootstrap-evidence/apt-install.log"[0m
+2026-11-11T16:26:28.7202525Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T16:26:28.7202873Z env:
+2026-11-11T16:26:28.7203157Z   BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:26:28.7203628Z   PROTOC: /home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s/bin/protoc
+2026-11-11T16:26:28.7204177Z   PROTOC_INCLUDE: /home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s/include
+2026-11-11T16:26:28.7204591Z ##[endgroup]
+2026-11-11T16:26:28.7336714Z APT source: https://mirrors.edge.kernel.org/ubuntu; suite=noble; architecture=amd64
+2026-11-11T16:26:29.2155104Z Get:1 https://mirrors.edge.kernel.org/ubuntu noble InRelease [256 kB]
+2026-11-11T16:26:29.6884651Z Get:2 https://mirrors.edge.kernel.org/ubuntu noble-updates InRelease [126 kB]
+2026-11-11T16:26:29.9510059Z Get:3 https://mirrors.edge.kernel.org/ubuntu noble-security InRelease [126 kB]
+2026-11-11T16:26:30.6219681Z Get:4 https://mirrors.edge.kernel.org/ubuntu noble-backports InRelease [126 kB]
+2026-11-11T16:26:31.0246000Z Get:5 https://mirrors.edge.kernel.org/ubuntu noble/main amd64 Packages [1401 kB]
+2026-11-11T16:26:31.5331775Z Get:6 https://mirrors.edge.kernel.org/ubuntu noble/main amd64 c-n-f Metadata [30.5 kB]
+2026-11-11T16:26:31.9804939Z Get:7 https://mirrors.edge.kernel.org/ubuntu noble/restricted amd64 Packages [93.9 kB]
+2026-11-11T16:26:32.0260247Z Get:8 https://mirrors.edge.kernel.org/ubuntu noble/restricted amd64 c-n-f Metadata [416 B]
+2026-11-11T16:26:32.1365886Z Get:9 https://mirrors.edge.kernel.org/ubuntu noble/universe amd64 Packages [15.0 MB]
+2026-11-11T16:26:36.9709878Z Get:10 https://mirrors.edge.kernel.org/ubuntu noble/universe amd64 c-n-f Metadata [301 kB]
+2026-11-11T16:26:37.3046055Z Get:11 https://mirrors.edge.kernel.org/ubuntu noble/multiverse amd64 Packages [269 kB]
+2026-11-11T16:26:38.4887004Z Get:12 https://mirrors.edge.kernel.org/ubuntu noble/multiverse amd64 c-n-f Metadata [8328 B]
+2026-11-11T16:26:38.5287685Z Get:13 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 Packages [1444 kB]
+2026-11-11T16:26:38.8766553Z Get:14 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 c-n-f Metadata [17.7 kB]
+2026-11-11T16:26:39.2062093Z Get:15 https://mirrors.edge.kernel.org/ubuntu noble-updates/restricted amd64 Packages [1879 kB]
+2026-11-11T16:26:39.4357494Z Get:16 https://mirrors.edge.kernel.org/ubuntu noble-updates/restricted amd64 c-n-f Metadata [456 B]
+2026-11-11T16:26:39.5364180Z Get:17 https://mirrors.edge.kernel.org/ubuntu noble-updates/universe amd64 Packages [1711 kB]
+2026-11-11T16:26:39.5852955Z Get:18 https://mirrors.edge.kernel.org/ubuntu noble-updates/universe amd64 c-n-f Metadata [34.9 kB]
+2026-11-11T16:26:39.6527046Z Get:19 https://mirrors.edge.kernel.org/ubuntu noble-updates/multiverse amd64 Packages [50.7 kB]
+2026-11-11T16:26:39.7524448Z Get:20 https://mirrors.edge.kernel.org/ubuntu noble-updates/multiverse amd64 c-n-f Metadata [656 B]
+2026-11-11T16:26:39.9196345Z Get:21 https://mirrors.edge.kernel.org/ubuntu noble-security/main amd64 Packages [1160 kB]
+2026-11-11T16:26:39.9666726Z Get:22 https://mirrors.edge.kernel.org/ubuntu noble-security/main amd64 c-n-f Metadata [11.9 kB]
+2026-11-11T16:26:40.0115572Z Get:23 https://mirrors.edge.kernel.org/ubuntu noble-security/restricted amd64 Packages [1729 kB]
+2026-11-11T16:26:40.2031744Z Get:24 https://mirrors.edge.kernel.org/ubuntu noble-security/restricted amd64 c-n-f Metadata [444 B]
+2026-11-11T16:26:40.3166557Z Get:25 https://mirrors.edge.kernel.org/ubuntu noble-security/universe amd64 Packages [1228 kB]
+2026-11-11T16:26:40.4399506Z Get:26 https://mirrors.edge.kernel.org/ubuntu noble-security/universe amd64 c-n-f Metadata [24.2 kB]
+2026-11-11T16:26:40.4825631Z Get:27 https://mirrors.edge.kernel.org/ubuntu noble-security/multiverse amd64 Packages [45.4 kB]
+2026-11-11T16:26:40.5224630Z Get:28 https://mirrors.edge.kernel.org/ubuntu noble-security/multiverse amd64 c-n-f Metadata [468 B]
+2026-11-11T16:26:40.5615663Z Get:29 https://mirrors.edge.kernel.org/ubuntu noble-backports/main amd64 Packages [40.6 kB]
+2026-11-11T16:26:40.6823911Z Get:30 https://mirrors.edge.kernel.org/ubuntu noble-backports/main amd64 c-n-f Metadata [368 B]
+2026-11-11T16:26:40.7213555Z Get:31 https://mirrors.edge.kernel.org/ubuntu noble-backports/restricted amd64 c-n-f Metadata [116 B]
+2026-11-11T16:26:40.7706774Z Get:32 https://mirrors.edge.kernel.org/ubuntu noble-backports/universe amd64 Packages [31.0 kB]
+2026-11-11T16:26:41.0003440Z Get:33 https://mirrors.edge.kernel.org/ubuntu noble-backports/universe amd64 c-n-f Metadata [1588 B]
+2026-11-11T16:26:41.4368722Z Get:34 https://mirrors.edge.kernel.org/ubuntu noble-backports/multiverse amd64 Packages [748 B]
+2026-11-11T16:26:41.9047731Z Get:35 https://mirrors.edge.kernel.org/ubuntu noble-backports/multiverse amd64 c-n-f Metadata [116 B]
+2026-11-11T16:26:42.4942818Z Fetched 27.2 MB in 13s (2077 kB/s)
+2026-11-11T16:26:43.2106502Z Reading package lists...
+2026-11-11T16:26:43.2380245Z Reading package lists...
+2026-11-11T16:26:43.4248161Z Building dependency tree...
+2026-11-11T16:26:43.4332022Z Reading state information...
+2026-11-11T16:26:43.5976804Z The following additional packages will be installed:
+2026-11-11T16:26:43.5977606Z   binutils-aarch64-linux-gnu binutils-riscv64-linux-gnu
+2026-11-11T16:26:43.5978542Z   cpp-13-aarch64-linux-gnu cpp-13-riscv64-linux-gnu cpp-aarch64-linux-gnu
+2026-11-11T16:26:43.5979346Z   cpp-riscv64-linux-gnu gcc-13-aarch64-linux-gnu gcc-13-aarch64-linux-gnu-base
+2026-11-11T16:26:43.5980080Z   gcc-13-cross-base gcc-13-riscv64-linux-gnu gcc-13-riscv64-linux-gnu-base
+2026-11-11T16:26:43.5980807Z   gcc-14-cross-base libasan8-arm64-cross libasan8-riscv64-cross
+2026-11-11T16:26:43.5982025Z   libatomic1-arm64-cross libatomic1-riscv64-cross libc6-arm64-cross
+2026-11-11T16:26:43.5982745Z   libc6-dev-arm64-cross libc6-dev-riscv64-cross libc6-riscv64-cross
+2026-11-11T16:26:43.5983301Z   libgcc-13-dev-arm64-cross libgcc-13-dev-riscv64-cross libgcc-s1-arm64-cross
+2026-11-11T16:26:43.5983873Z   libgcc-s1-riscv64-cross libgomp1-arm64-cross libgomp1-riscv64-cross
+2026-11-11T16:26:43.5984502Z   libhwasan0-arm64-cross libitm1-arm64-cross libitm1-riscv64-cross
+2026-11-11T16:26:43.5985328Z   liblsan0-arm64-cross libstdc++6-arm64-cross libstdc++6-riscv64-cross
+2026-11-11T16:26:43.5986171Z   libtsan2-arm64-cross libubsan1-arm64-cross libubsan1-riscv64-cross
+2026-11-11T16:26:43.5987364Z   linux-libc-dev-arm64-cross linux-libc-dev-riscv64-cross qemu-user-binfmt
+2026-11-11T16:26:43.5995675Z Suggested packages:
+2026-11-11T16:26:43.5996256Z   binutils-doc gcc-13-locales cpp-13-doc cpp-doc gcc-13-doc manpages-dev
+2026-11-11T16:26:43.5996948Z   gdb-aarch64-linux-gnu gcc-doc gdb-riscv64-linux-gnu
+2026-11-11T16:26:43.6259743Z The following NEW packages will be installed:
+2026-11-11T16:26:43.6260510Z   binutils-aarch64-linux-gnu binutils-riscv64-linux-gnu
+2026-11-11T16:26:43.6261565Z   cpp-13-aarch64-linux-gnu cpp-13-riscv64-linux-gnu cpp-aarch64-linux-gnu
+2026-11-11T16:26:43.6262570Z   cpp-riscv64-linux-gnu gcc-13-aarch64-linux-gnu gcc-13-aarch64-linux-gnu-base
+2026-11-11T16:26:43.6263491Z   gcc-13-cross-base gcc-13-riscv64-linux-gnu gcc-13-riscv64-linux-gnu-base
+2026-11-11T16:26:43.6264008Z   gcc-14-cross-base gcc-aarch64-linux-gnu gcc-riscv64-linux-gnu
+2026-11-11T16:26:43.6264496Z   libasan8-arm64-cross libasan8-riscv64-cross libatomic1-arm64-cross
+2026-11-11T16:26:43.6265006Z   libatomic1-riscv64-cross libc6-arm64-cross libc6-dev-arm64-cross
+2026-11-11T16:26:43.6272251Z   libc6-dev-riscv64-cross libc6-riscv64-cross libgcc-13-dev-arm64-cross
+2026-11-11T16:26:43.6273173Z   libgcc-13-dev-riscv64-cross libgcc-s1-arm64-cross libgcc-s1-riscv64-cross
+2026-11-11T16:26:43.6273961Z   libgomp1-arm64-cross libgomp1-riscv64-cross libhwasan0-arm64-cross
+2026-11-11T16:26:43.6274446Z   libitm1-arm64-cross libitm1-riscv64-cross liblsan0-arm64-cross
+2026-11-11T16:26:43.6274916Z   libstdc++6-arm64-cross libstdc++6-riscv64-cross libtsan2-arm64-cross
+2026-11-11T16:26:43.6275412Z   libubsan1-arm64-cross libubsan1-riscv64-cross linux-libc-dev-arm64-cross
+2026-11-11T16:26:43.6275884Z   linux-libc-dev-riscv64-cross qemu-user qemu-user-binfmt
+2026-11-11T16:26:43.9019126Z 0 upgraded, 41 newly installed, 0 to remove and 38 not upgraded.
+2026-11-11T16:26:43.9019618Z Need to get 95.1 MB of archives.
+2026-11-11T16:26:43.9019993Z After this operation, 370 MB of additional disk space will be used.
+2026-11-11T16:26:43.9020739Z Get:1 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 binutils-riscv64-linux-gnu amd64 2.42-4ubuntu2.10 [1425 kB]
+2026-11-11T16:26:44.1865062Z Get:2 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 gcc-13-aarch64-linux-gnu-base amd64 13.3.0-6ubuntu2~24.04.1cross1 [51.9 kB]
+2026-11-11T16:26:44.2277633Z Get:3 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 cpp-13-aarch64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1cross1 [10.8 MB]
+2026-11-11T16:26:44.4692355Z Get:4 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 gcc-13-riscv64-linux-gnu-base amd64 13.3.0-6ubuntu2~24.04.1cross1 [51.8 kB]
+2026-11-11T16:26:44.5305612Z Get:5 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 cpp-13-riscv64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1cross1 [10.0 MB]
+2026-11-11T16:26:44.9930149Z Get:6 https://mirrors.edge.kernel.org/ubuntu noble/main amd64 cpp-aarch64-linux-gnu amd64 4:13.2.0-7ubuntu1 [5332 B]
+2026-11-11T16:26:45.0608347Z Get:7 https://mirrors.edge.kernel.org/ubuntu noble/main amd64 cpp-riscv64-linux-gnu amd64 4:13.2.0-7ubuntu1 [5328 B]
+2026-11-11T16:26:45.1113317Z Get:8 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 binutils-aarch64-linux-gnu amd64 2.42-4ubuntu2.10 [3711 kB]
+2026-11-11T16:26:45.1757915Z Get:9 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 gcc-13-cross-base all 13.3.0-6ubuntu2~24.04.1cross1 [46.5 kB]
+2026-11-11T16:26:45.2201638Z Get:10 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 gcc-14-cross-base all 14.2.0-4ubuntu2~24.04.1cross1 [46.1 kB]
+2026-11-11T16:26:45.2653353Z Get:11 https://mirrors.edge.kernel.org/ubuntu noble/main amd64 libc6-arm64-cross all 2.39-0ubuntu8cross1 [1197 kB]
+2026-11-11T16:26:45.3130656Z Get:12 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libgcc-s1-arm64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [61.9 kB]
+2026-11-11T16:26:45.4208030Z Get:13 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libgomp1-arm64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [110 kB]
+2026-11-11T16:26:45.4654999Z Get:14 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libitm1-arm64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [31.1 kB]
+2026-11-11T16:26:45.5074301Z Get:15 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libatomic1-arm64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [11.5 kB]
+2026-11-11T16:26:45.5488086Z Get:16 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libasan8-arm64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [524 kB]
+2026-11-11T16:26:45.5930406Z Get:17 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 liblsan0-arm64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [238 kB]
+2026-11-11T16:26:45.7159563Z Get:18 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libtsan2-arm64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [500 kB]
+2026-11-11T16:26:45.7600155Z Get:19 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libstdc++6-arm64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [659 kB]
+2026-11-11T16:26:45.8780760Z Get:20 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libubsan1-arm64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [219 kB]
+2026-11-11T16:26:45.9208446Z Get:21 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libhwasan0-arm64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [304 kB]
+2026-11-11T16:26:45.9636053Z Get:22 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libgcc-13-dev-arm64-cross all 13.3.0-6ubuntu2~24.04.1cross1 [2616 kB]
+2026-11-11T16:26:46.2964128Z Get:23 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 gcc-13-aarch64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1cross1 [21.1 MB]
+2026-11-11T16:26:46.5691165Z Get:24 https://mirrors.edge.kernel.org/ubuntu noble/main amd64 libc6-riscv64-cross all 2.39-0ubuntu8cross1 [1244 kB]
+2026-11-11T16:26:47.1700275Z Get:25 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libgcc-s1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [63.0 kB]
+2026-11-11T16:26:47.2120404Z Get:26 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libgomp1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [114 kB]
+2026-11-11T16:26:47.2662343Z Get:27 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libitm1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [32.5 kB]
+2026-11-11T16:26:47.3077665Z Get:28 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libatomic1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [9606 B]
+2026-11-11T16:26:47.3495244Z Get:29 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libasan8-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [568 kB]
+2026-11-11T16:26:47.3951586Z Get:30 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libstdc++6-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [751 kB]
+2026-11-11T16:26:47.4450052Z Get:31 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libubsan1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1 [229 kB]
+2026-11-11T16:26:47.4880176Z Get:32 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 libgcc-13-dev-riscv64-cross all 13.3.0-6ubuntu2~24.04.1cross1 [1712 kB]
+2026-11-11T16:26:47.5536597Z Get:33 https://mirrors.edge.kernel.org/ubuntu noble-updates/main amd64 gcc-13-riscv64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1cross1 [19.3 MB]
+2026-11-11T16:26:49.4125800Z Get:34 https://mirrors.edge.kernel.org/ubuntu noble/main amd64 gcc-aarch64-linux-gnu amd64 4:13.2.0-7ubuntu1 [1210 B]
+2026-11-11T16:26:49.4547983Z Get:35 https://mirrors.edge.kernel.org/ubuntu noble/main amd64 gcc-riscv64-linux-gnu amd64 4:13.2.0-7ubuntu1 [1212 B]
+2026-11-11T16:26:49.4964355Z Get:36 https://mirrors.edge.kernel.org/ubuntu noble-updates/universe amd64 qemu-user amd64 1:8.2.2+ds-0ubuntu1.18 [9635 kB]
+2026-11-11T16:26:49.6517173Z Get:37 https://mirrors.edge.kernel.org/ubuntu noble-updates/universe amd64 qemu-user-binfmt amd64 1:8.2.2+ds-0ubuntu1.18 [3638 B]
+2026-11-11T16:26:50.1946547Z Get:38 https://mirrors.edge.kernel.org/ubuntu noble/main amd64 linux-libc-dev-arm64-cross all 6.8.0-25.25cross1 [1375 kB]
+2026-11-11T16:26:50.2472415Z Get:39 https://mirrors.edge.kernel.org/ubuntu noble/main amd64 libc6-dev-arm64-cross all 2.39-0ubuntu8cross1 [1629 kB]
+2026-11-11T16:26:50.3182842Z Get:40 https://mirrors.edge.kernel.org/ubuntu noble/main amd64 linux-libc-dev-riscv64-cross all 6.8.0-25.25cross1 [1370 kB]
+2026-11-11T16:26:50.7158663Z Get:41 https://mirrors.edge.kernel.org/ubuntu noble/main amd64 libc6-dev-riscv64-cross all 2.39-0ubuntu8cross1 [3501 kB]
+2026-11-11T16:26:58.4097870Z Fetched 95.1 MB in 7s (13.4 MB/s)
+2026-11-11T16:26:58.4454385Z Selecting previously unselected package binutils-riscv64-linux-gnu.
+2026-11-11T16:26:58.5192551Z (Reading database ... 
+2026-11-11T16:26:58.5193122Z (Reading database ... 5%
+2026-11-11T16:26:58.5193623Z (Reading database ... 10%
+2026-11-11T16:26:58.5194109Z (Reading database ... 15%
+2026-11-11T16:26:58.5194419Z (Reading database ... 20%
+2026-11-11T16:26:58.5194722Z (Reading database ... 25%
+2026-11-11T16:26:58.5195001Z (Reading database ... 30%
+2026-11-11T16:26:58.5195280Z (Reading database ... 35%
+2026-11-11T16:26:58.5195555Z (Reading database ... 40%
+2026-11-11T16:26:58.5195838Z (Reading database ... 45%
+2026-11-11T16:26:58.5196114Z (Reading database ... 50%
+2026-11-11T16:26:58.5965925Z (Reading database ... 55%
+2026-11-11T16:26:59.0078754Z (Reading database ... 60%
+2026-11-11T16:26:59.4736587Z (Reading database ... 65%
+2026-11-11T16:26:59.8809526Z (Reading database ... 70%
+2026-11-11T16:27:00.1916863Z (Reading database ... 75%
+2026-11-11T16:27:01.0320418Z (Reading database ... 80%
+2026-11-11T16:27:01.9951803Z (Reading database ... 85%
+2026-11-11T16:27:03.1324450Z (Reading database ... 90%
+2026-11-11T16:27:04.3102598Z (Reading database ... 95%
+2026-11-11T16:27:04.3103201Z (Reading database ... 100%
+2026-11-11T16:27:04.3103828Z (Reading database ... 215960 files and directories currently installed.)
+2026-11-11T16:27:04.3147248Z Preparing to unpack .../00-binutils-riscv64-linux-gnu_2.42-4ubuntu2.10_amd64.deb ...
+2026-11-11T16:27:04.3194028Z Unpacking binutils-riscv64-linux-gnu (2.42-4ubuntu2.10) ...
+2026-11-11T16:27:04.4733250Z Selecting previously unselected package gcc-13-aarch64-linux-gnu-base:amd64.
+2026-11-11T16:27:04.4876492Z Preparing to unpack .../01-gcc-13-aarch64-linux-gnu-base_13.3.0-6ubuntu2~24.04.1cross1_amd64.deb ...
+2026-11-11T16:27:04.4885786Z Unpacking gcc-13-aarch64-linux-gnu-base:amd64 (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:04.5200604Z Selecting previously unselected package cpp-13-aarch64-linux-gnu.
+2026-11-11T16:27:04.5342227Z Preparing to unpack .../02-cpp-13-aarch64-linux-gnu_13.3.0-6ubuntu2~24.04.1cross1_amd64.deb ...
+2026-11-11T16:27:04.5385033Z Unpacking cpp-13-aarch64-linux-gnu (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:04.6996406Z Selecting previously unselected package gcc-13-riscv64-linux-gnu-base:amd64.
+2026-11-11T16:27:04.7164880Z Preparing to unpack .../03-gcc-13-riscv64-linux-gnu-base_13.3.0-6ubuntu2~24.04.1cross1_amd64.deb ...
+2026-11-11T16:27:04.7166072Z Unpacking gcc-13-riscv64-linux-gnu-base:amd64 (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:04.7394021Z Selecting previously unselected package cpp-13-riscv64-linux-gnu.
+2026-11-11T16:27:04.7537924Z Preparing to unpack .../04-cpp-13-riscv64-linux-gnu_13.3.0-6ubuntu2~24.04.1cross1_amd64.deb ...
+2026-11-11T16:27:04.7584930Z Unpacking cpp-13-riscv64-linux-gnu (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:04.8981846Z Selecting previously unselected package cpp-aarch64-linux-gnu.
+2026-11-11T16:27:04.9130718Z Preparing to unpack .../05-cpp-aarch64-linux-gnu_4%3a13.2.0-7ubuntu1_amd64.deb ...
+2026-11-11T16:27:04.9146984Z Unpacking cpp-aarch64-linux-gnu (4:13.2.0-7ubuntu1) ...
+2026-11-11T16:27:04.9387418Z Selecting previously unselected package cpp-riscv64-linux-gnu.
+2026-11-11T16:27:04.9532407Z Preparing to unpack .../06-cpp-riscv64-linux-gnu_4%3a13.2.0-7ubuntu1_amd64.deb ...
+2026-11-11T16:27:04.9542824Z Unpacking cpp-riscv64-linux-gnu (4:13.2.0-7ubuntu1) ...
+2026-11-11T16:27:04.9786990Z Selecting previously unselected package binutils-aarch64-linux-gnu.
+2026-11-11T16:27:04.9931537Z Preparing to unpack .../07-binutils-aarch64-linux-gnu_2.42-4ubuntu2.10_amd64.deb ...
+2026-11-11T16:27:04.9941259Z Unpacking binutils-aarch64-linux-gnu (2.42-4ubuntu2.10) ...
+2026-11-11T16:27:05.1366854Z Selecting previously unselected package gcc-13-cross-base.
+2026-11-11T16:27:05.1514236Z Preparing to unpack .../08-gcc-13-cross-base_13.3.0-6ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:05.1523125Z Unpacking gcc-13-cross-base (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:05.1764245Z Selecting previously unselected package gcc-14-cross-base.
+2026-11-11T16:27:05.1911250Z Preparing to unpack .../09-gcc-14-cross-base_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:05.1919835Z Unpacking gcc-14-cross-base (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:05.2160679Z Selecting previously unselected package libc6-arm64-cross.
+2026-11-11T16:27:05.2307755Z Preparing to unpack .../10-libc6-arm64-cross_2.39-0ubuntu8cross1_all.deb ...
+2026-11-11T16:27:05.2317316Z Unpacking libc6-arm64-cross (2.39-0ubuntu8cross1) ...
+2026-11-11T16:27:05.2747222Z Selecting previously unselected package libgcc-s1-arm64-cross.
+2026-11-11T16:27:05.2892411Z Preparing to unpack .../11-libgcc-s1-arm64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:05.2901901Z Unpacking libgcc-s1-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:05.3153067Z Selecting previously unselected package libgomp1-arm64-cross.
+2026-11-11T16:27:05.3302439Z Preparing to unpack .../12-libgomp1-arm64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:05.3312895Z Unpacking libgomp1-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:05.3577860Z Selecting previously unselected package libitm1-arm64-cross.
+2026-11-11T16:27:05.3722404Z Preparing to unpack .../13-libitm1-arm64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:05.3731795Z Unpacking libitm1-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:05.3977857Z Selecting previously unselected package libatomic1-arm64-cross.
+2026-11-11T16:27:05.4126041Z Preparing to unpack .../14-libatomic1-arm64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:05.4136004Z Unpacking libatomic1-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:05.4379773Z Selecting previously unselected package libasan8-arm64-cross.
+2026-11-11T16:27:05.4527965Z Preparing to unpack .../15-libasan8-arm64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:05.4537181Z Unpacking libasan8-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:05.4895286Z Selecting previously unselected package liblsan0-arm64-cross.
+2026-11-11T16:27:05.5041132Z Preparing to unpack .../16-liblsan0-arm64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:05.5049678Z Unpacking liblsan0-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:05.5336752Z Selecting previously unselected package libtsan2-arm64-cross.
+2026-11-11T16:27:05.5480131Z Preparing to unpack .../17-libtsan2-arm64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:05.5489221Z Unpacking libtsan2-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:05.5835633Z Selecting previously unselected package libstdc++6-arm64-cross.
+2026-11-11T16:27:05.5984055Z Preparing to unpack .../18-libstdc++6-arm64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:05.5993340Z Unpacking libstdc++6-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:05.6382005Z Selecting previously unselected package libubsan1-arm64-cross.
+2026-11-11T16:27:05.6525859Z Preparing to unpack .../19-libubsan1-arm64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:05.6535644Z Unpacking libubsan1-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:05.6804763Z Selecting previously unselected package libhwasan0-arm64-cross.
+2026-11-11T16:27:05.6949966Z Preparing to unpack .../20-libhwasan0-arm64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:05.6959012Z Unpacking libhwasan0-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:05.7253147Z Selecting previously unselected package libgcc-13-dev-arm64-cross.
+2026-11-11T16:27:05.7395360Z Preparing to unpack .../21-libgcc-13-dev-arm64-cross_13.3.0-6ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:05.7403657Z Unpacking libgcc-13-dev-arm64-cross (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:05.8334695Z Selecting previously unselected package gcc-13-aarch64-linux-gnu.
+2026-11-11T16:27:05.8480471Z Preparing to unpack .../22-gcc-13-aarch64-linux-gnu_13.3.0-6ubuntu2~24.04.1cross1_amd64.deb ...
+2026-11-11T16:27:05.8523945Z Unpacking gcc-13-aarch64-linux-gnu (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:06.1350385Z Selecting previously unselected package libc6-riscv64-cross.
+2026-11-11T16:27:06.1514721Z Preparing to unpack .../23-libc6-riscv64-cross_2.39-0ubuntu8cross1_all.deb ...
+2026-11-11T16:27:06.1523852Z Unpacking libc6-riscv64-cross (2.39-0ubuntu8cross1) ...
+2026-11-11T16:27:06.1900290Z Selecting previously unselected package libgcc-s1-riscv64-cross.
+2026-11-11T16:27:06.2046477Z Preparing to unpack .../24-libgcc-s1-riscv64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:06.2055874Z Unpacking libgcc-s1-riscv64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:06.2297115Z Selecting previously unselected package libgomp1-riscv64-cross.
+2026-11-11T16:27:06.2441281Z Preparing to unpack .../25-libgomp1-riscv64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:06.2451521Z Unpacking libgomp1-riscv64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:06.2705521Z Selecting previously unselected package libitm1-riscv64-cross.
+2026-11-11T16:27:06.2864529Z Preparing to unpack .../26-libitm1-riscv64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:06.2874355Z Unpacking libitm1-riscv64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:06.3116269Z Selecting previously unselected package libatomic1-riscv64-cross.
+2026-11-11T16:27:06.3259661Z Preparing to unpack .../27-libatomic1-riscv64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:06.3270221Z Unpacking libatomic1-riscv64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:06.3496562Z Selecting previously unselected package libasan8-riscv64-cross.
+2026-11-11T16:27:06.3639776Z Preparing to unpack .../28-libasan8-riscv64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:06.3648959Z Unpacking libasan8-riscv64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:06.4005728Z Selecting previously unselected package libstdc++6-riscv64-cross.
+2026-11-11T16:27:06.4151529Z Preparing to unpack .../29-libstdc++6-riscv64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:06.4159118Z Unpacking libstdc++6-riscv64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:06.4544092Z Selecting previously unselected package libubsan1-riscv64-cross.
+2026-11-11T16:27:06.4691432Z Preparing to unpack .../30-libubsan1-riscv64-cross_14.2.0-4ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:06.4700658Z Unpacking libubsan1-riscv64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:06.4997426Z Selecting previously unselected package libgcc-13-dev-riscv64-cross.
+2026-11-11T16:27:06.5149041Z Preparing to unpack .../31-libgcc-13-dev-riscv64-cross_13.3.0-6ubuntu2~24.04.1cross1_all.deb ...
+2026-11-11T16:27:06.5158751Z Unpacking libgcc-13-dev-riscv64-cross (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:06.6080324Z Selecting previously unselected package gcc-13-riscv64-linux-gnu.
+2026-11-11T16:27:06.6223803Z Preparing to unpack .../32-gcc-13-riscv64-linux-gnu_13.3.0-6ubuntu2~24.04.1cross1_amd64.deb ...
+2026-11-11T16:27:06.6267565Z Unpacking gcc-13-riscv64-linux-gnu (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:06.8657530Z Selecting previously unselected package gcc-aarch64-linux-gnu.
+2026-11-11T16:27:06.8805508Z Preparing to unpack .../33-gcc-aarch64-linux-gnu_4%3a13.2.0-7ubuntu1_amd64.deb ...
+2026-11-11T16:27:06.8817099Z Unpacking gcc-aarch64-linux-gnu (4:13.2.0-7ubuntu1) ...
+2026-11-11T16:27:06.9063894Z Selecting previously unselected package gcc-riscv64-linux-gnu.
+2026-11-11T16:27:06.9209472Z Preparing to unpack .../34-gcc-riscv64-linux-gnu_4%3a13.2.0-7ubuntu1_amd64.deb ...
+2026-11-11T16:27:06.9218753Z Unpacking gcc-riscv64-linux-gnu (4:13.2.0-7ubuntu1) ...
+2026-11-11T16:27:06.9473268Z Selecting previously unselected package qemu-user.
+2026-11-11T16:27:06.9618415Z Preparing to unpack .../35-qemu-user_1%3a8.2.2+ds-0ubuntu1.18_amd64.deb ...
+2026-11-11T16:27:06.9627620Z Unpacking qemu-user (1:8.2.2+ds-0ubuntu1.18) ...
+2026-11-11T16:27:07.1777244Z Selecting previously unselected package qemu-user-binfmt.
+2026-11-11T16:27:07.1921869Z Preparing to unpack .../36-qemu-user-binfmt_1%3a8.2.2+ds-0ubuntu1.18_amd64.deb ...
+2026-11-11T16:27:07.1930319Z Unpacking qemu-user-binfmt (1:8.2.2+ds-0ubuntu1.18) ...
+2026-11-11T16:27:07.2231797Z Selecting previously unselected package linux-libc-dev-arm64-cross.
+2026-11-11T16:27:07.2382254Z Preparing to unpack .../37-linux-libc-dev-arm64-cross_6.8.0-25.25cross1_all.deb ...
+2026-11-11T16:27:07.2391635Z Unpacking linux-libc-dev-arm64-cross (6.8.0-25.25cross1) ...
+2026-11-11T16:27:07.4169366Z Selecting previously unselected package libc6-dev-arm64-cross.
+2026-11-11T16:27:07.4321499Z Preparing to unpack .../38-libc6-dev-arm64-cross_2.39-0ubuntu8cross1_all.deb ...
+2026-11-11T16:27:07.4329410Z Unpacking libc6-dev-arm64-cross (2.39-0ubuntu8cross1) ...
+2026-11-11T16:27:07.5742751Z Selecting previously unselected package linux-libc-dev-riscv64-cross.
+2026-11-11T16:27:07.5895928Z Preparing to unpack .../39-linux-libc-dev-riscv64-cross_6.8.0-25.25cross1_all.deb ...
+2026-11-11T16:27:07.5906100Z Unpacking linux-libc-dev-riscv64-cross (6.8.0-25.25cross1) ...
+2026-11-11T16:27:07.7787567Z Selecting previously unselected package libc6-dev-riscv64-cross.
+2026-11-11T16:27:07.7937930Z Preparing to unpack .../40-libc6-dev-riscv64-cross_2.39-0ubuntu8cross1_all.deb ...
+2026-11-11T16:27:07.7946242Z Unpacking libc6-dev-riscv64-cross (2.39-0ubuntu8cross1) ...
+2026-11-11T16:27:07.9976768Z Setting up gcc-13-riscv64-linux-gnu-base:amd64 (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0007009Z Setting up cpp-13-riscv64-linux-gnu (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0028699Z Setting up binutils-riscv64-linux-gnu (2.42-4ubuntu2.10) ...
+2026-11-11T16:27:08.0055262Z Setting up binutils-aarch64-linux-gnu (2.42-4ubuntu2.10) ...
+2026-11-11T16:27:08.0077830Z Setting up gcc-14-cross-base (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0100060Z Setting up qemu-user (1:8.2.2+ds-0ubuntu1.18) ...
+2026-11-11T16:27:08.0121249Z Setting up gcc-13-cross-base (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0143248Z Setting up libc6-arm64-cross (2.39-0ubuntu8cross1) ...
+2026-11-11T16:27:08.0167142Z Setting up libitm1-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0188925Z Setting up linux-libc-dev-arm64-cross (6.8.0-25.25cross1) ...
+2026-11-11T16:27:08.0210126Z Setting up linux-libc-dev-riscv64-cross (6.8.0-25.25cross1) ...
+2026-11-11T16:27:08.0232941Z Setting up gcc-13-aarch64-linux-gnu-base:amd64 (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0253517Z Setting up libc6-riscv64-cross (2.39-0ubuntu8cross1) ...
+2026-11-11T16:27:08.0274988Z Setting up libgomp1-riscv64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0297317Z Setting up libatomic1-riscv64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0323367Z Setting up qemu-user-binfmt (1:8.2.2+ds-0ubuntu1.18) ...
+2026-11-11T16:27:08.0372739Z Setting up cpp-riscv64-linux-gnu (4:13.2.0-7ubuntu1) ...
+2026-11-11T16:27:08.0396305Z Setting up libgcc-s1-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0418193Z Setting up libatomic1-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0441803Z Setting up liblsan0-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0467831Z Setting up libgomp1-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0490404Z Setting up cpp-13-aarch64-linux-gnu (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0511801Z Setting up libitm1-riscv64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0533693Z Setting up libhwasan0-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0556990Z Setting up libc6-dev-arm64-cross (2.39-0ubuntu8cross1) ...
+2026-11-11T16:27:08.0578757Z Setting up libstdc++6-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0600616Z Setting up cpp-aarch64-linux-gnu (4:13.2.0-7ubuntu1) ...
+2026-11-11T16:27:08.0633690Z Setting up libgcc-s1-riscv64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0656649Z Setting up libc6-dev-riscv64-cross (2.39-0ubuntu8cross1) ...
+2026-11-11T16:27:08.0677811Z Setting up libasan8-riscv64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0700135Z Setting up libasan8-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0723592Z Setting up libtsan2-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0746358Z Setting up libstdc++6-riscv64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0768471Z Setting up libubsan1-arm64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0790344Z Setting up libubsan1-riscv64-cross (14.2.0-4ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0813412Z Setting up libgcc-13-dev-arm64-cross (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0835908Z Setting up libgcc-13-dev-riscv64-cross (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0857945Z Setting up gcc-13-riscv64-linux-gnu (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0880245Z Setting up gcc-13-aarch64-linux-gnu (13.3.0-6ubuntu2~24.04.1cross1) ...
+2026-11-11T16:27:08.0903623Z Setting up gcc-riscv64-linux-gnu (4:13.2.0-7ubuntu1) ...
+2026-11-11T16:27:08.0934235Z Setting up gcc-aarch64-linux-gnu (4:13.2.0-7ubuntu1) ...
+2026-11-11T16:27:08.0965636Z Processing triggers for systemd (255.4-1ubuntu8.18) ...
+2026-11-11T16:27:08.1272068Z Processing triggers for man-db (2.12.0-4build2) ...
+2026-11-11T16:27:08.1296225Z Not building database; man-db/auto-update is not 'true'.
+2026-11-11T16:27:08.1311295Z Processing triggers for libc-bin (2.39-0ubuntu8.9) ...
+2026-11-11T16:27:09.4724204Z 
+2026-11-11T16:27:09.4724634Z Running kernel seems to be up-to-date.
+2026-11-11T16:27:09.4724934Z 
+2026-11-11T16:27:09.4725044Z No services need to be restarted.
+2026-11-11T16:27:09.4725237Z 
+2026-11-11T16:27:09.4725346Z No containers need to be restarted.
+2026-11-11T16:27:09.4725541Z 
+2026-11-11T16:27:09.4725668Z No user sessions are running outdated binaries.
+2026-11-11T16:27:09.4725896Z 
+2026-11-11T16:27:09.4726283Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+2026-11-11T16:27:10.8023007Z ##[group]Run {
+2026-11-11T16:27:10.8023295Z [36;1m{[0m
+2026-11-11T16:27:10.8023535Z [36;1m  for target in aarch64 riscv64; do[0m
+2026-11-11T16:27:10.8023878Z [36;1m    "$target-linux-gnu-gcc" --version[0m
+2026-11-11T16:27:10.8024195Z [36;1m    "qemu-$target" --version[0m
+2026-11-11T16:27:10.8024662Z [36;1m    printf '#include <stdio.h>\nint main(void) { return puts("CROSS_CONSUMER_OK") < 0; }\n' | \[0m
+2026-11-11T16:27:10.8025289Z [36;1m      "$target-linux-gnu-gcc" -x c - -o "$RUNNER_TEMP/qperiapt-cross-$target"[0m
+2026-11-11T16:27:10.8025883Z [36;1m    "qemu-$target" -L "/usr/$target-linux-gnu" "$RUNNER_TEMP/qperiapt-cross-$target"[0m
+2026-11-11T16:27:10.8026320Z [36;1m  done[0m
+2026-11-11T16:27:10.8026647Z [36;1m} 2>&1 | tee "$RUNNER_TEMP/bootstrap-evidence/cross-consumers.log"[0m
+2026-11-11T16:27:10.8047067Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T16:27:10.8047426Z env:
+2026-11-11T16:27:10.8047748Z   BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:27:10.8048240Z   PROTOC: /home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s/bin/protoc
+2026-11-11T16:27:10.8048781Z   PROTOC_INCLUDE: /home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s/include
+2026-11-11T16:27:10.8049187Z ##[endgroup]
+2026-11-11T16:27:10.8109486Z aarch64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+2026-11-11T16:27:10.8110410Z Copyright (C) 2023 Free Software Foundation, Inc.
+2026-11-11T16:27:10.8111445Z This is free software; see the source for copying conditions.  There is NO
+2026-11-11T16:27:10.8112055Z warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+2026-11-11T16:27:10.8112401Z 
+2026-11-11T16:27:10.8129159Z qemu-aarch64 version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)
+2026-11-11T16:27:10.8129981Z Copyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers
+2026-11-11T16:27:10.8698940Z CROSS_CONSUMER_OK
+2026-11-11T16:27:10.8723363Z riscv64-linux-gnu-gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+2026-11-11T16:27:10.8724454Z Copyright (C) 2023 Free Software Foundation, Inc.
+2026-11-11T16:27:10.8724957Z This is free software; see the source for copying conditions.  There is NO
+2026-11-11T16:27:10.8725484Z warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+2026-11-11T16:27:10.8725807Z 
+2026-11-11T16:27:10.8739659Z qemu-riscv64 version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)
+2026-11-11T16:27:10.8740148Z Copyright (c) 2003-2023 Fabrice Bellard and the QEMU Project developers
+2026-11-11T16:27:10.9200755Z CROSS_CONSUMER_OK
+2026-11-11T16:27:10.9263507Z ##[group]Run test -z "$(git status --porcelain)"
+2026-11-11T16:27:10.9263901Z [36;1mtest -z "$(git status --porcelain)"[0m
+2026-11-11T16:27:10.9283986Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T16:27:10.9284330Z env:
+2026-11-11T16:27:10.9284601Z   BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:27:10.9285061Z   PROTOC: /home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s/bin/protoc
+2026-11-11T16:27:10.9285596Z   PROTOC_INCLUDE: /home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s/include
+2026-11-11T16:27:10.9285993Z ##[endgroup]
+2026-11-11T16:27:12.9406290Z ##[group]Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+2026-11-11T16:27:12.9406727Z with:
+2026-11-11T16:27:12.9407016Z   name: linux-build-bootstrap-ubuntu-24.04-43057408847-1
+2026-11-11T16:27:12.9407406Z   path: /home/runner/work/_temp/bootstrap-evidence/
+2026-11-11T16:27:12.9407733Z   if-no-files-found: error
+2026-11-11T16:27:12.9407978Z   retention-days: 14
+2026-11-11T16:27:12.9408208Z   compression-level: 6
+2026-11-11T16:27:12.9408437Z   overwrite: false
+2026-11-11T16:27:12.9408665Z   include-hidden-files: false
+2026-11-11T16:27:12.9408914Z   archive: true
+2026-11-11T16:27:12.9409118Z env:
+2026-11-11T16:27:12.9409391Z   BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:27:12.9409854Z   PROTOC: /home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s/bin/protoc
+2026-11-11T16:27:12.9410390Z   PROTOC_INCLUDE: /home/runner/work/_temp/qperiapt-protoc-21.12-w8ysg64s/include
+2026-11-11T16:27:12.9410787Z ##[endgroup]
+2026-11-11T16:27:13.0990474Z With the provided path, there will be 9 files uploaded
+2026-11-11T16:27:13.0997377Z Artifact name is valid!
+2026-11-11T16:27:13.0997849Z Root directory input is valid!
+2026-11-11T16:27:13.5126232Z Uploading artifact: linux-build-bootstrap-ubuntu-24.04-43057408847-1.zip
+2026-11-11T16:27:13.5168902Z Beginning upload of artifact content to blob storage
+2026-11-11T16:27:13.8480504Z Uploaded bytes 6123
+2026-11-11T16:27:13.9203586Z Finished uploading artifact content to blob storage!
+2026-11-11T16:27:13.9204645Z SHA256 digest of uploaded artifact is f3323dc76da0a20acb01b3f0fbdcc75f497adef749590912b9dda9d1fee067c0
+2026-11-11T16:27:13.9205544Z Finalizing artifact upload
+2026-11-11T16:27:14.5065761Z Artifact linux-build-bootstrap-ubuntu-24.04-43057408847-1 successfully finalized. Artifact ID 13872197180
+2026-11-11T16:27:14.5067087Z Artifact linux-build-bootstrap-ubuntu-24.04-43057408847-1 has been successfully uploaded! Final size is 6123 bytes. Artifact ID is 13872197180
+2026-11-11T16:27:14.5069167Z Artifact download URL: https://github.com/billlza/q-periapt/actions/runs/43057408847/artifacts/13872197180
+2026-11-11T16:27:14.5293693Z Post job cleanup.
+2026-11-11T16:27:14.6166967Z [command]/usr/bin/git version
+2026-11-11T16:27:14.6219209Z git version 2.56.0
+2026-11-11T16:27:14.6258223Z Temporarily overriding HOME='/home/runner/work/_temp/19bfda9c-3eee-4385-afb2-944e1f31c50a' before making global git config changes
+2026-11-11T16:27:14.6259931Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T16:27:14.6263943Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T16:27:14.6302629Z Removing SSH command configuration
+2026-11-11T16:27:14.6309793Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T16:27:14.6351125Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T16:27:14.6644541Z Removing HTTP extra header
+2026-11-11T16:27:14.6652132Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T16:27:14.6694150Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T16:27:14.6993648Z Removing includeIf entries pointing to credentials config files
+2026-11-11T16:27:14.7002272Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T16:27:14.7099925Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T16:27:14.7562133Z Cleaning up orphan processes

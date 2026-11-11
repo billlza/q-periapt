@@ -1,0 +1,152 @@
+[
+  {
+    "runner": "ubuntu-22.04",
+    "path": "native-consumer.log",
+    "bytes": 2137,
+    "sha256": "0875c0e9b14bc84a44ae19d24de58542d50c1a8acbaae41178eeadb02cea7742"
+  },
+  {
+    "runner": "ubuntu-22.04",
+    "path": "runner.txt",
+    "bytes": 444,
+    "sha256": "3ee9ef2a87a2a2de36dd5e1cb50d07604259e9c2c3d9c4b76ec7af077e14c334"
+  },
+  {
+    "runner": "ubuntu-22.04",
+    "path": "source.txt",
+    "bytes": 82,
+    "sha256": "3f1a2cab829976e0d681fb2791c62c6c27fd1931d3b8956be664d6b65e77b1d1"
+  },
+  {
+    "runner": "ubuntu-22.04-arm",
+    "path": "native-consumer.log",
+    "bytes": 2139,
+    "sha256": "246286d179dc684f01f1fec50b68d4a53140f88cb1e674e92b5beb874f0e1ab1"
+  },
+  {
+    "runner": "ubuntu-22.04-arm",
+    "path": "runner.txt",
+    "bytes": 451,
+    "sha256": "01fd06e173e637e90480e3ab1999ac63a65b3c5f0669a8a94d092bfba36ee981"
+  },
+  {
+    "runner": "ubuntu-22.04-arm",
+    "path": "source.txt",
+    "bytes": 82,
+    "sha256": "3f1a2cab829976e0d681fb2791c62c6c27fd1931d3b8956be664d6b65e77b1d1"
+  },
+  {
+    "runner": "ubuntu-24.04",
+    "path": "apt-install.log",
+    "bytes": 24190,
+    "sha256": "d0eea9d3bd1feb2cfae0878c3bb08c0ce732f79af260b385eaba92d1d251eb8e"
+  },
+  {
+    "runner": "ubuntu-24.04",
+    "path": "apt-time.txt",
+    "bytes": 19,
+    "sha256": "201c550d62efcdc636d63f2fc55f4a91d7e3717f40ab00f50e96b82cef2c5674"
+  },
+  {
+    "runner": "ubuntu-24.04",
+    "path": "compiler-capabilities.log",
+    "bytes": 308,
+    "sha256": "f38dafb8251b2600ab32fccdcba481a5c7ca7ecd4640907720b4b8a0079bb8cd"
+  },
+  {
+    "runner": "ubuntu-24.04",
+    "path": "cross-consumers.log",
+    "bytes": 826,
+    "sha256": "c7978637a1fa09ebad8124390caab8df351e8a429e7661881c7b7b3e5ec7aacf"
+  },
+  {
+    "runner": "ubuntu-24.04",
+    "path": "native-consumer.log",
+    "bytes": 2141,
+    "sha256": "47f9691c67ed9f53afcca88c1af102903592b61c738f98ad56ce34c345168dc0"
+  },
+  {
+    "runner": "ubuntu-24.04",
+    "path": "protoc-receipt.json",
+    "bytes": 554,
+    "sha256": "a7bc5726705f877a56de90c507d8d17c94646d41a49b66f9e247552aa1f0c0c7"
+  },
+  {
+    "runner": "ubuntu-24.04",
+    "path": "protoc-time.txt",
+    "bytes": 18,
+    "sha256": "f603090b863bdc02aecbb2006912fe4ccc65cdf6ecbcfea8438f62a619b70716"
+  },
+  {
+    "runner": "ubuntu-24.04",
+    "path": "runner.txt",
+    "bytes": 458,
+    "sha256": "3257893121767b8b4770cbc94b4af33b5301d2d0e143bba18955c17d6c7ebf2c"
+  },
+  {
+    "runner": "ubuntu-24.04",
+    "path": "source.txt",
+    "bytes": 82,
+    "sha256": "3f1a2cab829976e0d681fb2791c62c6c27fd1931d3b8956be664d6b65e77b1d1"
+  },
+  {
+    "runner": "ubuntu-24.04-arm",
+    "path": "apt-install.log",
+    "bytes": 7457,
+    "sha256": "29cd49792a6e4c47469a5843268463a0e555dc7e74f33a30dd4c0e0170ecf716"
+  },
+  {
+    "runner": "ubuntu-24.04-arm",
+    "path": "apt-time.txt",
+    "bytes": 19,
+    "sha256": "b6422deb1e6a7fa7dc9376af1f79e8b499528cfc6da09a579585bea2f7f8014d"
+  },
+  {
+    "runner": "ubuntu-24.04-arm",
+    "path": "memcheck.log",
+    "bytes": 632,
+    "sha256": "d5236522888801c6c7056aa5377a846d782cc8418f403d8db05027824178e2bb"
+  },
+  {
+    "runner": "ubuntu-24.04-arm",
+    "path": "native-consumer.log",
+    "bytes": 2141,
+    "sha256": "25e17c84e84b6debe888f1186ab2d75fae44a7d66a421a5828de76d5533fe8de"
+  },
+  {
+    "runner": "ubuntu-24.04-arm",
+    "path": "runner.txt",
+    "bytes": 465,
+    "sha256": "dbd8fad302a32f5796c80d43827ec5ac2892b225b91dd6feed0c88bffdd9f51a"
+  },
+  {
+    "runner": "ubuntu-24.04-arm",
+    "path": "source.txt",
+    "bytes": 82,
+    "sha256": "3f1a2cab829976e0d681fb2791c62c6c27fd1931d3b8956be664d6b65e77b1d1"
+  },
+  {
+    "runner": "ubuntu-24.04-arm",
+    "path": "valgrind-version.txt",
+    "bytes": 16,
+    "sha256": "06bd4b41e0b515a43bbb6fa5d24e6596c4604fbc070ea04aa1dd8d2ad3035a53"
+  },
+  {
+    "runner": "ubuntu-26.04",
+    "path": "native-consumer.log",
+    "bytes": 1904,
+    "sha256": "17bc62f1374d8176d88df4f4ba196540c6e536b293029da3622c0780fa2afd3a"
+  },
+  {
+    "runner": "ubuntu-26.04",
+    "path": "runner.txt",
+    "bytes": 468,
+    "sha256": "c79ee11f56363d5e11b5f5fadfb24c0cf3ddfcb9356c722e6c98554c3e20d438"
+  },
+  {
+    "runner": "ubuntu-26.04",
+    "path": "source.txt",
+    "bytes": 82,
+    "sha256": "3f1a2cab829976e0d681fb2791c62c6c27fd1931d3b8956be664d6b65e77b1d1"
+  }
+]

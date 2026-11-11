@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "repository": "billlza/q-periapt",
+  "diagnostic": {
+    "commit": "6a9b8bcfc10855db8b7487c3b463aa394afbc5ee",
+    "tree": "8629a09ddd64447627b3c34ce891b91ef3926b14",
+    "parent": "251bc2ab4cc488543a5516785f3ac9788b681a0b",
+    "path": ".github/workflows/linux-build-bootstrap.yml",
+    "git_blob": "0808228c97da7423ddc913218c24abf3ba2dc89f",
+    "bytes": 6911,
+    "sha256": "89d10e415bfb05bfa28af45dd183be37d76588caaba0aaadcca377fa434b62bb"
+  },
+  "source": {
+    "commit": "251bc2ab4cc488543a5516785f3ac9788b681a0b",
+    "tree": "19a5a6abb8942f146f0f8b3f0cc7d9bd4ad272f1",
+    "parent": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+    "pins": {
+      "artifact/ci_apt.sh": {
+        "git_blob": "564c982fe188078dfa3a254186ebffebb2f03f77",
+        "bytes": 2467,
+        "sha256": "6b1400ed58da149b7be100e22f545b2255ea620db0587ea15841ce06344ee364"
+      },
+      "artifact/ci_protoc.py": {
+        "git_blob": "1cc2b44177f2121c94594317fcfbba7aacb97a04",
+        "bytes": 4209,
+        "sha256": "6ea077eee5b7d9853546baed0e9b39afdba76dd572f274629c1b4a9e2a62d4ae"
+      },
+      "artifact/test_ci_protoc.py": {
+        "git_blob": "52dc80f445d84feffad0172b419ee5d1bce1730e",
+        "bytes": 4993,
+        "sha256": "3f6fad55213897be50d2566a4b51a5d93a4100cbc054d211115fe173d7bc2267"
+      },
+      "artifact/bounded_process.py": {
+        "git_blob": "63bc8ff305c80721469e9f46f480395c8a036b76",
+        "bytes": 51311,
+        "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45"
+      },
+      "artifact/python-run.sh": {
+        "git_blob": "634bf09b402211489ef9e09baade33478f1a75c4",
+        "bytes": 228,
+        "sha256": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255"
+      },
+      "artifact/python-env.sh": {
+        "git_blob": "054daf219c36a4b83685ab1ebc55465c6f80743a",
+        "bytes": 3181,
+        "sha256": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49"
+      },
+      "artifact/python_bootstrap.py": {
+        "git_blob": "55e2d783ea31043b097804ffa2c640803eca299e",
+        "bytes": 3068,
+        "sha256": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe"
+      },
+      "bindings/c/ContinuityPackageConsumer/witness_tls_peer.c": {
+        "git_blob": "e8460ea68011da47e50ca47dc275957512b826a3",
+        "bytes": 17651,
+        "sha256": "d9b11b21a2c28814b00df15190fd3746be6adac4fd646d0d539cdbd601137e89"
+      }
+    }
+  },
+  "integration": {
+    "commit": "2f42d2ce913421f9b7a7df39fbc56845d55717de",
+    "tree": "81e8aa8047e9e54e9f98ea18fc25c616cb557425",
+    "parent": "251bc2ab4cc488543a5516785f3ac9788b681a0b",
+    "changed_paths": [
+      "artifact/codeql_summary_projection.md",
+      "docs/SDK_0_2_RELEASE_READINESS.md",
+      "docs/SDK_INTERNAL_REVIEW.md"
+    ]
+  },
+  "run": {
+    "id": 43057408847,
+    "attempt": 1,
+    "branch": "diagnostic/linux-build-bootstrap",
+    "event": "push"
+  },
+  "runner_jobs": {
+    "ubuntu-22.04": 130650464216,
+    "ubuntu-22.04-arm": 130650463764,
+    "ubuntu-24.04": 130650464113,
+    "ubuntu-24.04-arm": 130650463907,
+    "ubuntu-26.04": 130650463327
+  }
+}

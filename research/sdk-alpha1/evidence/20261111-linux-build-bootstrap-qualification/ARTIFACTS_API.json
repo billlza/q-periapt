@@ -1,0 +1,99 @@
+{
+  "artifacts": [
+    {
+      "id": 13872800622,
+      "name": "linux-build-bootstrap-ubuntu-26.04-43057408847-1",
+      "size_in_bytes": 1516,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13872800622",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13872800622/zip",
+      "expired": false,
+      "created_at": "2026-11-11T16:23:53Z",
+      "expires_at": "2026-11-25T16:23:52Z",
+      "updated_at": "2026-11-11T16:23:53Z",
+      "digest": "sha256:fadddd1b8b4154ae08858fe97efe0fe612911104e0394c0732d76b2e5cfeec76",
+      "workflow_run": {
+        "id": 43057408847,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "diagnostic/linux-build-bootstrap",
+        "head_sha": "6a9b8bcfc10855db8b7487c3b463aa394afbc5ee"
+      }
+    },
+    {
+      "id": 13872291516,
+      "name": "linux-build-bootstrap-ubuntu-22.04-arm-43057408847-1",
+      "size_in_bytes": 1550,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13872291516",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13872291516/zip",
+      "expired": false,
+      "created_at": "2026-11-11T16:25:00Z",
+      "expires_at": "2026-11-25T16:24:59Z",
+      "updated_at": "2026-11-11T16:25:00Z",
+      "digest": "sha256:b94760e95e7fad8e1f40993bd347d87dee914b638719b716843188856523a3d4",
+      "workflow_run": {
+        "id": 43057408847,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "diagnostic/linux-build-bootstrap",
+        "head_sha": "6a9b8bcfc10855db8b7487c3b463aa394afbc5ee"
+      }
+    },
+    {
+      "id": 13872197180,
+      "name": "linux-build-bootstrap-ubuntu-24.04-43057408847-1",
+      "size_in_bytes": 6123,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13872197180",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13872197180/zip",
+      "expired": false,
+      "created_at": "2026-11-11T16:27:14Z",
+      "expires_at": "2026-11-25T16:27:13Z",
+      "updated_at": "2026-11-11T16:27:14Z",
+      "digest": "sha256:f3323dc76da0a20acb01b3f0fbdcc75f497adef749590912b9dda9d1fee067c0",
+      "workflow_run": {
+        "id": 43057408847,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "diagnostic/linux-build-bootstrap",
+        "head_sha": "6a9b8bcfc10855db8b7487c3b463aa394afbc5ee"
+      }
+    },
+    {
+      "id": 13871976862,
+      "name": "linux-build-bootstrap-ubuntu-22.04-43057408847-1",
+      "size_in_bytes": 1542,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13871976862",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13871976862/zip",
+      "expired": false,
+      "created_at": "2026-11-11T16:24:08Z",
+      "expires_at": "2026-11-25T16:24:07Z",
+      "updated_at": "2026-11-11T16:24:08Z",
+      "digest": "sha256:824aa3c704d967ad44f8c7cd8c68432a22dbc83d8c1257be12d43c660bbb5950",
+      "workflow_run": {
+        "id": 43057408847,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "diagnostic/linux-build-bootstrap",
+        "head_sha": "6a9b8bcfc10855db8b7487c3b463aa394afbc5ee"
+      }
+    },
+    {
+      "id": 13871922474,
+      "name": "linux-build-bootstrap-ubuntu-24.04-arm-43057408847-1",
+      "size_in_bytes": 3921,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13871922474",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13871922474/zip",
+      "expired": false,
+      "created_at": "2026-11-11T16:24:15Z",
+      "expires_at": "2026-11-25T16:24:15Z",
+      "updated_at": "2026-11-11T16:24:15Z",
+      "digest": "sha256:ccfebf7016325ff704e0d0f078de1fcf4a9ba861420b7ef9e5e2b071651daa65",
+      "workflow_run": {
+        "id": 43057408847,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "diagnostic/linux-build-bootstrap",
+        "head_sha": "6a9b8bcfc10855db8b7487c3b463aa394afbc5ee"
+      }
+    }
+  ]
+}

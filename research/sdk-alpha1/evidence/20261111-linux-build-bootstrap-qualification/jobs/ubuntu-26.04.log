@@ -1,0 +1,366 @@
+﻿2026-11-11T16:20:57.0366690Z Current runner version: '2.338.2'
+2026-11-11T16:20:57.0392704Z ##[group]Runner Image Provisioner
+2026-11-11T16:20:57.0393619Z Hosted Compute Agent
+2026-11-11T16:20:57.0394275Z Version: 20261028.624
+2026-11-11T16:20:57.0395018Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-11T16:20:57.0395775Z Build Date: 2026-10-28T21:51:42Z
+2026-11-11T16:20:57.0396705Z Worker ID: {7f07fefb-f932-4d41-a8d3-fd0ae467238b}
+2026-11-11T16:20:57.0397523Z Region: eastus
+2026-11-11T16:20:57.0398123Z Cloud: Azure
+2026-11-11T16:20:57.0398683Z ##[endgroup]
+2026-11-11T16:20:57.0400368Z ##[group]Operating System
+2026-11-11T16:20:57.0401125Z Ubuntu
+2026-11-11T16:20:57.0401700Z 26.04.1
+2026-11-11T16:20:57.0402302Z LTS
+2026-11-11T16:20:57.0402832Z ##[endgroup]
+2026-11-11T16:20:57.0403409Z ##[group]Runner Image
+2026-11-11T16:20:57.0404073Z Image: ubuntu-26.04
+2026-11-11T16:20:57.0404705Z Version: 20261101.186.1
+2026-11-11T16:20:57.0406084Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-11T16:20:57.0407995Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-11T16:20:57.0409094Z ##[endgroup]
+2026-11-11T16:20:57.0410330Z ##[group]GITHUB_TOKEN Permissions
+2026-11-11T16:20:57.0412245Z Contents: read
+2026-11-11T16:20:57.0412976Z Metadata: read
+2026-11-11T16:20:57.0413550Z ##[endgroup]
+2026-11-11T16:20:57.0415640Z Secret source: Actions
+2026-11-11T16:20:57.0417047Z Cache mode: write
+2026-11-11T16:20:57.0417882Z Prepare workflow directory
+2026-11-11T16:20:57.0830623Z Prepare all required actions
+2026-11-11T16:20:57.0878920Z Getting action download info
+2026-11-11T16:20:57.2593641Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-11T16:20:57.3702520Z Download action repository 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' (SHA:043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
+2026-11-11T16:20:57.5714707Z Complete job name: Build tools (ubuntu-26.04)
+2026-11-11T16:20:57.6653742Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-11T16:20:57.6654821Z with:
+2026-11-11T16:20:57.6655285Z   persist-credentials: false
+2026-11-11T16:20:57.6655843Z   ref: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:20:57.6656459Z   repository: billlza/q-periapt
+2026-11-11T16:20:57.6661147Z   token: ***
+2026-11-11T16:20:57.6661601Z   ssh-strict: true
+2026-11-11T16:20:57.6662050Z   ssh-user: git
+2026-11-11T16:20:57.6662480Z   clean: true
+2026-11-11T16:20:57.6662935Z   sparse-checkout-cone-mode: true
+2026-11-11T16:20:57.6663467Z   fetch-depth: 1
+2026-11-11T16:20:57.6663903Z   fetch-tags: false
+2026-11-11T16:20:57.6664348Z   show-progress: true
+2026-11-11T16:20:57.6664801Z   lfs: false
+2026-11-11T16:20:57.6665224Z   submodules: false
+2026-11-11T16:20:57.6665692Z   set-safe-directory: true
+2026-11-11T16:20:57.6666210Z   allow-unsafe-pr-checkout: false
+2026-11-11T16:20:57.6667310Z env:
+2026-11-11T16:20:57.6667944Z   BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:20:57.6668590Z ##[endgroup]
+2026-11-11T16:20:57.9862072Z Syncing repository: billlza/q-periapt
+2026-11-11T16:20:57.9865278Z ##[group]Getting Git version info
+2026-11-11T16:20:57.9867049Z Working directory is '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T16:20:57.9869394Z [command]/usr/bin/git version
+2026-11-11T16:20:57.9870530Z git version 2.56.0
+2026-11-11T16:20:57.9893199Z ##[endgroup]
+2026-11-11T16:20:57.9900694Z Temporarily overriding HOME='/home/runner/work/_temp/99607033-5bc0-41fe-b59f-67c98e89e105' before making global git config changes
+2026-11-11T16:20:57.9903580Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T16:20:57.9908773Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T16:20:57.9983649Z Deleting the contents of '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T16:20:57.9992238Z ##[group]Determining repository object format
+2026-11-11T16:20:57.9994811Z ##[endgroup]
+2026-11-11T16:20:57.9996312Z ##[group]Initializing the repository
+2026-11-11T16:20:57.9997950Z [command]/usr/bin/git init /home/runner/work/q-periapt/q-periapt
+2026-11-11T16:20:58.0123432Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-11T16:20:58.0125920Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-11T16:20:58.0128335Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-11T16:20:58.0130173Z hint: call:
+2026-11-11T16:20:58.0131287Z hint:
+2026-11-11T16:20:58.0132625Z hint: 	git config --global init.defaultBranch <name>
+2026-11-11T16:20:58.0133679Z hint:
+2026-11-11T16:20:58.0134774Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-11T16:20:58.0136477Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-11T16:20:58.0138591Z hint:
+2026-11-11T16:20:58.0139731Z hint: 	git branch -m <name>
+2026-11-11T16:20:58.0141142Z hint:
+2026-11-11T16:20:58.0142422Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-11T16:20:58.0144049Z Initialized empty Git repository in /home/runner/work/q-periapt/q-periapt/.git/
+2026-11-11T16:20:58.0170755Z [command]/usr/bin/git remote add origin https://github.com/billlza/q-periapt
+2026-11-11T16:20:58.0229706Z ##[endgroup]
+2026-11-11T16:20:58.0231417Z ##[group]Disabling automatic garbage collection
+2026-11-11T16:20:58.0236767Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-11T16:20:58.0282594Z ##[endgroup]
+2026-11-11T16:20:58.0284210Z ##[group]Setting up auth
+2026-11-11T16:20:58.0285591Z Removing SSH command configuration
+2026-11-11T16:20:58.0293070Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T16:20:58.0342663Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T16:20:58.0920363Z Removing HTTP extra header
+2026-11-11T16:20:58.0927072Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T16:20:58.0968695Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T16:20:58.1255078Z Removing includeIf entries pointing to credentials config files
+2026-11-11T16:20:58.1260984Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T16:20:58.1299002Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T16:20:58.1584504Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-749d5c47-7b04-4ed7-a672-c57e811c9a52.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-11T16:20:58.1628156Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path /home/runner/work/_temp/git-credentials-749d5c47-7b04-4ed7-a672-c57e811c9a52.config
+2026-11-11T16:20:58.1660573Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-749d5c47-7b04-4ed7-a672-c57e811c9a52.config
+2026-11-11T16:20:58.1697994Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-749d5c47-7b04-4ed7-a672-c57e811c9a52.config
+2026-11-11T16:20:58.1732320Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-749d5c47-7b04-4ed7-a672-c57e811c9a52.config
+2026-11-11T16:20:58.1761160Z ##[endgroup]
+2026-11-11T16:20:58.1762159Z ##[group]Fetching the repository
+2026-11-11T16:20:58.1768009Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:23:36.3728780Z From https://github.com/billlza/q-periapt
+2026-11-11T16:23:36.3729979Z  * branch            251bc2ab4cc488543a5516785f3ac9788b681a0b -> FETCH_HEAD
+2026-11-11T16:23:36.3738462Z [command]/usr/bin/git rev-parse --verify --quiet 251bc2ab4cc488543a5516785f3ac9788b681a0b^{object}
+2026-11-11T16:23:36.3771972Z 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:23:36.3776291Z ##[endgroup]
+2026-11-11T16:23:36.3777223Z ##[group]Determining the checkout info
+2026-11-11T16:23:36.3778193Z ##[endgroup]
+2026-11-11T16:23:36.3785457Z [command]/usr/bin/git sparse-checkout disable
+2026-11-11T16:23:36.3846856Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-11T16:23:36.3884099Z ##[group]Checking out the ref
+2026-11-11T16:23:36.3889461Z [command]/usr/bin/git checkout --progress --force 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:23:37.4818144Z Updating files:  70% (5620/7929)
+2026-11-11T16:23:38.1910798Z Updating files:  71% (5630/7929)
+2026-11-11T16:23:38.4413396Z Updating files:  72% (5709/7929)
+2026-11-11T16:23:38.6906240Z Updating files:  72% (5744/7929)
+2026-11-11T16:23:39.0900155Z Updating files:  73% (5789/7929)
+2026-11-11T16:23:39.4041854Z Updating files:  74% (5868/7929)
+2026-11-11T16:23:39.4607882Z Updating files:  74% (5939/7929)
+2026-11-11T16:23:39.6051508Z Updating files:  75% (5947/7929)
+2026-11-11T16:23:40.3435071Z Updating files:  76% (6027/7929)
+2026-11-11T16:23:40.4039685Z Updating files:  77% (6106/7929)
+2026-11-11T16:23:40.5019525Z Updating files:  77% (6136/7929)
+2026-11-11T16:23:40.6876079Z Updating files:  78% (6185/7929)
+2026-11-11T16:23:41.1035749Z Updating files:  79% (6264/7929)
+2026-11-11T16:23:41.4061092Z Updating files:  80% (6344/7929)
+2026-11-11T16:23:42.4141489Z Updating files:  80% (6384/7929)
+2026-11-11T16:23:42.6260475Z Updating files:  80% (6404/7929)
+2026-11-11T16:23:43.4428062Z Updating files:  81% (6423/7929)
+2026-11-11T16:23:43.6072832Z Updating files:  81% (6490/7929)
+2026-11-11T16:23:43.9069559Z Updating files:  82% (6502/7929)
+2026-11-11T16:23:43.9516318Z Updating files:  83% (6582/7929)
+2026-11-11T16:23:43.9971338Z Updating files:  84% (6661/7929)
+2026-11-11T16:23:44.4159871Z Updating files:  85% (6740/7929)
+2026-11-11T16:23:44.4428668Z Updating files:  85% (6776/7929)
+2026-11-11T16:23:44.7442051Z Updating files:  86% (6819/7929)
+2026-11-11T16:23:45.4429913Z Updating files:  87% (6899/7929)
+2026-11-11T16:23:45.5801685Z Updating files:  87% (6950/7929)
+2026-11-11T16:23:46.5550129Z Updating files:  88% (6978/7929)
+2026-11-11T16:23:46.8770640Z Updating files:  88% (7029/7929)
+2026-11-11T16:23:47.4358808Z Updating files:  89% (7057/7929)
+2026-11-11T16:23:47.5615034Z Updating files:  89% (7116/7929)
+2026-11-11T16:23:48.1149890Z Updating files:  90% (7137/7929)
+2026-11-11T16:23:48.2047865Z Updating files:  91% (7216/7929)
+2026-11-11T16:23:48.2107612Z Updating files:  92% (7295/7929)
+2026-11-11T16:23:48.2181726Z Updating files:  93% (7374/7929)
+2026-11-11T16:23:48.2927653Z Updating files:  94% (7454/7929)
+2026-11-11T16:23:48.2976072Z Updating files:  95% (7533/7929)
+2026-11-11T16:23:48.3488385Z Updating files:  96% (7612/7929)
+2026-11-11T16:23:48.3590125Z Updating files:  97% (7692/7929)
+2026-11-11T16:23:48.3682644Z Updating files:  98% (7771/7929)
+2026-11-11T16:23:48.3768706Z Updating files:  99% (7850/7929)
+2026-11-11T16:23:48.3769349Z Updating files: 100% (7929/7929)
+2026-11-11T16:23:48.3769949Z Updating files: 100% (7929/7929), done.
+2026-11-11T16:23:48.3864485Z Note: switching to '251bc2ab4cc488543a5516785f3ac9788b681a0b'.
+2026-11-11T16:23:48.3864853Z 
+2026-11-11T16:23:48.3865123Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-11T16:23:48.3865717Z changes and commit them, and you can discard any commits you make in this
+2026-11-11T16:23:48.3866308Z state without impacting any branches by switching back to a branch.
+2026-11-11T16:23:48.3866928Z 
+2026-11-11T16:23:48.3867296Z If you want to create a new branch to retain commits you create, you may
+2026-11-11T16:23:48.3868374Z do so (now or later) by using -c with the switch command. Example:
+2026-11-11T16:23:48.3868933Z 
+2026-11-11T16:23:48.3869109Z   git switch -c <new-branch-name>
+2026-11-11T16:23:48.3869460Z 
+2026-11-11T16:23:48.3869636Z Or undo this operation with:
+2026-11-11T16:23:48.3953894Z 
+2026-11-11T16:23:48.3954119Z   git switch -
+2026-11-11T16:23:48.3954357Z 
+2026-11-11T16:23:48.3954729Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-11T16:23:48.3955293Z 
+2026-11-11T16:23:48.3955790Z HEAD is now at 251bc2a Make Linux CI build dependencies reproducible and bound mirror failures
+2026-11-11T16:23:48.4775359Z ##[endgroup]
+2026-11-11T16:23:48.4842315Z [command]/usr/bin/git log -1 --format=%H
+2026-11-11T16:23:48.4887880Z 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:23:48.4898357Z ##[group]Removing auth
+2026-11-11T16:23:48.4898991Z Removing SSH command configuration
+2026-11-11T16:23:48.4903071Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T16:23:48.4942795Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T16:23:48.5250330Z Removing HTTP extra header
+2026-11-11T16:23:48.5255075Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T16:23:48.5295924Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T16:23:48.5601128Z Removing includeIf entries pointing to credentials config files
+2026-11-11T16:23:48.5605502Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T16:23:48.5634226Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T16:23:48.5635652Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T16:23:48.5636323Z includeif.gitdir:/github/workspace/.git.path
+2026-11-11T16:23:48.5637055Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T16:23:48.5644406Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T16:23:48.5671488Z /home/runner/work/_temp/git-credentials-749d5c47-7b04-4ed7-a672-c57e811c9a52.config
+2026-11-11T16:23:48.5683312Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-749d5c47\-7b04\-4ed7\-a672\-c57e811c9a52\.config
+2026-11-11T16:23:48.5989921Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T16:23:48.6030011Z /home/runner/work/_temp/git-credentials-749d5c47-7b04-4ed7-a672-c57e811c9a52.config
+2026-11-11T16:23:48.6047064Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-749d5c47\-7b04\-4ed7\-a672\-c57e811c9a52\.config
+2026-11-11T16:23:48.6601671Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-11T16:23:48.6641871Z /github/runner_temp/git-credentials-749d5c47-7b04-4ed7-a672-c57e811c9a52.config
+2026-11-11T16:23:48.7379275Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-749d5c47\-7b04\-4ed7\-a672\-c57e811c9a52\.config
+2026-11-11T16:23:48.7882103Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T16:23:48.7912937Z /github/runner_temp/git-credentials-749d5c47-7b04-4ed7-a672-c57e811c9a52.config
+2026-11-11T16:23:48.7921412Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-749d5c47\-7b04\-4ed7\-a672\-c57e811c9a52\.config
+2026-11-11T16:23:48.8941684Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T16:23:48.9251317Z Removing credentials config '/home/runner/work/_temp/git-credentials-749d5c47-7b04-4ed7-a672-c57e811c9a52.config'
+2026-11-11T16:23:49.0865886Z ##[endgroup]
+2026-11-11T16:23:49.4349113Z ##[group]Run test "$(git rev-parse HEAD)" = "$BOOTSTRAP_SOURCE"
+2026-11-11T16:23:49.4349885Z [36;1mtest "$(git rev-parse HEAD)" = "$BOOTSTRAP_SOURCE"[0m
+2026-11-11T16:23:49.4350501Z [36;1mmkdir -p "$RUNNER_TEMP/bootstrap-evidence"[0m
+2026-11-11T16:23:49.4351251Z [36;1mgit rev-parse HEAD 'HEAD^{tree}' | tee "$RUNNER_TEMP/bootstrap-evidence/source.txt"[0m
+2026-11-11T16:23:49.4351916Z [36;1m{[0m
+2026-11-11T16:23:49.4352400Z [36;1m  printf 'ImageOS=%s\nImageVersion=%s\n' "$ImageOS" "$ImageVersion"[0m
+2026-11-11T16:23:49.4352988Z [36;1m  uname -sm[0m
+2026-11-11T16:23:49.4353305Z [36;1m  cat /etc/os-release[0m
+2026-11-11T16:23:49.4353733Z [36;1m} | tee "$RUNNER_TEMP/bootstrap-evidence/runner.txt"[0m
+2026-11-11T16:23:49.4412018Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T16:23:49.4412558Z env:
+2026-11-11T16:23:49.4412976Z   BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:23:49.4413488Z ##[endgroup]
+2026-11-11T16:23:49.5476879Z 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:23:49.5477620Z 19a5a6abb8942f146f0f8b3f0cc7d9bd4ad272f1
+2026-11-11T16:23:49.5508693Z ImageOS=ubuntu26
+2026-11-11T16:23:49.5509178Z ImageVersion=20261101.186.1
+2026-11-11T16:23:49.5509627Z Linux x86_64
+2026-11-11T16:23:49.5534840Z PRETTY_NAME="Ubuntu 26.04.1 LTS"
+2026-11-11T16:23:49.5535237Z NAME="Ubuntu"
+2026-11-11T16:23:49.5535492Z VERSION_ID="26.04"
+2026-11-11T16:23:49.5535782Z VERSION="26.04.1 LTS (Resolute Raccoon)"
+2026-11-11T16:23:49.5536138Z VERSION_CODENAME=resolute
+2026-11-11T16:23:49.5536453Z ID=ubuntu
+2026-11-11T16:23:49.5536905Z ID_LIKE=debian
+2026-11-11T16:23:49.5537217Z HOME_URL="https://www.ubuntu.com/"
+2026-11-11T16:23:49.5537601Z SUPPORT_URL="https://help.ubuntu.com/"
+2026-11-11T16:23:49.5538221Z BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+2026-11-11T16:23:49.5539176Z PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+2026-11-11T16:23:49.5540126Z UBUNTU_CODENAME=resolute
+2026-11-11T16:23:49.5540629Z LOGO=ubuntu-logo
+2026-11-11T16:23:49.5591214Z ##[group]Run {
+2026-11-11T16:23:49.5591571Z [36;1m{[0m
+2026-11-11T16:23:49.5592018Z [36;1m: "${RUNNER_TEMP:?RUNNER_TEMP must name the hosted runner temporary directory}"[0m
+2026-11-11T16:23:49.5592762Z [36;1m: "${GITHUB_WORKSPACE:?GITHUB_WORKSPACE must name the checked-out source}"[0m
+2026-11-11T16:23:49.5593462Z [36;1mprobe_root=$(mktemp -d "$RUNNER_TEMP/qperiapt-native-tools.XXXXXXXX")[0m
+2026-11-11T16:23:49.5594137Z [36;1msource_root=$(git -C "$GITHUB_WORKSPACE" rev-parse --show-toplevel)[0m
+2026-11-11T16:23:49.5594677Z [36;1mcommand -v cmake pkg-config[0m
+2026-11-11T16:23:49.5595008Z [36;1mcmake --version[0m
+2026-11-11T16:23:49.5595287Z [36;1mpkg-config --version[0m
+2026-11-11T16:23:49.5595605Z [36;1mpkg-config --modversion openssl[0m
+2026-11-11T16:23:49.5595918Z [36;1m[0m
+2026-11-11T16:23:49.5596184Z [36;1mcat > "$probe_root/CMakeLists.txt" <<'CMAKE'[0m
+2026-11-11T16:23:49.5596819Z [36;1mcmake_minimum_required(VERSION 3.20)[0m
+2026-11-11T16:23:49.5597281Z [36;1mproject(QPeriaptNativeToolsConsumer C)[0m
+2026-11-11T16:23:49.5597665Z [36;1mfind_package(PkgConfig REQUIRED)[0m
+2026-11-11T16:23:49.5598118Z [36;1mpkg_check_modules(OPENSSL REQUIRED IMPORTED_TARGET openssl>=3.0)[0m
+2026-11-11T16:23:49.5598609Z [36;1madd_executable(native-tools-consumer[0m
+2026-11-11T16:23:49.5599163Z [36;1m  "${QPERIAPT_SOURCE_DIR}/bindings/c/ContinuityPackageConsumer/witness_tls_peer.c")[0m
+2026-11-11T16:23:49.5599823Z [36;1mtarget_compile_features(native-tools-consumer PRIVATE c_std_11)[0m
+2026-11-11T16:23:49.5600726Z [36;1mtarget_compile_options(native-tools-consumer PRIVATE -Wall -Wextra -Wpedantic -Werror)[0m
+2026-11-11T16:23:49.5601462Z [36;1mtarget_link_libraries(native-tools-consumer PRIVATE PkgConfig::OPENSSL)[0m
+2026-11-11T16:23:49.5601959Z [36;1menable_testing()[0m
+2026-11-11T16:23:49.5602409Z [36;1madd_test(NAME native-tools-consumer COMMAND native-tools-consumer identity)[0m
+2026-11-11T16:23:49.5602903Z [36;1mCMAKE[0m
+2026-11-11T16:23:49.5603132Z [36;1m[0m
+2026-11-11T16:23:49.5603417Z [36;1mcmake -S "$probe_root" -B "$probe_root/build" \[0m
+2026-11-11T16:23:49.5603870Z [36;1m  -DQPERIAPT_SOURCE_DIR="$source_root" \[0m
+2026-11-11T16:23:49.5604250Z [36;1m  -DCMAKE_BUILD_TYPE=Release \[0m
+2026-11-11T16:23:49.5604610Z [36;1m  -DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF \[0m
+2026-11-11T16:23:49.5605008Z [36;1m  -DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF[0m
+2026-11-11T16:23:49.5605379Z [36;1mcmake --build "$probe_root/build"[0m
+2026-11-11T16:23:49.5605876Z [36;1mctest --verbose --test-dir "$probe_root/build" --no-tests=error --output-on-failure[0m
+2026-11-11T16:23:49.5606466Z [36;1mprintf 'NATIVE_TOOLS_CONSUMER_ROOT=%s\n' "$probe_root"[0m
+2026-11-11T16:23:49.5607183Z [36;1m} 2>&1 | tee "$RUNNER_TEMP/bootstrap-evidence/native-consumer.log"[0m
+2026-11-11T16:23:49.5660468Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T16:23:49.5660975Z env:
+2026-11-11T16:23:49.5661327Z   BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:23:49.5661753Z ##[endgroup]
+2026-11-11T16:23:49.5790621Z /usr/local/bin/cmake
+2026-11-11T16:23:49.5791155Z /usr/bin/pkg-config
+2026-11-11T16:23:49.6197139Z cmake version 4.4.5
+2026-11-11T16:23:49.6197445Z 
+2026-11-11T16:23:49.6244834Z CMake suite maintained and supported by Kitware (kitware.com/cmake).
+2026-11-11T16:23:49.6245691Z 2.5.1
+2026-11-11T16:23:49.6267546Z 3.5.5
+2026-11-11T16:23:49.8293429Z -- The C compiler identification is GNU 15.2.0
+2026-11-11T16:23:49.8489014Z -- Detecting C compiler ABI info
+2026-11-11T16:23:49.9248726Z -- Detecting C compiler ABI info - done
+2026-11-11T16:23:49.9440605Z -- Check for working C compiler: /usr/bin/cc - skipped
+2026-11-11T16:23:49.9446145Z -- Detecting C compile features
+2026-11-11T16:23:49.9453038Z -- Detecting C compile features - done
+2026-11-11T16:23:50.0121676Z -- Found PkgConfig: /usr/bin/pkg-config (found version "2.5.1")
+2026-11-11T16:23:50.0129748Z -- Checking for module 'openssl>=3.0'
+2026-11-11T16:23:50.0245826Z --   Found openssl, version 3.5.5
+2026-11-11T16:23:50.0563560Z -- Configuring done (0.4s)
+2026-11-11T16:23:50.0613670Z -- Generating done (0.0s)
+2026-11-11T16:23:50.0618304Z -- Build files have been written to: /home/runner/work/_temp/qperiapt-native-tools.vHhCIBLw/build
+2026-11-11T16:23:50.0837513Z [ 50%] Building C object CMakeFiles/native-tools-consumer.dir/home/runner/work/q-periapt/q-periapt/bindings/c/ContinuityPackageConsumer/witness_tls_peer.c.o
+2026-11-11T16:23:50.5364218Z [100%] Linking C executable native-tools-consumer
+2026-11-11T16:23:50.5963046Z [100%] Built target native-tools-consumer
+2026-11-11T16:23:51.3368204Z UpdateCTestConfiguration  from :/home/runner/work/_temp/qperiapt-native-tools.vHhCIBLw/build/DartConfiguration.tcl
+2026-11-11T16:23:51.4668688Z Test project /home/runner/work/_temp/qperiapt-native-tools.vHhCIBLw/build
+2026-11-11T16:23:51.4673206Z Constructing a list of tests
+2026-11-11T16:23:51.4860765Z Done constructing a list of tests
+2026-11-11T16:23:51.4861827Z Updating test list for fixtures
+2026-11-11T16:23:51.4862493Z Added 0 tests to meet fixture requirements
+2026-11-11T16:23:51.5210531Z Checking test dependency graph...
+2026-11-11T16:23:51.5211565Z Checking test dependency graph end
+2026-11-11T16:23:51.5503261Z test 1
+2026-11-11T16:23:51.5503738Z     Start 1: native-tools-consumer
+2026-11-11T16:23:51.5504108Z 
+2026-11-11T16:23:51.5504794Z 1: Test command: /home/runner/work/_temp/qperiapt-native-tools.vHhCIBLw/build/native-tools-consumer "identity"
+2026-11-11T16:23:51.5506141Z 1: Working Directory: /home/runner/work/_temp/qperiapt-native-tools.vHhCIBLw/build
+2026-11-11T16:23:51.5507712Z 1: Test timeout computed to be: 10000000
+2026-11-11T16:23:51.5528844Z 1: OPENSSL_HEADER OpenSSL 3.5.5 27 Jan 2026
+2026-11-11T16:23:51.5529650Z 1: OPENSSL_RUNTIME OpenSSL 3.5.5 27 Jan 2026
+2026-11-11T16:23:51.5532234Z 1/1 Test #1: native-tools-consumer ............   Passed    0.00 sec
+2026-11-11T16:23:51.5761752Z 
+2026-11-11T16:23:51.5762373Z 100% tests passed out of 1
+2026-11-11T16:23:51.5762883Z 
+2026-11-11T16:23:51.5763172Z Total Test time (real) =   0.11 sec
+2026-11-11T16:23:51.6782133Z NATIVE_TOOLS_CONSUMER_ROOT=/home/runner/work/_temp/qperiapt-native-tools.vHhCIBLw
+2026-11-11T16:23:51.6881613Z ##[group]Run test -z "$(git status --porcelain)"
+2026-11-11T16:23:51.6882012Z [36;1mtest -z "$(git status --porcelain)"[0m
+2026-11-11T16:23:51.6936260Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T16:23:51.6936895Z env:
+2026-11-11T16:23:51.6937219Z   BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:23:51.6937657Z ##[endgroup]
+2026-11-11T16:23:52.4604487Z ##[group]Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+2026-11-11T16:23:52.4604932Z with:
+2026-11-11T16:23:52.4605203Z   name: linux-build-bootstrap-ubuntu-26.04-43057408847-1
+2026-11-11T16:23:52.4605589Z   path: /home/runner/work/_temp/bootstrap-evidence/
+2026-11-11T16:23:52.4605909Z   if-no-files-found: error
+2026-11-11T16:23:52.4606145Z   retention-days: 14
+2026-11-11T16:23:52.4606364Z   compression-level: 6
+2026-11-11T16:23:52.4606760Z   overwrite: false
+2026-11-11T16:23:52.4606984Z   include-hidden-files: false
+2026-11-11T16:23:52.4607224Z   archive: true
+2026-11-11T16:23:52.4607417Z env:
+2026-11-11T16:23:52.4607669Z   BOOTSTRAP_SOURCE: 251bc2ab4cc488543a5516785f3ac9788b681a0b
+2026-11-11T16:23:52.4608002Z ##[endgroup]
+2026-11-11T16:23:52.6183097Z With the provided path, there will be 3 files uploaded
+2026-11-11T16:23:52.6188283Z Artifact name is valid!
+2026-11-11T16:23:52.6189182Z Root directory input is valid!
+2026-11-11T16:23:52.8091790Z Uploading artifact: linux-build-bootstrap-ubuntu-26.04-43057408847-1.zip
+2026-11-11T16:23:52.8133488Z Beginning upload of artifact content to blob storage
+2026-11-11T16:23:52.9042507Z Uploaded bytes 1516
+2026-11-11T16:23:52.9182657Z Finished uploading artifact content to blob storage!
+2026-11-11T16:23:52.9183793Z SHA256 digest of uploaded artifact is fadddd1b8b4154ae08858fe97efe0fe612911104e0394c0732d76b2e5cfeec76
+2026-11-11T16:23:52.9184796Z Finalizing artifact upload
+2026-11-11T16:23:53.2972084Z Artifact linux-build-bootstrap-ubuntu-26.04-43057408847-1 successfully finalized. Artifact ID 13872800622
+2026-11-11T16:23:53.2974048Z Artifact linux-build-bootstrap-ubuntu-26.04-43057408847-1 has been successfully uploaded! Final size is 1516 bytes. Artifact ID is 13872800622
+2026-11-11T16:23:53.2976232Z Artifact download URL: https://github.com/billlza/q-periapt/actions/runs/43057408847/artifacts/13872800622
+2026-11-11T16:23:53.3233748Z Post job cleanup.
+2026-11-11T16:23:53.4149212Z [command]/usr/bin/git version
+2026-11-11T16:23:53.4201432Z git version 2.56.0
+2026-11-11T16:23:53.4248459Z Temporarily overriding HOME='/home/runner/work/_temp/d989bebf-9b9f-49df-aacc-7fa61e1e26a5' before making global git config changes
+2026-11-11T16:23:53.4251007Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T16:23:53.4255324Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T16:23:53.4300240Z Removing SSH command configuration
+2026-11-11T16:23:53.4308511Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T16:23:53.4364116Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T16:23:53.4735140Z Removing HTTP extra header
+2026-11-11T16:23:53.4748880Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T16:23:53.4786871Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T16:23:53.5131755Z Removing includeIf entries pointing to credentials config files
+2026-11-11T16:23:53.5143077Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T16:23:53.5217399Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T16:23:53.5740922Z Cleaning up orphan processes
