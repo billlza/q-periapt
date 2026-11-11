@@ -1,0 +1,23 @@
+{
+  "artifacts": [
+    {
+      "id": 13888275093,
+      "name": "codeql-fixture-baab-43087152738-1",
+      "size_in_bytes": 13255489,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13888275093",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13888275093/zip",
+      "expired": false,
+      "created_at": "2026-11-11T19:35:47Z",
+      "expires_at": "2026-11-25T19:35:44Z",
+      "updated_at": "2026-11-11T19:35:47Z",
+      "digest": "sha256:705f5687f29e74bca5bfb539e7c90291ac120f2087305368415f8478bf8daf96",
+      "workflow_run": {
+        "id": 43087152738,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "diagnostic/codeql-fixture-baab",
+        "head_sha": "95ba31c114fd9b0c3bc014ed9e37d416a577715f"
+      }
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "workflow": {
+    "commit": "95ba31c114fd9b0c3bc014ed9e37d416a577715f",
+    "tree": "b97bd462405228631f9d830dac290a8f87d4f0ef",
+    "parent": "5e4819004450a43423c19818c65fe89779899eb6",
+    "branch": "diagnostic/codeql-fixture-baab"
+  },
+  "production_sources": {
+    "A": "b5185165283880527a54289b47397fde78ddf553",
+    "B": "ed38e305552db2825d90622c130973df87e16d50"
+  },
+  "source_files": {
+    "artifact/codeql_fixture_baab.py": {
+      "bytes": 18737,
+      "sha256": "c1efbcc72f75fddc60422841d049c312c7575ff7257767060d9f5df397fc1b24",
+      "git_blob": "82699d8b906390a49c3c87674bdd288ef972641d"
+    },
+    "artifact/codeql_wrapper_fixture.py": {
+      "bytes": 26742,
+      "sha256": "6b27964a3f53f2c827bade409ca5b0dbd92b3bf68b0f944d7444555bb1804517"
+    },
+    ".github/workflows/codeql-wrapper-fixture.yml": {
+      "bytes": 2912,
+      "sha256": "65b3e11e514e92a5e841c524c4f5c6e8a60669e3b99dcc25ec2bcc75272a1adc"
+    }
+  },
+  "publication_parent": "3ecccfc3d4bca918ca54daadf1c24cf1c1ad077f",
+  "source_preparation_evidence": "research/sdk-alpha1/evidence/20261111-codeql-baab-source-preparation",
+  "local_full_readback_completed_before_environment_disconnect": true,
+  "original_artifact_in_this_git_tree": false,
+  "readback_scripts_or_reports_in_this_git_tree": "The original full local readback files became inaccessible before Git publication. QUALIFICATION_SUMMARY.json is a reconstructed summary, explicitly labeled as such.",
+  "source_readback_utc": "2026-11-11 19:48:53 UTC"
+}

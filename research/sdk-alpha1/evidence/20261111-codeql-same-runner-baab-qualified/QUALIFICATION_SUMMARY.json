@@ -1,0 +1,184 @@
+{
+  "schema": 1,
+  "record_kind": "summary_reconstructed_from_completed_independent_artifact_readback",
+  "provenance": "The full downloaded ZIP was independently read and validated before the local execution environment disconnected. This is a newly serialized summary of that completed readback, not the original READBACK.json, SEMANTIC_READBACK.json or TIMING_RESOURCE_SUMMARY.json.",
+  "run_id": 43087152738,
+  "job_id": 130754412834,
+  "workflow_commit": "95ba31c114fd9b0c3bc014ed9e37d416a577715f",
+  "workflow_tree": "b97bd462405228631f9d830dac290a8f87d4f0ef",
+  "production_sources": {
+    "A": "b5185165283880527a54289b47397fde78ddf553",
+    "B": "ed38e305552db2825d90622c130973df87e16d50"
+  },
+  "order": [
+    "B1",
+    "A2",
+    "A3",
+    "B4"
+  ],
+  "artifact": {
+    "id": 13888275093,
+    "bytes": 13255489,
+    "sha256": "705f5687f29e74bca5bfb539e7c90291ac120f2087305368415f8478bf8daf96",
+    "members": 1148,
+    "crc_all_members_read": true,
+    "published_in_this_git_tree": false
+  },
+  "database": {
+    "input_files": 6651,
+    "inventory_sha256": "23362b3a54a7b0811f1df7f357e71fdc949759e7cb53f447b1613fac084ecbb1",
+    "initial_bqrs": 0,
+    "all_four_initial_copies_equal": true,
+    "guards_passed": true
+  },
+  "controls": {
+    "full_query_count": 39,
+    "analyze_deadline_seconds": 600,
+    "threads": 4,
+    "requested_ram_mb": 14000,
+    "resolved_heap_mb": 3484,
+    "resolved_off_heap_ram_mb": 9329,
+    "remaining_budget_mb": 1187,
+    "dynamic_join_order_mode": "all",
+    "private_database_runtime_and_cache_per_arm": true,
+    "all_resolved_allocations_equal": true,
+    "all_runtime_guards_passed": true,
+    "B1_sampler_stopped_before_A2": true,
+    "all_decoding_after_all_four_analyses": true,
+    "workflow_sha_not_overwritten": true
+  },
+  "observations": [
+    {
+      "arm": "B1",
+      "production_commit": "ed38e305552db2825d90622c130973df87e16d50",
+      "analyze_elapsed_seconds": 93.834136005,
+      "analyze_invoked_at_utc": "2026-11-11T19:27:27.116+00:00",
+      "analyze_finished_at_utc": "2026-11-11T19:29:00.950+00:00",
+      "analyze_returncode": 0,
+      "fresh_bqrs": 39,
+      "query_starts": 39,
+      "compiled_query_loads": 39,
+      "compilations": 0,
+      "evaluator_invocations": 1,
+      "canonical_distinct_stderr_completions": 39,
+      "sampled_tree_rss_peak_bytes": 10861559808,
+      "sampled_tree_rss_peak_gib": 10.115615844726562,
+      "observed_process_cpu_seconds": 312.17,
+      "summary_stats_cli_eval_seconds": 79
+    },
+    {
+      "arm": "A2",
+      "production_commit": "b5185165283880527a54289b47397fde78ddf553",
+      "analyze_elapsed_seconds": 90.379728935,
+      "analyze_invoked_at_utc": "2026-11-11T19:29:09.033+00:00",
+      "analyze_finished_at_utc": "2026-11-11T19:30:39.413+00:00",
+      "analyze_returncode": 0,
+      "fresh_bqrs": 39,
+      "query_starts": 39,
+      "compiled_query_loads": 39,
+      "compilations": 0,
+      "evaluator_invocations": 1,
+      "canonical_distinct_stderr_completions": 39,
+      "sampled_tree_rss_peak_bytes": 10959904768,
+      "sampled_tree_rss_peak_gib": 10.207206726074219,
+      "observed_process_cpu_seconds": 300.03,
+      "summary_stats_cli_eval_seconds": 76
+    },
+    {
+      "arm": "A3",
+      "production_commit": "b5185165283880527a54289b47397fde78ddf553",
+      "analyze_elapsed_seconds": 89.93444076200001,
+      "analyze_invoked_at_utc": "2026-11-11T19:30:51.169+00:00",
+      "analyze_finished_at_utc": "2026-11-11T19:32:21.103+00:00",
+      "analyze_returncode": 0,
+      "fresh_bqrs": 39,
+      "query_starts": 39,
+      "compiled_query_loads": 39,
+      "compilations": 0,
+      "evaluator_invocations": 1,
+      "canonical_distinct_stderr_completions": 39,
+      "sampled_tree_rss_peak_bytes": 10893246464,
+      "sampled_tree_rss_peak_gib": 10.145126342773438,
+      "observed_process_cpu_seconds": 299.35,
+      "summary_stats_cli_eval_seconds": 76
+    },
+    {
+      "arm": "B4",
+      "production_commit": "ed38e305552db2825d90622c130973df87e16d50",
+      "analyze_elapsed_seconds": 91.23713064900005,
+      "analyze_invoked_at_utc": "2026-11-11T19:32:32.894+00:00",
+      "analyze_finished_at_utc": "2026-11-11T19:34:04.132+00:00",
+      "analyze_returncode": 0,
+      "fresh_bqrs": 39,
+      "query_starts": 39,
+      "compiled_query_loads": 39,
+      "compilations": 0,
+      "evaluator_invocations": 1,
+      "canonical_distinct_stderr_completions": 39,
+      "sampled_tree_rss_peak_bytes": 10861412352,
+      "sampled_tree_rss_peak_gib": 10.115478515625,
+      "observed_process_cpu_seconds": 303.99,
+      "summary_stats_cli_eval_seconds": 77
+    }
+  ],
+  "semantics": {
+    "query_results_per_arm": 39,
+    "distinct_decoded_results": 156,
+    "bqrs_copies_checked": 195,
+    "all_39_equal": true,
+    "retained_baseline_rows": 29,
+    "all_retained_29_equal": true,
+    "active_sources": 15,
+    "tainted_nodes": 106,
+    "comparison": "Complete decoded JSON, including column metadata/types and multiplicity of rows. Tuple order is normalized; duplicate rows remain. Every one of the 156 arm/query results was decoded.",
+    "sarif_all_four_valid": true,
+    "sarif_all_four_security_results": 0
+  },
+  "source_snapshots": {
+    "A": {
+      "commit": "b5185165283880527a54289b47397fde78ddf553",
+      "files": 597,
+      "bytes": 16532600,
+      "inventory_sha256": "3e816a42292d275b6059c08b64d1636e766f9ddfe190fc651be796b4822775de"
+    },
+    "B": {
+      "commit": "ed38e305552db2825d90622c130973df87e16d50",
+      "files": 600,
+      "bytes": 16559281,
+      "inventory_sha256": "ac3335a92bd7b9080b41dd86340d5b7be0e1d97fb540232d8596b8c452dfee1d"
+    }
+  },
+  "runtime": {
+    "files": 2282,
+    "bytes": 231156107,
+    "canonical_sha256": "1d61c12cb67e01730a1ec5031aefe669035e52290081dc6822333cb5ab861c90",
+    "pack_files": 1357,
+    "pack_sha256": {
+      "A": "13705d5f8b164bd69a12219c41a7fe8ba7e304247a4b78d0150c4dd36882d441",
+      "B": "332897d1bbd8506384f3788f1e27635593b815e7a7e739154e6b340885e726be"
+    },
+    "source_census_equal_to_independently_verified_public_git_inventories": true
+  },
+  "source_preparation": {
+    "prefetch_elapsed_seconds": 1.399424025,
+    "archive_A_elapsed_seconds": 0.07156205,
+    "archive_B_elapsed_seconds": 0.071852196,
+    "extraction_elapsed_seconds": 48.351378369,
+    "all_returncodes": 0
+  },
+  "resource_scope": "Observed own-process CPU counters and maximum sampled process-tree RSS during analyze. RSS sums may double-count shared pages and miss between-sample peaks; it is not PSS or a continuously observed maximum.",
+  "statistical_scope": "One nonempty fixture, one runner, one extraction, two observations per source in B-A-A-B order. The mean difference describes this controlled sample; it is not a population effect estimate.",
+  "comparison": {
+    "A_mean_analyze_seconds": 90.1570848485,
+    "B_mean_analyze_seconds": 92.53563332700003,
+    "B_minus_A_seconds": 2.378548478500022,
+    "B_minus_A_percent": 2.63822691527453,
+    "A_mean_observed_cpu_seconds": 299.69,
+    "B_mean_observed_cpu_seconds": 308.08000000000004,
+    "B_minus_A_cpu_percent": 2.7995595448630395,
+    "A_mean_sampled_tree_rss_peak_bytes": 10926575616,
+    "B_mean_sampled_tree_rss_peak_bytes": 10861486080,
+    "B_minus_A_sampled_tree_rss_peak_bytes": -65089536,
+    "B_minus_A_sampled_tree_rss_peak_percent": -0.5956993141079636
+  }
+}

@@ -1,0 +1,778 @@
+﻿2026-11-11T19:26:08.0876350Z Current runner version: '2.338.2'
+2026-11-11T19:26:08.0913078Z ##[group]Runner Image Provisioner
+2026-11-11T19:26:08.0914332Z Hosted Compute Agent
+2026-11-11T19:26:08.0915254Z Version: 20261028.624
+2026-11-11T19:26:08.0916545Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-11T19:26:08.0918060Z Build Date: 2026-10-28T21:51:42Z
+2026-11-11T19:26:08.0919274Z Worker ID: {b1f0447c-f6c7-4bc9-9b11-92838385498d}
+2026-11-11T19:26:08.0920474Z Region: eastus2
+2026-11-11T19:26:08.0921308Z Cloud: Azure
+2026-11-11T19:26:08.0922738Z ##[endgroup]
+2026-11-11T19:26:08.0925480Z ##[group]Operating System
+2026-11-11T19:26:08.0926523Z Ubuntu
+2026-11-11T19:26:08.0927528Z 24.04.5
+2026-11-11T19:26:08.0928312Z LTS
+2026-11-11T19:26:08.0929323Z ##[endgroup]
+2026-11-11T19:26:08.0930188Z ##[group]Runner Image
+2026-11-11T19:26:08.0931171Z Image: ubuntu-24.04
+2026-11-11T19:26:08.0932079Z Version: 20261101.360.1
+2026-11-11T19:26:08.0934188Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-11T19:26:08.0936755Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261101.360
+2026-11-11T19:26:08.0938677Z ##[endgroup]
+2026-11-11T19:26:08.0940419Z ##[group]GITHUB_TOKEN Permissions
+2026-11-11T19:26:08.0943462Z Contents: read
+2026-11-11T19:26:08.0944443Z Metadata: read
+2026-11-11T19:26:08.0945395Z ##[endgroup]
+2026-11-11T19:26:08.0948596Z Secret source: Actions
+2026-11-11T19:26:08.0950037Z Cache mode: write
+2026-11-11T19:26:08.0951183Z Prepare workflow directory
+2026-11-11T19:26:08.1440629Z Prepare all required actions
+2026-11-11T19:26:08.1510055Z Getting action download info
+2026-11-11T19:26:08.3812246Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-11T19:26:08.5046216Z Download action repository 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' (SHA:043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
+2026-11-11T19:26:08.7267617Z Complete job name: B-A-A-B complete 39-query comparison
+2026-11-11T19:26:08.8307634Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-11T19:26:08.8308737Z with:
+2026-11-11T19:26:08.8309210Z   persist-credentials: false
+2026-11-11T19:26:08.8309745Z   fetch-depth: 1
+2026-11-11T19:26:08.8310265Z   sparse-checkout: artifact
+.github/workflows
+
+2026-11-11T19:26:08.8310960Z   repository: billlza/q-periapt
+2026-11-11T19:26:08.8315042Z   token: ***
+2026-11-11T19:26:08.8315506Z   ssh-strict: true
+2026-11-11T19:26:08.8315969Z   ssh-user: git
+2026-11-11T19:26:08.8316407Z   clean: true
+2026-11-11T19:26:08.8316881Z   sparse-checkout-cone-mode: true
+2026-11-11T19:26:08.8317569Z   fetch-tags: false
+2026-11-11T19:26:08.8318046Z   show-progress: true
+2026-11-11T19:26:08.8318533Z   lfs: false
+2026-11-11T19:26:08.8318965Z   submodules: false
+2026-11-11T19:26:08.8319436Z   set-safe-directory: true
+2026-11-11T19:26:08.8319963Z   allow-unsafe-pr-checkout: false
+2026-11-11T19:26:08.8320731Z ##[endgroup]
+2026-11-11T19:26:09.4099247Z Syncing repository: billlza/q-periapt
+2026-11-11T19:26:09.4104960Z ##[group]Getting Git version info
+2026-11-11T19:26:09.4106278Z Working directory is '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T19:26:09.4108291Z [command]/usr/bin/git version
+2026-11-11T19:26:09.4403328Z git version 2.56.0
+2026-11-11T19:26:09.4425481Z ##[endgroup]
+2026-11-11T19:26:09.4439770Z Temporarily overriding HOME='/home/runner/work/_temp/03a4ee9f-50ef-4935-a715-400aa1280289' before making global git config changes
+2026-11-11T19:26:09.4442337Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T19:26:09.4447813Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T19:26:09.4496708Z Deleting the contents of '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T19:26:09.4500711Z ##[group]Determining repository object format
+2026-11-11T19:26:09.4502366Z ##[endgroup]
+2026-11-11T19:26:09.4503670Z ##[group]Initializing the repository
+2026-11-11T19:26:09.4506559Z [command]/usr/bin/git init /home/runner/work/q-periapt/q-periapt
+2026-11-11T19:26:09.4850168Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-11T19:26:09.4852204Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-11T19:26:09.4854169Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-11T19:26:09.4855628Z hint: call:
+2026-11-11T19:26:09.4856424Z hint:
+2026-11-11T19:26:09.4857593Z hint: 	git config --global init.defaultBranch <name>
+2026-11-11T19:26:09.4858788Z hint:
+2026-11-11T19:26:09.4859886Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-11T19:26:09.4861669Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-11T19:26:09.4863116Z hint:
+2026-11-11T19:26:09.4863949Z hint: 	git branch -m <name>
+2026-11-11T19:26:09.4864905Z hint:
+2026-11-11T19:26:09.4867385Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-11T19:26:09.4869512Z Initialized empty Git repository in /home/runner/work/q-periapt/q-periapt/.git/
+2026-11-11T19:26:09.4873013Z [command]/usr/bin/git remote add origin https://github.com/billlza/q-periapt
+2026-11-11T19:26:09.4933171Z ##[endgroup]
+2026-11-11T19:26:09.4934227Z ##[group]Disabling automatic garbage collection
+2026-11-11T19:26:09.4936397Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-11T19:26:09.4987659Z ##[endgroup]
+2026-11-11T19:26:09.4988785Z ##[group]Setting up auth
+2026-11-11T19:26:09.4989452Z Removing SSH command configuration
+2026-11-11T19:26:09.4993640Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T19:26:09.5044460Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T19:26:09.5910981Z Removing HTTP extra header
+2026-11-11T19:26:09.5918170Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T19:26:09.5967825Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T19:26:09.6241148Z Removing includeIf entries pointing to credentials config files
+2026-11-11T19:26:09.6246230Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T19:26:09.6303389Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T19:26:09.6617700Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-12973e94-1810-4aa9-84d0-36f9ee286d22.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-11T19:26:09.6672411Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path /home/runner/work/_temp/git-credentials-12973e94-1810-4aa9-84d0-36f9ee286d22.config
+2026-11-11T19:26:09.6902648Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-12973e94-1810-4aa9-84d0-36f9ee286d22.config
+2026-11-11T19:26:09.6954381Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-12973e94-1810-4aa9-84d0-36f9ee286d22.config
+2026-11-11T19:26:09.7002686Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-12973e94-1810-4aa9-84d0-36f9ee286d22.config
+2026-11-11T19:26:09.7048819Z ##[endgroup]
+2026-11-11T19:26:09.7049684Z ##[group]Fetching the repository
+2026-11-11T19:26:09.7058156Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --filter=blob:none --depth=1 origin +95ba31c114fd9b0c3bc014ed9e37d416a577715f:refs/remotes/origin/diagnostic/codeql-fixture-baab
+2026-11-11T19:26:09.9951609Z From https://github.com/billlza/q-periapt
+2026-11-11T19:26:09.9953635Z  * [new ref]         95ba31c114fd9b0c3bc014ed9e37d416a577715f -> origin/diagnostic/codeql-fixture-baab
+2026-11-11T19:26:09.9962113Z [command]/usr/bin/git branch --list --remote origin/diagnostic/codeql-fixture-baab
+2026-11-11T19:26:10.0006548Z   origin/diagnostic/codeql-fixture-baab
+2026-11-11T19:26:10.0016177Z [command]/usr/bin/git rev-parse refs/remotes/origin/diagnostic/codeql-fixture-baab
+2026-11-11T19:26:10.0057593Z 95ba31c114fd9b0c3bc014ed9e37d416a577715f
+2026-11-11T19:26:10.0062870Z ##[endgroup]
+2026-11-11T19:26:10.0064354Z ##[group]Determining the checkout info
+2026-11-11T19:26:10.0065949Z ##[endgroup]
+2026-11-11T19:26:10.0067712Z ##[group]Setting up sparse checkout
+2026-11-11T19:26:10.0069906Z [command]/usr/bin/git sparse-checkout set artifact .github/workflows
+2026-11-11T19:26:10.0134596Z ##[endgroup]
+2026-11-11T19:26:10.0136191Z ##[group]Checking out the ref
+2026-11-11T19:26:10.0139707Z [command]/usr/bin/git checkout --progress --force -B diagnostic/codeql-fixture-baab refs/remotes/origin/diagnostic/codeql-fixture-baab
+2026-11-11T19:26:11.4878484Z Updating files:   0% (1/639)
+2026-11-11T19:26:11.4887880Z Updating files:   1% (7/639)
+2026-11-11T19:26:11.4894277Z Updating files:   2% (13/639)
+2026-11-11T19:26:11.4898115Z Updating files:   3% (20/639)
+2026-11-11T19:26:11.4909835Z Updating files:   4% (26/639)
+2026-11-11T19:26:11.4919729Z Updating files:   5% (32/639)
+2026-11-11T19:26:11.4927252Z Updating files:   6% (39/639)
+2026-11-11T19:26:11.4955185Z Updating files:   7% (45/639)
+2026-11-11T19:26:11.4958073Z Updating files:   8% (52/639)
+2026-11-11T19:26:11.4968618Z Updating files:   9% (58/639)
+2026-11-11T19:26:11.4978936Z Updating files:  10% (64/639)
+2026-11-11T19:26:11.4988167Z Updating files:  11% (71/639)
+2026-11-11T19:26:11.5035727Z Updating files:  12% (77/639)
+2026-11-11T19:26:11.5036355Z Updating files:  13% (84/639)
+2026-11-11T19:26:11.5037709Z Updating files:  14% (90/639)
+2026-11-11T19:26:11.5046384Z Updating files:  15% (96/639)
+2026-11-11T19:26:11.5052518Z Updating files:  16% (103/639)
+2026-11-11T19:26:11.5061232Z Updating files:  17% (109/639)
+2026-11-11T19:26:11.5068296Z Updating files:  18% (116/639)
+2026-11-11T19:26:11.5074923Z Updating files:  19% (122/639)
+2026-11-11T19:26:11.5082227Z Updating files:  20% (128/639)
+2026-11-11T19:26:11.5089221Z Updating files:  21% (135/639)
+2026-11-11T19:26:11.5094482Z Updating files:  22% (141/639)
+2026-11-11T19:26:11.5100708Z Updating files:  23% (147/639)
+2026-11-11T19:26:11.5107332Z Updating files:  24% (154/639)
+2026-11-11T19:26:11.5114630Z Updating files:  25% (160/639)
+2026-11-11T19:26:11.5121144Z Updating files:  26% (167/639)
+2026-11-11T19:26:11.5129321Z Updating files:  27% (173/639)
+2026-11-11T19:26:11.5135735Z Updating files:  28% (179/639)
+2026-11-11T19:26:11.5141599Z Updating files:  29% (186/639)
+2026-11-11T19:26:11.5147517Z Updating files:  30% (192/639)
+2026-11-11T19:26:11.5153487Z Updating files:  31% (199/639)
+2026-11-11T19:26:11.5158981Z Updating files:  32% (205/639)
+2026-11-11T19:26:11.5165235Z Updating files:  33% (211/639)
+2026-11-11T19:26:11.5170785Z Updating files:  34% (218/639)
+2026-11-11T19:26:11.5177198Z Updating files:  35% (224/639)
+2026-11-11T19:26:11.5185914Z Updating files:  36% (231/639)
+2026-11-11T19:26:11.5191818Z Updating files:  37% (237/639)
+2026-11-11T19:26:11.5198727Z Updating files:  38% (243/639)
+2026-11-11T19:26:11.5203897Z Updating files:  39% (250/639)
+2026-11-11T19:26:11.5211458Z Updating files:  40% (256/639)
+2026-11-11T19:26:11.5216647Z Updating files:  41% (262/639)
+2026-11-11T19:26:11.5228253Z Updating files:  42% (269/639)
+2026-11-11T19:26:11.5238010Z Updating files:  43% (275/639)
+2026-11-11T19:26:11.5244218Z Updating files:  44% (282/639)
+2026-11-11T19:26:11.5304141Z Updating files:  45% (288/639)
+2026-11-11T19:26:11.5318547Z Updating files:  46% (294/639)
+2026-11-11T19:26:11.5322978Z Updating files:  47% (301/639)
+2026-11-11T19:26:11.5332799Z Updating files:  48% (307/639)
+2026-11-11T19:26:11.5343620Z Updating files:  49% (314/639)
+2026-11-11T19:26:11.5352007Z Updating files:  50% (320/639)
+2026-11-11T19:26:11.5365490Z Updating files:  51% (326/639)
+2026-11-11T19:26:11.5375433Z Updating files:  52% (333/639)
+2026-11-11T19:26:11.5388983Z Updating files:  53% (339/639)
+2026-11-11T19:26:11.5394822Z Updating files:  54% (346/639)
+2026-11-11T19:26:11.5402600Z Updating files:  55% (352/639)
+2026-11-11T19:26:11.5417666Z Updating files:  56% (358/639)
+2026-11-11T19:26:11.5442834Z Updating files:  57% (365/639)
+2026-11-11T19:26:11.5449797Z Updating files:  58% (371/639)
+2026-11-11T19:26:11.5456783Z Updating files:  59% (378/639)
+2026-11-11T19:26:11.5466525Z Updating files:  60% (384/639)
+2026-11-11T19:26:11.5476978Z Updating files:  61% (390/639)
+2026-11-11T19:26:11.5484518Z Updating files:  62% (397/639)
+2026-11-11T19:26:11.5489917Z Updating files:  63% (403/639)
+2026-11-11T19:26:11.5500828Z Updating files:  64% (409/639)
+2026-11-11T19:26:11.5509044Z Updating files:  65% (416/639)
+2026-11-11T19:26:11.5515334Z Updating files:  66% (422/639)
+2026-11-11T19:26:11.5519994Z Updating files:  67% (429/639)
+2026-11-11T19:26:11.5527195Z Updating files:  68% (435/639)
+2026-11-11T19:26:11.5529806Z Updating files:  69% (441/639)
+2026-11-11T19:26:11.5533779Z Updating files:  70% (448/639)
+2026-11-11T19:26:11.5541131Z Updating files:  71% (454/639)
+2026-11-11T19:26:11.5544913Z Updating files:  72% (461/639)
+2026-11-11T19:26:11.5549903Z Updating files:  73% (467/639)
+2026-11-11T19:26:11.5554845Z Updating files:  74% (473/639)
+2026-11-11T19:26:11.5560697Z Updating files:  75% (480/639)
+2026-11-11T19:26:11.5568205Z Updating files:  76% (486/639)
+2026-11-11T19:26:11.5573192Z Updating files:  77% (493/639)
+2026-11-11T19:26:11.5580960Z Updating files:  78% (499/639)
+2026-11-11T19:26:11.5588152Z Updating files:  79% (505/639)
+2026-11-11T19:26:11.5591996Z Updating files:  80% (512/639)
+2026-11-11T19:26:11.5597894Z Updating files:  81% (518/639)
+2026-11-11T19:26:11.5602303Z Updating files:  82% (524/639)
+2026-11-11T19:26:11.5606459Z Updating files:  83% (531/639)
+2026-11-11T19:26:11.5616729Z Updating files:  84% (537/639)
+2026-11-11T19:26:11.5623924Z Updating files:  85% (544/639)
+2026-11-11T19:26:11.5630209Z Updating files:  86% (550/639)
+2026-11-11T19:26:11.5637889Z Updating files:  87% (556/639)
+2026-11-11T19:26:11.5652409Z Updating files:  88% (563/639)
+2026-11-11T19:26:11.5661685Z Updating files:  89% (569/639)
+2026-11-11T19:26:11.5678233Z Updating files:  90% (576/639)
+2026-11-11T19:26:11.5688972Z Updating files:  91% (582/639)
+2026-11-11T19:26:11.5699160Z Updating files:  92% (588/639)
+2026-11-11T19:26:11.5702770Z Updating files:  93% (595/639)
+2026-11-11T19:26:11.5712997Z Updating files:  94% (601/639)
+2026-11-11T19:26:11.5721862Z Updating files:  95% (608/639)
+2026-11-11T19:26:11.5725881Z Updating files:  96% (614/639)
+2026-11-11T19:26:11.5730698Z Updating files:  97% (620/639)
+2026-11-11T19:26:11.5739575Z Updating files:  98% (627/639)
+2026-11-11T19:26:11.5752323Z Updating files:  99% (633/639)
+2026-11-11T19:26:11.5752980Z Updating files: 100% (639/639)
+2026-11-11T19:26:11.5753470Z Updating files: 100% (639/639), done.
+2026-11-11T19:26:11.5856783Z Switched to a new branch 'diagnostic/codeql-fixture-baab'
+2026-11-11T19:26:11.5862487Z branch 'diagnostic/codeql-fixture-baab' set up to track 'origin/diagnostic/codeql-fixture-baab'.
+2026-11-11T19:26:11.5873457Z ##[endgroup]
+2026-11-11T19:26:11.5967721Z [command]/usr/bin/git log -1 --format=%H
+2026-11-11T19:26:11.6053244Z 95ba31c114fd9b0c3bc014ed9e37d416a577715f
+2026-11-11T19:26:11.6075829Z ##[group]Removing auth
+2026-11-11T19:26:11.6076681Z Removing SSH command configuration
+2026-11-11T19:26:11.6083922Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T19:26:11.6168104Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T19:26:11.6539866Z Removing HTTP extra header
+2026-11-11T19:26:11.6544108Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T19:26:11.6599630Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T19:26:11.6909620Z Removing includeIf entries pointing to credentials config files
+2026-11-11T19:26:11.6912787Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T19:26:11.6960917Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T19:26:11.6961962Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T19:26:11.6962923Z includeif.gitdir:/github/workspace/.git.path
+2026-11-11T19:26:11.6963838Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T19:26:11.6971127Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T19:26:11.7013756Z /home/runner/work/_temp/git-credentials-12973e94-1810-4aa9-84d0-36f9ee286d22.config
+2026-11-11T19:26:11.7024412Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-12973e94\-1810\-4aa9\-84d0\-36f9ee286d22\.config
+2026-11-11T19:26:11.7079509Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T19:26:11.7118697Z /home/runner/work/_temp/git-credentials-12973e94-1810-4aa9-84d0-36f9ee286d22.config
+2026-11-11T19:26:11.7132392Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-12973e94\-1810\-4aa9\-84d0\-36f9ee286d22\.config
+2026-11-11T19:26:11.7187708Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-11T19:26:11.7231914Z /github/runner_temp/git-credentials-12973e94-1810-4aa9-84d0-36f9ee286d22.config
+2026-11-11T19:26:11.7241161Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-12973e94\-1810\-4aa9\-84d0\-36f9ee286d22\.config
+2026-11-11T19:26:11.7292830Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T19:26:11.7339463Z /github/runner_temp/git-credentials-12973e94-1810-4aa9-84d0-36f9ee286d22.config
+2026-11-11T19:26:11.7351430Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-12973e94\-1810\-4aa9\-84d0\-36f9ee286d22\.config
+2026-11-11T19:26:11.7431815Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T19:26:11.7764876Z Removing credentials config '/home/runner/work/_temp/git-credentials-12973e94-1810-4aa9-84d0-36f9ee286d22.config'
+2026-11-11T19:26:11.7777752Z ##[endgroup]
+2026-11-11T19:26:11.8163155Z ##[group]Run set -eu
+2026-11-11T19:26:11.8163609Z [36;1mset -eu[0m
+2026-11-11T19:26:11.8164273Z [36;1m/usr/bin/python3 -I -S -B -c 'import ast, pathlib; ast.parse(pathlib.Path("artifact/codeql_wrapper_fixture.py").read_text(encoding="utf-8"))'[0m
+2026-11-11T19:26:11.8165313Z [36;1m/usr/bin/python3 -I -S -B -c 'import ast, pathlib; ast.parse(pathlib.Path("artifact/codeql_fixture_baab.py").read_text(encoding="utf-8"))'[0m
+2026-11-11T19:26:11.8166157Z [36;1mgit rev-parse HEAD 'HEAD^{tree}' > "$RUNNER_TEMP/qperiapt-wrapper-source.txt"[0m
+2026-11-11T19:26:11.8166753Z [36;1msh artifact/python-run.sh -m unittest -v test_codeql_workflow_contract[0m
+2026-11-11T19:26:11.8193658Z shell: /usr/bin/bash -e {0}
+2026-11-11T19:26:11.8194037Z ##[endgroup]
+2026-11-11T19:26:12.2974055Z test_all_production_targets_and_publication_use_the_authenticated_projection (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_all_production_targets_and_publication_use_the_authenticated_projection) ... ok
+2026-11-11T19:26:12.2979943Z test_both_summary_workers_receive_the_same_projection_capsule_and_mode (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_both_summary_workers_receive_the_same_projection_capsule_and_mode) ... ok
+2026-11-11T19:26:12.2992206Z test_candidate_ci_has_one_automatic_matrix_without_losing_release_or_pr_checks (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_candidate_ci_has_one_automatic_matrix_without_losing_release_or_pr_checks) ... ok
+2026-11-11T19:26:12.3320898Z test_non_rust_checkout_keeps_sources_and_omits_only_historical_zip_files (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_non_rust_checkout_keeps_sources_and_omits_only_historical_zip_files) ... ok
+2026-11-11T19:26:12.3323513Z test_production_codeql_keeps_pr_main_and_periodic_coverage (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_production_codeql_keeps_pr_main_and_periodic_coverage) ... ok
+2026-11-11T19:26:12.3341101Z test_production_jobs_queue_independently_without_cancelling_running_analysis (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_production_jobs_queue_independently_without_cancelling_running_analysis) ... ok
+2026-11-11T19:26:12.3343084Z test_projection_push_is_an_explicit_opt_in_with_an_unambiguous_plan (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_projection_push_is_an_explicit_opt_in_with_an_unambiguous_plan) ... ok
+2026-11-11T19:26:12.3345042Z test_retained_auxiliary_diagnostics_require_an_explicit_dispatch (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_retained_auxiliary_diagnostics_require_an_explicit_dispatch) ... ok
+2026-11-11T19:26:12.3350652Z test_rust_publication_waits_for_every_profile_and_validation_before_upload (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_rust_publication_waits_for_every_profile_and_validation_before_upload) ... ok
+2026-11-11T19:26:12.3353051Z test_summary_comparison_keeps_both_fresh_complete_results_and_failure_evidence (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_summary_comparison_keeps_both_fresh_complete_results_and_failure_evidence) ... ok
+2026-11-11T19:26:12.3353845Z 
+2026-11-11T19:26:12.3354011Z ----------------------------------------------------------------------
+2026-11-11T19:26:12.3354405Z Ran 10 tests in 0.039s
+2026-11-11T19:26:12.3354558Z 
+2026-11-11T19:26:12.3354636Z OK
+2026-11-11T19:26:12.3546580Z ##[group]Run set -eu
+2026-11-11T19:26:12.3546865Z [36;1mset -eu[0m
+2026-11-11T19:26:12.3547441Z [36;1msh artifact/python-run.sh artifact/codeql_wrapper_fixture.py \[0m
+2026-11-11T19:26:12.3547976Z [36;1m  --output "$RUNNER_TEMP/qperiapt-codeql-wrapper-fixture"[0m
+2026-11-11T19:26:12.3548459Z [36;1msh artifact/python-run.sh artifact/codeql_fixture_baab.py --compare \[0m
+2026-11-11T19:26:12.3548923Z [36;1m  --output "$RUNNER_TEMP/qperiapt-codeql-wrapper-fixture"[0m
+2026-11-11T19:26:12.3571203Z shell: /usr/bin/bash -e {0}
+2026-11-11T19:26:12.3571461Z ##[endgroup]
+2026-11-11T19:26:13.0376340Z fetch-frozen-inputs invoked at 2026-11-11T19:26:13.037+00:00 (bound 180s)
+2026-11-11T19:26:13.5275026Z fetch-frozen-inputs complete
+2026-11-11T19:26:13.5277431Z source-codeql_rust_plan-py invoked at 2026-11-11T19:26:13.527+00:00 (bound 180s)
+2026-11-11T19:26:13.5310744Z source-codeql_rust_plan-py complete
+2026-11-11T19:26:13.5313662Z source-codeql_rust_profile-py invoked at 2026-11-11T19:26:13.531+00:00 (bound 180s)
+2026-11-11T19:26:13.5341577Z source-codeql_rust_profile-py complete
+2026-11-11T19:26:13.5344578Z source-codeql_evaluator_logs-py invoked at 2026-11-11T19:26:13.534+00:00 (bound 180s)
+2026-11-11T19:26:13.5369829Z source-codeql_evaluator_logs-py complete
+2026-11-11T19:26:13.5372384Z source-codeql_summary_projection-py invoked at 2026-11-11T19:26:13.536+00:00 (bound 180s)
+2026-11-11T19:26:13.5398246Z source-codeql_summary_projection-py complete
+2026-11-11T19:26:13.5401124Z source-codeql_summary_projection-json invoked at 2026-11-11T19:26:13.539+00:00 (bound 180s)
+2026-11-11T19:26:13.5425132Z source-codeql_summary_projection-json complete
+2026-11-11T19:26:13.5427866Z source-codeql_summary_plan-py invoked at 2026-11-11T19:26:13.542+00:00 (bound 180s)
+2026-11-11T19:26:13.5453043Z source-codeql_summary_plan-py complete
+2026-11-11T19:26:13.5455905Z source-bounded_process-py invoked at 2026-11-11T19:26:13.545+00:00 (bound 180s)
+2026-11-11T19:26:13.5484746Z source-bounded_process-py complete
+2026-11-11T19:26:13.5487681Z source-evidence_io-py invoked at 2026-11-11T19:26:13.548+00:00 (bound 180s)
+2026-11-11T19:26:13.5516814Z source-evidence_io-py complete
+2026-11-11T19:26:13.5521302Z source-codeql_process_resources-py invoked at 2026-11-11T19:26:13.551+00:00 (bound 180s)
+2026-11-11T19:26:13.5545486Z source-codeql_process_resources-py complete
+2026-11-11T19:26:13.5548682Z source-codeql_rust_queries-json invoked at 2026-11-11T19:26:13.554+00:00 (bound 180s)
+2026-11-11T19:26:13.5572978Z source-codeql_rust_queries-json complete
+2026-11-11T19:26:13.5575664Z source-codeql_rust_quality-py invoked at 2026-11-11T19:26:13.557+00:00 (bound 180s)
+2026-11-11T19:26:13.5603739Z source-codeql_rust_quality-py complete
+2026-11-11T19:26:13.5606312Z source-rust_sdk_profile-py invoked at 2026-11-11T19:26:13.560+00:00 (bound 180s)
+2026-11-11T19:26:13.5634722Z source-rust_sdk_profile-py complete
+2026-11-11T19:26:13.5639212Z fixture-archive invoked at 2026-11-11T19:26:13.563+00:00 (bound 180s)
+2026-11-11T19:26:13.8989231Z fixture-archive complete
+2026-11-11T19:26:13.8990553Z fixture-members invoked at 2026-11-11T19:26:13.898+00:00 (bound 180s)
+2026-11-11T19:26:14.2540765Z fixture-members complete
+2026-11-11T19:26:14.2541998Z retained-summary invoked at 2026-11-11T19:26:14.253+00:00 (bound 180s)
+2026-11-11T19:26:14.6791433Z retained-summary complete
+2026-11-11T19:26:14.7855795Z download-codeql invoked at 2026-11-11T19:26:14.785+00:00 (bound 300s)
+2026-11-11T19:26:15.4835221Z download-codeql complete
+2026-11-11T19:26:15.5665744Z download-cargo invoked at 2026-11-11T19:26:15.566+00:00 (bound 300s)
+2026-11-11T19:26:15.7645869Z download-cargo complete
+2026-11-11T19:26:15.7756757Z download-rustc invoked at 2026-11-11T19:26:15.775+00:00 (bound 300s)
+2026-11-11T19:26:16.1780691Z download-rustc complete
+2026-11-11T19:26:16.2464696Z download-rust-std invoked at 2026-11-11T19:26:16.245+00:00 (bound 300s)
+2026-11-11T19:26:16.4753267Z download-rust-std complete
+2026-11-11T19:26:16.5014083Z download-rust-src invoked at 2026-11-11T19:26:16.500+00:00 (bound 300s)
+2026-11-11T19:26:16.6066885Z download-rust-src complete
+2026-11-11T19:26:16.6141504Z unpack-cargo invoked at 2026-11-11T19:26:16.613+00:00 (bound 180s)
+2026-11-11T19:26:17.3934244Z unpack-cargo complete
+2026-11-11T19:26:17.3935622Z install-cargo invoked at 2026-11-11T19:26:17.393+00:00 (bound 180s)
+2026-11-11T19:26:17.9004365Z install-cargo complete
+2026-11-11T19:26:17.9006585Z unpack-rustc invoked at 2026-11-11T19:26:17.900+00:00 (bound 180s)
+2026-11-11T19:26:23.4192519Z unpack-rustc complete
+2026-11-11T19:26:23.4194626Z install-rustc invoked at 2026-11-11T19:26:23.419+00:00 (bound 180s)
+2026-11-11T19:26:23.9812459Z install-rustc complete
+2026-11-11T19:26:23.9815242Z unpack-rust-std invoked at 2026-11-11T19:26:23.981+00:00 (bound 180s)
+2026-11-11T19:26:26.1828034Z unpack-rust-std complete
+2026-11-11T19:26:26.1829257Z install-rust-std invoked at 2026-11-11T19:26:26.182+00:00 (bound 180s)
+2026-11-11T19:26:26.9653916Z install-rust-std complete
+2026-11-11T19:26:26.9656302Z unpack-rust-src invoked at 2026-11-11T19:26:26.965+00:00 (bound 180s)
+2026-11-11T19:26:27.4648772Z unpack-rust-src complete
+2026-11-11T19:26:27.4989128Z rustc-version invoked at 2026-11-11T19:26:27.498+00:00 (bound 180s)
+2026-11-11T19:26:27.5089405Z rustc-version complete
+2026-11-11T19:26:27.5091123Z cargo-version invoked at 2026-11-11T19:26:27.508+00:00 (bound 180s)
+2026-11-11T19:26:27.5232236Z cargo-version complete
+2026-11-11T19:26:27.6268418Z plan-extract invoked at 2026-11-11T19:26:27.626+00:00 (bound 300s)
+2026-11-11T19:26:28.3388494Z plan-extract complete
+2026-11-11T19:27:21.4328970Z pair-fetch invoked at 2026-11-11T19:27:21.432+00:00 (bound 180s)
+2026-11-11T19:27:21.6457451Z pair-fetch complete
+2026-11-11T19:27:21.6459055Z pair-tree-A invoked at 2026-11-11T19:27:21.645+00:00 (bound 180s)
+2026-11-11T19:27:21.6494561Z pair-tree-A complete
+2026-11-11T19:27:21.6560874Z pair-tree-B invoked at 2026-11-11T19:27:21.655+00:00 (bound 180s)
+2026-11-11T19:27:21.6597311Z pair-tree-B complete
+2026-11-11T19:27:21.6676866Z pair-prefetch invoked at 2026-11-11T19:27:21.667+00:00 (bound 180s)
+2026-11-11T19:27:23.0670907Z pair-prefetch complete
+2026-11-11T19:27:23.0673821Z pair-archive-A invoked at 2026-11-11T19:27:23.067+00:00 (bound 180s)
+2026-11-11T19:27:23.1390905Z pair-archive-A complete
+2026-11-11T19:27:23.1392306Z pair-unpack-A invoked at 2026-11-11T19:27:23.138+00:00 (bound 180s)
+2026-11-11T19:27:23.2251538Z pair-unpack-A complete
+2026-11-11T19:27:23.3374931Z pair-archive-B invoked at 2026-11-11T19:27:23.336+00:00 (bound 180s)
+2026-11-11T19:27:23.4091953Z pair-archive-B complete
+2026-11-11T19:27:23.4093713Z pair-unpack-B invoked at 2026-11-11T19:27:23.409+00:00 (bound 180s)
+2026-11-11T19:27:23.4951854Z pair-unpack-B complete
+2026-11-11T19:27:23.7264749Z analysis-plan-extract invoked at 2026-11-11T19:27:23.725+00:00 (bound 300s)
+2026-11-11T19:27:24.3567906Z analysis-plan-extract complete
+2026-11-11T19:27:24.9802791Z analysis-plan-version invoked at 2026-11-11T19:27:24.979+00:00 (bound 180s)
+2026-11-11T19:27:25.4643449Z analysis-plan-version complete
+2026-11-11T19:27:26.4044639Z resolve-analysis-ram invoked at 2026-11-11T19:27:26.404+00:00 (bound 180s)
+2026-11-11T19:27:27.1109296Z resolve-analysis-ram complete
+2026-11-11T19:27:27.1169373Z analyze invoked at 2026-11-11T19:27:27.116+00:00 (bound 600s)
+2026-11-11T19:28:05.5318144Z CodeQL query completions observed: 1/39
+2026-11-11T19:28:05.5457883Z CodeQL query completions observed: 2/39
+2026-11-11T19:28:05.5517624Z CodeQL query completions observed: 3/39
+2026-11-11T19:28:05.5567467Z CodeQL query completions observed: 4/39
+2026-11-11T19:28:05.5958239Z CodeQL query completions observed: 5/39
+2026-11-11T19:28:05.6017652Z CodeQL query completions observed: 6/39
+2026-11-11T19:28:06.8138155Z CodeQL query completions observed: 7/39
+2026-11-11T19:28:06.8218032Z CodeQL query completions observed: 8/39
+2026-11-11T19:28:08.2048139Z CodeQL query completions observed: 9/39
+2026-11-11T19:28:24.1378274Z CodeQL query completions observed: 10/39
+2026-11-11T19:28:31.5949223Z CodeQL query completions observed: 11/39
+2026-11-11T19:28:31.5978564Z CodeQL query completions observed: 12/39
+2026-11-11T19:28:38.8618822Z CodeQL query completions observed: 13/39
+2026-11-11T19:28:39.2768815Z CodeQL query completions observed: 14/39
+2026-11-11T19:28:40.8928283Z CodeQL query completions observed: 15/39
+2026-11-11T19:28:40.9009938Z CodeQL query completions observed: 16/39
+2026-11-11T19:28:40.9019977Z CodeQL query completions observed: 17/39
+2026-11-11T19:28:40.9023749Z CodeQL query completions observed: 18/39
+2026-11-11T19:28:40.9058456Z CodeQL query completions observed: 19/39
+2026-11-11T19:28:40.9087595Z CodeQL query completions observed: 20/39
+2026-11-11T19:28:41.0078510Z CodeQL query completions observed: 21/39
+2026-11-11T19:28:41.0868483Z CodeQL query completions observed: 22/39
+2026-11-11T19:28:41.1088241Z CodeQL query completions observed: 23/39
+2026-11-11T19:28:41.1148240Z CodeQL query completions observed: 24/39
+2026-11-11T19:28:41.3110665Z CodeQL query completions observed: 25/39
+2026-11-11T19:28:41.3418472Z CodeQL query completions observed: 26/39
+2026-11-11T19:28:41.6324929Z CodeQL query completions observed: 27/39
+2026-11-11T19:28:41.6524526Z CodeQL query completions observed: 28/39
+2026-11-11T19:28:41.7268425Z CodeQL query completions observed: 29/39
+2026-11-11T19:28:41.7530159Z CodeQL query completions observed: 30/39
+2026-11-11T19:28:41.8017656Z CodeQL query completions observed: 31/39
+2026-11-11T19:28:41.8148312Z CodeQL query completions observed: 32/39
+2026-11-11T19:28:41.9091353Z CodeQL query completions observed: 33/39
+2026-11-11T19:28:42.2538273Z CodeQL query completions observed: 34/39
+2026-11-11T19:28:42.2898167Z CodeQL query completions observed: 35/39
+2026-11-11T19:28:42.6968192Z CodeQL query completions observed: 36/39
+2026-11-11T19:28:42.7368156Z CodeQL query completions observed: 37/39
+2026-11-11T19:28:42.7628179Z CodeQL query completions observed: 38/39
+2026-11-11T19:28:57.0307640Z CodeQL query completions observed: 39/39
+2026-11-11T19:29:00.9516261Z analyze complete
+2026-11-11T19:29:01.3456843Z pair-A2 invoked at 2026-11-11T19:29:01.345+00:00 (bound 900s)
+2026-11-11T19:30:43.7053978Z pair-A2 complete
+2026-11-11T19:30:43.7055609Z pair-A3 invoked at 2026-11-11T19:30:43.705+00:00 (bound 900s)
+2026-11-11T19:32:25.4097704Z pair-A3 complete
+2026-11-11T19:32:25.4098511Z pair-B4 invoked at 2026-11-11T19:32:25.409+00:00 (bound 900s)
+2026-11-11T19:34:08.4608465Z pair-B4 complete
+2026-11-11T19:34:08.4608898Z decode-summary invoked at 2026-11-11T19:34:08.460+00:00 (bound 120s)
+2026-11-11T19:34:08.9913786Z decode-summary complete
+2026-11-11T19:34:13.4172764Z B1-AstConsistencyCounts invoked at 2026-11-11T19:34:13.416+00:00 (bound 120s)
+2026-11-11T19:34:13.9642301Z B1-AstConsistencyCounts complete
+2026-11-11T19:34:13.9645836Z B1-CfgConsistencyCounts invoked at 2026-11-11T19:34:13.964+00:00 (bound 120s)
+2026-11-11T19:34:14.5354562Z B1-CfgConsistencyCounts complete
+2026-11-11T19:34:14.5358731Z B1-DataFlowConsistencyCounts invoked at 2026-11-11T19:34:14.535+00:00 (bound 120s)
+2026-11-11T19:34:15.1250249Z B1-DataFlowConsistencyCounts complete
+2026-11-11T19:34:15.1254649Z B1-ExtractedFiles invoked at 2026-11-11T19:34:15.125+00:00 (bound 120s)
+2026-11-11T19:34:15.7353919Z B1-ExtractedFiles complete
+2026-11-11T19:34:15.7356930Z B1-ExtractionErrors invoked at 2026-11-11T19:34:15.735+00:00 (bound 120s)
+2026-11-11T19:34:16.2915974Z B1-ExtractionErrors complete
+2026-11-11T19:34:16.2919252Z B1-ExtractionWarnings invoked at 2026-11-11T19:34:16.291+00:00 (bound 120s)
+2026-11-11T19:34:16.8499351Z B1-ExtractionWarnings complete
+2026-11-11T19:34:16.8502348Z B1-SsaConsistencyCounts invoked at 2026-11-11T19:34:16.849+00:00 (bound 120s)
+2026-11-11T19:34:17.4331174Z B1-SsaConsistencyCounts complete
+2026-11-11T19:34:17.4335126Z B1-TypeInferenceConsistencyCounts invoked at 2026-11-11T19:34:17.433+00:00 (bound 120s)
+2026-11-11T19:34:18.0304565Z B1-TypeInferenceConsistencyCounts complete
+2026-11-11T19:34:18.0308156Z B1-UnextractedElements invoked at 2026-11-11T19:34:18.030+00:00 (bound 120s)
+2026-11-11T19:34:18.6217713Z B1-UnextractedElements complete
+2026-11-11T19:34:18.6220786Z B1-UnresolvedMacroCalls invoked at 2026-11-11T19:34:18.621+00:00 (bound 120s)
+2026-11-11T19:34:19.2067651Z B1-UnresolvedMacroCalls complete
+2026-11-11T19:34:19.2070166Z B1-RegexInjection invoked at 2026-11-11T19:34:19.205+00:00 (bound 120s)
+2026-11-11T19:34:19.7846541Z B1-RegexInjection complete
+2026-11-11T19:34:19.7850150Z B1-TaintedPath invoked at 2026-11-11T19:34:19.784+00:00 (bound 120s)
+2026-11-11T19:34:20.3676820Z B1-TaintedPath complete
+2026-11-11T19:34:20.3680856Z B1-CommandInjection invoked at 2026-11-11T19:34:20.367+00:00 (bound 120s)
+2026-11-11T19:34:20.9712975Z B1-CommandInjection complete
+2026-11-11T19:34:20.9717155Z B1-XSS invoked at 2026-11-11T19:34:20.971+00:00 (bound 120s)
+2026-11-11T19:34:21.5778665Z B1-XSS complete
+2026-11-11T19:34:21.5782603Z B1-SqlInjection invoked at 2026-11-11T19:34:21.577+00:00 (bound 120s)
+2026-11-11T19:34:22.1771428Z B1-SqlInjection complete
+2026-11-11T19:34:22.1775685Z B1-LogInjection invoked at 2026-11-11T19:34:22.177+00:00 (bound 120s)
+2026-11-11T19:34:22.7777240Z B1-LogInjection complete
+2026-11-11T19:34:22.7781430Z B1-DisabledCertificateCheck invoked at 2026-11-11T19:34:22.777+00:00 (bound 120s)
+2026-11-11T19:34:23.3472631Z B1-DisabledCertificateCheck complete
+2026-11-11T19:34:23.3476214Z B1-CleartextTransmission invoked at 2026-11-11T19:34:23.347+00:00 (bound 120s)
+2026-11-11T19:34:23.9655837Z B1-CleartextTransmission complete
+2026-11-11T19:34:23.9659705Z B1-CleartextLogging invoked at 2026-11-11T19:34:23.965+00:00 (bound 120s)
+2026-11-11T19:34:24.5268178Z B1-CleartextLogging complete
+2026-11-11T19:34:24.5272669Z B1-CleartextStorageDatabase invoked at 2026-11-11T19:34:24.526+00:00 (bound 120s)
+2026-11-11T19:34:25.1222243Z B1-CleartextStorageDatabase complete
+2026-11-11T19:34:25.1226020Z B1-UseOfHttp invoked at 2026-11-11T19:34:25.122+00:00 (bound 120s)
+2026-11-11T19:34:25.6818504Z B1-UseOfHttp complete
+2026-11-11T19:34:25.6822725Z B1-BrokenCryptoAlgorithm invoked at 2026-11-11T19:34:25.681+00:00 (bound 120s)
+2026-11-11T19:34:26.2599384Z B1-BrokenCryptoAlgorithm complete
+2026-11-11T19:34:26.2602232Z B1-WeakSensitiveDataHashing invoked at 2026-11-11T19:34:26.259+00:00 (bound 120s)
+2026-11-11T19:34:26.8242531Z B1-WeakSensitiveDataHashing complete
+2026-11-11T19:34:26.8245978Z B1-InsecureCookie invoked at 2026-11-11T19:34:26.824+00:00 (bound 120s)
+2026-11-11T19:34:27.3767932Z B1-InsecureCookie complete
+2026-11-11T19:34:27.3771568Z B1-UncontrolledAllocationSize invoked at 2026-11-11T19:34:27.376+00:00 (bound 120s)
+2026-11-11T19:34:27.9199031Z B1-UncontrolledAllocationSize complete
+2026-11-11T19:34:27.9202680Z B1-HardcodedCryptographicValue invoked at 2026-11-11T19:34:27.919+00:00 (bound 120s)
+2026-11-11T19:34:28.5336653Z B1-HardcodedCryptographicValue complete
+2026-11-11T19:34:28.5341623Z B1-AccessAfterLifetime invoked at 2026-11-11T19:34:28.533+00:00 (bound 120s)
+2026-11-11T19:34:29.0971982Z B1-AccessAfterLifetime complete
+2026-11-11T19:34:29.0975659Z B1-AccessInvalidPointer invoked at 2026-11-11T19:34:29.097+00:00 (bound 120s)
+2026-11-11T19:34:29.6594863Z B1-AccessInvalidPointer complete
+2026-11-11T19:34:29.6599117Z B1-RequestForgery invoked at 2026-11-11T19:34:29.659+00:00 (bound 120s)
+2026-11-11T19:34:30.2538197Z B1-RequestForgery complete
+2026-11-11T19:34:30.2542713Z B1-LinesOfCode invoked at 2026-11-11T19:34:30.253+00:00 (bound 120s)
+2026-11-11T19:34:30.8517719Z B1-LinesOfCode complete
+2026-11-11T19:34:30.8521654Z B1-LinesOfUserCode invoked at 2026-11-11T19:34:30.851+00:00 (bound 120s)
+2026-11-11T19:34:31.4387297Z B1-LinesOfUserCode complete
+2026-11-11T19:34:31.4389426Z B1-NodesWithTypeAtLengthLimit invoked at 2026-11-11T19:34:31.438+00:00 (bound 120s)
+2026-11-11T19:34:32.0269231Z B1-NodesWithTypeAtLengthLimit complete
+2026-11-11T19:34:32.0273920Z B1-NumberOfFilesExtractedWithErrors invoked at 2026-11-11T19:34:32.026+00:00 (bound 120s)
+2026-11-11T19:34:32.6378560Z B1-NumberOfFilesExtractedWithErrors complete
+2026-11-11T19:34:32.6388479Z B1-NumberOfSuccessfullyExtractedFiles invoked at 2026-11-11T19:34:32.638+00:00 (bound 120s)
+2026-11-11T19:34:33.2504606Z B1-NumberOfSuccessfullyExtractedFiles complete
+2026-11-11T19:34:33.2508847Z B1-QuerySinkCounts invoked at 2026-11-11T19:34:33.250+00:00 (bound 120s)
+2026-11-11T19:34:33.8654287Z B1-QuerySinkCounts complete
+2026-11-11T19:34:33.8660456Z B1-SummaryStatsReduced invoked at 2026-11-11T19:34:33.865+00:00 (bound 120s)
+2026-11-11T19:34:34.4564169Z B1-SummaryStatsReduced complete
+2026-11-11T19:34:34.4569364Z B1-DatabaseQualityDiagnostics invoked at 2026-11-11T19:34:34.456+00:00 (bound 120s)
+2026-11-11T19:34:35.0816391Z B1-DatabaseQualityDiagnostics complete
+2026-11-11T19:34:35.0821149Z B1-ExtractorInformation invoked at 2026-11-11T19:34:35.081+00:00 (bound 120s)
+2026-11-11T19:34:35.6634498Z B1-ExtractorInformation complete
+2026-11-11T19:34:35.6697693Z A2-AstConsistencyCounts invoked at 2026-11-11T19:34:35.669+00:00 (bound 120s)
+2026-11-11T19:34:36.2827771Z A2-AstConsistencyCounts complete
+2026-11-11T19:34:36.2831580Z A2-CfgConsistencyCounts invoked at 2026-11-11T19:34:36.282+00:00 (bound 120s)
+2026-11-11T19:34:36.8614370Z A2-CfgConsistencyCounts complete
+2026-11-11T19:34:36.8618368Z A2-DataFlowConsistencyCounts invoked at 2026-11-11T19:34:36.861+00:00 (bound 120s)
+2026-11-11T19:34:37.4361830Z A2-DataFlowConsistencyCounts complete
+2026-11-11T19:34:37.4366528Z A2-ExtractedFiles invoked at 2026-11-11T19:34:37.436+00:00 (bound 120s)
+2026-11-11T19:34:38.0450410Z A2-ExtractedFiles complete
+2026-11-11T19:34:38.0454087Z A2-ExtractionErrors invoked at 2026-11-11T19:34:38.045+00:00 (bound 120s)
+2026-11-11T19:34:38.5888152Z A2-ExtractionErrors complete
+2026-11-11T19:34:38.5891388Z A2-ExtractionWarnings invoked at 2026-11-11T19:34:38.588+00:00 (bound 120s)
+2026-11-11T19:34:39.1575693Z A2-ExtractionWarnings complete
+2026-11-11T19:34:39.1580284Z A2-SsaConsistencyCounts invoked at 2026-11-11T19:34:39.157+00:00 (bound 120s)
+2026-11-11T19:34:39.7708075Z A2-SsaConsistencyCounts complete
+2026-11-11T19:34:39.7713203Z A2-TypeInferenceConsistencyCounts invoked at 2026-11-11T19:34:39.770+00:00 (bound 120s)
+2026-11-11T19:34:40.3311180Z A2-TypeInferenceConsistencyCounts complete
+2026-11-11T19:34:40.3315027Z A2-UnextractedElements invoked at 2026-11-11T19:34:40.331+00:00 (bound 120s)
+2026-11-11T19:34:40.9157619Z A2-UnextractedElements complete
+2026-11-11T19:34:40.9161372Z A2-UnresolvedMacroCalls invoked at 2026-11-11T19:34:40.915+00:00 (bound 120s)
+2026-11-11T19:34:41.4884970Z A2-UnresolvedMacroCalls complete
+2026-11-11T19:34:41.4888211Z A2-RegexInjection invoked at 2026-11-11T19:34:41.488+00:00 (bound 120s)
+2026-11-11T19:34:42.0937785Z A2-RegexInjection complete
+2026-11-11T19:34:42.0941932Z A2-TaintedPath invoked at 2026-11-11T19:34:42.093+00:00 (bound 120s)
+2026-11-11T19:34:42.6461383Z A2-TaintedPath complete
+2026-11-11T19:34:42.6464960Z A2-CommandInjection invoked at 2026-11-11T19:34:42.646+00:00 (bound 120s)
+2026-11-11T19:34:43.2498458Z A2-CommandInjection complete
+2026-11-11T19:34:43.2502084Z A2-XSS invoked at 2026-11-11T19:34:43.249+00:00 (bound 120s)
+2026-11-11T19:34:43.8148896Z A2-XSS complete
+2026-11-11T19:34:43.8152713Z A2-SqlInjection invoked at 2026-11-11T19:34:43.814+00:00 (bound 120s)
+2026-11-11T19:34:44.3555683Z A2-SqlInjection complete
+2026-11-11T19:34:44.3559696Z A2-LogInjection invoked at 2026-11-11T19:34:44.355+00:00 (bound 120s)
+2026-11-11T19:34:44.9207240Z A2-LogInjection complete
+2026-11-11T19:34:44.9211191Z A2-DisabledCertificateCheck invoked at 2026-11-11T19:34:44.920+00:00 (bound 120s)
+2026-11-11T19:34:45.4868153Z A2-DisabledCertificateCheck complete
+2026-11-11T19:34:45.4874171Z A2-CleartextTransmission invoked at 2026-11-11T19:34:45.486+00:00 (bound 120s)
+2026-11-11T19:34:46.0690951Z A2-CleartextTransmission complete
+2026-11-11T19:34:46.0694345Z A2-CleartextLogging invoked at 2026-11-11T19:34:46.069+00:00 (bound 120s)
+2026-11-11T19:34:46.6739037Z A2-CleartextLogging complete
+2026-11-11T19:34:46.6743521Z A2-CleartextStorageDatabase invoked at 2026-11-11T19:34:46.674+00:00 (bound 120s)
+2026-11-11T19:34:47.2831299Z A2-CleartextStorageDatabase complete
+2026-11-11T19:34:47.2835220Z A2-UseOfHttp invoked at 2026-11-11T19:34:47.283+00:00 (bound 120s)
+2026-11-11T19:34:47.8978141Z A2-UseOfHttp complete
+2026-11-11T19:34:47.8983107Z A2-BrokenCryptoAlgorithm invoked at 2026-11-11T19:34:47.897+00:00 (bound 120s)
+2026-11-11T19:34:48.4948652Z A2-BrokenCryptoAlgorithm complete
+2026-11-11T19:34:48.4952761Z A2-WeakSensitiveDataHashing invoked at 2026-11-11T19:34:48.494+00:00 (bound 120s)
+2026-11-11T19:34:49.0798641Z A2-WeakSensitiveDataHashing complete
+2026-11-11T19:34:49.0827934Z A2-InsecureCookie invoked at 2026-11-11T19:34:49.079+00:00 (bound 120s)
+2026-11-11T19:34:49.6510811Z A2-InsecureCookie complete
+2026-11-11T19:34:49.6514790Z A2-UncontrolledAllocationSize invoked at 2026-11-11T19:34:49.651+00:00 (bound 120s)
+2026-11-11T19:34:50.2369728Z A2-UncontrolledAllocationSize complete
+2026-11-11T19:34:50.2373413Z A2-HardcodedCryptographicValue invoked at 2026-11-11T19:34:50.237+00:00 (bound 120s)
+2026-11-11T19:34:50.8228607Z A2-HardcodedCryptographicValue complete
+2026-11-11T19:34:50.8231986Z A2-AccessAfterLifetime invoked at 2026-11-11T19:34:50.822+00:00 (bound 120s)
+2026-11-11T19:34:51.4386697Z A2-AccessAfterLifetime complete
+2026-11-11T19:34:51.4390968Z A2-AccessInvalidPointer invoked at 2026-11-11T19:34:51.438+00:00 (bound 120s)
+2026-11-11T19:34:52.0229690Z A2-AccessInvalidPointer complete
+2026-11-11T19:34:52.0233860Z A2-RequestForgery invoked at 2026-11-11T19:34:52.023+00:00 (bound 120s)
+2026-11-11T19:34:52.5957818Z A2-RequestForgery complete
+2026-11-11T19:34:52.5961648Z A2-LinesOfCode invoked at 2026-11-11T19:34:52.595+00:00 (bound 120s)
+2026-11-11T19:34:53.1655615Z A2-LinesOfCode complete
+2026-11-11T19:34:53.1659835Z A2-LinesOfUserCode invoked at 2026-11-11T19:34:53.165+00:00 (bound 120s)
+2026-11-11T19:34:53.7749471Z A2-LinesOfUserCode complete
+2026-11-11T19:34:53.7753197Z A2-NodesWithTypeAtLengthLimit invoked at 2026-11-11T19:34:53.774+00:00 (bound 120s)
+2026-11-11T19:34:54.3312748Z A2-NodesWithTypeAtLengthLimit complete
+2026-11-11T19:34:54.3315852Z A2-NumberOfFilesExtractedWithErrors invoked at 2026-11-11T19:34:54.331+00:00 (bound 120s)
+2026-11-11T19:34:54.9236642Z A2-NumberOfFilesExtractedWithErrors complete
+2026-11-11T19:34:54.9241462Z A2-NumberOfSuccessfullyExtractedFiles invoked at 2026-11-11T19:34:54.923+00:00 (bound 120s)
+2026-11-11T19:34:55.4990097Z A2-NumberOfSuccessfullyExtractedFiles complete
+2026-11-11T19:34:55.4993470Z A2-QuerySinkCounts invoked at 2026-11-11T19:34:55.499+00:00 (bound 120s)
+2026-11-11T19:34:56.1133833Z A2-QuerySinkCounts complete
+2026-11-11T19:34:56.1137382Z A2-SummaryStats invoked at 2026-11-11T19:34:56.113+00:00 (bound 120s)
+2026-11-11T19:34:56.6816005Z A2-SummaryStats complete
+2026-11-11T19:34:56.6821354Z A2-SummaryStatsReduced invoked at 2026-11-11T19:34:56.681+00:00 (bound 120s)
+2026-11-11T19:34:57.2760982Z A2-SummaryStatsReduced complete
+2026-11-11T19:34:57.2765012Z A2-DatabaseQualityDiagnostics invoked at 2026-11-11T19:34:57.276+00:00 (bound 120s)
+2026-11-11T19:34:57.8376175Z A2-DatabaseQualityDiagnostics complete
+2026-11-11T19:34:57.8380445Z A2-ExtractorInformation invoked at 2026-11-11T19:34:57.837+00:00 (bound 120s)
+2026-11-11T19:34:58.4019466Z A2-ExtractorInformation complete
+2026-11-11T19:34:58.4082596Z A3-AstConsistencyCounts invoked at 2026-11-11T19:34:58.407+00:00 (bound 120s)
+2026-11-11T19:34:58.9558045Z A3-AstConsistencyCounts complete
+2026-11-11T19:34:58.9561365Z A3-CfgConsistencyCounts invoked at 2026-11-11T19:34:58.955+00:00 (bound 120s)
+2026-11-11T19:34:59.5078893Z A3-CfgConsistencyCounts complete
+2026-11-11T19:34:59.5082928Z A3-DataFlowConsistencyCounts invoked at 2026-11-11T19:34:59.507+00:00 (bound 120s)
+2026-11-11T19:35:00.0825938Z A3-DataFlowConsistencyCounts complete
+2026-11-11T19:35:00.0830784Z A3-ExtractedFiles invoked at 2026-11-11T19:35:00.082+00:00 (bound 120s)
+2026-11-11T19:35:00.6279871Z A3-ExtractedFiles complete
+2026-11-11T19:35:00.6283527Z A3-ExtractionErrors invoked at 2026-11-11T19:35:00.628+00:00 (bound 120s)
+2026-11-11T19:35:01.1887989Z A3-ExtractionErrors complete
+2026-11-11T19:35:01.1891012Z A3-ExtractionWarnings invoked at 2026-11-11T19:35:01.188+00:00 (bound 120s)
+2026-11-11T19:35:01.7670757Z A3-ExtractionWarnings complete
+2026-11-11T19:35:01.7673837Z A3-SsaConsistencyCounts invoked at 2026-11-11T19:35:01.767+00:00 (bound 120s)
+2026-11-11T19:35:02.2957983Z A3-SsaConsistencyCounts complete
+2026-11-11T19:35:02.2961736Z A3-TypeInferenceConsistencyCounts invoked at 2026-11-11T19:35:02.295+00:00 (bound 120s)
+2026-11-11T19:35:02.8486475Z A3-TypeInferenceConsistencyCounts complete
+2026-11-11T19:35:02.8490148Z A3-UnextractedElements invoked at 2026-11-11T19:35:02.848+00:00 (bound 120s)
+2026-11-11T19:35:03.4318368Z A3-UnextractedElements complete
+2026-11-11T19:35:03.4321629Z A3-UnresolvedMacroCalls invoked at 2026-11-11T19:35:03.431+00:00 (bound 120s)
+2026-11-11T19:35:03.9952887Z A3-UnresolvedMacroCalls complete
+2026-11-11T19:35:03.9956378Z A3-RegexInjection invoked at 2026-11-11T19:35:03.995+00:00 (bound 120s)
+2026-11-11T19:35:04.5705674Z A3-RegexInjection complete
+2026-11-11T19:35:04.5710172Z A3-TaintedPath invoked at 2026-11-11T19:35:04.570+00:00 (bound 120s)
+2026-11-11T19:35:05.1843921Z A3-TaintedPath complete
+2026-11-11T19:35:05.1847850Z A3-CommandInjection invoked at 2026-11-11T19:35:05.184+00:00 (bound 120s)
+2026-11-11T19:35:05.7682467Z A3-CommandInjection complete
+2026-11-11T19:35:05.7686311Z A3-XSS invoked at 2026-11-11T19:35:05.768+00:00 (bound 120s)
+2026-11-11T19:35:06.3495650Z A3-XSS complete
+2026-11-11T19:35:06.3499463Z A3-SqlInjection invoked at 2026-11-11T19:35:06.349+00:00 (bound 120s)
+2026-11-11T19:35:06.9014616Z A3-SqlInjection complete
+2026-11-11T19:35:06.9018496Z A3-LogInjection invoked at 2026-11-11T19:35:06.901+00:00 (bound 120s)
+2026-11-11T19:35:07.4457749Z A3-LogInjection complete
+2026-11-11T19:35:07.4461533Z A3-DisabledCertificateCheck invoked at 2026-11-11T19:35:07.445+00:00 (bound 120s)
+2026-11-11T19:35:07.9846977Z A3-DisabledCertificateCheck complete
+2026-11-11T19:35:07.9851809Z A3-CleartextTransmission invoked at 2026-11-11T19:35:07.984+00:00 (bound 120s)
+2026-11-11T19:35:08.5157585Z A3-CleartextTransmission complete
+2026-11-11T19:35:08.5161460Z A3-CleartextLogging invoked at 2026-11-11T19:35:08.515+00:00 (bound 120s)
+2026-11-11T19:35:09.0744769Z A3-CleartextLogging complete
+2026-11-11T19:35:09.0748906Z A3-CleartextStorageDatabase invoked at 2026-11-11T19:35:09.074+00:00 (bound 120s)
+2026-11-11T19:35:09.6075904Z A3-CleartextStorageDatabase complete
+2026-11-11T19:35:09.6080217Z A3-UseOfHttp invoked at 2026-11-11T19:35:09.607+00:00 (bound 120s)
+2026-11-11T19:35:10.1380460Z A3-UseOfHttp complete
+2026-11-11T19:35:10.1384053Z A3-BrokenCryptoAlgorithm invoked at 2026-11-11T19:35:10.138+00:00 (bound 120s)
+2026-11-11T19:35:10.6736206Z A3-BrokenCryptoAlgorithm complete
+2026-11-11T19:35:10.6740208Z A3-WeakSensitiveDataHashing invoked at 2026-11-11T19:35:10.673+00:00 (bound 120s)
+2026-11-11T19:35:11.2229308Z A3-WeakSensitiveDataHashing complete
+2026-11-11T19:35:11.2233103Z A3-InsecureCookie invoked at 2026-11-11T19:35:11.223+00:00 (bound 120s)
+2026-11-11T19:35:11.7740638Z A3-InsecureCookie complete
+2026-11-11T19:35:11.7744399Z A3-UncontrolledAllocationSize invoked at 2026-11-11T19:35:11.774+00:00 (bound 120s)
+2026-11-11T19:35:12.3151618Z A3-UncontrolledAllocationSize complete
+2026-11-11T19:35:12.3155199Z A3-HardcodedCryptographicValue invoked at 2026-11-11T19:35:12.315+00:00 (bound 120s)
+2026-11-11T19:35:12.8488476Z A3-HardcodedCryptographicValue complete
+2026-11-11T19:35:12.8492310Z A3-AccessAfterLifetime invoked at 2026-11-11T19:35:12.848+00:00 (bound 120s)
+2026-11-11T19:35:13.4156523Z A3-AccessAfterLifetime complete
+2026-11-11T19:35:13.4160391Z A3-AccessInvalidPointer invoked at 2026-11-11T19:35:13.415+00:00 (bound 120s)
+2026-11-11T19:35:13.9528439Z A3-AccessInvalidPointer complete
+2026-11-11T19:35:13.9532409Z A3-RequestForgery invoked at 2026-11-11T19:35:13.952+00:00 (bound 120s)
+2026-11-11T19:35:14.5182811Z A3-RequestForgery complete
+2026-11-11T19:35:14.5186353Z A3-LinesOfCode invoked at 2026-11-11T19:35:14.518+00:00 (bound 120s)
+2026-11-11T19:35:15.0592797Z A3-LinesOfCode complete
+2026-11-11T19:35:15.0596362Z A3-LinesOfUserCode invoked at 2026-11-11T19:35:15.059+00:00 (bound 120s)
+2026-11-11T19:35:15.6054693Z A3-LinesOfUserCode complete
+2026-11-11T19:35:15.6058041Z A3-NodesWithTypeAtLengthLimit invoked at 2026-11-11T19:35:15.605+00:00 (bound 120s)
+2026-11-11T19:35:16.1516745Z A3-NodesWithTypeAtLengthLimit complete
+2026-11-11T19:35:16.1520615Z A3-NumberOfFilesExtractedWithErrors invoked at 2026-11-11T19:35:16.151+00:00 (bound 120s)
+2026-11-11T19:35:16.6737337Z A3-NumberOfFilesExtractedWithErrors complete
+2026-11-11T19:35:16.6740457Z A3-NumberOfSuccessfullyExtractedFiles invoked at 2026-11-11T19:35:16.673+00:00 (bound 120s)
+2026-11-11T19:35:17.2013888Z A3-NumberOfSuccessfullyExtractedFiles complete
+2026-11-11T19:35:17.2016795Z A3-QuerySinkCounts invoked at 2026-11-11T19:35:17.201+00:00 (bound 120s)
+2026-11-11T19:35:17.7366433Z A3-QuerySinkCounts complete
+2026-11-11T19:35:17.7370072Z A3-SummaryStats invoked at 2026-11-11T19:35:17.736+00:00 (bound 120s)
+2026-11-11T19:35:18.2727410Z A3-SummaryStats complete
+2026-11-11T19:35:18.2732147Z A3-SummaryStatsReduced invoked at 2026-11-11T19:35:18.272+00:00 (bound 120s)
+2026-11-11T19:35:18.8236768Z A3-SummaryStatsReduced complete
+2026-11-11T19:35:18.8241319Z A3-DatabaseQualityDiagnostics invoked at 2026-11-11T19:35:18.823+00:00 (bound 120s)
+2026-11-11T19:35:19.3584169Z A3-DatabaseQualityDiagnostics complete
+2026-11-11T19:35:19.3587163Z A3-ExtractorInformation invoked at 2026-11-11T19:35:19.358+00:00 (bound 120s)
+2026-11-11T19:35:19.8918898Z A3-ExtractorInformation complete
+2026-11-11T19:35:19.8979254Z B4-AstConsistencyCounts invoked at 2026-11-11T19:35:19.897+00:00 (bound 120s)
+2026-11-11T19:35:20.4302325Z B4-AstConsistencyCounts complete
+2026-11-11T19:35:20.4306319Z B4-CfgConsistencyCounts invoked at 2026-11-11T19:35:20.430+00:00 (bound 120s)
+2026-11-11T19:35:20.9591966Z B4-CfgConsistencyCounts complete
+2026-11-11T19:35:20.9595799Z B4-DataFlowConsistencyCounts invoked at 2026-11-11T19:35:20.959+00:00 (bound 120s)
+2026-11-11T19:35:21.4841039Z B4-DataFlowConsistencyCounts complete
+2026-11-11T19:35:21.4845877Z B4-ExtractedFiles invoked at 2026-11-11T19:35:21.484+00:00 (bound 120s)
+2026-11-11T19:35:22.0035188Z B4-ExtractedFiles complete
+2026-11-11T19:35:22.0038905Z B4-ExtractionErrors invoked at 2026-11-11T19:35:22.003+00:00 (bound 120s)
+2026-11-11T19:35:22.5297775Z B4-ExtractionErrors complete
+2026-11-11T19:35:22.5301180Z B4-ExtractionWarnings invoked at 2026-11-11T19:35:22.529+00:00 (bound 120s)
+2026-11-11T19:35:23.0612043Z B4-ExtractionWarnings complete
+2026-11-11T19:35:23.0615914Z B4-SsaConsistencyCounts invoked at 2026-11-11T19:35:23.061+00:00 (bound 120s)
+2026-11-11T19:35:23.6082880Z B4-SsaConsistencyCounts complete
+2026-11-11T19:35:23.6086884Z B4-TypeInferenceConsistencyCounts invoked at 2026-11-11T19:35:23.608+00:00 (bound 120s)
+2026-11-11T19:35:24.1765323Z B4-TypeInferenceConsistencyCounts complete
+2026-11-11T19:35:24.1769499Z B4-UnextractedElements invoked at 2026-11-11T19:35:24.176+00:00 (bound 120s)
+2026-11-11T19:35:24.7019927Z B4-UnextractedElements complete
+2026-11-11T19:35:24.7023026Z B4-UnresolvedMacroCalls invoked at 2026-11-11T19:35:24.702+00:00 (bound 120s)
+2026-11-11T19:35:25.2765486Z B4-UnresolvedMacroCalls complete
+2026-11-11T19:35:25.2766155Z B4-RegexInjection invoked at 2026-11-11T19:35:25.276+00:00 (bound 120s)
+2026-11-11T19:35:25.8802591Z B4-RegexInjection complete
+2026-11-11T19:35:25.8806548Z B4-TaintedPath invoked at 2026-11-11T19:35:25.880+00:00 (bound 120s)
+2026-11-11T19:35:26.4581563Z B4-TaintedPath complete
+2026-11-11T19:35:26.4585073Z B4-CommandInjection invoked at 2026-11-11T19:35:26.458+00:00 (bound 120s)
+2026-11-11T19:35:27.0682546Z B4-CommandInjection complete
+2026-11-11T19:35:27.0686374Z B4-XSS invoked at 2026-11-11T19:35:27.068+00:00 (bound 120s)
+2026-11-11T19:35:27.6263717Z B4-XSS complete
+2026-11-11T19:35:27.6268073Z B4-SqlInjection invoked at 2026-11-11T19:35:27.626+00:00 (bound 120s)
+2026-11-11T19:35:28.2179907Z B4-SqlInjection complete
+2026-11-11T19:35:28.2184091Z B4-LogInjection invoked at 2026-11-11T19:35:28.218+00:00 (bound 120s)
+2026-11-11T19:35:28.7717403Z B4-LogInjection complete
+2026-11-11T19:35:28.7721606Z B4-DisabledCertificateCheck invoked at 2026-11-11T19:35:28.771+00:00 (bound 120s)
+2026-11-11T19:35:29.3347406Z B4-DisabledCertificateCheck complete
+2026-11-11T19:35:29.3351268Z B4-CleartextTransmission invoked at 2026-11-11T19:35:29.334+00:00 (bound 120s)
+2026-11-11T19:35:29.8814460Z B4-CleartextTransmission complete
+2026-11-11T19:35:29.8814977Z B4-CleartextLogging invoked at 2026-11-11T19:35:29.880+00:00 (bound 120s)
+2026-11-11T19:35:30.4639793Z B4-CleartextLogging complete
+2026-11-11T19:35:30.4643566Z B4-CleartextStorageDatabase invoked at 2026-11-11T19:35:30.464+00:00 (bound 120s)
+2026-11-11T19:35:31.0799523Z B4-CleartextStorageDatabase complete
+2026-11-11T19:35:31.0808516Z B4-UseOfHttp invoked at 2026-11-11T19:35:31.080+00:00 (bound 120s)
+2026-11-11T19:35:31.7091422Z B4-UseOfHttp complete
+2026-11-11T19:35:31.7095837Z B4-BrokenCryptoAlgorithm invoked at 2026-11-11T19:35:31.709+00:00 (bound 120s)
+2026-11-11T19:35:32.3160502Z B4-BrokenCryptoAlgorithm complete
+2026-11-11T19:35:32.3164229Z B4-WeakSensitiveDataHashing invoked at 2026-11-11T19:35:32.316+00:00 (bound 120s)
+2026-11-11T19:35:32.9070786Z B4-WeakSensitiveDataHashing complete
+2026-11-11T19:35:32.9074465Z B4-InsecureCookie invoked at 2026-11-11T19:35:32.907+00:00 (bound 120s)
+2026-11-11T19:35:33.4699068Z B4-InsecureCookie complete
+2026-11-11T19:35:33.4702998Z B4-UncontrolledAllocationSize invoked at 2026-11-11T19:35:33.470+00:00 (bound 120s)
+2026-11-11T19:35:34.0092241Z B4-UncontrolledAllocationSize complete
+2026-11-11T19:35:34.0096026Z B4-HardcodedCryptographicValue invoked at 2026-11-11T19:35:34.009+00:00 (bound 120s)
+2026-11-11T19:35:34.5629399Z B4-HardcodedCryptographicValue complete
+2026-11-11T19:35:34.5633921Z B4-AccessAfterLifetime invoked at 2026-11-11T19:35:34.563+00:00 (bound 120s)
+2026-11-11T19:35:35.1202869Z B4-AccessAfterLifetime complete
+2026-11-11T19:35:35.1207678Z B4-AccessInvalidPointer invoked at 2026-11-11T19:35:35.120+00:00 (bound 120s)
+2026-11-11T19:35:35.7365598Z B4-AccessInvalidPointer complete
+2026-11-11T19:35:35.7369592Z B4-RequestForgery invoked at 2026-11-11T19:35:35.736+00:00 (bound 120s)
+2026-11-11T19:35:36.3110851Z B4-RequestForgery complete
+2026-11-11T19:35:36.3114874Z B4-LinesOfCode invoked at 2026-11-11T19:35:36.311+00:00 (bound 120s)
+2026-11-11T19:35:36.9005355Z B4-LinesOfCode complete
+2026-11-11T19:35:36.9009135Z B4-LinesOfUserCode invoked at 2026-11-11T19:35:36.900+00:00 (bound 120s)
+2026-11-11T19:35:37.5141869Z B4-LinesOfUserCode complete
+2026-11-11T19:35:37.5145378Z B4-NodesWithTypeAtLengthLimit invoked at 2026-11-11T19:35:37.514+00:00 (bound 120s)
+2026-11-11T19:35:38.1005350Z B4-NodesWithTypeAtLengthLimit complete
+2026-11-11T19:35:38.1008797Z B4-NumberOfFilesExtractedWithErrors invoked at 2026-11-11T19:35:38.100+00:00 (bound 120s)
+2026-11-11T19:35:38.6873063Z B4-NumberOfFilesExtractedWithErrors complete
+2026-11-11T19:35:38.6877201Z B4-NumberOfSuccessfullyExtractedFiles invoked at 2026-11-11T19:35:38.687+00:00 (bound 120s)
+2026-11-11T19:35:39.3087838Z B4-NumberOfSuccessfullyExtractedFiles complete
+2026-11-11T19:35:39.3091519Z B4-QuerySinkCounts invoked at 2026-11-11T19:35:39.308+00:00 (bound 120s)
+2026-11-11T19:35:39.8811241Z B4-QuerySinkCounts complete
+2026-11-11T19:35:39.8816708Z B4-SummaryStats invoked at 2026-11-11T19:35:39.881+00:00 (bound 120s)
+2026-11-11T19:35:40.5070603Z B4-SummaryStats complete
+2026-11-11T19:35:40.5075469Z B4-SummaryStatsReduced invoked at 2026-11-11T19:35:40.507+00:00 (bound 120s)
+2026-11-11T19:35:41.0815794Z B4-SummaryStatsReduced complete
+2026-11-11T19:35:41.0820255Z B4-DatabaseQualityDiagnostics invoked at 2026-11-11T19:35:41.081+00:00 (bound 120s)
+2026-11-11T19:35:41.6417661Z B4-DatabaseQualityDiagnostics complete
+2026-11-11T19:35:41.6421317Z B4-ExtractorInformation invoked at 2026-11-11T19:35:41.641+00:00 (bound 120s)
+2026-11-11T19:35:42.1882961Z B4-ExtractorInformation complete
+2026-11-11T19:35:44.4426486Z ##[group]Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+2026-11-11T19:35:44.4426893Z with:
+2026-11-11T19:35:44.4427406Z   name: codeql-fixture-baab-43087152738-1
+2026-11-11T19:35:44.4429932Z   path: /home/runner/work/_temp/qperiapt-wrapper-source.txt
+/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/evidence/**
+/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database/results/**
+/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-logs/**
+/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database-extracted/log/**
+/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator/**
+/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/comparison/evidence/**
+/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/comparison/runs/*/evidence/**
+/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/comparison/runs/*/analysis-plan/evaluator/**
+
+2026-11-11T19:35:44.4432436Z   if-no-files-found: error
+2026-11-11T19:35:44.4432733Z   include-hidden-files: true
+2026-11-11T19:35:44.4432982Z   retention-days: 14
+2026-11-11T19:35:44.4433204Z   compression-level: 6
+2026-11-11T19:35:44.4433429Z   overwrite: false
+2026-11-11T19:35:44.4433637Z   archive: true
+2026-11-11T19:35:44.4433845Z ##[endgroup]
+2026-11-11T19:35:44.8630465Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-11-11T19:35:44.8633472Z The least common ancestor is /home/runner/work/_temp. This will be the root directory of the artifact
+2026-11-11T19:35:44.8634286Z With the provided path, there will be 1148 files uploaded
+2026-11-11T19:35:44.8639001Z Artifact name is valid!
+2026-11-11T19:35:44.8639376Z Root directory input is valid!
+2026-11-11T19:35:45.0928584Z Uploading artifact: codeql-fixture-baab-43087152738-1.zip
+2026-11-11T19:35:45.0964499Z Beginning upload of artifact content to blob storage
+2026-11-11T19:35:46.7950605Z Uploaded bytes 8388608
+2026-11-11T19:35:47.4217916Z Uploaded bytes 13255489
+2026-11-11T19:35:47.4323401Z Finished uploading artifact content to blob storage!
+2026-11-11T19:35:47.4326642Z SHA256 digest of uploaded artifact is 705f5687f29e74bca5bfb539e7c90291ac120f2087305368415f8478bf8daf96
+2026-11-11T19:35:47.4329272Z Finalizing artifact upload
+2026-11-11T19:35:47.8484725Z Artifact codeql-fixture-baab-43087152738-1 successfully finalized. Artifact ID 13888275093
+2026-11-11T19:35:47.8485883Z Artifact codeql-fixture-baab-43087152738-1 has been successfully uploaded! Final size is 13255489 bytes. Artifact ID is 13888275093
+2026-11-11T19:35:47.8492706Z Artifact download URL: https://github.com/billlza/q-periapt/actions/runs/43087152738/artifacts/13888275093
+2026-11-11T19:35:47.8915074Z Post job cleanup.
+2026-11-11T19:35:47.9852150Z [command]/usr/bin/git version
+2026-11-11T19:35:47.9933355Z git version 2.56.0
+2026-11-11T19:35:47.9971042Z Temporarily overriding HOME='/home/runner/work/_temp/68d08f05-5cdb-4a96-9010-8486d6e3ca88' before making global git config changes
+2026-11-11T19:35:47.9972003Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T19:35:47.9976967Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T19:35:48.0018101Z Removing SSH command configuration
+2026-11-11T19:35:48.0025745Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T19:35:48.0068025Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T19:35:48.0382215Z Removing HTTP extra header
+2026-11-11T19:35:48.0388470Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T19:35:48.0458461Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T19:35:48.0772249Z Removing includeIf entries pointing to credentials config files
+2026-11-11T19:35:48.0781561Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T19:35:48.0855526Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T19:35:48.1363601Z Cleaning up orphan processes
