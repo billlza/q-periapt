@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "recorded_at_utc": "2026-11-11T10:59:06+00:00",
+  "kind": "independent_projection_source_and_capsule_inventory",
+  "result": "passed",
+  "manifest_sha256": "d330c1063954c6cd5803426df4e1ad7727d716976872049d140f5f47c12be191",
+  "dependency_files": 1175,
+  "changed_dependency_paths": [
+    "codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll"
+  ],
+  "local_qll": [
+    "queries/summary/Stats.qll",
+    "queries/summary/TaintReach.qll",
+    "queries/telemetry/DatabaseQuality.qll",
+    "queries/unusedentities/UnusedVariable.qll",
+    "utils/modelgenerator/internal/CaptureModels.qll",
+    "utils/modelgenerator/internal/CaptureModelsPrinting.qll"
+  ],
+  "pack_metadata_files": [
+    ".packinfo",
+    "qlpack.yml",
+    "codeql-pack.lock.yml"
+  ],
+  "root_query_sources_unchanged": 39,
+  "other_compiled_queries_unchanged": 38,
+  "changed_compiled_query_paths": [
+    "queries/summary/SummaryStats.ql"
+  ],
+  "capsule": {
+    "bytes": 620156,
+    "sha256": "1fe6db109a540d6063fca24e25e9d6c56a88f972a5c248d74fd95f7248fb6132"
+  },
+  "compiled_inventory_sha256": "f1a3d81b2e0a35262ea88d795825478f9217e4f897befdff6146bfbf2f521b14",
+  "compiler_inputs_digest": "70fcc50b9809b694b26b77a11722cdbb",
+  "closed_stage_files": 15,
+  "source_locations": {
+    "original": "/workspace/scratch/4b61438fb07b/summary-projection-validation/original/codeql/qlpacks/codeql/rust-queries/0.1.44",
+    "installed": "/workspace/scratch/4b61438fb07b/summary-projection-validation/installed/0.1.44"
+  },
+  "execution_scope": "Read/hash existing admitted original and installed packs only; no installation, compilation, or query evaluation."
+}

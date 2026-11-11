@@ -1,0 +1,54 @@
+{
+  "files": {
+    "README.md": {
+      "bytes": 2322,
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-projection-validation/review-packet/README.md",
+      "sha256": "fcab3b1b77c710a05c181e6b1f4bc769af1f2fee2d1f7f49bae61410569ed0d0"
+    },
+    "REAL_BUNDLE_ADMISSION.json": {
+      "bytes": 7840,
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-projection-validation/REAL_BUNDLE_ADMISSION.json",
+      "sha256": "356d366b345c32ba29b79d91a58aeadc58856b038d360ba5c7984fcfb7b6668c"
+    },
+    "final/IMPLEMENTATION_IDENTITY.json": {
+      "bytes": 2793,
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-projection-validation/final/IMPLEMENTATION_IDENTITY.json",
+      "sha256": "d852b2814892e6ed9840e8a99c85b865e757a52579931627e4133bc5c37dcba8"
+    },
+    "final/REAL_BUNDLE_POSTCHECK.json": {
+      "bytes": 9062,
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-projection-validation/final/REAL_BUNDLE_POSTCHECK.json",
+      "sha256": "1288daec6e8c3411cd488bdbb65850cbe5c9bc299232b1f72d8460ffc2f6a510"
+    },
+    "final/UNIT_TESTS.json": {
+      "bytes": 516,
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-projection-validation/final/UNIT_TESTS.json",
+      "sha256": "461eec869f83d3b6158fc5e64e86c8c521d236b4b4543d77c74baa976f80d244"
+    },
+    "final/UNIT_TESTS.log": {
+      "bytes": 29403,
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-projection-validation/final/UNIT_TESTS.log",
+      "sha256": "e77d0f7a88e408da5014b10c29b325233047103e9ca33a56cb8cd7e05a9f81b1"
+    },
+    "independent-review/REVIEW.json": {
+      "bytes": 7343,
+      "original_path": "/workspace/scratch/4b61438fb07b/projection-independent-review/REVIEW.json",
+      "sha256": "c4f5f41645f8740b84c632de7b2c389988ee589da433e35b9eff6200b5b39370"
+    },
+    "independent-review/inventory.json": {
+      "bytes": 1647,
+      "original_path": "/workspace/scratch/4b61438fb07b/projection-independent-review/inventory.json",
+      "sha256": "ba4c3bc671e89282a3ca98d177f434779619ec784c3900846fb5bfa93546c528"
+    },
+    "independent-review/partial-install.json": {
+      "bytes": 923,
+      "original_path": "/workspace/scratch/4b61438fb07b/projection-independent-review/partial-install.json",
+      "sha256": "0d5edc64e7323303edf8ed8b86137a7adf1271c0b0e1de8773669c840e0643b3"
+    }
+  },
+  "implementation_commit": "11ba16eb257c4d68ed967fa554d9a36b362848b0",
+  "implementation_tree": "d246e4340e4624b6380d04e83a4237d3f2de5d22",
+  "kind": "qperiapt.projection_admission_evidence",
+  "source_root": "/workspace/scratch/4b61438fb07b/summary-projection-validation",
+  "suggested_repository_path": "research/sdk-alpha1/evidence/20261111-summary-projection-admission"
+}

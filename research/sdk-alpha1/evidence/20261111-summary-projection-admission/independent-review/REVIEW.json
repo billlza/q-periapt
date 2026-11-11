@@ -1,0 +1,140 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.independent_projection_integration_review",
+  "recorded_at_utc": "2026-11-11T11:03:27+00:00",
+  "verdict": "passed",
+  "repository": "billlza/q-periapt",
+  "base_commit": "9847e6714f3089d1dfec04350aa32d1541f07b74",
+  "implementation_head_at_review": "11ba16eb257c4d68ed967fa554d9a36b362848b0",
+  "reviewed_files": {
+    ".gitattributes": {
+      "bytes": 858,
+      "sha256": "ee5d0d3c6f00a0baebf196a1bb8b17fa5b9dd80b5a6d63c7069012e8520ad327"
+    },
+    "artifact/codeql_summary_control.py": {
+      "bytes": 60638,
+      "sha256": "3edeff7b913035aefa2e1974fb731d15c2e02db4f59f89e8ff69e0e621017ba1"
+    },
+    "artifact/codeql_summary_plan.py": {
+      "bytes": 9381,
+      "sha256": "066965055ef1a0b431cf1322c7255ef3a983c4f712cdabaf5dfbd1e5c8e76435"
+    },
+    "artifact/codeql_summary_projection.py": {
+      "bytes": 14858,
+      "sha256": "009872f453d0e494e59e60ee67c91cc8f97f9e9710f3413feacbc246bd248f2d"
+    },
+    "artifact/codeql_summary_projection.json": {
+      "bytes": 6587,
+      "sha256": "d330c1063954c6cd5803426df4e1ad7727d716976872049d140f5f47c12be191"
+    },
+    "artifact/codeql_summary_projection_dependencies.json.gz": {
+      "bytes": 117234,
+      "sha256": "e14c4a9036d0fcc6116348897c63b78cd1521b95218b39671c992105e9a91735"
+    },
+    "artifact/codeql_summary_projection.patch": {
+      "bytes": 2876,
+      "sha256": "282378060da1b9929c84ae040cbd99f64b7424874a364a76d6f5f46af47ceba9"
+    },
+    "artifact/codeql-summary-projection-plan.zip": {
+      "bytes": 620156,
+      "sha256": "1fe6db109a540d6063fca24e25e9d6c56a88f972a5c248d74fd95f7248fb6132"
+    },
+    "artifact/codeql-summary-projection-plan.LICENSE": {
+      "bytes": 1074,
+      "sha256": "66056d06b874e3eb6a22f5fff297e1676a23dc43e8c8b81279c1ef33a6a270df"
+    },
+    "artifact/codeql_summary_projection.md": {
+      "bytes": 7642,
+      "sha256": "604c216669ab7ceab9b733fca1a5e0c512e6b8ff65f05da0dafccf50f654a8f8"
+    },
+    "artifact/test_codeql_summary_plan.py": {
+      "bytes": 14817,
+      "sha256": "22a59a77614af61eedff6f1763f6c058e4f76bdf581b7de420fae6eb0cb612e4"
+    },
+    "artifact/test_codeql_summary_projection.py": {
+      "bytes": 32431,
+      "sha256": "e20517e481140a2e01cbeb9ef07e4d62ce0a4f8e27c591229be51158716e13dc"
+    }
+  },
+  "findings": [
+    "The changed recursive arm is the exact existential projection of the original read relation onto its six target columns; both type checks and access-path branches remain, the complete relation is unchanged, and only Stage4 enables the new arm.",
+    "The separately pinned manifest binds the exact vendor preimage/patch/result, all 1175 embedded dependency files, 39 root sources, all compiled-query identities, six local QLL support files and three package metadata files.",
+    "Independent readback of the real original/installed packs confirms exactly one dependency source change and one compiled-query change; the other 38 compiled queries and all 39 root sources are byte-identical.",
+    "The fixed capsule equals the successful source-bound compile output and closes over the 15 exact stage files; its compiler input key is 70fcc50b9809b694b26b77a11722cdbb.",
+    "validate_plan_tool cross-binds version, query pack, archive size, archive digest and root-query-manifest digest before installation and during comparison. Both existing plan manifests support the same check.",
+    "projection remains an explicit mode even though its evaluator join argument is all. The comparison requires matching mode and plan identities before/after evaluation, exact 39 precompiled loads, zero implicit compilation, all fresh 39 results, retained 38 equivalence, and paired semantic equality.",
+    "Stable read snapshots, exclusive no-follow stage writes, complete pre-admission, and post-install/post-evaluator validation preserve failure behavior. Two replacement operations are not a multi-file transaction; an injected second-replacement failure leaves no admitted completion and both validation and baseline retry reject the partial pack.",
+    "An installation exception occurs before JVM probing or evaluation. The evaluator finally path retains a secondary integrity failure without replacing the primary failure. The comparator writes an incomplete receipt and fails on rejected input.",
+    "The production Rust native/WASM/macOS producers, publication code and workflow are unchanged. The original all-mode manifest/capsule and default none interface are preserved."
+  ],
+  "independent_checks": {
+    "inventory.json": {
+      "path": "inventory.json",
+      "bytes": 1647,
+      "sha256": "ba4c3bc671e89282a3ca98d177f434779619ec784c3900846fb5bfa93546c528"
+    },
+    "partial-install.json": {
+      "path": "partial-install.json",
+      "bytes": 923,
+      "sha256": "0d5edc64e7323303edf8ed8b86137a7adf1271c0b0e1de8773669c840e0643b3"
+    }
+  },
+  "existing_compile_provenance": {
+    "receipt": {
+      "path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/CANDIDATE_BOUND_COMPILE.json",
+      "bytes": 1768,
+      "sha256": "d811ea167043484da7527af044b983e4717eabf0e2d3a5162112064825461f04"
+    },
+    "stderr": {
+      "path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/candidate-bound-compile.stderr",
+      "bytes": 269,
+      "sha256": "a0e8646987388042df122fbd77ae2d66f8862b7ae35b9c084649d9a3a651f95b"
+    },
+    "compiler_log": {
+      "path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/candidate-compiler.log.gz",
+      "bytes": 2388,
+      "sha256": "ba0a1747f8e6d24baed7117b90062185e80fea3d33ba0992f40d213f141e3721"
+    },
+    "compiled_qlx": {
+      "bytes": 185038,
+      "sha256": "65e651eb4b56da599cca6538a9eaf55df2cc1dd8ce3943e91786c24daa1d97df"
+    },
+    "returncode": 0,
+    "seconds": 78.38495236800009
+  },
+  "existing_regression_log_readback": {
+    "path": "/workspace/scratch/4b61438fb07b/summary-projection-validation/final/UNIT_TESTS.log",
+    "bytes": 29403,
+    "sha256": "e77d0f7a88e408da5014b10c29b325233047103e9ca33a56cb8cd7e05a9f81b1",
+    "tests": 159,
+    "result": "passed",
+    "independently_rerun": false
+  },
+  "unchanged_production_and_prior_mode_files": {
+    "artifact/codeql_rust_profile.py": {
+      "bytes": 27962,
+      "sha256": "25e1a44b5c0a6b26cce7d1968595e7472fc1fe951bf404d3bcb3cd502ddce9d1"
+    },
+    "artifact/codeql_rust_publication.py": {
+      "bytes": 11302,
+      "sha256": "56953f7b4ac1128fc33fcfbd4cc165f755ca7e7bd7b0d3f45e9d03792a06522f"
+    },
+    ".github/workflows/codeql.yml": {
+      "bytes": 22552,
+      "sha256": "993751e65be27d56907d1e996419533060a81d507964d41148241a6d8c191378"
+    },
+    "artifact/codeql_rust_queries.json": {
+      "bytes": 4737,
+      "sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b"
+    },
+    "artifact/codeql_summary_dynamic_plan.json": {
+      "bytes": 3556,
+      "sha256": "308a36a957741fdfa8a58f40fb81ffae6e863759527b516ca93816c75057c1f7"
+    },
+    "artifact/codeql-summary-dynamic-plan.zip": {
+      "bytes": 620068,
+      "sha256": "ce21381b3bec721aab246b26b84c00834959871235e1e82354addca8a40dcef7"
+    }
+  },
+  "scope": "Independent source review, read-only real artifact hashing, and one synthetic partial-install failure control. No full suite rerun, recompilation, evaluator run, shared source edits, or remote mutations."
+}

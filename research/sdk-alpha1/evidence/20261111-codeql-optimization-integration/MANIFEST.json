@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.codeql_optimization_integration_evidence",
+  "public_source_commit": "4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215",
+  "public_source_tree": "b5c6e256b9abb95a8163efae052c34ae6bd0f035",
+  "files": [
+    {
+      "relative_path": "INTEGRATED_TESTS.json",
+      "bytes": 1798,
+      "sha256": "71a74f1c593f124db3c5e37d4418a79d872db325bc9ef7e2b8b28adfc20663d0"
+    },
+    {
+      "relative_path": "README.md",
+      "bytes": 5195,
+      "sha256": "59b68b0a4e900055a8e45a1960942d519c3bb2aba971c0ebd2398fd67b0c85b1"
+    },
+    {
+      "relative_path": "SOURCE_IDENTITY.json",
+      "bytes": 13442,
+      "sha256": "e578f94ff86b8a4dc5bb04111a04398629ad44e1fea1c0a872095a90041da3bc"
+    },
+    {
+      "relative_path": "integrated-tests.log",
+      "bytes": 734,
+      "sha256": "353622491c93156e4e0c98a27f334a66cfa275b78af364b324a67d660683e2e3"
+    },
+    {
+      "relative_path": "schedule/RECEIPT.json",
+      "bytes": 3695,
+      "sha256": "c06b71565a274a3b359810f7220ad93a210379aa87b23b4a4a969d3714e2408a"
+    },
+    {
+      "relative_path": "schedule/scheduling.patch",
+      "bytes": 27265,
+      "sha256": "a8c2cf50b6733037bca4ec74468460bbb4f92ae0538a1223c5669b9af44901a7"
+    },
+    {
+      "relative_path": "schedule/tests-final-chunk.json",
+      "bytes": 8572,
+      "sha256": "d97b6fc89ef82b3b3005fd03cab8d9faf454a2aaa6de21ca3b3614de1f667148"
+    },
+    {
+      "relative_path": "windows/RECEIPT.json",
+      "bytes": 4195,
+      "sha256": "c1f96f030c8a5d7c9ed34a51bd1f8369923f3763270f30343a6e7ef8f4a10bf1"
+    },
+    {
+      "relative_path": "windows/after-crlf.log",
+      "bytes": 299,
+      "sha256": "8ba569dcab9bf87347ec7ccf3593b30411f627b12e8cfe435bca9c9122899df0"
+    },
+    {
+      "relative_path": "windows/after-native.log",
+      "bytes": 299,
+      "sha256": "1b5ced4d9a094ec829cc2e8f97fb3cc57d64c1c1a429ee1699a1755ccac6b626"
+    },
+    {
+      "relative_path": "windows/after.json",
+      "bytes": 525,
+      "sha256": "daf910d74697174194a3bdc9ee5136cbcc3be6c1930e39f9b538ea30bdcf1bb5"
+    },
+    {
+      "relative_path": "windows/before-crlf.json",
+      "bytes": 337,
+      "sha256": "38f5fb550f045964740ea5faced544ab777d8df4b162c839862478de8011de30"
+    },
+    {
+      "relative_path": "windows/before-crlf.log",
+      "bytes": 1304,
+      "sha256": "2f8d64d44d3706a02b9710f34afff3878a41f170056a72ed7cfb7e3cd3f3c678"
+    },
+    {
+      "relative_path": "windows/fixture.patch",
+      "bytes": 875,
+      "sha256": "f28231b0fcaa41ecd6b48e44a33f703f05f28a530f5d7ebc637a9222464fa2e5"
+    },
+    {
+      "relative_path": "windows/job-130442108833.log.gz",
+      "bytes": 19196,
+      "sha256": "7efb44f65725db5372dd0b5b9f3fde3cf780b4f33796fb2fffdf1e7579e27999"
+    }
+  ],
+  "payload_file_count": 15,
+  "payload_bytes": 87731,
+  "scope": "Implementation/admission/integration and Windows newline controls; runtime evidence is recorded separately."
+}

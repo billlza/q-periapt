@@ -1,0 +1,6 @@
+test_multi_target_generation_ships_exact_union_and_retains_each_closure (test_third_party_licenses.ThirdPartyLicenseTests.test_multi_target_generation_ships_exact_union_and_retains_each_closure) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.008s
+
+OK

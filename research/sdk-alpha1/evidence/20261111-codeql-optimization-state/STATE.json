@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "recorded_at_utc": "2026-11-11T11:16:46Z",
+  "raw_bytes": 766210,
+  "raw_sha256": "ce5e939b5dfded3f43fe86f1768a6105324c39fa3acf3155609236cc9f6ad46a",
+  "gzip_bytes": 19651,
+  "gzip_sha256": "14232632a8bf3031fe59efc7faa879f4fae97ca2e5540388e4237c5386b983ec",
+  "sdk_head": "faabcff16fc49e1a99388c68f0991a2bfd64d509",
+  "tree": "b5c6e256b9abb95a8163efae052c34ae6bd0f035",
+  "experiment_run": 43009541277,
+  "experiment_head": "0d7d856bc3cac866e5fe2879f4fb4cc2e61c9993",
+  "experiment_state": "pending; no jobs created at this readback",
+  "sdk_checks": {
+    "total": 74,
+    "queued": 74
+  },
+  "ordinary_ci_runs": [
+    {
+      "run_id": 43010024394,
+      "event": "pull_request"
+    }
+  ],
+  "paper_checks": {
+    "total": 42,
+    "success": 38,
+    "in_progress": 1,
+    "queued": 2,
+    "failure": 1
+  },
+  "main_head": "48d0fb9a5651b50494ec33d025dda52bd2ff5eae",
+  "merge_source_author": "月溅星河 <149552943+billlza@users.noreply.github.com>",
+  "merge_committer": "GitHub <noreply@github.com>"
+}

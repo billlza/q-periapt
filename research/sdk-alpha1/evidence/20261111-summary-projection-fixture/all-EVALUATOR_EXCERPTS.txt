@@ -1,0 +1,5 @@
+[2026-11-11 20:02:11] [PROGRESS] execute queries> [1/1] Loaded /workspace/scratch/4b61438fb07b/summary-env-validation-20261111/arms/all/query-pack/queries/summary/SummaryStats.qlx.
+[2026-11-11 20:03:44] (93s)  >>> Created relation TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9/11@8c6c3vwq with 78 rows and digest b5dc56n02j0d4492ub25r54nfi6.
+[2026-11-11 20:03:44] (93s)  >>> Created relation TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2/8@8c6c3ywq with 78 rows and digest 6b62ca65mkgpe5es2s6g2p3suba.
+[2026-11-11 20:04:00] (109s) Query done
+[2026-11-11 20:04:00] [PROGRESS] execute queries> [1/1 eval 1m49s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs.

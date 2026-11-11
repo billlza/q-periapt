@@ -1,0 +1,36 @@
+{
+  "kind": "qperiapt.local_env_fixture_step",
+  "name": "decode-projection",
+  "command": [
+    "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tool/codeql/codeql",
+    "bqrs",
+    "decode",
+    "-J-Xmx512M",
+    "--format=json",
+    "--",
+    "/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/arms/projection/results/codeql/rust-queries/queries/summary/SummaryStats.bqrs"
+  ],
+  "cwd": "/workspace/scratch/4b61438fb07b/summary-env-validation-20261111",
+  "supervisor_timeout_seconds": 60,
+  "maximum_stdout_bytes": 67108864,
+  "maximum_stderr_bytes": 67108864,
+  "rust_toolchain_bin": "/workspace/scratch/4b61438fb07b/rustix-toolchain/install/bin",
+  "cargo_net_offline": true,
+  "extractor_environment": {},
+  "started_utc": "2026-11-11T11:06:29.593849+00:00",
+  "bounded_process_sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+  "status": "completed",
+  "exit_code": 0,
+  "wall_seconds": 0.614445453999906,
+  "completed_utc": "2026-11-11T11:06:30.209058+00:00",
+  "streams": {
+    "stdout.log": {
+      "bytes": 1185,
+      "sha256": "f05f212ce3a9847d01191fb595c9a154aac94a83e33faf6fdc7f85dbb19b259e"
+    },
+    "stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

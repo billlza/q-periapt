@@ -1,0 +1,33 @@
+{
+  "kind": "existing_upstream_rust_fixture_selection",
+  "repository": "github/codeql",
+  "ref": "codeql-cli/v2.27.2",
+  "directory": "rust/ql/test/library-tests/dataflow/sources/env",
+  "tree_git_sha": "fbdbec39d804e1598699b8086623f3de54ba88d0",
+  "files": [
+    {
+      "name": "test.rs",
+      "url": "https://github.com/github/codeql/blob/codeql-cli/v2.27.2/rust/ql/test/library-tests/dataflow/sources/env/test.rs",
+      "bytes": 2334,
+      "git_blob": "b5af0b412d3cb6b0ca65aeafef6bd3ff1753b5b8",
+      "sha256": "0d9e89f408a47fa29869e3b9b533dabb04e95255bf99cc9db8e2a765123170cb"
+    },
+    {
+      "name": "Cargo.lock",
+      "url": "https://github.com/github/codeql/blob/codeql-cli/v2.27.2/rust/ql/test/library-tests/dataflow/sources/env/Cargo.lock",
+      "bytes": 148,
+      "git_blob": "b9856cfaf77d5d1296a818013ae1bab2e9ec7b4f",
+      "sha256": "58878cede52db96164e2b06834ef8c6616a639731bb7a08428084a59eb645d0a"
+    },
+    {
+      "name": "options.yml",
+      "url": "https://github.com/github/codeql/blob/codeql-cli/v2.27.2/rust/ql/test/library-tests/dataflow/sources/env/options.yml",
+      "bytes": 25,
+      "git_blob": "c7a0beabb538f361b6a90d7d067b72f7cf6db735",
+      "sha256": "a367eded8a8ca8139fb15d349c8ad808252772290aa7bc7d8f0f0ac60086b720"
+    }
+  ],
+  "source_modified": false,
+  "database_created": false,
+  "reason": "Existing standard-library environment/argument/current-directory source fixture; real threat-model sources, Vec and Option accesses, no declared third-party packages in its Cargo.lock."
+}

@@ -1,0 +1,17 @@
+test_multi_target_generation_ships_exact_union_and_retains_each_closure (test_third_party_licenses.ThirdPartyLicenseTests.test_multi_target_generation_ships_exact_union_and_retains_each_closure) ... FAIL
+
+======================================================================
+FAIL: test_multi_target_generation_ships_exact_union_and_retains_each_closure (test_third_party_licenses.ThirdPartyLicenseTests.test_multi_target_generation_ships_exact_union_and_retains_each_closure)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/4b61438fb07b/windows-license-fixture-review/artifact/test_third_party_licenses.py", line 161, in test_multi_target_generation_ships_exact_union_and_retains_each_closure
+    self.assertEqual((self.package_root / "THIRD_PARTY/rust/cpufeatures-0.2.17/LICENSE").read_bytes(),
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     b"Synthetic cpufeatures license\n")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: b'Synthetic cpufeatures license\r\n' != b'Synthetic cpufeatures license\n'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.007s
+
+FAILED (failures=1)

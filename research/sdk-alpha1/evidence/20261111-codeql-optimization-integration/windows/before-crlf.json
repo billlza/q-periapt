@@ -1,0 +1,10 @@
+{
+  "recorded_at_utc": "2026-11-11T11:04:25+00:00",
+  "case": "pre-fix Windows newline translation emulation",
+  "tests_run": 1,
+  "failures": 1,
+  "errors": 0,
+  "expected_counterexample_reproduced": true,
+  "hosted_job_raw_bytes": 101866,
+  "hosted_job_raw_sha256": "c70fd758e21b0d0c165603d17590677b771fe2948dc33821b19ee8814affaeb2"
+}

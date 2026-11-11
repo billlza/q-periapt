@@ -1,0 +1,11 @@
+# Explicit Stage4 projection admission
+
+The implementation is commit `11ba16eb257c4d68ed967fa554d9a36b362848b0`, tree `d246e4340e4624b6380d04e83a4237d3f2de5d22`, based on SDK tree `7d4ca678175170b6c867240727f3908bc2d7c1f1` at local commit `9847e6714f3089d1dfec04350aa32d1541f07b74`. It adds the explicit `projection` mode, a fixed single-file vendor patch and source inventory, and a closed full SummaryStats capsule. The original `none` and `all` identities remain fixed.
+
+The final focused suite passed all 159 tests in 8.765 seconds. The real bundle admission checked a freshly extracted, SHA-256-authenticated official 2.27.2 query pack, all 1,175 embedded dependency files, all 39 root queries, the 38 unchanged other QLX files, nine local support/metadata files, and all 15 capsule stages. The installer applied the patch to the actual embedded dependency and verified the effective state. A final recheck binds the selected plan manifest to the controller's authenticated tool and query-manifest identities.
+
+The independent reviewer rehashed the original and installed packs, the fixed patch/capsule/manifest, and the original successful compile output and log. It also injected failure at the second replacement: the mixed state and retry were rejected, with no completion identity. Its full result and exact scope are in `independent-review/REVIEW.json`. The test log and the initial and final bundle receipts are retained unchanged in this packet. `final/IMPLEMENTATION_IDENTITY.json` binds all 12 committed files to their exact hashes.
+
+The reused projection was already compiled and its source/IR transformation independently reviewed. Its capsule SHA-256 is `1fe6db109a540d6063fca24e25e9d6c56a88f972a5c248d74fd95f7248fb6132`, with compiler input key `70fcc50b9809b694b26b77a11722cdbb`. The prior source/IR packet is `research/sdk-alpha1/evidence/20261111-summary-target-projection`; the implementation's source proof and maintenance contract are in `artifact/codeql_summary_projection.md`.
+
+This packet verifies implementation, admission, failure behavior and the existing mode/result contracts. The implementation task performed no new CodeQL compile or database evaluation. Runtime completion and resource measurements belong to the separately coordinated real-database probe and hosted paired evaluation.

@@ -1,0 +1,40 @@
+{
+  "fixture_source_files": [
+    {
+      "bytes": 2334,
+      "git_blob": "b5af0b412d3cb6b0ca65aeafef6bd3ff1753b5b8",
+      "path": "test.rs",
+      "sha256": "0d9e89f408a47fa29869e3b9b533dabb04e95255bf99cc9db8e2a765123170cb",
+      "unchanged": true
+    },
+    {
+      "bytes": 148,
+      "git_blob": "b9856cfaf77d5d1296a818013ae1bab2e9ec7b4f",
+      "path": "Cargo.lock",
+      "sha256": "58878cede52db96164e2b06834ef8c6616a639731bb7a08428084a59eb645d0a",
+      "unchanged": true
+    },
+    {
+      "bytes": 25,
+      "git_blob": "c7a0beabb538f361b6a90d7d067b72f7cf6db735",
+      "path": "options.yml",
+      "sha256": "a367eded8a8ca8139fb15d349c8ad808252772290aa7bc7d8f0f0ac60086b720",
+      "unchanged": true
+    }
+  ],
+  "kind": "qperiapt.fixture_source_and_full_pack_postexecution_readback",
+  "query_packs": {
+    "all": {
+      "all_original_pack_members_checked": 1342,
+      "exact_expected_changes_only": true,
+      "local_query_support_files_unchanged": true,
+      "total_pack_files": 1357
+    },
+    "projection": {
+      "all_original_pack_members_checked": 1342,
+      "exact_expected_changes_only": true,
+      "local_query_support_files_unchanged": true,
+      "total_pack_files": 1357
+    }
+  }
+}

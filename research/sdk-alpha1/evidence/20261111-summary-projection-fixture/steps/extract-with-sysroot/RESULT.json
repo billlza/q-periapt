@@ -1,0 +1,43 @@
+{
+  "kind": "qperiapt.local_env_fixture_step",
+  "name": "extract-with-sysroot",
+  "command": [
+    "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tool/codeql/codeql",
+    "test",
+    "extract",
+    "-J-Xmx1536M",
+    "--database=/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/database-complete",
+    "--common-caches=/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/extract-complete-cache",
+    "--logdir=/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/extract-complete-logs",
+    "--show-extractor-output",
+    "--format=json",
+    "--",
+    "/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/fixture-pack/env"
+  ],
+  "cwd": "/workspace/scratch/4b61438fb07b/summary-env-validation-20261111",
+  "supervisor_timeout_seconds": 180,
+  "maximum_stdout_bytes": 67108864,
+  "maximum_stderr_bytes": 67108864,
+  "rust_toolchain_bin": "/workspace/scratch/4b61438fb07b/rustix-toolchain/install/bin",
+  "cargo_net_offline": true,
+  "extractor_environment": {
+    "CODEQL_EXTRACTOR_RUST_SYSROOT": "/workspace/scratch/4b61438fb07b/rustix-toolchain/install",
+    "CODEQL_EXTRACTOR_RUST_SYSROOT_SRC": "/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/toolchain-source/unpack/rust-src-1.98.1/rust-src/lib/rustlib/src/rust/library"
+  },
+  "started_utc": "2026-11-11T10:59:24.086897+00:00",
+  "bounded_process_sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+  "status": "completed",
+  "exit_code": 0,
+  "wall_seconds": 53.844868443999985,
+  "completed_utc": "2026-11-11T11:00:17.932277+00:00",
+  "streams": {
+    "stdout.log": {
+      "bytes": 92,
+      "sha256": "6311b433cffe3930e25fc5b07f05c3ccd4ee4e5a5dea2bca523b280830095ce2"
+    },
+    "stderr.log": {
+      "bytes": 609,
+      "sha256": "5f2a510feb022269ee3f32420f6dcb07a1a6fa55111ebe4213c5edd407852aec"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "codeql_compilation_executed": false,
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "test_codeql_summary_control",
+    "test_codeql_summary_plan",
+    "test_codeql_summary_projection",
+    "test_codeql_process_resources"
+  ],
+  "log": {
+    "bytes": 29403,
+    "path": "UNIT_TESTS.log",
+    "sha256": "e77d0f7a88e408da5014b10c29b325233047103e9ca33a56cb8cd7e05a9f81b1"
+  },
+  "query_evaluation_executed": false,
+  "returncode": 0,
+  "seconds": 9.578089159999763
+}

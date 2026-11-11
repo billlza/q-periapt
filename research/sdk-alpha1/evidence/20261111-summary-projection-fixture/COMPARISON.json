@@ -1,0 +1,169 @@
+{
+  "accepted_extraction": "extract-with-sysroot: explicit installed Rust 1.98.1 and authenticated matching rust-src; all extraction and inconsistency counts in the full result are zero",
+  "arms": {
+    "all": {
+      "all_1175_dependencies_match_declared_state_after_execution": true,
+      "all_39_root_sources_unchanged_after_execution": true,
+      "bqrs": {
+        "bytes": 1205,
+        "sha256": "dbf9d94e54347870ef823e577559547332c4629a790800a3f5ae9be00b1fd6d0"
+      },
+      "capsule_16_members_unchanged_after_execution": true,
+      "compiler_inputs_digest": "209f28c6b9e8d5465a3f8417573e42d6",
+      "decoded": {
+        "bytes": 1185,
+        "sha256": "f05f212ce3a9847d01191fb595c9a154aac94a83e33faf6fdc7f85dbb19b259e"
+      },
+      "evaluator_log": {
+        "bytes": 12299886,
+        "sha256": "2162d3995ee9a4fbf384d88adb814663159f23d9b9ec9a8bf2a22878c00ed593"
+      },
+      "exit_code": 0,
+      "full_read_relation": {
+        "digest": "b5dc56n02j0d4492ub25r54nfi6",
+        "line": "[2026-11-11 20:03:44] (93s)  >>> Created relation TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9/11@8c6c3vwq with 78 rows and digest b5dc56n02j0d4492ub25r54nfi6.",
+        "rows": 78
+      },
+      "immutable_database_files_unchanged": 6637,
+      "implicit_compilation_count": 0,
+      "initial_database_files": 6651,
+      "loaded_plan_count": 1,
+      "loaded_plan_line": "[2026-11-11 20:02:11] [PROGRESS] execute queries> [1/1] Loaded /workspace/scratch/4b61438fb07b/summary-env-validation-20261111/arms/all/query-pack/queries/summary/SummaryStats.qlx.",
+      "modified_initial_database_files_only_evaluator_cache": [
+        "db-rust/default/cache/cached-strings/pools/0/buckets/info",
+        "db-rust/default/cache/cached-strings/pools/0/buckets/page-000000",
+        "db-rust/default/cache/cached-strings/pools/0/ids1/info",
+        "db-rust/default/cache/cached-strings/pools/0/ids1/page-000000",
+        "db-rust/default/cache/cached-strings/pools/0/indices1/info",
+        "db-rust/default/cache/cached-strings/pools/0/indices1/page-000000",
+        "db-rust/default/cache/cached-strings/pools/0/info",
+        "db-rust/default/cache/cached-strings/pools/0/metadata/info",
+        "db-rust/default/cache/cached-strings/pools/0/metadata/page-000000",
+        "db-rust/default/cache/cached-strings/pools/0/pageDump/page-000000000",
+        "db-rust/default/cache/cached-strings/pools/poolInfo"
+      ],
+      "other_38_qlx_unchanged_after_execution": true,
+      "plan_sha256": "bb7a4ea7ec0910b62f34efc0e9e25a3e23e7f57d3dadde9799069ed1e824875f",
+      "target_relation": [],
+      "wall_seconds": 113.24331748900022
+    },
+    "projection": {
+      "all_1175_dependencies_match_declared_state_after_execution": true,
+      "all_39_root_sources_unchanged_after_execution": true,
+      "bqrs": {
+        "bytes": 1205,
+        "sha256": "662c7fe4f765ca6e6b03aa83760b52b66b0e7d6ead65abe992b0f9f38fc760d6"
+      },
+      "capsule_16_members_unchanged_after_execution": true,
+      "compiler_inputs_digest": "70fcc50b9809b694b26b77a11722cdbb",
+      "decoded": {
+        "bytes": 1185,
+        "sha256": "f05f212ce3a9847d01191fb595c9a154aac94a83e33faf6fdc7f85dbb19b259e"
+      },
+      "evaluator_log": {
+        "bytes": 12303276,
+        "sha256": "1ef6252d4f6ee999d5fbc774fc401ef6b9fcc57f26606fc7381eceb096b9bf9e"
+      },
+      "exit_code": 0,
+      "full_read_relation": {
+        "digest": "b5dc56n02j0d4492ub25r54nfi6",
+        "line": "[2026-11-11 20:06:01] (92s)  >>> Created relation TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9/11@f2b4b875 with 78 rows and digest b5dc56n02j0d4492ub25r54nfi6.",
+        "rows": 78
+      },
+      "immutable_database_files_unchanged": 6637,
+      "implicit_compilation_count": 0,
+      "initial_database_files": 6651,
+      "loaded_plan_count": 1,
+      "loaded_plan_line": "[2026-11-11 20:04:28] [PROGRESS] execute queries> [1/1] Loaded /workspace/scratch/4b61438fb07b/summary-env-validation-20261111/arms/projection/query-pack/queries/summary/SummaryStats.qlx.",
+      "modified_initial_database_files_only_evaluator_cache": [
+        "db-rust/default/cache/cached-strings/pools/0/buckets/info",
+        "db-rust/default/cache/cached-strings/pools/0/buckets/page-000000",
+        "db-rust/default/cache/cached-strings/pools/0/ids1/info",
+        "db-rust/default/cache/cached-strings/pools/0/ids1/page-000000",
+        "db-rust/default/cache/cached-strings/pools/0/indices1/info",
+        "db-rust/default/cache/cached-strings/pools/0/indices1/page-000000",
+        "db-rust/default/cache/cached-strings/pools/0/info",
+        "db-rust/default/cache/cached-strings/pools/0/metadata/info",
+        "db-rust/default/cache/cached-strings/pools/0/metadata/page-000000",
+        "db-rust/default/cache/cached-strings/pools/0/pageDump/page-000000000",
+        "db-rust/default/cache/cached-strings/pools/poolInfo"
+      ],
+      "other_38_qlx_unchanged_after_execution": true,
+      "plan_sha256": "65e651eb4b56da599cca6538a9eaf55df2cc1dd8ce3943e91786c24daa1d97df",
+      "target_relation": [
+        {
+          "digest": "0aeedeu5rvfljmmn3d0m9vqg9m5",
+          "line": "[2026-11-11 20:06:01] (92s)  >>> Created relation TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac/6@549091xb with 78 rows and digest 0aeedeu5rvfljmmn3d0m9vqg9m5.",
+          "rows": 78
+        }
+      ],
+      "wall_seconds": 113.11825087099987
+    }
+  },
+  "budget": {
+    "heap_mib": 1536,
+    "native_mib": 512,
+    "supervisor_seconds": 300,
+    "threads": 1
+  },
+  "comparison_method": "Complete decoded JSON equality, including every result set, ordered column descriptors, all tuples and their multiplicity; no row filtering or result normalization.",
+  "complete_decoded_results_equal": true,
+  "fixture": "github/codeql rust/ql/test/library-tests/dataflow/sources/env at codeql-cli/v2.27.2",
+  "full_read_rows_and_digest_equal": true,
+  "kind": "qperiapt.nonempty_rust_fixture_full_summary_comparison",
+  "nonadmitted_extraction_attempt": "extract: successful process exit, missing sysroot sources and three fixture macro warnings; retained for diagnosis, never evaluated or used as either comparison input",
+  "plan_order": [
+    "all",
+    "projection"
+  ],
+  "query_executions_total": 2,
+  "result_sets": {
+    "#select": {
+      "columns": [
+        {
+          "kind": "String",
+          "name": "key"
+        },
+        {
+          "kind": "Integer",
+          "name": "value"
+        }
+      ],
+      "row_count": 29
+    }
+  },
+  "semantic_sha256": "e2582f4726e1866ef348bf49f05d8c70c62afc6ce8a913eb883bf88684101725",
+  "status": "complete_equal_nonempty_results",
+  "summary_values": {
+    "Elements extracted": 5252379,
+    "Elements unextracted": 0,
+    "Extraction errors": 0,
+    "Extraction warnings": 0,
+    "Files extracted - total": 2917,
+    "Files extracted - total user": 2,
+    "Files extracted - with errors": 0,
+    "Files extracted - without errors": 2,
+    "Files extracted - without errors %": 100,
+    "Inconsistencies - AST": 0,
+    "Inconsistencies - CFG": 0,
+    "Inconsistencies - Path resolution": 0,
+    "Inconsistencies - SSA": 0,
+    "Inconsistencies - Type inference": 0,
+    "Inconsistencies - data flow": 0,
+    "Lines of code extracted": 53,
+    "Lines of user code extracted": 53,
+    "Macro calls - resolved": 6,
+    "Macro calls - total": 6,
+    "Macro calls - unresolved": 0,
+    "Taint edges - number of edges": 34775,
+    "Taint reach - nodes tainted": 106,
+    "Taint reach - per million nodes": 33618,
+    "Taint reach - total non-summary nodes": 3153,
+    "Taint sinks - cryptographic operations": 0,
+    "Taint sinks - query sinks": 7,
+    "Taint sources - active": 15,
+    "Taint sources - disabled": 0,
+    "Taint sources - sensitive data": 0
+  },
+  "timing_interpretation": "One sequential pair on a shared local host with a separate large-database analysis running concurrently. Elapsed times are observed completion records, not an isolated performance estimate."
+}

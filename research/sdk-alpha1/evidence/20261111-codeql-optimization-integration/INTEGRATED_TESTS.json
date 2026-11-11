@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.codeql_combined_regression_record",
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "-q",
+    "test_codeql_summary_archive_input",
+    "test_codeql_summary_control",
+    "test_codeql_summary_plan",
+    "test_codeql_summary_projection",
+    "test_codeql_process_resources",
+    "test_codeql_rust_profile",
+    "test_codeql_workflow_contract"
+  ],
+  "working_directory": "artifact",
+  "recorded_working_directory": "/workspace/scratch/4b61438fb07b/codeql-performance-integration/artifact",
+  "stdout_and_stderr": "integrated-tests.log",
+  "returncode": 0,
+  "test_count": 207,
+  "unittest_seconds": 10.144,
+  "tested_commit": "099349204e6366314fdc74985e95abafa559c6b0",
+  "tested_tree": "eaded9357e0a639ee796be44319b690e9842e45b",
+  "execution_source": "Original execution record and its retained combined stdout/stderr; no test rerun was performed for this packet.",
+  "log": {
+    "path": "integrated-tests.log",
+    "bytes": 734,
+    "sha256": "353622491c93156e4e0c98a27f334a66cfa275b78af364b324a67d660683e2e3"
+  },
+  "source_identity": {
+    "path": "SOURCE_IDENTITY.json",
+    "bytes": 13442,
+    "sha256": "e578f94ff86b8a4dc5bb04111a04398629ad44e1fea1c0a872095a90041da3bc"
+  },
+  "corresponding_published_commit": "4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215",
+  "corresponding_source_files": 54,
+  "post_test_changes": [
+    "artifact/test_third_party_licenses.py",
+    "docs/SDK_0_2_RELEASE_READINESS.md",
+    "docs/SDK_INTERNAL_REVIEW.md"
+  ],
+  "validation_scope": "The 207-test invocation used the tested commit inputs. The listed CodeQL code, test, workflow and pinned-input bytes correspond exactly to the public candidate; Windows newline controls are retained separately in windows/. Runtime database evaluation is recorded separately."
+}

@@ -1,0 +1,330 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.codeql_optimization_integration_source",
+  "recorded_at_utc": "2026-11-11T11:10:12+00:00",
+  "public_source": {
+    "sha": "4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215",
+    "tree": {
+      "sha": "b5c6e256b9abb95a8163efae052c34ae6bd0f035",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/b5c6e256b9abb95a8163efae052c34ae6bd0f035"
+    },
+    "parents": [
+      "4870db5eff0a611973a302f29e94c0992df66cfe"
+    ],
+    "html_url": "https://github.com/billlza/q-periapt/commit/4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215",
+    "author": {
+      "name": "月溅星河",
+      "email": "149552943+billlza@users.noreply.github.com",
+      "date": "2026-11-11T11:07:15Z"
+    },
+    "committer": {
+      "name": "月溅星河",
+      "email": "149552943+billlza@users.noreply.github.com",
+      "date": "2026-11-11T11:07:15Z"
+    }
+  },
+  "public_commit_api": "https://api.github.com/repos/billlza/q-periapt/commits/4fb3b2db1d6647ec4fa85fb8bd744b1d97ef1215",
+  "local_equivalent_commit": "f38de8e6d1a298b93a8c0214bcb9c51a6ba0eb49",
+  "local_equivalent_tree": "b5c6e256b9abb95a8163efae052c34ae6bd0f035",
+  "implementation_before_two_documents": {
+    "commit": "d86dc60cfa08ae3344ace7291c26ee7e1b5f800e",
+    "tree": "8f0a3a2872babe196000a18ce03e579767fe517d"
+  },
+  "combined_test_source": {
+    "commit": "099349204e6366314fdc74985e95abafa559c6b0",
+    "tree": "eaded9357e0a639ee796be44319b690e9842e45b",
+    "source_record": "The recorded test inputs were committed unchanged as this commit."
+  },
+  "source_selection": "Changed integration inputs plus the repository-local static import closure of the seven selected test modules, their pinned query/capsule inputs, Rust quality queries and production CodeQL workflow.",
+  "source_file_count": 54,
+  "files": {
+    ".gitattributes": {
+      "bytes": 858,
+      "sha256": "ee5d0d3c6f00a0baebf196a1bb8b17fa5b9dd80b5a6d63c7069012e8520ad327",
+      "identical_in_published_tree": true
+    },
+    ".github/workflows/ci.yml": {
+      "bytes": 166748,
+      "sha256": "2cece937d2bacc994d8834929751a9075b06dbcac3315683fe44af4417a35ebe",
+      "identical_in_published_tree": true
+    },
+    ".github/workflows/codeql-log-recovery.yml": {
+      "bytes": 1223,
+      "sha256": "c9072e6bafcda880f6f9aae49149b093b62bd4d31f220b6b185e8a4a32befee4",
+      "identical_in_published_tree": true
+    },
+    ".github/workflows/codeql-memory-control.yml": {
+      "bytes": 2042,
+      "sha256": "cebc1acc6040e629503907b7180f5a922556249eecbc70f22fcacec72b47703b",
+      "identical_in_published_tree": true
+    },
+    ".github/workflows/codeql-summary-control.yml": {
+      "bytes": 7470,
+      "sha256": "201964fa5c867b9a2021140cd4f6a1b4521071c0ddd06db7bea025ea212a7133",
+      "identical_in_published_tree": true
+    },
+    ".github/workflows/codeql.yml": {
+      "bytes": 22552,
+      "sha256": "993751e65be27d56907d1e996419533060a81d507964d41148241a6d8c191378",
+      "identical_in_published_tree": true
+    },
+    "artifact/bounded_process.py": {
+      "bytes": 51311,
+      "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+      "identical_in_published_tree": true
+    },
+    "artifact/c_abi_contract.py": {
+      "bytes": 57177,
+      "sha256": "d2a7e6dab49e69038a66a436e0a7066e6e162be07920bb4dc326f823fe03e8f9",
+      "identical_in_published_tree": true
+    },
+    "artifact/c_package_manifest.py": {
+      "bytes": 33751,
+      "sha256": "30274edd771c6c3200685f5595ca972478d0c5d099821018cf383fb4e833aa97",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql-rust-quality/ExtractedPaths.ql": {
+      "bytes": 343,
+      "sha256": "c3e7bc8285c0ce03b1100626d1fd31f6e3721819f564d9d9e0e7d5d10f7c026f",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql-rust-quality/MacroCalls.ql": {
+      "bytes": 1018,
+      "sha256": "2f24bfac0d0dcacacd5e960400afd905e0c070510d83845cd9079273a63be29b",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql-rust-quality/Metrics.ql": {
+      "bytes": 4551,
+      "sha256": "7fc3ea3cd9d56658aa1f23715d167e45991aafb977eb1eca981ccf46efc8429b",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql-rust-quality/UnresolvedMacros.ql": {
+      "bytes": 441,
+      "sha256": "2501394e453e19c91c2cee21236df74a75075ee398a5d0b92e76fecc4292937f",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql-rust-quality/codeql-pack.lock.yml": {
+      "bytes": 562,
+      "sha256": "57a4b1e98ad4be3605ffcfb218499f5e44a02164ee27fb70ed1c230a481c2743",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql-rust-quality/qlpack.yml": {
+      "bytes": 107,
+      "sha256": "5b07d940b78bfced0fec4764339c4dedf6f0b099817541cfe2c8097b00a6740a",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql-summary-dynamic-plan.zip": {
+      "bytes": 620068,
+      "sha256": "ce21381b3bec721aab246b26b84c00834959871235e1e82354addca8a40dcef7",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql-summary-projection-plan.LICENSE": {
+      "bytes": 1074,
+      "sha256": "66056d06b874e3eb6a22f5fff297e1676a23dc43e8c8b81279c1ef33a6a270df",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql-summary-projection-plan.zip": {
+      "bytes": 620156,
+      "sha256": "1fe6db109a540d6063fca24e25e9d6c56a88f972a5c248d74fd95f7248fb6132",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_compiler_sources.py": {
+      "bytes": 6351,
+      "sha256": "57ef0cbd9ff83fbfbe00f1a01052233112cb9d3137d55e25f5c3ab2191a480fc",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_consumer_context.py": {
+      "bytes": 11127,
+      "sha256": "1c268bab2ebaa933025ee97ceb53756f48ac49ed2b33ade6ff68995a61d02e44",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_log_recovery.py": {
+      "bytes": 13567,
+      "sha256": "8ff89ca9b86c93f304c099b0d8eb65eb0079d8a084bd72bc820b84369d104378",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_process_resources.py": {
+      "bytes": 16881,
+      "sha256": "8b4d14b9667a7c10e653f680311c12db595369f0e6a5b2800aae6beefeec26a6",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_rust_profile.py": {
+      "bytes": 28938,
+      "sha256": "c3f05df1f380be6ff691067b435acaaee173745f2eb6e165151a49965f28dc3c",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_rust_quality.py": {
+      "bytes": 38244,
+      "sha256": "78560445e1cbea13bbb57fc379eeaf9f5db4618e98490001a32027c14b2db4f8",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_rust_queries.json": {
+      "bytes": 4737,
+      "sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_rust_transfer.py": {
+      "bytes": 17595,
+      "sha256": "754751845825f901c5d55798b4eb57eace573f29ff85ff994d95e69d539c3cf9",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_summary_control.py": {
+      "bytes": 61730,
+      "sha256": "5ef520a9bece36439ce8b23f8cc079134224e120db926251395e67f4399084c3",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_summary_dynamic_plan.json": {
+      "bytes": 3556,
+      "sha256": "308a36a957741fdfa8a58f40fb81ffae6e863759527b516ca93816c75057c1f7",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_summary_plan.py": {
+      "bytes": 9381,
+      "sha256": "066965055ef1a0b431cf1322c7255ef3a983c4f712cdabaf5dfbd1e5c8e76435",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_summary_projection.json": {
+      "bytes": 6587,
+      "sha256": "d330c1063954c6cd5803426df4e1ad7727d716976872049d140f5f47c12be191",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_summary_projection.md": {
+      "bytes": 7642,
+      "sha256": "604c216669ab7ceab9b733fca1a5e0c512e6b8ff65f05da0dafccf50f654a8f8",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_summary_projection.patch": {
+      "bytes": 2876,
+      "sha256": "282378060da1b9929c84ae040cbd99f64b7424874a364a76d6f5f46af47ceba9",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_summary_projection.py": {
+      "bytes": 14858,
+      "sha256": "009872f453d0e494e59e60ee67c91cc8f97f9e9710f3413feacbc246bd248f2d",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_summary_projection_dependencies.json.gz": {
+      "bytes": 117234,
+      "sha256": "e14c4a9036d0fcc6116348897c63b78cd1521b95218b39671c992105e9a91735",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_target_coverage.py": {
+      "bytes": 7569,
+      "sha256": "d01144e3a94d5aedca4b24be1890be03c4b8b248b1ebfd920e8c47f54a6c4424",
+      "identical_in_published_tree": true
+    },
+    "artifact/codeql_workflows.md": {
+      "bytes": 6947,
+      "sha256": "43ba147dae9b76a2abc5c96ce20d96d9fa4cfe01446d792dda106e1269b91a89",
+      "identical_in_published_tree": true
+    },
+    "artifact/crates_io_registry_metadata.py": {
+      "bytes": 11653,
+      "sha256": "f4a16e59e4218c4339a38abcb0542a9616e1735bf8d743b5c24e54c5216aa777",
+      "identical_in_published_tree": true
+    },
+    "artifact/evidence_io.py": {
+      "bytes": 44308,
+      "sha256": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d",
+      "identical_in_published_tree": true
+    },
+    "artifact/git_provenance.py": {
+      "bytes": 22349,
+      "sha256": "8bb64d7f43d1ffa00a39b31a174e8667d4d2cfb1f8c42a019a32627f6a065f3f",
+      "identical_in_published_tree": true
+    },
+    "artifact/installed_rust_graph.py": {
+      "bytes": 2392,
+      "sha256": "0150573580c4acab5b0e542b28e31278a8eeeeff65594bef322001801ee6b42c",
+      "identical_in_published_tree": true
+    },
+    "artifact/package_bom.py": {
+      "bytes": 14571,
+      "sha256": "cec214359e543cdac4156acf46a90e5243359c249ed579f9e45a063a633977c6",
+      "identical_in_published_tree": true
+    },
+    "artifact/release_binary_scan.py": {
+      "bytes": 23991,
+      "sha256": "4d14fc9adc6508733a9b9c511935883292f6b2acf87a13ab92aa11bdb3152fd2",
+      "identical_in_published_tree": true
+    },
+    "artifact/rust_publish_contract.py": {
+      "bytes": 139001,
+      "sha256": "bb1f1586982a0dfaf958bb4784c592732db9a5ff9fc0ede51f07019493286679",
+      "identical_in_published_tree": true
+    },
+    "artifact/rust_sdk_profile.py": {
+      "bytes": 27974,
+      "sha256": "f23d73ec6afabaee763328557c93f4bf542365384ed8ee10b386b6d697ed7af5",
+      "identical_in_published_tree": true
+    },
+    "artifact/sdk_abi2_spec.py": {
+      "bytes": 12101,
+      "sha256": "16a3828eaefed3892a0b7e03c2009032a3d58c106ac44334476b96a93cb2214e",
+      "identical_in_published_tree": true
+    },
+    "artifact/test_codeql_process_resources.py": {
+      "bytes": 17634,
+      "sha256": "adbfe560c1f45dab042552fc8bba941c4adf9cc784d657ad39d9914259d75f1a",
+      "identical_in_published_tree": true
+    },
+    "artifact/test_codeql_rust_profile.py": {
+      "bytes": 47687,
+      "sha256": "74fe5c3d3b43ca74c36ab88d38524a8dc726b6a4f12559db88e01c501fde6b62",
+      "identical_in_published_tree": true
+    },
+    "artifact/test_codeql_rust_transfer.py": {
+      "bytes": 15196,
+      "sha256": "3c346141c7652fe2a2caa545cd0115ca0ef3ec8fc1e9966171dfbf6b52603e1d",
+      "identical_in_published_tree": true
+    },
+    "artifact/test_codeql_summary_archive_input.py": {
+      "bytes": 5888,
+      "sha256": "2f75fdfab4a078c046b6f2a68aa9dc12d9a7883583f9eec1c9a5dc16ab2e0f59",
+      "identical_in_published_tree": true
+    },
+    "artifact/test_codeql_summary_control.py": {
+      "bytes": 80347,
+      "sha256": "cb872ac7e6052abb65d69d22becc713658a79af3e1775e490bc4f4799619ed97",
+      "identical_in_published_tree": true
+    },
+    "artifact/test_codeql_summary_plan.py": {
+      "bytes": 14817,
+      "sha256": "22a59a77614af61eedff6f1763f6c058e4f76bdf581b7de420fae6eb0cb612e4",
+      "identical_in_published_tree": true
+    },
+    "artifact/test_codeql_summary_projection.py": {
+      "bytes": 32431,
+      "sha256": "e20517e481140a2e01cbeb9ef07e4d62ce0a4f8e27c591229be51158716e13dc",
+      "identical_in_published_tree": true
+    },
+    "artifact/test_codeql_workflow_contract.py": {
+      "bytes": 7513,
+      "sha256": "25611bec142b5b118a51aebb4bd7a90e4cf61ec4bdfbfae521aecf7044841c2b",
+      "identical_in_published_tree": true
+    },
+    "artifact/third_party_licenses.py": {
+      "bytes": 37137,
+      "sha256": "2d7ee6080ef833a35b93247454dbc1ecfe27f3d9ffbdb7f2db24e6a6a35bb6b7",
+      "identical_in_published_tree": true
+    }
+  },
+  "changes_after_combined_test": [
+    "artifact/test_third_party_licenses.py",
+    "docs/SDK_0_2_RELEASE_READINESS.md",
+    "docs/SDK_INTERNAL_REVIEW.md"
+  ],
+  "test_source_correspondence": "All listed inputs are byte-identical between the recorded combined-test source and the public candidate tree. The later Windows fixture change has separate targeted controls; the two remaining changes are documentation.",
+  "preserved_workflow_contracts": {
+    "ci_jobs_block": {
+      "bytes": 165861,
+      "sha256": "f3f2a0c2abcd330c00022529814aed6b390358da63052ed7996fad02fe0746a9",
+      "byte_identical_to_sdk_base": true
+    },
+    "production_codeql_workflow": {
+      "bytes": 22552,
+      "sha256": "993751e65be27d56907d1e996419533060a81d507964d41148241a6d8c191378",
+      "byte_identical_to_sdk_base": true
+    }
+  }
+}

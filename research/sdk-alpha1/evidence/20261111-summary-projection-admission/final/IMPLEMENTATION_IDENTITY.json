@@ -1,0 +1,64 @@
+{
+  "codeql_compilation_executed_by_this_task": false,
+  "commit": "11ba16eb257c4d68ed967fa554d9a36b362848b0",
+  "compile_receipt": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/CANDIDATE_BOUND_COMPILE.json",
+  "files": {
+    ".gitattributes": {
+      "bytes": 858,
+      "sha256": "ee5d0d3c6f00a0baebf196a1bb8b17fa5b9dd80b5a6d63c7069012e8520ad327"
+    },
+    "artifact/codeql-summary-projection-plan.LICENSE": {
+      "bytes": 1074,
+      "sha256": "66056d06b874e3eb6a22f5fff297e1676a23dc43e8c8b81279c1ef33a6a270df"
+    },
+    "artifact/codeql-summary-projection-plan.zip": {
+      "bytes": 620156,
+      "sha256": "1fe6db109a540d6063fca24e25e9d6c56a88f972a5c248d74fd95f7248fb6132"
+    },
+    "artifact/codeql_summary_control.py": {
+      "bytes": 60638,
+      "sha256": "3edeff7b913035aefa2e1974fb731d15c2e02db4f59f89e8ff69e0e621017ba1"
+    },
+    "artifact/codeql_summary_plan.py": {
+      "bytes": 9381,
+      "sha256": "066965055ef1a0b431cf1322c7255ef3a983c4f712cdabaf5dfbd1e5c8e76435"
+    },
+    "artifact/codeql_summary_projection.json": {
+      "bytes": 6587,
+      "sha256": "d330c1063954c6cd5803426df4e1ad7727d716976872049d140f5f47c12be191"
+    },
+    "artifact/codeql_summary_projection.md": {
+      "bytes": 7642,
+      "sha256": "604c216669ab7ceab9b733fca1a5e0c512e6b8ff65f05da0dafccf50f654a8f8"
+    },
+    "artifact/codeql_summary_projection.patch": {
+      "bytes": 2876,
+      "sha256": "282378060da1b9929c84ae040cbd99f64b7424874a364a76d6f5f46af47ceba9"
+    },
+    "artifact/codeql_summary_projection.py": {
+      "bytes": 14858,
+      "sha256": "009872f453d0e494e59e60ee67c91cc8f97f9e9710f3413feacbc246bd248f2d"
+    },
+    "artifact/codeql_summary_projection_dependencies.json.gz": {
+      "bytes": 117234,
+      "sha256": "e14c4a9036d0fcc6116348897c63b78cd1521b95218b39671c992105e9a91735"
+    },
+    "artifact/test_codeql_summary_plan.py": {
+      "bytes": 14817,
+      "sha256": "22a59a77614af61eedff6f1763f6c058e4f76bdf581b7de420fae6eb0cb612e4"
+    },
+    "artifact/test_codeql_summary_projection.py": {
+      "bytes": 32431,
+      "sha256": "e20517e481140a2e01cbeb9ef07e4d62ce0a4f8e27c591229be51158716e13dc"
+    }
+  },
+  "kind": "qperiapt.projection_implementation_identity",
+  "parent": "9847e6714f3089d1dfec04350aa32d1541f07b74",
+  "query_evaluation_executed_by_this_task": false,
+  "source_capsule_reused_from": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet",
+  "status": "explicit_candidate_admission_implemented_and_verified",
+  "test_order": "Tests completed before commit; these tested file bytes were committed without source changes.",
+  "test_result": "159 tests passed",
+  "tree": "d246e4340e4624b6380d04e83a4237d3f2de5d22",
+  "worktree": "/workspace/scratch/4b61438fb07b/summary-projection-implementation"
+}

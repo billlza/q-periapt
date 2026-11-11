@@ -1,0 +1,8 @@
+Running database init in /workspace/scratch/4b61438fb07b/summary-env-validation-20261111/fixture-pack/env.
+Running legacy rust test extraction in /workspace/scratch/4b61438fb07b/summary-env-validation-20261111/fixture-pack/env.
+Finalizing test database in /workspace/scratch/4b61438fb07b/summary-env-validation-20261111/fixture-pack/env.
+Running TRAP import for CodeQL database at /workspace/scratch/4b61438fb07b/summary-env-validation-20261111/database-original...
+Importing TRAP files
+Merging relations
+Finished writing database (relations: 21.63 KiB; string pool: 2.05 MiB).
+TRAP import complete (823ms).

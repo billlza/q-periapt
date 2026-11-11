@@ -1,0 +1,205 @@
+{
+  "compilation_executed": false,
+  "controller_tool_cross_binding": {
+    "codeql_sha256": "5010324098d11f9e2d34e0fcf53bb44e40e8e3ffc8aecefe695269b54edaa413",
+    "codeql_version": "2.27.2",
+    "query_pack": "0.1.44",
+    "tool_bundle_bytes": 98247028,
+    "tool_bundle_sha256": "acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea"
+  },
+  "input_receipt": "../REAL_BUNDLE_ADMISSION.json",
+  "installed_pack": "/workspace/scratch/4b61438fb07b/summary-projection-validation/installed/0.1.44",
+  "kind": "qperiapt.projection_final_admission_recheck",
+  "plan_identity": {
+    "bundled_compiled_inventory_sha256": "f5d87c717575c9243272e3b1c8abdc1f5f12d93a193ffd2d3b1ba10df6de43d9",
+    "bundled_plan_sha256": "bc65daf746a13e0d162f0853b3a21eda41ff2d573774e6862983a916c06244a6",
+    "capsule_bytes": 620156,
+    "capsule_sha256": "1fe6db109a540d6063fca24e25e9d6c56a88f972a5c248d74fd95f7248fb6132",
+    "codeql_version": "2.27.2",
+    "compiled_inventory_sha256": "f1a3d81b2e0a35262ea88d795825478f9217e4f897befdff6146bfbf2f521b14",
+    "compiler_inputs_digest": "70fcc50b9809b694b26b77a11722cdbb",
+    "dependency_inventory": {
+      "bytes": 117234,
+      "effective_inventory_sha256": "be9ab53000782d96523d8ec1fc81fa8503333916fad38dd9c8f76586e36b879e",
+      "expanded_bytes": 444724,
+      "file_count": 1175,
+      "path": "codeql_summary_projection_dependencies.json.gz",
+      "root": ".codeql/libraries",
+      "sha256": "e14c4a9036d0fcc6116348897c63b78cd1521b95218b39671c992105e9a91735",
+      "upstream_inventory_sha256": "cc5094dfbf7174718ed834b8f21dd0efb6be55388102009dcd4e9d1795ea48f6"
+    },
+    "dynamic_join_order_mode": "all",
+    "effective_plan_sha256": "65e651eb4b56da599cca6538a9eaf55df2cc1dd8ce3943e91786c24daa1d97df",
+    "expanded_bytes": 617144,
+    "files": {
+      ".codeql/precompiled/038b88j0i49du90ilc8iagc5a8d.bytes.qlx": {
+        "bytes": 445,
+        "sha256": "ed39b2115f972b8cf75700607d62ca8301ab47ad130842ac218de1657022979b"
+      },
+      ".codeql/precompiled/163ae7ktv8cp5ee8t9jm2e5kim1.bytes.qlx": {
+        "bytes": 79795,
+        "sha256": "95b2414145a05dd3a0abc838f7fdf287f1664bdc85bc08d03fd354086df20b80"
+      },
+      ".codeql/precompiled/1da611s7mackr1d99opc4kb5p6b.bytes.qlx": {
+        "bytes": 3914,
+        "sha256": "7f1873d1b1fe567c1671f5b1fc6de6d0ddf6552ec96b2b26fa5cea746c08b85f"
+      },
+      ".codeql/precompiled/28b4676h76j68s6kiad4bhri7d0.bytes.qlx": {
+        "bytes": 8910,
+        "sha256": "ff92e628aebb74c3c9253f22318c6879af57adbcbfa7262f846770d5d8a1f6ae"
+      },
+      ".codeql/precompiled/2912009rh7titgh6qb5mcpfimo9.bytes.qlx": {
+        "bytes": 7143,
+        "sha256": "ed5ab3e96144ca54bdb276c2fd87dd7f90e3ccaa51278363a5d49ca2c61fc719"
+      },
+      ".codeql/precompiled/4dfc71q06n9ckrogm8q7aoqjged.bytes.qlx": {
+        "bytes": 20183,
+        "sha256": "dcaad24e25b4c266a5afae5bc7f05cdd58bafa4c83411feb846b32efdcbc38c6"
+      },
+      ".codeql/precompiled/5ac5celqfpgreaaaoslp971b4hf.bytes.qlx": {
+        "bytes": 64502,
+        "sha256": "9cb9ea56d312450e71cc0ced9d6f7d2a47453328559c292114e1fb1de1c05721"
+      },
+      ".codeql/precompiled/6afe3f0fi3gmoksgoq4frmpj5b0.bytes.qlx": {
+        "bytes": 22221,
+        "sha256": "687cf8c3278c88617569fdeb45bbf2e13d52d94cdee5ec2387418c89e903c2bd"
+      },
+      ".codeql/precompiled/a2dcc0vi19v7emmd8oikca66pn4.bytes.qlx": {
+        "bytes": 4585,
+        "sha256": "db956ba30d4fadad0886d1ec690e6cffd96ed35ea2ca35ae48877f1a69c4c0a0"
+      },
+      ".codeql/precompiled/a8737441ij5nv0t0g0cn81ff99f.bytes.qlx": {
+        "bytes": 3876,
+        "sha256": "ad23fc37ea288af46fcc73a5eb791a8a16c0a2861ed3b1ad0c48a2932b7f5c88"
+      },
+      ".codeql/precompiled/bb19c62hd2brq8tf0isrh4uhi94.bytes.qlx": {
+        "bytes": 33590,
+        "sha256": "ed1331d0d54e75411538c9c1eab2e9ee9280b6a56fb77fe1b3db19ec18653864"
+      },
+      ".codeql/precompiled/d2c15bf2uv8au77u1v0d9g09nf3.bytes.qlx": {
+        "bytes": 29465,
+        "sha256": "d24d6fee2a6f9bcec0b03a297d08ae09b63f8cee5e5510b9cfb8ee6678cdd66b"
+      },
+      ".codeql/precompiled/f0c987t9htpqjb89ldbv47rcvif.bytes.qlx": {
+        "bytes": 114376,
+        "sha256": "c9d87eaed016b3f7183d960ef8ab7dab263b8aa8b3991aca3f8948932cfce658"
+      },
+      ".codeql/precompiled/f4444604s06tqmkk6b42kne82o3.bytes.qlx": {
+        "bytes": 14842,
+        "sha256": "dda227bdff20f59408877001582a47c7a3eda8d4152f4b5b646fc2273761bfb2"
+      },
+      ".codeql/precompiled/f94f55sq9n2uq8m1rge8tjp8g19.bytes.qlx": {
+        "bytes": 24259,
+        "sha256": "1dffc6777a4f034f0bf5cba3bf2212370f280cda60d11055ce2977b1210c1f43"
+      },
+      "queries/summary/SummaryStats.qlx": {
+        "bytes": 185038,
+        "sha256": "65e651eb4b56da599cca6538a9eaf55df2cc1dd8ce3943e91786c24daa1d97df"
+      }
+    },
+    "kind": "qperiapt.codeql_summary_projection_plan",
+    "manifest_sha256": "d330c1063954c6cd5803426df4e1ad7727d716976872049d140f5f47c12be191",
+    "mode": "projection",
+    "plan_path": "queries/summary/SummaryStats.qlx",
+    "query_count": 39,
+    "query_manifest_sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b",
+    "query_pack": "0.1.44",
+    "query_pack_support_files": {
+      ".packinfo": {
+        "bytes": 62,
+        "sha256": "9cc66cb299b73769a30ce281c5caa4e43d473c393c47f1aa4418b65f55a4be13"
+      },
+      "codeql-pack.lock.yml": {
+        "bytes": 605,
+        "sha256": "301f1c417913d77b2c2789eb190c38de62f338cf2dcdcf2278ebfa3b92651c75"
+      },
+      "qlpack.yml": {
+        "bytes": 383,
+        "sha256": "18f026ad4baac9269d636e0ed47e13a45f36c777c3c49fec0872093ea54a6f7d"
+      },
+      "queries/summary/Stats.qll": {
+        "bytes": 7874,
+        "sha256": "f414a15e3421085bb1493d7e7677a864dd1edd1e4829d5ec8ad6e771581ac5f9"
+      },
+      "queries/summary/TaintReach.qll": {
+        "bytes": 1689,
+        "sha256": "9fe91726cb872e8139ccfeafdb4114d8ced19459f61626829db042f67f81dad6"
+      },
+      "queries/telemetry/DatabaseQuality.qll": {
+        "bytes": 3013,
+        "sha256": "499585d6edaa20cff4143ffb0a2e692d060a2dc7773d0ccae35725ca5e5a1f1d"
+      },
+      "queries/unusedentities/UnusedVariable.qll": {
+        "bytes": 1834,
+        "sha256": "036885f2eb4ba09303819fc8f9c5d984a3a2ab46c8adecd8215048b4cf5b0589"
+      },
+      "utils/modelgenerator/internal/CaptureModels.qll": {
+        "bytes": 7658,
+        "sha256": "649511aa2bea105bf98ff5fd9d7a30edcd01ed7768d92a126e894935b78793f8"
+      },
+      "utils/modelgenerator/internal/CaptureModelsPrinting.qll": {
+        "bytes": 481,
+        "sha256": "2d41f4decf0c23bdcf0087d408b20a3a13f7bf2755f44ca326ea1072a06b160f"
+      }
+    },
+    "query_source_sha256": "7278d53373afb4f8069122e287c9c036a959ba0d167c152d67cd0de885881d67",
+    "schema": 1,
+    "source_sha256": "7278d53373afb4f8069122e287c9c036a959ba0d167c152d67cd0de885881d67",
+    "stage_count": 15,
+    "tool_bundle_bytes": 98247028,
+    "tool_bundle_sha256": "acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea",
+    "unchanged_other_compiled_queries": 38,
+    "vendor_patch": {
+      "bytes": 2876,
+      "dependency_path": "codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll",
+      "effective": {
+        "bytes": 139632,
+        "sha256": "c2578c2642d0e382ca5438c7d72f69415ca115b5b248778eb0b8b1398526ca06"
+      },
+      "path": "codeql_summary_projection.patch",
+      "sha256": "282378060da1b9929c84ae040cbd99f64b7424874a364a76d6f5f46af47ceba9",
+      "upstream": {
+        "bytes": 138246,
+        "sha256": "48abc6ae3a155494379f139d6a71d0d9b27469824e8f2dc5a72ff39a82ce64bf"
+      },
+      "upstream_package": "codeql/dataflow@2.1.15",
+      "upstream_url": "https://github.com/github/codeql/blob/codeql-cli/v2.27.2/shared/dataflow/codeql/dataflow/internal/DataFlowImpl.qll"
+    }
+  },
+  "query_evaluation_executed": false,
+  "result": "passed",
+  "source_files": {
+    "codeql-summary-projection-plan.zip": {
+      "bytes": 620156,
+      "sha256": "1fe6db109a540d6063fca24e25e9d6c56a88f972a5c248d74fd95f7248fb6132"
+    },
+    "codeql_summary_control.py": {
+      "bytes": 60638,
+      "sha256": "3edeff7b913035aefa2e1974fb731d15c2e02db4f59f89e8ff69e0e621017ba1"
+    },
+    "codeql_summary_plan.py": {
+      "bytes": 9381,
+      "sha256": "066965055ef1a0b431cf1322c7255ef3a983c4f712cdabaf5dfbd1e5c8e76435"
+    },
+    "codeql_summary_projection.json": {
+      "bytes": 6587,
+      "sha256": "d330c1063954c6cd5803426df4e1ad7727d716976872049d140f5f47c12be191"
+    },
+    "codeql_summary_projection.patch": {
+      "bytes": 2876,
+      "sha256": "282378060da1b9929c84ae040cbd99f64b7424874a364a76d6f5f46af47ceba9"
+    },
+    "codeql_summary_projection.py": {
+      "bytes": 14858,
+      "sha256": "009872f453d0e494e59e60ee67c91cc8f97f9e9710f3413feacbc246bd248f2d"
+    },
+    "codeql_summary_projection_dependencies.json.gz": {
+      "bytes": 117234,
+      "sha256": "e14c4a9036d0fcc6116348897c63b78cd1521b95218b39671c992105e9a91735"
+    },
+    "test_codeql_summary_projection.py": {
+      "bytes": 32431,
+      "sha256": "e20517e481140a2e01cbeb9ef07e4d62ce0a4f8e27c591229be51158716e13dc"
+    }
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "recorded_at_utc": "2026-11-11T11:05:45+00:00",
+  "kind": "qperiapt.windows_license_union_fixture_fix",
+  "source": {
+    "repository": "billlza/q-periapt",
+    "workflow_run_id": 42996553264,
+    "job_id": 130442108833,
+    "job_name": "abi2-windows-package-2022",
+    "checkout_commit": "4870db5eff0a611973a302f29e94c0992df66cfe",
+    "checkout_tree": "7d4ca678175170b6c867240727f3908bc2d7c1f1",
+    "job_url": "https://github.com/billlza/q-periapt/actions/runs/42996553264/job/130442108833",
+    "failure_at_utc": "2026-11-11T10:58:35.6381748Z",
+    "test_count": 187,
+    "failures": 1,
+    "skips": 6,
+    "runner": "windows-2022 20261101.353.1",
+    "raw_decoded_log": {
+      "bytes": 101866,
+      "sha256": "c70fd758e21b0d0c165603d17590677b771fe2948dc33821b19ee8814affaeb2"
+    },
+    "gzip_log": {
+      "path": "job-130442108833.log.gz",
+      "bytes": 19196,
+      "sha256": "7efb44f65725db5372dd0b5b9f3fde3cf780b4f33796fb2fffdf1e7579e27999"
+    }
+  },
+  "root_cause": "The synthetic multi-ABI LICENSE fixture used text-mode write_text with a newline. Windows translated LF to CRLF; the existing byte-preservation assertion expected the literal LF bytes. The producer correctly preserved its input bytes.",
+  "fix": {
+    "commit": "a680dba994ad235a6cfea7cd65d7e12ab18c87a6",
+    "tree": "0034c2e2ec8e9708d1ced12ace07654199539972",
+    "base_commit": "9847e6714f3089d1dfec04350aa32d1541f07b74",
+    "file": "artifact/test_third_party_licenses.py",
+    "file_identity": {
+      "bytes": 31777,
+      "sha256": "fc2135ffaf9dfa2752d43f9aa078fc74594e42c74dd07ab2d490c8c3398fdaf5"
+    },
+    "change": "Create the synthetic license with write_bytes and explicit UTF-8 encoding.",
+    "production_collector_and_verifier_unchanged": {
+      "bytes": 37137,
+      "sha256": "2d7ee6080ef833a35b93247454dbc1ecfe27f3d9ffbdb7f2db24e6a6a35bb6b7"
+    },
+    "identity": [
+      "\u6708\u6e85\u661f\u6cb3 <149552943+billlza@users.noreply.github.com>",
+      "\u6708\u6e85\u661f\u6cb3 <149552943+billlza@users.noreply.github.com>"
+    ]
+  },
+  "validation": {
+    "before": {
+      "result": "same hosted assertion reproduced",
+      "tests": 1,
+      "expected_failures": 1,
+      "method": "Patch pathlib.Path.write_text to use newline=CRLF when unspecified; run the existing exact-union test on the unmodified base."
+    },
+    "after": {
+      "result": "passed",
+      "native_tests": 1,
+      "crlf_emulation_tests": 1,
+      "test": "test_third_party_licenses.ThirdPartyLicenseTests.test_multi_target_generation_ships_exact_union_and_retains_each_closure",
+      "runtime": "CPython 3.13.5",
+      "native_windows_rerun_performed": false
+    },
+    "git_diff_check": "passed",
+    "worktree_clean": true
+  },
+  "scope": "One fixture line only; license byte preservation, inventory hashes, collection/verification behavior and CI failure gates are unchanged. No remote state mutation.",
+  "artifacts": {
+    "fixture.patch": {
+      "path": "fixture.patch",
+      "bytes": 875,
+      "sha256": "f28231b0fcaa41ecd6b48e44a33f703f05f28a530f5d7ebc637a9222464fa2e5"
+    },
+    "before-crlf.json": {
+      "path": "before-crlf.json",
+      "bytes": 337,
+      "sha256": "38f5fb550f045964740ea5faced544ab777d8df4b162c839862478de8011de30"
+    },
+    "before-crlf.log": {
+      "path": "before-crlf.log",
+      "bytes": 1304,
+      "sha256": "2f8d64d44d3706a02b9710f34afff3878a41f170056a72ed7cfb7e3cd3f3c678"
+    },
+    "after.json": {
+      "path": "after.json",
+      "bytes": 525,
+      "sha256": "daf910d74697174194a3bdc9ee5136cbcc3be6c1930e39f9b538ea30bdcf1bb5"
+    },
+    "after-native.log": {
+      "path": "after-native.log",
+      "bytes": 299,
+      "sha256": "1b5ced4d9a094ec829cc2e8f97fb3cc57d64c1c1a429ee1699a1755ccac6b626"
+    },
+    "after-crlf.log": {
+      "path": "after-crlf.log",
+      "bytes": 299,
+      "sha256": "8ba569dcab9bf87347ec7ccf3593b30411f627b12e8cfe435bca9c9122899df0"
+    }
+  },
+  "publication_scan": {
+    "private_key_marker_found": false,
+    "personal_access_token_pattern_found": false,
+    "temporary_signed_url_pattern_found": false,
+    "log_transform": "gzip of connector-decoded UTF-8 text, mtime=0; original CRLF and BOM retained"
+  }
+}

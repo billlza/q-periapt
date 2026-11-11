@@ -1,0 +1,482 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 542ee3fe..85d274c0 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -2,7 +2,9 @@ name: ci
+ 
+ on:
+   push:
+-    branches: [main, integration/sdk-020]
++    # Candidate branches are covered by pull_request. Running integration
++    # pushes as well creates a second full matrix for the same revision.
++    branches: [main]
+     tags: ['**']
+   pull_request:
+   workflow_dispatch:
+diff --git a/.github/workflows/codeql-log-recovery.yml b/.github/workflows/codeql-log-recovery.yml
+index 7359ce5a..dc181348 100644
+--- a/.github/workflows/codeql-log-recovery.yml
++++ b/.github/workflows/codeql-log-recovery.yml
+@@ -1,12 +1,7 @@
+ name: Retained CodeQL query-log recovery
+ 
+ on:
+-  push:
+-    branches: [integration/sdk-020]
+-    paths:
+-      - .github/workflows/codeql-log-recovery.yml
+-      - artifact/codeql_log_recovery.py
+-      - artifact/test_codeql_log_recovery.py
++  workflow_dispatch:
+ 
+ permissions:
+   contents: read
+diff --git a/.github/workflows/codeql-memory-control.yml b/.github/workflows/codeql-memory-control.yml
+index 1e203cae..67a87b58 100644
+--- a/.github/workflows/codeql-memory-control.yml
++++ b/.github/workflows/codeql-memory-control.yml
+@@ -1,13 +1,6 @@
+ name: CodeQL evaluator control
+ 
+ on:
+-  push:
+-    branches: [lza/sdk-020-alpha1]
+-    paths:
+-      - .github/workflows/codeql-memory-control.yml
+-      - artifact/codeql_memory_control.py
+-      - artifact/codeql_memory_queries.json
+-      - artifact/test_codeql_memory_control.py
+   workflow_dispatch:
+ 
+ permissions:
+diff --git a/.github/workflows/codeql-summary-control.yml b/.github/workflows/codeql-summary-control.yml
+index 099c53f5..9247353c 100644
+--- a/.github/workflows/codeql-summary-control.yml
++++ b/.github/workflows/codeql-summary-control.yml
+@@ -4,25 +4,19 @@ on:
+   workflow_dispatch:
+     inputs:
+       summary_plan_mode:
+-        description: Full SummaryStats plan (all selects the fixed experimental capsule)
++        description: Full SummaryStats plan (all and projection select fixed experimental capsules)
+         type: choice
+-        options: [none, all]
++        required: true
++        options: [none, all, projection]
+         default: none
++  # Updating this dedicated ref is an explicit experiment request. Keep this
++  # entry point while dispatch is unavailable to the publishing client; normal
++  # candidate pushes and pull requests never start retained-database experiments.
+   push:
+-    branches: [diagnostic/codeql-summary-cache, diagnostic/codeql-summary-joins]
+-    paths:
+-      - .github/workflows/codeql-summary-control.yml
+-      - artifact/codeql_summary_control.py
+-      - artifact/test_codeql_summary_control.py
+-      - artifact/codeql_process_resources.py
+-      - artifact/test_codeql_process_resources.py
+-      - artifact/codeql_summary_plan.py
+-      - artifact/test_codeql_summary_plan.py
+-      - artifact/codeql_summary_dynamic_plan.json
+-      - artifact/codeql-summary-dynamic-plan.zip
++    branches: [diagnostic/codeql-summary-projection]
+ 
+ env:
+-  SUMMARY_PLAN_MODE: ${{ (github.event_name == 'push' && github.ref_name == 'diagnostic/codeql-summary-joins' && 'all') || (github.event_name == 'workflow_dispatch' && inputs.summary_plan_mode) || 'none' }}
++  SUMMARY_PLAN_MODE: ${{ (github.event_name == 'push' && github.ref_name == 'diagnostic/codeql-summary-projection' && 'projection') || inputs.summary_plan_mode }}
+ 
+ permissions:
+   contents: read
+@@ -57,6 +51,13 @@ jobs:
+             artifact/test_codeql_summary_plan.py
+             artifact/codeql_summary_dynamic_plan.json
+             artifact/codeql-summary-dynamic-plan.zip
++            artifact/codeql_summary_projection.py
++            artifact/test_codeql_summary_projection.py
++            artifact/codeql_summary_projection.json
++            artifact/codeql_summary_projection_dependencies.json.gz
++            artifact/codeql_summary_projection.patch
++            artifact/codeql-summary-projection-plan.zip
++            artifact/codeql-summary-projection-plan.LICENSE
+             artifact/codeql_log_recovery.py
+             artifact/codeql_rust_queries.json
+             artifact/bounded_process.py
+@@ -66,7 +67,7 @@ jobs:
+             artifact/python_bootstrap.py
+       - name: Check exact inputs, fresh results and strict paired comparison
+         timeout-minutes: 2
+-        run: sh artifact/python-run.sh -m unittest -v test_codeql_summary_control test_codeql_process_resources test_codeql_summary_plan
++        run: sh artifact/python-run.sh -m unittest -v test_codeql_summary_control test_codeql_process_resources test_codeql_summary_plan test_codeql_summary_projection
+       - name: Install the authenticated Rust CLI 2.27.2 bundle
+         timeout-minutes: 12
+         run: |
+@@ -122,6 +123,12 @@ jobs:
+             artifact/codeql_summary_plan.py
+             artifact/codeql_summary_dynamic_plan.json
+             artifact/codeql-summary-dynamic-plan.zip
++            artifact/codeql_summary_projection.py
++            artifact/codeql_summary_projection.json
++            artifact/codeql_summary_projection_dependencies.json.gz
++            artifact/codeql_summary_projection.patch
++            artifact/codeql-summary-projection-plan.zip
++            artifact/codeql-summary-projection-plan.LICENSE
+             artifact/codeql_log_recovery.py
+             artifact/codeql_rust_queries.json
+             artifact/bounded_process.py
+diff --git a/artifact/codeql_rust_profile.py b/artifact/codeql_rust_profile.py
+index ba5a8817..955fc8ff 100644
+--- a/artifact/codeql_rust_profile.py
++++ b/artifact/codeql_rust_profile.py
+@@ -3,6 +3,7 @@ from __future__ import annotations
+ 
+ import argparse
+ import contextlib
++from datetime import datetime, timezone
+ import json
+ import os
+ from pathlib import Path
+@@ -89,7 +90,11 @@ class ProfileRun:
+     def command(self, label: str, argv: list[str], *, cwd: Path | None = None, seconds=900,
+                 timeout_policy: TimeoutPolicy = TimeoutPolicy.STANDARD):
+         started = time.monotonic()
+-        record = {"argv": argv, "cwd": str(cwd or self.root), "maximum_seconds": seconds}
++        record = {"argv": argv, "cwd": str(cwd or self.root), "maximum_seconds": seconds,
++                  "invoked_at_utc": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
++                  "source_commit": self.environment.get("CODEQL_EXPECTED_COMMIT"),
++                  "run_id": self.environment.get("GITHUB_RUN_ID"),
++                  "run_attempt": self.environment.get("GITHUB_RUN_ATTEMPT")}
+         try:
+             # Stream bounded diagnostics into fresh evidence files while the
+             # child runs. A timeout still fails, with the emitted query progress
+@@ -97,6 +102,11 @@ class ProfileRun:
+             with (self.evidence / (label + ".stdout")).open("xb") as stdout, \
+                     (self.evidence / (label + ".stderr")).open("xb") as stderr, \
+                     contextlib.chdir(cwd or self.root):
++                # This receipt precedes the supervisor call, so a killed worker
++                # still records which command was invoked and when. It is not
++                # a completion receipt or the subprocess's exact deadline.
++                sdk.write_json(self.evidence / (label + ".started.json"), record)
++                print(f"{label} invoked at {record['invoked_at_utc']} (bound {seconds}s)", flush=True)
+                 result = capture_output(argv, timeout_seconds=seconds, maximum_stdout_bytes=32 * 1024**2,
+                                         maximum_stderr_bytes=16 * 1024**2, environment=self.environment,
+                                         stdout_sink=stdout.write, stderr_sink=stderr.write,
+@@ -105,10 +115,12 @@ class ProfileRun:
+             sdk.write_json(self.evidence / (label + ".json"), {
+                 **record, "completed": False, "boundary": exc.kind, "reason": str(exc),
+                 "cleanup_ambiguous": exc.cleanup_ambiguous, "elapsed_seconds": time.monotonic() - started,
++                "finished_at_utc": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+             })
+             raise
+         sdk.write_json(self.evidence / (label + ".json"), {
+             **record, "returncode": result.returncode, "elapsed_seconds": time.monotonic() - started,
++            "finished_at_utc": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+         })
+         sdk.require(result.returncode == 0, "command failed: " + label)
+         sdk.require(re.search(rb"(?im)^\s*(?:warning|error|fatal)\b", result.stderr) is None,
+diff --git a/artifact/codeql_workflows.md b/artifact/codeql_workflows.md
+new file mode 100644
+index 00000000..588598b0
+--- /dev/null
++++ b/artifact/codeql_workflows.md
+@@ -0,0 +1,92 @@
++# CodeQL scheduling and evidence flow
++
++## Automatic checks and explicit experiments
++
++| Workflow | Trigger | Purpose |
++| --- | --- | --- |
++| `ci.yml` | All pull requests; pushes to `main`; tags; manual dispatch | Complete candidate and release checks. An integration branch with an open PR gets one automatic matrix for that revision. |
++| `codeql.yml` | Pull requests into `main`; pushes to `main`; weekly schedule; manual dispatch | Current-source security analysis and Rust target coverage. |
++| `codeql-summary-control.yml` | Manual dispatch with `none`, `all`, or `projection`; push to `diagnostic/codeql-summary-projection` selects `projection` | Two allocation arms over one fixed retained database, followed by complete-result comparison. |
++| `codeql-memory-control.yml` | Manual dispatch | Retained-database evaluator allocation controls. |
++| `codeql-log-recovery.yml` | Manual dispatch | Recover logs from the fixed historical artifact. |
++
++The previous SDK head `4870db5eff0a611973a302f29e94c0992df66cfe`
++started both [CI run 42996581287](https://github.com/billlza/q-periapt/actions/runs/42996581287)
++and [CI run 42996553264](https://github.com/billlza/q-periapt/actions/runs/42996553264).
++The `integration/sdk-020` push and PR events selected the same full CI jobs;
++their event-specific concurrency groups allowed both matrices to run.
++Removing that push subscription preserves every job and required context,
++the PR merge checkout, and independent checks of the eventual `main` commit.
++Production CodeQL already used the separate PR/main trigger policy.
++
++Updating `diagnostic/codeql-summary-projection` is an explicit request to run
++the retained projection experiment. It is a launch ref, not a development or
++candidate branch. The older cache/joins diagnostic refs no longer start
++experiments on push. This dedicated entry point also supports publishing
++clients without a dispatch capability. Once dispatch is available, an
++authenticated operator can select the exact experiment revision and mode:
++
++```sh
++gh workflow run codeql-summary-control.yml \
++  --ref <experiment-ref> -f summary_plan_mode=projection
++```
++
++GitHub documents the default-branch requirement for the web dispatch button
++and API/CLI dispatch against a selected ref after a workflow has run. See
++[workflow dispatch](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch).
++The push entry point is fixed to one ref and one mode; a mode is never inferred
++from an ordinary SDK or PR branch name.
++
++## Responsibilities and completion
++
++| Component | Responsibility |
++| --- | --- |
++| `codeql_rust_profile.py` | Compile and extract each current Rust target, validate active source and macro coverage, resolve the pinned suite, execute all 39 queries, and bind the complete results to source, target, tool, memory policy, and workflow identity. |
++| `codeql_rust_transfer.py` | Seal the native macOS extraction for its Linux query worker, verify the archive and source identities, and exclude previous query results from that transfer. |
++| `codeql_rust_publication.py` | Validate all three profile receipts, paired target coverage, complete query inventories, and SARIF identities before publishing the established Rust categories. |
++| `codeql_summary_control.py` | Restore the exact retained database and verified cache, run fresh results in both allocation arms, and compare complete semantic results under an explicitly selected plan mode. |
++| `codeql_summary_plan.py` / `codeql_summary_projection.py` | Admit their fixed experimental capsules and verify the effective plan and source/dependency identities. The controller owns execution and comparison. |
++
++Production publication depends on successful native, WASM, macOS extraction,
++and macOS analysis jobs. GitHub's [`needs` semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idneeds)
++prevent it from running after a failed producer. Publication then validates
++the artifacts before any SARIF upload. A full SummaryStats result is part of
++the 39-query completion requirement; 38 completed queries leave the analysis
++incomplete. Diagnostic uploads run on failure so that query progress remains
++available without changing that outcome.
++
++The retained experiment uses the fixed `56f191f04a57806869b8a03078ee4d27ffe900ab`
++database. Its cache is admitted by the existing exact inventory and hashes;
++fresh BQRS outputs and semantic results are checked separately. Both arms
++receive the same selected capsule, and the comparison uses the same explicit
++mode. `projection` names a source transformation; the evaluator's dynamic join
++setting remains `all`, so those two names must not be treated as interchangeable
++experiment identities.
++
++A successful allocation comparison certifies complete equivalent results for
++that fixed database and selected plan. Production continues to run its pinned
++upstream suite on the current target extractions. Moving an experimental plan
++into that flow requires binding its effective source/plan identity and complete
++results into the current profile and publication receipts; an old result or
++warm cache is not a substitute for current-source analysis.
++
++## Reading long-running command evidence
++
++Each profile command writes `<label>.started.json` immediately before invoking
++the bounded subprocess supervisor. It records the UTC invocation time, selected
++argv and directory, time bound, source commit, run ID, and attempt. The same
++timestamp is included in `<label>.json` when the supervisor returns or reports
++a bounded failure, together with the finish time and measured elapsed time.
++Raw stdout and stderr continue to stream into their existing files.
++
++An invocation receipt identifies an entered command, not a completed query.
++Its timestamp precedes supervisor setup and is not the subprocess's exact
++deadline; an Actions step timestamp may precede it by substantially more.
++Completion is established by the existing analysis and publication receipts.
++If a worker is killed before it writes a final receipt, the start record and
++streamed logs preserve the last observed state.
++
++The focused scheduling contracts are in `test_codeql_workflow_contract.py`
++and are discovered by the ordinary CI artifact test step. Existing profile,
++publication, transfer, and summary-controller tests exercise incomplete
++results, source binding, target identity, and failure propagation.
+diff --git a/artifact/test_codeql_rust_profile.py b/artifact/test_codeql_rust_profile.py
+index afe2b623..3f87a3e9 100644
+--- a/artifact/test_codeql_rust_profile.py
++++ b/artifact/test_codeql_rust_profile.py
+@@ -3,6 +3,7 @@ from __future__ import annotations
+ import copy
+ import contextlib
+ import dataclasses
++from datetime import datetime, timezone
+ import hashlib
+ import json
+ import os
+@@ -615,6 +616,9 @@ class RustProfileTests(unittest.TestCase):
+                             "import sys,time;print('query started',flush=True);"
+                             "print('query diagnostic',file=sys.stderr,flush=True);time.sleep(5)"], seconds=1)
+             record = json.loads((run.evidence / "timeout.json").read_text())
++            launch = json.loads((run.evidence / "timeout.started.json").read_text())
++            self.assertEqual(record["invoked_at_utc"], launch["invoked_at_utc"])
++            self.assertEqual(datetime.fromisoformat(record["finished_at_utc"]).tzinfo, timezone.utc)
+             self.assertFalse(record["completed"])
+             self.assertEqual(record["boundary"], "timeout")
+             self.assertFalse(record["cleanup_ambiguous"])
+@@ -622,6 +626,42 @@ class RustProfileTests(unittest.TestCase):
+             self.assertEqual((run.evidence / "timeout.stderr").read_text(), "query diagnostic\n")
+             self.assertFalse((run.evidence / "ANALYSIS.json").exists())
+ 
++    def test_command_invocation_is_visible_to_the_child_before_completion(self) -> None:
++        with tempfile.TemporaryDirectory() as temporary:
++            root = Path(temporary)
++            environment = dict(os.environ, CODEQL_EXPECTED_COMMIT="a" * 40,
++                               GITHUB_RUN_ID="123", GITHUB_RUN_ATTEMPT="2")
++            run = ProfileRun(root, root / "run", Path(sys.executable), environment)
++            launch_path = run.evidence / "observe.started.json"
++            completion_path = run.evidence / "observe.json"
++            command = [sys.executable, "-c",
++                       "import json, pathlib, sys; "
++                       "value=json.loads(pathlib.Path(sys.argv[1]).read_text()); "
++                       "assert not pathlib.Path(sys.argv[2]).exists(); "
++                       "print(value['source_commit'], value['run_id'], value['run_attempt'])",
++                       str(launch_path), str(completion_path)]
++            self.assertEqual(run.command("observe", command, seconds=10), ("a" * 40 + " 123 2\n").encode())
++            launch = json.loads(launch_path.read_text())
++            final = json.loads(completion_path.read_text())
++            self.assertEqual(launch["argv"], command)
++            self.assertEqual(launch["maximum_seconds"], 10)
++            self.assertEqual(datetime.fromisoformat(launch["invoked_at_utc"]).tzinfo, timezone.utc)
++            self.assertEqual(final["invoked_at_utc"], launch["invoked_at_utc"])
++            self.assertEqual(final["returncode"], 0)
++            self.assertNotIn("completed", launch)
++            self.assertFalse((run.evidence / "ANALYSIS.json").exists())
++
++    def test_interrupted_worker_retains_invocation_without_fabricating_completion(self) -> None:
++        with tempfile.TemporaryDirectory() as temporary:
++            root = Path(temporary)
++            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
++            with mock.patch.object(profile_module, "capture_output", side_effect=KeyboardInterrupt), \
++                    self.assertRaises(KeyboardInterrupt):
++                run.command("interrupted", [sys.executable, "-c", "pass"])
++            self.assertTrue((run.evidence / "interrupted.started.json").is_file())
++            self.assertFalse((run.evidence / "interrupted.json").exists())
++            self.assertFalse((run.evidence / "ANALYSIS.json").exists())
++
+     def test_full_and_reduced_summary_queries_are_both_required_by_the_pinned_suite(self) -> None:
+         pinned = json.loads((profile_module.ROOT / "artifact/codeql_rust_queries.json").read_text())
+         inventory = pinned["queries"]
+diff --git a/artifact/test_codeql_workflow_contract.py b/artifact/test_codeql_workflow_contract.py
+new file mode 100644
+index 00000000..651e3a2b
+--- /dev/null
++++ b/artifact/test_codeql_workflow_contract.py
+@@ -0,0 +1,138 @@
++"""Scheduling and publication contracts shared by the CodeQL workflows."""
++from __future__ import annotations
++
++from pathlib import Path
++import re
++import unittest
++
++
++ROOT = Path(__file__).resolve().parents[1]
++WORKFLOWS = ROOT / ".github/workflows"
++
++
++def mapping(text: str, key: str, indentation: int = 0) -> str:
++    """Read one block in the repository's block-style workflow mappings."""
++    lines = text.splitlines(keepends=True)
++    prefix = " " * indentation + key + ":"
++    starts = [index for index, line in enumerate(lines)
++              if line.startswith(prefix) and line[len(prefix):].strip() == ""]
++    if len(starts) != 1:
++        raise AssertionError(f"expected one workflow mapping: {key}")
++    start = starts[0]
++    for end in range(start + 1, len(lines)):
++        line = lines[end]
++        if line.strip() and not line.lstrip().startswith("#") \
++                and len(line) - len(line.lstrip()) <= indentation:
++            return "".join(lines[start:end])
++    return "".join(lines[start:])
++
++
++def keys(block: str, indentation: int) -> set[str]:
++    return set(re.findall(r"^" + " " * indentation + r"([a-z_][a-z0-9_-]*):", block, re.MULTILINE))
++
++
++class CodeQLWorkflowContractTests(unittest.TestCase):
++    def read(self, name: str) -> str:
++        return (WORKFLOWS / name).read_text(encoding="utf-8")
++
++    def test_candidate_ci_has_one_automatic_matrix_without_losing_release_or_pr_checks(self) -> None:
++        workflow = self.read("ci.yml")
++        triggers = mapping(workflow, "on")
++        self.assertEqual(keys(triggers, 2), {"push", "pull_request", "workflow_dispatch"})
++        push = mapping(triggers, "push", 2)
++        self.assertEqual(re.findall(r"^    branches: (.+)$", push, re.MULTILINE), ["[main]"])
++        self.assertEqual(re.findall(r"^    tags: (.+)$", push, re.MULTILINE), ["['**']"])
++        # Required jobs must still run for every PR; path filters would leave
++        # protected contexts pending on unrelated-looking source changes.
++        self.assertEqual(keys(mapping(triggers, "pull_request", 2), 4), set())
++        self.assertIn("unittest discover -s artifact -p 'test_*.py' -v", workflow)
++
++    def test_production_codeql_keeps_pr_main_and_periodic_coverage(self) -> None:
++        triggers = mapping(self.read("codeql.yml"), "on")
++        self.assertEqual(keys(triggers, 2), {"push", "pull_request", "schedule", "workflow_dispatch"})
++        for event in ("push", "pull_request"):
++            block = mapping(triggers, event, 2)
++            self.assertEqual(keys(block, 4), {"branches"})
++            self.assertIn("branches: [main]", block)
++
++    def test_retained_auxiliary_diagnostics_require_an_explicit_dispatch(self) -> None:
++        for filename in ("codeql-memory-control.yml", "codeql-log-recovery.yml"):
++            with self.subTest(workflow=filename):
++                self.assertEqual(keys(mapping(self.read(filename), "on"), 2), {"workflow_dispatch"})
++
++    def test_projection_push_is_an_explicit_opt_in_with_an_unambiguous_plan(self) -> None:
++        workflow = self.read("codeql-summary-control.yml")
++        triggers = mapping(workflow, "on")
++        self.assertEqual(keys(triggers, 2), {"push", "workflow_dispatch"})
++        push = mapping(triggers, "push", 2)
++        self.assertEqual(re.findall(r"^    branches: (.+)$", push, re.MULTILINE),
++                         ["[diagnostic/codeql-summary-projection]"])
++        dispatch = mapping(triggers, "workflow_dispatch", 2)
++        self.assertIn("options: [none, all, projection]", dispatch)
++        self.assertIn("required: true", dispatch)
++        self.assertIn("default: none", dispatch)
++        self.assertIn("SUMMARY_PLAN_MODE: ${{ (github.event_name == 'push' && "
++                      "github.ref_name == 'diagnostic/codeql-summary-projection' && 'projection') "
++                      "|| inputs.summary_plan_mode }}", mapping(workflow, "env"))
++        self.assertNotIn("diagnostic/codeql-summary-joins", workflow)
++        self.assertNotIn("diagnostic/codeql-summary-cache", workflow)
++
++    def test_both_summary_workers_receive_the_same_projection_capsule_and_mode(self) -> None:
++        workflow = self.read("codeql-summary-control.yml")
++        runtime_files = {
++            "artifact/codeql_summary_projection.py",
++            "artifact/codeql_summary_projection.json",
++            "artifact/codeql_summary_projection_dependencies.json.gz",
++            "artifact/codeql_summary_projection.patch",
++            "artifact/codeql-summary-projection-plan.zip",
++            "artifact/codeql-summary-projection-plan.LICENSE",
++            "artifact/codeql_summary_plan.py",
++            "artifact/codeql_summary_dynamic_plan.json",
++            "artifact/codeql-summary-dynamic-plan.zip",
++        }
++        for name in ("evaluate", "compare"):
++            job = mapping(workflow, name, 2)
++            with self.subTest(job=name):
++                paths = set(re.findall(r"^            (artifact/\S+)$", job, re.MULTILINE))
++                self.assertLessEqual(runtime_files, paths)
++                self.assertEqual(job.count('--summary-plan-mode "$SUMMARY_PLAN_MODE"'), 1)
++                self.assertNotIn("continue-on-error:", job)
++        evaluate = mapping(workflow, "evaluate", 2)
++        self.assertIn("artifact/test_codeql_summary_projection.py", evaluate)
++        self.assertRegex(evaluate, r"run: sh artifact/python-run.sh -m unittest -v [^\n]+ test_codeql_summary_projection\n")
++
++    def test_summary_comparison_keeps_both_fresh_complete_results_and_failure_evidence(self) -> None:
++        workflow = self.read("codeql-summary-control.yml")
++        evaluate = mapping(workflow, "evaluate", 2)
++        compare = mapping(workflow, "compare", 2)
++        self.assertIn("profile: [heap-2048, heap-1536]", evaluate)
++        self.assertIn("fail-fast: false", evaluate)
++        self.assertIn("Run all 39 queries", evaluate)
++        self.assertIn("    needs: evaluate\n", compare)
++        self.assertIn("    if: always()\n", compare)
++        self.assertIn("Admit identical inputs and all 39 complete fresh semantic results", compare)
++        for profile in ("heap-2048", "heap-1536"):
++            self.assertIn("name: codeql-summary-control-" + profile, compare)
++            self.assertIn("/" + profile + "/RESULT.json", compare)
++        self.assertIn("if-no-files-found: error", evaluate)
++        self.assertIn("if-no-files-found: error", compare)
++
++    def test_rust_publication_waits_for_every_profile_and_validation_before_upload(self) -> None:
++        job = mapping(self.read("codeql.yml"), "rust-publication", 2)
++        header, steps = job.split("    steps:\n", 1)
++        self.assertIn("needs: [rust, rust-macos-prepare, rust-macos-analyze]", header)
++        # A producer failure must prevent publication, including when receipts
++        # from an earlier successful run attempt are still downloadable.
++        self.assertNotIn("if:", header)
++        self.assertNotIn("continue-on-error:", job)
++        validation = steps.index("artifact/codeql_rust_publication.py")
++        uploads = list(re.finditer(r"uses: github/codeql-action/upload-sarif@", steps))
++        self.assertEqual(len(uploads), 3)
++        self.assertTrue(all(upload.start() > validation for upload in uploads))
++        for category in ("/language:rust", "/language:rust/target:wasm", "/language:rust/target:macos"):
++            self.assertEqual(len(re.findall(r"^          category: " + re.escape(category) + "$",
++                                           steps, re.MULTILINE)), 1)
++
++
++if __name__ == "__main__":
++    unittest.main()

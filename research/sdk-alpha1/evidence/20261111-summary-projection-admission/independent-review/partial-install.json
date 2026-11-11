@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "recorded_at_utc": "2026-11-11T10:59:33+00:00",
+  "kind": "independent_projection_partial_install_control",
+  "result": "passed",
+  "fixture": "Synthetic source inventory from pack_case, real fixed projection capsule; temporary directory only.",
+  "injected_failure": "Second atomic replacement raises after the vendor source has already been replaced.",
+  "installation_error": "independent injected failure after vendor replacement",
+  "mixed_state_validation_error": "projection compiled query inventory differs",
+  "retry_error": "projection dependency source: codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll differs",
+  "source_replaced": true,
+  "plan_replaced": false,
+  "completed_plan_receipt_written": false,
+  "mixed_state_accepted": false,
+  "partial_pack_accepted_as_baseline": false,
+  "scope": "No compilation, evaluator, source-tree mutation, or shared-pack mutation."
+}

@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "recorded_at_utc": "2026-11-11T10:55:57+00:00",
+  "repository": "billlza/q-periapt",
+  "base_commit": "9847e6714f3089d1dfec04350aa32d1541f07b74",
+  "base_tree": "7d4ca678175170b6c867240727f3908bc2d7c1f1",
+  "equivalent_published_base": "4870db5eff0a611973a302f29e94c0992df66cfe",
+  "commit": "e2f792979678c560df261401d9834f7b818addfa",
+  "tree": "028f649a69b778eddd417c9ae282f1c0175ad639",
+  "identity": [
+    "月溅星河 <149552943+billlza@users.noreply.github.com>",
+    "月溅星河 <149552943+billlza@users.noreply.github.com>"
+  ],
+  "files": {
+    ".github/workflows/ci.yml": {
+      "bytes": 166748,
+      "sha256": "2cece937d2bacc994d8834929751a9075b06dbcac3315683fe44af4417a35ebe"
+    },
+    ".github/workflows/codeql-log-recovery.yml": {
+      "bytes": 1223,
+      "sha256": "c9072e6bafcda880f6f9aae49149b093b62bd4d31f220b6b185e8a4a32befee4"
+    },
+    ".github/workflows/codeql-memory-control.yml": {
+      "bytes": 2042,
+      "sha256": "cebc1acc6040e629503907b7180f5a922556249eecbc70f22fcacec72b47703b"
+    },
+    ".github/workflows/codeql-summary-control.yml": {
+      "bytes": 7378,
+      "sha256": "df8e50188870cca2ac7151653410b85c2f431cf9fb473b9927ab2585bf0d7d84"
+    },
+    "artifact/codeql_rust_profile.py": {
+      "bytes": 28938,
+      "sha256": "c3f05df1f380be6ff691067b435acaaee173745f2eb6e165151a49965f28dc3c"
+    },
+    "artifact/codeql_workflows.md": {
+      "bytes": 6429,
+      "sha256": "46e60a3747a9b5a255daf1b1dfb8b83cf93afeb01c451e92ede867690cbb424a"
+    },
+    "artifact/test_codeql_rust_profile.py": {
+      "bytes": 47687,
+      "sha256": "74fe5c3d3b43ca74c36ab88d38524a8dc726b6a4f12559db88e01c501fde6b62"
+    },
+    "artifact/test_codeql_workflow_contract.py": {
+      "bytes": 7513,
+      "sha256": "25611bec142b5b118a51aebb4bd7a90e4cf61ec4bdfbfae521aecf7044841c2b"
+    }
+  },
+  "patch": {
+    "path": "scheduling.patch",
+    "bytes": 27265,
+    "sha256": "a8c2cf50b6733037bca4ec74468460bbb4f92ae0538a1223c5669b9af44901a7"
+  },
+  "validation": {
+    "tests": {
+      "count": 80,
+      "status": "passed",
+      "elapsed_seconds": 1.614,
+      "command": "sh artifact/python-run.sh -m unittest -v test_codeql_workflow_contract test_codeql_rust_profile test_codeql_rust_publication test_codeql_rust_transfer",
+      "runtime": "CPython 3.13.5",
+      "result": {
+        "path": "tests-final-chunk.json",
+        "bytes": 8572,
+        "sha256": "d97b6fc89ef82b3b3005fd03cab8d9faf454a2aaa6de21ca3b3614de1f667148"
+      }
+    },
+    "ci_job_definitions_byte_identical": {
+      "bytes": 165861,
+      "sha256": "f3f2a0c2abcd330c00022529814aed6b390358da63052ed7996fad02fe0746a9"
+    },
+    "production_codeql_workflow_byte_identical": {
+      "bytes": 22552,
+      "sha256": "993751e65be27d56907d1e996419533060a81d507964d41148241a6d8c191378"
+    },
+    "git_diff_check": "passed",
+    "clean_worktree": true
+  },
+  "integration_dependency": "Combine with the separate explicit projection controller/module/capsule change before publishing the summary workflow; this commit does not include those assets.",
+  "boundaries": [
+    "The 80 checks validate scheduling, invocation evidence, profile/publication and transfer contracts; they do not execute the hosted 39-query experiment.",
+    "No queries, current-source quality gates, failure semantics, or required CI job definitions changed.",
+    "No remote branch, pull request, workflow run, or alert state was modified."
+  ],
+  "primary_documentation": [
+    "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch",
+    "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idneeds"
+  ]
+}
