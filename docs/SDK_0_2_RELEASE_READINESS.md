@@ -7,31 +7,44 @@ current-source evidence. The user's latest direction is **retain ABI major 2**.
 
 ## Current verification and maintenance checkpoint (2026-11-11)
 
-The [fixed-workload CodeQL readback](https://github.com/billlza/q-periapt/blob/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-join-outcome/README.md)
-identifies a concrete remaining analysis-completion defect. Hosted run
-`42956070561` applied the admitted fixed `all` join plan to the retained Rust
-database for source `56f191f04a57806869b8a03078ee4d27ffe900ab`, with separate
-1,536 MiB and 2,048 MiB heap arms. Both reached the 18,000-second supervisor
-bound after producing 38 of the 39 required fresh results. All 38 results were
-decoded independently and matched between arms and against their retained
-references; the full `SummaryStats` result remains the outstanding member of
-that workload. The original artifacts, source and plan identities, timeout
-outcomes and decoded-result comparisons are preserved in the readback.
+The [current production analysis path](../artifact/codeql_summary_projection.md)
+selects the fixed Stage3 and Stage4 read-target projection for all three Rust
+targets. Each forward recurrence carries its six consumed target columns; the
+complete eleven-column read relation is reconstructed for downstream consumers.
+The complete 39-query suite, source and runtime identities, actual allocation,
+fresh results and target-specific publication checks remain bound together.
 
-Analysis completion and turnaround are part of the SDK's maintenance cost.
-The [resource and phase comparison](https://github.com/billlza/q-periapt/blob/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-join-outcome/performance/COMPARISON.md)
-locates the remaining work in the recursive read and forward-flow relations.
-A [source-bound projection prototype](https://github.com/billlza/q-periapt/blob/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-target-projection/README.md)
-preserves the full read relation for its downstream consumers while giving the
-recursive Stage4 consumer a six-column target relation. Its source equivalence
-argument, compiled plan and complete capsule are recorded. The next execution
-checkpoint is complete result equality and completion under the declared
-budget; these results determine adoption of the candidate.
+The [hosted nonempty wrapper](https://github.com/billlza/q-periapt/actions/runs/43048934821)
+qualifies production source `b5185165283880527a54289b47397fde78ddf553` through a
+fresh official-fixture extraction, all 39 precompiled queries, SARIF validation
+and full equality of the 29 decoded `SummaryStats` rows to the retained baseline.
+Extraction took 40.858 seconds and the full analysis command took 71.723 seconds
+on that hosted fixture with the declared 14,000-MB budget and four threads.
+The [earlier three-plan comparison](https://github.com/billlza/q-periapt/tree/99340939848d290191651ab306d1b5edc0f59df2/research/sdk-alpha1/evidence/20261111-summary-stage34-projection)
+also establishes complete equality for the `all`, Stage4 and Stage3/Stage4 plans,
+including 15 active sources and 106 tainted nodes. The final
+[293-control regression](https://github.com/billlza/q-periapt/tree/276fb972a207722e03222b2771236672de4e9145/research/sdk-alpha1/evidence/20261111-codeql-completion-receipt-fix)
+passes in 10.577 seconds on the same production tree.
 
-The [SDK performance record](SDK_PERFORMANCE.md) reports measurements of actual
-compiled C and Swift boundary operations. This ledger separately records the
-verification work needed to maintain those implementations. Both runtime
-behavior and verification turnaround contribute to the engineering assessment.
+Verification jobs now queue independently by language or Rust target, and the
+ordinary SDK matrix runs once per PR revision. The producer and publisher check
+the complete per-query completion set against the original retained stderr;
+internal logs supply independent query-load, start and allocation observations.
+The shared bounded reader also provides live progress. The extractor explicitly
+loads all 68 authenticated archive snapshots into its file view, and CLI options
+follow the command interfaces supported by the pinned version. Android API 23
+framework discovery uses an exact process query while preserving the existing
+identity, stability and deadline checks.
+
+The [retained fixed-workload benchmark](https://github.com/billlza/q-periapt/tree/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-join-outcome)
+records the earlier `all`-plan long tail: both allocation arms reached their
+five-hour bound with 38 equal fresh results. Its phase and resource evidence
+guided the projection work. Current-source native, WASM and macOS qualification
+provides the next complete target results and turnaround measurements.
+
+The [SDK performance record](SDK_PERFORMANCE.md) reports measured compiled C
+and Swift boundary-operation costs. This checkpoint records the completion,
+observability and resource cost of maintaining those implementations.
 
 ## Completed hosted checkpoint (2026-11-07)
 

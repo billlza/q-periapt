@@ -115,8 +115,8 @@ This accounts for the pinned CLI retaining all 39 completion messages on
 stderr while its internal log can omit individual progress messages.
 
 Production and diagnostic execution share the bounded evaluator-log reader.
-Normal production verbosity records query progress without the much larger
-relation-level trace. A display-only sink prints completion counts for distinct
+The production command selects progress verbosity. A display-only sink prints
+completion counts for distinct
 admitted queries as stderr arrives; the original byte stream is retained.
 Completion and publication still depend on the full result receipts.
 

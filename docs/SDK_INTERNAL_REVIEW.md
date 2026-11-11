@@ -8,22 +8,37 @@ kept separate from completed observations.
 
 ## Verification turnaround and maintenance cost
 
-Maintenance includes the time and resources needed to obtain complete analysis
-results. The [2026-11-11 fixed-workload CodeQL readback](https://github.com/billlza/q-periapt/blob/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-join-outcome/README.md)
-records two hosted full-summary attempts on the retained database for source
-`56f191f04a57806869b8a03078ee4d27ffe900ab`. Both exhausted their five-hour bound
-with 38 of 39 fresh query results. Independent decoding establishes equality
-of all 38 completed results to their references and between the two arms. The
-remaining full `SummaryStats` computation is therefore a specific open
-engineering issue, and its completion cost belongs in this maintainability
-review alongside the implementation boundaries below.
+Verification turnaround is part of implementation maintenance. The
+[current production path](../artifact/codeql_summary_projection.md) uses the
+fixed Stage3 and Stage4 target projection and retains all 39 selected queries.
+It authenticates the private runtime and effective dependencies, checks their
+identities after execution, and joins the three current target receipts before
+publication. The shared bounded reader keeps query observation and completion
+parsing in one implementation.
 
-The retained timeout diagnostics and complete partial-result readback make the
-failure reproducible and preserve completed analysis work. The
-[projection prototype](https://github.com/billlza/q-periapt/blob/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-target-projection/README.md)
-addresses the wide recursive read relation identified by the evaluator logs.
-Its source argument and compiled plan are available for review; complete
-runtime results under the fixed workload and budget govern its adoption.
+The [complete hosted wrapper](https://github.com/billlza/q-periapt/actions/runs/43048934821)
+passes on production source `b5185165283880527a54289b47397fde78ddf553`, with
+39 fresh results, 39 precompiled loads, zero compilation, valid SARIF and full
+29-row `SummaryStats` equality on the accepted nonempty fixture. Its predecessor
+completed the same 39-query command but exposed a difference between the internal
+log and stderr completion messages. The successful full analysis took 71.723
+seconds with the declared 14,000-MB budget and four threads. The version-two
+plan receipt now binds the
+complete distinct query set, byte count and digest of the original stderr;
+publication independently rereads those bytes. The internal log retains its
+actual count. The [real-log regression and combined 293 controls](https://github.com/billlza/q-periapt/tree/276fb972a207722e03222b2771236672de4e9145/research/sdk-alpha1/evidence/20261111-codeql-completion-receipt-fix)
+verify completion admission, evidence changes and failure propagation.
+
+Independent language and target queues remove the former whole-workflow wait,
+and the normal SDK matrix has one automatic PR run. Original logs and completed
+or partial databases remain available for diagnosis. Current extractor inputs
+also include the 68 authenticated partial snapshots in the file view while
+preserving the complete source and diagnostic checks.
+
+The [earlier five-hour, 38-of-39 benchmark](https://github.com/billlza/q-periapt/tree/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-join-outcome)
+retains its original outcome and equal partial results. The completed fixture
+qualifies the transformed analysis path; the current native, WASM and macOS
+runs record its target-specific completion time and resource use.
 
 ## Android account-root integration
 
