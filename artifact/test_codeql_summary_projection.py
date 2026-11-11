@@ -487,7 +487,8 @@ class ProjectionComparisonTests(unittest.TestCase):
             real_sha = control.sha
             def lookup(path):
                 return hashes[str(path)] if str(path) in hashes else real_sha(path)
-            def failed_evaluator(command, evidence, environment):
+            def failed_evaluator(command, evidence, environment, *, progress_queries=None):
+                self.assertEqual(set(progress_queries), set(queries))
                 control.write_json(evidence / "query.json", {"command": command, "returncode": None,
                     "stopped": "timeout", "cleanup_ambiguous": False, "seconds": 18001})
                 raise RuntimeError("injected stopped evaluator")

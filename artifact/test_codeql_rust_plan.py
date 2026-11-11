@@ -28,6 +28,12 @@ def write(path: Path, data: bytes) -> None:
     path.write_bytes(data)
 
 
+def replace_fixture(path: Path, data: bytes) -> None:
+    """Replace a fixture inode to exercise validation beyond read-only modes."""
+    path.unlink()
+    write(path, data)
+
+
 @unittest.skipUnless(os.name == "posix" and hasattr(os, "geteuid"),
                      "private runtime ownership, mode and descriptor admission require POSIX")
 class ProductionProjectionTests(unittest.TestCase):
@@ -165,7 +171,9 @@ class ProductionProjectionTests(unittest.TestCase):
         if self.inject in ("runtime_mutation", "primary_and_postcheck_failure"):
             write(self.private_root / "tool/codeql/tools/codeql.jar", b"different runtime")
         if self.inject == "qlconfig_mutation":
-            (self.private_root / "qlconfig.yml").write_bytes(b"registries: []\n")
+            configuration = self.private_root / "qlconfig.yml"
+            self.assertEqual(configuration.stat().st_mode & 0o222, 0)
+            replace_fixture(configuration, b"registries: []\n")
         if self.inject == "primary_and_postcheck_failure":
             raise RuntimeError("primary evaluator failure")
         if self.inject == "derived_metadata":
@@ -211,6 +219,7 @@ class ProductionProjectionTests(unittest.TestCase):
         analysis = self.analyze()
         path = self.run.evidence / plan.PLAN_RECEIPT
         original = json.loads(path.read_text())
+        self.assertEqual(path.stat().st_mode & 0o222, 0)
 
         def set_path(value, keys, replacement):
             for key in keys[:-1]:
@@ -236,7 +245,7 @@ class ProductionProjectionTests(unittest.TestCase):
         for name, mutate in mutations:
             changed = copy.deepcopy(original)
             mutate(changed)
-            path.write_text(json.dumps(changed))
+            replace_fixture(path, json.dumps(changed).encode())
             rebound = dict(analysis, analysis_plan_sha256=digest(path.read_bytes()))
             with self.subTest(name=name), self.assertRaises(ValueError):
                 plan.validate_publication(self.run.evidence, rebound, expected_mode="projection")
@@ -245,12 +254,14 @@ class ProductionProjectionTests(unittest.TestCase):
         analysis = self.analyze()
         runtime_path = self.run.evidence / plan.RUNTIME_RECEIPT
         reduced = {"codeql": self.runtime["codeql"]}
-        runtime_path.write_text(json.dumps({"schema": 1, "files": reduced}))
+        self.assertEqual(runtime_path.stat().st_mode & 0o222, 0)
+        replace_fixture(runtime_path, json.dumps({"schema": 1, "files": reduced}).encode())
         path = self.run.evidence / plan.PLAN_RECEIPT
         record = json.loads(path.read_text())
         record["runtime_receipt_sha256"] = digest(runtime_path.read_bytes())
         record["tool"]["runtime_inventory_sha256"] = plan.canonical_sha(reduced)
-        path.write_text(json.dumps(record))
+        self.assertEqual(path.stat().st_mode & 0o222, 0)
+        replace_fixture(path, json.dumps(record).encode())
         analysis["analysis_plan_sha256"] = digest(path.read_bytes())
         with self.assertRaisesRegex(ValueError, "complete official"):
             plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")

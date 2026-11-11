@@ -230,7 +230,8 @@ class CandidateResultAdmissionTests(unittest.TestCase):
             real_sha, real_run = control.sha, control.run_queries
             def digest(path):
                 return paths[str(path)] if str(path) in paths else real_sha(path)
-            def run(command, evidence, environment):
+            def run(command, evidence, environment, *, progress_queries=None):
+                self.assertEqual(set(progress_queries), set(queries))
                 return real_run([sys.executable, "-c", "import time;print('retained evaluator output',flush=True);time.sleep(60)"],
                                 evidence, environment, 1)
             with patch.dict(os.environ, {"RUNNER_TEMP": str(root)}), \
