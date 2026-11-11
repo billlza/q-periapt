@@ -12,13 +12,11 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: codeql-${{ github.workflow }}-${{ github.ref }}
-  # Complete the running target analyses; keep the newest revision pending.
-  cancel-in-progress: false
-
 jobs:
   analyze:
+    concurrency:
+      group: codeql-${{ github.workflow }}-${{ github.ref }}-analyze-${{ matrix.language }}
+      cancel-in-progress: false
     name: Analyze (${{ matrix.language }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
@@ -170,6 +168,9 @@ jobs:
           retention-days: 14
 
   rust:
+    concurrency:
+      group: codeql-${{ github.workflow }}-${{ github.ref }}-rust-${{ matrix.profile }}
+      cancel-in-progress: false
     name: Analyze Rust (${{ matrix.profile }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 360
@@ -223,11 +224,27 @@ jobs:
         env:
           CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
         run: sh artifact/python-run.sh artifact/codeql_rust_profile.py prepare --profile "$RUST_PROFILE"
+      - name: Download the authenticated projection runtime
+        timeout-minutes: 12
+        run: |
+          set -eu
+          CODEQL_ARCHIVE="$RUNNER_TEMP/codeql-bundle-rust-linux64.tar.zst"
+          curl --fail --location --proto '=https' --proto-redir '=https' \
+            --connect-timeout 30 --max-time 600 --max-filesize 98247028 \
+            --output "$CODEQL_ARCHIVE" \
+            'https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.2/codeql-bundle-rust-linux64.tar.zst'
+          test "$(stat --format='%s' "$CODEQL_ARCHIVE")" = 98247028
+          printf '%s  %s\n' \
+            'acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea' \
+            "$CODEQL_ARCHIVE" | sha256sum --check --strict
       - name: Run every security-extended query
         timeout-minutes: 305
         env:
           CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
-        run: sh artifact/python-run.sh artifact/codeql_rust_profile.py analyze --profile "$RUST_PROFILE"
+        run: |
+          sh artifact/python-run.sh artifact/codeql_rust_profile.py analyze --profile "$RUST_PROFILE" \
+            --summary-plan-mode projection \
+            --tool-archive "$RUNNER_TEMP/codeql-bundle-rust-linux64.tar.zst"
       - name: Retain profile evidence before bundling diagnostics
         if: always()
         timeout-minutes: 5
@@ -279,6 +296,9 @@ jobs:
           retention-days: 14
 
   rust-macos-prepare:
+    concurrency:
+      group: codeql-${{ github.workflow }}-${{ github.ref }}-rust-macos-prepare
+      cancel-in-progress: false
     name: Prepare Rust (macos)
     runs-on: macos-26
     timeout-minutes: 120
@@ -381,6 +401,9 @@ jobs:
           retention-days: 14
 
   rust-macos-analyze:
+    concurrency:
+      group: codeql-${{ github.workflow }}-${{ github.ref }}-rust-macos-analyze
+      cancel-in-progress: false
     name: Analyze Rust (macos)
     needs: rust-macos-prepare
     runs-on: ubuntu-24.04
@@ -412,11 +435,27 @@ jobs:
         env:
           CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
         run: sh artifact/python-run.sh artifact/codeql_rust_profile.py import --profile "$RUST_PROFILE"
+      - name: Download the authenticated projection runtime
+        timeout-minutes: 12
+        run: |
+          set -eu
+          CODEQL_ARCHIVE="$RUNNER_TEMP/codeql-bundle-rust-linux64.tar.zst"
+          curl --fail --location --proto '=https' --proto-redir '=https' \
+            --connect-timeout 30 --max-time 600 --max-filesize 98247028 \
+            --output "$CODEQL_ARCHIVE" \
+            'https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.2/codeql-bundle-rust-linux64.tar.zst'
+          test "$(stat --format='%s' "$CODEQL_ARCHIVE")" = 98247028
+          printf '%s  %s\n' \
+            'acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea' \
+            "$CODEQL_ARCHIVE" | sha256sum --check --strict
       - name: Run every security-extended query on the macOS database
         timeout-minutes: 305
         env:
           CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
-        run: sh artifact/python-run.sh artifact/codeql_rust_profile.py analyze --profile "$RUST_PROFILE"
+        run: |
+          sh artifact/python-run.sh artifact/codeql_rust_profile.py analyze --profile "$RUST_PROFILE" \
+            --summary-plan-mode projection \
+            --tool-archive "$RUNNER_TEMP/codeql-bundle-rust-linux64.tar.zst"
       - name: Retain the completed or failed macOS analysis evidence
         if: always()
         timeout-minutes: 5
@@ -465,6 +504,9 @@ jobs:
           retention-days: 14
 
   rust-publication:
+    concurrency:
+      group: codeql-${{ github.workflow }}-${{ github.ref }}-rust-publication
+      cancel-in-progress: false
     name: Validate and publish Rust target analyses
     needs: [rust, rust-macos-prepare, rust-macos-analyze]
     runs-on: ubuntu-24.04
@@ -489,7 +531,8 @@ jobs:
         run: |
           sh artifact/python-run.sh artifact/codeql_rust_publication.py \
             --inputs "$RUNNER_TEMP/qperiapt-rust-profiles" \
-            --output "$RUNNER_TEMP/qperiapt-rust-publication"
+            --output "$RUNNER_TEMP/qperiapt-rust-publication" \
+            --summary-plan-mode projection
       - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
         with:
           # Preserve main's Rust analysis identity for the native continuation.

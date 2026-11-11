@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 import re
 import unittest
 
@@ -118,6 +119,69 @@ class CodeQLWorkflowContractTests(unittest.TestCase):
             self.assertIn("/" + profile + "/RESULT.json", compare)
         self.assertIn("if-no-files-found: error", evaluate)
         self.assertIn("if-no-files-found: error", compare)
+
+    def test_production_jobs_queue_independently_without_cancelling_running_analysis(self) -> None:
+        workflow = self.read("codeql.yml")
+        self.assertNotIn("concurrency", keys(workflow, 0))
+        expected_groups = {
+            "analyze": "analyze-${{ matrix.language }}",
+            "rust": "rust-${{ matrix.profile }}",
+            "rust-macos-prepare": "rust-macos-prepare",
+            "rust-macos-analyze": "rust-macos-analyze",
+            "rust-publication": "rust-publication",
+        }
+        self.assertEqual(keys(mapping(workflow, "jobs"), 2), set(expected_groups))
+        groups = []
+        for name, suffix in expected_groups.items():
+            with self.subTest(job=name):
+                job = mapping(workflow, name, 2)
+                header = job.split("    steps:\n", 1)[0]
+                concurrency = mapping(header, "concurrency", 4)
+                self.assertEqual(keys(concurrency, 6), {"group", "cancel-in-progress"})
+                group = re.findall(r"^      group: (.+)$", concurrency, re.MULTILINE)
+                self.assertEqual(group, ["codeql-${{ github.workflow }}-${{ github.ref }}-" + suffix])
+                self.assertIn("      cancel-in-progress: false\n", concurrency)
+                groups.extend(group)
+        self.assertEqual(len(groups), len(set(groups)))
+
+    def test_all_production_targets_and_publication_use_the_authenticated_projection(self) -> None:
+        workflow = self.read("codeql.yml")
+        manifest = json.loads((ROOT / "artifact/codeql_summary_projection.json").read_text(encoding="utf-8"))
+        archive = "$RUNNER_TEMP/codeql-bundle-rust-linux64.tar.zst"
+        url = ("https://github.com/github/codeql-action/releases/download/codeql-bundle-v"
+               + manifest["codeql_version"] + "/codeql-bundle-rust-linux64.tar.zst")
+        for name, source_step in (("rust", "prepare"), ("rust-macos-analyze", "import")):
+            with self.subTest(job=name):
+                job = mapping(workflow, name, 2)
+                marker = "      - name: Download the authenticated projection runtime\n"
+                self.assertEqual(job.count(marker), 1)
+                download = job.split(marker, 1)[1].split("      - ", 1)[0]
+                self.assertIn("        timeout-minutes: 12\n", download)
+                self.assertIn("          set -eu\n", download)
+                self.assertIn('CODEQL_ARCHIVE="' + archive + '"', download)
+                self.assertIn("curl --fail --location --proto '=https' --proto-redir '=https'", download)
+                self.assertIn("--connect-timeout 30 --max-time 600 --max-filesize "
+                              + str(manifest["tool_bundle_bytes"]), download)
+                self.assertIn("'" + url + "'", download)
+                self.assertIn('test "$(stat --format=\'%s\' "$CODEQL_ARCHIVE")" = '
+                              + str(manifest["tool_bundle_bytes"]), download)
+                self.assertIn("'" + manifest["tool_bundle_sha256"] + "'", download)
+                self.assertIn('"$CODEQL_ARCHIVE" | sha256sum --check --strict', download)
+                analysis = job.index("artifact/codeql_rust_profile.py analyze")
+                self.assertLess(job.index("artifact/codeql_rust_profile.py " + source_step), job.index(marker))
+                self.assertLess(job.index(marker), analysis)
+                self.assertEqual(job.count("--summary-plan-mode projection"), 1)
+                self.assertEqual(job.count('--tool-archive "' + archive + '"'), 1)
+                self.assertGreater(job.index("--summary-plan-mode projection"), analysis)
+                self.assertNotIn("continue-on-error:", job)
+                self.assertIn("/analysis-plan/evaluator/**", job)
+        preparation = mapping(workflow, "rust-macos-prepare", 2)
+        self.assertNotIn("--summary-plan-mode", preparation)
+        self.assertNotIn("--tool-archive", preparation)
+        publication = mapping(workflow, "rust-publication", 2)
+        self.assertEqual(publication.count("--summary-plan-mode projection"), 1)
+        self.assertGreater(publication.index("--summary-plan-mode projection"),
+                           publication.index("artifact/codeql_rust_publication.py"))
 
     def test_rust_publication_waits_for_every_profile_and_validation_before_upload(self) -> None:
         job = mapping(self.read("codeql.yml"), "rust-publication", 2)

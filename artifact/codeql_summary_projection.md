@@ -7,7 +7,7 @@ original eleven-column read relation is reconstructed after each closure for its
 complete downstream consumers, including reverse traversal and PathGraph. The source patch retains
 the original join, both type checks, and both access-path branches.
 
-The existing modes remain separate:
+The retained-database controller exposes three explicit modes:
 
 | Selected mode | Full SummaryStats plan | Embedded library source | Evaluator join option |
 | --- | --- | --- | --- |
@@ -16,7 +16,7 @@ The existing modes remain separate:
 | `projection` | Fixed Stage3+Stage4 target-projection capsule | One declared vendor patch | `all` |
 
 `projection` is an admission mode, not a new CodeQL command-line value. Its
-compiler input key is `6a7530eb694360655ab8331a895c9fcd`. Both allocation arms use
+compiler input key is `6a7530eb694360655ab8331a895c9fcd`. Both retained-database allocation arms use
 the same capsule and patch. The comparison command must select `projection`
 explicitly; reports from other modes cannot be substituted even though `all`
 and `projection` have the same evaluator join option.
@@ -87,6 +87,39 @@ For the paired result, use `compare --summary-plan-mode projection` with the
 existing baseline and candidate report arguments. Installation uses fixed
 compiled bytes; it performs no compilation or download of its own.
 
+## Production analysis
+
+The SDK workflow selects the reviewed projection explicitly for native, WASM
+and macOS-origin Rust databases. Compilation and extraction retain their
+existing platform tools and source-coverage checks. Each Linux analysis worker
+downloads the fixed 98,247,028-byte official Rust archive, verifies its digest,
+and passes it to `codeql_rust_profile.py analyze --summary-plan-mode projection`.
+The production command uses the existing 14,000-MB budget, 9,329 MB outside the
+Java heap, four threads and the single five-hour supervisor.
+
+`codeql_rust_plan.py` restores a private runtime from the authenticated archive
+and installs the same reviewed projection. It binds all 2,282 runtime files
+outside the separately admitted query pack, an empty private QL configuration,
+the complete frozen suite and the database source root. Before publication, the
+producer rechecks those identities and requires exactly 39 precompiled loads,
+39 completed queries, zero implicit compilations and all 39 fresh result files.
+The publisher independently validates the resulting plan and runtime receipts
+alongside the existing source, compiler, target-coverage and SARIF checks.
+
+Production and diagnostic execution share the bounded evaluator-log reader.
+Normal production verbosity records query progress without the much larger
+relation-level trace. A display-only sink prints completion counts for distinct
+admitted queries as stderr arrives; the original byte stream is retained.
+Completion and publication still depend on the full result receipts.
+
+CodeQL jobs queue by language or Rust target. A delayed platform job therefore
+does not reserve every language's queue. The publication job still requires the
+native, WASM and macOS results from its own workflow and source revision.
+
+The one-off integration and nonempty-fixture workflows belong to their
+diagnostic branches. Ongoing regression coverage uses the existing artifact
+test discovery and target preflight checks.
+
 ## Why the source transformation preserves the fixed point
 
 Write the original full read join as `R = H(X)`, where `X` contains the other
@@ -135,7 +168,9 @@ The focused regression suite runs without a CodeQL installation:
 ```sh
 sh artifact/python-run.sh -m unittest -v \
   test_codeql_summary_control test_codeql_summary_plan \
-  test_codeql_summary_projection test_codeql_process_resources
+  test_codeql_summary_projection test_codeql_process_resources \
+  test_codeql_rust_plan test_codeql_rust_profile test_codeql_rust_publication \
+  test_codeql_rust_transfer test_codeql_progress test_codeql_workflow_contract
 ```
 
 It uses the real frozen capsule with small synthetic source fixtures for
