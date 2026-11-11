@@ -1,0 +1,346 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.codeql_production_python_qualification",
+  "repository": "billlza/q-periapt",
+  "scope": "Hosted Python admission, execution-boundary, progress, result/receipt and publication integration tests; the CodeQL analyze-to-SARIF fixture is coordinated separately.",
+  "outcome": "282 tests passed on af49f2302ef789cbb670bc26f952d0fcd5986dd2",
+  "production_summary_plan_mode": "none",
+  "production_projection_enabled": false,
+  "runs": [
+    {
+      "source": {
+        "commit": "a6bf9d80f795373e8f119e63f2b55a8596f6e2d2",
+        "tree": "bb730974ffc426d3c63b832c5b0f15c75ba3d8f8"
+      },
+      "run": {
+        "id": 43023229902,
+        "name": "CodeQL integration checks",
+        "path": ".github/workflows/codeql-integration-checks.yml",
+        "head_branch": "recover/codeql-production-20261111",
+        "head_sha": "a6bf9d80f795373e8f119e63f2b55a8596f6e2d2",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "failure",
+        "run_attempt": 1,
+        "created_at": "2026-11-11T12:46:22Z",
+        "updated_at": "2026-11-11T12:55:30Z",
+        "run_started_at": "2026-11-11T12:46:22Z",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/43023229902",
+        "display_title": "Expose bounded CodeQL query progress and verify opt-in integration"
+      },
+      "jobs": [
+        {
+          "id": 130531361330,
+          "name": "Verify CodeQL integration contracts",
+          "status": "completed",
+          "conclusion": "failure",
+          "run_id": 43023229902,
+          "logs_url": null,
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 2
+            },
+            {
+              "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 3
+            },
+            {
+              "name": "Record the exact checked-out source",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 4
+            },
+            {
+              "name": "Check admission, execution, progress and publication contracts",
+              "status": "completed",
+              "conclusion": "failure",
+              "number": 5
+            },
+            {
+              "name": "Retain the original test output and source identity",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 6
+            },
+            {
+              "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+              "status": "completed",
+              "conclusion": "skipped",
+              "number": 11
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 12
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 13
+            }
+          ]
+        }
+      ],
+      "tests": {
+        "total": 282,
+        "passed": 277,
+        "failures": 2,
+        "errors": 3,
+        "skipped": 0,
+        "elapsed_seconds": 11.1,
+        "unittest_result": "FAILED (failures=2, errors=3)",
+        "elapsed_measure": "unittest reported suite duration",
+        "command": "sh artifact/python-run.sh -m unittest -v test_codeql_rust_plan test_codeql_rust_profile test_codeql_rust_publication test_codeql_rust_transfer test_codeql_summary_archive_input test_codeql_summary_plan test_codeql_summary_control test_codeql_summary_projection test_codeql_process_resources test_codeql_progress test_codeql_workflow_contract"
+      },
+      "original_decoded_job_log": {
+        "path": "runs/43023229902/JOB_LOG.txt",
+        "git_blob": "d840d99b25c8e3341e8bee88cb0b576a35dadf57",
+        "bytes": 94904,
+        "sha256": "2df822b61e7a3af09e2ed2bce207154953dea608d4a0bc7ec836a14151d35667",
+        "encoding": "UTF-8",
+        "normalization": "none; complete decoded connector response"
+      },
+      "artifacts": [
+        {
+          "id": 13856631897,
+          "name": "codeql-integration-checks-43023229902-1",
+          "size_in_bytes": 9545,
+          "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13856631897",
+          "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13856631897/zip",
+          "expired": false,
+          "created_at": "2026-11-11T12:55:27Z",
+          "expires_at": "2026-11-25T12:55:26Z",
+          "updated_at": "2026-11-11T12:55:27Z",
+          "digest": "sha256:8b59df2afee8ee46388c3a7d6efe66f398d7df33d4d03da2b8035fc51d70bfbb",
+          "workflow_run": {
+            "id": 43023229902,
+            "repository_id": 1279236693,
+            "head_repository_id": 1279236693,
+            "head_branch": "recover/codeql-production-20261111",
+            "head_sha": "a6bf9d80f795373e8f119e63f2b55a8596f6e2d2"
+          }
+        }
+      ],
+      "cloud_artifact_copy": {
+        "file_id": "file_00000000c18081f4a74449aa3b9df1f9",
+        "file_name": "codeql-integration-checks-43023229902-1.zip",
+        "mime_type": "application/zip",
+        "members_independently_decoded": false
+      },
+      "source_step": {
+        "name": "Record the exact checked-out source",
+        "conclusion": "success",
+        "method": "The successful step asserts git rev-parse HEAD equals GITHUB_SHA and writes HEAD and its tree to the uploaded source file. The Git commit/tree binding was independently checked using the GitHub Git API.",
+        "uploaded_source_file_separately_decoded": false
+      }
+    },
+    {
+      "source": {
+        "commit": "af49f2302ef789cbb670bc26f952d0fcd5986dd2",
+        "tree": "cb04bf4c6af404ba855fb21fd06c43dfdfcfd94b"
+      },
+      "run": {
+        "id": 43025252530,
+        "name": "CodeQL integration checks",
+        "path": ".github/workflows/codeql-integration-checks.yml",
+        "head_branch": "recover/codeql-production-20261111",
+        "head_sha": "af49f2302ef789cbb670bc26f952d0fcd5986dd2",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "created_at": "2026-11-11T13:00:35Z",
+        "updated_at": "2026-11-11T13:08:50Z",
+        "run_started_at": "2026-11-11T13:00:35Z",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/43025252530",
+        "display_title": "Fix CodeQL fault-injection tests on the hosted unprivileged runner"
+      },
+      "jobs": [
+        {
+          "id": 130538248874,
+          "name": "Verify CodeQL integration contracts",
+          "status": "completed",
+          "conclusion": "success",
+          "run_id": 43025252530,
+          "logs_url": null,
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 2
+            },
+            {
+              "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 3
+            },
+            {
+              "name": "Record the exact checked-out source",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 4
+            },
+            {
+              "name": "Check admission, execution, progress and publication contracts",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 5
+            },
+            {
+              "name": "Retain the original test output and source identity",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 6
+            },
+            {
+              "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 11
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 12
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 13
+            }
+          ]
+        }
+      ],
+      "tests": {
+        "total": 282,
+        "passed": 282,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "elapsed_seconds": 12.183,
+        "unittest_result": "OK",
+        "elapsed_measure": "unittest reported suite duration",
+        "command": "sh artifact/python-run.sh -m unittest -v test_codeql_rust_plan test_codeql_rust_profile test_codeql_rust_publication test_codeql_rust_transfer test_codeql_summary_archive_input test_codeql_summary_plan test_codeql_summary_control test_codeql_summary_projection test_codeql_process_resources test_codeql_progress test_codeql_workflow_contract"
+      },
+      "original_decoded_job_log": {
+        "path": "runs/43025252530/JOB_LOG.txt",
+        "git_blob": "4e87bb6010ffa034a6453d08150388418ca4130c",
+        "bytes": 85462,
+        "sha256": "8f1791d2e9d12614fa5ece5edd14e500e179a51a27418a9ed8229a73caee13b1",
+        "encoding": "UTF-8",
+        "normalization": "none; complete decoded connector response"
+      },
+      "artifacts": [
+        {
+          "id": 13856768587,
+          "name": "codeql-integration-checks-43025252530-1",
+          "size_in_bytes": 8360,
+          "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13856768587",
+          "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13856768587/zip",
+          "expired": false,
+          "created_at": "2026-11-11T13:08:46Z",
+          "expires_at": "2026-11-25T13:08:45Z",
+          "updated_at": "2026-11-11T13:08:46Z",
+          "digest": "sha256:522878964a72f964b3ac8ad8acaccdb281c2b14361b86f843139d7d6bbddc6b7",
+          "workflow_run": {
+            "id": 43025252530,
+            "repository_id": 1279236693,
+            "head_repository_id": 1279236693,
+            "head_branch": "recover/codeql-production-20261111",
+            "head_sha": "af49f2302ef789cbb670bc26f952d0fcd5986dd2"
+          }
+        }
+      ],
+      "cloud_artifact_copy": {
+        "file_id": "file_00000000fba481f4b768819fdb86b933",
+        "file_name": "codeql-integration-checks-43025252530-1.zip",
+        "mime_type": "application/zip",
+        "members_independently_decoded": false
+      },
+      "source_step": {
+        "name": "Record the exact checked-out source",
+        "conclusion": "success",
+        "method": "The successful step asserts git rev-parse HEAD equals GITHUB_SHA and writes HEAD and its tree to the uploaded source file. The Git commit/tree binding was independently checked using the GitHub Git API.",
+        "uploaded_source_file_separately_decoded": false
+      }
+    }
+  ],
+  "first_failure_review": {
+    "path": "runs/43023229902/REVIEW.json",
+    "git_blob": "8ffc95ae3138b0cddfa1e4792b8e67e8ddb637ec",
+    "historical_record_unchanged": true
+  },
+  "correction": {
+    "commit": "af49f2302ef789cbb670bc26f952d0fcd5986dd2",
+    "parent": "a6bf9d80f795373e8f119e63f2b55a8596f6e2d2",
+    "files": [
+      {
+        "path": "artifact/test_codeql_rust_plan.py",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "355c28aaa68fdd91b7001a426b5c830fcb7cc752",
+        "bytes": 23578,
+        "sha256": "4945772b3e03eef8e276efb19ebc99135c3b264c8d5bb3422be88fd10a0f6f4e"
+      },
+      {
+        "path": "artifact/test_codeql_summary_plan.py",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "294aa201d48de8fec2093d2b186bcb07cb290b81",
+        "bytes": 14913,
+        "sha256": "534e3a4b33c13d6699112ad7c8dc8ef54c0dc492ce8a3ca6fde250f9fa5d6ba0"
+      },
+      {
+        "path": "artifact/test_codeql_summary_projection.py",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "c53bbb631043ca5f9b12b3373a5db73db94c9bb6",
+        "bytes": 32527,
+        "sha256": "d85ba9ca64de65db09ab008e3fbe3208e3b264c4bacc184f6eba833f3e1790ca"
+      }
+    ],
+    "production_source_changed": false,
+    "mechanism": "Three mutation fixtures assert original read-only modes then replace their own fixture inodes. Two existing evaluator mocks accept and verify the admitted progress query set before producing their original timeout/error.",
+    "final_targeted_cases": "All five previously failed cases passed in the second run."
+  },
+  "established_controls": [
+    "Mocked complete production analyze and publication path with 39 admitted sources/results, fixed runtime identity, command, memory and log receipts.",
+    "Real pinned stdin descriptor supplies authenticated archive bytes to a bounded Python child and is cleaned after use.",
+    "Eight bounded live progress controls, including a real child observing retained stderr and fixed console progress before exit.",
+    "Default none publication does not read projection assets, and mode/receipt mismatches fail admission.",
+    "Rebound plan/runtime/configuration receipts, implicit compilation, extra QLX loads, wrong evaluator heap, missing full SummaryStats and postcheck mutations are rejected.",
+    "Existing none/all/projection controls, transfer boundaries, process resource sampling and workflow contracts passed in the same 282-test run."
+  ],
+  "restoration": {
+    "local_executor": "unavailable before the new producer suite could start",
+    "verification_location": "GitHub Actions ubuntu-24.04, pinned Python 3.14.7",
+    "original_recovery_commit": "178c03d08b0a2035ff03dbc011bb2ed4844e942b"
+  },
+  "review_publication": {
+    "parent": "99340939848d290191651ab306d1b5edc0f59df2",
+    "branch_ref_updated_by_packet_preparer": false
+  }
+}

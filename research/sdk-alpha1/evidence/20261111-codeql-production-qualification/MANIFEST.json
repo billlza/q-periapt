@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.codeql_production_qualification_packet",
+  "root": "research/sdk-alpha1/evidence/20261111-codeql-production-qualification",
+  "parent_commit": "99340939848d290191651ab306d1b5edc0f59df2",
+  "parent_tree": "85c742ab8364f7142eabea64441298d1b9fec892",
+  "member_scope": "All packet members except this self-describing MANIFEST.json.",
+  "members": [
+    {
+      "path": "README.md",
+      "git_blob": "799b3ec196254d2acbc9f184fc95b00f93ca2638",
+      "bytes": 4266,
+      "sha256": "80ed607044aa4ccc8f282e9e72a21094a89d60a82ebd40cdbb83e22c13fad4f8"
+    },
+    {
+      "path": "QUALIFICATION.json",
+      "git_blob": "3c7d2308776b5e124dbda898d844bf11b60e36a9",
+      "bytes": 14608,
+      "sha256": "7185b4eef8daf134366ca320ee84a8dbcce72a62197164628a47f80ed247ff91"
+    },
+    {
+      "path": "SOURCE_BINDINGS.json",
+      "git_blob": "aa9fd0a0ccbec481e695aea2868b8ef8e09db597",
+      "bytes": 13473,
+      "sha256": "87126f72056b5fb6cac5ef0eaf0aa5e01b9be329a9acb81695d55ae0fb0ba0ff"
+    },
+    {
+      "path": "runs/43023229902/JOB_LOG.txt",
+      "git_blob": "d840d99b25c8e3341e8bee88cb0b576a35dadf57",
+      "bytes": 94904,
+      "sha256": "2df822b61e7a3af09e2ed2bce207154953dea608d4a0bc7ec836a14151d35667"
+    },
+    {
+      "path": "runs/43023229902/REVIEW.json",
+      "git_blob": "8ffc95ae3138b0cddfa1e4792b8e67e8ddb637ec",
+      "bytes": 3841,
+      "sha256": "e1dd3c8d9d07b007e47e43cd268f3c1b9587536899855b21f6c76260a113f92d"
+    },
+    {
+      "path": "runs/43025252530/JOB_LOG.txt",
+      "git_blob": "4e87bb6010ffa034a6453d08150388418ca4130c",
+      "bytes": 85462,
+      "sha256": "8f1791d2e9d12614fa5ece5edd14e500e179a51a27418a9ed8229a73caee13b1"
+    }
+  ],
+  "member_bytes": 216554,
+  "log_origin": "Complete decoded GitHub Actions job-log responses, unchanged.",
+  "raw_log_references": [
+    "d840d99b25c8e3341e8bee88cb0b576a35dadf57",
+    "4e87bb6010ffa034a6453d08150388418ca4130c"
+  ]
+}

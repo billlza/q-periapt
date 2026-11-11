@@ -1,0 +1,358 @@
+{
+  "schema": 1,
+  "repository": "billlza/q-periapt",
+  "preintegration_base": {
+    "commit": "ff193302f207bb3f06a2941a7c6bf98a2eeb5a17",
+    "tree": "94e532b4414b552a94ce8e161e9bb319a86246d9",
+    "parents": [
+      "faabcff16fc49e1a99388c68f0991a2bfd64d509"
+    ],
+    "author": {
+      "name": "月溅星河",
+      "email": "149552943+billlza@users.noreply.github.com",
+      "date": "2026-11-11T12:00:33Z"
+    },
+    "committer": {
+      "name": "月溅星河",
+      "email": "149552943+billlza@users.noreply.github.com",
+      "date": "2026-11-11T12:00:33Z"
+    }
+  },
+  "recovery": {
+    "commit": "178c03d08b0a2035ff03dbc011bb2ed4844e942b",
+    "tree": "02b09deaa14b2d8d1d3b2bb4d26274326fee008e",
+    "parents": [
+      "ff193302f207bb3f06a2941a7c6bf98a2eeb5a17"
+    ],
+    "author": {
+      "name": "月溅星河",
+      "email": "149552943+billlza@users.noreply.github.com",
+      "date": "2026-11-11T12:41:27Z"
+    },
+    "committer": {
+      "name": "月溅星河",
+      "email": "149552943+billlza@users.noreply.github.com",
+      "date": "2026-11-11T12:41:27Z"
+    }
+  },
+  "qualification_sources": [
+    {
+      "commit": "a6bf9d80f795373e8f119e63f2b55a8596f6e2d2",
+      "tree": "bb730974ffc426d3c63b832c5b0f15c75ba3d8f8",
+      "parents": [
+        "178c03d08b0a2035ff03dbc011bb2ed4844e942b"
+      ],
+      "author": {
+        "name": "月溅星河",
+        "email": "149552943+billlza@users.noreply.github.com",
+        "date": "2026-11-11T12:45:41Z"
+      },
+      "committer": {
+        "name": "月溅星河",
+        "email": "149552943+billlza@users.noreply.github.com",
+        "date": "2026-11-11T12:45:41Z"
+      },
+      "files_changed_from_preintegration_base": [
+        {
+          "path": ".github/workflows/codeql-integration-checks.yml",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "bbb51dd937d5c2426f200563e70ef86722e5217d",
+          "bytes": 2133,
+          "sha256": "558055ca95c8e690ce39014ffd8306c7cb237376bd1ad1dae1b2d1b20da34aa0"
+        },
+        {
+          "path": ".github/workflows/codeql-summary-control.yml",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "141347b18487e04bd4592e6454276ae04a496176",
+          "bytes": 7628,
+          "sha256": "f96987b4d7e177bbf7b85bb2733cb1ba27668a314735eeed6eda8e2709ddd1da"
+        },
+        {
+          "path": ".github/workflows/codeql.yml",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "59673f837b27e4d3ccfdab6e180aa7b5d6ccde57",
+          "bytes": 22842,
+          "sha256": "9812c653ac7631ec8a3e34ed69296dc750edda9f45654729bccf83af7b4a1488"
+        },
+        {
+          "path": "artifact/codeql_evaluator_logs.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "ca82398a40f4c6c963719daf6147c97259b9c698",
+          "bytes": 10446,
+          "sha256": "f3aadab57772d0533ab9779602e09339922cf471e00fd0185aca07146b3e85bd"
+        },
+        {
+          "path": "artifact/codeql_rust_plan.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "60eb8545b0fd67a69a4ce81b91da11bb23c5dc73",
+          "bytes": 26143,
+          "sha256": "b15ac4477d3323626c828a6098e974309dfb7dd91756a247f93d6fb5a16df0ba"
+        },
+        {
+          "path": "artifact/codeql_rust_profile.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "5dd70c9df45668f08ee6948d1be036273ee84439",
+          "bytes": 31544,
+          "sha256": "5f546050fed25a757e5b68acf6a2293e82851adce0c1d6275d04d1a8e7b9e4f9"
+        },
+        {
+          "path": "artifact/codeql_rust_publication.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "9412ac88a8d5edae45955bba887c6b97d0c6dd20",
+          "bytes": 11783,
+          "sha256": "c85b2694e25495661024a3b5a716908e7510dece689672665219432bdb2c667f"
+        },
+        {
+          "path": "artifact/codeql_rust_transfer.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "1b4e24be9c752852b84dfc84d98a5f2e932f33d8",
+          "bytes": 17662,
+          "sha256": "6ba2c32346402be3a0c078cbb187935a385f71beeffad53861d01f184beb504b"
+        },
+        {
+          "path": "artifact/codeql_summary_control.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "8f96c20d263319fd861ce8ab3de678b178324043",
+          "bytes": 55886,
+          "sha256": "9b6b9baaf3570df4c7a6d24e650c0abf2a64fe70ae2618ce06747f9d335046f6"
+        },
+        {
+          "path": "artifact/codeql_summary_plan.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "f46bbb667ccc35bff778643efd77d955561ecec8",
+          "bytes": 10946,
+          "sha256": "bc736901daf1271d287b7fa38a20788013e8a2bea927c70658c5490a89479a6b"
+        },
+        {
+          "path": "artifact/test_codeql_progress.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "8459e6d575de1fa04d9866b44f6f842b5006a4d6",
+          "bytes": 9436,
+          "sha256": "78824b89ec2098f4569a6d9618a0b47996b49166d040b84d5051b46fc58c3295"
+        },
+        {
+          "path": "artifact/test_codeql_rust_plan.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "b81ad904bc199323f7ba4c289f99bd2f995db886",
+          "bytes": 23062,
+          "sha256": "93eb08ce4357da3b4c02743d77bf70e5612428d8c9fdce02a54a6a59d2f8f7f7"
+        },
+        {
+          "path": "artifact/test_codeql_rust_publication.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "7360603aeb0b9e3fb702ebb7b5fe90e32d97a2f7",
+          "bytes": 28388,
+          "sha256": "6ca246093081db7628d097e3427c1fa29534a15aac7d9ace6900c47be4838681"
+        },
+        {
+          "path": "artifact/test_codeql_rust_transfer.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "34505c5404ad8a808a080ffd8f9a92d50e6655aa",
+          "bytes": 16732,
+          "sha256": "0f3fd1db1eac6a82db29819dcc6eee954b668bca9005af6cda5bf4c5df958f21"
+        },
+        {
+          "path": "artifact/test_codeql_summary_control.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "63593b3c8357ab64e9fdab44a351566197281287",
+          "bytes": 81865,
+          "sha256": "612796ff1f37c74b4a0763aea048ee9da223fbe70d4baaffc58f15dd3eef9382"
+        },
+        {
+          "path": "artifact/test_codeql_workflow_contract.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "0ac55a7a07dad7331094100fd4a0cbe60bb942b0",
+          "bytes": 7630,
+          "sha256": "8162f9ee0231b778528215148a836a3c5fa3da04a3b73ed97212bae329924480"
+        }
+      ]
+    },
+    {
+      "commit": "af49f2302ef789cbb670bc26f952d0fcd5986dd2",
+      "tree": "cb04bf4c6af404ba855fb21fd06c43dfdfcfd94b",
+      "parents": [
+        "a6bf9d80f795373e8f119e63f2b55a8596f6e2d2"
+      ],
+      "author": {
+        "name": "月溅星河",
+        "email": "149552943+billlza@users.noreply.github.com",
+        "date": "2026-11-11T12:58:08Z"
+      },
+      "committer": {
+        "name": "月溅星河",
+        "email": "149552943+billlza@users.noreply.github.com",
+        "date": "2026-11-11T12:58:08Z"
+      },
+      "files_changed_from_preintegration_base": [
+        {
+          "path": ".github/workflows/codeql-integration-checks.yml",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "bbb51dd937d5c2426f200563e70ef86722e5217d",
+          "bytes": 2133,
+          "sha256": "558055ca95c8e690ce39014ffd8306c7cb237376bd1ad1dae1b2d1b20da34aa0"
+        },
+        {
+          "path": ".github/workflows/codeql-summary-control.yml",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "141347b18487e04bd4592e6454276ae04a496176",
+          "bytes": 7628,
+          "sha256": "f96987b4d7e177bbf7b85bb2733cb1ba27668a314735eeed6eda8e2709ddd1da"
+        },
+        {
+          "path": ".github/workflows/codeql.yml",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "59673f837b27e4d3ccfdab6e180aa7b5d6ccde57",
+          "bytes": 22842,
+          "sha256": "9812c653ac7631ec8a3e34ed69296dc750edda9f45654729bccf83af7b4a1488"
+        },
+        {
+          "path": "artifact/codeql_evaluator_logs.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "ca82398a40f4c6c963719daf6147c97259b9c698",
+          "bytes": 10446,
+          "sha256": "f3aadab57772d0533ab9779602e09339922cf471e00fd0185aca07146b3e85bd"
+        },
+        {
+          "path": "artifact/codeql_rust_plan.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "60eb8545b0fd67a69a4ce81b91da11bb23c5dc73",
+          "bytes": 26143,
+          "sha256": "b15ac4477d3323626c828a6098e974309dfb7dd91756a247f93d6fb5a16df0ba"
+        },
+        {
+          "path": "artifact/codeql_rust_profile.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "5dd70c9df45668f08ee6948d1be036273ee84439",
+          "bytes": 31544,
+          "sha256": "5f546050fed25a757e5b68acf6a2293e82851adce0c1d6275d04d1a8e7b9e4f9"
+        },
+        {
+          "path": "artifact/codeql_rust_publication.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "9412ac88a8d5edae45955bba887c6b97d0c6dd20",
+          "bytes": 11783,
+          "sha256": "c85b2694e25495661024a3b5a716908e7510dece689672665219432bdb2c667f"
+        },
+        {
+          "path": "artifact/codeql_rust_transfer.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "1b4e24be9c752852b84dfc84d98a5f2e932f33d8",
+          "bytes": 17662,
+          "sha256": "6ba2c32346402be3a0c078cbb187935a385f71beeffad53861d01f184beb504b"
+        },
+        {
+          "path": "artifact/codeql_summary_control.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "8f96c20d263319fd861ce8ab3de678b178324043",
+          "bytes": 55886,
+          "sha256": "9b6b9baaf3570df4c7a6d24e650c0abf2a64fe70ae2618ce06747f9d335046f6"
+        },
+        {
+          "path": "artifact/codeql_summary_plan.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "f46bbb667ccc35bff778643efd77d955561ecec8",
+          "bytes": 10946,
+          "sha256": "bc736901daf1271d287b7fa38a20788013e8a2bea927c70658c5490a89479a6b"
+        },
+        {
+          "path": "artifact/test_codeql_progress.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "8459e6d575de1fa04d9866b44f6f842b5006a4d6",
+          "bytes": 9436,
+          "sha256": "78824b89ec2098f4569a6d9618a0b47996b49166d040b84d5051b46fc58c3295"
+        },
+        {
+          "path": "artifact/test_codeql_rust_plan.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "355c28aaa68fdd91b7001a426b5c830fcb7cc752",
+          "bytes": 23578,
+          "sha256": "4945772b3e03eef8e276efb19ebc99135c3b264c8d5bb3422be88fd10a0f6f4e"
+        },
+        {
+          "path": "artifact/test_codeql_rust_publication.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "7360603aeb0b9e3fb702ebb7b5fe90e32d97a2f7",
+          "bytes": 28388,
+          "sha256": "6ca246093081db7628d097e3427c1fa29534a15aac7d9ace6900c47be4838681"
+        },
+        {
+          "path": "artifact/test_codeql_rust_transfer.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "34505c5404ad8a808a080ffd8f9a92d50e6655aa",
+          "bytes": 16732,
+          "sha256": "0f3fd1db1eac6a82db29819dcc6eee954b668bca9005af6cda5bf4c5df958f21"
+        },
+        {
+          "path": "artifact/test_codeql_summary_control.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "63593b3c8357ab64e9fdab44a351566197281287",
+          "bytes": 81865,
+          "sha256": "612796ff1f37c74b4a0763aea048ee9da223fbe70d4baaffc58f15dd3eef9382"
+        },
+        {
+          "path": "artifact/test_codeql_summary_plan.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "294aa201d48de8fec2093d2b186bcb07cb290b81",
+          "bytes": 14913,
+          "sha256": "534e3a4b33c13d6699112ad7c8dc8ef54c0dc492ce8a3ca6fde250f9fa5d6ba0"
+        },
+        {
+          "path": "artifact/test_codeql_summary_projection.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "c53bbb631043ca5f9b12b3373a5db73db94c9bb6",
+          "bytes": 32527,
+          "sha256": "d85ba9ca64de65db09ab008e3fbe3208e3b264c4bacc184f6eba833f3e1790ca"
+        },
+        {
+          "path": "artifact/test_codeql_workflow_contract.py",
+          "mode": "100644",
+          "type": "blob",
+          "sha": "0ac55a7a07dad7331094100fd4a0cbe60bb942b0",
+          "bytes": 7630,
+          "sha256": "8162f9ee0231b778528215148a836a3c5fa3da04a3b73ed97212bae329924480"
+        }
+      ]
+    }
+  ],
+  "identity_method": "Git blob IDs and tree IDs were computed independently from UTF-8 file contents and the base Git trees, compared with GitHub create_blob/create_tree results, and commit author/committer/tree/parents were read back from the GitHub Git API.",
+  "author_identity": "月溅星河 <149552943+billlza@users.noreply.github.com>",
+  "production_files_same_between_qualified_sources": true,
+  "full_dependency_scope": "Commit trees bind the remaining repository inputs; the listed files are the integration delta, not a replacement for the complete Git tree.",
+  "fixed_plan": {
+    "manifest_sha256": "2cb1739ba0f0aeeb00e8a017b7cd0218a0a7519771a58dd47cb7f89a8813ca91",
+    "compiler_inputs_digest": "6a7530eb694360655ab8331a895c9fcd"
+  }
+}

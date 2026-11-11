@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "repository": "billlza/q-periapt",
+  "run_id": 43023229902,
+  "run_attempt": 1,
+  "job_id": 130531361330,
+  "source": {
+    "commit": "a6bf9d80f795373e8f119e63f2b55a8596f6e2d2",
+    "tree": "bb730974ffc426d3c63b832c5b0f15c75ba3d8f8",
+    "identity_basis": "Git commit API independently checked; exact checked-out source step succeeded; uploaded source member not separately decoded in the unavailable executor."
+  },
+  "command": "sh artifact/python-run.sh -m unittest -v test_codeql_rust_plan test_codeql_rust_profile test_codeql_rust_publication test_codeql_rust_transfer test_codeql_summary_archive_input test_codeql_summary_plan test_codeql_summary_control test_codeql_summary_projection test_codeql_process_resources test_codeql_progress test_codeql_workflow_contract",
+  "result": {
+    "conclusion": "failure",
+    "tests": 282,
+    "seconds": 11.1,
+    "failures": 2,
+    "errors": 3,
+    "skipped": 0,
+    "passed": 277
+  },
+  "original_decoded_job_log": {
+    "git_blob": "d840d99b25c8e3341e8bee88cb0b576a35dadf57",
+    "bytes": 94904,
+    "sha256": "2df822b61e7a3af09e2ed2bce207154953dea608d4a0bc7ec836a14151d35667",
+    "encoding": "UTF-8",
+    "normalization": "none; full decoded response preserved"
+  },
+  "artifacts": [
+    {
+      "id": 13856631897,
+      "name": "codeql-integration-checks-43023229902-1",
+      "size_in_bytes": 9545,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13856631897",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13856631897/zip",
+      "expired": false,
+      "created_at": "2026-11-11T12:55:27Z",
+      "expires_at": "2026-11-25T12:55:26Z",
+      "updated_at": "2026-11-11T12:55:27Z",
+      "digest": "sha256:8b59df2afee8ee46388c3a7d6efe66f398d7df33d4d03da2b8035fc51d70bfbb",
+      "workflow_run": {
+        "id": 43023229902,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "recover/codeql-production-20261111",
+        "head_sha": "a6bf9d80f795373e8f119e63f2b55a8596f6e2d2"
+      }
+    }
+  ],
+  "downloaded_artifact": {
+    "file_id": "file_00000000c18081f4a74449aa3b9df1f9",
+    "archive_members_independently_decoded": false
+  },
+  "failures": [
+    {
+      "tests": [
+        "test_complete_runtime_inventory_is_independently_required_by_publication",
+        "test_private_qlconfig_mutation_blocks_success",
+        "test_rebound_receipt_cannot_change_any_admitted_identity_or_command"
+      ],
+      "observed": "PermissionError before the intended content check; test attempted to overwrite a read-only producer file.",
+      "fix": "Test-only inode replacement after asserting the original read-only mode; production protection retained."
+    },
+    {
+      "tests": [
+        "test_real_evaluator_timeout_remains_primary_when_stage_postcheck_also_fails",
+        "test_projection_postcheck_runs_after_evaluator_failure_without_replacing_it"
+      ],
+      "observed": "Failure receipts recorded TypeError because the old mock callback did not accept progress_queries.",
+      "fix": "Test-only callbacks accept the keyword and assert the complete admitted query set, then preserve the original timeout/injected RuntimeError."
+    }
+  ],
+  "established_controls": {
+    "production_mocked_full_analysis_and_publication": "passed",
+    "real_pinned_stdin_child": "passed",
+    "progress_tests": 8,
+    "progress_test_result": "all passed including real child observation before exit"
+  },
+  "corrected_source": {
+    "commit": "af49f2302ef789cbb670bc26f952d0fcd5986dd2",
+    "tree": "cb04bf4c6af404ba855fb21fd06c43dfdfcfd94b",
+    "tests_executed": false,
+    "production_code_changed": false
+  },
+  "remote_mutations_by_this_reviewer": {
+    "reruns": 0,
+    "workflow_cancellations": 0,
+    "post_trigger_ref_updates": 0
+  }
+}
