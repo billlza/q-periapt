@@ -1,0 +1,14 @@
+{
+  "command": [
+    "/workspace/scratch/4b61438fb07b/rustix-paper-toolchain/install/bin/cargo",
+    "test",
+    "--locked",
+    "-p",
+    "q-periapt-policy-agent",
+    "--lib"
+  ],
+  "cwd": "/workspace/scratch/4b61438fb07b/rustix-paper-review",
+  "exit": 101,
+  "elapsed": 49.65018956900008,
+  "rustflags": "-D warnings"
+}

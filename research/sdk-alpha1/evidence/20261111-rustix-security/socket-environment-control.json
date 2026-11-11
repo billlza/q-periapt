@@ -1,0 +1,10 @@
+{
+  "control": "Python standard-library AF_UNIX socket creation without Rust or rustix",
+  "command": [
+    "python3",
+    "socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)"
+  ],
+  "result": "environment rejected socket creation",
+  "errno": 1,
+  "error": "[Errno 1] Operation not permitted"
+}

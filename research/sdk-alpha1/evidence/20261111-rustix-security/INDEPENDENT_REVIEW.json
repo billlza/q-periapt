@@ -1,0 +1,296 @@
+{
+  "advisory": {
+    "affected": "rustix >=1.0.0, <1.1.6, the six xattr Buffer functions",
+    "classification": "unsound; undefined behavior reachable through the safe Buffer API with a zero-length output buffer",
+    "file_sha256": "a034fc3af7556e9d78d973d959c661757e66f5f3b7063fffbc1b2564cf8c3bcd",
+    "git_blob_sha1": "771621348de211646db0157792e6d23637b28581",
+    "id": "RUSTSEC-2026-0486",
+    "mechanism": "The OS treats a zero-length xattr buffer as a size query, returns an unwritten length, and affected wrappers mark that length initialized. Version 1.1.6 handles empty output buffers with zero initialized bytes and provides separate size-query APIs.",
+    "patched": ">=1.1.6",
+    "unaffected": "<1.0.0 (including 0.38)",
+    "upstream_db_commit": "31cf5a8673e10d3a4d7d829ad5095f47ed419049",
+    "url": "https://github.com/rustsec/advisory-db/blob/31cf5a8673e10d3a4d7d829ad5095f47ed419049/crates/rustix/RUSTSEC-2026-0486.md"
+  },
+  "cases": [
+    {
+      "base_commit": "1b47a1931cab2a944902316619cdcf479bd64ab0",
+      "label": "sdk",
+      "lock_reviews": [
+        {
+          "after_sha256": "58a1447c3bb3b369ba024494179e7d151536132514e0a4aa3050e71a804c9722",
+          "before_sha256": "86cb376fd74f0b1edc60bc5c34d9d42e142b0e512741ae29e7bc727bd23bd2cb",
+          "only_changed_package": "rustix",
+          "package_count_after": 290,
+          "package_count_before": 290,
+          "path": "Cargo.lock",
+          "rustix_dependency_list_unchanged": true,
+          "unrelated_package_changes": [],
+          "version_after": "1.1.6",
+          "version_before": "1.1.5"
+        },
+        {
+          "after_sha256": "0c9655ffab413c1f32291237b598d23ffe70777894cd1407ed82422d5b7fbdb2",
+          "before_sha256": "6ad1ec88b36ec88d6599154110a078e40b378471508a5f47462f53c198ae48a1",
+          "only_changed_package": "rustix",
+          "package_count_after": 182,
+          "package_count_before": 182,
+          "path": "research/continuity-identity-candidate/Cargo.lock",
+          "rustix_dependency_list_unchanged": true,
+          "unrelated_package_changes": [],
+          "version_after": "1.1.6",
+          "version_before": "1.1.5"
+        },
+        {
+          "after_sha256": "5efefb911ac69e1f964bdb7fde6a89817a02c35d65d12a004d26916880ec1c3a",
+          "before_sha256": "1ac19de0d999354550abb94009bcb94b9cdd5c0ff6649b81477915dce2d84e55",
+          "only_changed_package": "rustix",
+          "package_count_after": 128,
+          "package_count_before": 128,
+          "path": "research/continuity-openssl-peer/native/Cargo.lock",
+          "rustix_dependency_list_unchanged": true,
+          "unrelated_package_changes": [],
+          "version_after": "1.1.6",
+          "version_before": "1.1.5"
+        },
+        {
+          "after_sha256": "69f29a06137f0778885b4dc3eba7af6b14a17cace757c00f267f754ede1c9488",
+          "before_sha256": "f70195b91f0e69a0bc502a44a58769ee82a8a6c353e5aa24b66971551998e96f",
+          "only_changed_package": "rustix",
+          "package_count_after": 270,
+          "package_count_before": 270,
+          "path": "research/continuity-reference-app/Cargo.lock",
+          "rustix_dependency_list_unchanged": true,
+          "unrelated_package_changes": [],
+          "version_after": "1.1.6",
+          "version_before": "1.1.5"
+        }
+      ],
+      "manifest_reviews": [
+        {
+          "after_sha256": "6dd2df7c336f12960e5e486088dbb9d9a14c4ac7a876700cfd34111b07d78440",
+          "before_sha256": "c0dd73c60e8a03cefd022a185f9c376fa92d1923e1b345465ccdc7776e79b290",
+          "declaration": {
+            "declaration": {
+              "features": [
+                "event"
+              ],
+              "version": "=1.1.6"
+            },
+            "section": "target.cfg(unix).dependencies"
+          },
+          "only_change": "exact rustix version pin",
+          "path": "bindings/rust/SDKConnectionConsumer/Cargo.toml"
+        },
+        {
+          "after_sha256": "7fb688641b6eb4b5590b78053e97a78caa109e9561deed951a5f9e12d91c1b36",
+          "before_sha256": "a9b9af2154aa14935e255fa0c88f47e26ff49057e4cfb152845afb8e68bd3ca9",
+          "declaration": {
+            "declaration": {
+              "features": [
+                "fs",
+                "process"
+              ],
+              "version": "=1.1.6"
+            },
+            "section": "target.cfg(unix).dependencies"
+          },
+          "only_change": "exact rustix version pin",
+          "path": "crates/q-periapt-host-store/Cargo.toml"
+        },
+        {
+          "after_sha256": "1412368dc001ecfecc5664e33976c571e8cda1b30a39014ad45bc42454880d38",
+          "before_sha256": "c6dfb3310477277a7da01ff2bcd3a329cae0f4f04359f882bb3e8d0367b8e17c",
+          "declaration": {
+            "declaration": {
+              "features": [
+                "event"
+              ],
+              "version": "=1.1.6"
+            },
+            "section": "target.cfg(unix).dev-dependencies"
+          },
+          "only_change": "exact rustix version pin",
+          "path": "crates/q-periapt-rustls/Cargo.toml"
+        },
+        {
+          "after_sha256": "a97373ab9b7c7af9a0f7c68b465fa28bece011ed6c35e82334cd24a511540037",
+          "before_sha256": "1c847f3af4dfb39a03cdbda24fa0eaa43ba21d58b5610381f6b04be123d199b3",
+          "declaration": {
+            "declaration": {
+              "features": [
+                "event",
+                "fs",
+                "net",
+                "process"
+              ],
+              "version": "=1.1.6"
+            },
+            "section": "target.cfg(unix).dependencies"
+          },
+          "only_change": "exact rustix version pin",
+          "path": "services/q-periapt-policy-agent/Cargo.toml"
+        }
+      ],
+      "other_tracked_locks": [
+        {
+          "byte_identical_to_base": true,
+          "path": "fuzz/Cargo.lock",
+          "rustix_versions": [],
+          "scope": "other-live-lock-without-rustix",
+          "sha256": "40b256f6575e0b53cf4d65b75d17b1dcf82ded3a3d823e62ce918f9598d79398"
+        },
+        {
+          "byte_identical_to_base": true,
+          "path": "paper/continuity/artifacts/signature-bridge/sources/q-periapt-native/Cargo.lock",
+          "rustix_versions": [
+            "1.1.5"
+          ],
+          "scope": "frozen-evidence",
+          "sha256": "b3f7403faca9c95c0f77d5abb6ce732bb9b89c1a4c72ad6ba6e58f533e0af3d9"
+        },
+        {
+          "byte_identical_to_base": true,
+          "path": "paper/continuity/artifacts/signature-bridge/sources/q-periapt-native/research/continuity-identity-candidate/Cargo.lock",
+          "rustix_versions": [
+            "1.1.5"
+          ],
+          "scope": "frozen-evidence",
+          "sha256": "fda2e0592f7e013816b343d461da1e32346b4256603eda317d12b4ebd200c26b"
+        },
+        {
+          "byte_identical_to_base": true,
+          "path": "research/continuity-spqr-reference/Cargo.lock",
+          "rustix_versions": [
+            "1.0.5"
+          ],
+          "scope": "pinned-upstream-reference",
+          "sha256": "0797eade995d206a9904ed0b3943022a86a1264ce5590af9f9304aca6a56dde0"
+        },
+        {
+          "byte_identical_to_base": true,
+          "path": "research/continuity-whole-kem-reference/Cargo.lock",
+          "rustix_versions": [],
+          "scope": "other-live-lock-without-rustix",
+          "sha256": "05bca0545f7cd90e03c94eb9b91c84c7accabf3fb5252aa494192ec19b6886a0"
+        },
+        {
+          "byte_identical_to_base": true,
+          "path": "research/hqc-fips207-candidate/Cargo.lock",
+          "rustix_versions": [],
+          "scope": "other-live-lock-without-rustix",
+          "sha256": "530607aef9ad9ecbedd8862a2bbba012667ceb0c7015558f4f0e0c724869eb57"
+        },
+        {
+          "byte_identical_to_base": true,
+          "path": "research/sdk-alpha1/evidence/20261110-native-distribution/consumer-Cargo.lock",
+          "rustix_versions": [
+            "1.1.5"
+          ],
+          "scope": "frozen-evidence",
+          "sha256": "9a10dfaca8599e74ca4a4783639c1bc9d34752cd73be3176e3d3499a28d0209e"
+        }
+      ],
+      "workspace_rust_version": "1.90"
+    },
+    {
+      "base_commit": "df411f3b304fbcef04601098ad90cd226617b9c1",
+      "label": "canonical",
+      "lock_reviews": [
+        {
+          "after_sha256": "654e5fced398f3fe955a6fae28781172dca644a816f3a7ca0507f551e3b0fff6",
+          "before_sha256": "9ae037fe28406538aacdbfd1026cccaaeea20494fadb8a3178e18fd5640856bb",
+          "only_changed_package": "rustix",
+          "package_count_after": 242,
+          "package_count_before": 242,
+          "path": "Cargo.lock",
+          "rustix_dependency_list_unchanged": true,
+          "unrelated_package_changes": [],
+          "version_after": "1.1.6",
+          "version_before": "1.1.4"
+        }
+      ],
+      "manifest_reviews": [
+        {
+          "after_sha256": "3050129c68817800608c45baa207d58a31d363f7157aa1ed2ffd031fb8b1430b",
+          "before_sha256": "6940de013ee5206f2fc32d6d8580a643142cef7de6c5b3a079f6a074756085ea",
+          "declaration": {
+            "declaration": {
+              "features": [
+                "event",
+                "fs",
+                "net",
+                "process"
+              ],
+              "version": "=1.1.6"
+            },
+            "section": "target.cfg(unix).dependencies"
+          },
+          "only_change": "exact rustix version pin",
+          "path": "services/q-periapt-policy-agent/Cargo.toml"
+        }
+      ],
+      "other_tracked_locks": [
+        {
+          "byte_identical_to_base": true,
+          "path": "fuzz/Cargo.lock",
+          "rustix_versions": [],
+          "scope": "other-live-lock-without-rustix",
+          "sha256": "b6e1d8a6f34af0d6ca891b7a43973365e4da96709d0d408b57dcc9d7fc14cbb2"
+        },
+        {
+          "byte_identical_to_base": true,
+          "path": "paper/continuity/artifacts/signature-bridge/sources/q-periapt-native/Cargo.lock",
+          "rustix_versions": [
+            "1.1.5"
+          ],
+          "scope": "frozen-evidence",
+          "sha256": "b3f7403faca9c95c0f77d5abb6ce732bb9b89c1a4c72ad6ba6e58f533e0af3d9"
+        },
+        {
+          "byte_identical_to_base": true,
+          "path": "paper/continuity/artifacts/signature-bridge/sources/q-periapt-native/research/continuity-identity-candidate/Cargo.lock",
+          "rustix_versions": [
+            "1.1.5"
+          ],
+          "scope": "frozen-evidence",
+          "sha256": "fda2e0592f7e013816b343d461da1e32346b4256603eda317d12b4ebd200c26b"
+        },
+        {
+          "byte_identical_to_base": true,
+          "path": "research/hqc-fips207-candidate/Cargo.lock",
+          "rustix_versions": [],
+          "scope": "other-live-lock-without-rustix",
+          "sha256": "f4c6818a71001ab20e7fddbb623aed41676c73bb36371d371be378bf2abe1e7e"
+        }
+      ],
+      "workspace_rust_version": "1.85"
+    }
+  ],
+  "exposure_statement": "A targeted search of the live project Rust sources reviewed did not find direct calls to the six affected xattr names. This review does not infer whole-program reachability or exploitability from that search, nor does dependency presence alone establish it.",
+  "local_validation": "All programmatic exact-package, checksum, unchanged-dependency and pin-only-diff assertions in this review passed. No Rust build, cargo metadata, cargo-audit or new regression suite was run by this reviewer.",
+  "reference_scope": {
+    "archives": "Three SDK retained evidence locks and the canonical branch two archived paper locks remain byte-identical to their original source identities.",
+    "spqr": "The separate, unpublished SPQR driver remains pinned to Signal revision f2589fef855c10f39d72634dab3d14654dd410bf. artifact/spqr_reference.py:check_lock enforces the fixed upstream lock SHA-256 and requires each selected registry name/version/checksum tuple to occur in it. Its rustix 1.0.5 remains in the affected range; it is explicitly outside the upgraded SDK/identity/application graphs and is not represented as remediated."
+  },
+  "registry": {
+    "archive_bytes": 426484,
+    "checksum_matches_all_five_updated_locks": true,
+    "crate_url": "https://static.crates.io/crates/rustix/rustix-1.1.6.crate",
+    "independently_downloaded_archive_sha256": "e5e76742e5294153d4dde1207dbec5bdd81eef6fabdc0d2118babadabfd858aa",
+    "index_checksum": "e5e76742e5294153d4dde1207dbec5bdd81eef6fabdc0d2118babadabfd858aa",
+    "index_url": "https://index.crates.io/ru/st/rustix",
+    "rust_version": "1.65",
+    "version": "1.1.6",
+    "yanked": false
+  },
+  "result": "PASS",
+  "schema_version": 1,
+  "scope": "Independent read-only advisory, registry archive, exact lock-diff, manifest-pin and preserved-reference review. Cargo metadata, crate tests and cargo-audit are executed and reported separately by the implementer.",
+  "upstream_fix": {
+    "all_six_zero_length_guards_and_query_functions_read": true,
+    "commit": "8e6aaa6713d2bb64b1fdd8c472e3a32a10a76d70",
+    "crate_vcs_commit": "4a563ad698b2c20ff848515821023d2265a788d0",
+    "release_xattr_source_sha256": "174033bce4d6ca1bddb377951c635d6091e1702b8a9fe6912a4f3c08a9c70787",
+    "url": "https://github.com/bytecodealliance/rustix/commit/8e6aaa6713d2bb64b1fdd8c472e3a32a10a76d70"
+  }
+}

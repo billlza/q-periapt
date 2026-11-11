@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "source_base": "df411f3b304fbcef04601098ad90cd226617b9c1",
+  "failed_hosted_run": 42982407447,
+  "failed_hosted_job": 130395662212,
+  "root_cause": "The exact upload-step contract retained the previous path list after bounded Android cleanup diagnostics were added.",
+  "change": "Add the explicit new diagnostic file names to the exact contract. Remove three redundant upload entries on integration; canonical had no duplicates.",
+  "validation": {
+    "module": "test_proof_to_byte_release.BoundVerifierWiringTests",
+    "tests": [
+      "test_ci_android_16k_runtime_consumes_same_run_aar_fail_closed"
+    ],
+    "count": 1,
+    "seconds": 0.065,
+    "exit_code": 0
+  },
+  "source_sha256": {
+    ".github/workflows/ci.yml": "5f2cb891a9b8a960f5ac20d56a2477c504b6b882b0b89ebf63e6fc9b047f1ad3",
+    "artifact/test_proof_to_byte_release.py": "83d65a22ed1ecbc6b184afc93053e27df95eff1c7b9f82ad23d25439a31f05df"
+  },
+  "runtime_effect": "No device cleanup or runtime proof behavior changes. Existing forbidden broad globs, credentials and ownership-file exclusions remain enforced."
+}

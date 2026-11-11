@@ -1,0 +1,15 @@
+test_change_during_descriptor_read_is_rejected (test_audit_input_boundaries.AuditInputBoundaryTests.test_change_during_descriptor_read_is_rejected) ... ok
+test_compact_digest_binds_parsed_bytes_after_a_later_path_change (test_audit_input_boundaries.AuditInputBoundaryTests.test_compact_digest_binds_parsed_bytes_after_a_later_path_change) ... ok
+test_fixed_inventory_matches_the_retained_public_corpus (test_audit_input_boundaries.AuditInputBoundaryTests.test_fixed_inventory_matches_the_retained_public_corpus) ... ok
+test_manifest_cannot_choose_even_a_canonical_unrelated_file (test_audit_input_boundaries.AuditInputBoundaryTests.test_manifest_cannot_choose_even_a_canonical_unrelated_file) ... ok
+test_manifest_rejects_duplicate_or_missing_expected_members (test_audit_input_boundaries.AuditInputBoundaryTests.test_manifest_rejects_duplicate_or_missing_expected_members) ... ok
+test_manifest_rejects_leaf_and_directory_symlinks (test_audit_input_boundaries.AuditInputBoundaryTests.test_manifest_rejects_leaf_and_directory_symlinks) ... ok
+test_manifest_rejects_noncanonical_and_cross_platform_escapes (test_audit_input_boundaries.AuditInputBoundaryTests.test_manifest_rejects_noncanonical_and_cross_platform_escapes) ... ok
+test_nonregular_inputs_are_rejected (test_audit_input_boundaries.AuditInputBoundaryTests.test_nonregular_inputs_are_rejected) ... ok
+test_regular_file_bytes_and_digest_agree (test_audit_input_boundaries.AuditInputBoundaryTests.test_regular_file_bytes_and_digest_agree) ... ok
+test_replacement_between_stat_and_open_is_rejected (test_audit_input_boundaries.AuditInputBoundaryTests.test_replacement_between_stat_and_open_is_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.018s
+
+OK

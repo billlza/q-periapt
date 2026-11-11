@@ -1,0 +1,396 @@
+ Downloading crates ...
+  Downloaded find-msvc-tools v0.1.11
+  Downloaded unicode-ident v1.0.24
+  Downloaded toml v1.1.4+spec-1.1.0
+  Downloaded cfg-if v1.0.4
+  Downloaded indexmap v2.14.1
+  Downloaded cc v1.2.67
+  Downloaded bitflags v2.13.1
+  Downloaded redb v2.6.3
+  Downloaded syn v3.0.4
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling serde_core v1.0.229
+   Compiling cfg-if v1.0.4
+   Compiling semver v1.0.28
+   Compiling q-periapt-core v0.1.5 (/workspace/scratch/4b61438fb07b/rustix-paper-review/crates/q-periapt-core)
+   Compiling keccak v0.1.6
+   Compiling libc v0.2.189
+   Compiling find-msvc-tools v0.1.11
+   Compiling shlex v2.0.1
+   Compiling generic-array v0.14.7
+   Compiling rustc_version v0.4.1
+   Compiling winnow v1.0.4
+   Compiling cc v1.2.67
+   Compiling serde v1.0.229
+   Compiling q-periapt-sig v0.1.5 (/workspace/scratch/4b61438fb07b/rustix-paper-review/crates/q-periapt-sig)
+   Compiling getrandom v0.4.3
+   Compiling curve25519-dalek v5.0.0
+   Compiling toml_parser v1.1.3+spec-1.1.0
+   Compiling subtle v2.6.1
+   Compiling toml_writer v1.1.2+spec-1.1.0
+   Compiling cpufeatures v0.2.17
+   Compiling cpufeatures v0.3.1
+   Compiling rustix v1.1.6
+   Compiling rand_core v0.6.4
+   Compiling syn v2.0.119
+   Compiling syn v3.0.4
+   Compiling rand_core v0.10.1
+   Compiling linux-raw-sys v0.12.1
+   Compiling redb v2.6.3
+   Compiling bitflags v2.13.1
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling digest v0.10.7
+   Compiling q-periapt-kem v0.1.5 (/workspace/scratch/4b61438fb07b/rustix-paper-review/crates/q-periapt-kem)
+   Compiling fastrand v2.5.0
+   Compiling once_cell v1.21.4
+   Compiling sha3 v0.10.9
+   Compiling q-periapt-mlkem-native-sys v0.1.5 (/workspace/scratch/4b61438fb07b/rustix-paper-review/crates/q-periapt-mlkem-native-sys)
+   Compiling sha2 v0.10.9
+   Compiling toml_datetime v1.1.1+spec-1.1.0
+   Compiling serde_spanned v1.1.1
+   Compiling toml v1.1.4+spec-1.1.0
+   Compiling serde_derive v1.0.229
+   Compiling zeroize_derive v1.5.0
+   Compiling curve25519-dalek-derive v0.1.1
+   Compiling zeroize v1.9.0
+   Compiling fips204 v0.4.6
+   Compiling x25519-dalek v3.0.0
+   Compiling q-periapt-policy v0.1.5 (/workspace/scratch/4b61438fb07b/rustix-paper-review/crates/q-periapt-policy)
+   Compiling q-periapt-backends v0.1.5 (/workspace/scratch/4b61438fb07b/rustix-paper-review/crates/q-periapt-backends)
+   Compiling q-periapt-migration v0.1.5 (/workspace/scratch/4b61438fb07b/rustix-paper-review/models/q-periapt-migration)
+   Compiling tempfile v3.27.0
+   Compiling q-periapt-ffi v0.1.5 (/workspace/scratch/4b61438fb07b/rustix-paper-review/crates/q-periapt-ffi)
+   Compiling q-periapt-policy-agent v0.1.5 (/workspace/scratch/4b61438fb07b/rustix-paper-review/services/q-periapt-policy-agent)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.00s
+     Running unittests src/lib.rs (/workspace/scratch/4b61438fb07b/rustix-paper-target/debug/deps/q_periapt_policy_agent-1017c452ae4bef09)
+
+running 262 tests
+test activation::tests::socket_paths_that_could_never_match_are_refused ... ok
+test activation::tests::activation_names_that_cannot_round_trip_are_refused ... ok
+test activation::tests::a_listener_bound_elsewhere_is_refused ... FAILED
+test activation::tests::a_listener_bound_to_the_expected_path_is_adopted ... FAILED
+test authority::tests::capability_consumption_is_one_shot ... ok
+test authority::tests::config_advance_fences_lease_and_keys_but_preserves_capabilities ... ok
+test authority::tests::debug_output_redacts_security_identifiers_and_digests ... ok
+test authority::tests::clock_failure_has_no_state_effect ... ok
+test authority::tests::closed_rejections_are_receipted_without_domain_mutation ... ok
+test authority::tests::identical_inputs_produce_identical_state_and_receipt ... ok
+test authority::tests::exact_receipts_are_stable_and_conflicting_reuse_fails ... ok
+test authority::tests::key_capacity_never_evicts_an_existing_record ... ok
+test authority::tests::expired_keys_are_fenced_and_cannot_alias_the_next_lease ... ok
+test authority::tests::error_priority_is_stable_at_capacity ... ok
+test authority::tests::monotonic_overflow_paths_do_not_partially_mutate ... ok
+test authority::tests::receipt_acknowledgement_restores_capacity_without_reexecuting_old_intent ... ok
+test authority::tests::limits_and_identifiers_reject_reserved_values ... ok
+test authority::tests::lease_is_exclusive_and_old_fences_are_rejected ... ok
+test authority::tests::key_registration_and_revocation_are_closed ... ok
+test authority::tests::provision_fails_closed_when_trusted_clock_is_unavailable ... ok
+test authority::tests::mutation_set_is_closed_to_eight_stage_one_transitions ... ok
+test authority::tests::renew_strictly_extends_and_release_clears_keys_only ... ok
+test authority::tests::rejected_state_advance_preserves_domain_records ... ok
+test authority::tests::semantic_rejections_have_exact_receipts ... ok
+test authority::tests::reservation_failures_are_atomic_and_exactly_retryable ... ok
+test authority::tests::state_and_config_revisions_require_exact_successors ... ok
+test authority::tests::state_advance_atomically_invalidates_capabilities_and_keys ... ok
+test authority_codec::tests::store_v2_canonical_bytes_match_the_frozen_stage2a1_corpus ... ok
+test authority_protocol::tests::encoders_revalidate_inner_config_nonce_shape_and_failure_reachability ... ok
+test authority_protocol::tests::impossible_receipts_fail_closed_at_every_wire_boundary ... ok
+test authority::tests::trusted_clock_floor_prevents_expired_lease_revival ... ok
+test authority_store::tests::codec_rejects_trailing_unknown_and_inconsistent_records ... ok
+test authority_protocol::tests::six_command_request_and_response_bytes_are_frozen ... ok
+test authority_store::tests::closed_store_copy_can_open_and_is_explicitly_not_clone_defense ... ok
+test authority_store::tests::all_rejection_tags_survive_normalized_restart_roundtrip ... ok
+test authority_store::tests::a_failed_provision_leaves_the_path_retryable ... ok
+test authority_store::tests::clock_failure_and_receipt_bound_fail_closed_without_losing_floor ... ok
+test authority_store::tests::database_lock_rejects_second_open_and_epoch_is_fresh ... ok
+test authority_store::tests::file_helpers_are_cross_platform_test_only ... ok
+test authority_store::tests::acknowledgement_partial_writes_are_explicitly_aborted_or_poisoned ... ok
+test authority_store::tests::query_and_already_absent_never_hide_a_reported_abort_failure ... ok
+test authority_store::tests::replay_clock_floor_and_acknowledgement_are_durable ... ok
+test authority_store::tests::precommit_export_and_encode_allocations_commit_only_the_observed_floor ... ok
+test authority_store::tests::every_reservation_allocation_failure_persists_floor_without_partial_effect ... ok
+test authority_transport::tests::endpoint_configuration_and_key_role_separation_fail_closed ... ok
+test authority_store::tests::uncertain_commit_quarantines_path_and_forensics_observe_old_or_new_images ... ok
+test authority_store::tests::every_non_receipt_error_persists_its_observed_clock_floor ... ok
+test authority_store::tests::active_missing_key_is_corrupt_but_historical_bindings_survive_restart ... ok
+test authority_store::tests::all_eight_mutations_survive_normalized_restart_roundtrips ... ok
+test authority_store::tests::floor_only_commit_failures_and_internal_invariants_permanently_poison ... ok
+test filesystem::cleanup_boundary::anonymous_scratch_has_no_name_before_or_after_copy ... ok
+test filesystem::cleanup_boundary::failed_provision_cleanup_keeps_the_pinned_parent ... ok
+test filesystem::cleanup_boundary::scratch_copy_preserves_write_failure_and_stops_without_retry ... ok
+test filesystem::cleanup_boundary::scratch_copy_rejects_short_input ... ok
+test filesystem::cleanup_boundary::scratch_copy_supports_lengths_above_u32_without_a_full_file_allocation ... ok
+test filesystem::cleanup_boundary::scratch_unlink_failure_is_explicit_and_never_returns_a_copy_destination ... ok
+test ipc::tests::a_full_nonce_window_refuses_a_fresh_nonce_and_never_evicts_to_make_room ... ok
+test ipc::tests::endpoint_addresses_are_numeric_only ... ok
+test ipc::tests::finished_commands_decode_to_distinct_typed_flights ... ok
+test ipc::tests::length_delimited_reader_rejects_oversized_frame_before_allocation ... ok
+test ipc::tests::response_tags_encode_role_and_flight_without_implicit_responder_finished ... ok
+test ipc::tests::strict_request_decoder_rejects_unknown_and_trailing_bytes ... ok
+test ipc::tests::the_accept_wait_times_out_when_idle_and_reports_a_waiting_client ... FAILED
+test ipc::tests::the_deployment_templates_agree_with_this_code ... ok
+test ipc::tests::the_maintenance_interval_agrees_with_the_poll_timeout ... ok
+test authority_transport::tests::nonce_capacity_returns_rate_limited_before_dispatch ... ok
+test ipc::tests::the_request_deadline_covers_the_minimum_guarded_plan ... ok
+test ipc::tests::v1_domain_and_schema_are_rejected_without_compatibility_fallback ... ok
+test ipc::tests::v2_agent_statuses_keep_flight_and_resource_failures_distinct ... ok
+test ipc::tests::the_port_round_trip_bounds_are_the_transport_deadlines ... ok
+test authority_transport::tests::lost_response_is_recovered_by_query_and_acknowledged_once ... ok
+test authority_transport::tests::replayed_request_envelope_is_detected_and_dispatched_only_once ... ok
+test tests::durable_store::authority_crash_after_commit_child ... ok
+test authority_transport::tests::server_open_requires_exact_epoch_and_lease_only_history ... ok
+test authority_transport::tests::mismatched_identity_or_unpinned_key_receives_no_authority_response ... ok
+test tests::durable_store::authority_store_refuses_a_corrupted_primary_without_touching_it ... ok
+test tests::durable_store::failed_private_file_create_leaves_no_leaf_behind ... ignored, manipulates the process-wide umask; run with --test-threads=1
+test tests::durable_store::authority_store_refuses_an_unclean_file_from_a_non_two_phase_writer ... ok
+test tests::durable_store::private_state_file_is_opened_beneath_an_owned_descriptor_boundary ... ok
+
+running 1 test
+test tests::durable_store::a_lease_journal_beyond_its_bound_is_refused_at_open ... ok
+test tests::durable_store::authority_store_reopens_after_a_real_crash_with_its_last_commit_intact ... ok
+test authority_store::tests::v1_missing_and_corrupt_normalized_state_never_open_as_v2 ... ok
+test tests::durable_store::redb_lock_rejects_a_second_agent_repository_open ... ok
+test tests::durable_store::witness_crash_after_commit_child ... ok
+test tests::durable_store::repository_refuses_a_corrupted_primary_without_touching_it ... ok
+test tests::durable_store::repository_refuses_an_unclean_file_from_a_non_two_phase_writer ... ok
+test tests::durable_store::witness_store_refuses_a_clean_foreign_database_without_touching_it ... ok
+test authority_transport::tests::lease_lifecycle_fencing_and_acknowledgement_round_trip_over_tcp ... ok
+test tests::durable_store::witness_admission_preserves_valid_head_and_continuous_lock_ownership ... ok
+test tests::durable_store::witness_store_refuses_a_corrupted_primary_without_touching_it ... ok
+test tests::durable_store::journal_lease_intent_is_bounded_and_forgets_in_the_same_transaction ... ok
+test tests::durable_store::a_malformed_lease_journal_row_is_refused_at_open ... ok
+test tests::fixture_hooks::a_lost_acquire_applies_and_leaves_the_queries_refused ... ok
+test tests::fixture_hooks::lease_call_hooks_fire_once_and_only_for_the_calls_they_select ... ok
+test tests::fixture_hooks::query_and_acknowledgement_hooks_answer_exactly_once ... ok
+test tests::fixture_hooks::snapshot_hooks_count_every_request_and_consume_in_order ... ok
+test tests::durable_store::witness_store_refuses_an_unclean_file_from_a_non_two_phase_writer ... ok
+test tests::durable_store::a_store_provisioned_before_the_lease_journal_opens_and_journals ... ok
+test tests::fixture_hooks::witness_hooks_fail_reads_step_the_authority_and_delay_the_compare ... ok
+test tests::durable_store::witness_store_rejects_a_same_generation_head_that_forks_from_its_applied_receipt ... ok
+
+running 1 test
+test tests::durable_store::witness_store_rejects_a_semantically_damaged_database_at_open ... ok
+test tests::durable_store::witness_store_rejects_an_applied_receipt_ahead_of_its_head ... ok
+test tests::durable_store::witness_store_reopens_after_a_real_crash_with_its_last_commit_intact ... ok
+test tests::fixture_hooks::the_lease_journal_write_hook_fails_the_next_write_once ... ok
+test tests::fixture_hooks::a_framed_begin_decodes_as_the_ipc_server_encodes_it ... ok
+test tests::ipc::a_busy_listener_does_not_starve_the_session_sweep ... FAILED
+
+running 1 test
+test authority_transport::tests::unresponsive_or_refused_endpoints_stay_within_the_deadline_contract ... ok
+test tests::ipc::a_termination_signal_only_sets_the_flag_child ... ok
+test tests::ipc::a_poisoned_agent_ends_the_serving_loop_instead_of_answering_status_19 ... FAILED
+test tests::ipc::a_termination_signal_is_latched_instead_of_ending_the_process ... ok
+test tests::ipc::a_poisoned_linearizer_is_reported_at_once_not_at_the_deadline ... ok
+test tests::ipc::ipc_server_material_is_read_and_validated_before_the_lease_is_acquired ... ok
+test tests::ipc::a_stop_whose_release_fails_is_reported_and_the_lease_is_left_for_the_ttl ... FAILED
+test tests::ipc::a_stop_whose_release_settles_but_whose_cleanup_fails_says_the_lease_is_gone ... FAILED
+test tests::ipc::ipc_rejects_one_key_pair_serving_both_directions ... ok
+test tests::ipc::ipc_absolute_deadline_evicts_a_pre_auth_trickle_client ... ok
+test tests::ipc::ipc_write_failure_can_recover_exact_acceptance_with_a_new_nonce ... ok
+test tests::ipc::stopping_the_serving_loop_releases_the_instance_lease ... FAILED
+test tests::ipc::a_caller_behind_a_busy_linearizer_is_refused_on_its_own_deadline ... ok
+test tests::ipc::lost_begin_response_is_recovered_by_an_exact_retry_under_a_fresh_nonce ... ok
+test tests::ipc::the_commands_that_make_no_port_call_honour_the_callers_deadline_too ... ok
+test tests::ipc::ipc_rejects_a_response_key_clients_could_not_verify ... ok
+test tests::ipc::the_serving_loop_answers_over_a_real_socket_and_stops_on_shutdown ... FAILED
+test tests::ipc::the_response_write_budget_comes_from_the_request_deadline_not_the_read_deadline ... ok
+test tests::ipc::the_ipc_face_gives_a_no_port_call_command_the_connections_deadline ... ok
+test tests::lease::a_constructor_failure_after_the_acquire_releases_the_lease ... ok
+test tests::lease::a_constructor_acquire_whose_outcome_is_lost_releases_the_lease ... ok
+test tests::lease::a_constructor_failure_through_the_lease_wait_releases_the_lease ... ok
+test tests::ipc::a_request_whose_deadline_cannot_cover_the_guarded_operation_is_refused_before_any_round_trip ... ok
+test tests::ipc::a_deadline_that_lapses_after_the_durable_reservation_retains_nothing_and_writes_nothing ... ok
+test tests::ipc::the_idle_sweep_skips_a_busy_agent_instead_of_waiting_for_it ... ok
+test tests::lease::a_coverage_lapse_at_acceptance_releases_the_durable_reservation ... ok
+test tests::lease::a_coverage_lapse_on_a_begin_retry_returns_no_handle_and_erases_nothing ... ok
+test tests::lease::a_coverage_lapse_after_the_post_renew_proof_returns_no_handle_on_a_retry ... ok
+test tests::lease::a_constructor_release_that_cannot_settle_leaves_the_lease_to_lapse ... ok
+test tests::lease::a_failed_durable_cancel_at_release_still_releases_the_lease ... ok
+test tests::lease::a_drain_refused_by_the_budget_keeps_every_unresolved_row ... ok
+test tests::lease::a_lapse_between_renew_and_snapshot_is_not_a_permanent_fence ... ok
+test tests::lease::a_forward_authority_clock_step_after_the_coverage_snapshot_retains_no_key ... ok
+test tests::lease::a_forward_authority_clock_step_after_the_coverage_snapshot_retains_no_session ... ok
+test tests::lease::a_lapsed_own_reacquire_is_indeterminate_not_a_permanent_fence ... ok
+test tests::lease::a_lease_that_lapsed_without_a_successor_is_recovered_not_fenced ... ok
+test tests::lease::a_lost_reacquire_fences_when_a_foreign_successor_took_the_next_generation ... ok
+test tests::lease::a_lease_with_more_than_the_budget_left_still_serves ... ok
+test tests::lease::a_lost_reacquire_is_adopted_from_the_snapshot_while_queries_stay_refused ... ok
+test tests::lease::a_lost_reacquire_is_recognized_as_our_own_lease_once_the_authority_answers ... ok
+test tests::lease::a_lost_reacquire_never_dispatches_a_renew_with_the_old_fence_while_unresolvable ... ok
+test tests::lease::a_pending_reacquire_refused_by_the_budget_is_kept_and_dispatches_nothing ... ok
+test tests::lease::a_coverage_lapse_during_the_durable_release_retains_no_key ... ok
+test tests::lease::a_coverage_lapse_during_the_durable_reservation_retains_no_session ... ok
+test tests::lease::a_reacquire_lost_on_the_wire_is_retried_not_adopted ... ok
+test tests::lease::a_recovery_copy_that_acknowledges_a_live_reacquire_does_not_fence_the_original ... ok
+test tests::lease::a_reacquire_after_a_lapse_ends_the_begin_retry_window ... ok
+test tests::lease::a_recovery_copy_that_acknowledges_a_reacquire_reconciled_inline_does_not_fence_it ... ok
+test tests::lease::a_release_refused_at_the_pre_erase_gate_keeps_every_secret ... ok
+test tests::lease::a_release_declined_on_a_clearable_condition_keeps_the_lease ... ok
+test tests::lease::a_release_refused_on_its_version_precondition_every_attempt_is_unavailable ... ok
+test tests::lease::a_release_refused_by_its_deadline_keeps_the_lease_and_erases_nothing ... ok
+test tests::lease::a_release_that_was_never_sent_keeps_the_fence_and_releases_on_retry ... ok
+test tests::lease::a_release_whose_budget_excludes_the_resolution_releases_the_expected_fence ... ok
+test tests::lease::a_release_the_authority_rate_limits_outright_is_reported_unproven ... ok
+test tests::lease::a_release_the_authority_closed_failed_keeps_its_fence_and_takes_no_proof ... ok
+test tests::lease::a_release_whose_response_is_lost_and_query_answers_a_foreign_intent_is_proven_gone_by_snapshot ... ok
+test tests::lease::a_deadline_reached_after_the_witness_read_returns_no_handle_on_a_retry ... ok
+test tests::lease::a_release_whose_every_dispatch_stays_unknown_is_indeterminate ... ok
+test tests::lease::a_renew_refused_on_its_version_precondition_every_attempt_is_unavailable ... ok
+test tests::lease::a_release_whose_response_is_lost_and_query_refused_closed_is_proven_gone_by_snapshot ... ok
+test tests::lease::a_release_with_no_receipt_and_no_proof_is_indeterminate_and_keeps_the_fence ... ok
+test tests::lease::a_release_whose_response_and_queries_are_lost_is_proven_gone_by_snapshot ... ok
+test tests::lease::a_successor_between_renew_and_snapshot_is_a_real_fence ... ok
+test tests::lease::a_successor_after_a_lost_reacquire_still_fences ... ok
+test tests::lease::an_authority_rolled_back_behind_our_generation_is_a_fence ... ok
+test tests::lease::an_authority_clock_step_inside_the_retry_witness_read_returns_no_handle ... ok
+test tests::lease::coverage_deadline_subtracts_the_divergence_budget ... ok
+test tests::lease::a_successor_observed_by_the_retention_snapshot_fences_and_releases_the_reservation ... ok
+test tests::lease::a_start_journal_pass_that_cannot_fit_the_budget_leaves_its_rows_for_later ... ok
+test tests::lease::an_authority_unreachable_at_the_retention_snapshot_retains_nothing ... ok
+test tests::lease::an_idle_agent_erases_expired_session_secrets_without_being_asked ... ok
+test tests::lease::coverage_refuses_before_the_write_once_only_the_divergence_budget_is_left ... ok
+test tests::lease::drains_yield_to_the_operation_budget_and_keep_their_obligations ... ok
+test tests::lease::concurrent_instances_race_to_exactly_one_lease ... ok
+test tests::lease::expired_lease_successor_fences_out_live_instance_and_erases_secrets ... ok
+test tests::lease::a_release_whose_response_is_lost_and_query_misses_the_budget_is_proven_gone_by_snapshot ... ok
+test tests::lease::a_successor_waits_for_a_lapsed_lease_instead_of_failing_at_construction ... ok
+test tests::lease::a_successor_waiting_on_a_renewing_holder_is_refused_after_max_wait ... ok
+test tests::lease::fencing_out_erases_every_key_even_when_a_durable_cancel_fails ... ok
+test tests::lease::second_instance_on_same_authority_is_fenced_at_construction ... ok
+test tests::lease::lost_lease_responses_reconcile_by_exact_operation_query ... ok
+test tests::lease::released_lease_is_idempotent_and_hands_over_without_ttl_wait ... ok
+test tests::lease_journal::a_clean_release_leaves_the_lease_journal_empty ... ok
+test tests::lease_journal::a_full_lease_journal_refuses_the_operation_before_dispatch ... ok
+test tests::lease_journal::a_guarded_operation_reserves_the_journal_commit_its_renew_must_pay ... ok
+test tests::lease_journal::a_journal_write_that_fails_for_storage_reasons_dispatches_nothing_and_does_not_poison ... ok
+test tests::lease_journal::a_lease_call_lost_before_it_reached_the_authority_is_retried_once_the_query_proves_it_absent ... ok
+test tests::lease_journal::a_dispatch_that_cannot_cover_its_journal_commit_leaves_no_row ... ok
+
+running 1 test
+test tests::lease_journal::a_lease_call_lost_before_it_reached_the_authority_is_retried_once_the_query_proves_it_absent_at_construction ... ok
+test tests::lease_journal::a_lease_intent_journaled_but_never_dispatched_is_forgotten_at_the_next_start ... ok
+test tests::lease::the_stops_erase_is_not_charged_to_the_release_budget ... ok
+test tests::lease_journal::a_lost_acquire_whose_query_is_refused_closed_still_releases_the_fence ... ok
+test tests::lease_journal::a_lost_renew_answered_for_a_foreign_intent_is_asked_again_before_the_next_operation ... ok
+test tests::lease_journal::a_lost_renew_whose_query_is_refused_closed_is_unavailable_not_indeterminate_and_asked_only_once ... ok
+test tests::lease::release_after_a_lost_reacquire_releases_the_new_lease ... ok
+test tests::lease_journal::a_lease_call_refused_before_dispatch_keeps_its_row_and_is_settled_by_the_next_query ... ok
+test tests::lease_journal::a_lost_acquire_whose_query_misses_the_budget_still_releases_the_fence ... ok
+test tests::lease_journal::a_reacquire_the_transport_never_sent_leaves_no_record_for_the_release_to_resolve ... ok
+test tests::lease_journal::a_renew_whose_response_and_every_query_are_lost_is_indeterminate_and_settled_by_the_next_operation ... ok
+test tests::lease_journal::a_receipt_left_unacknowledged_by_a_crash_is_acknowledged_at_the_next_start ... ok
+test tests::lease_journal::a_release_that_cannot_reserve_its_proof_erases_nothing ... ok
+test tests::lease_journal::a_stranded_receipt_the_authority_will_not_yet_release_stays_journaled_and_is_acknowledged_by_a_later_operation ... ok
+test tests::lease_journal::a_lease_receipt_stranded_by_a_real_process_crash_is_acknowledged_exactly_once_at_the_next_start ... ok
+test tests::lease_journal::lease_journal_crash_after_dispatch_child ... ok
+test tests::lease_journal::a_stranded_receipt_the_authority_will_not_yet_release_stays_journaled_and_is_acknowledged_by_a_later_operation_when_the_acknowledgement_response_is_lost ... ok
+test tests::lease_journal::an_acquire_the_transport_never_sent_pays_for_no_compensating_release ... ok
+test tests::lease_journal::a_start_that_cannot_settle_a_full_lease_journal_fails_closed ... ok
+test tests::lease_journal::an_unmatchable_receipt_is_dropped_from_the_queue_and_its_row_settled_without_fencing ... ok
+test tests::lease_journal::a_start_against_an_unanswering_authority_journals_nothing ... ok
+test tests::lease_journal::an_unmatchable_receipt_is_dropped_from_the_queue_and_its_row_settled_without_fencing_at_the_next_start ... ok
+test tests::lease_journal::an_acquire_whose_response_and_queries_are_lost_at_construction_releases_the_expected_fence ... ok
+test tests::session::abi2_secret_mismatch_rejects_finished_and_terminally_erases_session ... ok
+test tests::lease_journal::rows_the_authority_could_not_answer_for_at_start_are_settled_by_a_later_operation ... ok
+test tests::session::begin_exact_retry_needs_no_free_session_slot ... ok
+test tests::session::begin_decapsulation_exact_retry_returns_the_same_handle_and_damaged_ciphertext_is_refused ... ok
+test tests::session::constructors_reject_collapsed_identity_domains_and_zero_timeouts ... ok
+test tests::session::a_responder_accept_retry_returns_no_result_once_its_coverage_has_elapsed ... ok
+test tests::session::an_accept_retry_returns_no_handle_once_the_coverage_it_reproved_has_elapsed ... ok
+test tests::session::begin_replay_with_different_public_input_under_the_same_capability_is_refused_without_erasing ... ok
+test tests::lease_journal::each_start_whose_acquire_stays_unsettled_journals_its_row ... ok
+test tests::session::concurrent_exact_responder_acceptance_returns_one_stable_result ... ok
+test tests::session::begin_retry_after_expiry_hits_the_tombstone_and_the_retry_window_is_bounded_by_the_session ... ok
+test tests::session::durable_cancel_failure_poisoning_prevents_further_service ... ok
+test tests::session::durable_release_failure_never_returns_responder_finished_or_retained_handle ... ok
+test tests::session::protocol_role_not_kem_direction_controls_finished_order ... ok
+test tests::session::stale_witness_is_rejected_before_finished_verification_and_consumes_session ... ok
+test tests::transition::a_reconcile_answered_for_a_different_intent_commits_nothing ... ok
+test tests::session::mutual_confirmation_releases_only_handles_and_replay_tombstone_survives_restart ... ok
+test tests::session::restart_rejects_secretless_pending_handle_but_preserves_capability_tombstone ... ok
+test tests::transition::crash_after_durable_intent_child ... ok
+
+running 1 test
+test tests::transition::a_reset_authenticated_against_another_repositorys_roots_is_refused ... ok
+test tests::transition::abrupt_process_exit_after_durable_intent_reopens_and_reconciles_exact_operation ... ok
+test tests::transition::execution_policy_identity_can_advance_while_old_bundle_remains_blocked ... ok
+test tests::transition::floor_five_advance_is_rejected_before_durable_intent_or_witness_cas ... ok
+test tests::transition::reconcile_is_not_charged_the_advance_paths_durable_reserve ... ok
+test tests::session::an_acceptance_aborted_after_the_witness_read_has_consumed_its_handle ... ok
+test tests::transition::reset_cannot_rotate_to_an_unprovisioned_migration_authority ... ok
+test tests::transition::a_rejected_certificate_is_reported_as_rejected_under_any_deadline ... ok
+test tests::transition::a_deadline_that_lapses_after_the_lease_leaves_no_durable_intent ... ok
+test tests::witness_protocol::authenticated_reference_witness_waits_for_a_delayed_fragmented_frame ... ok
+test tests::witness_protocol::authenticated_reference_witness_serializes_concurrent_cas_and_queries ... ok
+test tests::transition::a_transition_that_cannot_cover_its_durable_intent_is_refused_before_it ... ok
+test tests::witness_protocol::authenticated_reference_witness_evicts_a_trickling_client_at_its_deadline ... ok
+test tests::witness_protocol::cas_connection_failure_is_reported_before_request_dispatch ... ok
+test tests::witness_protocol::cas_response_loss_after_a_complete_request_remains_indeterminate ... ok
+test tests::witness_protocol::cas_authenticated_inconsistent_receipts_remain_indeterminate ... ok
+test tests::witness_protocol::cas_with_an_unverifiable_response_is_indeterminate_not_a_failure ... ok
+test tests::transition::valid_incompatible_state_commits_without_executor_and_later_state_recovers ... ok
+test tests::transition::unknown_transition_reconciles_same_operation_and_stales_old_session ... ok
+test tests::witness_protocol::witness_rejects_one_key_pair_serving_both_directions ... ok
+test tests::witness_protocol::authenticated_witness_client_gives_up_on_a_trickling_witness_at_its_deadline ... ok
+test tests::transition::a_reset_refused_after_the_lease_leaves_no_durable_intent ... ok
+test tests::witness_protocol::witness_server_survives_a_request_level_rejection ... ok
+test tests::transition::a_transition_the_witness_applied_before_the_deadline_lapsed_is_still_committed ... ok
+test tests::witness_protocol::witness_test_peer_expires_when_no_client_connects ... ok
+
+failures:
+
+---- activation::tests::a_listener_bound_elsewhere_is_refused stdout ----
+
+thread 'activation::tests::a_listener_bound_elsewhere_is_refused' (1553) panicked at services/q-periapt-policy-agent/src/activation.rs:248:50:
+bind scratch listener: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- activation::tests::a_listener_bound_to_the_expected_path_is_adopted stdout ----
+
+thread 'activation::tests::a_listener_bound_to_the_expected_path_is_adopted' (1554) panicked at services/q-periapt-policy-agent/src/activation.rs:248:50:
+bind scratch listener: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- ipc::tests::the_accept_wait_times_out_when_idle_and_reports_a_waiting_client stdout ----
+
+thread 'ipc::tests::the_accept_wait_times_out_when_idle_and_reports_a_waiting_client' (1629) panicked at services/q-periapt-policy-agent/src/ipc.rs:2500:50:
+listener: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- tests::ipc::a_busy_listener_does_not_starve_the_session_sweep stdout ----
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- tests::ipc::a_poisoned_agent_ends_the_serving_loop_instead_of_answering_status_19 stdout ----
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- tests::ipc::a_stop_whose_release_fails_is_reported_and_the_lease_is_left_for_the_ttl stdout ----
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- tests::ipc::a_stop_whose_release_settles_but_whose_cleanup_fails_says_the_lease_is_gone stdout ----
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- tests::ipc::stopping_the_serving_loop_releases_the_instance_lease stdout ----
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- tests::ipc::the_serving_loop_answers_over_a_real_socket_and_stops_on_shutdown stdout ----
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+
+failures:
+    activation::tests::a_listener_bound_elsewhere_is_refused
+    activation::tests::a_listener_bound_to_the_expected_path_is_adopted
+    ipc::tests::the_accept_wait_times_out_when_idle_and_reports_a_waiting_client
+    tests::ipc::a_busy_listener_does_not_starve_the_session_sweep
+    tests::ipc::a_poisoned_agent_ends_the_serving_loop_instead_of_answering_status_19
+    tests::ipc::a_stop_whose_release_fails_is_reported_and_the_lease_is_left_for_the_ttl
+    tests::ipc::a_stop_whose_release_settles_but_whose_cleanup_fails_says_the_lease_is_gone
+    tests::ipc::stopping_the_serving_loop_releases_the_instance_lease
+    tests::ipc::the_serving_loop_answers_over_a_real_socket_and_stops_on_shutdown
+
+test result: FAILED. 252 passed; 9 failed; 1 ignored; 0 measured; 0 filtered out; finished in 31.55s
+
+error: test failed, to rerun pass `-p q-periapt-policy-agent --lib`

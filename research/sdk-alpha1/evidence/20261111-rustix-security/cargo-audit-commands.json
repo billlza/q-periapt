@@ -1,0 +1,40 @@
+[
+  {
+    "track": "paper",
+    "lock": "Cargo.lock",
+    "command": [
+      "/workspace/scratch/4b61438fb07b/rustix-paper-review/target/qperiapt-audit-tool/bin/cargo-audit",
+      "audit",
+      "--deny",
+      "warnings",
+      "--no-yanked",
+      "--db",
+      "/workspace/scratch/4b61438fb07b/rustix-advisory-db",
+      "--no-fetch",
+      "--file",
+      "/workspace/scratch/4b61438fb07b/rustix-paper-review/Cargo.lock"
+    ],
+    "advisory_db_commit": "31cf5a8673e10d3a4d7d829ad5095f47ed419049",
+    "exit": 0,
+    "elapsed": 0.09422176199996102
+  },
+  {
+    "track": "paper",
+    "lock": "fuzz/Cargo.lock",
+    "command": [
+      "/workspace/scratch/4b61438fb07b/rustix-paper-review/target/qperiapt-audit-tool/bin/cargo-audit",
+      "audit",
+      "--deny",
+      "warnings",
+      "--no-yanked",
+      "--db",
+      "/workspace/scratch/4b61438fb07b/rustix-advisory-db",
+      "--no-fetch",
+      "--file",
+      "/workspace/scratch/4b61438fb07b/rustix-paper-review/fuzz/Cargo.lock"
+    ],
+    "advisory_db_commit": "31cf5a8673e10d3a4d7d829ad5095f47ed419049",
+    "exit": 0,
+    "elapsed": 0.04598737099991013
+  }
+]
