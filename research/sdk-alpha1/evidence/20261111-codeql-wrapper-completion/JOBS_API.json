@@ -1,0 +1,89 @@
+{
+  "total_count": 1,
+  "jobs": [
+    {
+      "id": 130564344658,
+      "run_id": 43032937156,
+      "workflow_name": "Nonempty Rust wrapper fixture",
+      "head_branch": "diagnostic/codeql-wrapper-fixture",
+      "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43032937156",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTD-aVc8AAAAeZj3LUg",
+      "head_sha": "cd33c64e34a39046a57010bfa56f6964acdca2c2",
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130564344658",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43032937156/job/130564344658",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-11-11T13:51:31Z",
+      "started_at": "2026-11-11T13:51:35Z",
+      "completed_at": "2026-11-11T13:54:30Z",
+      "name": "Full 39-query wrapper and retained SummaryStats equality",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-11T13:51:36Z",
+          "completed_at": "2026-11-11T13:51:37Z"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-11T13:51:37Z",
+          "completed_at": "2026-11-11T13:51:43Z"
+        },
+        {
+          "name": "Verify the fixture method and workflow contracts",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-11T13:51:43Z",
+          "completed_at": "2026-11-11T13:51:43Z"
+        },
+        {
+          "name": "Extract the frozen fixture and exercise the production analysis path",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 4,
+          "started_at": "2026-11-11T13:51:43Z",
+          "completed_at": "2026-11-11T13:54:23Z"
+        },
+        {
+          "name": "Retain raw diagnostics, results and admission receipts",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-11T13:54:23Z",
+          "completed_at": "2026-11-11T13:54:26Z"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-11-11T13:54:26Z",
+          "completed_at": "2026-11-11T13:54:27Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-11-11T13:54:27Z",
+          "completed_at": "2026-11-11T13:54:27Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130564344658",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1000089159,
+      "runner_name": "GitHub Actions 1000089159",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]
+}

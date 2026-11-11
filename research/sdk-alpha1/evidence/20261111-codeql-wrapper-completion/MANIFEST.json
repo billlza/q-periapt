@@ -1,0 +1,126 @@
+{
+  "files": {
+    "ARTIFACT_API.json": {
+      "bytes": 863,
+      "sha256": "87a93f95c566b4fb147a47d4360dbeb681ac333da62a1d893c5cd7414136cf6e"
+    },
+    "COMPLETION_EVENTS.json": {
+      "bytes": 23430,
+      "sha256": "9b6a652b824c419c281c8b0ce1857167eb6d5d5042839c71e2c3b1b5f57beea0"
+    },
+    "JOBS_API.json": {
+      "bytes": 3165,
+      "sha256": "104f3c4def72e321de80917dfd2e10012abc9e530856676debae4b1fb45de889"
+    },
+    "READBACK.json": {
+      "bytes": 6828,
+      "sha256": "5d3c8c22b2f2a6891b583fc1cbaab199646a6113f17a155c5f502c2230ebfcd2"
+    },
+    "README.md": {
+      "bytes": 3576,
+      "sha256": "cc83b8f5b9386ce3f755d9fa33a8f9591b8c1979269a92abfa90e0432aa22c09"
+    },
+    "ZIP_MEMBERS.json": {
+      "bytes": 40264,
+      "sha256": "1a618bcca29cc8237c794f4a60bd3bb06dabc7f106e0bf7de800cd33a23d7c6e"
+    },
+    "artifact.zip": {
+      "bytes": 3561748,
+      "sha256": "26a213027695de66807bd2c9999cd4287dbfa932b05cf06435fe027d4c033057"
+    },
+    "job.log": {
+      "bytes": 41838,
+      "sha256": "a6f8257ed63ac6115f329032f90569f0aef50eb0894c765e7ebe2ce20f5b490f"
+    },
+    "original/ANALYSIS_PLAN_AFTER.json": {
+      "bytes": 8166,
+      "sha256": "858763224997056fe89867d9e9dbda521c53a2cc53f4784305cf4737f7b768a1"
+    },
+    "original/ANALYSIS_RUNTIME.json": {
+      "bytes": 488780,
+      "sha256": "4d9809afe846ce0867040f7d2f9b8999383b657b923df8b768a086e3da0f73c8"
+    },
+    "original/COMPILER_IDENTITY.json": {
+      "bytes": 245,
+      "sha256": "8109d22bb2caf4f74b337f7fe701a6a89ad813788117c0938e35c1f63b1ac58a"
+    },
+    "original/DATABASE_INPUTS.json": {
+      "bytes": 328,
+      "sha256": "5edcb46a48a97f7a8eb75561c2aa8bcc3397a7d51ab4c50f6761ffceedb37b53"
+    },
+    "original/EVALUATOR_OBSERVATIONS.json": {
+      "bytes": 7057,
+      "sha256": "25dbbeab6cc59ca8e0dfa5b8bef9cb963cac3cd99e00ff1893a391a0fa09cbd6"
+    },
+    "original/FIXTURE_FAILURE.json": {
+      "bytes": 158,
+      "sha256": "0e9351133ba8b1a30da28e6e7179e0d474893400de260d846260911035f78f61"
+    },
+    "original/METHOD.json": {
+      "bytes": 1962,
+      "sha256": "11420f9c1f00bb2521c1da0a385ba9dc8e8a5d0f35ecc4e8bf8c556ade292571"
+    },
+    "original/OFFICIAL_DOWNLOADS.json": {
+      "bytes": 1746,
+      "sha256": "71fce9c7a859d01fd3c5c894ab9ced708fd4646adf904f288ac2788b79948667"
+    },
+    "original/QUERY_MEMORY.json": {
+      "bytes": 253,
+      "sha256": "2f0df34e10c2742f314af88a119df29a210738bce1e70cafb12a3b31b252a193"
+    },
+    "original/RESOURCE_OBSERVATION_STATUS.json": {
+      "bytes": 1731,
+      "sha256": "81eac3d1ce7675be5a0d9755415b69adee4c83edae273438150c6d0b69cb9a9c"
+    },
+    "original/SOURCE_CONTRACT.json": {
+      "bytes": 1638,
+      "sha256": "396d895992938666de9155c36b396526cf173f3cfa1db63dfce11fc466934ec7"
+    },
+    "original/SUMMARY_PLAN.json": {
+      "bytes": 6858,
+      "sha256": "29fdaefc87242c6fce827d8c48592fd2f480d3047dc53d9f89758cc769e98f0f"
+    },
+    "original/analyze.json": {
+      "bytes": 1298,
+      "sha256": "66cd00c0e9687255d9d62552a1cc00a07e01b2975b32c8f7f452637e83be1900"
+    },
+    "original/analyze.started.json": {
+      "bytes": 1190,
+      "sha256": "a5d1eaeecc20c1606a5a18164ddc8f8bfc133891a8b16dfc775e68d5f0881f4d"
+    },
+    "original/analyze.stderr": {
+      "bytes": 22432,
+      "sha256": "403bb102acebc1ed83ad4d31b54c5c6133ad020a790a49a1d61e88b383448f55"
+    },
+    "original/analyze.stdout": {
+      "bytes": 339,
+      "sha256": "7b12c2aba29287fff6bb1e5e3ab9baf2b678c6093707d4098115039d94e0cc9d"
+    },
+    "original/extract.json": {
+      "bytes": 1243,
+      "sha256": "a7ea2519f7762ac631dfe7e97b62f9ca831679627cd6db5d55ed8a7a43fac3e3"
+    },
+    "original/extract.started.json": {
+      "bytes": 1137,
+      "sha256": "fc6586c9779c47f534bf54b11ccbeed727e25cd87f2968b0c77ea66a02376042"
+    },
+    "original/extract.stderr": {
+      "bytes": 602,
+      "sha256": "bce0c5022caa27a4828cdf85122f229b1eb5f7956871d7488ae8980979b48d68"
+    },
+    "original/extract.stdout": {
+      "bytes": 85,
+      "sha256": "f1592f38038dabf010b7c3af190b07e8f0d99a2d1f2ba5c7ba00c739eff57e88"
+    },
+    "original/results.sarif": {
+      "bytes": 58219,
+      "sha256": "d78bb4dd537944aafe93974f5aa907cbe05bee3266cf831dfc07506e56c4ba87"
+    },
+    "readback.py": {
+      "bytes": 12263,
+      "sha256": "cb60890b80a7dc6d83654b482a773e99769fe91aeab5943568b1e6fff29f9c05"
+    }
+  },
+  "kind": "qperiapt.codeql_wrapper_completion_readback",
+  "schema": 1
+}

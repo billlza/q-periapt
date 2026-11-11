@@ -1,0 +1,27 @@
+{
+  "command": [
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extraction-tool/codeql/codeql",
+    "test",
+    "extract",
+    "-J-Xmx1536M",
+    "--database=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database-extracted",
+    "--common-caches=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-cache",
+    "--logdir=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-logs",
+    "--show-extractor-output",
+    "--format=json",
+    "--",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/reproduction/fixture/env"
+  ],
+  "cwd": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture",
+  "environment_inputs": {
+    "CARGO_NET_OFFLINE": "true",
+    "CODEQL_EXTRACTOR_RUST_SYSROOT": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust",
+    "CODEQL_EXTRACTOR_RUST_SYSROOT_SRC": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust-source/rust-src/lib/rustlib/src/rust/library",
+    "PATH": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust/bin:/usr/bin:/bin"
+  },
+  "finished_utc": "2026-11-11T13:52:46.924222+00:00",
+  "maximum_seconds": 300,
+  "returncode": 0,
+  "seconds": 46.485704702999996,
+  "started_utc": "2026-11-11T13:52:00.438334+00:00"
+}

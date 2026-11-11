@@ -1,0 +1,181 @@
+{
+  "analysis": {
+    "argv": [
+      "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/codeql",
+      "database",
+      "analyze",
+      "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database",
+      "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/frozen.qls",
+      "--format=sarif-latest",
+      "--output=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/evidence/results.sarif",
+      "--threads=4",
+      "--ram=14000",
+      "--off-heap-ram=9329",
+      "--threat-model=local",
+      "--no-download",
+      "--common-caches=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/cache",
+      "--sarif-category=/language:rust",
+      "--dynamic-join-order-mode=all",
+      "--verbosity=progress",
+      "--logdir=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator",
+      "--qlconfig-file=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/qlconfig.yml"
+    ],
+    "cwd": "/home/runner/work/q-periapt/q-periapt",
+    "elapsed_seconds": 87.695908075,
+    "finished_at_utc": "2026-11-11T13:54:22.620+00:00",
+    "invoked_at_utc": "2026-11-11T13:52:54.924+00:00",
+    "maximum_seconds": 600,
+    "returncode": 0,
+    "run_attempt": "1",
+    "run_id": "43032937156",
+    "source_commit": "cd33c64e34a39046a57010bfa56f6964acdca2c2"
+  },
+  "artifact": {
+    "bytes": 3561748,
+    "sha256": "26a213027695de66807bd2c9999cd4287dbfa932b05cf06435fe027d4c033057"
+  },
+  "artifact_id": 13862281372,
+  "attempt": 1,
+  "contract_tests": {
+    "passed": true,
+    "seconds": 0.006,
+    "tests": 9
+  },
+  "evaluator_invocations": 1,
+  "extraction": {
+    "command": [
+      "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extraction-tool/codeql/codeql",
+      "test",
+      "extract",
+      "-J-Xmx1536M",
+      "--database=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database-extracted",
+      "--common-caches=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-cache",
+      "--logdir=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-logs",
+      "--show-extractor-output",
+      "--format=json",
+      "--",
+      "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/reproduction/fixture/env"
+    ],
+    "cwd": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture",
+    "environment_inputs": {
+      "CARGO_NET_OFFLINE": "true",
+      "CODEQL_EXTRACTOR_RUST_SYSROOT": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust",
+      "CODEQL_EXTRACTOR_RUST_SYSROOT_SRC": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust-source/rust-src/lib/rustlib/src/rust/library",
+      "PATH": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust/bin:/usr/bin:/bin"
+    },
+    "finished_utc": "2026-11-11T13:52:46.924222+00:00",
+    "maximum_seconds": 300,
+    "returncode": 0,
+    "seconds": 46.485704702999996,
+    "started_utc": "2026-11-11T13:52:00.438334+00:00"
+  },
+  "fixture_failure": {
+    "message": "production evaluator completion census differs",
+    "notes": [],
+    "recorded_utc": "2026-11-11T13:54:23.944877+00:00",
+    "type": "PlanError"
+  },
+  "implicit_compilations": 0,
+  "internal_completions": 37,
+  "internal_missing_completion_paths": [
+    "codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.bqrs",
+    "codeql/rust-queries/queries/security/CWE-319/UseOfHttp.bqrs"
+  ],
+  "internal_precompiled_loads": 39,
+  "internal_starts": 39,
+  "job_id": 130564344658,
+  "memory": {
+    "codeql_version": "2.27.2",
+    "heap_mb": 3484,
+    "off_heap_ram_mb": 9329,
+    "profile": "native",
+    "remaining_budget_mb": 1187,
+    "requested_ram_mb": 14000,
+    "resolved_arguments": [
+      "-J-Xmx3484M",
+      "--off-heap-ram=9329"
+    ],
+    "schema": 1
+  },
+  "new_29_row_comparison_performed": false,
+  "new_summary_decode_performed": false,
+  "production_commit": "951b8dcaebc11223bf01c79c1c4c3a20349be989",
+  "projection_before_after_equal": true,
+  "projection_key": "6a7530eb694360655ab8331a895c9fcd",
+  "readback_execution": "Original bytes only; no CodeQL, JVM, compilation, extraction, query or test run.",
+  "retained_bqrs_files": 0,
+  "run_id": 43032937156,
+  "runtime": {
+    "bytes": 231156107,
+    "files": 2282,
+    "inventory_sha256": "1d61c12cb67e01730a1ec5031aefe669035e52290081dc6822333cb5ab861c90"
+  },
+  "sarif": {
+    "bytes": 58219,
+    "category": "/language:rust/",
+    "execution_successful": true,
+    "readback_scope": "Independent structural validation of the retained file after the hosted validator stopped earlier.",
+    "run_count": 1,
+    "security_result_count": 0,
+    "sha256": "d78bb4dd537944aafe93974f5aa907cbe05bee3266cf831dfc07506e56c4ba87",
+    "tool": "CodeQL 2.27.2",
+    "tool_warning_error_notifications": 0,
+    "version": "2.1.0"
+  },
+  "schema": 1,
+  "source_contract_files_verified": {
+    "bounded_process.py": {
+      "bytes": 51311,
+      "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45"
+    },
+    "codeql_evaluator_logs.py": {
+      "bytes": 10446,
+      "sha256": "f3aadab57772d0533ab9779602e09339922cf471e00fd0185aca07146b3e85bd"
+    },
+    "codeql_process_resources.py": {
+      "bytes": 16881,
+      "sha256": "8b4d14b9667a7c10e653f680311c12db595369f0e6a5b2800aae6beefeec26a6"
+    },
+    "codeql_rust_plan.py": {
+      "bytes": 26094,
+      "sha256": "b548c4fcffe9956ad92937b1412940ad3804d7d52823682b5380cbaea42b9842"
+    },
+    "codeql_rust_profile.py": {
+      "bytes": 31700,
+      "sha256": "532a5470108200b807197ba9a20c8b626c46440d37226938e5820d11b03e98fa"
+    },
+    "codeql_rust_quality.py": {
+      "bytes": 38244,
+      "sha256": "78560445e1cbea13bbb57fc379eeaf9f5db4618e98490001a32027c14b2db4f8"
+    },
+    "codeql_rust_queries.json": {
+      "bytes": 4737,
+      "sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b"
+    },
+    "codeql_summary_plan.py": {
+      "bytes": 10946,
+      "sha256": "bc736901daf1271d287b7fa38a20788013e8a2bea927c70658c5490a89479a6b"
+    },
+    "codeql_summary_projection.json": {
+      "bytes": 6587,
+      "sha256": "2cb1739ba0f0aeeb00e8a017b7cd0218a0a7519771a58dd47cb7f89a8813ca91"
+    },
+    "codeql_summary_projection.py": {
+      "bytes": 14869,
+      "sha256": "022c6259abbd8f2287486a2ecefd443581c4275ea33a23a0e9d240dab54f047c"
+    },
+    "evidence_io.py": {
+      "bytes": 44308,
+      "sha256": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d"
+    },
+    "rust_sdk_profile.py": {
+      "bytes": 27974,
+      "sha256": "f23d73ec6afabaee763328557c93f4bf542365384ed8ee10b386b6d697ed7af5"
+    }
+  },
+  "stderr_complete_frozen_query_set": true,
+  "stderr_distinct_completion_count": 39,
+  "whole_wrapper_qualified": false,
+  "workflow_commit": "cd33c64e34a39046a57010bfa56f6964acdca2c2",
+  "workflow_conclusion": "failure"
+}

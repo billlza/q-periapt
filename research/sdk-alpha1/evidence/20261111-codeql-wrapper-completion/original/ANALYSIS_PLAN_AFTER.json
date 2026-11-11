@@ -1,0 +1,181 @@
+{
+  "database": {
+    "metadata_sha256": "9c39d50864a4cbec7ea2f1f8c10ae6ebf4e00a6ea85c00b5ed012c7c263083b7",
+    "overlay": false,
+    "overlay_base": false,
+    "source_root": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/reproduction/fixture/env",
+    "unadmitted_paths_absent": [
+      "temp/analysisConfig.json",
+      "temp/extensionPacks.json",
+      "temp/config-queries.qls",
+      "overlay-base-metadata",
+      "overlay-path-transformer",
+      "working/overlay"
+    ]
+  },
+  "qlconfig_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+  "summary_plan": {
+    "bundled_compiled_inventory_sha256": "f5d87c717575c9243272e3b1c8abdc1f5f12d93a193ffd2d3b1ba10df6de43d9",
+    "bundled_plan_sha256": "bc65daf746a13e0d162f0853b3a21eda41ff2d573774e6862983a916c06244a6",
+    "capsule_bytes": 620230,
+    "capsule_sha256": "5b17fb41cd3c59fea564ec4e9cb49ef586c0ad06ccc3f2445e46b7b5ca8430cb",
+    "codeql_version": "2.27.2",
+    "compiled_inventory_sha256": "a63755946874528cfb0788ef967cfd3797d0865fef2fa133757f1ee393a720d0",
+    "compiler_inputs_digest": "6a7530eb694360655ab8331a895c9fcd",
+    "dependency_inventory": {
+      "bytes": 116388,
+      "effective_inventory_sha256": "75b2b711c76858569c1688e6c19718ab675cb7106e9091c8058fe7670b3af444",
+      "expanded_bytes": 381258,
+      "file_count": 1175,
+      "path": "codeql_summary_projection_dependencies.json.gz",
+      "root": ".codeql/libraries",
+      "sha256": "593af185eecf54d8c93895e6e8ecc194b162117622bc1ae8621e2122ba3a4401",
+      "upstream_inventory_sha256": "cc5094dfbf7174718ed834b8f21dd0efb6be55388102009dcd4e9d1795ea48f6"
+    },
+    "dynamic_join_order_mode": "all",
+    "effective_plan_sha256": "ba1a984f8b78d99ce61e91b110833381c5c8366bf1b4ff783b32cb6180fcb45d",
+    "expanded_bytes": 617218,
+    "files": {
+      ".codeql/precompiled/266715g1c4rd672ujepjgi5fsmc.bytes.qlx": {
+        "bytes": 14842,
+        "sha256": "9472d70a5151f9cac02d2016680bf479f3adad82b2d8d48cf1b971bec60d0af0"
+      },
+      ".codeql/precompiled/47f63fj481bvvuauchr49n26qtb.bytes.qlx": {
+        "bytes": 33595,
+        "sha256": "4d4d2ece884cf4ff03693e5b4fb1168cdfa9cc2ce6ed1e3856d3665cb473ef51"
+      },
+      ".codeql/precompiled/565a9d64n8024vqc5u3or3rcmb6.bytes.qlx": {
+        "bytes": 7146,
+        "sha256": "bd2d5678ea5c3ea307a3fb8bbc0d0174a1bc1745579be6fa7ed7672e164c605c"
+      },
+      ".codeql/precompiled/57bb59t3tviloldd611r8aftir9.bytes.qlx": {
+        "bytes": 448,
+        "sha256": "b6714ef7bd4b610ae33a83906e96efd07e02019b8a3448268b730df13306ce62"
+      },
+      ".codeql/precompiled/67028590t9804sq9kmavegj6gl3.bytes.qlx": {
+        "bytes": 29467,
+        "sha256": "93358c0b20c9775f302cc368aab6b14614373304669052def65f384d90e1e89d"
+      },
+      ".codeql/precompiled/7d2aa4fcodo9r6ammqfgjnus0s2.bytes.qlx": {
+        "bytes": 24266,
+        "sha256": "21717ce1b4f747c971d704dedabdff5b8fd28a04a226b6e1bbde62ffa0520f2d"
+      },
+      ".codeql/precompiled/8de8ce9afu9vq64lq7evn1lmrqe.bytes.qlx": {
+        "bytes": 3880,
+        "sha256": "3b805bc9a8b4b37557e8c226ab5984364e23af3b6e0244d2948ac3dda173c22f"
+      },
+      ".codeql/precompiled/920d42i4oiktr3pea5mtpdghgi5.bytes.qlx": {
+        "bytes": 4589,
+        "sha256": "fa02c25341dc529f220c36e71d9ad83ba927df4723254364703e366469f48c6d"
+      },
+      ".codeql/precompiled/95e5fe1cbcunk6bm09ntu8si5c2.bytes.qlx": {
+        "bytes": 8914,
+        "sha256": "6dc4ad730ab8e6d0ee976b6d3b24795f6a581de8554620e19b13de8f3afa0c61"
+      },
+      ".codeql/precompiled/99491bg0q67q5r8celhn897t9g4.bytes.qlx": {
+        "bytes": 20186,
+        "sha256": "9e8dd7df58c4f9897790f8a0e3513ebec2b2accbb02c9679f484dac93f6e3437"
+      },
+      ".codeql/precompiled/b81d34jvfp9o2ugpjjo6j4iveg2.bytes.qlx": {
+        "bytes": 114386,
+        "sha256": "03836f2004cd1ad0d881ae22cf7180db51c0ba2f2f95aa90e8375cb9009f62f5"
+      },
+      ".codeql/precompiled/b984dfcdns318ijtr7qr19rqric.bytes.qlx": {
+        "bytes": 79808,
+        "sha256": "8d83367c5ea5e187bc279ce00978090f57e21d42982fd59c119fa26c90ccb061"
+      },
+      ".codeql/precompiled/d2c15dipnla9kdt2q7aa7f06ih8.bytes.qlx": {
+        "bytes": 64511,
+        "sha256": "d04664df001b485169c97003e397889c164cde50fab9db88b0190c12541a46d6"
+      },
+      ".codeql/precompiled/e502ebhkdql97eol8n9v79g9e6a.bytes.qlx": {
+        "bytes": 22228,
+        "sha256": "0afa25dd84a5fbd4c0d23cc7f107eba0a5eed81b157b01484153cdbe04db25ab"
+      },
+      ".codeql/precompiled/f3dcadlh0ves4mif8vcqi8cgthe.bytes.qlx": {
+        "bytes": 3916,
+        "sha256": "48b317adffddd440b1ede947251213288ba3e2e73efdcc2d8e6cb4b4bef68fe6"
+      },
+      "queries/summary/SummaryStats.qlx": {
+        "bytes": 185036,
+        "sha256": "ba1a984f8b78d99ce61e91b110833381c5c8366bf1b4ff783b32cb6180fcb45d"
+      }
+    },
+    "kind": "qperiapt.codeql_summary_projection_plan",
+    "manifest_sha256": "2cb1739ba0f0aeeb00e8a017b7cd0218a0a7519771a58dd47cb7f89a8813ca91",
+    "mode": "projection",
+    "plan_path": "queries/summary/SummaryStats.qlx",
+    "query_count": 39,
+    "query_manifest_sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b",
+    "query_pack": "0.1.44",
+    "query_pack_support_files": {
+      ".packinfo": {
+        "bytes": 62,
+        "sha256": "9cc66cb299b73769a30ce281c5caa4e43d473c393c47f1aa4418b65f55a4be13"
+      },
+      "codeql-pack.lock.yml": {
+        "bytes": 605,
+        "sha256": "301f1c417913d77b2c2789eb190c38de62f338cf2dcdcf2278ebfa3b92651c75"
+      },
+      "qlpack.yml": {
+        "bytes": 383,
+        "sha256": "18f026ad4baac9269d636e0ed47e13a45f36c777c3c49fec0872093ea54a6f7d"
+      },
+      "queries/summary/Stats.qll": {
+        "bytes": 7874,
+        "sha256": "f414a15e3421085bb1493d7e7677a864dd1edd1e4829d5ec8ad6e771581ac5f9"
+      },
+      "queries/summary/TaintReach.qll": {
+        "bytes": 1689,
+        "sha256": "9fe91726cb872e8139ccfeafdb4114d8ced19459f61626829db042f67f81dad6"
+      },
+      "queries/telemetry/DatabaseQuality.qll": {
+        "bytes": 3013,
+        "sha256": "499585d6edaa20cff4143ffb0a2e692d060a2dc7773d0ccae35725ca5e5a1f1d"
+      },
+      "queries/unusedentities/UnusedVariable.qll": {
+        "bytes": 1834,
+        "sha256": "036885f2eb4ba09303819fc8f9c5d984a3a2ab46c8adecd8215048b4cf5b0589"
+      },
+      "utils/modelgenerator/internal/CaptureModels.qll": {
+        "bytes": 7658,
+        "sha256": "649511aa2bea105bf98ff5fd9d7a30edcd01ed7768d92a126e894935b78793f8"
+      },
+      "utils/modelgenerator/internal/CaptureModelsPrinting.qll": {
+        "bytes": 481,
+        "sha256": "2d41f4decf0c23bdcf0087d408b20a3a13f7bf2755f44ca326ea1072a06b160f"
+      }
+    },
+    "query_source_sha256": "7278d53373afb4f8069122e287c9c036a959ba0d167c152d67cd0de885881d67",
+    "schema": 1,
+    "source_sha256": "7278d53373afb4f8069122e287c9c036a959ba0d167c152d67cd0de885881d67",
+    "stage_count": 15,
+    "tool_bundle_bytes": 98247028,
+    "tool_bundle_sha256": "acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea",
+    "unchanged_other_compiled_queries": 38,
+    "vendor_patch": {
+      "bytes": 3235,
+      "dependency_path": "codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll",
+      "effective": {
+        "bytes": 139689,
+        "sha256": "6a444d1baf03a1db4cbf1f98e39320ba3a7d68d2b9b6db7feffb2bf9cd315bde"
+      },
+      "path": "codeql_summary_projection.patch",
+      "sha256": "7eeff3c79e8c808f56f25ce7e8e10b73e6227448e1c15531b583ec7ed13898a8",
+      "upstream": {
+        "bytes": 138246,
+        "sha256": "48abc6ae3a155494379f139d6a71d0d9b27469824e8f2dc5a72ff39a82ce64bf"
+      },
+      "upstream_package": "codeql/dataflow@2.1.15",
+      "upstream_url": "https://github.com/github/codeql/blob/codeql-cli/v2.27.2/shared/dataflow/codeql/dataflow/internal/DataFlowImpl.qll"
+    }
+  },
+  "tool": {
+    "codeql_sha256": "5010324098d11f9e2d34e0fcf53bb44e40e8e3ffc8aecefe695269b54edaa413",
+    "codeql_version": "2.27.2",
+    "query_pack": "0.1.44",
+    "runtime_inventory_sha256": "1d61c12cb67e01730a1ec5031aefe669035e52290081dc6822333cb5ab861c90",
+    "tool_bundle_bytes": 98247028,
+    "tool_bundle_sha256": "acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea"
+  }
+}

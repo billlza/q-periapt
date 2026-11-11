@@ -1,0 +1,13 @@
+{
+  "codeql_version": "2.27.2",
+  "heap_mb": 3484,
+  "off_heap_ram_mb": 9329,
+  "profile": "native",
+  "remaining_budget_mb": 1187,
+  "requested_ram_mb": 14000,
+  "resolved_arguments": [
+    "-J-Xmx3484M",
+    "--off-heap-ram=9329"
+  ],
+  "schema": 1
+}
