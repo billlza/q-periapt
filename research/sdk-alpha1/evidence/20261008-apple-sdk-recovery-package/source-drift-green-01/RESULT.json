@@ -1,0 +1,13 @@
+{
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "artifact/test_apple_sdk_profile.py",
+    "artifact/test_apple_distribution.py"
+  ],
+  "returncode": 0,
+  "builder_sha256": "636defb28dea2f27c1ca847997a72c7dbf2ceb38dd9d13e585f873df596971b0"
+}

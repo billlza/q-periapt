@@ -1,0 +1,89 @@
+{
+  "mode": "kotlin",
+  "source_hashes": {
+    "bindings/kotlin/ContinuityPackageConsumer/README.md": "ddc070b119a2a39ea96d58fad2beda026ada177f3ed4a90c5039d19ec27c42d2",
+    "bindings/kotlin/ContinuityPackageConsumer/.gitignore": "8c52614a6393b6b7820cdde0027edb883ac1c2b204d35a088b623ccc4e6157cd",
+    "bindings/kotlin/ContinuityPackageConsumer/build.gradle.kts": "b7269a4eea7458f6340a2329b1c35685237a50af2e88d07d69549e1e99b9a9b4",
+    "bindings/kotlin/ContinuityPackageConsumer/settings.gradle.kts": "7631f4aedfae8f369d4c4ab84784d0bf270922eb889c5e4b2a6e345021adf4db",
+    "bindings/kotlin/ContinuityPackageConsumer/gradle/verification-metadata.xml": "543f58282de0ecd79210ccaefd89694b6a1ff641233e9d8b33f43c72eb746141",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/build.gradle.kts": "ef2dacab85dfc07242cc70770e8bcc47593006e01676f898771055b02bf98a0e",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/settings.gradle.kts": "8c27443b5efa745b4a26014fb1968e3c20ecedde4689b30fc5cc3475038265cf",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Enrollment.kt": "a41655dd1d3666c8470afdfda4a2fbc2b8b20b115572de3831ed6f1b3e71fd96",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/CredentialRenewal.kt": "7bad76e6cedb3d11a44070be240a2b56147fdc33f1dc333f96db2a3ac271cc30",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Setup.kt": "ef1ca38072af695de9af31d11e3606c734d46bcda797f2990c248d5291b04903",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Native.kt": "54f2ceda0da47e930a77bfe1d34cd0ac4ac4098bf9b30e19d0e1a0f5e8fa15c0",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Types.kt": "a1b6db95bd63ebe261ac29b3ef04d69e3371d7fc1aff7723ec6170b0e384cb1b",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/AccountRecovery.kt": "1b8cfb798f1c23fb45dd0a07914b2c9a5e285ea19a518da886538e454c938a54",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Device.kt": "4aff0807089117e1b3fc40517db199e7b21ea67c3e80129f02b9f2891116c903",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Owners.kt": "0f9eae902854bb16d06e716620e421752c26e72349ed8f49e47c24b3489dc8ca",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/OwnerTransfer.kt": "d80387a661b8d2f0a233feaff50db5e5fcbef38b26a60a180254d0f725b4451e",
+    "bindings/kotlin/ContinuityPackageConsumer/src/test/kotlin/dev/qperiapt/continuity/CredentialRenewalTests.kt": "2f1107c9edbc098282034bc310a7ac2e1dd17b590c75e19a75eb990045c8c6eb",
+    "bindings/kotlin/ContinuityPackageConsumer/src/test/kotlin/dev/qperiapt/continuity/OwnerTests.kt": "716fc06a4e58ada985b82d774a52dc5cc174dcbd03b2c329ba43e9675dd07cb7",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/negative/RawOwnerProbe.java.txt": "f37ad780c20b150ab6ea9bd295f9038fb9d900d53c8c4c62a9897b40aa6f49ec",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/negative/RawNativeOwnerProbe.java.txt": "4dab404941da020ad3a3e32f1691732ac2bb1965f270f764b5c7898f18c9e416",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/negative/RawDeviceProbe.java.txt": "209289e9d8a7e3c2d4522ca26d56963bc367c9b925eeba70834fa907ca62a578",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/negative/RawEnrollmentProbe.java.txt": "4323cc3b06efa7afbd62a6ecbdf70b8fa04e0a1f7b5d5729571894ec4df64218",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/negative/RawSetupProbe.java.txt": "f9c76479a530f87798c47167cee002eb71c8ce8d59db64df5eaeca5e08853faf",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/NativeKindProbe.kt": "8a583a9b26c4919d02b420b0acd490c672f293ea569163b8ce834afe1bfa6da9",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Enrollment.kt": "beb1e9769c45230ff9d8bdb79ae95f52e75d01bfead279c028da7fca167dcecf",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/CredentialRenewal.kt": "14ad648adc6a93fe23a0bc181a67c08fa867a122bf1a799ae15418b89621ab40",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Collection.kt": "b0f38b0edd44e9c06561b7347f27560900c6de17153944d01e2c4a568582477d",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/SetupIO.kt": "051c652c3a0ea408005bb521978e4c25fe52cd911718229062947205120af800",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Application.kt": "bddf8d091334127979485999569606b7d38d9cd5100451f5007131d97f79cbf6",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Setup.kt": "c0b87829bbcbfb8c69d9fc2cf10a68fa62ad373fc06f34ff273a646393ecc859",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Account.kt": "269dd6dbdfa0924c425b71bc0971149382f7e578e44121819ee53a657db63334",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/FixtureRecords.kt": "4645946fcd903fd7bc7605cd1170f9c8364209e2a6f644e97ff78a072eab5ddb",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/ContinuityClient.kt": "44f0d1b0464f9a6a22e8f2ac81f3814fe4c277b1a018afd7c6349f505e28a935",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/InFlightCollection.kt": "288fd7deed41b961748a03f7ae39ae629a44d046392d1f131cb779b0311fd977",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Recovery.kt": "e86fe1ad4fede21f283e8d442db66d5cef039df3ee8ef9b14d64b2aa2273aa50",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Cancellation.kt": "da81c759905b4741763e3530661fcebe7e189362d08744fffac0b7dbea55c6fc",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/AccountRecovery.kt": "885dfbc1b7882cbef3a33d2e949cb03ba96a71fa171162258cb99d481f67d4e0",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/consumer/Opening.kt": "4bf693263c8836035083b1fc3b526d8b4e8f53d445f2654849f24648f5f2b909",
+    "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/java/consumer/LoaderProbe.java": "c24ad3e8b0186ef0edafcf29b6c88c919e9932b268f90773c3164851d89f743d"
+  },
+  "completed": true,
+  "error": null,
+  "records": [
+    {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/gradle-9.8.0/bin/gradle",
+        "--no-daemon",
+        "--offline",
+        "--warning-mode",
+        "fail",
+        "--dependency-verification",
+        "strict",
+        "--max-workers",
+        "2",
+        "-Dorg.gradle.java.installations.auto-download=false",
+        "-Pkotlin.compiler.execution.strategy=in-process",
+        "-Dorg.gradle.java.home=/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home",
+        "--project-dir",
+        "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-witness-foreign/kotlin-history-final-kotlin-01/bindings/kotlin/ContinuityPackageConsumer",
+        "test",
+        "-Pqperiapt.continuity.lib=/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-witness-foreign/native/libq_periapt_continuity_c_consumer.dylib"
+      ],
+      "cwd": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/history-witness-foreign",
+      "exit": 0,
+      "seconds": 18.074149542022496
+    }
+  ],
+  "seconds": 18.18360758398194,
+  "log_sha256": "a80021294165bb953c19a35083b8f0e02d0eef3fd72693d6e0a30b7308907950",
+  "scope": "Current source development boundary checks only; not an installed release archive or required-witness foreign workflow",
+  "release_claim_eligible": false,
+  "native_library_sha256": "f18281342035c3aaccecee71cc9571b9e43d2f4b38a2028e87445eb25a9fe32e",
+  "owner_tests": {
+    "tests": 24,
+    "suites": {
+      "OwnerTests": {
+        "tests": 19,
+        "report_sha256": "6f369f4103b3539fe2384dbbdc93150de3ee4869480eeed91455a113c7995acb"
+      },
+      "CredentialRenewalTests": {
+        "tests": 5,
+        "report_sha256": "0cb3bf41e8cd16d6bbc5658a7d39649c0a9fc5a6f4a0a651e0ec4a9b4b14513c"
+      }
+    }
+  }
+}

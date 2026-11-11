@@ -1,0 +1,16 @@
+{
+  "source_commit": "62e316f773f37a0c5d3757fc163ce89b7770b16c",
+  "completed": true,
+  "scope": "Complete native all-feature Release unit suite for private heap-owned DeviceService representation; later enrollment constructor/selection changes are separately validated",
+  "passed": 920,
+  "failed": 0,
+  "ignored": 0,
+  "seconds": 3520.4558409170713,
+  "source_unchanged": true,
+  "head_unchanged": true,
+  "release_claim_eligible": false,
+  "capture": {
+    "sha256": "2780a14aedd4496d924f8b8744f159464d94af02737b786a46796cb7ea4d4ffe",
+    "bytes": 79400
+  }
+}

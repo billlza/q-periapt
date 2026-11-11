@@ -1,0 +1,28 @@
+{
+  "android_full_module": {
+    "qualified": false,
+    "reason": "Native process namespace IDs do not resolve through /proc in this local environment."
+  },
+  "base_commit": "72acaaccde1ca9ea27e5af022da5fbce932ed4e9",
+  "codeql_preflight": {
+    "log_sha256": "81cdb0ee66d779ed67f6adb267f6399d6250a2627b5feb331a7787b579d85753",
+    "passed": true,
+    "tests": 116
+  },
+  "emulator_exec_boundaries": {
+    "original_missing_ram_regression_reproduced": true,
+    "passed": true,
+    "tests": 3
+  },
+  "hosted_current_source_qualification": "required",
+  "release_claim_eligible": false,
+  "schema_version": 1,
+  "source_sha256": {
+    ".github/workflows/codeql.yml": "a1b95309d8e65e08fd2e82d95712bc5286a5ab053803c4ea9389705b1a8ac3ad",
+    "artifact/android_bounded_command.py": "59abefb5bf498f065f040864cf32edf186f0b7b8ad6792ba0012c56ef0d3558f",
+    "artifact/codeql_rust_profile.py": "5a8460269c7d89c3451e75612df409b6252aae7e4035b6ed85d6cf51d1678c0f",
+    "artifact/test_android_bounded_command.py": "d2a97b2bf276fcd68db42015f7ec278506f7110049d46f8ce724a0751671e7b1",
+    "artifact/test_codeql_rust_profile.py": "e84eef6bc59181ee520c12402df3f929db48f77bc8f892f039b4b194c497f508",
+    "crates/q-periapt-host-store/src/filesystem/maintenance/attempt/tests.rs": "442fc1869dcea5aa9004eed1926e0d519270bf127585d17c094f3ba87e2412ac"
+  }
+}

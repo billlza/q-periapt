@@ -1,0 +1,23 @@
+{
+  "argv": [
+    "/bin/sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "artifact.test_continuity_android_joint_policy",
+    "artifact.test_continuity_android_policy_credential",
+    "artifact.test_continuity_android_policy_renewal",
+    "artifact.test_continuity_android_jni",
+    "artifact.test_android_jni_input_shapes",
+    "artifact.test_continuity_android_account",
+    "artifact.test_continuity_android_root",
+    "artifact.test_continuity_android_recovery",
+    "artifact.test_continuity_android_roster",
+    "artifact.test_continuity_android_retirement",
+    "artifact.test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_canonical_rust_toolchain_is_source_pinned_and_provisioned",
+    "artifact.test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_checkout_git_init_configuration_is_exact_and_step_scoped",
+    "artifact.test_continuity_first_configuration.FirstConfigurationTests.test_ci_retains_selected_public_configuration_evidence"
+  ],
+  "cwd": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006",
+  "returncode": 0
+}

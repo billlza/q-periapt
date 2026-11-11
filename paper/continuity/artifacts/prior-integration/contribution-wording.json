@@ -1,0 +1,469 @@
+{
+  "title": "Exposure and Recovery with Persistent Randomness Reservations",
+  "target_venue": "Journal of Cryptology",
+  "source_checkpoint": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+  "inspected_development_checkpoint": "1c68aa666db22d36ee136be1ec712545a9e74f03",
+  "source_attribution_checkpoint": "72acaaccde1ca9ea27e5af022da5fbce932ed4e9",
+  "signature_bridge_source_checkpoint": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+  "author_metadata": "author-metadata.json",
+  "author_metadata_sha256": "a4654fb096735dd2277cf4251ad37866fe00b3a8333a5e6731155308ad495ec8",
+  "submission_metadata": "Ziang Li is the sole named author; corresponding email 2403871950@qq.com; alternative email retained in author metadata. No journal submission performed.",
+  "format": {
+    "class": "sn-jnl.cls",
+    "class_sha256": "36d0c3273a59d48dc6a9c7b080dfa1ec50dc10229d8751568d1f2e490ffa5ecc",
+    "official_class_modified": false,
+    "publisher_package": "Springer Nature v3.1, December 2024",
+    "bibliography_style": "joc-basic.bst",
+    "bibliography_style_sha256": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
+    "style_derivation": "sn-basic.bst; renamed derived file; all authors retained; alphabetical sorting unchanged",
+    "single_tex_entry": "joc-submission.tex",
+    "single_tex_sha256": "6a3e4c191079f3e78ff0bde0fc230677dddcbe3155974f1cc0bce6bd8bf19fb6",
+    "layout": "single-column",
+    "layout_decision": "format/layout_decision.md",
+    "layout_decision_sha256": "8bab36c0e36f3668c54d34c25a052e9bd277e2b93a808100ffd1fed1af3e1d9e"
+  },
+  "schema": "qperiapt-joc-integration/12",
+  "completed_at_utc": "2026-11-09T03:00:51.045956+00:00",
+  "previous_integration_record": "artifacts/prior-integration/matched-comparison.json",
+  "previous_integration_record_sha256": "52cdb49806b39bd97692f504c65ddee0f53b475904ba5b5431769f245bccc791",
+  "previous_pdf_sha256": "869cafaa87a54e6d8b29d1ce60bab2377cb292ff8b3e3d562bf4cb9948cf1fc0",
+  "pdf_path": "continuity.pdf",
+  "pdf_pages": 90,
+  "pdf_sha256": "e46c5f2d6beec71641a946b4cd404228817919cbd8cf2ef4132c8f5dbdcc0a18",
+  "abstract_words": 228,
+  "keywords": 7,
+  "bibliography_entries": 28,
+  "new_results": {
+    "matched_directed_opportunities": {
+      "section": {
+        "number": "7.4",
+        "page": 69
+      },
+      "tables": {
+        "matched_opportunities": {
+          "number": "8",
+          "page": 70
+        },
+        "native_accounting": {
+          "number": "9",
+          "page": 70
+        }
+      },
+      "appendix": {
+        "number": "A.13",
+        "page": 82
+      },
+      "profiles": 7,
+      "schedules": 7,
+      "configuration_schedule_pairs": 49,
+      "capture_cases": 98,
+      "protocol_source": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+      "research_head": "fec8472060728cc1bb35cf15042c117dda00e336",
+      "checkout_merge_commit": "0d12e77d0c7c1cfb4760b654947f2838bb05d4ee",
+      "run_id": 42537214047,
+      "job_id": 128904069349,
+      "artifact_id": 13641008832,
+      "artifact": "artifacts/matched-comparison/",
+      "execution_identity": "Manuscript integration and independent deterministic reanalysis of the 49 native/reference executions already completed in the identified hosted run.",
+      "capture_coordinate": "After opportunity 0 scheduled local/network actions and checkpoint, before opportunity 1 local computation.",
+      "opportunities_per_schedule": 2048,
+      "offered_payload_bytes": 32,
+      "frame_byte_cap": 8192,
+      "denominator": "First commitments strictly after the capture cut: total first commitments minus the one pre-cut allocation.",
+      "conclusions": [
+        "At the alternating capture cut the native current-epoch allocation envelope is 2b-1; b=32 and b=64 attain 63 and 127 reconstructed later commitments, respectively.",
+        "The same native budget change gives 688 versus 718 admitted and delivered requests and 565288 versus 407596 total emitted bytes under the common 2048 opportunities.",
+        "Fair cyclic arbitration charges immediate application retries to that common opportunity budget. Independent trace analysis identifies 592 and 572 retries after prior logical delivery, while the sender still awaits its ACK.",
+        "The one-way control records exhausted-budget suspension, zero confirmed-epoch advance and every later admitted current-epoch allocation reconstructed; excess offered requests remain queued.",
+        "The matched artifact retains all 49 service, exposure, queue and work results, including native physical persistence and the reference component-state observation boundary."
+      ]
+    }
+  },
+  "retained_results": {
+    "current_statement_locations": {
+      "thm:joint-message-leaf": {
+        "number": "5.10",
+        "page": 36
+      },
+      "cor:live-core-next-rekey": {
+        "number": "5.15",
+        "page": 44
+      },
+      "thm:multiple-root-entry": {
+        "number": "5.24",
+        "page": 59
+      },
+      "cor:multiple-root-message": {
+        "number": "5.25",
+        "page": 60
+      },
+      "prop:sdk-purpose-table": {
+        "number": "5.27",
+        "page": 62
+      },
+      "lem:executed-slot-stability": {
+        "number": "5.17",
+        "page": 48
+      },
+      "prop:executed-source-attribution": {
+        "number": "5.18",
+        "page": 49
+      },
+      "prop:reservation-signature-components": {
+        "number": "5.19",
+        "page": 50
+      },
+      "prop:signature-coin-separation": {
+        "number": "5.20",
+        "page": 51
+      },
+      "eq:executed-attribution-cost": {
+        "number": "23",
+        "page": 49
+      }
+    },
+    "historical_proof_and_source_records": "Retained in their subject directories and the exact prior integration record. Their native/formal execution identities are unchanged.",
+    "modules": [
+      "guarded-provenance.tex",
+      "report-composition.tex",
+      "candidate-local-accounting.tex",
+      "joint-continuation.tex",
+      "contextbound-connection.tex",
+      "live-core-instantiation.tex",
+      "confirmation-traffic.tex",
+      "multiple-root-entry.tex",
+      "sdk-purpose-connection.tex",
+      "source-attribution.tex"
+    ],
+    "preceding_completed_result": {
+      "section": "5.9",
+      "name": "Executed-source attribution",
+      "record": "artifacts/prior-integration/source-attribution.json",
+      "current_instantiation": "Section 5.10 supplies the ordinary native ML-DSA connection for its reservation-aware signature term."
+    },
+    "reservation_to_ordinary_signature_bridge": {
+      "section": "5.10",
+      "statements": {
+        "prop:independent-hedging-bridge": {
+          "number": "5.21",
+          "page": 52
+        },
+        "thm:native-mldsa-reservation-bridge": {
+          "number": "5.22",
+          "page": 53
+        },
+        "eq:independent-hedging-bridge": {
+          "number": "24",
+          "page": 52
+        },
+        "eq:native-mldsa-reservation-bridge": {
+          "number": "25",
+          "page": 53
+        },
+        "eq:native-pair-ordinary-mldsa": {
+          "number": "26",
+          "page": 54
+        }
+      },
+      "tex": "reservation-signature-bridge.tex",
+      "tex_sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+      "proof_note": "artifacts/signature-bridge/proof.md",
+      "proof_note_sha256": "a9f3bb6ba4934c1d5cd0e20ec978ba17a07bcf427aac21c7a0042f1fea9868c2",
+      "independent_review": "artifacts/signature-bridge/independent_bridge_review_identity.json",
+      "review_status": "accepted under the stated owner, lineage, and joint-oracle interfaces",
+      "established_connections": [
+        "A complete pair cache and original-message ledger couple exposed reservations, exact retries and failed publication to ordinary signing.",
+        "A joint hidden-input/hidden-prefix XOF comparison preserves the native ML-DSA key-generation and hedging distribution in ROM and QROM.",
+        "The selected-family native bridge has an explicit hidden-draw birthday term and separate complete-experiment oracle losses.",
+        "Adaptive family selection and a nested pair/component ledger instantiate the executed-source signature term through ordinary native ML-DSA unforgeability."
+      ],
+      "selected_family_bound": "p_res^H(A) <= p_EUF^H(B) + beta_256(q) + delta_X(q_*^res) + delta_X(q_*^ord)",
+      "birthday_term": "beta_256(q) = min(1, binomial(q,2) * 2^-256)",
+      "classical_comparison_loss": "delta_C(v) = min(1, v * 2^-256)",
+      "quantum_comparison_loss": "delta_Q(v) = min(1, 2v * 2^-128)",
+      "adaptive_pair_bound": "epsilon_pair,res <= min(1, U * (epsilon_MLDSA,EUF^su + beta_256(q) + delta_X(q_*^res) + delta_X(q_*^ord)))",
+      "declared_instantiation": "Native hedged ML-DSA-65 with classical reservation/signing calls and the same public random-XOF model on both sides; QROM permits quantum public-oracle access.",
+      "owner_interface": "Stops before a target-family signing-key or signer-file return, with no earlier secret-byte observation. Other owners retain local generation, disclosure and exact alias lineage.",
+      "query_budget": "Worst-case caps over the relevant complete experiments, including preparation, verification and remaining non-target calls after every target seed/hedge rewrite.",
+      "upstream_crate": "fips204 0.4.6",
+      "upstream_commit": "8d456d989dce681233ef963d3c3306da8f76d7c7",
+      "crate_archive_sha256": "c9fb5a367b9846933e271a3c2a992930743f82ae5e8cb7faa780715a80fa0b15"
+    },
+    "native_authentication": {
+      "section": "5.11",
+      "statements": {
+        "sec:native-authentication": {
+          "number": "5.11",
+          "page": 54
+        },
+        "eq:native-auth-component": {
+          "number": "27",
+          "page": 56
+        },
+        "eq:native-auth-continuation": {
+          "number": "28",
+          "page": 56
+        },
+        "thm:native-selected-authentication": {
+          "number": "5.23",
+          "page": 56
+        },
+        "eq:native-selected-authentication": {
+          "number": "29",
+          "page": 56
+        },
+        "eq:native-auth-localization": {
+          "number": "30",
+          "page": 57
+        },
+        "app:native-authentication": {
+          "number": "A.12",
+          "page": 79
+        }
+      },
+      "tex": "native-authentication.tex",
+      "tex_sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+      "review": "artifacts/native-authentication/independent_review.json",
+      "review_status": "accepted",
+      "event": "Joint native probability Pr[E and Bad_auth] for the root fixed by the accepted logical application challenge; final selection supplies its coordinates and cut.",
+      "bound": "min(1, eta_attr_nat + sum_j min(1, eps_rec_j + a_auth_j + delta_j + Omega_auth_j))",
+      "connections": [
+        "The original native event is localized before real-to-opaque record and operational ML-KEM comparisons.",
+        "Authentication uses its own Boolean output-bit component advantage, with coefficient one for each probability hop.",
+        "Complete protected-tuple caching, online first-use root marking and origin-preserving ledgers connect ContextBound, root initialization and the shared-oracle joint key schedule.",
+        "The selected-root bound includes confirmation acceptance and the marked first-message AEAD integrity event, preserving failed writes and exact retries.",
+        "The executed-slot attribution residual is instantiated through the retained ordinary native ML-DSA bridge."
+      ]
+    },
+    "complete_retained_reference_comparison": {
+      "table": {
+        "number": "7",
+        "page": 68
+      },
+      "profiles": 5,
+      "schedules": 7,
+      "scenario_profile_pairs": 35,
+      "snapshot_cases": 420,
+      "displayed_numeric_cells": 70,
+      "source_commit": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+      "observed_integration_commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+      "artifact": "artifacts/reference-comparison/",
+      "execution_identity": "Deterministic reanalysis of the existing pinned native corpora, including the isolated SPQR-64 corpus.",
+      "metrics": "Exact reconstructed-key matches at a common capture coordinate and mean component bytes per send."
+    },
+    "source_witness_packaging": {
+      "renamed_snapshots": 11,
+      "original_bytes_preserved": true,
+      "compilable_source_count_restored": 106,
+      "production_codeql_gate_changed": false,
+      "review": "artifacts/signature-bridge/snapshot_layout_review.json"
+    },
+    "formal_statements_and_proofs_byte_unchanged": true,
+    "explanatory_source_correspondence": "artifacts/editorial-review/contribution-wording/source-correspondence.json"
+  },
+  "current_research_checks": {
+    "matched_report_projection": {
+      "status": "passed",
+      "configuration_schedule_pairs": 49,
+      "capture_cases": 98,
+      "independent_compact_json_and_csv_equal": true,
+      "negative_controls_rejected": 14,
+      "analysis": "artifacts/matched-comparison/analysis.json",
+      "controls": "artifacts/matched-comparison/input-controls.json"
+    },
+    "independent_trace_reanalysis": {
+      "status": "passed",
+      "native_traces": 14,
+      "reference_traces_and_envelopes": 35,
+      "public_manifest_hashes_verified": 126,
+      "report": "artifacts/matched-comparison/independent-review.json"
+    },
+    "incremental_manuscript_review": {
+      "status": "passed",
+      "source_files_bound": 12,
+      "report": "artifacts/matched-comparison/manuscript-increment-review.json"
+    },
+    "execution_scope": "This editorial increment reruns the 49-row deterministic manuscript projection, 14 malformed-input controls and document builds. The original native/reference execution and independent trace-reanalysis receipts remain byte-identical. Mathematical statements, proofs and displayed mathematics in the edited modules retain their prior bytes.",
+    "editorial_equivalence": {
+      "status": "accepted",
+      "canonical_hashes_match_review": true,
+      "formal_environments_identical": 7,
+      "display_math_blocks_identical": 12,
+      "review": "artifacts/editorial-review/contribution-wording/independent-review.json"
+    }
+  },
+  "retained_historical_evidence": {
+    "original_combined_corpus": {
+      "scenario_profile_pairs": 28,
+      "snapshot_cases": 336
+    },
+    "additional_retained_spqr64_corpus": {
+      "scenario_profile_pairs": 7,
+      "snapshot_cases": 84
+    },
+    "tamarin_reusable_dependencies": 24,
+    "native_rust_rerun_this_integration": false,
+    "tamarin_rerun_this_integration": false,
+    "baseline_rerun_this_integration": false,
+    "prior_record": "artifacts/prior-integration/matched-comparison.json"
+  },
+  "build_review": {
+    "status": "passed",
+    "pdf_pages": 90,
+    "pdf_sha256": "e46c5f2d6beec71641a946b4cd404228817919cbd8cf2ef4132c8f5dbdcc0a18",
+    "build_exit_code": 0,
+    "undefined_references_or_citations": 0,
+    "overfull_boxes": 0,
+    "underfull_box_notices": 99,
+    "all_fonts_embedded": true,
+    "pages_compared_to_previous_delivery": 90,
+    "pixel_identical_pages": 81,
+    "reading_review_pages": [
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      28,
+      29,
+      30
+    ],
+    "reading_review": "artifacts/integration-checks/contribution-wording/visual-layout-review.json",
+    "build_receipt": "artifacts/integration-checks/contribution-wording/build-check.json",
+    "source_export": {
+      "schema": 1,
+      "status": "passed",
+      "submission_files": 9,
+      "clean_compile_exit_code": 0,
+      "reading_pdf_sha256": "e46c5f2d6beec71641a946b4cd404228817919cbd8cf2ef4132c8f5dbdcc0a18",
+      "clean_pdf_sha256": "0d6363cd343944d6af7fd81df30c0bec92c43fa2661dfb3a344c2a62b12fe60a",
+      "submission_zip_sha256": "36c0c5f843d021d3033de22a45102cac8560deabe283bce8005018c2f03d072b",
+      "clean_compile_log_sha256": "158edd880cb5484a9f07a286b5985e9df4b67f37637c260cc1554c3863faac8a",
+      "text_comparisons": {
+        "plain": {
+          "equal": true,
+          "bytes": 263614,
+          "sha256": "47f9b5b24fd66e5559e41cb486dc73b9e7d66df0810b829f2ec70faf17171c51"
+        },
+        "layout": {
+          "equal": true,
+          "bytes": 292585,
+          "sha256": "5ffac1113a759bed6c69b13e72ae7d55cd44a28eed65afba041ad45b97ccfcbe"
+        }
+      },
+      "all_fonts_embedded": true,
+      "fonts": 47
+    }
+  },
+  "paper_workflow": {
+    "path": "../../.github/workflows/joc-manuscript.yml",
+    "sha256": "a66a74dc8205e9652efda5691a5d8fda2c9627862075155dbf646268e5c7c30f",
+    "branch": "paper/joc-persistent-recovery",
+    "base": "main",
+    "pr": 119,
+    "url": "https://github.com/billlza/q-periapt/pull/119",
+    "previous_head": "9a9bb4bf3d5adea9a70e487e30cbe888fbb18f7a",
+    "snapshot": "Prepublication local editorial receipt. The final paper/integration heads and their hosted CI observations are recorded with publication; earlier run observations remain in the exact prior integration record.",
+    "previous_tree": "828df85c299e21c0f57c8222d153f17c5a48729b"
+  },
+  "completed_connection": "Executed original source attribution and ordinary native ML-DSA signing -> real-to-opaque record correspondence -> operational ML-KEM -> complete-tuple ContextBound -> single-entry root initialization -> joint confirmation and marked first-message authentication in the original native experiment.",
+  "next_research_extension": "Compare a declared retry-eligibility policy with the retained immediate-retry driver under the same opportunity contract, evaluating admitted service, exact derived sets, full emitted bytes and persistence work.",
+  "source_hashes": {
+    "acquisition-nonadditivity.tex": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+    "artifact-map.tex": "064276150353cea640d9034f00bfdd333d60020be99c24934345d4081e763e4d",
+    "author-metadata.json": "a4654fb096735dd2277cf4251ad37866fe00b3a8333a5e6731155308ad495ec8",
+    "candidate-local-accounting.tex": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+    "common-virtual-accounting.tex": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
+    "computational-roadmap.tex": "0fb0fcf8c4a18a16147f972bf3111ba1f89586c128989d79f4c698589ebc069a",
+    "confirmation-traffic.tex": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
+    "construction.tex": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
+    "contextbound-connection.tex": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+    "declarations.tex": "6cffd05abd8352442c9dc5349bc5fd9a3a49eb85d3d295955ce3ded022c80771",
+    "discussion.tex": "da44f4ae60ae57bbe35a9902b356897d91f85f9171b5c031578d9b7e95b01680",
+    "established-results.tex": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
+    "evaluation.tex": "f9b1735b4ea73460744eb12a7dd2848e5a3d57ec5289d6195911574bd6a14d68",
+    "figures/confirmation-cut.pdf": "c0af668c165ac354102e3977eac92203e28eb1825176b6d61794424180dae689",
+    "guarded-provenance.tex": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+    "introduction.tex": "1c8a7d82a94e9394932d5d989f041d899a72b461ebdf83f379831314add2b211",
+    "joc-basic.bst": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
+    "joc-submission.tex": "6a3e4c191079f3e78ff0bde0fc230677dddcbe3155974f1cc0bce6bd8bf19fb6",
+    "joint-continuation.tex": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+    "joint-primitive-bounds.tex": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+    "live-core-instantiation.tex": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+    "main.tex": "52e395482e12f522aa198b1b833a7e4d3ad958eaf71a7997612002a343d7445a",
+    "matched-opportunities.tex": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",
+    "matched-opportunity-tables.tex": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
+    "multiple-root-entry.tex": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+    "native-authentication.tex": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+    "native-correspondence.tex": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
+    "opaque-rendering.tex": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+    "primitive-inputs.tex": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
+    "reference-schedule-table.tex": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9",
+    "references.bib": "cf692417f60a293777dc23c59e10310b380149f81b0cb70bd6153806cbe83ce5",
+    "related-work.tex": "893342efdeac3b9d741e0295cfbe96545d621c154784b5006e3b66dc39e8f650",
+    "report-composition.tex": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
+    "reservation-signature-bridge.tex": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+    "sdk-purpose-connection.tex": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+    "security-model.tex": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+    "sn-basic.bst": "4b368414cc5593169907933b417aacfdb0ce905866a39bdf55d21aad65e9d46c",
+    "sn-jnl.cls": "36d0c3273a59d48dc6a9c7b080dfa1ec50dc10229d8751568d1f2e490ffa5ecc",
+    "source-attribution.tex": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e"
+  },
+  "current_supporting_hashes": {
+    "artifacts/matched-comparison/README.md": "cd38e70e82c3f8fb716bc9ba9357b97d884ae0a3f205ce123640e400e02707fd",
+    "artifacts/matched-comparison/analysis.json": "02b86436e8ff1e2c964dbf3c293a2895613a918922967d26bbf5219c2ab4dea7",
+    "artifacts/matched-comparison/analyze_matched.py": "e41b7ef10cc7bb3a2cabca72d15cdb31b2da7503c82489b5ec0377ca10e59a6d",
+    "artifacts/matched-comparison/artifact_manifest.json": "64e4f868cf516ae576e51154e05e42589d4b4b736d870a5837d5b19dadaa38c0",
+    "artifacts/matched-comparison/audit_matched_traces.py": "39fd2a8f1987229b83777510871fce75f227b56ab204a072e57dc2ca172b6d4a",
+    "artifacts/matched-comparison/check_input_controls.py": "25a133edc88fa128eeda76f4ff51e4400832360858273673b72443944d182a2e",
+    "artifacts/matched-comparison/independent-review.json": "480cb138a11476bd2cf02be0303fa2895714028f19e8dc4cfcd156ac3f4986d4",
+    "artifacts/matched-comparison/input-controls.json": "6c51a291cf4964632542b00c000956ce421e180988bbfe236b7881e317a8c93d",
+    "artifacts/matched-comparison/manuscript-increment-review.json": "20daee0301a1226211e9635aaa3b135d630f80b67c9e11c0356de94912e4461a",
+    "artifacts/matched-comparison/source_identity.json": "4cea9913f76f69f363f816ee6e3d633256d367ae998c529a0ef30a83a0718730",
+    "artifacts/matched-comparison/sources/executables.json": "5fdabca0a7d7eca9e0ab3667024aad447b6392fc97ee8967f12a0469570e77a5",
+    "artifacts/matched-comparison/sources/matched-report.json.gz": "9e8a34beb079f78fa3d89dfd7d6c6d3026d97c5322c5b0b87609829cbf611d68",
+    "artifacts/matched-comparison/sources/public-evidence-audit.json": "e94fb222ceb5f1831a3d300c400d6ac014969741974890510f6da85b3efdaba5",
+    "artifacts/matched-comparison/sources/public-manifest.json": "d7602eab190e9b1cd7c48dcce2788f5d0f777af4f303a113c452656d60f45dc1",
+    "artifacts/matched-comparison/sources/qualification.json": "956640c95443206e0a1b4c9b663e498ee8c1281be6801d134abde4951648ed6a",
+    "artifacts/matched-comparison/sources/results-49.csv": "19bdb09b98cb4817da4efc7cfada4f081185d2ccdac1d09f8406324ad2a234b6",
+    "artifacts/matched-comparison/sources/results-49.json": "588fd79e8b3fa0d1681bd56dd93162a8f64d20c86c1303e29faf58f1333a0be4",
+    "artifacts/matched-comparison/sources/runtime.json": "200105389e589cd985648c00853f6f4bed951cc55ed1c05200eae9a42a6edbc2",
+    "artifacts/matched-comparison/sources/schedule.py.txt": "1d3b361c6d99b0e28c2b0044c99287835f4eba41e9163c0fda2614e954b23b18",
+    "artifacts/matched-comparison/sources/validate.py.txt": "80a2eed73944decaa8edde69db1b3523a12475930dd5e4da4821ca52add636bc",
+    "artifacts/matched-comparison/sources/variant-preparation.json": "a41489dd437dd306389352d2968d5ebf4a79918871d86e4325095e756a038983",
+    "artifacts/integration-checks/matched-comparison/build-check.json": "92fab773ddb382226376e84a39a76438171c6e5a4c7f6f02a20aeea57304e509",
+    "artifacts/integration-checks/matched-comparison/embedded_fonts.txt": "df30a897429798718be2a07d561b9c2a8229faed4a7e92abea8ac884c8c080cc",
+    "artifacts/integration-checks/matched-comparison/source_export_check.json": "ad30f90cc1c79831b28aebd62c4abb53252def9660a9b16d210485a7af52d0bb",
+    "artifacts/integration-checks/matched-comparison/visual-layout-review.json": "abcc444d92dab50e8b45249eb1969d7c9f80aead1d09b496b15494141f787add",
+    "artifacts/prior-integration/native-authentication.json": "7b21966af2604bbfe304bb6ddf98be01dd49419fa7f42378a3d8054c24d6e73d",
+    "artifacts/editorial-review/contribution-wording/README.md": "de52c120a4cc5b4ee48f426213bfe678340d87b6fc9848fc09a3c7955a3e4775",
+    "artifacts/editorial-review/contribution-wording/after/acquisition-nonadditivity.tex": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+    "artifacts/editorial-review/contribution-wording/after/report-composition.tex": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
+    "artifacts/editorial-review/contribution-wording/artifact_manifest.json": "8ad83737f253b23007c4fcb9a8531a78671ad7a5232ba53818fd481d055b37f5",
+    "artifacts/editorial-review/contribution-wording/before/acquisition-nonadditivity.tex": "50cd83948e5e03329eacfbc380af9f7a99b63abab3cc6e3e75f0edf7f3dcd297",
+    "artifacts/editorial-review/contribution-wording/before/report-composition.tex": "b5c46a2c69bcb7d9dee8d460cdc55bf8ec8b691d612e8d33ccef1679408b45d3",
+    "artifacts/editorial-review/contribution-wording/independent-review.json": "7b91d98f9db5831747deb854fb500c6ba71895374196f981823107479e23a2c2",
+    "artifacts/editorial-review/contribution-wording/source-correspondence.json": "c5b1df80c598d479b005b3fa931655eba4b754cb3b24a36c41b1e0fbc520a28b",
+    "artifacts/editorial-review/contribution-wording/wording.diff": "8bb9d6abe1ffbd36213da0e23513b1d3890818c21eb35bc8054cac7bd0512706",
+    "artifacts/integration-checks/contribution-wording/build-check.json": "9cca11096fa0f3152dcf1c0bc3a374c3dfd70a235acd47080112770be48152b1",
+    "artifacts/integration-checks/contribution-wording/embedded_fonts.txt": "df30a897429798718be2a07d561b9c2a8229faed4a7e92abea8ac884c8c080cc",
+    "artifacts/integration-checks/contribution-wording/source_export_check.json": "898a51f98daa2f4c2d15fbae54c56ac139eba02be2eee28abf989fb6d516b91f",
+    "artifacts/integration-checks/contribution-wording/visual-layout-review.json": "f13734722b81ed579847b6fa86bfab84b0f2de98bea03c24a4bea354db995ff4",
+    "artifacts/prior-integration/matched-comparison.json": "52cdb49806b39bd97692f504c65ddee0f53b475904ba5b5431769f245bccc791"
+  },
+  "editorial_revision": {
+    "status": "accepted",
+    "scope": "Explanatory paragraphs after acquisition nonadditivity and the final record-connection consequence paragraph.",
+    "changed_modules": [
+      "acquisition-nonadditivity.tex",
+      "report-composition.tex"
+    ],
+    "independent_review": "artifacts/editorial-review/contribution-wording/independent-review.json",
+    "source_correspondence": "artifacts/editorial-review/contribution-wording/source-correspondence.json",
+    "formal_environments_byte_unchanged": 7,
+    "display_math_blocks_byte_unchanged": 12,
+    "retained_artifact_files_byte_unchanged": 312,
+    "matched_study_and_author_metadata_byte_unchanged": true
+  }
+}

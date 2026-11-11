@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "archive_sha256": "22afd7a48167e03ab738e687b37282cfe2955d88c73d14a25f50500fee183155",
+  "manifest_sha256": "15a4c05b1e51a51869f9f9c6ffa4e5dcb6eb84613d474d56bfa944af6d3b9648",
+  "file_members": 192,
+  "expanded_bytes": 6308668,
+  "all_members_byte_compared": true,
+  "phase_root_and_initial_root_separation_verified": true,
+  "origin_main_proof_complete": false,
+  "combined_frontier_comparison_admissible": false,
+  "release_claim_eligible": false
+}

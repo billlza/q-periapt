@@ -1,0 +1,22 @@
+{
+  "actionlint": {
+    "existing_diagnostics": 2,
+    "limitation": "local actionlint does not recognize the pre-existing ubuntu-26.04 runner labels",
+    "new_diagnostics": 0
+  },
+  "capture_members": 310,
+  "capture_sha256": "8c11a16297792cc71cfaf7339df2a4e0953cbfefb8f827e0c569756906a77223",
+  "completed": true,
+  "creation_cases": 12,
+  "distinct_request_identities": 7,
+  "driver_sha256": "439b2bd72a54226dbac457d72c5c4b634ba2015d16673960bb5001fffbde9cc4",
+  "foreign_directory_control": true,
+  "js_syntax": "passed",
+  "late_completion_cases": 4,
+  "native_verified_requests": 19,
+  "python_tests_passed": 21,
+  "release_claim_eligible": false,
+  "rustfmt": "passed",
+  "scope": "experimental shared source engine; not installed product qualification",
+  "worker_terminations": 8
+}

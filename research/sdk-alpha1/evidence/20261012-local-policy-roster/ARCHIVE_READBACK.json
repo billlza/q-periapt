@@ -1,0 +1,13 @@
+{
+  "captures": 6,
+  "cases": {
+    "art-roster_local_fixed": 43,
+    "art-roster_local_recoverable": 43,
+    "host-debug-fixed": 43,
+    "host-debug-recoverable": 43,
+    "host-release-fixed": 43,
+    "host-release-recoverable": 43
+  },
+  "completed": true,
+  "foreign_processes": 258
+}

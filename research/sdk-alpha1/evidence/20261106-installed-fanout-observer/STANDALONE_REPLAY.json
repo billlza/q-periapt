@@ -1,0 +1,20 @@
+{
+  "archive_readback_sha256": "f0e9d8d10fc68ffae5a3ca9444e53ab57b90608c7f2d8477f076847d57f4415c",
+  "archive_sha256": "b936211f7125fc067e867381c7c377d7d6baa569b03e2889e2774f788017da64",
+  "business_files_verified": 104,
+  "captured_reader_source_only": true,
+  "cohorts_replayed": 4,
+  "completed": true,
+  "driver_sha256": "4f3b3ba6acd6fa8e1b267365fb268df547d10f20bbf69740d4a4cdc822ec78e2",
+  "members_verified": 223,
+  "performance_qualified": false,
+  "private_runtime_accessed": false,
+  "reader_files": {
+    "artifact/evidence_io.py": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d",
+    "artifact/python-env.sh": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49",
+    "artifact/python-run.sh": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255",
+    "artifact/python_bootstrap.py": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
+    "controller/readback-fanout.py": "45ed93e06ff925330e6293e7ffb3480e19a0c569df656a7e846ff9c1d1b9e75f"
+  },
+  "release_claim_eligible": false
+}

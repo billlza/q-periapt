@@ -1,0 +1,665 @@
+{
+  "schema": 1,
+  "scope": "Full stored-payload source tree captured unchanged and expanded using actual observed methods",
+  "source_base_commit": "a22edf103ff5cec610ca6d053d15e07acbb592e0",
+  "parent_capture": "../20261029-stored-offer-response-origins/CAPTURE.zip",
+  "parent_sha256": "9dc6aa17a60b2149094ea55ccb27edb684b4908661cdf6bb524f684f78bc947d",
+  "entry": "experiments/p0-origin-snapshot-producers-replay-716/snapshot-producers-replay-proof.spthy",
+  "entry_sha256": "b0cffe0a3c3568d39dce0a4418fe9f251dbc146dad164870c70ac24fa6c17085",
+  "operational_prefix_sha256": "3cb837646fa2097468d1fad0a10433f50d5c31b6be5553f20085170c3eef0266",
+  "unchanged_queries": 29,
+  "query_definitions_sha256": "88dee7ec275af1bd7d031844a8ca4240eed50b846174eb87970b928d96612ee1",
+  "closed_sources": [
+    "Application_Message",
+    "Cut_case_1",
+    "Cut_case_2",
+    "Final_Commit_8",
+    "Offer_Commit_3_case_1",
+    "Offer_Commit_3_case_2",
+    "Receipt_Commit_0",
+    "Response_Commit_6",
+    "Reveal_Entropy",
+    "Reveal_Identity",
+    "Snapshot_Signer_File_case_1",
+    "Snapshot_Signer_File_case_2",
+    "Snapshot_Signer_File_case_3",
+    "Snapshot_case_1",
+    "Snapshot_case_2",
+    "Snapshot_case_3",
+    "Snapshot_case_4"
+  ],
+  "remaining_sources": [
+    "Snapshot_case_5"
+  ],
+  "closed_stored_producers": [
+    "Key_Reservation_1",
+    "Offer_Signing_2",
+    "Response_Reservation_4"
+  ],
+  "closed_stored_subtree_hashes": {
+    "Key_Reservation_1": "6cdcc41220ffa4efd739ea69d8b65783b9b72c4905b52c2d7ce14766cc6e1d01",
+    "Offer_Signing_2": "974caecb0b2cb425bbc3fec0f44254af5749643a36bbca41f9f79a0a8aaabb4d",
+    "Response_Reservation_4": "10198fe044723ae9b5555391e825c359d6100e38cb182419432b31824d592095"
+  },
+  "snapshot_producer_open_counts": {
+    "Final_Commit_8": 4,
+    "Final_Reservation_7": 5,
+    "Key_Reservation_1": 0,
+    "Offer_Commit_3": 3,
+    "Offer_Signing_2": 0,
+    "Receipt_Accept_0": 3,
+    "Receipt_Commit_0": 3,
+    "Receipt_Reservation_9": 5,
+    "Response_Commit_6": 8,
+    "Response_Compute_5": 2,
+    "Response_Reservation_4": 0
+  },
+  "open_leaf_count": 33,
+  "origin_lemma": {
+    "mode": "all-traces",
+    "status": "analysis incomplete",
+    "steps": 360
+  },
+  "auxiliary_all_trace_verified": {
+    "application_counter_has_public_constructor": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 17
+    },
+    "first_responder_ready_event_is_unique": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 285
+    },
+    "generation_and_encapsulation_secrets_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "generation_and_session_identifiers_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "generation_and_signing_secrets_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "phase_position_event_is_unique": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 29
+    },
+    "produced_counter_has_public_constructor": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 35
+    },
+    "produced_send_root_is_initial_or_hashed": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 55
+    },
+    "produced_state_role_and_epoch_have_public_constructors": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 191
+    },
+    "ready_epoch_and_parent_have_public_constructors": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 12
+    },
+    "ready_parent_has_tagged_epoch_origin": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 12
+    },
+    "ready_root_is_initial_or_hashed": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 11
+    },
+    "reservations_inherit_locally_confirmed_root": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 14
+    },
+    "signed_wire_scope_has_session_and_parent_origin": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 47
+    }
+  },
+  "initial_traffic_witness_steps": 414,
+  "method_provenance": {
+    "full_parent_sha256": "2fea36a4924616476f80dca5172743c7d726b6a3f1cc68b51111c8599960acae",
+    "capture_sha256": "1a393025c1cdd4ee8b88fe236ef5c4dde50018fee380a463a4476276fae48ef4",
+    "input_sha256": "e59b7f0d2fc51995eea263afe674aca51d3565a3271201d265c5e02317cb0e6a",
+    "actual_selected_methods": [
+      {
+        "frame": "0000.txt",
+        "frame_sha256": "d76a25b6a9efe88935dac4119683e5d422afe0d20b952fbfd1d4e55aabb97837",
+        "kind": "phase_producer",
+        "method": "PositionedPhaseState( phase_owner.1, ~sid, role, %n.1, 'Offer2',                      <parent.1, old.2, key.1>, %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.16"
+      },
+      {
+        "frame": "0001.txt",
+        "frame_sha256": "60062c9b231beb774041f7128ff1c39ed7961f65b4d5efda0ec08e188f70568e",
+        "kind": "phase_producer",
+        "method": "PositionedPhaseState( phase_owner.1, ~sid, role, %n.1, 'Final7',                      <r, parent.1, old.2, offer, response, h(material), body, %closing>,                      %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.8"
+      },
+      {
+        "frame": "0002.txt",
+        "frame_sha256": "f13c1f060a7740cadc6e0248a25cbcbd85d889748b10315746548ba61bfe5a5c",
+        "kind": "knowledge_chain",
+        "method": "(#vr.12, 0) ~~> (#known, 0)"
+      },
+      {
+        "frame": "0003.txt",
+        "frame_sha256": "db244482196a6889f8a6ec5f2dc71b3b0efd13f0e372d20545ee74ff45dfebdc",
+        "kind": "phase_producer",
+        "method": "PositionedPhaseState( phase_owner.1, ~sid, role, %n.1, 'Offer1',                      <parent.1, old.1, key.1>, %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.17"
+      },
+      {
+        "frame": "0004.txt",
+        "frame_sha256": "c6c0189c9eb3bdeb4cc477858892ae2cb3e5910e75fccdd92e4bec203409edd4",
+        "kind": "phase_producer",
+        "method": "PositionedPhaseState( phase_owner.1, ~sid, role, %n.1, 'Offer2',                      <parent.1, old.1, key.1>, %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.17"
+      },
+      {
+        "frame": "0005.txt",
+        "frame_sha256": "f3f262f9d99104a29a4c902080e5c7b429681d337f71943ee98ada49ccdba3d6",
+        "kind": "phase_producer",
+        "method": "PositionedPhaseState( phase_owner.1, ~sid, role, %n.1, 'Offer3',                      <parent.1, old.1, key.1, offer>, %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.8"
+      },
+      {
+        "frame": "0006.txt",
+        "frame_sha256": "c44f220837933c425fd30f48b6ad8c3c5744f468fd79b0b621de50d5b1853753",
+        "kind": "knowledge_chain",
+        "method": "(#vr.17, 0) ~~> (#known, 0)"
+      },
+      {
+        "frame": "0007.txt",
+        "frame_sha256": "e6c62dd7d348f9e14025520e3273a347272376547193dcdd023430ea4ae8bab5",
+        "kind": "knowledge_chain",
+        "method": "(#vr.16, 0) ~~> (#known, 0)"
+      },
+      {
+        "frame": "0008.txt",
+        "frame_sha256": "d371e7da7223d4d631827ae3135b3f14f0217709ca8682fec17e028660b3d4c9",
+        "kind": "knowledge_chain",
+        "method": "(#vr.16, 0) ~~> (#known, 0)"
+      },
+      {
+        "frame": "0009.txt",
+        "frame_sha256": "a3656868c81f6af0194d0dabf3e02e714e2dfe43cd0d95cee5510c049c0f843f",
+        "kind": "knowledge_chain",
+        "method": "(#vr.16, 0) ~~> (#known, 0)"
+      },
+      {
+        "frame": "0010.txt",
+        "frame_sha256": "27f9aa52ecf0f3c9697047bd4eb8190bcb642648720bf64909852852e275ae79",
+        "kind": "knowledge_chain",
+        "method": "(#vr.17, 0) ~~> (#known, 0)"
+      },
+      {
+        "frame": "0011.txt",
+        "frame_sha256": "5a7aec46ace10956e8f39ab28d8ff2427739fc1018240196c69b540a37dbee90",
+        "kind": "knowledge_chain",
+        "method": "(#vr.19, 0) ~~> (#known, 0)"
+      },
+      {
+        "frame": "0012.txt",
+        "frame_sha256": "428bc7171ab3b2adba6ef57a70f1b8b4d319286770b06704e83a64477e9a6c4f",
+        "kind": "phase_producer",
+        "method": "PositionedPhaseState( phase_owner.1, ~sid, role, %n.1, 'Final8',                      <r, parent.1, offer, response, h(material), final>,                      %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.8"
+      },
+      {
+        "frame": "0013.txt",
+        "frame_sha256": "c1f08a9807262c9fbc5fe6f9c802661869d0a8f117f7e735e31c675a043e016e",
+        "kind": "knowledge_chain",
+        "method": "(#vr.17, 0) ~~> (#known, 0)"
+      },
+      {
+        "frame": "0014.txt",
+        "frame_sha256": "714290d3db37dcc6955f69e209fb28a16de83f4403c0e8ed13b72a88d4f3678d",
+        "kind": "phase_producer",
+        "method": "PositionedPhaseState( phase_owner.1, ~sid, role, %n.1, 'Receipt9',                      <p.1, parent.1, old.2, offer, response, h(material), final, body,                        %closing>,                      %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.8"
+      },
+      {
+        "frame": "0015.txt",
+        "frame_sha256": "1a9a0a391c2afcf1360c7e0e5dcb8efb49ee33f1e224c79b6171c09f7214be76",
+        "kind": "knowledge_chain",
+        "method": "(#vr.12, 0) ~~> (#known, 0)"
+      },
+      {
+        "frame": "0016.txt",
+        "frame_sha256": "2989f9eae8a837abe4c952d1535e2493f46e0f1e456a11534acc4a663a269626",
+        "kind": "phase_producer",
+        "method": "PositionedPhaseState( phase_owner.1, ~sid, role, %n.1, 'Response4',                      <p.1, parent.1, old.1, offer, peer, coins>, %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.17"
+      },
+      {
+        "frame": "0017.txt",
+        "frame_sha256": "617a9587993ebc7c925617a1be926410f12d519083b41ac0abc561adda7b3a6f",
+        "kind": "phase_producer",
+        "method": "PositionedPhaseState( phase_owner.1, ~sid, role, %n.1, 'Response5',                      <p.1, parent.1, old.1, offer, core, root>, %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.17"
+      },
+      {
+        "frame": "0018.txt",
+        "frame_sha256": "9ce43cbbf9bd9287a9c355ae46bd1dc101985cc7ef92749c88e1fa7ffeba8899",
+        "kind": "phase_producer",
+        "method": "PositionedPhaseState( phase_owner.1, ~sid, role, %n.1, 'Response6',                      <p.1, parent.1, old.1, offer, response, root>, %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.8"
+      },
+      {
+        "frame": "0019.txt",
+        "frame_sha256": "abf80a418bc351ebec98fe8cdb82be6e649ec44254dc8184c963f0490b64d6d4",
+        "kind": "knowledge_chain",
+        "method": "(#vr.17, 0) ~~> (#known, 0)"
+      },
+      {
+        "frame": "0020.txt",
+        "frame_sha256": "3bec1c26cc9b88a6b9b6d1828f926d51cb6f93adb849335b091c9ae6a43f63ba",
+        "kind": "phase_producer",
+        "method": "PositionedPhaseState( phase_owner.1, ~sid, role, %n.1, 'Ready',                      <parent.1, old.2, p.1>, %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.16"
+      },
+      {
+        "frame": "0021.txt",
+        "frame_sha256": "ea700606bf6c68d2a9782bce4cbcc5aff3ac150b5e8fe56429365110ba8bc4ee",
+        "kind": "phase_producer",
+        "method": "PositionedPhaseState( phase_owner.1, ~sid, role, %n.1, 'Response4',                      <p.1, parent.1, old.2, offer, peer, coins>, %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.12"
+      },
+      {
+        "frame": "0022.txt",
+        "frame_sha256": "b6b61c7745a9a870708486489fc0c0d5a60dda5551e7cb61456f70d16a832457",
+        "kind": "phase_producer",
+        "method": "PositionedPhaseState( phase_owner.1, ~sid, role, %n.1, 'Response5',                      <p.1, parent.1, old.2, offer, core, root>, %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.8"
+      },
+      {
+        "frame": "0023.txt",
+        "frame_sha256": "a501fd76038ff35c58a47837eda9a77be7b8b6f3d449b691295ca0305839a991",
+        "kind": "knowledge_chain",
+        "method": "(#vr.12, 0) ~~> (#known, 0)"
+      },
+      {
+        "frame": "0024.txt",
+        "frame_sha256": "d92718cac0aa7521049ccaed940e32f6e445418ae20f3fee28e4be4311adda7d",
+        "kind": "knowledge_chain",
+        "method": "(#vr.19, 0) ~~> (#known, 0)"
+      }
+    ],
+    "all18_sources_11stored_producers_29queries_retained": true,
+    "collapsed_subtrees": 0,
+    "operational_prefix_unchanged": true,
+    "independent_replay_no_search_or_oracle": true,
+    "maximum_explicit_prefix": 10,
+    "total_depth_limit": 16,
+    "input_methods_are_not_a_completion_claim": "The checker may create further open children; only the terminal checked output is evidence.",
+    "release_claim_eligible": false
+  },
+  "experiments": {
+    "p0-origin-complete-snapshot-716": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 286.0581670829997,
+      "origin_lemma": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 327
+      },
+      "input_sha256": "2fea36a4924616476f80dca5172743c7d726b6a3f1cc68b51111c8599960acae",
+      "output_sha256": "1a393025c1cdd4ee8b88fe236ef5c4dde50018fee380a463a4476276fae48ef4",
+      "captured_frontiers": 25,
+      "search_requested": true
+    },
+    "p0-origin-snapshot-producers-replay-716": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 289.1750720830023,
+      "origin_lemma": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 360
+      },
+      "input_sha256": "e59b7f0d2fc51995eea263afe674aca51d3565a3271201d265c5e02317cb0e6a",
+      "output_sha256": "b0cffe0a3c3568d39dce0a4418fe9f251dbc146dad164870c70ac24fa6c17085",
+      "captured_frontiers": 0,
+      "search_requested": false
+    }
+  },
+  "resources": {
+    "seconds_per_run": 900,
+    "derivation_seconds": 60,
+    "heap_gib": 12,
+    "threads": 1,
+    "capture_callbacks_limit": 32,
+    "capture_existing_prefix": 9,
+    "capture_remaining_bound": 7,
+    "total_search_depth_limit": 16
+  },
+  "next_capture": {
+    "preserve_closed_stored_producers": [
+      "Key_Reservation_1",
+      "Offer_Signing_2",
+      "Response_Reservation_4"
+    ],
+    "selected_open_producers": {
+      "Offer_Commit_3": 3,
+      "Response_Compute_5": 2,
+      "Response_Commit_6": 8
+    },
+    "other_open_producers_to_keep_explicit": 5,
+    "focused_open_leaves": 18,
+    "existing_prefix": 10,
+    "remaining_bound": 6,
+    "restore_all_five_unselected_subtrees_before_final_replay": true
+  },
+  "boundaries": [
+    "The entire27leaf parent was captured byte-identically. Two leaves close automatically;25actual goals supply12knowledge chains and13phase premises. Independent replay yields360partial steps and33more-specific leaves; all3closedStored sources remain byte-identical.",
+    "27to25to33 is a tree progression,not a security completion percentage. All18sources,11Stored producers,29queries and protocol rules retained. No new assumption or theorem weakening.",
+    "No complete multi-epoch secrecy,reachability,implementation correspondence,installed interoperability,device,power-loss,ABI,performance or release claim."
+  ],
+  "full_goal_achieved": false,
+  "release_claim_eligible": false,
+  "files": {
+    "experiments/p0-origin-complete-snapshot-716/PREPARATION.json": {
+      "bytes": 764,
+      "sha256": "e50ec9f9e51e4c667257168f4b3acb27f05273b60459da6204ef31658d55ac82"
+    },
+    "experiments/p0-origin-complete-snapshot-716/complete-snapshot-STARTED.json": {
+      "bytes": 1887,
+      "sha256": "b2b9bc03c623fd3b1fe485bd4ed8a117fecdd6e3107374f91a1be351cb7db085"
+    },
+    "experiments/p0-origin-complete-snapshot-716/complete-snapshot-TERMINAL.json": {
+      "bytes": 6252,
+      "sha256": "960adf01d4be6c73edd62a5d6b0492561d25642016061d3b3a8240e50c7312c2"
+    },
+    "experiments/p0-origin-complete-snapshot-716/complete-snapshot-proof.spthy": {
+      "bytes": 414069,
+      "sha256": "1a393025c1cdd4ee8b88fe236ef5c4dde50018fee380a463a4476276fae48ef4"
+    },
+    "experiments/p0-origin-complete-snapshot-716/complete-snapshot.stderr": {
+      "bytes": 133358,
+      "sha256": "00154f6b6705997a07334ddda1eeffd5f0f6e0446181c8bc5a26481a0d11015d"
+    },
+    "experiments/p0-origin-complete-snapshot-716/complete-snapshot.stdout": {
+      "bytes": 3067,
+      "sha256": "9d186bca8fbed68999dabd18415b8709925711ede3092b6ec304ad65c135ee5f"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0000.json": {
+      "bytes": 466,
+      "sha256": "c5c6ca9b48a9947d602767db2fc3a42bee9580105e93293f3508d3de96a04d73"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0000.txt": {
+      "bytes": 39949,
+      "sha256": "d76a25b6a9efe88935dac4119683e5d422afe0d20b952fbfd1d4e55aabb97837"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0001.json": {
+      "bytes": 369,
+      "sha256": "c86dd69bf5acc3ae35a04d6d225706547d65005b9a4826691fe89a26dfc4549d"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0001.txt": {
+      "bytes": 2464,
+      "sha256": "60062c9b231beb774041f7128ff1c39ed7961f65b4d5efda0ec08e188f70568e"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0002.json": {
+      "bytes": 377,
+      "sha256": "7e3c86647ea9b5705eb7bc155a3b2123a115277950645492a134d3a8ef88bacb"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0002.txt": {
+      "bytes": 2496,
+      "sha256": "f13c1f060a7740cadc6e0248a25cbcbd85d889748b10315746548ba61bfe5a5c"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0003.json": {
+      "bytes": 441,
+      "sha256": "69323bf841e9e8105511d909e656c6a5ab5ae63f009ad396b31cccf09d763019"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0003.txt": {
+      "bytes": 5863,
+      "sha256": "db244482196a6889f8a6ec5f2dc71b3b0efd13f0e372d20545ee74ff45dfebdc"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0004.json": {
+      "bytes": 433,
+      "sha256": "2c6299bcdc1c9549065dee7cb140e96a467298b50807202cded7a1f4dc5ba6b8"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0004.txt": {
+      "bytes": 5801,
+      "sha256": "c6c0189c9eb3bdeb4cc477858892ae2cb3e5910e75fccdd92e4bec203409edd4"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0005.json": {
+      "bytes": 409,
+      "sha256": "dd93b3553b5992c2a79f2c656dbfd5e521eb3120f683fb2760caedb127d9f350"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0005.txt": {
+      "bytes": 2613,
+      "sha256": "f3f262f9d99104a29a4c902080e5c7b429681d337f71943ee98ada49ccdba3d6"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0006.json": {
+      "bytes": 417,
+      "sha256": "fceb27c0064464878bfb7fd3fd33de73622a49b3777c904e36ac7987a0fff777"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0006.txt": {
+      "bytes": 2645,
+      "sha256": "c44f220837933c425fd30f48b6ad8c3c5744f468fd79b0b621de50d5b1853753"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0007.json": {
+      "bytes": 409,
+      "sha256": "91f36fab2cdbcb04508ac6f7a1ee10651a61cac5042411ce772b91900ebdce03"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0007.txt": {
+      "bytes": 7671,
+      "sha256": "e6c62dd7d348f9e14025520e3273a347272376547193dcdd023430ea4ae8bab5"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0008.json": {
+      "bytes": 385,
+      "sha256": "290e932b9ffb06d97f9609e78908f70268ac03a23d4d5078518905d6620a7ca2"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0008.txt": {
+      "bytes": 4326,
+      "sha256": "d371e7da7223d4d631827ae3135b3f14f0217709ca8682fec17e028660b3d4c9"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0009.json": {
+      "bytes": 337,
+      "sha256": "a7b68977b0ac52386df6a6d09bcafa6482873a0a2bdf9138d5825fb4fcccb363"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0009.txt": {
+      "bytes": 2579,
+      "sha256": "a3656868c81f6af0194d0dabf3e02e714e2dfe43cd0d95cee5510c049c0f843f"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0010.json": {
+      "bytes": 345,
+      "sha256": "e2c88c2a9684d3e62d6852ff0bdaf0ca1c749df96d6fd97a8f691f420cd46d7b"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0010.txt": {
+      "bytes": 2631,
+      "sha256": "27f9aa52ecf0f3c9697047bd4eb8190bcb642648720bf64909852852e275ae79"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0011.json": {
+      "bytes": 329,
+      "sha256": "13724e1401b77717aa47cabd9b2fc20078c7359c19de1637a9c6198da453dc37"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0011.txt": {
+      "bytes": 2504,
+      "sha256": "5a7aec46ace10956e8f39ab28d8ff2427739fc1018240196c69b540a37dbee90"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0012.json": {
+      "bytes": 361,
+      "sha256": "a7026ee3629a0e4458f2ae0d00738685bd4b8318d04473481f4ff05a9c417dcf"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0012.txt": {
+      "bytes": 2029,
+      "sha256": "428bc7171ab3b2adba6ef57a70f1b8b4d319286770b06704e83a64477e9a6c4f"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0013.json": {
+      "bytes": 369,
+      "sha256": "2a35bd43ca84b5d889c3a2a175dc7eb3384a556655b7f2fcb5773584a4b6b3b9"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0013.txt": {
+      "bytes": 2061,
+      "sha256": "c1f08a9807262c9fbc5fe6f9c802661869d0a8f117f7e735e31c675a043e016e"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0014.json": {
+      "bytes": 369,
+      "sha256": "463f4d68897ab5753a85d73bb7a5dcbb8164e150ff1ff2309abcddc35bbd5210"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0014.txt": {
+      "bytes": 2506,
+      "sha256": "714290d3db37dcc6955f69e209fb28a16de83f4403c0e8ed13b72a88d4f3678d"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0015.json": {
+      "bytes": 377,
+      "sha256": "26ebee70127d04ee8384a0449e68c25e28f053daacc925714ce4831a82932b0d"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0015.txt": {
+      "bytes": 2538,
+      "sha256": "1a9a0a391c2afcf1360c7e0e5dcb8efb49ee33f1e224c79b6171c09f7214be76"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0016.json": {
+      "bytes": 434,
+      "sha256": "467e59a93ff6c388d942970d003ba353d6bcd62089d34abe9d08bd15f42793fe"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0016.txt": {
+      "bytes": 11124,
+      "sha256": "2989f9eae8a837abe4c952d1535e2493f46e0f1e456a11534acc4a663a269626"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0017.json": {
+      "bytes": 425,
+      "sha256": "489c9ac047fef2976cc1968ee45d19cff188c5eec55c1817c2f03ebb690791b9"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0017.txt": {
+      "bytes": 3966,
+      "sha256": "617a9587993ebc7c925617a1be926410f12d519083b41ac0abc561adda7b3a6f"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0018.json": {
+      "bytes": 401,
+      "sha256": "45d7ba9e4c61e4a8bcc81d74fa0201aefd870cbe165c3ceb2be681d84c9d3335"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0018.txt": {
+      "bytes": 2331,
+      "sha256": "9ce43cbbf9bd9287a9c355ae46bd1dc101985cc7ef92749c88e1fa7ffeba8899"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0019.json": {
+      "bytes": 409,
+      "sha256": "c9df01c6f14aa4a5c6e3d90cf60270b92c9242846b8ded79b5ee582801720b93"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0019.txt": {
+      "bytes": 2363,
+      "sha256": "abf80a418bc351ebec98fe8cdb82be6e649ec44254dc8184c963f0490b64d6d4"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0020.json": {
+      "bytes": 369,
+      "sha256": "45d5134fd8a949ac3e8b8571552e88150a09801351348b954ca3532a42894e4d"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0020.txt": {
+      "bytes": 7824,
+      "sha256": "3bec1c26cc9b88a6b9b6d1828f926d51cb6f93adb849335b091c9ae6a43f63ba"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0021.json": {
+      "bytes": 329,
+      "sha256": "c753ae8b71fdb8772d0568384a2d81b710d32ecf48ebe88ce4133def62927631"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0021.txt": {
+      "bytes": 4276,
+      "sha256": "ea700606bf6c68d2a9782bce4cbcc5aff3ac150b5e8fe56429365110ba8bc4ee"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0022.json": {
+      "bytes": 353,
+      "sha256": "961b8f17a9121da4b4ee6ff4d645995a556df06526250ca8037e07f27ed311f7"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0022.txt": {
+      "bytes": 2470,
+      "sha256": "b6b61c7745a9a870708486489fc0c0d5a60dda5551e7cb61456f70d16a832457"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0023.json": {
+      "bytes": 361,
+      "sha256": "7a9c4634066101ac40899d8c6dae824513ac7577dceaef7c47ff76bd420a3ce3"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0023.txt": {
+      "bytes": 2502,
+      "sha256": "a501fd76038ff35c58a47837eda9a77be7b8b6f3d449b691295ca0305839a991"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0024.json": {
+      "bytes": 315,
+      "sha256": "f15e76ff957f8b40f9f07007b428dba4a4aaed7208e96605f5906d7d51c7628f"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle-frames/0024.txt": {
+      "bytes": 1256,
+      "sha256": "d92718cac0aa7521049ccaed940e32f6e445418ae20f3fee28e4be4311adda7d"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle.diagnostic-stop": {
+      "bytes": 27,
+      "sha256": "dd68d7b5191957984a0e516ce6e16769b5a45b1e975bd161bde0f6102561e087"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle.lock": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle.py": {
+      "bytes": 2318,
+      "sha256": "a2c40cb451ad0e8f52f650ef4ceed6f0a2a6f654dd7b583f5fd8b7bf2c860101"
+    },
+    "experiments/p0-origin-complete-snapshot-716/initial-send-oracle.sh": {
+      "bytes": 321,
+      "sha256": "e0e75c98a3002b9a5c1c2ad1787d6754178877a7dc7deba2262a14426794cb95"
+    },
+    "experiments/p0-origin-complete-snapshot-716/model.spthy": {
+      "bytes": 413080,
+      "sha256": "2fea36a4924616476f80dca5172743c7d726b6a3f1cc68b51111c8599960acae"
+    },
+    "experiments/p0-origin-complete-snapshot-716/run.py": {
+      "bytes": 5792,
+      "sha256": "2c27642d776ce83620894c619aae60135d1bff56d5726dee5895a3c8e2b0ac01"
+    },
+    "experiments/p0-origin-snapshot-producers-replay-716/PREPARATION.json": {
+      "bytes": 8024,
+      "sha256": "bcf69096a7cc3fe1d1d6123129f859b3303e92b517d51e5582454b9c171220d6"
+    },
+    "experiments/p0-origin-snapshot-producers-replay-716/model.spthy": {
+      "bytes": 415933,
+      "sha256": "e59b7f0d2fc51995eea263afe674aca51d3565a3271201d265c5e02317cb0e6a"
+    },
+    "experiments/p0-origin-snapshot-producers-replay-716/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "experiments/p0-origin-snapshot-producers-replay-716/snapshot-producers-replay-STARTED.json": {
+      "bytes": 1638,
+      "sha256": "00cf65123553965b1a4608ae1ad7629059098114bc02abc31b33557b99315238"
+    },
+    "experiments/p0-origin-snapshot-producers-replay-716/snapshot-producers-replay-TERMINAL.json": {
+      "bytes": 6003,
+      "sha256": "18c9ee2e27b67f3164907686d4c4786991b7e6f713f883fdd14063faaad72763"
+    },
+    "experiments/p0-origin-snapshot-producers-replay-716/snapshot-producers-replay-proof.spthy": {
+      "bytes": 419305,
+      "sha256": "b0cffe0a3c3568d39dce0a4418fe9f251dbc146dad164870c70ac24fa6c17085"
+    },
+    "experiments/p0-origin-snapshot-producers-replay-716/snapshot-producers-replay.stderr": {
+      "bytes": 1595,
+      "sha256": "21df90d5c3efd7fa6531c63997c591856ea9a348ab0b63f9f397915921d3cc7d"
+    },
+    "experiments/p0-origin-snapshot-producers-replay-716/snapshot-producers-replay.stdout": {
+      "bytes": 3091,
+      "sha256": "c3d4e7adc3c0e077e4bfffac2025b849082fa4ee1a4dbb17b46fe812fd95e0ae"
+    },
+    "parent/entry.spthy": {
+      "bytes": 413080,
+      "sha256": "2fea36a4924616476f80dca5172743c7d726b6a3f1cc68b51111c8599960acae"
+    },
+    "preparation/prepare-complete-snapshot-frontiers-716.py": {
+      "bytes": 2538,
+      "sha256": "2c1e4eca64bacf6037bb963c57fb5f0b965db49c1e3ba6b4413086c13308b79d"
+    },
+    "preparation/prepare-snapshot-producers-replay-716.py": {
+      "bytes": 3750,
+      "sha256": "a5a8587b55c94d5ec53ddeb93600ca16a993638dcadd46ad6ea959b9f9b8f755"
+    },
+    "tools/P0_PINNED_PROVER_IDENTITY.json": {
+      "bytes": 974,
+      "sha256": "f6e18705fdaf213d556237ca67fcab123e1b6f3ee4eca05aa69c5e70e7329459"
+    }
+  }
+}

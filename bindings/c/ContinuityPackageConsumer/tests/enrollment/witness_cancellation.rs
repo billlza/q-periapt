@@ -1,0 +1,781 @@
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+//! Real foreign reservation and killed-owner recovery, with original signed time.
+use super::witness_credential_renewal::{
+    expected, image_digest, pending_journal, provision_renewal, public_file,
+};
+use super::*;
+use std::{
+    io,
+    os::unix::process::ExitStatusExt,
+    process::{Child, Stdio},
+    sync::{
+        atomic::{AtomicBool, AtomicUsize},
+        Mutex,
+    },
+    thread,
+    time::{Duration, Instant},
+};
+
+const POLICY_SECONDS: u64 = 120;
+
+pub(super) fn require_cut_tls_failures(
+    failures: &[io::Error],
+    failed_admissions: &[Option<usize>],
+    cut_index: usize,
+) -> Result<()> {
+    // Classify only the connection whose real foreign owner was killed and
+    // reaped before releasing its admission barrier. Other failures remain fatal.
+    if failures.len() > 1 || failed_admissions != vec![Some(cut_index); failures.len()] {
+        return Err("TLS failure is not the single killed-owner admission".into());
+    }
+    for error in failures {
+        let cause_raw = error
+            .get_ref()
+            .and_then(|cause| cause.downcast_ref::<io::Error>())
+            .and_then(io::Error::raw_os_error);
+        // Native anchor TLS maps Darwin's positive timeout setter EINVAL to
+        // ConnectionAborted and preserves the OS cause. A real killed-peer
+        // experiment reproduces this in close_notify after the ACK reply write.
+        // Neither arbitrary ConnectionAborted nor raw InvalidInput is accepted.
+        let closed_timeout = cfg!(target_vendor = "apple")
+            && error.kind() == io::ErrorKind::ConnectionAborted
+            && cause_raw == Some(22);
+        if !closed_timeout
+            && !matches!(
+                error.kind(),
+                io::ErrorKind::BrokenPipe
+                    | io::ErrorKind::ConnectionReset
+                    | io::ErrorKind::UnexpectedEof
+                    | io::ErrorKind::TimedOut
+            )
+        {
+            return Err(format!("unexpected killed-owner TLS failure: {error:?}").into());
+        }
+    }
+    Ok(())
+}
+
+pub(super) struct Pause {
+    remaining: AtomicUsize,
+    released: AtomicBool,
+    marker: Mutex<Option<PathBuf>>,
+}
+impl Pause {
+    pub(super) fn new() -> Self {
+        Self {
+            remaining: AtomicUsize::new(0),
+            released: AtomicBool::new(false),
+            marker: Mutex::new(None),
+        }
+    }
+    fn arm(self: &Arc<Self>, count: usize, marker: PathBuf) -> Result<Release> {
+        if !(1..=2).contains(&count) {
+            return Err("invalid admission cut".into());
+        }
+        let mut saved = self.marker.lock().map_err(|_| "cut lock")?;
+        if saved.is_some() || self.remaining.load(Ordering::Acquire) != 0 {
+            return Err("unconsumed cut".into());
+        }
+        *saved = Some(marker);
+        self.released.store(false, Ordering::Release);
+        self.remaining.store(count, Ordering::Release);
+        Ok(Release(Arc::clone(self)))
+    }
+    pub(super) fn now(&self) -> Result<u64> {
+        if self
+            .remaining
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| n.checked_sub(1))
+            == Ok(1)
+        {
+            let marker = self
+                .marker
+                .lock()
+                .map_err(|_| "cut lock")?
+                .take()
+                .ok_or("missing marker")?;
+            fixture::publish_marker(
+                marker.parent().ok_or("marker parent")?,
+                marker
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .ok_or("marker name")?,
+            )?;
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while !self.released.load(Ordering::Acquire) {
+                if Instant::now() >= deadline {
+                    return Err("bounded TLS admission cut expired".into());
+                }
+                thread::sleep(Duration::from_millis(2));
+            }
+        }
+        // Delay is injected at the real admission callback, never by substituting
+        // a past validity time or replacing a signed witness result.
+        Ok(fixture::now()?)
+    }
+}
+struct Release(Arc<Pause>);
+impl Drop for Release {
+    fn drop(&mut self) {
+        self.0.released.store(true, Ordering::Release);
+    }
+}
+struct ChildOwner(Child);
+impl Drop for ChildOwner {
+    fn drop(&mut self) {
+        match self.0.try_wait() {
+            Ok(Some(_)) => return,
+            Ok(None) => {}
+            Err(error) => eprintln!("foreign owner status during cleanup: {error}"),
+        }
+        if let Err(error) = self.0.kill() {
+            eprintln!("foreign owner kill during cleanup: {error}");
+        }
+        if let Err(error) = self.0.wait() {
+            eprintln!("foreign owner reap during cleanup: {error}");
+        }
+    }
+}
+fn paths(path: &Path) -> Result<p::EnrollmentPaths> {
+    Ok(p::EnrollmentPaths::new(
+        &path.join("wrap.key"),
+        &path.join("signer.key"),
+        &path.join("enrollment.redb"),
+        p::InstallationPaths::new(
+            &path.join("installation.redb"),
+            &path.join("journal.redb"),
+            &path.join("archives.redb"),
+        )?,
+    )?)
+}
+pub(super) fn current_calls(
+    witness: &witness::Witness,
+    tls: Option<&witness_tls::TlsWitness>,
+    subject: p::AnchorSubject,
+) -> Result<usize> {
+    Ok(if let Some(server) = tls {
+        server.admitted.load(Ordering::Acquire)
+    } else {
+        witness
+            .captured
+            .lock()
+            .map_err(|_| "capture lock")?
+            .iter()
+            .filter(|r| r.request.get(44..140) == Some(subject.to_bytes().as_slice()))
+            .count()
+    })
+}
+pub(super) fn kill_reconcile(
+    path: &Path,
+    witness: &witness::Witness,
+    pause: &Arc<Pause>,
+    endpoint: Endpoint,
+    acknowledge: bool,
+) -> Result<std::process::ExitStatus> {
+    let marker = path.join("cancel-cut-ready");
+    let release = if endpoint.tls {
+        Some(pause.arm(if acknowledge { 2 } else { 1 }, marker.clone())?)
+    } else {
+        let mut saved = witness.hold_marker.lock().map_err(|_| "hold lock")?;
+        if saved.replace(marker.clone()).is_some() {
+            return Err("unconsumed TCP cut".into());
+        }
+        drop(saved);
+        witness.arm(if acknowledge { 8 } else { 6 })?;
+        None
+    };
+    let stdout = fs::File::create(path.join("witness-enrollment-cancel-cut.stdout"))?;
+    let stderr = fs::File::create(path.join("witness-enrollment-cancel-cut.stderr"))?;
+    let mut child = ChildOwner(
+        Command::new(executable()?)
+            .args(arguments(
+                path,
+                "credential-witness-reconcile",
+                Some(endpoint),
+            ))
+            .stdout(Stdio::from(stdout))
+            .stderr(Stdio::from(stderr))
+            .spawn()?,
+    );
+    let deadline = Instant::now() + Duration::from_secs(40);
+    while !marker.is_file() {
+        if child.0.try_wait()?.is_some() || Instant::now() >= deadline {
+            return Err(format!(
+                "foreign owner missed cancellation cut; stderr={}",
+                String::from_utf8_lossy(&public_file(
+                    path,
+                    "witness-enrollment-cancel-cut.stderr",
+                    65536
+                )?)
+            )
+            .into());
+        }
+        thread::sleep(Duration::from_millis(2));
+    }
+    child.0.kill()?;
+    let killed = child.0.wait()?;
+    assert_eq!(
+        killed.signal(),
+        Some(9),
+        "owner did not terminate by SIGKILL"
+    );
+    for ext in ["stdout", "stderr"] {
+        assert!(
+            public_file(path, &format!("witness-enrollment-cancel-cut.{ext}"), 65536)?.is_empty()
+        );
+    }
+    drop(release);
+    Ok(killed)
+}
+
+fn exercise(
+    tls: bool,
+    expired: bool,
+    acknowledge: bool,
+    output: Option<PathBuf>,
+) -> Result<String> {
+    let name = format!(
+        "{}-{}-{}",
+        if tls { "tls" } else { "tcp" },
+        if expired { "expired" } else { "live" },
+        if acknowledge { "ack" } else { "status" }
+    );
+    let mut witness = witness::Witness::start()?;
+    let setup = fixture::setup_with_witness(Some(&witness.configured))?;
+    let registration = prepare_with_policy_lifetime(
+        &setup,
+        &witness,
+        if expired { Some(POLICY_SECONDS) } else { None },
+    )?;
+    let path = &registration.path;
+    let pause = Arc::new(Pause::new());
+    let clock = Arc::clone(&pause);
+    let mut tls_witness = if tls {
+        Some(witness_tls::TlsWitness::start_with_clock(
+            Arc::clone(&witness.configured.store),
+            [path.as_path()],
+            move || clock.now(),
+        )?)
+    } else {
+        None
+    };
+    let endpoint = Endpoint {
+        tls,
+        address: tls_witness
+            .as_ref()
+            .map_or(witness.configured.address, |s| s.address),
+    };
+    run(
+        path,
+        "cancel-original-active",
+        &arguments(path, "activate", Some(endpoint)),
+    )?;
+    let active = state(&run(
+        path,
+        "cancel-original-status",
+        &arguments(path, "status", Some(endpoint)),
+    )?)?;
+    let original = pending_journal(path)?;
+    assert!(original.1.is_none());
+    let (proof, target, credential) = provision_renewal(&registration)?;
+    let policy_pin = super::witness_policy_expiry::policy_pin(path)?;
+    let historical =
+        policy_pin.verify_historical(&fixture::read(path, "protocol-policy", 8192)?)?;
+    assert_eq!(
+        run(
+            path,
+            "cancel-stage",
+            &arguments(path, "credential-stage", Some(endpoint))
+        )?,
+        expected(&proof, 1)
+    );
+    assert!(
+        fixture::now()? < historical.validity().until(),
+        "setup missed original policy lifetime"
+    );
+    if expired {
+        let deadline = Instant::now() + Duration::from_secs(POLICY_SECONDS + 5);
+        while fixture::now()? < historical.validity().until() {
+            if Instant::now() >= deadline {
+                return Err("real policy expiry wait exceeded".into());
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+    }
+    let prepared_at = fixture::now()?;
+    assert_eq!(prepared_at >= historical.validity().until(), expired);
+    assert!(prepared_at < credential.until());
+    if expired {
+        super::witness_policy_expiry::expired_authority(path, &policy_pin, &historical, &target)?;
+    }
+
+    // First reservation, not just readback, runs with no SDK database present.
+    fs::rename(
+        path.join("sdk.redb"),
+        path.join("sdk-cancellation-retained.redb"),
+    )?;
+    let before = current_calls(&witness, tls_witness.as_ref(), registration.subject)?;
+    assert_eq!(
+        run(
+            path,
+            "cancel-reserve",
+            &arguments(path, "credential-witness-cancel-prepare", Some(endpoint))
+        )?,
+        "credential-witness-cancel-reserved\n"
+    );
+    let bytes = fixture::read(path, "credential-cancellation", 248)?;
+    fixture::store(path, "credential-cancellation-original", &bytes)?;
+    let cancellation = p::AnchorCredentialRenewalCancellation::from_trusted_state(&bytes)?;
+    assert_eq!(cancellation.subject(), registration.subject);
+    assert_eq!(cancellation.operation(), proof.operation());
+    assert_eq!(cancellation.statement(), proof.statement_digest());
+    assert_eq!(
+        cancellation.expected_head().digest(),
+        image_digest(&original.0)?
+    );
+    let pending = pending_journal(path)?;
+    assert_eq!(pending.0, original.0);
+    let reservation = pending
+        .1
+        .as_ref()
+        .ok_or("missing cancellation reservation")?;
+    assert_eq!(reservation.len(), 320);
+    assert_eq!(reservation.get(..8), Some(b"QPWINT03".as_slice()));
+    assert_eq!(reservation.get(40..288), Some(bytes.as_slice()));
+    fs::rename(
+        path.join("credential-cancellation"),
+        path.join("credential-cancellation-before-resume"),
+    )?;
+    assert_eq!(
+        run(
+            path,
+            "cancel-reserve-reopened",
+            &arguments(path, "credential-witness-cancel-prepare", Some(endpoint))
+        )?,
+        "credential-witness-cancel-reserved\n"
+    );
+    assert_eq!(fixture::read(path, "credential-cancellation", 248)?, bytes);
+    assert_eq!(
+        current_calls(&witness, tls_witness.as_ref(), registration.subject)?,
+        before,
+        "reservation must not dispatch"
+    );
+    assert_eq!(pending_journal(path)?, pending);
+    assert_eq!(
+        run(
+            path,
+            "cancel-pending",
+            &arguments(path, "credential-witness-reconcile", Some(endpoint))
+        )?,
+        expected(&proof, 1)
+    );
+    assert_eq!(
+        pending_journal(path)?,
+        pending,
+        "Unavailable did not authorize cleanup"
+    );
+    assert!(!path.join("sdk.redb").exists());
+    fs::rename(
+        path.join("sdk-cancellation-retained.redb"),
+        path.join("sdk.redb"),
+    )?;
+    let refused = if expired {
+        "credential-witness-commit-policy-expired"
+    } else {
+        "credential-witness-commit-cancellation"
+    };
+    assert_eq!(
+        run(
+            path,
+            "cancel-commit-refused",
+            &arguments(path, refused, Some(endpoint))
+        )?,
+        format!(
+            "credential-witness-commit-refused:{}\n",
+            if expired { 104 } else { 215 }
+        )
+    );
+    assert_eq!(pending_journal(path)?, pending);
+    // Independent root/policy pins reconstruct historical materials. No live SDK
+    // owner is used to turn this expectation into the witness's Closed slot.
+    let grant = p::HistoricalCredentialRenewal::verify(
+        &fixture::read(path, "credential-renewal", 65536)?,
+        &target,
+        historical.checkpoint().digest(),
+    )?;
+    witness
+        .configured
+        .store
+        .lock()
+        .map_err(|_| "witness lock")?
+        .close_unprepared_credential_renewal(cancellation, &grant, &historical)?;
+    fs::rename(
+        path.join("sdk.redb"),
+        path.join("sdk-cancellation-retained.redb"),
+    )?;
+    let before_cut = current_calls(&witness, tls_witness.as_ref(), registration.subject)?;
+    assert_eq!(before_cut, before + 2);
+    let cut_index = before_cut + usize::from(acknowledge);
+    let killed = kill_reconcile(path, &witness, &pause, endpoint, acknowledge)?;
+    let cut_at = fixture::now()?;
+    assert_eq!(pending_journal(path)?, pending);
+    let mut original_owner = p::DeviceEnrollment::open(paths(path)?, registration.intent.clone())?;
+    let cut_status = original_owner.credential_renewal_status()?;
+    let phase = if acknowledge { 4 } else { 1 };
+    assert_eq!(
+        cut_status,
+        if acknowledge {
+            p::CredentialRenewalStatus::Closed {
+                operation: proof.operation(),
+                statement: proof.statement_digest(),
+                target: proof.successor_device().roster().checkpoint(),
+            }
+        } else {
+            p::CredentialRenewalStatus::Pending {
+                operation: proof.operation(),
+                statement: proof.statement_digest(),
+            }
+        }
+    );
+    original_owner.close();
+    assert_eq!(
+        run(
+            path,
+            "cancel-cut-status",
+            &arguments(path, "credential-status", None)
+        )?,
+        expected(&proof, phase)
+    );
+    assert_eq!(
+        run(
+            path,
+            "cancel-recover",
+            &arguments(path, "credential-witness-reconcile", Some(endpoint))
+        )?,
+        expected(&proof, 4)
+    );
+    assert_eq!(
+        run(
+            path,
+            "cancel-repeat",
+            &arguments(path, "credential-witness-commit", Some(endpoint))
+        )?,
+        expected(&proof, 4)
+    );
+    assert!(
+        !path.join("sdk.redb").exists(),
+        "historical recovery recreated runtime"
+    );
+    let terminal = pending_journal(path)?;
+    assert_eq!(terminal, (original.0.clone(), None));
+    let recovered = current_calls(&witness, tls_witness.as_ref(), registration.subject)?;
+    assert_eq!(recovered, before + 5);
+    fs::rename(
+        path.join("sdk-cancellation-retained.redb"),
+        path.join("sdk.redb"),
+    )?;
+    if expired {
+        let mut args = arguments(path, "activate-error", Some(endpoint));
+        args.push("104".into());
+        assert_eq!(
+            run(path, "cancel-activation", &args)?,
+            "enrollment-activation-refused:104\n"
+        );
+    } else {
+        run(
+            path,
+            "cancel-activation",
+            &arguments(path, "activate", Some(endpoint)),
+        )?;
+    }
+    assert_eq!(
+        state(&run(
+            path,
+            "cancel-final-status",
+            &arguments(path, "status", None)
+        )?)?,
+        active
+    );
+    assert_eq!(pending_journal(path)?, terminal);
+    assert_eq!(
+        fixture::read(path, "enrollment-request", 8192)?,
+        registration.request
+    );
+    let finished_at = fixture::now()?;
+    let mut tcp = Vec::new();
+    witness.join()?;
+    for record in witness
+        .captured
+        .lock()
+        .map_err(|_| "capture lock")?
+        .iter()
+        .filter(|r| r.request.get(44..140) == Some(registration.subject.to_bytes().as_slice()))
+    {
+        tcp.push(u8::from(record.delivered));
+        tcp.extend_from_slice(&record.request);
+        tcp.extend_from_slice(&record.reply);
+    }
+    let (transcript, admitted, failures) = if let Some(server) = tls_witness.as_mut() {
+        assert!(tcp.is_empty(), "TLS used plaintext fallback");
+        let failures = server.finish()?;
+        let records = server.records.lock().map_err(|_| "TLS records")?;
+        assert_eq!(
+            records.len() + failures.len(),
+            server.admitted.load(Ordering::Acquire)
+        );
+        let failed = server
+            .failed_admissions
+            .lock()
+            .map_err(|_| "TLS failure lock")?;
+        require_cut_tls_failures(&failures, &failed, cut_index)?;
+        if !failures.is_empty() {
+            eprintln!("TLS_CANCELLATION_CUT_FAILURE index={cut_index} errors={failures:?}");
+        }
+        let mut wire = Vec::new();
+        for record in records.iter() {
+            wire.push(1);
+            wire.extend_from_slice(record.request());
+            wire.extend_from_slice(record.reply());
+        }
+        (
+            wire,
+            server.admitted.load(Ordering::Acquire),
+            failures.len(),
+        )
+    } else {
+        (tcp.clone(), tcp.len() / 7334, 0)
+    };
+    let (records, tail) = transcript.as_chunks::<7334>();
+    assert!(tail.is_empty());
+    assert!(
+        records.iter().all(|r| !matches!(r.get(205), Some(5 | 7))),
+        "cancellation dispatched Commit/Close"
+    );
+    if !tls {
+        assert_eq!(
+            records
+                .iter()
+                .filter(|r| r.first() == Some(&0)
+                    && r.get(205) == Some(&if acknowledge { 8 } else { 6 }))
+                .count(),
+            1
+        );
+    }
+    fixture::store(path, "cancel-witness-transcript", &transcript)?;
+    fixture::store(path, "cancel-tcp-transcript", &tcp)?;
+    let mut images = image_digest(&original.0)?.to_vec();
+    images.extend_from_slice(&image_digest(&pending.0)?);
+    images.extend_from_slice(&image_digest(&terminal.0)?);
+    fixture::store(path, "cancel-image-digests", &images)?;
+    let mut observations = b"QPGCFL01".to_vec();
+    observations.extend_from_slice(&[
+        u8::from(tls),
+        u8::from(expired),
+        if acknowledge { 8 } else { 6 },
+        u8::try_from(phase)?,
+    ]);
+    for value in [
+        historical.validity().from(),
+        historical.validity().until(),
+        credential.until(),
+        prepared_at,
+        cut_at,
+        finished_at,
+        u64::try_from(before)?,
+        u64::try_from(admitted)?,
+        u64::try_from(failures)?,
+        u64::try_from(cut_index)?,
+        u64::try_from(recovered)?,
+        if failures == 0 {
+            u64::MAX
+        } else {
+            u64::try_from(cut_index)?
+        },
+        u64::try_from(killed.signal().ok_or("missing owner termination signal")?)?,
+    ] {
+        observations.extend_from_slice(&value.to_be_bytes());
+    }
+    fixture::store(path, "cancel-observations", &observations)?;
+    if let Some(root) = output {
+        export(path, &root.join(&name))?;
+    }
+    Ok(format!("WITNESSED_CANCELLATION case={name} original_reservation=true no_target=true no_sdk_prepare=true killed_owner=true local_cut_phase={phase} closed=true policy_expired={expired}"))
+}
+fn export(path: &Path, output: &Path) -> Result<()> {
+    fs::DirBuilder::new().mode(0o700).create(output)?;
+    for name in [
+        "enrollment-root",
+        "enrollment-intent",
+        "enrollment-request",
+        "enrollment-reopened-request",
+        "grant-certificate",
+        "grant-roster",
+        "trusted-account",
+        "trusted-roster-version",
+        "trusted-roster-digest",
+        "family",
+        "policy-root",
+        "policy-version",
+        "policy-digest",
+        "protocol-policy",
+        "witness-id",
+        "witness-public",
+        "witness-subject",
+        "enrollment-genesis-subject",
+        "enrollment-genesis-digest",
+        "credential-renewal",
+        "credential-operation",
+        "credential-statement",
+        "renewal-version",
+        "renewal-digest",
+        "credential-cancellation",
+        "credential-cancellation-original",
+        "cancel-image-digests",
+        "cancel-observations",
+        "cancel-witness-transcript",
+        "cancel-tcp-transcript",
+    ] {
+        fixture::store(output, name, &public_file(path, name, 32 * 1024 * 1024)?)?;
+    }
+    for label in [
+        "key",
+        "create",
+        "request",
+        "request-retry",
+        "accept",
+        "storage",
+        "cancel-original-active",
+        "cancel-original-status",
+        "cancel-stage",
+        "cancel-reserve",
+        "cancel-reserve-reopened",
+        "cancel-pending",
+        "cancel-commit-refused",
+        "cancel-cut",
+        "cancel-cut-status",
+        "cancel-recover",
+        "cancel-repeat",
+        "cancel-activation",
+        "cancel-final-status",
+    ] {
+        for ext in ["stdout", "stderr"] {
+            let name = format!("witness-enrollment-{label}.{ext}");
+            fixture::store(output, &name, &public_file(path, &name, 65536)?)?;
+        }
+    }
+    Ok(())
+}
+#[test]
+fn grant_only_cancellation_recovers_original_foreign_owner_after_process_loss() -> Result<()> {
+    require_cut_tls_failures(&[], &[], 7)?;
+    for kind in [
+        io::ErrorKind::BrokenPipe,
+        io::ErrorKind::ConnectionReset,
+        io::ErrorKind::UnexpectedEof,
+        io::ErrorKind::TimedOut,
+    ] {
+        require_cut_tls_failures(&[kind.into()], &[Some(7)], 7)?;
+    }
+    let closed_timeout = || {
+        io::Error::new(
+            io::ErrorKind::ConnectionAborted,
+            io::Error::from_raw_os_error(22),
+        )
+    };
+    assert_eq!(
+        require_cut_tls_failures(&[closed_timeout()], &[Some(7)], 7).is_ok(),
+        cfg!(target_vendor = "apple")
+    );
+    for indices in [vec![], vec![None], vec![Some(6)], vec![Some(7), Some(7)]] {
+        assert!(
+            require_cut_tls_failures(&[io::ErrorKind::BrokenPipe.into()], &indices, 7).is_err()
+        );
+        assert!(require_cut_tls_failures(&[closed_timeout()], &indices, 7).is_err());
+    }
+    assert!(require_cut_tls_failures(
+        &[
+            io::ErrorKind::BrokenPipe.into(),
+            io::ErrorKind::ConnectionReset.into()
+        ],
+        &[Some(7), Some(7)],
+        7
+    )
+    .is_err());
+    for error in [
+        io::Error::from(io::ErrorKind::ConnectionAborted),
+        io::Error::from_raw_os_error(22),
+        io::Error::new(
+            io::ErrorKind::ConnectionAborted,
+            "Invalid argument (os error 22)",
+        ),
+        io::Error::new(
+            io::ErrorKind::ConnectionAborted,
+            io::Error::from_raw_os_error(5),
+        ),
+        io::Error::other(io::Error::from_raw_os_error(22)),
+        io::Error::from(io::ErrorKind::PermissionDenied),
+        io::Error::from(io::ErrorKind::InvalidData),
+        io::Error::from(io::ErrorKind::WouldBlock),
+    ] {
+        assert!(require_cut_tls_failures(&[error], &[Some(7)], 7).is_err());
+    }
+    witness::require_held_peer_disconnect(Ok(0))?;
+    witness::require_held_peer_disconnect(Err(io::Error::from(io::ErrorKind::ConnectionReset)))?;
+    assert_eq!(
+        witness::require_held_peer_disconnect(Ok(1))
+            .err()
+            .map(|e| e.kind()),
+        Some(io::ErrorKind::InvalidData)
+    );
+    for kind in [
+        io::ErrorKind::TimedOut,
+        io::ErrorKind::WouldBlock,
+        io::ErrorKind::UnexpectedEof,
+        io::ErrorKind::PermissionDenied,
+    ] {
+        assert_eq!(
+            witness::require_held_peer_disconnect(Err(io::Error::from(kind)))
+                .err()
+                .map(|e| e.kind()),
+            Some(kind)
+        );
+    }
+    let public = std::env::var_os("QPERIAPT_WITNESSED_CANCELLATION_EVIDENCE").map(PathBuf::from);
+    if let Some(path) = &public {
+        if !path.is_absolute() {
+            return Err("absolute cancellation evidence path required".into());
+        }
+        q_periapt_host_store::filesystem::OwnedPrivateDirectory::open(
+            path.parent().ok_or("evidence parent")?,
+        )?;
+        fs::DirBuilder::new().mode(0o700).create(path)?;
+    }
+    let mut tasks = Vec::new();
+    for tls in [false, true] {
+        for expired in [false, true] {
+            for ack in [false, true] {
+                let output = public.clone();
+                tasks.push(thread::spawn(move || exercise(tls, expired, ack, output)));
+            }
+        }
+    }
+    let results = tasks
+        .into_iter()
+        .map(|t| {
+            t.join().unwrap_or_else(|_| {
+                Err(io::Error::other("cancellation case panicked; see diagnostic").into())
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut failures = Vec::new();
+    for result in results {
+        match result {
+            Ok(report) => println!("{report}"),
+            Err(error) => failures.push(error.to_string()),
+        }
+    }
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(failures.join("\n").into())
+    }
+}

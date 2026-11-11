@@ -40,6 +40,7 @@ from evidence_io import (
 )
 from git_provenance import (
     GitProvenanceError,
+    canonical_repository_root,
     inspect_worktree,
     require_direct_results_only_child,
     require_commit_or_evidence_successor,
@@ -466,26 +467,43 @@ def _load_completion_ledger(path: pathlib.Path) -> tuple[dict[str, Any], str]:
     return ledger, source_commit
 
 
-def _public_distribution_entries() -> frozenset[str]:
+def _public_distribution_paths(
+    repository_root: pathlib.Path | None,
+) -> tuple[pathlib.Path, pathlib.Path]:
+    if repository_root is None:
+        return APPLE_PUBLIC_ROOT, APPLE_PUBLIC_DISTRIBUTION
+    try:
+        repository = canonical_repository_root(repository_root)
+    except GitProvenanceError as exc:
+        raise AppleStablePublicationError(str(exc)) from exc
+    public_root = repository / "target" / "qperiapt-swift-xcframework"
+    return public_root, public_root / APPLE_PUBLIC_DISTRIBUTION_NAME
+
+
+def _public_distribution_entries(
+    *,
+    repository_root: pathlib.Path | None = None,
+) -> frozenset[str]:
+    public_root, distribution_path = _public_distribution_paths(repository_root)
     root = normalize_safe_root(
-        APPLE_PUBLIC_ROOT,
+        public_root,
         label="Apple public distribution root",
         required_mode=0o755,
     )
     _require(
-        APPLE_PUBLIC_DISTRIBUTION.parent == root,
+        distribution_path.parent == root,
         "Apple public distribution path differs",
     )
     try:
-        metadata = APPLE_PUBLIC_DISTRIBUTION.lstat()
-        entries = frozenset(os.listdir(APPLE_PUBLIC_DISTRIBUTION))
+        metadata = distribution_path.lstat()
+        entries = frozenset(os.listdir(distribution_path))
     except OSError as exc:
         raise AppleStablePublicationError(
             "cannot inspect Apple public distribution"
         ) from exc
     _require(
         stat.S_ISDIR(metadata.st_mode)
-        and not APPLE_PUBLIC_DISTRIBUTION.is_symlink()
+        and not distribution_path.is_symlink()
         and metadata.st_uid == os.geteuid()
         and stat.S_IMODE(metadata.st_mode) == 0o755,
         "Apple public distribution must be an owned mode-0755 directory",
@@ -494,7 +512,7 @@ def _public_distribution_entries() -> frozenset[str]:
         entries == APPLE_PUBLIC_DIRECTORY_ENTRIES,
         "Apple public distribution entry set differs",
     )
-    xcframework = APPLE_PUBLIC_DISTRIBUTION / "CQPeriapt.xcframework"
+    xcframework = distribution_path / "CQPeriapt.xcframework"
     try:
         xcframework_metadata = xcframework.lstat()
     except OSError as exc:
@@ -514,8 +532,11 @@ def _public_distribution_entries() -> frozenset[str]:
 def _load_public_distribution(
     expected_hashes: Mapping[str, object],
     source_commit: str,
+    *,
+    repository_root: pathlib.Path | None = None,
 ) -> dict[str, object]:
-    entries_before = _public_distribution_entries()
+    public_root, distribution_path = _public_distribution_paths(repository_root)
+    entries_before = _public_distribution_entries(repository_root=repository_root)
     snapshots: dict[str, FileSnapshot] = {}
     for name in apple_contract.APPLE_PUBLIC_ASSET_NAMES:
         maximum = (
@@ -524,8 +545,8 @@ def _load_public_distribution(
             else apple_distribution.MAX_TEXT_BYTES
         )
         snapshots[name] = read_fixed_file_snapshot(
-            APPLE_PUBLIC_DISTRIBUTION / name,
-            safe_root=APPLE_PUBLIC_ROOT,
+            distribution_path / name,
+            safe_root=public_root,
             expected_leaf=name,
             label=f"Apple public asset {name}",
             parent_depth=1,
@@ -566,7 +587,7 @@ def _load_public_distribution(
         raise AppleStablePublicationError(
             "Apple public distribution deep validation failed"
         ) from exc
-    entries_after = _public_distribution_entries()
+    entries_after = _public_distribution_entries(repository_root=repository_root)
     _require(
         entries_after == entries_before,
         "Apple public distribution changed while assembling its receipt",
@@ -574,12 +595,16 @@ def _load_public_distribution(
     return distribution
 
 
-def _snapshot_public_asset_files() -> tuple[FileSnapshot, ...]:
-    entries_before = _public_distribution_entries()
+def _snapshot_public_asset_files(
+    *,
+    repository_root: pathlib.Path | None = None,
+) -> tuple[FileSnapshot, ...]:
+    public_root, distribution_path = _public_distribution_paths(repository_root)
+    entries_before = _public_distribution_entries(repository_root=repository_root)
     snapshots = tuple(
         read_fixed_file_snapshot(
-            APPLE_PUBLIC_DISTRIBUTION / name,
-            safe_root=APPLE_PUBLIC_ROOT,
+            distribution_path / name,
+            safe_root=public_root,
             expected_leaf=name,
             label=f"Apple stable publication asset {name}",
             parent_depth=1,
@@ -599,7 +624,7 @@ def _snapshot_public_asset_files() -> tuple[FileSnapshot, ...]:
         "Apple stable publication asset is empty",
     )
     _require(
-        _public_distribution_entries() == entries_before,
+        _public_distribution_entries(repository_root=repository_root) == entries_before,
         "Apple public distribution changed during asset snapshot",
     )
     return snapshots
@@ -607,6 +632,8 @@ def _snapshot_public_asset_files() -> tuple[FileSnapshot, ...]:
 
 def load_pending_publication_assets(
     pending_receipt: object,
+    *,
+    repository_root: pathlib.Path | None = None,
 ) -> tuple[FileSnapshot, ...]:
     """Return the fixed four Apple files selected by the pending P receipt."""
 
@@ -630,16 +657,17 @@ def load_pending_publication_assets(
     )
     source = _object(pending.get("source"), "pending Apple stable source")
     expected_hashes = _public_asset_sha256s(distribution)
-    before = _snapshot_public_asset_files()
+    before = _snapshot_public_asset_files(repository_root=repository_root)
     rebuilt = _load_public_distribution(
         expected_hashes,
         _sha1(source.get("source_parent_commit"), "Apple source parent"),
+        repository_root=repository_root,
     )
     _require(
         apple_contract.publication_values_equal(rebuilt, distribution),
         "Apple fixed distribution differs from the selected pending receipt",
     )
-    after = _snapshot_public_asset_files()
+    after = _snapshot_public_asset_files(repository_root=repository_root)
     _require(
         before == after,
         "Apple stable publication assets changed while loading",
@@ -1203,6 +1231,89 @@ def _remote_runtime_from_verifier_snapshot(
     return runtime_root, safe_run_directory_name
 
 
+def _declared_remote_gate_log_name(requested: str) -> str:
+    """Select one declared operation; caller text never becomes a file name."""
+
+    _require(isinstance(requested, str), "remote consumer gate log name is not declared")
+    for declared in REMOTE_CONSUMER_GATE_LOG_NAMES:
+        if requested == declared:
+            return declared
+    _fail("remote consumer gate log name is not declared")
+
+
+def _remote_consumer_gate_command(
+    run_directory: pathlib.Path,
+    log_name: str,
+    arguments: Sequence[str],
+) -> tuple[str, ...]:
+    """Admit only the selected operation over its exact frozen-run layout.
+
+    The shell producer still supplies its argv for an explicit contract check.
+    Executables, options and scripts come from this module. Release source and
+    digest arguments remain data; verify-release-assets checks them against the
+    frozen results and actual downloaded bytes before any consumer can run.
+    """
+
+    _require(
+        isinstance(arguments, Sequence)
+        and not isinstance(arguments, (str, bytes))
+        and 1 <= len(arguments) <= 12
+        and all(isinstance(argument, str) and argument for argument in arguments),
+        "remote consumer gate command is malformed",
+    )
+    verifier = run_directory / "verifier-inputs"
+    target = verifier / "target"
+    assets = run_directory / "release-assets"
+    archive = assets / "CQPeriapt.xcframework.zip"
+    extracted = target / "extracted"
+    framework = extracted / "CQPeriapt.xcframework"
+    consumer = target / "consumer"
+    if log_name in {
+        "release-assets-pre-url.log",
+        "release-assets-post-extract.log",
+        "release-assets-post-consumer.log",
+    }:
+        _require(len(arguments) == 12, "release-assets gate argument count differs")
+        _require(
+            HEX_40.fullmatch(arguments[6]) is not None
+            and all(HEX_64.fullmatch(value) is not None for value in arguments[7:]),
+            "release-assets gate source or digest is malformed",
+        )
+        command = (
+            "/bin/sh",
+            os.fspath(verifier / "artifact/python-run.sh"),
+            os.fspath(verifier / "artifact/apple_stable_publication.py"),
+            "verify-release-assets",
+            os.fspath(verifier / "artifact/results.json"),
+            os.fspath(assets),
+            *arguments[6:],
+        )
+    elif log_name == "swiftpm-checksum.log":
+        command = (
+            "/bin/sh", "-c",
+            '\numask 077\nset -C\n/usr/bin/swift package compute-checksum "$2" >"$1"\n',
+            "swiftpm-checksum",
+            os.fspath(run_directory / "swiftpm-checksum.txt"),
+            os.fspath(archive),
+        )
+    elif log_name == "ditto-extract.log":
+        command = ("/usr/bin/ditto", "-x", "-k", os.fspath(archive), os.fspath(extracted))
+    elif log_name in {"codesign-post-extract.log", "codesign-pre-receipt.log"}:
+        command = ("/usr/bin/codesign", "--verify", "--strict", "--verbose=4", os.fspath(framework))
+    elif log_name == REMOTE_CONSUMER_LOG_NAME:
+        command = ("/usr/bin/swift", "test", "--package-path", os.fspath(consumer))
+    elif log_name == "consumer-check.log":
+        command = (
+            "/usr/bin/env", "QPERIAPT_INTERNAL_REQUIRE_DUAL_MACOS_RUNTIME=0",
+            "/bin/sh", os.fspath(verifier / "artifact/swift-xcframework-consumer-check.sh"),
+            os.fspath(consumer), os.fspath(target / "apple-consumer-evidence"), os.fspath(framework),
+        )
+    else:
+        _fail("remote consumer gate operation is not declared")
+    _require(tuple(arguments) == command, "remote consumer gate command differs from its declared operation")
+    return command
+
+
 def capture_remote_consumer_gate_log(
     *,
     runtime_repository_root: pathlib.Path,
@@ -1234,10 +1345,7 @@ def capture_remote_consumer_gate_log(
         is not None,
         "remote consumer gate run directory name is malformed",
     )
-    _require(
-        isinstance(log_name, str) and log_name in REMOTE_CONSUMER_GATE_LOG_NAMES,
-        "remote consumer gate log name is not declared",
-    )
+    log_name = _declared_remote_gate_log_name(log_name)
     _require(
         type(timeout_seconds) is int
         and 1 <= timeout_seconds <= MAX_REMOTE_GATE_TIMEOUT_SECONDS,
@@ -1247,19 +1355,15 @@ def capture_remote_consumer_gate_log(
         type(maximum_bytes) is int and 1 <= maximum_bytes <= MAX_REMOTE_LOG_BYTES,
         "remote consumer gate log bound is out of range",
     )
-    _require(
-        isinstance(argv, Sequence)
-        and not isinstance(argv, (str, bytes))
-        and bool(argv)
-        and all(isinstance(argument, str) and argument for argument in argv),
-        "remote consumer gate command is malformed",
-    )
     runs_root = (
         runtime_root / "target" / "qperiapt-swift-remote-consumer-runs"
     )
     normalized_runs_root = normalize_safe_root(
         runs_root,
         label="remote consumer gate runs root",
+    )
+    command = _remote_consumer_gate_command(
+        normalized_runs_root / run_directory_name, log_name, argv,
     )
     try:
         with open_private_direct_child_handle(
@@ -1275,7 +1379,7 @@ def capture_remote_consumer_gate_log(
             )
             try:
                 result = capture_stdout(
-                    argv,
+                    command,
                     timeout_seconds=timeout_seconds,
                     maximum_bytes=maximum_bytes,
                     stderr=subprocess.STDOUT,

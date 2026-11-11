@@ -1,0 +1,12 @@
+{
+  "all_members_rehashed": true,
+  "capture_sha256": "a1deb755ce8176e7683d12f9be614ccee36abb82680087f5abbd8b6872b4597c",
+  "completed": true,
+  "expanded_bytes": 630796852,
+  "independent_allocation_control": true,
+  "independently_replayed_witnesses": 2,
+  "members": 149,
+  "positive_shared_storage_recovery_unproved": true,
+  "private_sdk_runtime_data_selected": false,
+  "release_claim_eligible": false
+}

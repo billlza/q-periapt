@@ -1,0 +1,10 @@
+{
+  "all_members_rehashed": true,
+  "capture_sha256": "c2bb3d301bc3ce83039331dfb0c8752e480bf118f847136dcee48eb220ef8891",
+  "completed": true,
+  "expanded_bytes": 1167215,
+  "independently_replayed_properties": 1,
+  "members": 66,
+  "multi_epoch_secrecy_proved": false,
+  "release_claim_eligible": false
+}

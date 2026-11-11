@@ -1,0 +1,46 @@
+{
+  "archives": {
+    "CHECKS.zip": {
+      "bytes": 185102,
+      "sha256": "10d50335ba2591117aff7c2fdcfded8ab143f43103340af17accae61b24f5a54"
+    },
+    "DEVICE_CAPTURE.zip": {
+      "bytes": 376725,
+      "sha256": "9ddf01ac86c6371dfd4193deb56f7c1824a9426199606674bed95bfe75dd9302"
+    },
+    "DEVICE_CLEANUP.json": {
+      "bytes": 84,
+      "sha256": "2701a56687c708ac0a620b40149103e2a7fe3340fcea372db8bca8db963e8e33"
+    },
+    "HOST_CAPTURE.zip": {
+      "bytes": 2120495,
+      "sha256": "57a629e2f52f1f31cfdb42a1ffb30b93644fdc4eb36139d232773b8313bd1c70"
+    }
+  },
+  "reader_tests": {
+    "count": 32,
+    "passed": true,
+    "seconds": 11.272
+  },
+  "release_claim_eligible": false,
+  "scoped_rustfmt": true,
+  "single_generation_regression": {
+    "completed": true,
+    "executable": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-cycle/host-target-02/debug/deps/android-df789cbaf5cda4d5",
+    "executable_sha256": "d248716874219e0d4ff07eadf5db015bbd2aa4ac7e6b2fe47a38d36d61392611",
+    "inputs_unchanged": true,
+    "release_claim_eligible": false,
+    "result": {
+      "foreign_processes": 49,
+      "historical_reads": 2,
+      "history_sends_no_commit_or_close": true,
+      "original_message_retried": true,
+      "release_claim_eligible": false,
+      "terminal": "applied"
+    },
+    "route": "signed-fixed-applied",
+    "scope": "Current source-linked C engine and real host Java/JNI; actual independent issuer and witness, original traffic; not physical or installed-archive qualification",
+    "source_linked": true
+  },
+  "source": "e15be458295e49d1c44863dd5b3c3cb3b9ec2835 plus scoped joint-cycle fixtures and readers"
+}

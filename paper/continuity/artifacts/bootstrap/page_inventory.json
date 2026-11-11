@@ -1,0 +1,2817 @@
+{
+  "pdf_sha256": "e575119c4858e2e37d2ea4cbe245565f4ea531428c55b969ad1b15ae691494b8",
+  "pages": [
+    {
+      "page": 1,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 35,
+      "min_x": 123.63899993896484,
+      "max_x": 448.5838317871094,
+      "min_y": 134.90061950683594,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Exposure and Recovery with Persistent",
+        "Randomness Reservations",
+        "Ziang Li1*",
+        "1Department of Engineering, Durham University, Durham, United"
+      ],
+      "last_lines": [
+        "communication and persistence work.",
+        "Keywords: Post-compromise security, Persistent state, Randomness reservations,",
+        "Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography",
+        "1"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 2,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 43,
+      "min_x": 123.94000244140625,
+      "max_x": 497.3746032714844,
+      "min_y": 72.75739288330078,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "1 Introduction",
+        "Post-compromise recovery depends on the secrecy of contributions incorporated into",
+        "later keys. Ratcheting protocols make this dependence precise through the evolution",
+        "of key-exchange and messaging state [10, 14]. In a persistent implementation, a"
+      ],
+      "last_lines": [
+        "We study this representation in Q-Periapt Continuity, a hybrid post-quantum",
+        "messaging construction with persistent rekey operations and asynchronous confirmation.",
+        "The construction provides a concrete setting in which the reservation, execution, and",
+        "2"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 3,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 45,
+      "min_x": 99.70099639892578,
+      "max_x": 472.8560485839844,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "confirmation events have distinct operational boundaries. Its journal can also aggregate",
+        "several sessions, making the distinction between a new image and an existing source",
+        "directly observable.",
+        "Contributions."
+      ],
+      "last_lines": [
+        "returned-owner lifecycles (Section 5.15).",
+        "Bootstrap supplies a further original-source instance. A joint entry theorem retains",
+        "the first contribution\u2019s initial-confirmation use and its later combination with a second",
+        "3"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 4,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 44,
+      "min_x": 124.2249984741211,
+      "max_x": 497.3758239746094,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "contribution (Theorem D.1). The source adapter places the component challenge at",
+        "the original reply generation and encapsulation, retains restored-owner validation, and",
+        "reconciles effective root descriptors with complete signed-transcript classes. Online",
+        "registration after opaque pending-root allocation then yields the exact ACK-only"
+      ],
+      "last_lines": [
+        "cryptographic and disclosure terms. Section 3 describes the construction; Sections 4",
+        "and 5 develop the record model and computational connection. Section 6 presents",
+        "the mechanized recovery theorem and separating executions, and Section 7 validates",
+        "4"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 5,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 41,
+      "min_x": 99.71099853515625,
+      "max_x": 472.82366943359375,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "the exposure semantics and presents the matched executions. Section 8 develops their",
+        "consequences and further instantiation.",
+        "2 Related work",
+        "Ratcheting and fine-grained exposure."
+      ],
+      "last_lines": [
+        "masking vector y [13]. The retained signing record studied here contains the external",
+        "32-byte randomizer rnd. FIPS 204 derives y through a secret-key-dependent seed",
+        "from the key seed, rnd and the message representative [23, Algorithm 7]. These are",
+        "5"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 6,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 41,
+      "min_x": 124.2249984741211,
+      "max_x": 497.1488037109375,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "distinct observation interfaces. Section 5.10 specifies the corresponding reservation-",
+        "aware signature experiment and uses it to associate an accepted rekey with its original",
+        "KEM calls. Section 5.11 then connects this interface to ordinary native hedged-signature",
+        "security."
+      ],
+      "last_lines": [
+        "for a two-party asymmetric ratchet with unbounded steps and a fixed non-adaptive",
+        "compromise scenario [18]. Their proof distinguishes non-deduction of intermediate",
+        "roots from real-or-random security of derived keys. Our symbolic recovery theorem and",
+        "6"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 7,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 40,
+      "min_x": 99.70099639892578,
+      "max_x": 472.8460388183594,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "quantitative interface theorems retain their respective conclusion types. The private-",
+        "record simulator addresses the separate task of executing a specified storage interface",
+        "when selected operation bytes are unavailable to a reduction.",
+        "Bhargavan et al. study SPQR and its implementation [7]. The authors\u2019 public"
+      ],
+      "last_lines": [
+        "A generation reservation determines the future hybrid key pair. An encapsulation reser-",
+        "vation, together with the authenticated offer, determines the corresponding ciphertext",
+        "and contribution. The implementation seals these reservations under the host wrapping",
+        "7"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 8,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 60,
+      "min_x": 124.08499908447266,
+      "max_x": 497.3573913574219,
+      "min_y": 74.8559341430664,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Event",
+        "Effect on the target operation",
+        "Provenance fact",
+        "Reserve"
+      ],
+      "last_lines": [
+        "control wires reproduces Re and the traffic material. Honest admission checks can still",
+        "reject an operation inside the SDK while an adversary holding these inputs performs",
+        "the underlying computation independently.",
+        "8"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 9,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 36,
+      "min_x": 99.70099639892578,
+      "max_x": 472.8041076660156,
+      "min_y": 80.37946319580078,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "A",
+        "B",
+        "Final for epoch 1",
+        "Receipt 1 held in transit"
+      ],
+      "last_lines": [
+        "to be related to the original reservation. We make this relationship explicit at two",
+        "levels: the origin of a cryptographic operation, and the origin of a saved session-state",
+        "version. A third identifier describes the physical image that carries that version. This",
+        "9"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 10,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 49,
+      "min_x": 124.25199890136719,
+      "max_x": 497.3812561035156,
+      "min_y": 74.08509063720703,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Table 2 Principal objects in the record model. The three identities separate an original random",
+        "draw, an immutable session-state version and its physical storage representation.",
+        "Notation",
+        "Meaning"
+      ],
+      "last_lines": [
+        "draws in attempts that subsequently fail. Exact retries consume no new slot. Indepen-",
+        "dently sampled operations retain distinct origins even if some public outputs happen",
+        "to coincide.",
+        "10"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 11,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 44,
+      "min_x": 99.70099639892578,
+      "max_x": 472.62359619140625,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "A record version v has an immutable payload Xv and semantic metadata",
+        "\u0000",
+        "subject(v), role(v), epoch(v), phase(v)",
+        "\u0001"
+      ],
+      "last_lines": [
+        "for either side of (3). The interval between drawing \u03c1o and first retaining it remains",
+        "explicit. The symbolic reservation-and-save transition can represent that interval only",
+        "through a separately justified source correspondence.",
+        "11"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 12,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 43,
+      "min_x": 124.08499908447266,
+      "max_x": 497.14703369140625,
+      "min_y": 74.31548309326172,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "4.2 Acquisition, delayed readability, and key identity",
+        "Wrapping-key handles resolve to identities of actual key material. Two session labels",
+        "that designate the same key resolve to the same identity \u03ba. Disclosure through either",
+        "label therefore enables every acquired wrapper protected by \u03ba. A rotation creates"
+      ],
+      "last_lines": [
+        "without assuming that inaccessible keys have already been learned.",
+        "Signer-file capture is a separately typed disclosure. For correspondence with the",
+        "retained symbolic theorem, it records exposure of the actual signing key conservatively",
+        "12"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 13,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 45,
+      "min_x": 99.56099700927734,
+      "max_x": 472.84320068359375,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "at acquisition, as does that theorem\u2019s signer-file rule. The readability ledger can",
+        "additionally record when the file\u2019s contents become decryptable. In particular, a",
+        "wrapping-key disclosure cannot be scoped to traffic state when the declared capture",
+        "also includes the matching signer file."
+      ],
+      "last_lines": [
+        "3. AcquireOriginal(v, t) records acquisition of that version. This is an event, not an",
+        "assertion of decryption. A capture\u2019s externally returned bytes come from the",
+        "rendered object cache.",
+        "13"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 14,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 45,
+      "min_x": 123.83200073242188,
+      "max_x": 497.3517150878906,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "4. RevealOriginal(v) returns the original payload Xv. The wrapper uses this interface",
+        "for a plaintext record-opening response only after a captured path is enabled by",
+        "the disclosed keys, and caches the answer for subsequent openings.",
+        "The renderer is an explicit trusted interface in this intermediate experiment. It has"
+      ],
+      "last_lines": [
+        "does not overwrite the persistence state.",
+        "An exact copy or pending-target application copies the object reference and its original",
+        "cache entry. Aggregation collects the corresponding original references, and resealing evaluates",
+        "14"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 15,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 47,
+      "min_x": 99.71099853515625,
+      "max_x": 472.5492858886719,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "the new recipe using those references. Each operation preserves the session-record handles",
+        "and their save times. It follows by induction on the recipe constructors that paths(h) is the",
+        "same in both machines. A public hash or MAC constructor contributes its common output",
+        "and has an empty record-acquisition path set."
+      ],
+      "last_lines": [
+        "records what the adversary obtains, including objects obtained at different times. These",
+        "are distinct objects of the model: a copy preserves the former, while an additional",
+        "acquisition can change the latter.",
+        "15"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 16,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 69,
+      "min_x": 123.83200073242188,
+      "max_x": 497.36724853515625,
+      "min_y": 75.83402252197266,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Immutable record graph.",
+        "Let R be a finite set of immutable encrypted record objects. Each r \u2208R has a",
+        "matching decryption-key identity \u03ba(r), a set of embedded child records child(r), and a",
+        "set orig(r) of protected source values in its plaintext. Containment is acyclic. Record"
+      ],
+      "last_lines": [
+        "t",
+        ". The equality applies to all prefixes of an adaptively chosen",
+        "history.",
+        "16"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 17,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 52,
+      "min_x": 99.36499786376953,
+      "max_x": 472.5129089355469,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Proof Key derivations depend only on disclosed keys and the fixed relation D, so their least",
+        "closure is exactly K\u2217",
+        "t . For the forward inclusion, take a source o \u2208Esrc",
+        "t"
+      ],
+      "last_lines": [
+        "is recorded as non-derivability by these rules;",
+        "message indistinguishability outside an exposure set is supplied by a security theorem",
+        "for the surrounding protocol.",
+        "17"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 18,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 45,
+      "min_x": 123.14501953125,
+      "max_x": 495.5545654296875,
+      "min_y": 75.83402252197266,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Native shape and finite checks.",
+        "At the fixed research source, operation reservations are encrypted under a wrapping",
+        "key derived from the journal key, and tokens are retained within encrypted durable",
+        "images or pending targets. The corresponding route therefore includes the image"
+      ],
+      "last_lines": [
+        "2\u2212\u03bb; from both, S = C \u2295W recovers it exactly. The XOR construction serves here as",
+        "an information-theoretic illustration of acquisition; the protocol\u2019s record encryption is",
+        "handled by its cryptographic record interface.",
+        "18"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 19,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 44,
+      "min_x": 98.99299621582031,
+      "max_x": 472.7880859375,
+      "min_y": 75.83402252197266,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Consequence for provenance routes.",
+        "A source label and an exposure decision serve different purposes. Copying a retained",
+        "record preserves the source label, while subsequent acquisition of a matching key may",
+        "change exposure. A guarded-route representation retains this distinction: alternative"
+      ],
+      "last_lines": [
+        "target\u2019s unique usable generation/encapsulation pair, with an adapter-computable",
+        "association to the original slots. In particular, it connects the generation public key,",
+        "the encapsulation input, the authenticated response, and the target\u2019s subsequent key",
+        "19"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 20,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 51,
+      "min_x": 123.86100006103516,
+      "max_x": 497.3455810546875,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "schedule. This matching is a source/authentication obligation: a failure of Attr can",
+        "occur while Eligibles,e,c holds and is charged in the computational accounting.",
+        "The final line of (6) concerns every saved version of session s, across its roles and",
+        "epochs. It uses acquisition CT , including protected bytes, at the time they are obtained."
+      ],
+      "last_lines": [
+        "In particular, if a captured target-session version retains the selected reservation o \u2208",
+        "{ge, ae}, then c < res(o) and (3) establish this stopping condition. The wrapping key may be",
+        "obtained before or after the capture.",
+        "20"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 21,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 42,
+      "min_x": 99.71099853515625,
+      "max_x": 472.81378173828125,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Proof The successful capture inserts v into Ct immediately. Its save time and subject are",
+        "immutable, and acquisition remains recorded after host deletion, resealing, confirmation, or",
+        "process loss. Thus the last conjunct of (6) is false for every continuation. Each such continuation",
+        "already contributes zero to both quantities. On executions that never reach this condition,"
+      ],
+      "last_lines": [
+        "response and one correctness event. The native constructor map in Section 5.4 identifies",
+        "the storage operations used by these interfaces; Section 8 specifies the joint root and",
+        "message continuation to which their bounds connect.",
+        "21"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 22,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 51,
+      "min_x": 123.42500305175781,
+      "max_x": 497.3312072753906,
+      "min_y": 72.75739288330078,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "5 Computational interfaces and composition",
+        "The origin model provides the accounting boundary for a computational experiment.",
+        "Each original generation or encapsulation invocation receives a slot when its entropy",
+        "is reserved, including attempts that later fail. Replaying or copying that reservation"
+      ],
+      "last_lines": [
+        "confirmation/first-message event in (31), and the online message score and event in (35)\u2013",
+        "(36). The native online correspondence (Lemma 5.26) is the additional source-order",
+        "connection for the last pair.",
+        "22"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 23,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 53,
+      "min_x": 99.70099639892578,
+      "max_x": 472.5548400878906,
+      "min_y": 74.08509063720703,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Table 3 Shared dependencies of the native computational results. Each row identifies an interface",
+        "and its establishing result.",
+        "Connection",
+        "Supplied interface and principal result"
+      ],
+      "last_lines": [
+        "available to the simulator. Fix a public budget M for all fresh image-sealing invocations,",
+        "including failed attempts and atom-free images. Exact copies and exact retries retain",
+        "their invocation. The following operations specify the interface.",
+        "23"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 24,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 42,
+      "min_x": 124.59500122070312,
+      "max_x": 497.093994140625,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "1. Seal. Before sampling its nonce, invocation i fixes the recipe, its length and the",
+        "non-nonce header fields. It samples independent Ni \u2190{0, 1}n and privately",
+        "constructs",
+        "Bi = Hdri\u2225Ni\u2225Ci,"
+      ],
+      "last_lines": [
+        "save time, including when a later aggregate carries the same version. Lemma 5.6 gives",
+        "a provenance certificate valid before the final cut is chosen. A separately permitted",
+        "projection is described by its own output operation.",
+        "24"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 25,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 45,
+      "min_x": 99.30899810791016,
+      "max_x": 472.8236999511719,
+      "min_y": 75.83402252197266,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Table algorithm.",
+        "The simulator stores an image table indexed by fresh sealing invocation, an intent table",
+        "indexed by image and complete prefix, a commitment cache, and the directory with its",
+        "provenance and acquisition ledgers. Each new image entry records the recipe handles,"
+      ],
+      "last_lines": [
+        "state of F, and the public-oracle transformations. Before the first nonce collision, maintain",
+        "agreement of the directories, known fields, immutable references, public bytes, statuses and",
+        "semantic ledgers. Sealing adds the same metadata and nonce to corresponding entries; its",
+        "25"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 26,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 48,
+      "min_x": 122.89099884033203,
+      "max_x": 497.3672180175781,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "private ciphertext is confined to the materialized entry. Intent creation adds the same complete",
+        "prefix and target reference. A fresh private commitment gets the coupled reply, and a repeat",
+        "consults the same cache. Atom-free commitments and acquisitions use identical materialized",
+        "inputs. Lemma 5.1 gives agreement of equality replies. The common public computation"
+      ],
+      "last_lines": [
+        "only by a computable event making Ej false for every continuation and every still-",
+        "admissible final target choice attributed to j. The disjoint-event accounting above",
+        "retains this per-pair obligation.",
+        "26"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 27,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 45,
+      "min_x": 99.70099639892578,
+      "max_x": 472.84326171875,
+      "min_y": 74.31548309326172,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "5.2 Immutable report families and reverse-order composition",
+        "A later cleanup report can authenticate an earlier report\u2019s private key and tag. We",
+        "compose the one-report HMAC replacement by creation order, retaining these depen-",
+        "dencies. The reduction below supplies a concrete algorithm for handling a selected"
+      ],
+      "last_lines": [
+        "with Pi = 1, detected by its actual origin map before returning the dependent bytes.",
+        "An unavailable fragment, a terminal tag alone, or a projection without that dependency",
+        "does not trigger it. Define Gstop to end with score zero at this event. This is an analysis",
+        "27"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 28,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 49,
+      "min_x": 123.02301025390625,
+      "max_x": 497.3236999511719,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "game; a report-key fragment is not thereby declared to be a selected-session acquisition",
+        "or a new freshness failure.",
+        "One-row bound and hybrids.",
+        "Use one public compression oracle h for all rows and quantum queries. The one-row"
+      ],
+      "last_lines": [
+        "Proof Fix i and compare Hi with Hi\u22121. Run the full prefix from setup, locally sampling all",
+        "earlier keys and computing their real rows. Before the selected row is used, both hybrids",
+        "have the same prefix rules. If slot i is absent or unprotected, their behavior agrees and no",
+        "28"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 29,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 54,
+      "min_x": 98.62202453613281,
+      "max_x": 472.5128173828125,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "row challenge is used. Otherwise install the one-row challenger\u2019s key as an opaque KeyRef(i).",
+        "The transcript mi is computable: it excludes its own key, all referenced earlier keys were",
+        "locally sampled, and the source atoms are still available at this proof stage. Submit this actual",
+        "transcript to the row oracle when its first MAC call is reached, retain its reply, and run the"
+      ],
+      "last_lines": [
+        "Proof Couple G and Gstop up to the first Badrep. On its complement the runs agree; on that",
+        "event the stopped score is zero while G continues with the actual disclosed bytes. Therefore",
+        "EGZ \u2212EGstopZ = EG[Z1Badrep].",
+        "29"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 30,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 47,
+      "min_x": 124.2249984741211,
+      "max_x": 497.3868103027344,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Bound its magnitude by \u03b7rep(Z) and apply Theorem 5.4. No conditioning on eligibility or",
+        "independence of later target selection is used.",
+        "\u25a1",
+        "Consequences for the record connection."
+      ],
+      "last_lines": [
+        "nat to run the native code until the first such event, then enter a",
+        "stopped state with candidate score zero before returning the monitored bytes. An event",
+        "for one candidate does not stop the original game or another candidate\u2019s reduction.",
+        "30"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 31,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 47,
+      "min_x": 99.38400268554688,
+      "max_x": 472.297119140625,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Lemma 5.6 (Origin-anchored adaptive stopping) Fix candidate j and one of its original",
+        "reservation slots o which has occurred. Suppose a successful capture supplies an intact version",
+        "v with",
+        "subject(v) = session(o),"
+      ],
+      "last_lines": [
+        "the report construction, Bj is the actual protected-key projection event for the closure",
+        "induced by that candidate\u2019s source family. Its probability is retained explicitly; the",
+        "theorem does not declare it negligible or turn the fragment into a session snapshot.",
+        "31"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 32,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 68,
+      "min_x": 123.88899993896484,
+      "max_x": 497.3967590332031,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Lemma 5.7 (Native score localization with local stops) Let \u03a8j be the same terminal code",
+        "for 1E\u2227A\u2227(I=j)S in each experiment, with value zero in its stopped state. Then",
+        "EG[j]",
+        "nat\u03a8j = EGnat[Zj1\u00acBj],"
+      ],
+      "last_lines": [
+        "\uf8fc",
+        "\uf8fd",
+        "\uf8fe.",
+        "32"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 33,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 46,
+      "min_x": 99.56099700927734,
+      "max_x": 472.82391357421875,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Proof The first two terms of (10) have magnitudes at most the two native residuals. The local",
+        "correspondence costs \u03c1j. Subtracting the positive- and negative-event comparisons bounds",
+        "the local component score change by a+",
+        "j + a\u2212"
+      ],
+      "last_lines": [
+        "pending wire. Applying it compares the retained original wire, checks the expected",
+        "and next heads, installs its original target bytes, and removes the pending entry. An",
+        "already installed exact target is handled as the same operation. A sibling-session write",
+        "33"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 34,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 64,
+      "min_x": 124.23500061035156,
+      "max_x": 497.08306884765625,
+      "min_y": 74.8559341430664,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Family",
+        "Immutable transcript and key placement",
+        "Ordinary report result",
+        "Session closure"
+      ],
+      "last_lines": [
+        "batch-key record and a member\u2019s session payload have different contents: their acquisi-",
+        "tion events are determined separately. These typed boundaries preserve the existing",
+        "target predicate while making each native call\u2019s role in the reduction explicit.",
+        "34"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 35,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 54,
+      "min_x": 99.70099639892578,
+      "max_x": 472.8619384765625,
+      "min_y": 74.31548309326172,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "5.5 Joint continuation from an epoch root to a message",
+        "A recovered root feeds confirmation, traffic derivation and the next epoch. We treat",
+        "these uses jointly and then isolate a selected message key. The resulting continuation",
+        "permits later contributions, successor roots and the next chain seed to be disclosed."
+      ],
+      "last_lines": [
+        "x = Expand(P +",
+        "x , I+",
+        "x , 32)",
+        "35"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 36,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 40,
+      "min_x": 123.99199676513672,
+      "max_x": 497.3644104003906,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "and run arbitrary known subsequent computation from these values with the same",
+        "public oracle. Repeated arguments remain consistent.",
+        "Let D and DM denote the actual 40-byte rekey and 43-byte message domains. The",
+        "three confirmation information strings are"
+      ],
+      "last_lines": [
+        "original candidate-local stops and projection accounting remain in force.",
+        "Lemma 5.9 (Adaptive information and fresh traffic blocks) Replace each PRK-class HMAC",
+        "row by an independent private random function, available only through HKDF-Expand. The",
+        "36"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 37,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 44,
+      "min_x": 99.36499786376953,
+      "max_x": 472.83404541015625,
+      "min_y": 76.64661407470703,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "resulting interface is exactly an independent block table indexed by the class, complete infor-",
+        "mation string and block index, with consistent prefixes. This holds for adaptively chosen",
+        "information strings. In particular, the first four traffic blocks are fresh at installation despite",
+        "the confirmation dependence of IT ."
+      ],
+      "last_lines": [
+        "Next replace the at most two column-PRK rows in class-allocation order. Preallocate",
+        "the zero-salt class privately if necessary; a second class exists only when \u0393(s) \u0338= \u0393(0). For a",
+        "designated class, install the row primitive\u2019s hidden uniform key as its first V reply, withheld",
+        "37"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 38,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 47,
+      "min_x": 124.26300048828125,
+      "max_x": 497.3891906738281,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "until allocation. The identifier is computed from known salts and h; it does not inspect the",
+        "private reply. Every equal \u0393 reuses this handle. Answer Expands by querying the challenge row",
+        "on the actual successive messages. Their output blocks are known, so real MACs, verifications,",
+        "signatures and continuation can all be performed. Other class keys are sampled locally. All"
+      ],
+      "last_lines": [
+        "payload-dependent return. An exact challenge reception can therefore update public",
+        "state using its authenticated marker and known metadata. Other ciphertexts use the",
+        "declared decryption interface.",
+        "38"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 39,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 39,
+      "min_x": 99.27400207519531,
+      "max_x": 472.78863525390625,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "The send-origin normalization caches the encryption reply at its first private",
+        "computation, even if that computation precedes durable commit or network release.",
+        "Native crash recovery may repeat encryption, but always on the same original tuple;",
+        "the reduction retrieves its cache. The cache includes the marked material\u2019s original"
+      ],
+      "last_lines": [
+        "presampled and withheld, providing precisely the joint uniform root initialization",
+        "required here. It regenerates confirmations, signatures, traffic and future epochs; it",
+        "does not replace a root inside a fixed public transcript.",
+        "39"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 40,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 52,
+      "min_x": 124.2249984741211,
+      "max_x": 497.4037170410156,
+      "min_y": 73.4803466796875,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Let W[j]",
+        "cont denote this uniform-combined-contribution continuation, with the same",
+        "candidate-local score code \u03a8j, and put bcont",
+        "j"
+      ],
+      "last_lines": [
+        "ing earlier disclosed message keys, messages, authentication outcomes and counted",
+        "public-oracle computation. The mark is permanent and occurs at most once. Every",
+        "computation at an alias participates in the same first-computation ledger; this includes",
+        "40"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 41,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 50,
+      "min_x": 99.33699798583984,
+      "max_x": 472.26513671875,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "transaction-private receive-side advancement through skipped indices. An index already",
+        "computed at any such alias has passed its selection point.",
+        "Before a mark, the seeds si and Extract values Pi are private handles with only",
+        "the uses in (15). The message keys of steps passed without a mark may be returned"
+      ],
+      "last_lines": [
+        "internal input containing that block.",
+        "Proceed in fixed index order. Before comparison i, every preceding step reached before or",
+        "at the mark has its independent block-pair representation. If an earlier index was marked, step",
+        "41"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 42,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 46,
+      "min_x": 123.88899993896484,
+      "max_x": 497.02630615234375,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "i is already in the real suffix and this comparison leaves that branch unchanged. Otherwise",
+        "the preceding block table, or the traffic table for i = 0, allocates a private uniform si. At that",
+        "allocation the controller has already decided whether the predecessor was marked. Hence the",
+        "column reduction can install its presampled hidden seed exactly on the branch that continues"
+      ],
+      "last_lines": [
+        "locally known. Exact retries reuse the original encryption response recorded before its durable",
+        "outcome. The selected-key decryption interface supplies the same authenticated marker or",
+        "real error/plaintext handling as in Corollary 5.11.",
+        "42"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 43,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 46,
+      "min_x": 99.46900177001953,
+      "max_x": 472.8302001953125,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "For confidentiality, return g on A and a fair guess otherwise; the centered success is",
+        "the ideal experiment\u2019s EZ. For integrity, a new selected-key inbox installation absent from",
+        "the encryption ledger supplies the integrity experiment\u2019s winning decryption pair. Apply",
+        "Theorem 5.12 to the respective score and Boolean event. This yields the two bounds."
+      ],
+      "last_lines": [
+        "Lemma 5.14 (Complete-tuple hidden-component comparison) Let U be uniform on {0, 1}256,",
+        "independent of the initially sampled oracles and initial auxiliary state. In a protected family",
+        "replace one 32-byte component field by U, and let m contain all nine other actual fields,",
+        "43"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 44,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 47,
+      "min_x": 123.1449966430664,
+      "max_x": 497.1466979980469,
+      "min_y": 76.61876678466797,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "including the other component secret and the complete policy context. The private interface",
+        "returns H(f(U, m)), where f is the actual ten-field encoding. Exact repeats are cached by m.",
+        "Assume that the rest of the experiment accesses U only through this interface or opaque handles",
+        "and respects its stated stops. For at most d distinct private inputs and QH ordinary queries"
+      ],
+      "last_lines": [
+        "is never submitted to the postchallenge CCA oracle. The operational component game",
+        "first supplies its generated public key and permits an ordinary prechallenge decap-",
+        "sulation phase. A single challenge is requested at the specified first computation of",
+        "44"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 45,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 53,
+      "min_x": 99.36499786376953,
+      "max_x": 472.8811950683594,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "a; it returns a fresh encapsulation ciphertext and either its real key or an indepen-",
+        "dent uniform 32-byte key. Thereafter its decapsulation oracle rejects that challenge",
+        "ciphertext. Before challenge creation, selected-key decapsulation follows this ordinary",
+        "prechallenge interface; a query that happens to equal the later sampled c\u2217"
+      ],
+      "last_lines": [
+        "locally generated c\u2217",
+        "X, traditional secret, retained offer and admitted policy determine all nine",
+        "fields. Every protected use of that same tuple feeds one pair (r, IR), where IR is the complete",
+        "45"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 46,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 46,
+      "min_x": 123.83200073242188,
+      "max_x": 497.3671875,
+      "min_y": 76.59795379638672,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "97-byte native pending-root information string. They are one original Extract/Expand and",
+        "exact repetitions. No raw combined-secret channel is added by retry, crash or completion. This",
+        "invariant holds on every continuation of the matching binding, independently of later eligibility",
+        "or attribution."
+      ],
+      "last_lines": [
+        "predicate. This condition matters: if the guess is always zero and a fictitious predicate",
+        "accepts exactly when the hidden bit is zero, the qualified signed score has expectation",
+        "1/2 even for an otherwise bit-independent view. For the admitted predicate, making",
+        "46"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 47,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 71,
+      "min_x": 98.62188720703125,
+      "max_x": 472.55584716796875,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "an independent fair guess on disqualified runs implements the full qualified score in",
+        "the actual AEAD game; no unsupported zero-mean idealization is needed.",
+        "Theorem 5.16 (ContextBound connection for the next native rekey) Use the concrete profile",
+        "and adapters above, the local comparisons of Proposition 5.8, and the message interface of"
+      ],
+      "last_lines": [
+        "history through failed writes, process loss and reopening. Captures of old or unrelated",
+        "records remain available. A complete post-cut target-session acquisition invokes the",
+        "original eligibility stop. The selected successor-root and next-chain-seed projections",
+        "47"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 48,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 80,
+      "min_x": 123.86100006103516,
+      "max_x": 497.108642578125,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "use the ownership and phase checks of the joint continuation. The partial secret-field",
+        "interface consists exactly of these two named, phase-checked projections; other record",
+        "acquisitions return the declared complete objects. These observations and the private-",
+        "application/Resume boundary define the core\u2019s complete call surface. The retained"
+      ],
+      "last_lines": [
+        "acquisition stop, and its remaining replies use the declared interfaces, so its charged projection",
+        "event is empty. Substitute these two facts into (19).",
+        "\u25a1",
+        "48"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 49,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 43,
+      "min_x": 99.56099700927734,
+      "max_x": 472.7291259765625,
+      "min_y": 75.83402252197266,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Source selection and attribution.",
+        "The attribution term distinguishes two actual interfaces. In the general experiment, the",
+        "selector may name any original reservation handles with the required session, epoch",
+        "and role metadata. For example, a generation reservation g1 may be installed in a"
+      ],
+      "last_lines": [
+        "failure, persistence and status transitions. The MAC comparison may therefore give",
+        "the reduction the expected tag internally; the verification caller obtains the native",
+        "result. Every honest tag construction enters a ghost origin ledger at its first private",
+        "49"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 50,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 52,
+      "min_x": 124.2249984741211,
+      "max_x": 497.3680419921875,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "computation, before a subsequent write or release. Verification computations have their",
+        "own query ledger. Exact repetitions and matching endpoint aliases use the same role-",
+        "key identity and the same original construction entry. A different signature encoding",
+        "of an already logged core retains that core\u2019s origin."
+      ],
+      "last_lines": [
+        "Let \u03c7H(Q) bound production of two distinct complete strings with equal H output",
+        "by a Q-query algorithm. It counts the entire derived experiment\u2019s ordinary and honest",
+        "H evaluations, including preparation and the final collision test. For the random oracle",
+        "50"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 51,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 49,
+      "min_x": 98.62200164794922,
+      "max_x": 472.5083312988281,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "with 256-bit output, an admissible bound is",
+        "\u03c7H(Q) = min{1, Ccol(Q + 2)32\u2212256},",
+        "with the universal constant of the quantum collision theorem [29, Theorem 7]. The",
+        "operational notation retains that constant."
+      ],
+      "last_lines": [
+        "For message integrity in Gleaf, sample every key except the selected message key locally,",
+        "preserving the actual confirmation, ACK, successor-root and subsequent-chain computation.",
+        "Forward the selected original encryption and every selected-key decryption to the integrity",
+        "51"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 52,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 43,
+      "min_x": 123.86100006103516,
+      "max_x": 497.39923095703125,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "challenger. Exact retries use the first private encryption cache. A new authenticated inbox",
+        "installation without an encryption origin entails a successful new decryption pair, so its",
+        "probability is at most \u03b5INT. Existing inbox entries and historical consumed statuses use their",
+        "original metadata. The union bound in Gleaf proves (24)."
+      ],
+      "last_lines": [
+        "advancing the epoch; terminal retirement ends the session. Induction over these transitions",
+        "establishes both invariants without requiring distinct public-key or ciphertext bytes.",
+        "\u25a1",
+        "52"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 53,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 48,
+      "min_x": 99.36499786376953,
+      "max_x": 472.283935546875,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "An honest signing ledger records the actual key, purpose, complete body and",
+        "originating retained plan at the first private signing invocation, before any subsequent",
+        "write or release. The signed string is",
+        "M = signatureContext\u2225purpose1\u2225BE32(|B|)\u2225B."
+      ],
+      "last_lines": [
+        "the absence of BadH, and hence the same g, a. Receipt acceptance makes no additional",
+        "root allocation. Cached returns and reopened plans retain their earlier source association",
+        "by Lemma 5.19. All association tests use available ledger identities and public strings, so",
+        "53"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 54,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 45,
+      "min_x": 123.87899780273438,
+      "max_x": 497.3236999511719,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "the component adapter can evaluate them with an unknown selected tape. This proves the",
+        "implication; the probability bound follows by a union bound.",
+        "\u25a1",
+        "The failed-first-retention trace in Section 5.8 keeps its original two draws. Its"
+      ],
+      "last_lines": [
+        "queries in the single-user reduction.",
+        "Proof For the first inequality generate the P-256 keys locally and route each ML-DSA",
+        "reservation and execution to its reservation-aware challenger. Privately Open each original",
+        "54"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 55,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 46,
+      "min_x": 99.33699798583984,
+      "max_x": 472.8273010253906,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "reservation before materializing its record, counting these calls, and disclose the known",
+        "randomizer through the native observation interface when requested. Fixed-context ML-DSA",
+        "signatures come from the challenger; deterministic P-256 signatures and canonicalization are",
+        "local. A fresh accepted pair projects to a fresh ML-DSA message forgery."
+      ],
+      "last_lines": [
+        "randomizer and public message representative to identify repeated computations. For",
+        "native ML-DSA, a shared-oracle comparison also accounts for the dependence created",
+        "by key generation.",
+        "55"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 56,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 53,
+      "min_x": 123.88899993896484,
+      "max_x": 497.3573303222656,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Use the owner interface of Proposition 5.21. A fresh owner generation receives a",
+        "family index; exact references and imported copies retain that index. Independently",
+        "generated owners remain separate when their public keys coincide. The family ledger",
+        "records each original message at its first private invocation, including failed publication."
+      ],
+      "last_lines": [
+        "ledger, so a fresh output is an ordinary forgery. Descriptor aliases need no separate charge:",
+        "factorization gives the same signature, while the ledger retains every original message.",
+        "\u25a1",
+        "56"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 57,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 57,
+      "min_x": 98.9010009765625,
+      "max_x": 472.6252136230469,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "For several protected families with a global stop before any of their key/file",
+        "disclosures, the same argument uses indexed multiuser primitive games and the",
+        "birthday term min{1, 2\u2212n P",
+        "h"
+      ],
+      "last_lines": [
+        "SK = {K\u2225r\u2225\u00b5 : |r| = 32, |\u00b5| = 64},",
+        "where these lengths are in bytes. Define H\u2217by replacing the first 128 output bytes at g with",
+        "\u03c1\u2225\u03c1\u2032\u2225K, and the first 64 bytes at each K\u2225r\u2225\u00b5 with R(r, \u00b5). Preserve every remaining output",
+        "57"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 58,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 57,
+      "min_x": 124.09500122070312,
+      "max_x": 497.0481872558594,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "bit from H0. The two input sets have disjoint lengths 34 and 128. Conditional on \u03be and the",
+        "keygen output, all other full XOF strings remain independent uniform, including those in the",
+        "selected slice. Thus H\u2217and the keygen blocks have exactly the native joint distribution.",
+        "Rewrite every target-lineage seed expansion, including reopened owners, to use those sam-"
+      ],
+      "last_lines": [
+        "DSA components is assumed. Their original generation and disclosure distribution is",
+        "preserved. Cross-owner seed or hedge-prefix coincidences are among the remaining",
+        "shared-oracle queries already counted in the selected-target comparison.",
+        "58"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 59,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 44,
+      "min_x": 99.71099853515625,
+      "max_x": 472.5715637207031,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Equation (28) supplies an ordinary-ML-DSA instantiation of the signature term",
+        "in Proposition 5.20, preserving its record, KEM-correctness and joint-continuation",
+        "accounting.",
+        "5.12 Native authentication for the selected recovered root"
+      ],
+      "last_lines": [
+        "its first private hash computation at any protected alias, including a computation",
+        "followed by a failed write, as specified in Section 5.7. Other protected tuples retain",
+        "their own entries. If the original a never supplies a usable target, the candidate event",
+        "59"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 60,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 57,
+      "min_x": 123.76499938964844,
+      "max_x": 497.3574523925781,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "is zero. The root entry, traffic entry, and direction retain their prescribed online marks.",
+        "These rules connect the recorded history to the admitted controller throughout the",
+        "comparisons. The probability bounded below is the joint probability Pr[E \u2227Badauth]",
+        "in the original native game. The attribution residual bounds its part on E \u2227\u00acA."
+      ],
+      "last_lines": [
+        "key, at-most-one-encryption first-message AEAD integrity advantage with the native",
+        "decryption interface. Each query budget includes preparation, ordinary primitive",
+        "computations, honest protocol work, later continuation, and terminal event evaluation",
+        "60"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 61,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 85,
+      "min_x": 98.62200164794922,
+      "max_x": 472.47369384765625,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "of its derived experiment. Budgets are fixed before interaction and are not reset at a",
+        "challenge or at a hybrid boundary.",
+        "Theorem 5.25 (Native selected-root authentication) In the live-core single-root next-rekey",
+        "profile, with the admitted marked controller just specified and the origin-preservation interfaces"
+      ],
+      "last_lines": [
+        "inspection of quantum queries or unknown component tape.",
+        "In eV [j], the protected PQ component is an independent uniform 256-bit value. Apply",
+        "Lemma 5.14 to the same Boolean continuation, with the complete effective tuple cache. It",
+        "61"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 62,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 55,
+      "min_x": 124.23500061035156,
+      "max_x": 497.32293701171875,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "replaces each protected ContextBound answer by a private random-function entry at cost",
+        "\u03a6256(dj, QH,j). Exact aliases, including aliases occurring before the eventual selected send,",
+        "share their entry. The target entry is marked at its first actual private use as prescribed by",
+        "the existing controller interface, so its fresh value is sampled without conditioning on a future"
+      ],
+      "last_lines": [
+        "candidate j = (g, a), designate its original effective tuple m\u2217immediately before its",
+        "first private ContextBound hash computation at any protected alias, as in Section 5.7.",
+        "Designate the complete traffic entry I\u2217and direction before that entry\u2019s first block",
+        "62"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 63,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 45,
+      "min_x": 99.46900177001953,
+      "max_x": 472.8354797363281,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "allocation. These designations are retained through later acceptance, recovery and",
+        "equal-input aliases.",
+        "The controller maintains a private bookkeeping table indexed by (M, d, i), where",
+        "M is the complete original traffic material handle, d its direction and i its chain index."
+      ],
+      "last_lines": [
+        "Lemma 5.26 (Native online-chain correspondence) For this controller and a fixed candidate",
+        "j, the stopped native live core realizes the prefix interface of Section 5.6 after the existing",
+        "record, component, ContextBound and root-entry comparisons. Its original send and receive",
+        "63"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 64,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 47,
+      "min_x": 123.83200073242188,
+      "max_x": 497.01788330078125,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "computations use one cached step per (M, d, i). The marked step has at most one original",
+        "encryption tuple, and the live-core charged projection event remains empty.",
+        "Proof At traffic installation, the exact root schedule and complete traffic information string",
+        "determine the material handle. The role-dependent assignment in the native traffic constructor"
+      ],
+      "last_lines": [
+        "attr = Pr[E \u2227\u00acA]. Let \u03b5rec,j be the",
+        "record event cost in (20), now with the complete online controller\u2019s budgets. The",
+        "operational component adapters retain their definitions from Section 5.7, with their",
+        "64"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 65,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 87,
+      "min_x": 99.30899810791016,
+      "max_x": 472.86328125,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "output events evaluated in this expanded experiment. For candidate j, set",
+        "Bchain",
+        "j",
+        "= min"
+      ],
+      "last_lines": [
+        "component-event comparisons cost a+",
+        "j + a\u2212",
+        "j + 2\u03b4j.",
+        "65"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 66,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 53,
+      "min_x": 124.23500061035156,
+      "max_x": 497.33868408203125,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "In the random-component world, apply Lemma 5.14 with the unchanged complete tuple",
+        "cache. The target contribution is selected at its own first private allocation, before the later",
+        "traffic and message designations. Its single root-use entry is still that of Lemma 5.15, since",
+        "later chain work does not reuse the combined contribution or alter its original pending-root"
+      ],
+      "last_lines": [
+        "The parent contribution is used through these Extract calls; each resulting PRK is used",
+        "through its root-Expand interface. The controller retains the original source ledger",
+        "and any established local stops.",
+        "66"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 67,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 51,
+      "min_x": 99.33699798583984,
+      "max_x": 472.2997131347656,
+      "min_y": 75.83402252197266,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Descriptors and available data.",
+        "The root-use descriptor is e(r, I) = (\u0393(r), I), with exact byte equality. Equal descriptors",
+        "retrieve the same root entry across callers and resumptions. Indeed, (50) shows that",
+        "equal \u0393 values give equal Extract values for every S, and equal complete information"
+      ],
+      "last_lines": [
+        "row-challenge key and assign it to the ith new class when that class is first encountered. Before",
+        "that event the key has no use. Classes already replaced use their private tables; later classes",
+        "have locally sampled independent keys and are evaluated with the same h. The controller",
+        "67"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 68,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 49,
+      "min_x": 123.1449966430664,
+      "max_x": 496.9970397949219,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "accesses the selected PRK through its row alone. Thus the real row branch matches the",
+        "preceding hybrid and the ideal row branch matches the next one. Lemma C.2 bounds this",
+        "step by \u03b5Hrow(Ni, qi, 98). If the class is never allocated, the hybrids agree. Summing over the",
+        "fixed class budget establishes the bound."
+      ],
+      "last_lines": [
+        "continuation bound; the original accounting terms keep their established definitions.",
+        "Proof Fix each application challenge bit for the entry comparison and average afterwards, as",
+        "in the retained continuation. The randomized output test with success probability (Z + 1)/2",
+        "68"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 69,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 54,
+      "min_x": 98.5,
+      "max_x": 472.5398864746094,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "converts Theorem 5.28\u2019s bit gap into a score gap of at most 2\u2206mr. Its ideal marked root",
+        "initializes the entire controller of Corollary 5.11, which supplies the remaining two terms.",
+        "Apply the same conversion to the ContextBound comparison when present.",
+        "\u25a1"
+      ],
+      "last_lines": [
+        "(41)",
+        "where Dsdk = QPeriapt-SDK-Key-v1 has 19 bytes. The fixed suite code 1 denotes",
+        "ML-KEM-768+X25519 and profile code 2 denotes ContextBound. Here p is one of",
+        "69"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 70,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 42,
+      "min_x": 123.1449966430664,
+      "max_x": 497.36346435546875,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "the five purpose codes, a is the protocol label, and c is the context. The policy state",
+        "is its 4-byte version followed by its exact-document 32-byte digest; the root digest is",
+        "SHA-256 of the runtime\u2019s pinned trust root. Labels contain 1\u2013255 printable non-space",
+        "ASCII bytes and contexts have at most 65536 bytes. Thus"
+      ],
+      "last_lines": [
+        "Proof Normalize the fixed salt as above. The first-block HKDF definition [21] gives P =",
+        "F(r0, S) followed by F(P, I\u222501); the source keeps its PRK internal. An induction over admitted",
+        "calls preserves each owner state and every public status: validation and admission use available",
+        "70"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 71,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 47,
+      "min_x": 99.56099700927734,
+      "max_x": 472.8432312011719,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "metadata; derivation creates a fresh owner referring to its descriptor\u2019s deterministic value;",
+        "exports apply that owner\u2019s current guards; close and publication operate on their existing owner",
+        "identities. Repeated key values can therefore be memoized while all native owner transitions",
+        "continue to execute. Apply Lemma 5.30 with D = C = 1. The class/row comparison changes"
+      ],
+      "last_lines": [
+        "both contributions, retains a pending root, and activates message state after Final.",
+        "We connect this order to authentication of the responder\u2019s historical activation of the",
+        "exact signed transcript.",
+        "71"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 72,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 41,
+      "min_x": 123.7969970703125,
+      "max_x": 496.764404296875,
+      "min_y": 75.83402252197266,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Transcript and schedule.",
+        "Let c = (ctx, x, y) contain the admitted context and the complete canonical signed",
+        "Initial and Reply wires, including their signature bytes. With the source\u2019s framed",
+        "SHA3 oracle H, define"
+      ],
+      "last_lines": [
+        "at either endpoint, a fixed online rule may register that complete class, provided its Reply",
+        "has passed the initiator\u2019s signature, context and confirmation checks or has been formed by",
+        "the authoritative responder. It rejects registration when the cumulative source/guard closure",
+        "72"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 73,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 42,
+      "min_x": 99.33699798583984,
+      "max_x": 472.8329162597656,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "already reconstructs AI. Repeated classes retain their rank; an unprotected used class stays",
+        "unprotected. A later request that would return an ACK recipe for any registered class, or",
+        "replace its trusted private state, stops before that return. An already observed terminal event",
+        "remains latched. Other observations and classes retain their actual algorithms."
+      ],
+      "last_lines": [
+        "require equal independently sampled 32-byte Initial nonces. Charging that event identifies",
+        "g, and the authoritative retained response identifies a. Its fixed tape, peer key, context",
+        "and complete Initial determine both ciphertexts and component results and all ten fields",
+        "73"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 74,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 47,
+      "min_x": 123.86100006103516,
+      "max_x": 497.24517822265625,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "of the ContextBound tuple. Source correctness supplies the same S0 at the two endpoints.",
+        "Thus PB = F(t1, S0\u2225S1) is fixed before response signing. The framed initial/reply context",
+        "separation and Lemma 5.34\u2019s monitor retain that selected challenge association at every",
+        "admitted alias."
+      ],
+      "last_lines": [
+        "Proof ML-KEM encrypts the original 32-byte input m using its specified K-PKE coins [24,",
+        "Algorithms 14, 15, 17 and 18]. Before a correctness failure, equal ciphertexts decrypt to equal",
+        "original m. For each other fixed sampling slot, the later of its draw and the selected draw is",
+        "74"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 75,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 62,
+      "min_x": 99.70099639892578,
+      "max_x": 472.84039306640625,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "independent uniform, giving equality probability 2\u2212256. A union bound over the fixed lifetime",
+        "slots proves the claim. A sampled but selectively unexecuted reservation remains counted.",
+        "\u25a1",
+        "The adapter caches earlier honest fresh ciphertexts and checks them at challenge"
+      ],
+      "last_lines": [
+        "sition interface retains the explicit residual (45). Replacing it by a cryptographic record",
+        "cost requires a joint comparison for the native journal key, its directly encrypted images",
+        "and its derived operation and signer wrapping keys, preserving ciphertext-dependent",
+        "75"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 76,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 52,
+      "min_x": 123.42500305175781,
+      "max_x": 496.9967041015625,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "commitments, exact copies and later openings. Guarded readability determines which",
+        "observations reconstruct a source; the record comparison supplies the corresponding",
+        "hidden-byte simulation.",
+        "From effective descriptors to protected classes."
+      ],
+      "last_lines": [
+        "Every query budget covers the complete derived experiment, including unprotected",
+        "activations, other families, confirmations, allowed sibling observations and final testing,",
+        "uniformly across its hybrids.",
+        "76"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 77,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 56,
+      "min_x": 98.5,
+      "max_x": 472.46588134765625,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Proposition 5.36 (ACK-only comparison from opaque PRKs) For the incoming opaque",
+        "services and online experiment above, the ACK-only output-bit gap is at most min{1, D0 +",
+        "D1 + \u03c7h(Qh,0) + \u03c7h(Qh,1)}.",
+        "Proof In each endpoint stop at the descriptor-collision monitor. Replace its three bootstrap"
+      ],
+      "last_lines": [
+        "ledgers and registration history, and the same used ACK entry. Their candidate expectations",
+        "are equal. Summing their two costs and then the fixed pairs and ranks proves (47).",
+        "\u25a1",
+        "77"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 78,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 59,
+      "min_x": 123.1449966430664,
+      "max_x": 497.3501281738281,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Theorem 5.38 (Historical responder activation) Let Bad be the latched event that a registered",
+        "initiator connection succeeds without an earlier durable activation of the same c under its",
+        "expected responder identity. If qv < 2256 bounds distinct pre-activation tag guesses, then",
+        "Pr[Bad] \u2264min"
+      ],
+      "last_lines": [
+        "event is its matching earlier activation. The source-bound supplement records the",
+        "exact schedule and durable-order pins, independent HMAC equations, short/long alias",
+        "controls, late registration countermodels and both-endpoint acquisition accounting.",
+        "78"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 79,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 40,
+      "min_x": 99.30899810791016,
+      "max_x": 472.865234375,
+      "min_y": 72.75739288330078,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "6 Mechanized recovery and separating executions",
+        "6.1 The multi-epoch symbolic theorem",
+        "The checked symbolic model includes inherited roots, alternating proposers, asymmetric",
+        "confirmation, initial traffic, and unbounded epochs. Signing and wrapping keys may"
+      ],
+      "last_lines": [
+        "the remaining main-theorem antecedents. Its point audit identifies c < g as the sole",
+        "false antecedent. Seven countertraces are rejected by the witness checker. Together, the",
+        "positive and separating traces connect the recovery condition to executable schedules.",
+        "79"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 80,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 39,
+      "min_x": 123.86100006103516,
+      "max_x": 496.8302001953125,
+      "min_y": 74.31548309326172,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "6.3 Native reservation disclosure",
+        "The native experiment stops a child process after committing a reservation, kills and",
+        "reaps it, reopens the journal, and inspects the retained phase. It exercises two distinct",
+        "boundaries:"
+      ],
+      "last_lines": [
+        "The native executions isolate the reservation and acquisition conditions used in",
+        "Theorem 6.1. Section 5 gives the record simulations and common-experiment accounting",
+        "for the corresponding computational interfaces.",
+        "80"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 81,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 50,
+      "min_x": 99.71099853515625,
+      "max_x": 472.534423828125,
+      "min_y": 74.08509063720703,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Table 5 Research questions and their validation objects. Native plaintext recovery, finite-model",
+        "equality and component key derivation are recorded as separate outcomes.",
+        "Question",
+        "Design and observation"
+      ],
+      "last_lines": [
+        "described below, including the isolated chunk-width variant. Cyclic key derivation",
+        "requires an initially disclosed key to seed reachability. Cyclic record containment is",
+        "rejected. The source-preserving copy and rewrapping relations are inputs to these",
+        "81"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 82,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 51,
+      "min_x": 124.23500061035156,
+      "max_x": 497.4142761230469,
+      "min_y": 74.8559341430664,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Record and key configuration",
+        "Assignments",
+        "Journal-derived operation-wrapping key",
+        "512"
+      ],
+      "last_lines": [
+        "endpoint produce 84 passive snapshot cases. An authenticated whole-KEM control",
+        "runs those schedules at local-send intervals 1, 32 and 64, producing 252 corresponding",
+        "cases. Together these are 28 configuration\u2013schedule combinations and 336 snapshots.",
+        "82"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 83,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 66,
+      "min_x": 99.70099639892578,
+      "max_x": 472.8511657714844,
+      "min_y": 74.8559341430664,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Component/profile",
+        "Mean bytes/send",
+        "Peak frame",
+        "Epochs A/B"
+      ],
+      "last_lines": [
+        "analysis checks all 420 snapshot inventories and reproduces the displayed rows directly",
+        "from four hash-bound corpus files. It preserves the original execution identities and",
+        "the exact derived-key interpretation.",
+        "83"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 84,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 117,
+      "min_x": 124.23500061035156,
+      "max_x": 497.36444091796875,
+      "min_y": 74.8559341430664,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Schedule",
+        "SPQR 32",
+        "SPQR 64",
+        "KEM 1"
+      ],
+      "last_lines": [
+        "The designated sender receives one 32-byte application request at each opportunity and",
+        "may emit at most one frame of at most 8,192 bytes. Uncommitted requests remain in",
+        "its FIFO queue. A response queued by receipt uses a later opportunity in the response",
+        "84"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 85,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 75,
+      "min_x": 99.57099914550781,
+      "max_x": 472.8478698730469,
+      "min_y": 74.8559341430664,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Profile",
+        "Committed /",
+        "Capture A",
+        "Capture B"
+      ],
+      "last_lines": [
+        "In the alternating schedule, reducing b from 64 to 32 changes the derived set from",
+        "127 of 717 post-capture commitments to 63 of 687 (Table 9). Both counts attain 2b \u22121.",
+        "The same change delivers 688 rather than 718 applications, a reduction of 30, or 4.18%,",
+        "85"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 86,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 67,
+      "min_x": 124.23500061035156,
+      "max_x": 497.3750915527344,
+      "min_y": 74.8559341430664,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Budget",
+        "First",
+        "ACK",
+        "Control"
+      ],
+      "last_lines": [
+        "to 4 modulo 10. Continuity delivers all 665 or 681 admitted applications, charging",
+        "retransmissions to the opportunity budget. Each reference commits 2,048 compo-",
+        "nent applications and delivers 1,843 under its declared workload without application",
+        "86"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 87,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 42,
+      "min_x": 99.70099639892578,
+      "max_x": 472.86077880859375,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "retransmission. Network duplication leaves native first commitments, logical deliver-",
+        "ies, emitted bytes, final epochs and derived sets equal to the alternating execution.",
+        "Reordering, 9:1 asymmetry and a 256-opportunity offline prefix complete the seven-",
+        "schedule inventory; their request queues, exact derived sets and work counters are"
+      ],
+      "last_lines": [
+        "now among 970 or 998 post-capture first commitments. Thus the additional alternating",
+        "service retains the observed current-epoch exposure count. Physical sync_data calls",
+        "rise from 14,219 to 20,015 and from 14,579 to 20,255; the respective counts per delivery",
+        "87"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 88,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 67,
+      "min_x": 124.23500061035156,
+      "max_x": 496.7870178222656,
+      "min_y": 74.8559341430664,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Schedule",
+        "Delivered: immediate \u2192age four",
+        "\u2206bytes/delivery",
+        "b = 32"
+      ],
+      "last_lines": [
+        "A recovery condition attached to original operations.",
+        "The model distinguishes creation of an operation\u2019s random input, its first durable",
+        "reservation, the acquisition of a retained representation, and the later availability of",
+        "88"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 89,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 42,
+      "min_x": 99.71099853515625,
+      "max_x": 472.81170654296875,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "the matching decryption material. This distinction makes exact replay compatible with",
+        "precise recovery statements: retries and aggregate writes preserve the original source,",
+        "while fresh operations obtain new origins. The guarded characterization explains how",
+        "records and keys combine to expose that source. The native executions demonstrate"
+      ],
+      "last_lines": [
+        "signed-body bindings (Proposition 5.20). The native signing adapter carries original",
+        "randomizers and exact retries into a shared-XOF comparison, expressing the native",
+        "reservation-interface bound through ordinary hedged ML-DSA unforgeability, with",
+        "89"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 90,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 43,
+      "min_x": 124.2249984741211,
+      "max_x": 497.3868408203125,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "explicit replay-coupling and oracle-query losses (Theorem 5.24). These two connections",
+        "instantiate different parts of the final bound: the key-entry argument supplies recovered",
+        "secret material, and the signature bridge supplies its original-source attribution.",
+        "From original bootstrap sources to peer activation."
+      ],
+      "last_lines": [
+        "an eligible native rekey to confidentiality and authentication of its marked message.",
+        "Original-operation and shared-XOF reductions preserve source attribution through",
+        "retained randomizers and exact replay. The finite key-entry comparison supplies a",
+        "90"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 91,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 36,
+      "min_x": 99.71099853515625,
+      "max_x": 472.4830322265625,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "purpose-key instance, and the bootstrap composition connects an original surviving",
+        "source to historical peer activation. The mechanized multi-epoch theorem and concrete",
+        "executions establish the corresponding provenance-based recovery statements. These",
+        "results preserve the meaning of fresh randomness across durable retries, copies and"
+      ],
+      "last_lines": [
+        "[5] Bennett CH, Bernstein E, Brassard G, Vazirani U (1997) Strengths and weaknesses",
+        "of quantum computing. SIAM Journal on Computing 26(5):1510\u20131523. https://do",
+        "i.org/10.1137/S0097539796300933, URL https://arxiv.org/abs/quant-ph/9701001",
+        "91"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 92,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 40,
+      "min_x": 124.5949935913086,
+      "max_x": 497.38323974609375,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "[6] Bhargavan K (2025) Helping secure Signal\u2019s post-quantum transition. Cryspen,",
+        "URL https://cryspen.com/post/signal-spqr-verification/, october 2, 2025",
+        "[7] Bhargavan K, Buyse M, Connell G, Kiefer F, Schmidt R (2026) A formal analy-",
+        "sis of Signal\u2019s sparse post-quantum ratchet protocol and its implementation. In:"
+      ],
+      "last_lines": [
+        "pp 302\u2013331, https://doi.org/10.1007/978-3-031-91101-9_11, URL https:",
+        "//cs.nyu.edu/~dodis/ps/triple-ratchet.pdf, extended version, Cryptology ePrint",
+        "Archive, Paper 2025/078",
+        "92"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 93,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 38,
+      "min_x": 100.07099914550781,
+      "max_x": 472.7588195800781,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "[15] Don J, Fehr S, Huang YH (2022) Adaptive versus static multi-oracle algorithms,",
+        "and quantum security of a split-key PRF. In: Kiltz E, Vaikuntanathan V (eds)",
+        "Theory of Cryptography\u2014TCC 2022, Proceedings, Part I, Lecture Notes in",
+        "Computer Science, vol 13747. Springer, pp 33\u201351, https://doi.org/10.1007/97"
+      ],
+      "last_lines": [
+        "digital signature standard. Federal Information Processing Standards Publication",
+        "204, U.S. Department of Commerce, https://doi.org/10.6028/NIST.FIPS.204,",
+        "URL https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.204.pdf",
+        "93"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 94,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 42,
+      "min_x": 124.23500061035156,
+      "max_x": 497.30517578125,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "[24] National Institute of Standards and Technology (2024) Module-lattice-based key-",
+        "encapsulation mechanism standard. Federal Information Processing Standards",
+        "Publication 203, U.S. Department of Commerce, https://doi.org/10.6028/NIST.F",
+        "IPS.203, URL https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf"
+      ],
+      "last_lines": [
+        "Delayed-receipt",
+        "ground trace",
+        "20261105-delayed-receipt-ground-trace.",
+        "94"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 95,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 53,
+      "min_x": 99.71099853515625,
+      "max_x": 472.27838134765625,
+      "min_y": 77.69903564453125,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Result",
+        "Reproduction source",
+        "Native reservation",
+        "disclosure"
+      ],
+      "last_lines": [
+        "exact formula and proof available for inspection.",
+        "The complete inventory contains 40 queries: 27 verified and 13 incomplete. The",
+        "latter comprise eleven multi-round existence queries and two historical all-trace queries",
+        "95"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 96,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 39,
+      "min_x": 124.23500061035156,
+      "max_x": 497.3827209472656,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "outside the main theorem\u2019s dependency group. Two subsequent finite ground-trace",
+        "constructions supply the concrete executions discussed below. Their independently",
+        "checked formulas and original certificate inventory remain separately identifiable.",
+        "A.2 Guarded-normalization supplement"
+      ],
+      "last_lines": [
+        "MMITMENTS_V1.md and MULTI_RECORD_COMMITMENTS_V1.md. Their",
+        "actual domains and complete oracle budgets define the \u03f5com term; the new table",
+        "construction supplies the image/intent implementation after that replacement.",
+        "96"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 97,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 42,
+      "min_x": 99.71099853515625,
+      "max_x": 472.62359619140625,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "The source correspondence of Section 5.4 is recorded in artifacts/native-int",
+        "erface/native_interface_map.md and artifacts/native-interface/map.json.",
+        "The machine-readable map binds the source ranges and file identities to the fixed",
+        "protocol checkpoint. artifacts/native-interface/native_map_validation.json"
+      ],
+      "last_lines": [
+        "artifacts/confirmation-traffic/. Their proof and separate reviews record the",
+        "complete observation surface, the reservation-selector witness, the native confirmation",
+        "cores and the original encryption ledger. The source map fixes each inspected file",
+        "97"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 98,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 41,
+      "min_x": 124.23500061035156,
+      "max_x": 497.2791442871094,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "at the protocol checkpoint. The authentication argument starts at the uniform-root",
+        "interface and assigns its own terminal event to any preceding comparison.",
+        "A.7 ContextBound and original-operation inputs",
+        "The core combine_policy_bound and combine_validated functions in crates/q-p"
+      ],
+      "last_lines": [
+        "and its composition with the preceding primitive bounds.",
+        "The prose correspondence record in artifacts/editorial-review/ links the cur-",
+        "rent presentation to the retained mathematical inputs. Historical proof snapshots keep",
+        "98"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 99,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 41,
+      "min_x": 97.44598388671875,
+      "max_x": 472.5853576660156,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "their exact identities; the semantic review checks the current definitions, hypotheses,",
+        "interfaces and budgets against them.",
+        "A.9 SDK purpose-key correspondence",
+        "Section 5.15 uses the owned purpose-key API in crates/q-periapt-sdk/src/purpo"
+      ],
+      "last_lines": [
+        "8d456d989dce681233ef963d3c3306da8f76d7c7. The retained packet includes the",
+        "inspected sources and their licenses, so its identity and call-length checks run from the",
+        "manuscript checkout.",
+        "99"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 100,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 42,
+      "min_x": 124.23500061035156,
+      "max_x": 497.1018981933594,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "The controls distinguish exact pair caching from per-slot oracle queries, preserve",
+        "original-message freshness under descriptor aliases, and record private invocations",
+        "whose publication fails. Independent finite enumeration checks the shared-XOF con-",
+        "struction\u2019s joint distribution and its disjoint hidden-input sectors. Owner controls"
+      ],
+      "last_lines": [
+        "retained packet alone:",
+        "python3 artifacts/matched-comparison/analyze_matched.py --check",
+        "python3 artifacts/matched-comparison/check_input_controls.py",
+        "100"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 101,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 43,
+      "min_x": 99.71099853515625,
+      "max_x": 472.3841552734375,
+      "min_y": 74.31548309326172,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "A.14 Retry-readiness ablation",
+        "Section 7.5 uses research revision 29f1c362b67bcd06123ea1bef847af82e9f9e100,",
+        "executed by GitHub run 42551086845 at synthetic checkout 23f600f5. The fixed pro-",
+        "tocol source remains 358b921a. Its source comparison covers 2,687 files and identifies"
+      ],
+      "last_lines": [
+        "228c944f and inspected integration checkpoint a4c08957. The identical source blobs",
+        "fix pending-plan retention before encryption, directional aliases, transaction-private",
+        "receive advancement, skipped-key reuse and the complete originating KEM plans.",
+        "101"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 102,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 47,
+      "min_x": 124.23500061035156,
+      "max_x": 497.3966369628906,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Finite controls enumerate 19,440 traces with marking choices and 77,760",
+        "first-computation decisions. Independent temporal and algebraic enumerations check",
+        "450 reservation/cut/version assignments and 256 signed-score or Boolean-event",
+        "partition identities. Counterexample controls exercise a rolled-back receive ledger,"
+      ],
+      "last_lines": [
+        "Don, Fehr and Huang\u2019s Theorem 2 [15] supplies this bound when private oracle inputs",
+        "have point probability at most 2\u2212n and distinct effective private queries encode distinct",
+        "inputs for every secret value. Exact repeats are cached before that interface is queried.",
+        "102"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 103,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 52,
+      "min_x": 99.71099853515625,
+      "max_x": 472.5447082519531,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "The two budgets count private classical queries and all ordinary public-oracle queries;",
+        "public queries may be quantum.",
+        "For image i, let Khdr",
+        "i"
+      ],
+      "last_lines": [
+        "Write ENMAC(T, q, \u2113) for a valid NMAC distinguishing bound with two independent",
+        "256-bit inner/outer keys, the prescribed injective padding, at most T keyed calls",
+        "and q public compression calls. Hosoyamada and Iwata\u2019s Proposition 6 [19] gives the",
+        "103"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 104,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 43,
+      "min_x": 124.23500061035156,
+      "max_x": 497.068603515625,
+      "min_y": 75.66400146484375,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "asymptotic form",
+        "ENMAC(T, q, \u2113) = O",
+        " r",
+        "(q + T)3\u21135"
+      ],
+      "last_lines": [
+        "O(x) = (x\u2225032) \u22955c64,",
+        "B(x) = x\u2225P,",
+        "P = 80\u2225023\u2225BE64(768).",
+        "104"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 105,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 54,
+      "min_x": 98.62200164794922,
+      "max_x": 472.68212890625,
+      "min_y": 74.57299041748047,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "The final 32 bytes of I(x), O(x), B(x) are respectively 3632, 5c32, P. These three ranges",
+        "are disjoint, and each map is injective. Write",
+        "\u03b1(a) = h(I(a), IV),",
+        "\u03b2(a) = h(O(a), IV),"
+      ],
+      "last_lines": [
+        "when two salts have the same \u03b1 value.",
+        "There are at most C +2 distinct private calls: the two root key-pad evaluations and at most",
+        "C message-block evaluations at \u03b1(a). The remaining ordinary work is at most q + 3C + \u2113(L)T,",
+        "105"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 106,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 52,
+      "min_x": 123.86100006103516,
+      "max_x": 497.38677978515625,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "including each column\u2019s two public pad states and outer call, and each row\u2019s continuation.",
+        "Don, Fehr and Huang\u2019s Theorem 2 [15] therefore replaces FR by a private random function",
+        "at the first cost in (51).",
+        "Its restrictions"
+      ],
+      "last_lines": [
+        "private row function. No conversion to a one-transcript game is made.",
+        "For one distinct zero-salt column, omit the NMAC step from Lemma C.1, put C = 1,",
+        "and use its conservative C + 2 = 3 private-call budget. The only visited \u0393(0) entry gives one",
+        "106"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 107,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 40,
+      "min_x": 99.57099914550781,
+      "max_x": 472.8022155761719,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "uniform reply independent of h and of the executed prefix. The extra two private-call slots",
+        "need not actually be used; retaining this upper bound agrees with the existing shared-root",
+        "accounting.",
+        "\u25a1"
+      ],
+      "last_lines": [
+        "root row has \u2113(32) = 2, the traffic rows have maximum \u2113(188) = 5, and the selected",
+        "chain row has \u2113(89) = 3. These counts include the previous HKDF output block where",
+        "it is part of the actual HMAC message.",
+        "107"
+      ],
+      "selected_for_visual_review": false
+    },
+    {
+      "page": 108,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 60,
+      "min_x": 123.42500305175781,
+      "max_x": 497.1470947265625,
+      "min_y": 72.75739288330078,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "D Joint entry from either bootstrap contribution",
+        "Bootstrap uses two 32-byte contributions, first S0 and then S1. The first also supplies",
+        "initial confirmation before the second exists. This appendix gives the joint comparison",
+        "needed when either contribution is the surviving hidden input. It uses the public"
+      ],
+      "last_lines": [
+        "by the complete descriptors. The same bound applies to hidden second with its known-first",
+        "continuation retained. Each q bounds the complete ordinary work in its reduction under the",
+        "same h. The extra middle slot can be omitted for a class admitting no long call.",
+        "108"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 109,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 44,
+      "min_x": 99.71099853515625,
+      "max_x": 472.531494140625,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Proof For hidden first, the private encoding is (v, s) 7\u2192(S\u2225v, s), including the short class;",
+        "for hidden second it is (u, s) 7\u2192(u\u2225S, s). Each fixed input has at most one preimage S, and",
+        "distinct effective queries encode distinct points for every S. The hidden-input theorem of Don,",
+        "Fehr and Huang [15, Theorem 2] replaces these inputs by a private raw-class table at cost"
+      ],
+      "last_lines": [
+        "established. In that setting the shared comparison cost is charged once; uniform",
+        "resource bounds follow by direct substitution. Section 5.3 gives the candidate-local",
+        "route used by the record and report interfaces.",
+        "109"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 110,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 65,
+      "min_x": 123.87899780273438,
+      "max_x": 497.3642883300781,
+      "min_y": 74.31548309326172,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "E.1 A selected-target experiment",
+        "Let V be the virtual original-record experiment with the real KEM component. The",
+        "adversary chooses its target after its observed interaction. Eligibility E retains the",
+        "selected recovery conditions: both original target reservations follow Cut, the actual"
+      ],
+      "last_lines": [
+        "\uf8fd",
+        "\uf8fe.",
+        "(58)",
+        "110"
+      ],
+      "selected_for_visual_review": true
+    },
+    {
+      "page": 111,
+      "size": [
+        595.2760009765625,
+        841.8900146484375
+      ],
+      "nonempty_lines": 22,
+      "min_x": 99.73899841308594,
+      "max_x": 470.9645690917969,
+      "min_y": 73.5499038696289,
+      "max_y": 654.677001953125,
+      "first_lines": [
+        "Proof In the single experiment V , the attributed events Ej are disjoint. Decomposing its",
+        "score yields",
+        "EV [ES] = EV [ES 1\u00acAttr] +",
+        "X"
+      ],
+      "last_lines": [
+        "override probabilities are not normalized as though they belonged to one common",
+        "ideal distribution. The score decomposition also retains failed and ineligible executions",
+        "in the experiment, avoiding an uncontrolled division by the probability of eligibility.",
+        "111"
+      ],
+      "selected_for_visual_review": true
+    }
+  ],
+  "page_edge_outliers": [],
+  "render_dpi": 140,
+  "rendered_pages": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    88,
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    95,
+    96,
+    97,
+    98,
+    99,
+    100,
+    101,
+    102,
+    108,
+    109,
+    110,
+    111
+  ]
+}

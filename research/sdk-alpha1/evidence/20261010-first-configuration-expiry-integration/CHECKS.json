@@ -1,0 +1,474 @@
+{
+  "created_at": "2026-10-10T00:57:24.545937+00:00",
+  "base_head": "8ec10b556e5320356abbae6102328c698280818d",
+  "source": {
+    "current_files": {
+      "ARTIFACT.md": "281cea209b2886fcee5998242774aa7b8683652736648a003d59a0845f4e464e",
+      "artifact/codeql_rust_quality.py": "d977a26212103dc378d5b37f0042340c56444acd22f81cc14f20d1b63c95d7c5",
+      "artifact/continuity_configuration_policy.py": "43575b0effa7e8cbe0d65ad6d493ad16471e226d5f0d3fab601c0d77f6eaf873",
+      "artifact/continuity_first_configuration.py": "d6b60f7c7452cfc171fbe81625f2e7debf671bc4045280042f932f3bee4ac709",
+      "artifact/test_codeql_rust_quality.py": "398d9521d1358c7b18c7b5ea1231d71464822158e996998e51fa0e42c9ccf5bc",
+      "artifact/test_continuity_first_configuration.py": "0c734f543ffec6640204aa10d65e56d59e080c3eeb83667daeb36b31011402d2",
+      "bindings/c/ContinuityPackageConsumer/README.md": "addd7dc725880c062a1413d0804e9e24d10c467a886359cfabb4032f20a850ae",
+      "bindings/c/ContinuityPackageConsumer/first_configuration_client.c": "972520e6790307c69ef68dee65ca90646c30fefe8bde0266041e9e6b729dbd42",
+      "bindings/c/ContinuityPackageConsumer/tests/common/first_connection.rs": "b4eed5925d2a9b190edeae9f0da89d84dfd26c74cf10892262fff76dcdf677b1",
+      "bindings/c/ContinuityPackageConsumer/tests/common/first_policy.rs": "5d6102f025ccf44959c3863268c371559a7c5949e0d8e449454bc7c0cbfbc45e",
+      "bindings/c/ContinuityPackageConsumer/tests/common/peer_bundle.rs": "b2fa520133cf3fa010d5f844e8e0fc26d1527d47be3dd6176a80892d8e7bd9ea",
+      "bindings/c/ContinuityPackageConsumer/tests/first_configuration.rs": "9eb37d9af1e7358f06529b5c85f0167e63aa492cecf0a2d7ef4a5cabab1d9da8",
+      "bindings/kotlin/ContinuityPackageConsumer/README.md": "9ed8458f0cb817ff6c12cdf34a6cd5a9b37e963aa5b555c57d65eb6275f0ea9e",
+      "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/configuration/FirstConfigurationClient.kt": "e68001aea6c511758d8cf72b9fbbb23dd7fa531adcad6d0a088d9279812f1bd5",
+      "bindings/swift/ContinuityPackageConsumer/README.md": "8c3c877db022ef29a629a3d99e302ab5b50b6590aad64c542ffe09ba99819e00",
+      "bindings/swift/ContinuityPackageConsumer/Sources/FirstConfigurationClient/Main.swift": "046fc138835f560fe9ca109433be973d30130285b8d602bb3e1d361156123636",
+      "research/continuity-identity-candidate/tests/owned_connection.rs": "ab8aa4df2f93cf8ce161da50c0499ca380deec91ef8563da77e36d0c4b0cc284",
+      "research/continuity-identity-candidate/tests/owned_connection/enrollment.rs": "0772f3a738abf490d5442f97a0935141fbcd7953f65704a742b67e4162e84296",
+      "bindings/c/ContinuityPackageConsumer/tests/common/first_expiry.rs": "cbf4da9f6f6b5d206a62d42313b5ad3a20de3289fe422e407af7857394c0d262"
+    },
+    "validated_snapshot_patch_sha256": "5dd9c4cbbf1ccaf2247a3793e02beaf6b52791906871b370863407d6a938ebc4",
+    "tracked_Rust_sources": 447
+  },
+  "scope": "Current mandatory first-use protocol-policy expiry and original-message recovery; explicit independent sender configuration, enrolled native reference receiver, same-host macOS arm64, shared native engine",
+  "profiles": [
+    {
+      "run": "native-debug",
+      "language": "C",
+      "profile": "debug",
+      "collector": null,
+      "scenarios": 6,
+      "public_files": 190,
+      "seconds": 401.31308687501587,
+      "expiry_observations": {
+        "local-fixed": {
+          "policy_until": 1791592851,
+          "observed_at": 1791592851,
+          "receiver_adopted_at": 1791592796
+        },
+        "local-recoverable": {
+          "policy_until": 1791592918,
+          "observed_at": 1791592918,
+          "receiver_adopted_at": 1791592870
+        },
+        "signed-fixed": {
+          "policy_until": 1791592985,
+          "observed_at": 1791592985,
+          "receiver_adopted_at": 1791592940
+        },
+        "signed-recoverable": {
+          "policy_until": 1791593053,
+          "observed_at": 1791593053,
+          "receiver_adopted_at": 1791593007
+        },
+        "tls-fixed": {
+          "policy_until": 1791593118,
+          "observed_at": 1791593118,
+          "receiver_adopted_at": 1791593068
+        },
+        "tls-recoverable": {
+          "policy_until": 1791593183,
+          "observed_at": 1791593183,
+          "receiver_adopted_at": 1791593134
+        }
+      }
+    },
+    {
+      "run": "native-release",
+      "language": "C",
+      "profile": "release",
+      "collector": null,
+      "scenarios": 6,
+      "public_files": 190,
+      "seconds": 426.69138533296064,
+      "expiry_observations": {
+        "local-fixed": {
+          "policy_until": 1791592909,
+          "observed_at": 1791592909,
+          "receiver_adopted_at": 1791592862
+        },
+        "local-recoverable": {
+          "policy_until": 1791592974,
+          "observed_at": 1791592974,
+          "receiver_adopted_at": 1791592926
+        },
+        "signed-fixed": {
+          "policy_until": 1791593039,
+          "observed_at": 1791593039,
+          "receiver_adopted_at": 1791592993
+        },
+        "signed-recoverable": {
+          "policy_until": 1791593105,
+          "observed_at": 1791593105,
+          "receiver_adopted_at": 1791593055
+        },
+        "tls-fixed": {
+          "policy_until": 1791593170,
+          "observed_at": 1791593170,
+          "receiver_adopted_at": 1791593120
+        },
+        "tls-recoverable": {
+          "policy_until": 1791593233,
+          "observed_at": 1791593233,
+          "receiver_adopted_at": 1791593179
+        }
+      }
+    },
+    {
+      "run": "execution-swift-debug",
+      "language": "Swift",
+      "profile": "debug",
+      "collector": null,
+      "scenarios": 6,
+      "public_files": 190,
+      "seconds": 408.16011575004086,
+      "expiry_observations": {
+        "local-fixed": {
+          "policy_until": 1791593289,
+          "observed_at": 1791593289,
+          "receiver_adopted_at": 1791593240
+        },
+        "local-recoverable": {
+          "policy_until": 1791593358,
+          "observed_at": 1791593358,
+          "receiver_adopted_at": 1791593311
+        },
+        "signed-fixed": {
+          "policy_until": 1791593420,
+          "observed_at": 1791593420,
+          "receiver_adopted_at": 1791593372
+        },
+        "signed-recoverable": {
+          "policy_until": 1791593491,
+          "observed_at": 1791593491,
+          "receiver_adopted_at": 1791593445
+        },
+        "tls-fixed": {
+          "policy_until": 1791593559,
+          "observed_at": 1791593559,
+          "receiver_adopted_at": 1791593516
+        },
+        "tls-recoverable": {
+          "policy_until": 1791593629,
+          "observed_at": 1791593629,
+          "receiver_adopted_at": 1791593588
+        }
+      }
+    },
+    {
+      "run": "execution-swift-release",
+      "language": "Swift",
+      "profile": "release",
+      "collector": null,
+      "scenarios": 6,
+      "public_files": 190,
+      "seconds": 416.2244724170305,
+      "expiry_observations": {
+        "local-fixed": {
+          "policy_until": 1791593322,
+          "observed_at": 1791593322,
+          "receiver_adopted_at": 1791593283
+        },
+        "local-recoverable": {
+          "policy_until": 1791593386,
+          "observed_at": 1791593386,
+          "receiver_adopted_at": 1791593339
+        },
+        "signed-fixed": {
+          "policy_until": 1791593451,
+          "observed_at": 1791593451,
+          "receiver_adopted_at": 1791593409
+        },
+        "signed-recoverable": {
+          "policy_until": 1791593519,
+          "observed_at": 1791593519,
+          "receiver_adopted_at": 1791593473
+        },
+        "tls-fixed": {
+          "policy_until": 1791593586,
+          "observed_at": 1791593586,
+          "receiver_adopted_at": 1791593541
+        },
+        "tls-recoverable": {
+          "policy_until": 1791593671,
+          "observed_at": 1791593671,
+          "receiver_adopted_at": 1791593628
+        }
+      }
+    },
+    {
+      "run": "execution-kotlin-debug-g1",
+      "language": "Kotlin",
+      "profile": "debug",
+      "collector": "g1",
+      "scenarios": 6,
+      "public_files": 190,
+      "seconds": 433.86334574990906,
+      "expiry_observations": {
+        "local-fixed": {
+          "policy_until": 1791593289,
+          "observed_at": 1791593289,
+          "receiver_adopted_at": 1791593244
+        },
+        "local-recoverable": {
+          "policy_until": 1791593361,
+          "observed_at": 1791593361,
+          "receiver_adopted_at": 1791593317
+        },
+        "signed-fixed": {
+          "policy_until": 1791593429,
+          "observed_at": 1791593429,
+          "receiver_adopted_at": 1791593387
+        },
+        "signed-recoverable": {
+          "policy_until": 1791593500,
+          "observed_at": 1791593500,
+          "receiver_adopted_at": 1791593460
+        },
+        "tls-fixed": {
+          "policy_until": 1791593572,
+          "observed_at": 1791593572,
+          "receiver_adopted_at": 1791593532
+        },
+        "tls-recoverable": {
+          "policy_until": 1791593652,
+          "observed_at": 1791593652,
+          "receiver_adopted_at": 1791593625
+        }
+      }
+    },
+    {
+      "run": "execution-kotlin-debug-serial",
+      "language": "Kotlin",
+      "profile": "debug",
+      "collector": "serial",
+      "scenarios": 6,
+      "public_files": 190,
+      "seconds": 433.87444274988957,
+      "expiry_observations": {
+        "local-fixed": {
+          "policy_until": 1791593289,
+          "observed_at": 1791593289,
+          "receiver_adopted_at": 1791593244
+        },
+        "local-recoverable": {
+          "policy_until": 1791593361,
+          "observed_at": 1791593361,
+          "receiver_adopted_at": 1791593317
+        },
+        "signed-fixed": {
+          "policy_until": 1791593429,
+          "observed_at": 1791593429,
+          "receiver_adopted_at": 1791593387
+        },
+        "signed-recoverable": {
+          "policy_until": 1791593500,
+          "observed_at": 1791593500,
+          "receiver_adopted_at": 1791593460
+        },
+        "tls-fixed": {
+          "policy_until": 1791593572,
+          "observed_at": 1791593572,
+          "receiver_adopted_at": 1791593532
+        },
+        "tls-recoverable": {
+          "policy_until": 1791593652,
+          "observed_at": 1791593652,
+          "receiver_adopted_at": 1791593625
+        }
+      }
+    },
+    {
+      "run": "execution-kotlin-release-g1",
+      "language": "Kotlin",
+      "profile": "release",
+      "collector": "g1",
+      "scenarios": 6,
+      "public_files": 190,
+      "seconds": 432.98531825002283,
+      "expiry_observations": {
+        "local-fixed": {
+          "policy_until": 1791593321,
+          "observed_at": 1791593321,
+          "receiver_adopted_at": 1791593289
+        },
+        "local-recoverable": {
+          "policy_until": 1791593390,
+          "observed_at": 1791593390,
+          "receiver_adopted_at": 1791593346
+        },
+        "signed-fixed": {
+          "policy_until": 1791593460,
+          "observed_at": 1791593460,
+          "receiver_adopted_at": 1791593424
+        },
+        "signed-recoverable": {
+          "policy_until": 1791593532,
+          "observed_at": 1791593532,
+          "receiver_adopted_at": 1791593492
+        },
+        "tls-fixed": {
+          "policy_until": 1791593604,
+          "observed_at": 1791593604,
+          "receiver_adopted_at": 1791593565
+        },
+        "tls-recoverable": {
+          "policy_until": 1791593681,
+          "observed_at": 1791593681,
+          "receiver_adopted_at": 1791593639
+        }
+      }
+    },
+    {
+      "run": "execution-kotlin-release-serial",
+      "language": "Kotlin",
+      "profile": "release",
+      "collector": "serial",
+      "scenarios": 6,
+      "public_files": 190,
+      "seconds": 432.9361757079605,
+      "expiry_observations": {
+        "local-fixed": {
+          "policy_until": 1791593321,
+          "observed_at": 1791593321,
+          "receiver_adopted_at": 1791593289
+        },
+        "local-recoverable": {
+          "policy_until": 1791593390,
+          "observed_at": 1791593390,
+          "receiver_adopted_at": 1791593346
+        },
+        "signed-fixed": {
+          "policy_until": 1791593460,
+          "observed_at": 1791593460,
+          "receiver_adopted_at": 1791593424
+        },
+        "signed-recoverable": {
+          "policy_until": 1791593532,
+          "observed_at": 1791593532,
+          "receiver_adopted_at": 1791593492
+        },
+        "tls-fixed": {
+          "policy_until": 1791593604,
+          "observed_at": 1791593604,
+          "receiver_adopted_at": 1791593565
+        },
+        "tls-recoverable": {
+          "policy_until": 1791593681,
+          "observed_at": 1791593681,
+          "receiver_adopted_at": 1791593640
+        }
+      }
+    }
+  ],
+  "scenarios": 48,
+  "unique_policy_operations": 48,
+  "public_records": 1520,
+  "actual_record_negative_controls": 114,
+  "reader_and_source_gate_unit_tests": 73,
+  "Swift_unit_tests_per_profile": 62,
+  "Rust_checks": [
+    {
+      "version": "1.98.1",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--all-targets",
+        "--locked",
+        "--offline",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 0,
+      "seconds": 110.00802483293228
+    },
+    {
+      "version": "1.90.0",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "check",
+        "--test",
+        "first_configuration",
+        "--locked",
+        "--offline"
+      ],
+      "returncode": 0,
+      "seconds": 96.08759237499908
+    }
+  ],
+  "unchanged_native_sources": {
+    "bindings/c/ContinuityPackageConsumer/src/peer_configuration.rs": "e08f711812bd31068796a629098b3f34ec3b79b883dc456b2688080f1fa97e74",
+    "bindings/c/ContinuityPackageConsumer/src/owner.rs": "be5eb3808cc5fed32ff515d4c8923bb10a4767aeadac9785b56f5a25a1e5e3f2",
+    "bindings/c/ContinuityPackageConsumer/src/device.rs": "0ae501eacc5a774e5eca7681c97cd7e1f0466e42494f9575f1724c08c9766c26",
+    "bindings/c/ContinuityPackageConsumer/src/opening.rs": "a40f9ffa80949e89096f850471f5e11bc3809a4a6998f67e78da27255b18a3d3",
+    "bindings/c/ContinuityPackageConsumer/src/witness.rs": "62850758c2249e33808f1aab6b7c29645ef91749cefffa2d643d39e673f99554",
+    "bindings/c/ContinuityPackageConsumer/src/native_owner.rs": "194ba3b48b6ca8c355f0763fc60b314c9023329bafa3647bc3546c199b02f6c2",
+    "bindings/c/ContinuityPackageConsumer/src/recovery.rs": "ac359c7e459f8b17e8327f5deb20de4cdae9be3c689b3276ab503502848f7119",
+    "bindings/c/ContinuityPackageConsumer/src/lib.rs": "d14a04769a5fd6471719eaecd6e04f7c9b71455c54a97c1298c6d7b289d53fae",
+    "bindings/c/ContinuityPackageConsumer/src/configuration.rs": "ea1cef89cb61e0c543723636ff813b37870cb186fbcbb4400cf64819cffaf3a8",
+    "bindings/c/ContinuityPackageConsumer/src/server.rs": "409d3f52e6acc8b9d5c958484afb332b3181a84841567d65381910876c88ff24",
+    "bindings/c/ContinuityPackageConsumer/src/retirement.rs": "918a3ef1b29a05ec8c6e0b3509c244d656f319566529342e70b074a1f8c6c9b1",
+    "bindings/c/ContinuityPackageConsumer/src/account.rs": "6ec32daae301b28396a5a9d8764e1fca3c112f49182424831675bdaccb1cb4c5",
+    "bindings/c/ContinuityPackageConsumer/src/invocation.rs": "436ff4c48ce6f67fde8d73ebb29ca5cd715b0bee3bb796ec121a9745012664e1",
+    "bindings/c/ContinuityPackageConsumer/src/publication.rs": "1a8ea7ca17ef931db2868276cc04bc086e7e17a6e12ae33d679ffa45e70d50c7",
+    "bindings/c/ContinuityPackageConsumer/src/first_install.rs": "e8f3d1ca8530f6d83fa95d4836fa5f04103de1b9daf324d88f55de2da6e2d541",
+    "bindings/c/ContinuityPackageConsumer/src/enrollment.rs": "d8b636ac87e18ccbad123336883708c1d2f572bedb86233c82b457b0439c7fab",
+    "bindings/c/ContinuityPackageConsumer/src/setup.rs": "d82b0b4d812a21c90a4eed2f10abbcd72384277983830b45ea323b05adec5755",
+    "bindings/c/ContinuityPackageConsumer/src/configuration/tests.rs": "cfbfa5a8de75940050cc2f477f99a9e4478b622511c8e955da3864d369cc77b7",
+    "bindings/c/ContinuityPackageConsumer/src/enrollment/policy.rs": "5e62cb07bb91bda2ccd770a7a71b4d8480782b7ba4969ec829ba3c247d48b4b1",
+    "bindings/c/ContinuityPackageConsumer/src/enrollment/roster_refresh.rs": "d8bc841d7b95a1af7042940e87bf04ca481ff3b50d6bc1af65d27bbdb59fae6d",
+    "bindings/c/ContinuityPackageConsumer/src/enrollment/roster_resolution.rs": "d14445c17b5b3f9343104460cf3afc53866a8951a138d3983599e517d62ab0e9",
+    "bindings/c/ContinuityPackageConsumer/src/recovery/account.rs": "692790a094fe52bae18f7546dbcfbd52aca1c5c341a15b4025bacbd08a7a64a4",
+    "bindings/c/ContinuityPackageConsumer/src/peer_configuration/tests.rs": "b12d28b05e5616080df2ada995b20fc54a2fbf802d8223022f9ea418874f542b",
+    "bindings/c/ContinuityPackageConsumer/src/first_install/tests.rs": "5ba6a2e5de16043948e30857849daa1e03c020a83a3e85c615824d1e08babc97",
+    "bindings/c/ContinuityPackageConsumer/src/enrollment/policy/renewal.rs": "9d98e9ec01e8f9937847faf21a9d81d4df87de528d477a8db67741b1c8722ebc",
+    "bindings/c/ContinuityPackageConsumer/src/enrollment/policy/renewal/witness.rs": "b243d2392a803e1a37bc28800159fdd406b24a012cbaa3f871a3dc7b03f7729f"
+  },
+  "unchanged_Kotlin_SDK_build_inputs": {
+    "src/main/kotlin/dev/qperiapt/continuity/RosterRefresh.kt": "d1cc8bfe1006ac3143deb5950af90f3eed822e267b4f9f06a7d8699878110e75",
+    "src/main/kotlin/dev/qperiapt/continuity/Publication.kt": "a5713192458ab6f3254e3df018d9436598183f93b408e47020144dbe07ef7caa",
+    "src/main/kotlin/dev/qperiapt/continuity/Enrollment.kt": "420944ef362abe7b8c4e8945d0f03737d502fb15dacc21b56f9cb6c540d64462",
+    "src/main/kotlin/dev/qperiapt/continuity/CredentialRenewal.kt": "2df94b112494b8eb747811bd12984fcbb5d6be4f5a5ba7b5b134fe412821e0d8",
+    "src/main/kotlin/dev/qperiapt/continuity/Setup.kt": "ef1ca38072af695de9af31d11e3606c734d46bcda797f2990c248d5291b04903",
+    "src/main/kotlin/dev/qperiapt/continuity/RetiredEnrollment.kt": "220638df4c5c09c67e9fbabcf58696e0c67ccfa73f1de3ad64661a0f33b07a65",
+    "src/main/kotlin/dev/qperiapt/continuity/PolicyContinuation.kt": "8da87938949819f89de4846fd5bfd072adc309663a65a45e84d937836195887c",
+    "src/main/kotlin/dev/qperiapt/continuity/IndependentPolicy.kt": "bbc1b091398c7274c2544c3f84157c7af638cb78dbe0a0ebae7b38696c295278",
+    "src/main/kotlin/dev/qperiapt/continuity/PolicyRenewal.kt": "997847c5c38d0c788ebef35395ce0f4e66efb3e007ff474c5ada4601d823b070",
+    "src/main/kotlin/dev/qperiapt/continuity/Configuration.kt": "a3a8143be393416688196ce2c6cf311c3ddd858cd728f27036f96c21cdd7760d",
+    "src/main/kotlin/dev/qperiapt/continuity/PeerConfiguration.kt": "d3d7285998407750833d6455a30c546b69c66d3a90288723f2a0a40348fa1b3f",
+    "src/main/kotlin/dev/qperiapt/continuity/Native.kt": "156eb901e43408b5fd73655cbeb381322e929c2034cf969ece28beb49809b41e",
+    "src/main/kotlin/dev/qperiapt/continuity/Types.kt": "a1b6db95bd63ebe261ac29b3ef04d69e3371d7fc1aff7723ec6170b0e384cb1b",
+    "src/main/kotlin/dev/qperiapt/continuity/AccountRecovery.kt": "448b052fc613225752be1cfeab0806dfeed0ad57510998955a8c37c54b3e9fd0",
+    "src/main/kotlin/dev/qperiapt/continuity/Device.kt": "a06a11f93fbe430d1858d0c9c682780ffb6a7c462d7a64be6ce9a8fd54b84c99",
+    "src/main/kotlin/dev/qperiapt/continuity/Owners.kt": "f0638af5048e8e971c98c916a66fd47942382e0d2866d97580bd3082b9089c09",
+    "src/main/kotlin/dev/qperiapt/continuity/OwnerTransfer.kt": "d80387a661b8d2f0a233feaff50db5e5fcbef38b26a60a180254d0f725b4451e",
+    "src/test/kotlin/dev/qperiapt/continuity/RosterRefreshTests.kt": "84fbffdf5ee5402bbbc1b389fc98ab96bccd3595ae7252df7f25fa797bd249d4",
+    "src/test/kotlin/dev/qperiapt/continuity/IndependentPolicyTests.kt": "b7d85738652817142a0b304ea50b841143d4ef0f24bc81bdcd9c99be4fc10e9e",
+    "src/test/kotlin/dev/qperiapt/continuity/PublicationTests.kt": "ad0136592535042170029c99f4ef9ff54df63a51524dae9271dc218228b1cc29",
+    "src/test/kotlin/dev/qperiapt/continuity/ConfigurationTests.kt": "f03ccb42b2e598b246f1ef2350ed43786fccdf4ec1483708c81ded4f9a9604ae",
+    "src/test/kotlin/dev/qperiapt/continuity/PolicyRenewalTests.kt": "2dbf1668a3a5d653bd95c7b08ade7c25284ca3d0b7559b83c3fb4f5d8489def8",
+    "src/test/kotlin/dev/qperiapt/continuity/RetirementTests.kt": "11539422cede32c66cda29c8c3698e47c98413d2fadcf4e4c58552b0e42b1cf4",
+    "src/test/kotlin/dev/qperiapt/continuity/RosterResolutionTests.kt": "cb90843a347e0e932ebae6412b02392dffdaca0af27e851dcaf2f735ce074be2",
+    "src/test/kotlin/dev/qperiapt/continuity/CredentialRenewalTests.kt": "292613206d6ee77b0e4046da95ee0a76db080b3d935bce60c79c4f384b28eff1",
+    "src/test/kotlin/dev/qperiapt/continuity/PeerConfigurationTests.kt": "7081a41a5e973000ccf8080d56dcd6850e88a496377a0c472c6d34af778a9139",
+    "src/test/kotlin/dev/qperiapt/continuity/PolicyContinuationTests.kt": "ddc63e366daa4227edcd0c1cfea980541e07f63befda2513a1e6d91cd5db4033",
+    "src/test/kotlin/dev/qperiapt/continuity/OwnerTests.kt": "f111f0ddfa7834d078fe01a28d381b5f408d9115b03d6d2785ffa560dee3c729",
+    "gradle/verification-metadata.xml": "543f58282de0ecd79210ccaefd89694b6a1ff641233e9d8b33f43c72eb746141",
+    "build.gradle.kts": "9c6d6f3f7ccc5a20d3535c3cd77e16a1f6e7744737e55e24028b867f2c315d4b",
+    "settings.gradle.kts": "7631f4aedfae8f369d4c4ab84784d0bf270922eb889c5e4b2a6e345021adf4db"
+  },
+  "native_exports": 132,
+  "native_api_changes": false,
+  "sdk_policy_replacement_qualified": false,
+  "independent_protocol_implementation": false,
+  "physical_platform_qualified": false,
+  "release_claim_eligible": false,
+  "archive": {
+    "sha256": "1e3fd1f3aebf4441130a808d10bf8c3ce92ab0e558f3bd6c40da48e601f0be0e",
+    "bytes": 4308290,
+    "members": 1659
+  },
+  "remaining": [
+    "Full installed-package pipeline and exact committed-head source gate/CI",
+    "Physical devices and minimum OS qualification",
+    "SDK policy replacement in this composed first-use path",
+    "Independent protocol implementation and broader 0.2 release requirements"
+  ]
+}

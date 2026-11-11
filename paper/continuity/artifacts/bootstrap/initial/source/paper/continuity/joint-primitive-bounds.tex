@@ -1,0 +1,247 @@
+% Shared-oracle primitive derivations for joint-continuation.tex, v0.3.
+% Place after primitive-inputs.tex. Uses its Phi_256 and E_NMAC conventions.
+\section{Shared-oracle primitives for the joint continuation}
+\label{app:joint-primitives}
+
+This appendix supplies the primitive reductions used in
+Section~\ref{sec:joint-continuation}. They use the same idealized SHA-256
+compression oracle throughout. Each experiment begins with independent
+oracle, hidden uniform 256-bit input and auxiliary state. All
+oracle-dependent preparation is executed within the counted algorithm.
+The designated hidden value is accessed through its stated interfaces.
+It and the private random tables remain internal throughout terminal testing.
+Ordinary public queries may be quantum; private function queries are
+classical and exact repeats are cached.
+
+We use $\Phi_{256}$ and $E_{\rm NMAC}$ from
+Appendix~\ref{app:primitive-inputs}, with
+\[
+ \ell(L)=1+\left\lceil\frac{L+9}{64}\right\rceil,
+ \qquad L\le 2^{61}-65.
+\]
+The HMAC padding includes the consumed 64-byte key pad: its encoded
+length is $8(64+|m|)$. Equal padded strings have equal encoded lengths
+and hence equal message prefixes within this domain. Thus the required
+padding is injective, and $\ell(L)$ bounds the ordinary row compression
+work after its two key-pad evaluations.
+
+\subsection{A shared HMAC row and column}
+\label{app:joint-row-column}
+
+For a 32-byte value $x$, define the 64-byte blocks
+\[
+ \begin{split}
+ I(x)&=(x\Vert0^{32})\oplus\mathtt{36}^{64},\\
+ O(x)&=(x\Vert0^{32})\oplus\mathtt{5c}^{64},\\
+ B(x)&=x\Vert P,\qquad
+ P=\mathtt{80}\Vert0^{23}\Vert\operatorname{BE64}(768).
+ \end{split}
+\]
+The final 32 bytes of $I(x),O(x),B(x)$ are respectively
+$\mathtt{36}^{32},\mathtt{5c}^{32},P$. These three ranges are disjoint,
+and each map is injective. Write
+\[
+ \alpha(a)=h(I(a),\mathrm{IV}),\qquad
+ \beta(a)=h(O(a),\mathrm{IV}),\qquad
+ \Gamma(a)=(\alpha(a),\beta(a)).
+\]
+The actual 32-byte-message column is
+\begin{equation}
+ F(a,R)=h\bigl(B(h(B(R),\alpha(a))),\beta(a)\bigr).
+ \label{eq:appendix-column-compression}
+\end{equation}
+The actual row is the NMAC-form expression
+\[
+ F(R,m)=\operatorname{Iter}_h\!\left(
+ \beta(R),\operatorname{pad}_{64}
+ \bigl(\operatorname{Iter}_h(\alpha(R),\operatorname{pad}_{64}(m))\bigr)
+ \right),
+\]
+where $\operatorname{pad}_{64}$ retains the consumed-key-pad length offset.
+
+For completeness, $E_{F_1}(C,q)$ denotes a valid distinguishing bound for
+\[
+ F_1(u,v)=\widetilde h(v,f(u))
+\]
+versus a private random function of the complete pair $(u,v)$.
+Here $f$ is an independent private random function from 256 to 256 bits;
+$\widetilde h$ is a public random function on 512-bit $v$ and 256-bit final
+input; there are $C$ classical $F_1$ calls and $q$ ordinary quantum queries.
+Hosoyamada and Iwata's Proposition~4~\cite{hmacqrom2021} gives
+\[
+ E_{F_1}(C,q)=
+ O\!\left(\sqrt{\frac{q_*^3}{2^{256}}}\right),
+ \qquad q_*=\max\{C,q\}=o(2^{256/3}),
+\]
+with the published constants and regime retained.
+
+\begin{lemma}[Independent-table shared-root bound]
+\label{lem:appendix-joint-hmac}
+An admissible operational bound is
+\begin{equation}
+\begin{split}
+ \varepsilon_{\rm Hjoint}(C,T,q,L)\le\min\{1,\;&
+ \Phi_{256}(C+2,q+3C+\ell(L)T)\\
+ &+E_{\rm NMAC}(T,q+3C,\ell(L))\\
+ &+E_{F_1}(C,q+2C)\}.
+\end{split}
+ \label{eq:appendix-joint-hmac}
+\end{equation}
+The ideal row and column are independent private functions
+$U(m)$ and $V(\Gamma(a))$, independent of the public oracle.
+\end{lemma}
+\begin{proof}
+First isolate every compression call with a raw occurrence of $R$:
+\[
+ \mathcal F_R(t,s)=h(\tau_t(R),s),
+ \qquad \tau_{\rm in}=I,\quad\tau_{\rm out}=O,\quad\tau_{\rm msg}=B.
+\]
+For a fixed $(t,s)$, each encoded point has probability at most $2^{-256}$.
+Different effective pairs encode different points for every $R$:
+different tags have disjoint block ranges, and equal tags retain the
+chaining state. Cache by the complete pair $(t,s)$, not just by the salt.
+This matters when two salts have the same $\alpha$ value.
+
+There are at most $C+2$ distinct private calls: the two root key-pad
+evaluations and at most $C$ message-block evaluations at $\alpha(a)$.
+The remaining ordinary work is at most $q+3C+\ell(L)T$, including each
+column's two public pad states and outer call, and each row's continuation.
+Don, Fehr and Huang's Theorem~2~\cite{dfh2022} therefore replaces
+$\mathcal F_R$ by a private random function at the first cost in
+\eqref{eq:appendix-joint-hmac}.
+
+Its restrictions
+\[
+ A=\mathcal F({\rm in},\mathrm{IV}),\quad
+ D=\mathcal F({\rm out},\mathrm{IV}),\quad
+ f(s)=\mathcal F({\rm msg},s)
+\]
+are independent of one another and $h$. The row is now NMAC with independent
+inner and outer keys $A,D$. The simultaneous column is
+$h(B(f(\alpha(a))),\beta(a))$. To replace the row, the NMAC reduction
+samples its own $f$ table and answers a column with three ordinary
+compression calls. Proposition~6 of Hosoyamada and Iwata
+\cite{hmacqrom2021}, with the prescribed offset padding, gives the second
+term and a private row function $U$ independent of $f,h$.
+
+For the column, reindex the \emph{same} oracle by
+\[
+ \widetilde h((t,s),y)=h(y\Vert t,s),
+ \qquad |t|=|s|=|y|=256.
+\]
+This is a fixed bijection on all 768 input bits. It is implemented
+coherently by wire permutation and one oracle call, not by introducing an
+independent hash. The remaining column is exactly
+\[
+ \widetilde h\bigl((P,\beta(a)),f(\alpha(a))\bigr)
+   =F_1\bigl(\alpha(a),(P,\beta(a))\bigr).
+\]
+Computing its public states costs two ordinary calls per column. The
+independent row table $U$ needs no compression queries.
+The $F_1$ bound therefore applies with $C$ private calls and at most
+$q+2C$ ordinary calls. Its ideal reply is indexed by
+$(\alpha(a),P,\beta(a))$, equivalently by $\Gamma(a)$ since $P$ is fixed.
+Equal $\Gamma$ values must share a reply; their equality is never assumed
+to imply equal salts. Summing the three replacements proves the result.
+\end{proof}
+
+The lemma compares against the independent-table ideal. In particular it
+does not assert pointwise real equality at an exceptional cross-interface
+pair where both classical arguments equal the hidden root. Such guesses
+are admitted by the real experiment and covered by the three
+distinguishing steps. A different ideal that explicitly repairs this
+cross-pair needs its own comparison; it is not used here.
+
+\subsection{The multiple-message row and a single Extract column}
+
+For $\varepsilon_{\rm Hrow}(T,q,L)$, the adversary has an adaptive classical
+row oracle. It can choose later messages using earlier replies and its
+quantum computation with the common public oracle. Equal messages retrieve
+equal values. There is no requirement that the full transcript be fixed
+before the first reply, and there is no raw-key disclosure channel.
+
+\begin{lemma}[Row and single-column instances]
+\label{lem:appendix-hmac-instances}
+The following bounds instantiate the operational games:
+\begin{align}
+ \varepsilon_{\rm Hrow}(T,q,L)
+ &\le\min\{1,\,
+ \Phi_{256}(2,q+\ell(L)T)+E_{\rm NMAC}(T,q,\ell(L))\},
+ \label{eq:appendix-multirow}\\
+ \varepsilon_{\rm Hcol}(q)
+ &\le\min\{1,\,
+ \Phi_{256}(3,q+3)+E_{F_1}(1,q+2)\}.
+ \label{eq:appendix-single-column}
+\end{align}
+\end{lemma}
+\begin{proof}
+For the row, only $I(K)$ and $O(K)$ contain the hidden key.
+The same disjoint-encoding replacement uses two private calls and at most
+$q+\ell(L)T$ ordinary calls. The resulting independent-key NMAC receives
+all $T$ adaptive messages, and its replacement is precisely the private
+row function. No conversion to a one-transcript game is made.
+
+For one distinct zero-salt column, omit the NMAC step from
+Lemma~\ref{lem:appendix-joint-hmac}, put $C=1$, and use its conservative
+$C+2=3$ private-call budget. The only visited $\Gamma(0)$ entry gives one
+uniform reply independent of $h$ and of the executed prefix. The extra
+two private-call slots need not actually be used; retaining this upper
+bound agrees with the existing shared-root accounting.
+\end{proof}
+
+\subsection{Root initialization at the actual entry boundary}
+\label{app:joint-root-entry}
+
+Let $S$ be an independent uniform 32-byte contribution. Executed
+preparation may choose a known 32-byte old root $r$ and the response
+core using the public oracle, but has no other raw use of $S$. Consider
+one original Extract/Expand,
+\[
+ P=F(r,S),\qquad R=F(P,I_R\Vert\mathtt{01}),
+\]
+with the actual 97-byte information string from
+Section~\ref{sec:joint-continuation}. Repeats reuse this result.
+The value $P$ has only this Expand use; $S,P$ have no other output
+channel. The entire later protocol is generated from $R$.
+
+First apply the single hidden-message column argument to salt $r$.
+Its ideal value is $V(\Gamma(r))$. Even when $r$ depends on the public
+oracle prefix, this first table value is fresh independent uniform:
+conditional on each oracle and prepared state, its index is fixed and
+has not been visited. Presampling a fresh PRK and withholding it until
+this call gives exactly this joint distribution.
+
+Embed a hidden row key at that PRK and answer the one 98-byte Expand
+message. Its ideal reply is a fresh uniform root. It can again be
+presampled and withheld until creation, independent of the common
+oracle and all earlier state. All later confirmations, signatures,
+traffic and successor operations are recomputed from this root.
+The proof therefore supplies the initialization for
+Theorem~\ref{thm:joint-message-leaf} to the entire interactive
+continuation.
+
+If $B$ bounds all ordinary compression work other than this derivation
+and the displayed public salt-state computations, conservative budgets
+are $q_{\rm ext}\le B+5$ and $q_{\rm exp}\le B+2$.
+The former includes the five actual root-Expand compression calls; the
+latter includes the two public states in $\Gamma(r)$.
+Since $\ell(98)=3$, the resulting bit error is
+\begin{equation}
+\begin{split}
+ \Delta_{\rm init}\le\min\{1,\;&
+ \Phi_{256}(3,B+8)+E_{F_1}(1,B+7)\\
+ &+\Phi_{256}(2,B+5)+E_{\rm NMAC}(1,B+2,3)\}.
+\end{split}
+ \label{eq:appendix-root-initialization}
+\end{equation}
+All terms count the complete continuation in their respective reductions.
+The bound retains the published asymptotic constants and their stated
+parameter regimes.
+
+The downstream length budgets are equally explicit: confirmation
+information lengths $62,58,60$ give row messages $63,59,61$; the
+155-byte traffic information gives $156,188,188,188$; and the
+56-byte first-step information gives $57,89$. Thus the shared root row
+has $\ell(32)=2$, the traffic rows have maximum $\ell(188)=5$, and the
+selected chain row has $\ell(89)=3$. These counts include the previous
+HKDF output block where it is part of the actual HMAC message.

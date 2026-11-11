@@ -15,6 +15,7 @@ import argparse
 import contextlib
 import dataclasses
 import datetime as dt
+import enum
 import errno
 import hashlib
 import os
@@ -33,10 +34,27 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable, Iterator, Mapping, Sequence
-from typing import Any, ContextManager, Literal, Never, TextIO
+from typing import Any, ContextManager, Literal, Never, Protocol, TextIO
 
 import rust_package_handoff
-from bounded_process import BoundedResult, capture_stdout
+from rust_sdk_profile import COHORT as SDK_COHORT
+from http_connect_proxy import HttpConnectProxyError, validate_http_connect_proxy
+from bounded_process import (
+    BOUNDED_PROCESS_ERROR_KINDS,
+    BoundedProcessError,
+    BoundedResult,
+    capture_stdout,
+)
+from crates_io_upload_diagnostic import (
+    UploadDiagnostic,
+    UploadDiagnosticError,
+    parse_upload_diagnostic,
+    validate_upload_diagnostic_document,
+)
+from crates_io_tooling_recovery import (
+    CratesIoToolingRecoveryError,
+    validate_crates_io_tooling_recovery_lineage,
+)
 from crates_io_publication_contract import (
     ABI_VERSION,
     CRATE_DEPENDENCIES,
@@ -230,10 +248,15 @@ RUST_PACKAGE_HANDOFF_STAGING_KIND = "qperiapt.rust_package_handoff_staging"
 RUST_PACKAGE_HANDOFF_BOUNDARY = rust_package_handoff.RUST_PACKAGE_HANDOFF_BOUNDARY
 
 UPLOAD_JOURNAL_SCHEMA_VERSION = 1
+UPLOAD_JOURNAL_SCHEMA_V2 = 2
 UPLOAD_JOURNAL_KIND = "qperiapt.crates_io_upload_attempt"
 UPLOAD_JOURNAL_INTENT = "upload_intent"
 UPLOAD_JOURNAL_UNKNOWN = "upload_outcome_unknown"
 UPLOAD_JOURNAL_PUBLISHED = "upload_outcome_published_verified"
+_UPLOAD_ADAPTER_ERRORS = frozenset(
+    {"diagnostic-invalid", "uploader-exception", "uploader-contract"}
+    | {f"process-{kind}" for kind in BOUNDED_PROCESS_ERROR_KINDS}
+)
 
 RunMode = Literal["dry-run", "verify", "publish"]
 HttpFetcher = Callable[..., "HttpResponse"]
@@ -248,6 +271,33 @@ SourceTransitionVerifier = Callable[
     ["SourceIdentity", pathlib.Path, str],
     None,
 ]
+
+
+class PublicationRelease(enum.Enum):
+    """Closed account/state namespaces for independently validated cohorts."""
+
+    ABI2_V0_1_5 = "0.1.5"
+    SDK_V0_2_0 = "0.2.0"
+
+    @property
+    def state_leaf(self) -> str:
+        return f"crates.io-v{self.value}"
+
+    @property
+    def receipt_leaf(self) -> str:
+        return f"crates-io-v{self.value}-publication-receipt.json"
+
+    @property
+    def journal_leaf(self) -> str:
+        return f"crates-io-v{self.value}-upload-attempt.json"
+
+    @property
+    def lock_leaf(self) -> str:
+        return f"qperiapt-crates-io-v{self.value}.lock"
+
+    @property
+    def acknowledgement(self) -> str:
+        return f"publish-q-periapt-abi2-v{self.value}-to-crates.io-is-irreversible"
 
 
 class CratesIoPublicationError(ValueError):
@@ -382,6 +432,52 @@ class LocalPublicationEvidence:
     package_root: pathlib.Path
     crates: tuple[LocalCrate, ...]
 
+    @property
+    def release(self) -> PublicationRelease:
+        return PublicationRelease.ABI2_V0_1_5
+
+    def source_document(self) -> dict[str, str]:
+        return _source_identity_document(self.source)
+
+    def package_contract_document(self) -> dict[str, str]:
+        return {
+            "completed_at": self.package_contract.completed_at,
+            "handoff_sha256": self.handoff_manifest_sha256,
+            "source_commit": self.package_contract.source_commit,
+            "transcript_sha256": self.transcript_sha256,
+        }
+
+    def receipt_header(self) -> dict[str, object]:
+        return {
+            "boundary": CRATES_IO_PUBLICATION_BOUNDARY,
+            "identity": {"abi_version": ABI_VERSION, "product_version": PRODUCT_VERSION,
+                         "publication_key": CRATES_IO_PUBLICATION_KEY, "registry": CRATES_IO_REGISTRY},
+            "kind": CRATES_IO_PUBLICATION_KIND,
+            "schema_version": CRATES_IO_PUBLICATION_SCHEMA_VERSION,
+        }
+
+    def validate_receipt(self, value: object) -> None:
+        validate_crates_io_publication_receipt(value)
+
+    def resample(self) -> None:
+        _resample_local_evidence(self)
+
+
+class PublicationEvidence(Protocol):
+    """Validated local inputs used by the common registry transaction engine."""
+
+    @property
+    def release(self) -> PublicationRelease: ...
+    @property
+    def handoff_manifest_sha256(self) -> str: ...
+    @property
+    def crates(self) -> tuple[LocalCrate, ...]: ...
+    def source_document(self) -> dict[str, str]: ...
+    def package_contract_document(self) -> dict[str, str]: ...
+    def receipt_header(self) -> dict[str, object]: ...
+    def validate_receipt(self, value: object) -> None: ...
+    def resample(self) -> None: ...
+
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class RemotePublishedRecord:
@@ -405,6 +501,32 @@ class WrittenReceipt:
     sha256: str
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class DiagnosedUploadResult(BoundedResult):
+    diagnostic: UploadDiagnostic
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class UploadExecutionDiagnostic:
+    returncode: int | None
+    transport: UploadDiagnostic | None
+    adapter_error: str | None
+
+    def document(self) -> dict[str, object]:
+        return {
+            "returncode": self.returncode,
+            "transport": self.transport.to_document() if self.transport is not None else None,
+            "adapter_error": self.adapter_error,
+        }
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class UploadRetryAuthorization:
+    intent_sha256: str
+    absence_receipt_sha256: str
+    absence_observed_at: str
+
+
 @dataclasses.dataclass(frozen=True, slots=True)
 class UploadIntent:
     attempt_id: str
@@ -412,6 +534,7 @@ class UploadIntent:
     digest: str
     path: pathlib.Path
     recorded_at: str
+    retry: UploadRetryAuthorization | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -421,6 +544,7 @@ class UploadOutcome:
     intent_sha256: str
     state: str
     recorded_at: str
+    diagnostic: UploadExecutionDiagnostic | None = None
 
 
 def _fail(message: str) -> Never:
@@ -565,6 +689,8 @@ def _digest_file(
 
 def _validated_publication_state_root(
     state_root: pathlib.Path,
+    *,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
 ) -> pathlib.Path:
     _require(
         isinstance(state_root, pathlib.Path) and state_root.is_absolute(),
@@ -575,7 +701,7 @@ def _validated_publication_state_root(
         account_home
         / ".q-periapt"
         / "publication-state"
-        / "crates.io-v0.1.5"
+        / release.state_leaf
     )
     _require(
         state_root == expected_root
@@ -667,14 +793,16 @@ def _publication_account_home_path() -> pathlib.Path:
     return home
 
 
-def _expected_publication_state_root() -> pathlib.Path:
+def _expected_publication_state_root(
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
+) -> pathlib.Path:
     """Derive the sole production authority without consuming a CLI path."""
 
     return (
         _publication_account_home_path()
         / ".q-periapt"
         / "publication-state"
-        / "crates.io-v0.1.5"
+        / release.state_leaf
     )
 
 
@@ -767,12 +895,14 @@ def _registered_git_worktree_roots() -> tuple[pathlib.Path, ...]:
 @contextlib.contextmanager
 def _production_publication_lock(
     state_root: pathlib.Path,
+    *,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
 ) -> Iterator[None]:
     """Hold one persistent-inode, crash-released POSIX publication lock."""
 
     if os.name != "posix" or fcntl is None:
         _fail("production crates.io publication locking requires POSIX flock")
-    root = _validated_publication_state_root(state_root)
+    root = _validated_publication_state_root(state_root, release=release)
     try:
         root_descriptor = open_private_directory(
             root, label="shared crates.io publication state root"
@@ -791,14 +921,14 @@ def _production_publication_lock(
         )
         try:
             lock_descriptor = os.open(
-                CRATES_IO_PUBLICATION_LOCK_NAME,
+                release.lock_leaf,
                 flags,
                 PRIVATE_FILE_MODE,
                 dir_fd=root_descriptor,
             )
             metadata = os.fstat(lock_descriptor)
             named = os.stat(
-                CRATES_IO_PUBLICATION_LOCK_NAME,
+                release.lock_leaf,
                 dir_fd=root_descriptor,
                 follow_symlinks=False,
             )
@@ -835,7 +965,7 @@ def _production_publication_lock(
             ) from exc
         locked = os.fstat(lock_descriptor)
         named_locked = os.stat(
-            CRATES_IO_PUBLICATION_LOCK_NAME,
+            release.lock_leaf,
             dir_fd=root_descriptor,
             follow_symlinks=False,
         )
@@ -856,7 +986,7 @@ def _production_publication_lock(
         yield
         root_after = root.lstat()
         lock_after = os.stat(
-            CRATES_IO_PUBLICATION_LOCK_NAME,
+            release.lock_leaf,
             dir_fd=root_descriptor,
             follow_symlinks=False,
         )
@@ -899,21 +1029,34 @@ def _production_publication_lock(
 
 def production_lock_factory(
     state_root: pathlib.Path,
+    *,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
 ) -> PublicationLockFactory:
     """Return the fixed same-host/same-account cross-worktree lock callback."""
 
-    normalized = _validated_publication_state_root(state_root)
+    normalized = _validated_publication_state_root(state_root, release=release)
 
     def acquire() -> ContextManager[None]:
-        return _production_publication_lock(normalized)
+        return _production_publication_lock(normalized, release=release)
 
     return acquire
+
+
+def _validated_http_connect_proxy(value: str) -> str:
+    """Translate the shared route boundary into the crates publication domain."""
+
+    try:
+        return validate_http_connect_proxy(value)
+    except HttpConnectProxyError as exc:
+        raise CratesIoPublicationError(str(exc)) from exc
 
 
 def production_upload_runner(
     uploader_command: pathlib.Path,
     *,
     state_root: pathlib.Path,
+    http_connect_proxy: str | None = None,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
 ) -> UploadRunner:
     """Adapt the fixed state-root-owned exact-byte uploader to the bounded runner API.
 
@@ -926,7 +1069,11 @@ def production_upload_runner(
     capability to the trusted owner of that private publication root.
     """
 
-    normalized_state_root = _validated_publication_state_root(state_root)
+    proxy_arguments = (
+        [] if http_connect_proxy is None
+        else ["--http-connect-proxy", _validated_http_connect_proxy(http_connect_proxy)]
+    )
+    normalized_state_root = _validated_publication_state_root(state_root, release=release)
     command = _canonical_input_file(
         uploader_command, label="crates.io exact-byte uploader"
     )
@@ -1020,6 +1167,7 @@ def production_upload_runner(
                     str(package.size),
                     "--sha256",
                     package.sha256,
+                    *proxy_arguments,
                 ],
                 timeout_seconds=UPLOAD_TIMEOUT_SECONDS,
                 maximum_bytes=MAX_UPLOADER_OUTPUT_BYTES,
@@ -1076,10 +1224,10 @@ def production_upload_runner(
             and stat.S_IMODE(final_state.st_mode) == PRIVATE_DIRECTORY_MODE,
             "crates.io publication state root changed during uploader invocation",
         )
-        secret = credential.encode("utf-8")
-        if secret in result.stdout:
-            return BoundedResult(returncode=1)
-        return BoundedResult(returncode=result.returncode)
+        diagnostic = parse_upload_diagnostic(
+            result.stdout, credential=credential, returncode=result.returncode
+        )
+        return DiagnosedUploadResult(returncode=result.returncode, diagnostic=diagnostic)
 
     return upload
 
@@ -2283,7 +2431,7 @@ def _sparse_path(crate_name: str) -> str:
     # Names are taken solely from the frozen topology.  Keep Cargo's canonical
     # lowercase sparse-index sharding local to the registry adapter.
     _require(
-        crate_name in CRATE_DEPENDENCIES,
+        crate_name in CRATE_DEPENDENCIES or crate_name in SDK_COHORT,
         "sparse-index crate is outside the frozen topology",
     )
     lowered = crate_name.lower()
@@ -2625,13 +2773,13 @@ def observe_remote_crate(
 
 
 def observe_remote_prefix(
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
     *,
     api_fetcher: HttpFetcher = _https_get,
     sparse_fetcher: HttpFetcher = _https_get,
     clock: Clock = lambda: dt.datetime.now(dt.UTC),
 ) -> tuple[RemotePublishedRecord | None, ...]:
-    """Observe all ten crates and require one exact published prefix."""
+    """Observe the selected cohort and require one exact published prefix."""
 
     observations = tuple(
         observe_remote_crate(
@@ -2654,7 +2802,7 @@ def observe_remote_prefix(
 
 
 def assemble_publication_receipt(
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
     observations: Sequence[RemotePublishedRecord | None],
     *,
     observed_at: str,
@@ -2663,7 +2811,7 @@ def assemble_publication_receipt(
 
     _require(
         len(observations) == len(evidence.crates),
-        "remote observation count differs from the ten local crates",
+        "remote observation count differs from the local cohort",
     )
     crate_documents: list[dict[str, object]] = []
     published_count = 0
@@ -2696,26 +2844,13 @@ def assemble_publication_receipt(
             )
         crate_documents.append(document)
     receipt: dict[str, object] = {
-        "boundary": CRATES_IO_PUBLICATION_BOUNDARY,
+        **evidence.receipt_header(),
         "crates": crate_documents,
-        "identity": {
-            "abi_version": ABI_VERSION,
-            "product_version": PRODUCT_VERSION,
-            "publication_key": CRATES_IO_PUBLICATION_KEY,
-            "registry": CRATES_IO_REGISTRY,
-        },
-        "kind": CRATES_IO_PUBLICATION_KIND,
         "observation": {
             "observed_at": observed_at,
-            "package_contract": {
-                "completed_at": evidence.package_contract.completed_at,
-                "handoff_sha256": evidence.handoff_manifest_sha256,
-                "source_commit": evidence.package_contract.source_commit,
-                "transcript_sha256": evidence.transcript_sha256,
-            },
-            "source": _source_identity_document(evidence.source),
+            "package_contract": evidence.package_contract_document(),
+            "source": evidence.source_document(),
         },
-        "schema_version": CRATES_IO_PUBLICATION_SCHEMA_VERSION,
         "status": (
             PUBLICATION_STATUS_PUBLISHED_VERIFIED
             if published_count == len(evidence.crates)
@@ -2723,7 +2858,7 @@ def assemble_publication_receipt(
         ),
     }
     try:
-        validate_crates_io_publication_receipt(receipt)
+        evidence.validate_receipt(receipt)
     except CratesIoPublicationContractError as exc:
         raise CratesIoPublicationError(str(exc)) from exc
     return receipt
@@ -2732,26 +2867,21 @@ def assemble_publication_receipt(
 def _previous_published_count(
     previous_receipt: Mapping[str, object] | None,
     *,
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
 ) -> int:
     if previous_receipt is None:
         return 0
     try:
-        validate_crates_io_publication_receipt(previous_receipt)
+        evidence.validate_receipt(previous_receipt)
     except CratesIoPublicationContractError as exc:
         raise CratesIoPublicationError(str(exc)) from exc
     observation = previous_receipt["observation"]
     _require(isinstance(observation, dict), "prior observation type differs")
     _require(
-        observation["source"] == _source_identity_document(evidence.source),
+        observation["source"] == evidence.source_document(),
         "prior receipt source identity differs",
     )
-    expected_package_contract = {
-        "completed_at": evidence.package_contract.completed_at,
-        "handoff_sha256": evidence.handoff_manifest_sha256,
-        "source_commit": evidence.package_contract.source_commit,
-        "transcript_sha256": evidence.transcript_sha256,
-    }
+    expected_package_contract = evidence.package_contract_document()
     _require(
         observation["package_contract"] == expected_package_contract,
         "prior receipt package contract differs",
@@ -2783,6 +2913,8 @@ def load_previous_receipt(
     path: pathlib.Path,
     *,
     safe_root: pathlib.Path = CRATES_IO_PUBLICATION_RECEIPT_ROOT,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
+    validator: Callable[[object], None] = validate_crates_io_publication_receipt,
 ) -> dict[str, object]:
     """Read one private no-link receipt from a transaction below the fixed root."""
 
@@ -2790,7 +2922,7 @@ def load_previous_receipt(
         snapshot = read_fixed_json_snapshot(
             path,
             safe_root=safe_root,
-            expected_leaf=CRATES_IO_PUBLICATION_RECEIPT_NAME,
+            expected_leaf=release.receipt_leaf,
             label="crates.io prior publication receipt",
             parent_depth=1,
             maximum=MAX_RECEIPT_BYTES,
@@ -2798,7 +2930,7 @@ def load_previous_receipt(
             root_mode=PRIVATE_DIRECTORY_MODE,
             parent_mode=PRIVATE_DIRECTORY_MODE,
         )
-        validate_crates_io_publication_receipt(snapshot.value)
+        validator(snapshot.value)
     except (PublicationReceiptIOError, CratesIoPublicationContractError) as exc:
         raise CratesIoPublicationError(str(exc)) from exc
     return snapshot.value
@@ -2808,15 +2940,17 @@ def write_publication_receipt(
     receipt: dict[str, object],
     *,
     receipt_root: pathlib.Path = CRATES_IO_PUBLICATION_RECEIPT_ROOT,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
+    validator: Callable[[object], None] = validate_crates_io_publication_receipt,
 ) -> tuple[pathlib.Path, str]:
     """Write one immutable private receipt in a fresh no-replace transaction."""
 
     try:
-        validate_crates_io_publication_receipt(receipt)
+        validator(receipt)
         return create_private_transaction_json(
             safe_root=receipt_root,
             transaction_prefix="transaction.",
-            expected_leaf=CRATES_IO_PUBLICATION_RECEIPT_NAME,
+            expected_leaf=release.receipt_leaf,
             value=receipt,
             label="crates.io publication receipt",
             maximum=MAX_RECEIPT_BYTES,
@@ -2834,13 +2968,15 @@ def _journal_crate_document(package: LocalCrate) -> dict[str, str]:
 
 
 def _journal_record(
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
     package: LocalCrate,
     *,
     state: str,
     attempt_id: str,
     recorded_at: str,
     intent_sha256: str | None = None,
+    retry: UploadRetryAuthorization | None = None,
+    diagnostic: UploadExecutionDiagnostic | None = None,
 ) -> dict[str, object]:
     _require(
         state
@@ -2866,18 +3002,38 @@ def _journal_record(
         "kind": UPLOAD_JOURNAL_KIND,
         "recorded_at": recorded_at,
         "schema_version": UPLOAD_JOURNAL_SCHEMA_VERSION,
-        "source": _source_identity_document(evidence.source),
+        "source": evidence.source_document(),
         "state": state,
     }
     if state == UPLOAD_JOURNAL_INTENT:
+        _require(diagnostic is None, "upload intent cannot contain a result diagnostic")
         _require(intent_sha256 is None, "upload intent cannot reference itself")
+        if retry is not None:
+            _require(
+                isinstance(retry, UploadRetryAuthorization),
+                "upload retry authorization type differs",
+            )
+            retry_value = dataclasses.asdict(retry)
+            _validated_retry_authorization(retry_value, recorded_at=recorded_at)
+            value["schema_version"] = UPLOAD_JOURNAL_SCHEMA_V2
+            value["retry"] = retry_value
     else:
+        _require(retry is None, "upload outcome cannot authorize a retry")
         _require(
             isinstance(intent_sha256, str)
             and _SHA256_RE.fullmatch(intent_sha256) is not None,
             "upload outcome intent digest is malformed",
         )
         value["intent_sha256"] = intent_sha256
+        if diagnostic is not None:
+            _require(
+                isinstance(diagnostic, UploadExecutionDiagnostic),
+                "upload execution diagnostic type differs",
+            )
+            diagnostic_value = diagnostic.document()
+            _validated_execution_diagnostic(diagnostic_value)
+            value["schema_version"] = UPLOAD_JOURNAL_SCHEMA_V2
+            value["diagnostic"] = diagnostic_value
     return value
 
 
@@ -2885,12 +3041,13 @@ def _write_upload_journal_record(
     value: dict[str, object],
     *,
     journal_root: pathlib.Path,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
 ) -> tuple[pathlib.Path, str]:
     try:
         return create_private_transaction_json(
             safe_root=journal_root,
             transaction_prefix="transaction.",
-            expected_leaf=CRATES_IO_PUBLICATION_JOURNAL_NAME,
+            expected_leaf=release.journal_leaf,
             value=value,
             label="crates.io upload journal",
             maximum=256 * 1024,
@@ -2900,11 +3057,12 @@ def _write_upload_journal_record(
 
 
 def write_upload_intent(
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
     package: LocalCrate,
     *,
     journal_root: pathlib.Path = CRATES_IO_PUBLICATION_JOURNAL_ROOT,
     clock: Clock = lambda: dt.datetime.now(dt.UTC),
+    retry: UploadRetryAuthorization | None = None,
 ) -> UploadIntent:
     """Durably record one exact upload intent before invoking the uploader."""
 
@@ -2917,10 +3075,12 @@ def write_upload_intent(
         state=UPLOAD_JOURNAL_INTENT,
         attempt_id=attempt_id,
         recorded_at=recorded_at,
+        retry=retry,
     )
     path, digest = _write_upload_journal_record(
         value,
         journal_root=journal_root,
+        release=evidence.release,
     )
     return UploadIntent(
         attempt_id=attempt_id,
@@ -2928,11 +3088,12 @@ def write_upload_intent(
         digest=digest,
         path=path,
         recorded_at=recorded_at,
+        retry=retry,
     )
 
 
 def write_upload_outcome(
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
     package: LocalCrate,
     intent: UploadIntent,
     *,
@@ -2941,6 +3102,7 @@ def write_upload_outcome(
     ],
     journal_root: pathlib.Path = CRATES_IO_PUBLICATION_JOURNAL_ROOT,
     clock: Clock = lambda: dt.datetime.now(dt.UTC),
+    diagnostic: UploadExecutionDiagnostic | None = None,
 ) -> tuple[pathlib.Path, str]:
     """Append one outcome cross-linked to an immutable upload intent."""
 
@@ -2956,8 +3118,9 @@ def write_upload_outcome(
         attempt_id=intent.attempt_id,
         intent_sha256=intent.digest,
         recorded_at=_canonical_timestamp(clock),
+        diagnostic=diagnostic,
     )
-    return _write_upload_journal_record(value, journal_root=journal_root)
+    return _write_upload_journal_record(value, journal_root=journal_root, release=evidence.release)
 
 
 def _journal_transaction_names(journal_root: pathlib.Path) -> tuple[str, ...]:
@@ -3029,6 +3192,8 @@ def _journal_transaction_names(journal_root: pathlib.Path) -> tuple[str, ...]:
 
 def _recover_incomplete_upload_journal_transactions(
     journal_root: pathlib.Path,
+    *,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
 ) -> tuple[str, ...]:
     """Remove only descriptor-proven precommit residue while the caller holds the lock."""
 
@@ -3104,13 +3269,13 @@ def _recover_incomplete_upload_journal_transactions(
                         transaction_entry.name
                         for transaction_entry in transaction_entries
                     )
-                if CRATES_IO_PUBLICATION_JOURNAL_NAME in inventory:
+                if release.journal_leaf in inventory:
                     # A visible final leaf is never recovery residue. The
                     # ordinary loader will either validate the exact singleton
                     # inventory or fail closed on any mixed transaction.
                     continue
                 pending_leaf = (
-                    f".{CRATES_IO_PUBLICATION_JOURNAL_NAME}.pending-"
+                    f".{release.journal_leaf}.pending-"
                     f"{transaction_pid}"
                 )
                 _require(
@@ -3281,12 +3446,75 @@ def _recover_incomplete_upload_journal_transactions(
                 ) from exc
 
 
+def _validated_execution_diagnostic(value: object) -> UploadExecutionDiagnostic:
+    _require(
+        isinstance(value, dict)
+        and set(value) == {"returncode", "transport", "adapter_error"},
+        "upload execution diagnostic keys differ",
+    )
+    returncode = value["returncode"]
+    _require(
+        returncode is None or type(returncode) is int,
+        "upload execution diagnostic returncode is malformed",
+    )
+    if value["transport"] is not None:
+        _require(
+            type(returncode) is int and value["adapter_error"] is None,
+            "upload transport diagnostic cannot contain an adapter error",
+        )
+        try:
+            transport = validate_upload_diagnostic_document(
+                value["transport"], returncode=returncode
+            )
+        except UploadDiagnosticError as exc:
+            raise CratesIoPublicationError("upload transport diagnostic is invalid") from exc
+        return UploadExecutionDiagnostic(returncode, transport, None)
+    _require(
+        isinstance(value["adapter_error"], str)
+        and value["adapter_error"] in _UPLOAD_ADAPTER_ERRORS,
+        "upload adapter diagnostic is invalid",
+    )
+    return UploadExecutionDiagnostic(returncode, None, value["adapter_error"])
+
+
+def _validated_retry_authorization(
+    value: object,
+    *,
+    recorded_at: str,
+) -> UploadRetryAuthorization:
+    _require(
+        isinstance(value, dict)
+        and set(value)
+        == {"intent_sha256", "absence_receipt_sha256", "absence_observed_at"},
+        "upload retry authorization keys differ",
+    )
+    for field in ("intent_sha256", "absence_receipt_sha256"):
+        _require(
+            isinstance(value[field], str)
+            and _SHA256_RE.fullmatch(value[field]) is not None,
+            f"upload retry {field} is malformed",
+        )
+    try:
+        observed = parse_utc_timestamp(
+            value["absence_observed_at"], "upload retry absence_observed_at"
+        )
+        recorded = parse_utc_timestamp(recorded_at, "upload retry recorded_at")
+    except CratesIoPublicationContractError as exc:
+        raise CratesIoPublicationError(str(exc)) from exc
+    _require(observed <= recorded, "upload retry absence observation is in the future")
+    return UploadRetryAuthorization(
+        intent_sha256=value["intent_sha256"],
+        absence_receipt_sha256=value["absence_receipt_sha256"],
+        absence_observed_at=value["absence_observed_at"],
+    )
+
+
 def _validated_journal_value(
     value: object,
     *,
     digest: str,
     path: pathlib.Path,
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
 ) -> UploadIntent | UploadOutcome:
     _require(
         isinstance(value, dict)
@@ -3294,6 +3522,7 @@ def _validated_journal_value(
         "upload journal record must be a JSON object with string keys",
     )
     state = value.get("state")
+    schema = value.get("schema_version")
     expected_keys = {
         "attempt_id",
         "crate",
@@ -3306,13 +3535,18 @@ def _validated_journal_value(
     }
     if state != UPLOAD_JOURNAL_INTENT:
         expected_keys.add("intent_sha256")
+    if schema == UPLOAD_JOURNAL_SCHEMA_V2:
+        expected_keys.add("retry" if state == UPLOAD_JOURNAL_INTENT else "diagnostic")
     _require(
         set(value) == expected_keys,
         "upload journal record keys differ",
     )
     _require(
-        value["schema_version"] == UPLOAD_JOURNAL_SCHEMA_VERSION
-        and type(value["schema_version"]) is int,
+        type(schema) is int
+        and (
+            schema == UPLOAD_JOURNAL_SCHEMA_VERSION
+            or schema == UPLOAD_JOURNAL_SCHEMA_V2
+        ),
         "upload journal schema differs",
     )
     _require(value["kind"] == UPLOAD_JOURNAL_KIND, "upload journal kind differs")
@@ -3341,7 +3575,7 @@ def _validated_journal_value(
     except CratesIoPublicationContractError as exc:
         raise CratesIoPublicationError(str(exc)) from exc
     _require(
-        value["source"] == _source_identity_document(evidence.source),
+        value["source"] == evidence.source_document(),
         "upload journal source identity differs",
     )
     _require(
@@ -3366,12 +3600,18 @@ def _validated_journal_value(
         f"upload journal local archive differs for {crate_name}",
     )
     if state == UPLOAD_JOURNAL_INTENT:
+        retry = (
+            _validated_retry_authorization(value["retry"], recorded_at=recorded_at)
+            if schema == UPLOAD_JOURNAL_SCHEMA_V2
+            else None
+        )
         return UploadIntent(
             attempt_id=attempt_id,
             crate_name=crate_name,
             digest=digest,
             path=path,
             recorded_at=recorded_at,
+            retry=retry,
         )
     intent_sha256 = value["intent_sha256"]
     _require(
@@ -3385,13 +3625,19 @@ def _validated_journal_value(
         intent_sha256=intent_sha256,
         state=state,
         recorded_at=recorded_at,
+        diagnostic=(
+            _validated_execution_diagnostic(value["diagnostic"])
+            if schema == UPLOAD_JOURNAL_SCHEMA_V2
+            else None
+        ),
     )
 
 
 def load_unresolved_upload_intents(
-    evidence: LocalPublicationEvidence,
+    evidence: PublicationEvidence,
     *,
     journal_root: pathlib.Path = CRATES_IO_PUBLICATION_JOURNAL_ROOT,
+    retry_authorization: UploadRetryAuthorization | None = None,
 ) -> tuple[UploadIntent, ...]:
     """Return intents lacking an exact published outcome; reject ambiguity."""
 
@@ -3401,13 +3647,13 @@ def load_unresolved_upload_intents(
         path = (
             journal_root
             / transaction_name
-            / CRATES_IO_PUBLICATION_JOURNAL_NAME
+            / evidence.release.journal_leaf
         )
         try:
             snapshot = read_fixed_json_snapshot(
                 path,
                 safe_root=journal_root,
-                expected_leaf=CRATES_IO_PUBLICATION_JOURNAL_NAME,
+                expected_leaf=evidence.release.journal_leaf,
                 label="crates.io upload journal record",
                 parent_depth=1,
                 maximum=256 * 1024,
@@ -3415,7 +3661,7 @@ def load_unresolved_upload_intents(
                 root_mode=PRIVATE_DIRECTORY_MODE,
                 parent_mode=PRIVATE_DIRECTORY_MODE,
                 expected_parent_entries=frozenset(
-                    {CRATES_IO_PUBLICATION_JOURNAL_NAME}
+                    {evidence.release.journal_leaf}
                 ),
             )
         except PublicationReceiptIOError as exc:
@@ -3439,6 +3685,10 @@ def load_unresolved_upload_intents(
                 "upload journal contains a duplicate outcome state",
             )
             states[record.state] = record
+    _require(
+        len({intent.attempt_id for intent in intents.values()}) == len(intents),
+        "upload journal contains a duplicate attempt id",
+    )
     for intent_sha256, outcome_states in outcomes.items():
         _require(
             intent_sha256 in intents,
@@ -3461,21 +3711,85 @@ def load_unresolved_upload_intents(
             ),
             "upload journal outcome identity differs from its intent",
         )
+    children: dict[str, str] = {}
+    roots: dict[str, str] = {}
+    for digest, intent in intents.items():
+        if intent.retry is None:
+            _require(
+                intent.crate_name not in roots,
+                "upload journal has multiple unlinked intents for one crate",
+            )
+            roots[intent.crate_name] = digest
+            continue
+        parent_digest = intent.retry.intent_sha256
+        _require(parent_digest in intents, "upload retry references an unknown intent")
+        _require(parent_digest != digest, "upload retry cannot reference itself")
+        _require(parent_digest not in children, "upload retry chain has a fork")
+        parent = intents[parent_digest]
+        parent_outcomes = outcomes.get(parent_digest, {})
+        _require(
+            parent.crate_name == intent.crate_name,
+            "upload retry parent refers to a different crate",
+        )
+        _require(
+            UPLOAD_JOURNAL_PUBLISHED not in parent_outcomes,
+            "upload retry parent must be unresolved",
+        )
+        parent_unknown = parent_outcomes.get(UPLOAD_JOURNAL_UNKNOWN)
+        parent_recorded_at = (
+            parent_unknown.recorded_at if parent_unknown is not None else parent.recorded_at
+        )
+        _require(
+            parse_utc_timestamp(
+                intent.retry.absence_observed_at, "upload retry absence observation"
+            )
+            >= parse_utc_timestamp(
+                parent_recorded_at, "upload retry parent uncertainty"
+            ),
+            "upload retry absence observation predates the unknown outcome",
+        )
+        children[parent_digest] = digest
+    visited: set[str] = set()
+    for root_digest in roots.values():
+        current: str | None = root_digest
+        while current is not None:
+            _require(current not in visited, "upload retry chain contains a cycle")
+            visited.add(current)
+            current = children.get(current)
+    _require(len(visited) == len(intents), "upload retry chain is disconnected or cyclic")
     unresolved = tuple(
         intent
         for digest, intent in intents.items()
-        if UPLOAD_JOURNAL_PUBLISHED not in outcomes.get(digest, {})
+        if digest not in children
+        and UPLOAD_JOURNAL_PUBLISHED not in outcomes.get(digest, {})
     )
+    if retry_authorization is not None:
+        _require(
+            any(intent.digest == retry_authorization.intent_sha256 for intent in unresolved),
+            "explicit upload retry must select the current unresolved intent",
+        )
+        previous_unknown = outcomes.get(retry_authorization.intent_sha256, {}).get(
+            UPLOAD_JOURNAL_UNKNOWN
+        )
+        previous_recorded_at = (
+            previous_unknown.recorded_at
+            if previous_unknown is not None
+            else intents[retry_authorization.intent_sha256].recorded_at
+        )
+        _require(
+            parse_utc_timestamp(
+                retry_authorization.absence_observed_at, "upload retry absence observation"
+            )
+            >= parse_utc_timestamp(previous_recorded_at, "upload uncertainty"),
+            "upload retry absence observation predates the unknown outcome",
+        )
     unresolved_names = [intent.crate_name for intent in unresolved]
     _require(
         len(unresolved_names) == len(set(unresolved_names)),
         "upload journal has multiple unresolved intents for one crate",
     )
     order = {
-        name: index
-        for index, (name, _dependencies) in enumerate(
-            CRATE_PUBLICATION_TOPOLOGY
-        )
+        package.name: index for index, package in enumerate(evidence.crates)
     }
     return tuple(sorted(unresolved, key=lambda intent: order[intent.crate_name]))
 
@@ -3501,13 +3815,14 @@ def _validated_upload_authorization(
     credential_provider: CredentialProvider | None,
     lock_factory: PublicationLockFactory | None,
     upload_runner: UploadRunner | None,
+    release: PublicationRelease = PublicationRelease.ABI2_V0_1_5,
 ) -> tuple[CredentialProvider, PublicationLockFactory, UploadRunner]:
     _require(
         execute_real_upload is True,
         "real crates.io upload requires execute_real_upload=True",
     )
     _require(
-        irreversible_acknowledgement == REAL_UPLOAD_ACKNOWLEDGEMENT,
+        irreversible_acknowledgement == release.acknowledgement,
         "real crates.io upload requires the exact irreversible acknowledgement",
     )
     _require(
@@ -3590,6 +3905,7 @@ def run_publication_transaction(
         _verify_stable_source_transition
     ),
     previous_receipt: Mapping[str, object] | None = None,
+    retry_unknown_intent_sha256: str | None = None,
     mode: RunMode = "dry-run",
     api_fetcher: HttpFetcher = _https_get,
     sparse_fetcher: HttpFetcher = _https_get,
@@ -3614,7 +3930,8 @@ def run_publication_transaction(
     publish metadata or create a second package-validation implementation.
     """
 
-    _require(mode in {"dry-run", "verify", "publish"}, "publication mode is invalid")
+    _validate_transaction_options(mode=mode, previous_receipt=previous_receipt,
+                                  retry_unknown_intent_sha256=retry_unknown_intent_sha256)
     evidence = load_local_publication_evidence(
         source,
         handoff_manifest_path,
@@ -3623,6 +3940,71 @@ def run_publication_transaction(
         source_tree_resolver=source_tree_resolver,
         source_transition_verifier=source_transition_verifier,
     )
+    return run_prepared_publication_transaction(
+        evidence,
+        previous_receipt=previous_receipt,
+        retry_unknown_intent_sha256=retry_unknown_intent_sha256,
+        mode=mode,
+        api_fetcher=api_fetcher,
+        sparse_fetcher=sparse_fetcher,
+        clock=clock,
+        sleeper=sleeper,
+        receipt_writer=receipt_writer,
+        receipt_root=receipt_root,
+        journal_root=journal_root,
+        write_verify_receipt=write_verify_receipt,
+        execute_real_upload=execute_real_upload,
+        irreversible_acknowledgement=irreversible_acknowledgement,
+        credential_provider=credential_provider,
+        lock_factory=lock_factory,
+        upload_runner=upload_runner,
+        poll_attempts=poll_attempts,
+        poll_interval_seconds=poll_interval_seconds,
+    )
+
+
+def _validate_transaction_options(
+    *, mode: RunMode, previous_receipt: Mapping[str, object] | None,
+    retry_unknown_intent_sha256: str | None,
+) -> None:
+    _require(mode in {"dry-run", "verify", "publish"}, "publication mode is invalid")
+    if retry_unknown_intent_sha256 is not None:
+        _require(
+            mode == "publish" and previous_receipt is not None,
+            "explicit upload retry requires publish mode and a previous receipt",
+        )
+        _require(
+            isinstance(retry_unknown_intent_sha256, str)
+            and _SHA256_RE.fullmatch(retry_unknown_intent_sha256) is not None,
+            "explicit upload retry intent digest is malformed",
+        )
+
+def run_prepared_publication_transaction(
+    evidence: PublicationEvidence,
+    *,
+    previous_receipt: Mapping[str, object] | None = None,
+    retry_unknown_intent_sha256: str | None = None,
+    mode: RunMode = "dry-run",
+    api_fetcher: HttpFetcher = _https_get,
+    sparse_fetcher: HttpFetcher = _https_get,
+    clock: Clock = lambda: dt.datetime.now(dt.UTC),
+    sleeper: Sleeper = time.sleep,
+    receipt_writer: ReceiptWriter | None = None,
+    receipt_root: pathlib.Path = CRATES_IO_PUBLICATION_RECEIPT_ROOT,
+    journal_root: pathlib.Path = CRATES_IO_PUBLICATION_JOURNAL_ROOT,
+    write_verify_receipt: bool = True,
+    execute_real_upload: bool = False,
+    irreversible_acknowledgement: str | None = None,
+    credential_provider: CredentialProvider | None = None,
+    lock_factory: PublicationLockFactory | None = None,
+    upload_runner: UploadRunner | None = None,
+    poll_attempts: int = REMOTE_POLL_ATTEMPTS,
+    poll_interval_seconds: float = REMOTE_POLL_INTERVAL_SECONDS,
+) -> PublicationRun:
+    """Use one journal, lock, reconciliation and resume mechanism for each cohort."""
+
+    _validate_transaction_options(mode=mode, previous_receipt=previous_receipt,
+                                  retry_unknown_intent_sha256=retry_unknown_intent_sha256)
     prior_published_count = _previous_published_count(
         previous_receipt, evidence=evidence
     )
@@ -3632,7 +4014,7 @@ def run_publication_transaction(
             execute_real_upload is False,
             "dry-run cannot enable real upload",
         )
-        _resample_local_evidence(evidence)
+        evidence.resample()
         return PublicationRun(
             mode=mode,
             receipt=None,
@@ -3644,14 +4026,15 @@ def run_publication_transaction(
     writer = receipt_writer
     if writer is None:
         writer = lambda value: write_publication_receipt(
-            value, receipt_root=receipt_root
+            value, receipt_root=receipt_root, release=evidence.release,
+            validator=evidence.validate_receipt,
         )
 
     def collect() -> tuple[
         tuple[RemotePublishedRecord | None, ...],
         dict[str, object],
     ]:
-        _resample_local_evidence(evidence)
+        evidence.resample()
         # The sparse index and the API can transiently disagree on presence while
         # crates.io propagates; retry the read-only composite observation with a
         # bounded backoff rather than failing the whole transaction on a momentary
@@ -3693,7 +4076,7 @@ def run_publication_transaction(
         if write_verify_receipt:
             path, digest = writer(receipt)
             written_receipts.append(WrittenReceipt(path=path, sha256=digest))
-        _resample_local_evidence(evidence)
+        evidence.resample()
         return PublicationRun(
             mode=mode,
             receipt=receipt,
@@ -3708,6 +4091,7 @@ def run_publication_transaction(
         credential_provider=credential_provider,
         lock_factory=lock_factory,
         upload_runner=upload_runner,
+        release=evidence.release,
     )
     try:
         lock_context = publication_lock()
@@ -3721,20 +4105,39 @@ def run_publication_transaction(
     )
     try:
         with lock_context:
-            _recover_incomplete_upload_journal_transactions(journal_root)
+            _recover_incomplete_upload_journal_transactions(journal_root, release=evidence.release)
             remote, receipt = collect()
             path, digest = writer(receipt)
             written_receipts.append(WrittenReceipt(path=path, sha256=digest))
+            retry_authorization = (
+                UploadRetryAuthorization(
+                    intent_sha256=retry_unknown_intent_sha256,
+                    absence_receipt_sha256=digest,
+                    absence_observed_at=receipt["observation"]["observed_at"],
+                )
+                if retry_unknown_intent_sha256 is not None
+                else None
+            )
+            selected_retry: UploadIntent | None = None
             package_indices = {
                 package.name: index
                 for index, package in enumerate(evidence.crates)
             }
             for intent in load_unresolved_upload_intents(
-                evidence, journal_root=journal_root
+                evidence,
+                journal_root=journal_root,
+                retry_authorization=retry_authorization,
             ):
                 index = package_indices[intent.crate_name]
                 package = evidence.crates[index]
                 if remote[index] is None:
+                    if intent.digest == retry_unknown_intent_sha256:
+                        _require(
+                            all(item is not None for item in remote[:index]),
+                            "explicit upload retry must be the first absent crate",
+                        )
+                        selected_retry = intent
+                        continue
                     raise CratesIoUploadOutcomeUnknownError(
                         package.name,
                         verified_receipt=receipt,
@@ -3752,7 +4155,7 @@ def run_publication_transaction(
             for index, package in enumerate(evidence.crates):
                 if remote[index] is not None:
                     continue
-                _resample_local_evidence(evidence)
+                evidence.resample()
                 if token is None:
                     token = _credential(provider)
                 intent = write_upload_intent(
@@ -3760,35 +4163,59 @@ def run_publication_transaction(
                     package,
                     journal_root=journal_root,
                     clock=clock,
+                    retry=(
+                        retry_authorization
+                        if selected_retry is not None
+                        and selected_retry.crate_name == package.name
+                        else None
+                    ),
                 )
                 upload_attempts.append(package.name)
+                diagnostic: UploadExecutionDiagnostic | None = None
                 try:
                     result = uploader(package, credential=token)
-                    _require(
-                        isinstance(result, BoundedResult)
-                        and type(result.returncode) is int,
-                        "exact-byte uploader result type differs",
-                    )
+                    if not isinstance(result, BoundedResult) or type(result.returncode) is not int:
+                        diagnostic = UploadExecutionDiagnostic(None, None, "uploader-contract")
+                    elif isinstance(result, DiagnosedUploadResult):
+                        diagnostic = UploadExecutionDiagnostic(result.returncode, result.diagnostic, None)
+                except UploadDiagnosticError:
+                    diagnostic = UploadExecutionDiagnostic(None, None, "diagnostic-invalid")
+                except BoundedProcessError as exc:
+                    diagnostic = UploadExecutionDiagnostic(None, None, f"process-{exc.kind}")
                 except Exception:
-                    result = BoundedResult(returncode=1)
-                observed = _poll_after_upload_attempt(
-                    package,
-                    api_fetcher=api_fetcher,
-                    sparse_fetcher=sparse_fetcher,
-                    clock=clock,
-                    sleeper=sleeper,
-                    poll_attempts=poll_attempts,
-                    poll_interval_seconds=poll_interval_seconds,
-                )
-                if observed is None:
-                    write_upload_outcome(
-                        evidence,
+                    diagnostic = UploadExecutionDiagnostic(None, None, "uploader-exception")
+                try:
+                    if diagnostic is not None:
+                        # Preserve the client result before remote polling can fail.
+                        # Even HTTP success remains unknown until both observers agree.
+                        write_upload_outcome(
+                            evidence, package, intent,
+                            state=UPLOAD_JOURNAL_UNKNOWN,
+                            journal_root=journal_root, clock=clock,
+                            diagnostic=diagnostic,
+                        )
+                finally:
+                    # A diagnostic persistence failure cannot skip reconciliation;
+                    # it is still propagated after this mandatory read-only poll.
+                    observed = _poll_after_upload_attempt(
                         package,
-                        intent,
-                        state=UPLOAD_JOURNAL_UNKNOWN,
-                        journal_root=journal_root,
+                        api_fetcher=api_fetcher,
+                        sparse_fetcher=sparse_fetcher,
                         clock=clock,
+                        sleeper=sleeper,
+                        poll_attempts=poll_attempts,
+                        poll_interval_seconds=poll_interval_seconds,
                     )
+                if observed is None:
+                    if diagnostic is None:
+                        write_upload_outcome(
+                            evidence,
+                            package,
+                            intent,
+                            state=UPLOAD_JOURNAL_UNKNOWN,
+                            journal_root=journal_root,
+                            clock=clock,
+                        )
                     raise CratesIoUploadOutcomeUnknownError(
                         package.name,
                         verified_receipt=receipt,
@@ -3801,6 +4228,7 @@ def run_publication_transaction(
                     state=UPLOAD_JOURNAL_PUBLISHED,
                     journal_root=journal_root,
                     clock=clock,
+                    diagnostic=diagnostic,
                 )
                 remote = remote[:index] + (observed,) + remote[index + 1 :]
                 receipt = assemble_publication_receipt(
@@ -3810,7 +4238,7 @@ def run_publication_transaction(
                 )
                 path, digest = writer(receipt)
                 written_receipts.append(WrittenReceipt(path=path, sha256=digest))
-            _resample_local_evidence(evidence)
+            evidence.resample()
     except CratesIoUploadOutcomeUnknownError:
         raise
     except PublicationReceiptCommittedError:
@@ -4276,6 +4704,19 @@ def _main(arguments: Sequence[str]) -> int:
     parser.add_argument("handoff_sha256")
     parser.add_argument("--previous-receipt", type=pathlib.Path)
     parser.add_argument(
+        "--tooling-recovery", nargs=4,
+        metavar=("PENDING_COMMIT", "BASE_VERIFIER_COMMIT", "TOOLING_COMMIT", "PENDING_RESULTS_SHA256"),
+        help="explicit frozen-product lineage for a reviewed registry tooling correction",
+    )
+    parser.add_argument(
+        "--retry-unknown-intent",
+        metavar="SHA256",
+        help=(
+            "authorize one exact retry of the current recorded unknown intent; "
+            "requires --previous-receipt and fresh API+sparse absence under the lock"
+        ),
+    )
+    parser.add_argument(
         "--state-root",
         type=pathlib.Path,
         help=(
@@ -4294,11 +4735,29 @@ def _main(arguments: Sequence[str]) -> int:
     )
     parser.add_argument("--execute-real-upload", action="store_true")
     parser.add_argument(
+        "--http-connect-proxy",
+        metavar="HTTP_LOOPBACK_URL",
+        help="explicit loopback HTTP CONNECT route for the fixed crates.io TLS upload; publish only",
+    )
+    parser.add_argument(
         "--acknowledge-irreversible-publish",
         action="store_true",
     )
     namespace = parser.parse_args(arguments)
     try:
+        if namespace.http_connect_proxy is not None:
+            _require(namespace.mode == "publish", "HTTP CONNECT proxy requires publish mode")
+            _validated_http_connect_proxy(namespace.http_connect_proxy)
+        if namespace.retry_unknown_intent is not None:
+            _require(
+                namespace.mode == "publish"
+                and namespace.previous_receipt is not None,
+                "explicit upload retry requires publish mode and a previous receipt",
+            )
+            _require(
+                _SHA256_RE.fullmatch(namespace.retry_unknown_intent) is not None,
+                "explicit upload retry intent digest is malformed",
+            )
         state_root_authority: pathlib.Path | None = None
         uploader_authority: pathlib.Path | None = None
         if namespace.mode == "publish":
@@ -4342,6 +4801,34 @@ def _main(arguments: Sequence[str]) -> int:
         )
         handoff_manifest = selected_handoff.path
         handoff_sha256 = selected_handoff.sha256
+        transition_verifier = _verify_stable_source_transition
+        if namespace.tooling_recovery is not None:
+            pending, base_verifier, tooling, pending_results = namespace.tooling_recovery
+
+            def verify_tooling_recovery(
+                candidate_source: SourceIdentity,
+                candidate_handoff: pathlib.Path,
+                candidate_digest: str,
+            ) -> None:
+                try:
+                    validate_crates_io_tooling_recovery_lineage(
+                        REPOSITORY_ROOT,
+                        source_commit=candidate_source.source_parent_commit,
+                        tag_commit=candidate_source.tag_commit,
+                        tag_tree=candidate_source.tag_tree,
+                        canonical_source_tree_sha256=candidate_source.canonical_source_tree_sha256,
+                        pending_commit=pending,
+                        expected_pending_results_sha256=pending_results,
+                        base_verifier_commit=base_verifier,
+                        expected_tooling_commit=tooling,
+                    )
+                except CratesIoToolingRecoveryError as exc:
+                    raise CratesIoPublicationError(str(exc)) from exc
+                _verify_results_selected_handoff(
+                    candidate_source, candidate_handoff, candidate_digest
+                )
+
+            transition_verifier = verify_tooling_recovery
         previous = (
             None
             if namespace.previous_receipt is None
@@ -4370,6 +4857,7 @@ def _main(arguments: Sequence[str]) -> int:
             uploader = production_upload_runner(
                 uploader_authority,
                 state_root=state_root,
+                http_connect_proxy=namespace.http_connect_proxy,
             )
             journal_root = state_root / "journal"
             credential_provider = lambda: os.environ.get(
@@ -4381,6 +4869,8 @@ def _main(arguments: Sequence[str]) -> int:
             handoff_manifest,
             handoff_sha256,
             previous_receipt=previous,
+            retry_unknown_intent_sha256=namespace.retry_unknown_intent,
+            source_transition_verifier=transition_verifier,
             mode=namespace.mode,
             receipt_root=CRATES_IO_PUBLICATION_RECEIPT_ROOT,
             journal_root=journal_root,

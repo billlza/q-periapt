@@ -1,0 +1,12 @@
+{
+  "bytes": 28614990,
+  "sha256": "4277c24543d9a460669eb36bef9645a3d200880b26c69b994f49a9a5a939471f",
+  "members": 1960,
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "source_files": 1009,
+  "wasm_archive_sha256": "dea7351bd916d8bfc3c8e1bf3c2b0f8772864ddf48d175e1c8bea7d0af82970a",
+  "wasm_manifest_sha256": "03e799c3429606d6918b66c678bb6f092befd955e261181b7e87972a07b6fd47",
+  "native_binaries": 8,
+  "native_binary_bytes": 72735328,
+  "scope": "Actual installed current WASM package, both Node consumers, Chromium public storage/enrollment/session/Witness evidence, eight actual same-host reference executables, failed preparations, source and tool receipts. No private runtime state, registry publication or overall release qualification."
+}

@@ -1,0 +1,400 @@
+{
+  "schema": 1,
+  "implementation_commit": "c56801a13af6850c80476396fa38cd8aebc84ae0",
+  "release_claim_eligible": false,
+  "scope": "Initial native managed account-root replacement owner, preserving original registry/enrollment/journal and independently approved witness operation.",
+  "behavior": [
+    "Preparing retains the original enrollment lease and revokes prior registry traffic.",
+    "Signed freeze binds the exact original plan; the same parent transfers to restricted journal recovery.",
+    "Signed retirement persists in child and parent before registry successor selection.",
+    "Original receipt replay preserves revision 2 across restart and uncertain returns.",
+    "Exact successor still requires current policy/credential, real signed witness admission and durable registry binding.",
+    "Close/drop revokes registry access before disposing database owners; returned successor authority cannot outlive the controller."
+  ],
+  "validation": [
+    {
+      "label": "root-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::account_root::tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 241.80071099987254,
+      "tests": 32,
+      "source_matches_implementation_commit": true,
+      "completed": true
+    },
+    {
+      "label": "msrv-root-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::account_root::tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 243.46419420815073,
+      "tests": 32,
+      "source_matches_implementation_commit": true,
+      "completed": true
+    },
+    {
+      "label": "clippy-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "seconds": 9.884299749974161,
+      "tests": null,
+      "source_matches_implementation_commit": true,
+      "completed": true
+    },
+    {
+      "label": "msrv-clippy-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "seconds": 12.245931333163753,
+      "tests": null,
+      "source_matches_implementation_commit": true,
+      "completed": true
+    },
+    {
+      "label": "release-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "--release",
+        "managed_root_",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 168.7805234999396,
+      "tests": 11,
+      "source_matches_implementation_commit": true,
+      "completed": true
+    }
+  ],
+  "process_loss": {
+    "cuts": [
+      "managed-binding-after",
+      "intent-before",
+      "intent-after",
+      "receipt-before",
+      "receipt-after",
+      "managed-retirement-after",
+      "managed-registry-after"
+    ],
+    "per_profile": 7,
+    "profiles": [
+      "Rust 1.98.1 Debug",
+      "Rust 1.90.0 Debug",
+      "Rust 1.98.1 Release"
+    ],
+    "mechanism": "Owned actual child process killed before API return, reaped, then original registry/enrollment and same approved receipt recovered; exact successor activation and old-root fencing checked."
+  },
+  "red_green": {
+    "test": "managed_root_preparation_keeps_exclusive_original_enrollment_ownership",
+    "before": "Initial prototype released original enrollment during Preparing; a second real DeviceEnrollment::open succeeded. Regression failed.",
+    "after": "Controller retains the existing parent during begin/resume and transfers it into restricted recovery. The unchanged regression passes on current/minimum compilers and Release.",
+    "red_source": "ownership-red-source.rs"
+  },
+  "retained_other_failures": [
+    {
+      "capture": "focused-01",
+      "finding": "Initial test incorrectly required the complete redb file to be byte-identical across opening and closing. Physical file length changed from 1056768 to 65536; final test compares every enrollment table row before/after refused activation. This is an assertion correction, not a claimed product bug fix."
+    },
+    {
+      "capture": "inventory-tests.stderr",
+      "finding": "First inventory command ran in a linked worktree and two of 44 tests refused its .git file. All 44 pass in the full .git-directory checkout; provenance requirement unchanged."
+    }
+  ],
+  "inventory": {
+    "tracked_rust_sources": 518,
+    "tests": 44,
+    "source_gate_pass": true,
+    "release_claim_eligible": false
+  },
+  "maintenance": {
+    "production_module": "research/continuity-identity-candidate/src/enrollment/managed_root.rs",
+    "production_lines": 311,
+    "new_storage_format": false,
+    "changed_product_C_ABI": false,
+    "performance_claim": false
+  },
+  "limits": [
+    "Controlled native fixture times (150/170), genuine signature/storage operations, one macOS arm64 host and the same native engine.",
+    "Witness control-plane actions remain independently authorized; no deployed replacement transport or independent implementation qualified.",
+    "Managed non-commit/alternate-target transitions, committed-winner adoption and retired-message accounting/erasure remain open.",
+    "Foreign adapters, complete installed packages, physical/current/minimum OS targets and full 0.2.0 acceptance remain open.",
+    "Historical original-state recovery is not whole-host rollback protection or proof of physical erasure."
+  ],
+  "archive": {
+    "path": "CAPTURE.zip",
+    "bytes": 249834,
+    "sha256": "0810920fb484b6ce4b058eb72c223481ca93998d84b4ef1d38d7fe15aa4c89fb",
+    "members": [
+      {
+        "path": "COMPILERS.json",
+        "bytes": 433,
+        "sha256": "943fe03694b8644e205a630a3d835cca1bde4a5fb6b307509dc919af64ffa293"
+      },
+      {
+        "path": "FORMAT.json",
+        "bytes": 766,
+        "sha256": "f6e837142a23a06f62f143f593aa7f15e8c238aa3a5bafa0fad512dadd56276b"
+      },
+      {
+        "path": "OWNERSHIP_REVIEW.json",
+        "bytes": 562,
+        "sha256": "b237e32b4c05ceecccf40bab0897d2fc22d9e62c326f6677fd1875676685b15a"
+      },
+      {
+        "path": "candidate-fmt.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "candidate-fmt.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "clippy-final/RESULT.json",
+        "bytes": 42379,
+        "sha256": "545aa59bdf9027a4413917b469a62b0b3c3602e1d4d75c5f945c7db7bc9b68d8"
+      },
+      {
+        "path": "clippy-final/START.json",
+        "bytes": 42301,
+        "sha256": "9c332e2b6c4ebdb42e55da63fba4b505b82c59be9bed29390ab5f45b77d5ad17"
+      },
+      {
+        "path": "clippy-final/stderr",
+        "bytes": 387,
+        "sha256": "3394727e2ede05d22c306c60349c70580e42d3b2792749ea403f9117bcc220f1"
+      },
+      {
+        "path": "clippy-final/stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "focused-01/RESULT.json",
+        "bytes": 42280,
+        "sha256": "52d121b3f736b9c115b35df4d65f6401d33b1896ae79e70fd4c7d86d7d734139"
+      },
+      {
+        "path": "focused-01/START.json",
+        "bytes": 42199,
+        "sha256": "b5218845a139275381df5de73d0122ec581ffe11386a8c7d4588d5fe1b0a3ee8"
+      },
+      {
+        "path": "focused-01/stderr",
+        "bytes": 3555007,
+        "sha256": "c54b9158ee6b43967b1f534ea478b3ac53df8a5ba0290f883ad9a4af8c0bb61c"
+      },
+      {
+        "path": "focused-01/stdout",
+        "bytes": 1012,
+        "sha256": "c58a6639bd54f6c5a3eff965fead3e1d718b93b7959629436d895e930d99c48d"
+      },
+      {
+        "path": "inventory-final.stderr",
+        "bytes": 143,
+        "sha256": "62bcac5d9747bc4e4e730aae9e97e65c96fb58afdf7f15cafbe295e6ce8433cc"
+      },
+      {
+        "path": "inventory-final.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "inventory-tests.stderr",
+        "bytes": 4142,
+        "sha256": "fed31c225ba9606be49e67c720ff062b7e9a9a338f84c9615c7ca3a5f8e6cd09"
+      },
+      {
+        "path": "inventory-tests.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "msrv-clippy-final/RESULT.json",
+        "bytes": 42385,
+        "sha256": "e0bcb7b061ea6d8f6c4d76d0d692df8d47a72af00f7c0d9b5ec639b44273e818"
+      },
+      {
+        "path": "msrv-clippy-final/START.json",
+        "bytes": 42306,
+        "sha256": "363a35336bccd3a39491a293e872cb75def86b50936a52a52ec4fc7be6d7120b"
+      },
+      {
+        "path": "msrv-clippy-final/stderr",
+        "bytes": 388,
+        "sha256": "b187f0daad14336b70f44e129a79821434855d618ae40419f96c24b380bdd688"
+      },
+      {
+        "path": "msrv-clippy-final/stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "msrv-root-final/RESULT.json",
+        "bytes": 42465,
+        "sha256": "2812e2d0e23804f146e0094c9bb74f73c05d8b02b97e7f66da2bece697070f3d"
+      },
+      {
+        "path": "msrv-root-final/START.json",
+        "bytes": 42386,
+        "sha256": "b633e207b461323c5da8ccc827ec1b60f65546d6a06c5f1bcbd6a347af8253a9"
+      },
+      {
+        "path": "msrv-root-final/stderr",
+        "bytes": 2002,
+        "sha256": "9072f5bc14f3fa5a4a67ac633d8d00c1d2732e7edd2bcd47e64fdeb8be1ed570"
+      },
+      {
+        "path": "msrv-root-final/stdout",
+        "bytes": 4422,
+        "sha256": "8e6a600d34dd829831ca92defc15956a4f491ea9ea834a487755015da8aa68f4"
+      },
+      {
+        "path": "ownership-red-source.rs",
+        "bytes": 11358,
+        "sha256": "41e24be3fc2eaf5f32cf20842e76f13b73a6b0eb985af7e04953c37cfa0c7842"
+      },
+      {
+        "path": "ownership-red/RESULT.json",
+        "bytes": 42448,
+        "sha256": "633adb510f78c00478dc64ba163404d72adc57ee2cec6027e1c7dc0fb284d718"
+      },
+      {
+        "path": "ownership-red/START.json",
+        "bytes": 42366,
+        "sha256": "4c074aabf17d9b3546a8badc0befd3c6d6c98ba2f6599726ee3878da13f0b587"
+      },
+      {
+        "path": "ownership-red/stderr",
+        "bytes": 1626,
+        "sha256": "b99f63ed7820a082a04783324e6158978f033c167c3e74aad831ceebc0fbc862"
+      },
+      {
+        "path": "ownership-red/stdout",
+        "bytes": 1608,
+        "sha256": "45462810453d1caa00ce518f6ea05a7cd1597807a088f227cc228e38d0523e21"
+      },
+      {
+        "path": "release-final/RESULT.json",
+        "bytes": 42461,
+        "sha256": "e1c2c206e9b17ac26f5738256928eaf7878a92569efde18893e01c765f95465e"
+      },
+      {
+        "path": "release-final/START.json",
+        "bytes": 42383,
+        "sha256": "6215e839902a03d37094d14cbc887fcde64da87244c6ef7b67d04d3986989d84"
+      },
+      {
+        "path": "release-final/stderr",
+        "bytes": 1207,
+        "sha256": "3ad95078525fcef0c306ddb9aff3141bbf75ee7f42943c6880f2138089b1a199"
+      },
+      {
+        "path": "release-final/stdout",
+        "bytes": 1461,
+        "sha256": "ba7f5a8bf011946fb71b72c0794ab7931e92672a38862720e227ee22b473338f"
+      },
+      {
+        "path": "root-final/RESULT.json",
+        "bytes": 42460,
+        "sha256": "53d5789686bc8379ea2684b2febca31f25b4e90cf978db2627f9da73ba0eabb1"
+      },
+      {
+        "path": "root-final/START.json",
+        "bytes": 42381,
+        "sha256": "df6dc6e1c44e6686b9d02fb345618fc02d35cb2c7e8f838c8a67cfc3c509c592"
+      },
+      {
+        "path": "root-final/stderr",
+        "bytes": 1997,
+        "sha256": "5e4751e513c1088a8fc58b5244586be051c5f06acb1d5b334bcc9fbcb73edf38"
+      },
+      {
+        "path": "root-final/stdout",
+        "bytes": 4422,
+        "sha256": "539944a7899d2c1e0a1e8de076b406df7789cc4250c0d6141bdae3fb8bf6ba9e"
+      },
+      {
+        "path": "run.py",
+        "bytes": 2656,
+        "sha256": "9940baffdceb33aa76a9f849fbdc97c1ec47b317225e39335de94ed59882016d"
+      },
+      {
+        "path": "source-gate.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "source-gate.stdout",
+        "bytes": 252,
+        "sha256": "e7e86d470341d53daada1c16933a56dcb76eb4f3cfc6e5fc805739b8ee08dbab"
+      },
+      {
+        "path": "workspace-fmt.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "workspace-fmt.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  }
+}

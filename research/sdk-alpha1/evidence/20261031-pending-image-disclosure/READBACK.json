@@ -1,0 +1,12 @@
+{
+  "source_commit": "4ae5f77ad6e81dce956be24511d7f5e429924bde",
+  "archive_sha256": "619cf88b8f861f661dd38182aa5a35a651cbcd74471e55903e2f4e0c8c08febf",
+  "archive_bytes": 713977,
+  "members_checked": 51,
+  "all_members_read_back_equal": true,
+  "receipt_sha256": "750cc0cebc6cbd602a8df00c2149da50961d7143244ae914ace48a4ea4346e4a",
+  "runtime_code_changed": false,
+  "test_patch_isolated": true,
+  "full_model_refinement_proved": false,
+  "goal_complete": false
+}

@@ -1,0 +1,76 @@
+{
+  "captured_utc": "2026-11-05T13:35:50.810872+00:00",
+  "observations": [
+    {
+      "job": 127187316739,
+      "artifact": 13412319456,
+      "artifact_sha256": "b4b78352d7b82d4e5a0dc0f03e871c805d3455f70c390eb0b911880a4ee20fdc",
+      "guest_log_member": "9e84b2b468d7abf4d888427812315afb/proof/emulator-guest-logcat.txt",
+      "guest_log_sha256": "cfb11703d2a594da5ea24f22d9b8ea14f5f2aa1585835c0a44bb2094a9fc5f8e",
+      "system_server_fatal": {
+        "line": 2909,
+        "text": "11-05 12:05:39.783   544   567 F libc    : Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0xc in tid 567 (android.io), pid 544 (system_server)"
+      },
+      "first_recorded_app_start": {
+        "line": 2490,
+        "text": "11-05 12:05:20.867   544   578 I ActivityManager: Start proc 5288:dev.qperiapt.androidsmoke/u0a207 for added application dev.qperiapt.androidsmoke"
+      },
+      "instrumentation_finished": {
+        "line": 2525,
+        "text": "11-05 12:05:21.212   544  2288 I ActivityManager: Force stopping dev.qperiapt.androidsmoke appid=10207 user=0: finished inst"
+      },
+      "art_frames": [
+        "11-05 12:05:41.824  6749  6749 F DEBUG   :       #00 pc 0000000000a70f51  /apex/com.android.art/lib64/libart.so (artInstanceOfFromCode+97) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)",
+        "11-05 12:05:41.824  6749  6749 F DEBUG   :       #01 pc 000000000022782d  /apex/com.android.art/lib64/libart.so (art_quick_check_instance_of+45) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)"
+      ],
+      "memory_before": {
+        "MemTotal_kB": 2532420,
+        "MemAvailable_kB": 1428348,
+        "SwapTotal_kB": 1899296
+      },
+      "page_size": 16384,
+      "image_fingerprint": "google/sdk_gphone16k_x86_64/emu64xa16k:15/AE3A.240806.043/12960925:userdebug/dev-keys",
+      "ordering": "crash-after-instrumentation-finished",
+      "exact_ART_defect": "not established",
+      "cleanup_confirmed": false,
+      "job_passed": false
+    },
+    {
+      "job": 127186189837,
+      "artifact": 13412219196,
+      "artifact_sha256": "831a454da3c193dc61e85bfa3b219422c9e915358c2cabebff3118e91c346829",
+      "guest_log_member": "b791b1d2a9276012fb364c287709d75d/proof/emulator-guest-logcat.txt",
+      "guest_log_sha256": "3e6dd104461aef1dbf45c9326b3d39e0bc84f2e2450ca0996657f9e8881e1ce3",
+      "system_server_fatal": {
+        "line": 870,
+        "text": "11-05 12:01:58.024   551   563 F libc    : Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0xc in tid 563 (HeapTaskDaemon), pid 551 (system_server)"
+      },
+      "first_recorded_app_start": {
+        "line": 2203,
+        "text": "11-05 12:02:43.486   993  1025 I ActivityManager: Start proc 5231:dev.qperiapt.androidsmoke/u0a207 for added application dev.qperiapt.androidsmoke"
+      },
+      "instrumentation_finished": {
+        "line": 2215,
+        "text": "11-05 12:02:44.339   993  1809 I ActivityManager: Force stopping dev.qperiapt.androidsmoke appid=10207 user=0: finished inst"
+      },
+      "art_frames": [
+        "11-05 12:01:58.447   915   915 F DEBUG   :       #00 pc 0000000000641f94  /apex/com.android.art/lib64/libart.so (void art::gc::collector::MarkCompact::ScanObject<true>(art::mirror::Object*)+36) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)",
+        "11-05 12:01:58.447   915   915 F DEBUG   :       #01 pc 0000000000636b3d  /apex/com.android.art/lib64/libart.so (art::gc::collector::MarkCompact::MarkingPhase()+1165) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)"
+      ],
+      "memory_before": {
+        "MemTotal_kB": 2532420,
+        "MemAvailable_kB": 1300920,
+        "SwapTotal_kB": 1899296
+      },
+      "page_size": 16384,
+      "image_fingerprint": "google/sdk_gphone16k_x86_64/emu64xa16k:15/AE3A.240806.043/12960925:userdebug/dev-keys",
+      "ordering": "crash-before-recorded-SDK-process-start",
+      "exact_ART_defect": "not established",
+      "cleanup_confirmed": false,
+      "job_passed": false
+    }
+  ],
+  "classification": "Guest system-service ART native crashes observed; both lanes failed package cleanup. One crash preceded the recorded SDK app process start. A shared underlying ART defect or memory shortage is not proved.",
+  "retry_performed": false,
+  "release_claim_eligible": false
+}

@@ -1,0 +1,22 @@
+{
+  "CI_STATUS.json": {
+    "bytes": 1487316,
+    "sha256": "6f919c7dc1d983e8170e1384cbdf69015bba40378fb09d7cb84d5786c518c7c5"
+  },
+  "CLASSIFICATION.json": {
+    "bytes": 1065,
+    "sha256": "18fde0cba95b3173eb320d8756d87e2f04318bf239977d6fc0db55b0ccbf42bc"
+  },
+  "JOB.json": {
+    "bytes": 4226,
+    "sha256": "13408e6a18bf3afa2b8080a9ec4d68ae7d81738ff2267be4f3ba728e50f6dd57"
+  },
+  "job.log": {
+    "bytes": 66953,
+    "sha256": "20a29217f825580cb2f46c523985468f8c60b8312a1e2a2527df3165c3b0a24b"
+  },
+  "seal_late_kotlin.py": {
+    "bytes": 3687,
+    "sha256": "1c6dd22ce14c5b699dcbea2659d814ee28e0d076c897ecc4c69c2b5e9f5646b3"
+  }
+}

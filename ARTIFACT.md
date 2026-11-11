@@ -5,11 +5,15 @@ reviewer with only Rust installed can run **Tier 1** in ~10 minutes; **Tier 2** 
 gates in ~1 hour given a few extra toolchains; **Tier 3** reproduces the hardware-dependent
 measurements (network shaping, binary constant-time) and needs specific hosts.
 
-This artifact evaluates the implemented hybrid-KEM, policy, bindings, four-flight
-demo handshake, and evidence chain. It does **not** evaluate a Q-Periapt Continuity
-protocol: there is no account/device directory, prekey service, wire protocol,
-persistent ratchet, multi-device manager, recovery adapter, or stateful protocol
-implementation in this repository. A separate `publish = false` lifecycle model has
+These paper artifact tiers evaluate the implemented hybrid-KEM, policy, bindings,
+four-flight demo handshake, and evidence chain. They do **not** establish release
+readiness for Q-Periapt Continuity. The separate `publish = false`
+[identity candidate](research/continuity-identity-candidate/README.md) implements
+authenticated identity/prekey operations, durable sessions, PQ rekey and witness
+reconciliation; it remains outside the published SDK dependency graph. Its
+[release ledger](docs/SDK_0_2_RELEASE_READINESS.md) retains source-bound results and
+open protocol, implementation, platform and deployment requirements.
+A separate `publish = false` lifecycle model has
 31 lifecycle integration tests, 12 canonical-context tests, eight strict canonical
 prekey-selection tests, and one private receipt-atomicity regression. It retains trusted pairwise session/current-context
 admission across reconstruction, exact version+digest state advances, and a candidate
@@ -25,42 +29,175 @@ model boundary are in
 [`docs/CONTINUITY_RESEARCH.md`](docs/CONTINUITY_RESEARCH.md); no existing pass marker
 may be interpreted as a PQ3/Signal-parity claim.
 
-All commands run from the repository root. `cargo` ≥ 1.85 is the only hard prerequisite for the
-host smoke; proof/release Python gates additionally require CPython ≥ 3.11. The hardened launcher
+All commands run from the repository root. The host smoke and repository development tests use
+the pinned Rust 1.98.1 toolchain. The product's Rust 1.90 minimum is checked separately by a
+workspace build and the [public SDK package consumer](docs/SDK_RUST_PACKAGE.md#minimum-compiler-and-development-toolchain).
+Proof/release Python gates additionally require CPython ≥ 3.11. The hardened launcher
 uses fixed platform paths or an explicit absolute `QPERIAPT_PYTHON`, never a PATH fallback.
 
 ## Rust CodeQL analysis boundary
 
-The Rust CodeQL lane uses the CodeQL 2.26.2 bundle linked to the exact pinned CodeQL Action
-commit, rather than whichever newer bundle happens to be present in the hosted runner toolcache,
-with a Rust 1.94.0 analysis sysroot
-because the bundled Rust extractor cannot completely expand this repository with the canonical
-Rust 1.96.1 sysroot. This is a compatibility analysis configuration, not native Rust 1.96.1
-CodeQL analysis. Before CodeQL initialization, the same commit must pass
-`cargo check --workspace --all-targets --locked` under both Rust 1.94.0 and Rust 1.96.1 with
-warnings denied, repository-external target directories, and no repository-local `target` entry.
+Rust analysis now has separate native Linux, Apple Silicon macOS and
+`wasm32-unknown-unknown` jobs. All select the explicit CodeQL 2.27.2 bundle and Rust 1.98.1 sysroot, compile the
+actual target with warnings denied, and extract the complete tracked Rust source
+inventory. Per-job Cargo homes and build directories stay outside the checkout.
+The WASM metadata adapter adds the host platform only to Cargo's filtered metadata
+request, preserving host build dependencies; compilation arguments, cfg values,
+standard streams and exit codes remain unchanged.
+
+Each full-suite analysis has a 360-minute job bound and a 300-minute process bound.
+The macOS extraction runs first in a separate, 120-minute preparation job. Its
+source-bound database then moves to a standard Ubuntu 24.04 query worker. This
+preserves the Apple Silicon compiler, target-specific code and macro expansions
+while giving the full query suite the reviewed Linux memory budget.
+Extraction and active-source quality are checked before running all 39 pinned
+security-extended queries, including full `SummaryStats`. Query text hashes are
+fixed by `artifact/codeql_rust_queries.json`; every expected fresh BQRS result is
+required. The pinned suite includes both `SummaryStats` and `SummaryStatsReduced`;
+the reduced result cannot replace a missing full result. Completed SARIF and
+quality records are retained without upload by the
+analysis jobs. A separate job verifies all three profiles before publication. Reruns
+may use a completed profile from an earlier attempt of the same workflow run and
+source commit; a newer incomplete profile never falls back to an older result.
+The selected attempts remain explicit in the paired receipt.
+
+The transfer manifest binds the database archive and each extraction evidence
+file. Its SHA-256 and origin attempt are fixed by the preparation job's outputs;
+the Linux importer and publication gate both verify that independent anchor.
+The importer also checks the current source bytes, archive paths and sizes, and
+all transferred file hashes before using the fixed CodeQL unbundle command.
+Bundles exclude previous query results, logs and temporary query configuration.
+The immutable origin `PROFILE.json` retains the macOS host and preparation
+budget. `ANALYSIS.json` records the Linux query host, actual allocation and analysis
+attempt separately. An origin from attempt 1 may support analysis attempt 2 in
+the same run and source commit; the final artifact is named for analysis attempt 2.
+An incomplete analysis never becomes publishable through a successful extraction.
+
+The [target coverage qualification](research/sdk-alpha1/evidence/20261016-codeql-target-coverage/README.md)
+contains real compiler and CodeQL controls, including a valid compiler-only
+export-name macro and an active macro failure that a successful peer cannot hide.
+These controls do not establish whole-repository query completion or a fix for
+the previous hosted `SummaryStats` timeout. The current hosted runs remain required.
+The other five language lanes retain their pinned linked bundle configuration.
+
+Earlier Rust lanes used CodeQL 2.27.1 with a Rust 1.97.0 analysis sysroot. Keeping
+a 1.94.0 macro server with that extractor produced an ABI mismatch and incomplete
+source extraction. Compatibility and canonical compiles, along with the resource
+controls below, were evidence for those earlier configurations.
+
+Earlier Rust jobs used a 240-minute bound and a 180-minute upstream Analyze limit
+to reserve time for checkout verification, quality checks and diagnostic retention.
+The 60-minute job limit previously cancelled a run just after `SummaryStats` finished its
+52-minute evaluation. Later full analyses reached the 90-minute step limit while still
+evaluating global taint flow. A [frozen-database resource control](https://github.com/billlza/q-periapt/actions/runs/37647177049)
+completed all 39 unchanged queries in 82.6 minutes with four threads; the one-thread arm
+reached its 85-minute deadline without a complete result set. That control reused an older
+database and evaluation cache: it does not establish a cold current-source runtime, a
+resource fix, or passage of the product quality gate. The larger bound gives the complete
+analysis more time without changing its runner, queries, or evaluator settings; its
+adequacy remains subject to current-source CI results.
+
+Source `3b654771` reached the 180-minute Analyze deadline with 38 of 39 queries
+complete; the full `SummaryStats` global taint-reach calculation remained active.
+The retained evaluator log shows repeated eviction and reconstruction of native
+cache entries. This observation does not establish that memory allocation is the
+only cause. The isolated `CodeQL memory control` workflow compared JVM/native
+allocations of 5788/6898 MiB and 3072/9614 MiB, with the same 12686 MiB sum, four
+threads, pinned CLI/compiled queries, local threat model and frozen database/cache.
+It uses a fresh result directory and requires all 39 newly produced BQRS outputs.
+The source artifact, database, suite, query text and compiled plans are hash-bound
+by `artifact/codeql_memory_control.py` and `artifact/codeql_memory_queries.json`.
+Both arms have a 15-minute wall-clock bound; unfinished runs remain failures and
+retain their detailed evaluator logs and command receipts. The bounded console
+capture is published only after the child exits; timeout diagnostics are in the
+evaluator logs. The experiment has no SARIF upload permission, never qualifies
+the current source, and does not change the production analysis or quality gate.
+The [first memory control](https://github.com/billlza/q-periapt/actions/runs/38138322247)
+timed out in both arms, with `SummaryStats` unfinished and native cache eviction
+still present. This does not justify a production configuration change. The
+[retained comparison](research/sdk-alpha1/evidence/20261011-codeql-memory-control/CHECKS.json)
+records the exact inputs, query hashes, failure receipts and limits of the comparison.
+
+The workflow named `CodeQL evaluator control` also ran a comparison that kept
+the baseline allocation and changed only `--expect-discarded-cache` to
+`--no-expect-discarded-cache`. The hypothesis is that retaining reusable
+intermediate results can reduce repeated computation. The original memory profiles
+remain available in the diagnostic CLI. The frozen database, 39 original query
+plans, four threads, 15-minute bound and fresh-result requirement remain unchanged.
+The [cache comparison](research/sdk-alpha1/evidence/20261014-codeql-cache-control/CHECKS.json)
+timed out in both arms at 900 seconds, again with 38 of 39 queries complete.
+It does not establish a fix for the current 300-minute `SummaryStats` timeout;
+that experiment did not justify an evaluator configuration change. See the
+[current observation and inventory repair](research/sdk-alpha1/evidence/20261014-codeql-evaluator-control/README.md).
+
+Rust profile jobs retain their own command receipts, database bundles and logs;
+Swift retains the pinned action's diagnostics. These are troubleshooting inputs, not quality-gated
+code-scanning results or release evidence. No query is removed. On source `4fc8412a`,
+all 39 upstream queries completed, but the separate `Metrics.ql` process timed out
+at 300 seconds. An [unchanged-query bundle replay](https://github.com/billlza/q-periapt/actions/runs/37700675470)
+then completed Metrics in 304 seconds (about 65 seconds compiling and 235 evaluating),
+ExtractedPaths in 42 seconds and UnresolvedMacros in 28 seconds. All original quality
+assertions passed for that database's exact 418-source inventory. The bundle retains
+a trimmed cache; it is not the original evaluator directory, cold extraction, or
+current-source qualification. The first replay failed before querying because its
+admission code assumed a partial-archive layout; that failed attempt remains recorded.
+The measured overrun motivates a separate 900-second Metrics allowance and the larger
+job bound for quality checks and diagnostic retention. Current-source CI remains required.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-106 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
-unextracted elements, unresolved source macros, AST/CFG/SSA/data-flow inconsistencies, or source
-format arguments without an expression and data-flow node; and non-vacuous macro and format-argument
-sentinels. Path-resolution and type-inference internal-consistency categories are checked for a
-complete, self-reconciling classification and reported as telemetry rather than required to be
-zero. In particular, duplicate configurations of `wasm_bindgen`-generated `Abi` type mentions can
-produce type-inference telemetry; this is not a claim of complete extractor semantics for that
-generated code. The canonical Rust 1.96.1 all-target compile and the separate WASM Node gate cover
-those build/runtime surfaces. Each custom query receives a fixed four-thread, 14,000 MB evaluator
-budget while retaining its 300-second process deadline and bounded diagnostic output; a resource or
-deadline failure blocks publication. Rust analysis runs with SARIF upload disabled and raw database
-upload disabled; only an explicit SARIF upload after the quality and unchanged-checkout gates may
-publish results. The quality adapter accepts no environment-selected executable, database, or
-temporary path: it uses the exact Linux CodeQL 2.26.2 toolcache path and workflow database layout,
-rejects unsafe file types, requires the database paths to be current-user-owned and without
-cross-account write permission, and revalidates their open path identities around every query and
-decode.
-The evaluator budget is scoped to the public-repository Rust `ubuntu-latest` lane, currently four
-vCPUs and 16 GB. A runner-label, repository-visibility, or hosted-hardware change requires
-revalidating the fixed budget rather than lowering the quality gate or extending its deadline.
+1241 tracked `.rs` files to be successfully extracted. This includes 1173 current
+sources and 68 retained bootstrap proof snapshots, whose exact paths and bytes
+are bound by five pinned `SOURCE_PINS.json` manifests. The
+[archive inventory](artifact/CODEQL_RUST_ARCHIVES.md) identifies every snapshot's
+source commit and role. Added, removed or changed snapshots and Cargo manifests
+inside their source packets fail the gate. Each profile requires zero
+extraction warnings, extraction errors, unextracted elements, AST/CFG/SSA/data-flow
+inconsistencies, and source format arguments without an expression or data-flow
+node, together with non-vacuous macro and format-argument sentinels. Path and type
+inference consistency categories remain complete, self-reconciling telemetry.
+
+Native Linux and Apple Silicon profiles also compile the optional reference
+account application and independent peer's native counterpart, including their
+test targets. Their two retained lockfiles join the explicit eight-workspace
+lock inventory. Updating this inventory does not establish a successful CodeQL
+analysis; current-source extraction, macro coverage and query results are still
+required.
+
+The full macro census preserves entity multiplicity and raw unresolved counts.
+The 68 frozen source snapshots remain in that census, with expanded and unresolved
+archive entities counted separately. They cannot appear in compiler inputs or
+supply the current-source macro sentinel. The current sources retain the same
+target-specific compilation and macro-coverage requirements.
+Each profile binds actual compiler source dependencies from the depfiles selected
+by successful Cargo JSON artifacts. An unresolved executable macro in a compiled
+source fails in that profile even if another profile expands it. An inactive source
+requires coverage in a peer that actually compiles the same bytes. A compiler-only
+`export_name` attribute without a CFG node is counted separately; it cannot stand
+in for an executable macro at the same source location. Every profile must use the
+same source hashes and query hashes. The publication job also checks workflow and
+attempt identities, complete query result inventories, SARIF hashes, target
+categories, tool versions, and successful invocations. Raw results and failures
+are retained rather than rewritten to produce zero counts.
+
+The Ubuntu 24.04 Rust jobs use four threads and 14,000 MB. The Apple Silicon
+`macos-26` preparation job uses two threads and 5,500 MB within the standard runner's
+[3 CPU / 7 GB allocation](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+The preparation budgets apply to compilation, extraction and quality queries.
+All three target databases execute their complete security suites on Linux with
+9,329 MB of off-heap memory; the pinned CLI resolves the remaining heap against
+each database within the 14,000-MB total request. The resolved arguments and their
+typed allocation record are bound into the completed analysis.
+Both extraction platforms retain the 1800-second Metrics limit and 300-second limits for other queries and decoding.
+Resource failures block publication. The fixed-path adapter selects the platform's
+CodeQL 2.27.2 toolcache path and workflow database layout, checks file types, requires current-user-owned database
+paths without cross-account write permission, and revalidates open path identities
+around queries and decoding. The compiler host is pinned to Linux x86_64 or macOS arm64;
+the macOS analysis does not add Intel Mac support. Each target must complete its own
+suite. The macOS database includes the macOS-only tests and test support compiled
+on Apple Silicon; moving that database does not replace native macOS extraction.
+Runner or hardware changes require fresh qualification. Frozen 0.1.x publication
+receipts keep their original analysis categories and are not reinterpreted as
+qualification of this 0.2.0 pipeline.
 The pinned action's fixed GitHub-hosted toolcache launcher may be foreign-owned,
 group/other-writable, or multiply linked, so its owner, write mode, and link count are observed
 runner-image properties rather than gate conditions. Its regular-file type, executable mode, exact
@@ -246,12 +383,12 @@ remains portable C; each native profile is fixed at build time with no runtime
 dispatch. This selection does not change ABI 2, key formats, or wire bytes. Upstream
 HOL-Light evidence applies only to selected upstream assembly source/object routines,
 not downstream reassembly, the Rust/C integration, or the full ABI. The upstream
-tag/commit is not a signed provenance statement, and neither upstream mlkem-native
-nor this integration has completed an independent audit.
+tag/commit is not a signed provenance statement.
 
 ABI 2 / `0.1.5` is the stable-version source line, succeeding the fully published
-`0.1.4` release (`0.1.5` registry publication remains
-receipt-gated). Its coordinated stable GitHub publication targets are the Apple XCFramework
+`0.1.4` release. All ten `0.1.5` crates are published and independently verified;
+their complete three-domain record is at `v0.1.5-verified-cohort`.
+Its coordinated stable GitHub publication targets are the Apple XCFramework
 `v0.1.5` and the
 `abi2-platforms-v0.1.5` platform distribution (Android AAR plus API 35 /
 16 KiB-page emulator runtime evidence and GNU/Linux x86_64+aarch64 SDK archives).
@@ -263,8 +400,8 @@ publication receipts live under `release_publications` in `artifact/results.json
 one of those receipts exactly. Scope, verification commands, and explicit
 non-goals are in `artifact/stable-release-notes.md`. The `v0.1.4` and
 `abi2-platforms-v0.1.4` releases published on 2026-08-30, and all ten 0.1.4 crates are
-published on crates.io; those public records are immutable and are the current published
-stable set, superseding 0.1.3. Their verified receipt cohort is recorded only at the
+published on crates.io; those public records are immutable historical evidence,
+superseded by 0.1.5. Their verified receipt cohort is recorded only at the
 annotated tag `v0.1.4-verified-cohort`, not on `main`: reopening the source line returns
 `artifact/results.json` to its 190-key initial baseline, which drops the pending 0.1.4
 publication leaves, and the receipt finalizer's release proof requires a results-only
@@ -320,15 +457,15 @@ signed release provenance, device-energy evidence, or cross-implementation perfo
 
 `artifact/source_results_assembler.py` is the stable-source proof-input state machine,
 not a general-purpose release finalizer. Its `finalize` command performs the
-190-to-249 proof-input migration once per source line: once the generated results-only
-successor R is installed, the 249 baseline makes that mode inapplicable, and re-running it
+190-to-256 proof-input migration once per source line: once the generated results-only
+successor R is installed, the 256 baseline makes that mode inapplicable, and re-running it
 is expected to fail closed because `require_initial=True` requires the exact
 pre-migration shape. That failure must not be bypassed by relabelling or hand-editing
 `artifact/results.json`. The only supported way back is the reviewed `reopen-source`
 reverse transform, which re-arms `finalize` for the next line. It requires a fully
-installed 249-key manifest and validates every publication leaf fail-closed *before*
+installed 256-key manifest and validates every publication leaf fail-closed *before*
 removing any, then emits a 190-key initial candidate that recomputes the retained
-proof-input digests from the current source tree while dropping the fixed 59-key delta,
+proof-input digests from the current source tree while dropping the fixed 66-key delta,
 and reduces `release_publications` to exactly the five frozen historical leaves. It drops
 only in-flight pending publication candidates and refuses outright on any leaf outside
 that frozen floor that is not pending, so a published-immutable receipt is never silently
@@ -347,19 +484,19 @@ refuses on any non-pending leaf outside the floor, a line's own publication rece
 that floor; absent that, the durable record of that line's publication is its immutable
 public release and registry material plus its annotated verified-cohort tag, not `main`'s
 results. Do not physically edit, extract, or delete the assembler between R and verified
-publication V; doing so would create a new source change after the evidence freeze. Retain
-`verify-installed` and the exact CI dispatch until their durable 249-key
+publication Q; doing so would create a new source change after the evidence freeze. Retain
+`verify-installed` and the exact CI dispatch until their durable 256-key
 verifiers are extracted into a neutral module; deleting the whole file would also
 delete the installed-successor and main-CI gates.
 
 The main CI source gate deliberately recognizes exactly two manifest states. For
 the frozen 190-key pre-migration baseline on `S`, `ci-source-gate` requires the
 one-shot Level-1 byte authority
-`bf290cad46b729006c0b472714ec4a7d2a61b7914093628c5ef9db43f3c0947c`,
+`e855315ef2eec1aea0ff8b128933ac9673b9bb46c0e2e10e005c6f2480409c0a`,
 pins the worktree manifest to the HEAD blob, validates the exact initial publication state
-and fixed 59-key delta, requires a clean expected commit/tree identity, and samples
-the complete 249-key input authority twice before emitting
-`SOURCE_TRANSITION_READINESS_PASS`. For an exact 249-key installed map it emits
+and fixed 66-key delta, requires a clean expected commit/tree identity, and samples
+the complete 256-key input authority twice before emitting
+`SOURCE_TRANSITION_READINESS_PASS`. For an exact 256-key installed map it emits
 only a non-PASS dispatch marker and CI must run the full `proof-to-byte.sh` gate.
 Malformed, mixed, or changing states fail; an initial-readiness failure never falls
 back to the installed path.
@@ -1014,8 +1151,13 @@ These produce the paper's primary network table and the binary constant-time dis
   passes, reconciles command-unknown outcomes with repeated absence observations, and never clears
   global logcat buffers. One sanitized append-only journal records phase, cleanup invocation, attempt,
   typed state, and consecutive count without raw device output; recurring cleanup cannot truncate an
-  earlier phase. On CI failure, only that journal is uploaded for diagnosis. Raw command and uninstall
-  output remains in the private run tree, and a failed lane still publishes no runtime proof. It requires
+  earlier phase. For CI failures that reached package observation, an explicit log allowlist uploads
+  that journal, numbered typed observer results and errors, existing ADB/emulator logs, and
+  install, uninstall, Activity-start and transport-recovery diagnostics. Observer `.txt` files contain
+  typed tokens, not the original `pm` output. SDK logs are native CI diagnostics that may contain runner
+  paths and transport metadata; they are not normalized public runtime proof. Private keys, console
+  authentication tokens, keystores, ownership capabilities and recovery receipts are excluded, and no
+  whole run directory is uploaded. A failed lane still publishes no runtime proof. It requires
   the current account's non-symlink home that is not writable by group or other users, an owner-controlled non-symlink adb
   identity directory that is not group/other writable, owner-protected adb key files, and an already
   authorized target. macOS deny-only ACLs may restrict those nodes further, but any allow ACL is
@@ -1069,6 +1211,11 @@ These produce the paper's primary network table and the binary constant-time dis
   pre-authentication guidance, the exact current-account token path, both authentication acknowledgements,
   and a command-specific terminal frame. Receipt of that exact terminal frame completes the command
   without waiting for socket EOF, and bytes after that delimiter are not interpreted as part of the frame.
+  The runtime lane admits only a fresh installation after stable package absence and
+  exact installed-APK ownership checks. Its sole activity is launched explicitly once
+  with the current run ID; result validation remains bound to that ID and APK. The fresh
+  package needs no extra pre-launch force-stop. An activity-start failure still fails
+  the gate, with bounded merged stdout/stderr retained in CI diagnostics.
   Every adb/lsof call is selected from a finite Android operation table and executed through the
   private run capability; the generic bounded-process module has no arbitrary command or output CLI.
   Capability creation consumes the selected SDK adb from one already-open descriptor while hashing
@@ -1111,7 +1258,7 @@ These produce the paper's primary network table and the binary constant-time dis
   nested `profile_inputs` records the fixed suite/version/application context for ContextBound and
   canonical absence (`[]`, `0`, `[]`) for CompatXWing. `implementation_improvement` is a
   separate ContextBound `hybrid_core` native/portable comparison over an
-  `expanded_fips203_2400` key and the same coins, corpus, suite, version, and context.
+  `expanded_fips203_2410` key and the same coins, corpus, suite, version, and context.
   It covers encapsulation and decapsulation only; `includes_ffi=false` and
   `includes_os_rng=false`, so it is not a C-ABI, policy, entropy, rustls, or complete-product
   measurement. The portable implementation is a symbol-renamed static

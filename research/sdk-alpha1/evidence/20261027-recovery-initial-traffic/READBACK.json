@@ -1,0 +1,12 @@
+{
+  "completed": true,
+  "archive_sha256": "851144c79fd0d16fcbe14e364413a381461c68bb3e8b1dcd8cb578783c2314b2",
+  "members": 141,
+  "expanded_bytes": 5434884,
+  "all_members_rehashed": true,
+  "all26_complete_queries_checked": true,
+  "all10_helpers_and_initial_witness_verified": true,
+  "old_initial_zero_counter_not_reused": true,
+  "sdk_runtime_source_changed": false,
+  "release_claim_eligible": false
+}

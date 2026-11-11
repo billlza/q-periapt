@@ -1,0 +1,106 @@
+{
+  "review": "Independent live-core mathematical and source-scope review",
+  "reviewer": "release_readiness",
+  "created_utc": "2026-11-08T01:23:57.334655+00:00",
+  "verdict": "PASS",
+  "scope": "Integration of the delivered live-core corollary and source-selection discussion; read-only source and mathematical review, not a new native execution or formal proof-tool run.",
+  "inspected_manuscript_base": "da521d8388f5f0c64697387bf80b0b5b7837fb34",
+  "source_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+  "candidate": "1c68aa666db22d36ee136be1ec712545a9e74f03",
+  "artifacts": [
+    {
+      "path": "/workspace/scratch/83c4961eae79/paper_followup/confirmation_traffic/live-core-instantiation.tex",
+      "sha256": "396c6f686ad53d045b1e6f5721693a6ffb9d7a0f56856a02d5b2fae9766a633e"
+    },
+    {
+      "path": "/workspace/scratch/83c4961eae79/paper_followup/confirmation_traffic/independent_live_source_hashes.json",
+      "sha256": "30f2b6a4440f534720960bc41001b0558d56f0158c0ec897ccbe152016ab4477"
+    }
+  ],
+  "checks": [
+    {
+      "id": "record_score_normalization",
+      "result": "PASS",
+      "finding": "Corollary real-to-opaque bounds terminal-bit distance by eps_rec and a [-1,1] score by 2 eps_rec. Thus rho_j <= 2 eps_rec,j; the native advantage retains its existing external 1/2. No factor is lost or charged twice.",
+      "references": [
+        "opaque-rendering.tex, cor:real-to-opaque",
+        "candidate-local-accounting.tex, prop:native-local-accounting",
+        "contextbound-connection.tex, eq:cb-native-bound"
+      ]
+    },
+    {
+      "id": "record_resource_quantifiers",
+      "result": "PASS",
+      "finding": "Mseal, d and Q are deterministic pre-execution upper bounds for every corresponding comparison world. Mseal includes failed subsequent commits; Q is the entire derived computation. Exact copies retain one seal handle; atom-free rows have d=0; private-wire collision cost vanishes only when that equality interface is absent.",
+      "references": [
+        "primitive-inputs.tex, Hidden-input random-oracle replacement",
+        "opaque-rendering.tex, cor:real-to-opaque"
+      ]
+    },
+    {
+      "id": "projection_scope",
+      "result": "PASS",
+      "finding": "eta_proj,nat=0 applies to the exhaustively declared authoritative live core: plaintext Send and delivery remain private, network has exact Resume plus declared public operations, whole post-cut target acquisitions use the existing eligibility stop, and the partial secret-field interface contains exactly the two phase-checked successor-root and next-chain projections. Cleanup/report extensions retain their own projection accounting.",
+      "references": [
+        "artifacts/live-profile/source_profile.md",
+        "joint-continuation.tex",
+        "joint-primitive-bounds.tex",
+        "live-core-instantiation.tex, opening interface paragraphs"
+      ]
+    },
+    {
+      "id": "attribution_residual",
+      "result": "PASS",
+      "finding": "The general native eta_attr remains. ReservedFor checks original reservation event metadata, while Attr separately checks use by the accepted exchange; the failed g1/accepted g2 example exhibits that difference without any forged signature.",
+      "references": [
+        "security-model.tex, def:reservation-origin and eq:eligibility",
+        "research/continuity-identity-candidate/src/durable/messages/rekey.rs:363-374"
+      ]
+    },
+    {
+      "id": "counterexample_durability",
+      "result": "PASS",
+      "finding": "The revised example places the first persistence failure before any complete pending target/image becomes durable. A transient Plan::Key can therefore disappear on reopening the prior authoritative image, permitting a new original draw g2. It does not misclassify an unknown-outcome write with a durable intact pending target. c precedes both generation slots and the selected encapsulation; actual challenge, identities, entropy and acquisition restrictions remain unchanged.",
+      "references": [
+        "research/continuity-identity-candidate/src/durable/messages/rekey.rs:328-329,363-374",
+        "research/continuity-identity-candidate/src/durable.rs:876-916",
+        "security-model.tex, reservation/save transition rules"
+      ]
+    },
+    {
+      "id": "source_resolved_registration",
+      "result": "PASS_WITH_EXPLICIT_FUTURE_OBLIGATION",
+      "finding": "Registration is at first actual private computation, before its return, and exact resumptions preserve the original slot. The text correctly leaves the complete source-association/authentication reduction to a precisely specified retained-object signing interface; it does not claim that the general attribution term is now negligible.",
+      "references": [
+        "crates/q-periapt-sdk/src/expert/replay.rs:94-180",
+        "research/continuity-identity-candidate/src/durable/messages/rekey.rs:363-429",
+        "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs:259-341"
+      ]
+    },
+    {
+      "id": "signing_randomness_obstruction",
+      "result": "PASS",
+      "finding": "SigningReservation serializes reserved ML-DSA coins with a binding to signer, operation, purpose and full signed message, then passes those same coins to sign_with. A conventional classical signing oracle alone does not automatically provide the retained coin representation. The manuscript preserves eta_attr rather than claiming a completed EUF-CMA bridge.",
+      "references": [
+        "research/continuity-identity-candidate/src/crypto.rs:340-404"
+      ]
+    },
+    {
+      "id": "source_identity",
+      "result": "PASS",
+      "finding": "All seven checked source files are byte-identical between the pinned source 228c944 and candidate 1c68aa6. Full hashes and immutable GitHub links are in independent_live_source_hashes.json."
+    }
+  ],
+  "resolved_review_requests": [
+    "Specified pre-durable failure rather than an arbitrary ambiguous persistence failure.",
+    "Made the two permitted partial projections and complete live-core call surface exhaustive.",
+    "Made all row and seal budgets deterministic ex-ante bounds covering all comparison worlds."
+  ],
+  "blocking_findings": [],
+  "accepted_boundaries": [
+    "This is a concrete substitution into established local-accounting and primitive interfaces, with their existing ideal-oracle assumptions.",
+    "No source-resolved positive signature attribution theorem is asserted.",
+    "The conclusion does not cover an expanded public plaintext/guessed-Send or arbitrary private-fragment interface."
+  ],
+  "recommendation": "Integrate the reviewed live-core fragment; retain the displayed general attribution residual and exact interface conditions."
+}

@@ -1,0 +1,16 @@
+{
+  "schema": "qperiapt-manuscript-authors/1",
+  "confirmed_date": "2026-11-07",
+  "authors": [
+    {
+      "given_name": "Ziang",
+      "family_name": "Li",
+      "display_name": "Ziang Li",
+      "native_name": "李子昂",
+      "corresponding": true,
+      "email": "2403871950@qq.com",
+      "alternative_email": "bhmq03@durham.ac.uk",
+      "affiliation": "Department of Engineering, Durham University, Durham, United Kingdom"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+test_http_failure_burst_recovers_with_real_partial_output_cleanup (control_test_formal_tool_asset.FormalToolAssetTests.test_http_failure_burst_recovers_with_real_partial_output_cleanup) ... test-asset curl status 22; retrying in 15 seconds
+test-asset curl status 22; retrying in 30 seconds
+ERROR
+
+======================================================================
+ERROR: test_http_failure_burst_recovers_with_real_partial_output_cleanup (control_test_formal_tool_asset.FormalToolAssetTests.test_http_failure_burst_recovers_with_real_partial_output_cleanup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/e41ac2378a11/ci-repair/base/artifact/control_test_formal_tool_asset.py", line 405, in test_http_failure_burst_recovers_with_real_partial_output_cleanup
+    path = assets.download("test-asset", runner=runner, sleeper=sleeps.append)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/e41ac2378a11/ci-repair/base/artifact/formal_tool_asset.py", line 407, in download
+    _fail(
+  File "/workspace/scratch/e41ac2378a11/ci-repair/base/artifact/formal_tool_asset.py", line 97, in _fail
+    raise FormalToolAssetError(message)
+formal_tool_asset.FormalToolAssetError: test-asset download failed after 3 attempts with curl status 22
+
+----------------------------------------------------------------------
+Ran 1 test in 0.033s
+
+FAILED (errors=1)

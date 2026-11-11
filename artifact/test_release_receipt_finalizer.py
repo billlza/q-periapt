@@ -116,9 +116,7 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
         patches = (
             mock.patch.object(finalizer, "REPOSITORY_ROOT", self.root),
             mock.patch.object(finalizer, "RESULTS_PATH", self.results),
-            mock.patch.object(
-                finalizer, "RESULTS_CANDIDATE_ROOT", self.candidate_root
-            ),
+            mock.patch.object(finalizer, "RESULTS_CANDIDATE_ROOT", self.candidate_root),
             mock.patch.object(
                 apple_stable_publication,
                 "APPLE_PUBLICATION_RECEIPT_ROOT",
@@ -134,7 +132,6 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
                 "CRATES_IO_PUBLICATION_RECEIPT_ROOT",
                 self.crates_root,
             ),
-            mock.patch.object(finalizer, "validate_declared_currentness"),
         )
         for patcher in patches:
             patcher.start()
@@ -344,6 +341,7 @@ class ReleaseReceiptFinalizerTests(unittest.TestCase):
             finalizer.load_current_results(self._current_sha256())
 
         self._git("checkout", "--", "artifact/results.json")
+        self.results.chmod(0o644)
         (self.root / "tracked.txt").write_text("new source\n", encoding="utf-8")
         self._git("add", "tracked.txt")
         with self.assertRaisesRegex(

@@ -1,0 +1,179 @@
+{
+  "schema": "qperiapt-joint-continuation-independent-review/1",
+  "reviewer_agent": "/root/evidence",
+  "reviewed_at_utc": "2026-11-07T21:05:28.711978+00:00",
+  "status": "PASS",
+  "scope": "Frozen v0.3 mathematical continuation, native interface correspondence and exact MD/TeX consistency; hand review under the declared primitive assumptions.",
+  "proof_version": "0.3",
+  "proof_files": [
+    {
+      "path": "joint_continuation.md",
+      "sha256": "73898618516188281e5ac6c50ad9bf827c1a000c0ecc66259ba8c703b1e02aef",
+      "bytes": 35527,
+      "author_freeze_matches": true
+    },
+    {
+      "path": "joint-continuation.tex",
+      "sha256": "f055eb16508e6e410631ee041298209df239bfcf4159363945fa3f7b4c11a225",
+      "bytes": 17161,
+      "author_freeze_matches": true
+    },
+    {
+      "path": "joint-primitive-bounds.tex",
+      "sha256": "8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d",
+      "bytes": 10706,
+      "author_freeze_matches": true
+    }
+  ],
+  "native_profile_version": "0.3",
+  "native_source_files": [
+    {
+      "path": "../live-profile/source_profile.md",
+      "sha256": "5fcd49c29be2a02f38041982da9773a6373aeefa677fecc82f780b192b3a1cba",
+      "bytes": 25448
+    },
+    {
+      "path": "../live-profile/source_map.json",
+      "sha256": "e03457ad40ab0c1185ef7cff55e38df430c1299127367c95842031309d686ed1",
+      "bytes": 38746
+    },
+    {
+      "path": "../live-profile/native_kdf_encodings.json",
+      "sha256": "780fc1341648700dcb15a4c7e168251eb40fe46b53953a0e9648bdc60141fd11",
+      "bytes": 2267
+    },
+    {
+      "path": "../live-profile/source_identity_manifest.json",
+      "sha256": "09fbfb3cf3d3bd2fb8b8bebd978e9d063dfa50f26b36ded51bf0758889297c8b",
+      "bytes": 22835
+    }
+  ],
+  "source_head": "1c68aa666db22d36ee136be1ec712545a9e74f03",
+  "paper_source_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+  "checks": [
+    {
+      "id": "shared_qro",
+      "status": "PASS",
+      "finding": "All five hops and the primitive appendix retain one h; all ordinary preparation and continuation queries count."
+    },
+    {
+      "id": "root_joint_ideal",
+      "status": "PASS",
+      "finding": "Independent-table ideal I is used; no cross-pair repair is claimed or needed for that ideal."
+    },
+    {
+      "id": "gamma_alias",
+      "status": "PASS",
+      "finding": "Gamma classes, including zero session aliases, share handles; no conditioning on class inequality."
+    },
+    {
+      "id": "numeric_key_collision",
+      "status": "PASS",
+      "finding": "Accidental equality of independently sampled keys is preserved by known-key calls to the same h."
+    },
+    {
+      "id": "adaptive_expand",
+      "status": "PASS",
+      "finding": "Complete info and block counter give pointwise distinct inputs and prefix-consistent exact tables."
+    },
+    {
+      "id": "fresh_material_mark",
+      "status": "PASS",
+      "finding": "Target info and direction marked before first fresh allocation; earlier entry cannot be relabelled fresh."
+    },
+    {
+      "id": "material_alias_protection",
+      "status": "PASS",
+      "finding": "Every exact info alias inherits the marked protected handle; other distinct info remains available."
+    },
+    {
+      "id": "hidden_parent_channel",
+      "status": "PASS",
+      "finding": "Exact parent Expand normalization precedes selected-seed hidden-input embedding."
+    },
+    {
+      "id": "installation_freshness",
+      "status": "PASS",
+      "finding": "Freshness is stated at installation relative to prior state and other new target blocks, not fixed future observations."
+    },
+    {
+      "id": "row_interface",
+      "status": "PASS",
+      "finding": "Multi-input row bound derives from the actual shared-root/NMAC reduction, not the immutable report experiment."
+    },
+    {
+      "id": "query_budgets",
+      "status": "PASS",
+      "finding": "3+4M/4M parent row budgets, fixed selected row2 and lengths188/89 match actual encodings."
+    },
+    {
+      "id": "root_initialization",
+      "status": "PASS",
+      "finding": "Known old root + separately uniform contribution enter by distinct Extract/Expand comparison with counted shared oracle."
+    },
+    {
+      "id": "mac_continuation",
+      "status": "PASS",
+      "finding": "Confirmation signatures and actual chosen-wire ACK verification are regenerated with known returned keys."
+    },
+    {
+      "id": "unknown_payload",
+      "status": "PASS",
+      "finding": "Challenge payload/intent are opaque private handles; outer ordinary Send journal prefix has no clear plaintext intent digest."
+    },
+    {
+      "id": "send_cache",
+      "status": "PASS",
+      "finding": "First-private-computation caching retains marked material and authoritative owner/history through retries."
+    },
+    {
+      "id": "active_receive",
+      "status": "PASS",
+      "finding": "Exact challenge returns authenticated marker privately; altered ciphertext retains decryption/error interface."
+    },
+    {
+      "id": "score_gate",
+      "status": "PASS",
+      "finding": "HMAC fixed-b controllers are averaged; AEAD gate A is computable without b; centered score factors2 are correct."
+    },
+    {
+      "id": "projection_ownership",
+      "status": "PASS",
+      "finding": "Successor root and post-commit next-seed use actual phase/field owner; current private projection stays actual residual."
+    },
+    {
+      "id": "native_zero_values",
+      "status": "PASS",
+      "finding": "Live values accept zero; closed/resolved checks test explicitly overwritten erasure markers."
+    },
+    {
+      "id": "md_tex_consistency",
+      "status": "PASS",
+      "finding": "Full MD and both final TeX modules checked; final formulas and interface corrections agree."
+    },
+    {
+      "id": "freeze_binding",
+      "status": "PASS",
+      "finding": "All three local SHA-256 values equal the explicit theory-author freeze."
+    }
+  ],
+  "check_count": 21,
+  "unresolved_findings": [],
+  "review_changes_completed": [
+    "finite M distinct complete traffic infos without cross-endpoint uniqueness premise",
+    "fresh material/direction marking and alias protection",
+    "material/owner identity in send cache",
+    "separate HMAC fixed-b score and AEAD bit-independent gate",
+    "installation-time rather than future-conditioned freshness",
+    "ordinary Send clear-prefix availability confirmed"
+  ],
+  "scope_accounting": "Existing native/component/combiner/authentication/projection terms remain separate; eligibility is unchanged.",
+  "new_native_experiments": false,
+  "new_ci_runs": false,
+  "remote_mutations": false,
+  "review_report": {
+    "path": "independent_review.md",
+    "sha256": "15ab990a1133ac61f04b46b27968746ce206d5b323cbd20ca29b4b60b1cc7737",
+    "bytes": 8121
+  }
+}

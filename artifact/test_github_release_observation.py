@@ -11,7 +11,7 @@ import os
 import pathlib
 import tempfile
 import unittest
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 from unittest import mock
 
@@ -1407,6 +1407,166 @@ class GitHubReleaseObservationTests(unittest.TestCase):
                     (policy, platform),
                 )
             self.assertEqual(2, sample.call_count)
+
+    def test_direct_environment_stays_exact_and_explicit_proxy_adds_one_key(
+        self,
+    ) -> None:
+        source = {"GH_TOKEN": "fixture_token_123456789"}
+        expected = {
+            **source,
+            "GH_NO_EXTENSION_UPDATE_NOTIFIER": "1",
+            "GH_NO_UPDATE_NOTIFIER": "1",
+            "GH_PAGER": "cat",
+            "GH_PROMPT_DISABLED": "1",
+            "GH_TELEMETRY": "0",
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_SYSTEM": "/dev/null",
+            "GIT_NO_REPLACE_OBJECTS": "1",
+            "HOME": observation._github_account_home(),
+            "LANG": "C",
+            "LC_ALL": "C",
+            "PAGER": "cat",
+            "PATH": "/usr/bin:/bin",
+            "TERM": "dumb",
+        }
+        self.assertEqual(expected, observation.github_cli_environment(source))
+        self.assertEqual(
+            expected,
+            observation.github_cli_environment(source, http_connect_proxy=None),
+        )
+        proxy = "http://127.0.0.1:7890"
+        selected = observation.github_cli_environment(source, http_connect_proxy=proxy)
+        self.assertEqual({**expected, "HTTPS_PROXY": proxy}, selected)
+        self.assertEqual(
+            selected, observation._validated_github_cli_environment(selected)
+        )
+        with observation._isolated_github_cli_environment(selected) as child:
+            self.assertEqual(proxy, child["HTTPS_PROXY"])
+            self.assertEqual(source["GH_TOKEN"], child["GH_TOKEN"])
+            self.assertEqual(
+                set(selected) | {"GH_CONFIG_DIR", "XDG_STATE_HOME", "XDG_CACHE_HOME"},
+                set(child),
+            )
+            self.assertNotEqual(expected["HOME"], child["HOME"])
+        self.assertEqual({"GH_TOKEN": "fixture_token_123456789"}, source)
+
+    def test_explicit_proxy_never_admits_ambient_network_or_trust_overrides(
+        self,
+    ) -> None:
+        proxy = "http://127.0.0.1:7890"
+        for name in observation.DANGEROUS_GITHUB_ENVIRONMENT | {"GIT_CONFIG_GLOBAL"}:
+            for value in ("", proxy):
+                with (
+                    self.subTest(name=name, value=value),
+                    self.assertRaisesRegex(
+                        observation.GitHubReleaseObservationError, "trust overrides"
+                    ),
+                ):
+                    observation.github_cli_environment(
+                        {"GH_TOKEN": "fixture_token_123456789", name: value},
+                        http_connect_proxy=proxy,
+                    )
+
+    def test_proxy_mutations_are_single_attempt_and_credentials_stay_scrubbed(
+        self,
+    ) -> None:
+        token = "fixture_token_123456789"
+        proxy = "http://127.0.0.1:7890"
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            tool_path = root / "gh"
+            tool_path.write_bytes(b"fixture GitHub CLI\n")
+            os.chmod(tool_path, 0o500)
+            body = b'{"fixture":true}\n'
+            body_path = root / "request.json"
+            body_path.write_bytes(body)
+            os.chmod(body_path, 0o600)
+            with (
+                mock.patch.object(observation, "GITHUB_CLI_PATH", tool_path),
+                mock.patch.object(
+                    observation,
+                    "GITHUB_CLI_SHA256",
+                    hashlib.sha256(tool_path.read_bytes()).hexdigest(),
+                ),
+            ):
+                tool = observation.select_github_cli()
+                environment = observation.github_cli_environment(
+                    {"GH_TOKEN": token}, http_connect_proxy=proxy
+                )
+                for method in ("POST", "PATCH", "upload"):
+                    calls: list[list[str]] = []
+
+                    def fail_once(
+                        argv: list[str],
+                        *,
+                        timeout_seconds: int,
+                        maximum_bytes: int,
+                        stdin_fd: int,
+                        stderr: int,
+                        environment: Mapping[str, str],
+                    ) -> BoundedResult:
+                        del timeout_seconds, maximum_bytes
+                        calls.append(argv)
+                        self.assertEqual(proxy, environment["HTTPS_PROXY"])
+                        self.assertEqual(token, environment["GH_TOKEN"])
+                        self.assertNotIn(token, " ".join(argv))
+                        self.assertEqual(body, os.read(stdin_fd, len(body) + 1))
+                        os.write(
+                            stderr, f"TLS handshake timeout {token}\n".encode("ascii")
+                        )
+                        return BoundedResult(1)
+
+                    descriptor = os.open(body_path, os.O_RDONLY)
+                    try:
+                        with (
+                            self.subTest(method=method),
+                            self.assertRaises(
+                                observation.GitHubCliExecutionError
+                            ) as caught,
+                        ):
+                            if method == "upload":
+                                observation.execute_github_api_asset_upload(
+                                    tool,
+                                    release_id=123,
+                                    asset_name="fixture.zip",
+                                    content_type="application/zip",
+                                    input_fd=descriptor,
+                                    input_size=len(body),
+                                    input_sha256=hashlib.sha256(body).hexdigest(),
+                                    timeout_seconds=1,
+                                    maximum_bytes=1024,
+                                    environment=environment,
+                                    label="fixture upload",
+                                    runner=fail_once,
+                                )
+                            else:
+                                endpoint = (
+                                    f"/repos/{observation.GITHUB_REPOSITORY}/releases"
+                                )
+                                if method == "PATCH":
+                                    endpoint += "/123"
+                                observation.execute_github_api_json_mutation(
+                                    tool,
+                                    method=method,
+                                    endpoint=endpoint,
+                                    input_fd=descriptor,
+                                    input_size=len(body),
+                                    input_sha256=hashlib.sha256(body).hexdigest(),
+                                    timeout_seconds=1,
+                                    maximum_bytes=1024,
+                                    environment=environment,
+                                    label="fixture JSON mutation",
+                                    runner=fail_once,
+                                )
+                    finally:
+                        os.close(descriptor)
+                    self.assertEqual(1, len(calls))
+                    self.assertEqual(1, caught.exception.returncode)
+                    self.assertIsNone(caught.exception.error_kind)
+                    self.assertNotIn(token, str(caught.exception))
+                    self.assertIn("[redacted]", str(caught.exception))
+                    self.assertEqual(body, body_path.read_bytes())
 
     def test_github_cli_source_environment_rejects_trust_overrides(self) -> None:
         for name in (

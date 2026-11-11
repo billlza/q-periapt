@@ -1,0 +1,44 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 1 1%22%3E%3C/svg%3E">
+<title>Q-Periapt installed WASM acceptance</title>
+<pre id="result">RUNNING</pre>
+<script type="module">
+const parameters = new URL(location.href).searchParams;
+const mode = parameters.get('mode') || 'roundtrip';
+const realm = parameters.get('realm') || 'window';
+async function inWorker() {
+  const worker = new Worker(`/browser-worker.mjs?mode=${encodeURIComponent(mode)}`, { type: 'module' });
+  let timer;
+  try {
+    return await new Promise((resolve, reject) => {
+      timer = setTimeout(() => reject(new Error('Worker acceptance timed out')), 15000);
+      worker.onmessage = event => resolve(event.data);
+      worker.onmessageerror = () => reject(new Error('Worker result could not be deserialized'));
+      worker.onerror = event => reject(new Error(`Worker execution failed: ${event.message}`));
+    });
+  } finally {
+    clearTimeout(timer);
+    worker.terminate();
+  }
+}
+let result;
+try {
+  if (realm === 'worker') result = await inWorker();
+  else if (realm === 'window') {
+    const { runAcceptance } = await import('./browser-suite.mjs');
+    result = await runAcceptance(mode, realm);
+  } else throw new Error('unknown execution realm');
+  if (!result || result.mode !== mode || result.realm !== realm || !Array.isArray(result.errors)
+      || !Number.isInteger(result.assertions) || result.assertions < 1
+      || !['pass', 'fail'].includes(result.status)
+      || (result.status === 'pass' && result.errors.length !== 0)) {
+    throw new Error('Malformed acceptance result');
+  }
+} catch (error) {
+  result = { status: 'fail', mode, realm, assertions: 0,
+    errors: [{ error: String(error), stack: error.stack }], userAgent: navigator.userAgent };
+}
+globalThis.__QPERIAPT_TEST_RESULT = result;
+document.getElementById('result').textContent = JSON.stringify(result, null, 2);
+</script>

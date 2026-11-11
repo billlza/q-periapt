@@ -710,6 +710,7 @@ class PlatformDistributionTests(unittest.TestCase):
         release_path = receipt_path.parent / platform_distribution.PLATFORM_RELEASE_DIRECTORY_NAME
         arguments = mock.Mock(
             command="assemble",
+            profile="stable",
             root=self.repository,
             candidate_dir=self.root / "candidate",
             runtime_bundle=self.root / "runtime.zip",

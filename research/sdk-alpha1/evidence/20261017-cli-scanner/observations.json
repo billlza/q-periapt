@@ -1,0 +1,249 @@
+{
+  "schema": 1,
+  "source_parent": "7434448a5f3707959c27ddc8402f2639a75cbf68",
+  "review_commit": "1f852fe7538415003adb9ea85098a33ca1ad76f2",
+  "review_tree": "7a1242cc13435dabe0a6a8f816eacf3e8c3fc675",
+  "cli_source_sha256": {
+    "Cargo.lock": "8e1bebf9c4c84a9b78de769dcf88f2f61af251ed0915d7a6b4b9a5626aab38aa",
+    "crates/q-periapt-cli/Cargo.toml": "f00365c91adb766abc5be585f1a6cccb47fdae966681699f7fba90bf6efb5e81",
+    "crates/q-periapt-cli/src/lib.rs": "e4d2b5755796ea3562658a537f811a21370ce74de88a7259dd475e5423241eb0",
+    "crates/q-periapt-cli/src/scanner.rs": "be9ff7d5c57ba741bfad349ac533098ded257474c0921fecf670eeffc3c1811d",
+    "crates/q-periapt-cli/src/scanner/tests.rs": "18c1a42575cc31c42aaafc242ffd69d9004503895b08f207f09fa52cf8665e28"
+  },
+  "target": "aarch64-apple-darwin",
+  "rust_version": "1.98.1",
+  "minimum_rust_version": "1.90.0",
+  "old_boundary": {
+    "original_source_sha256": "68ec9012fe9cc04652ee14848483cc2ed6ab6fe13e014c30d151be2e77e655c5",
+    "fixture_source_sha256": "ae3babb0fee7df206839a171c1dfdf79309dad4c700aca447e8bede500d6b64d",
+    "reader_source_is_exact": true,
+    "both_no_follow_assertions_fail": true,
+    "scope": "Native Apple Silicon controlled interleavings. The file reader is copied byte-for-byte; directory preflight/read_dir sequence is reproduced explicitly. This is not a timing-dependent public scan() run, Windows reproduction, or evidence of an external exploit. Only fresh synthetic files under the owned output directory were read or mutated."
+  },
+  "checks": {
+    "format": {
+      "argv": [
+        "cargo",
+        "+1.98.1",
+        "fmt",
+        "--package",
+        "q-periapt-cli",
+        "--",
+        "--check"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 0.33799400000134483
+    },
+    "build-tests": {
+      "argv": [
+        "cargo",
+        "+1.98.1",
+        "test",
+        "-p",
+        "q-periapt-cli",
+        "--locked",
+        "--offline",
+        "--target=aarch64-apple-darwin",
+        "--jobs=1",
+        "--lib",
+        "--no-run",
+        "--message-format=json-render-diagnostics"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 2.02891950000776
+    },
+    "fifo-boundary": {
+      "argv": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-codeql-9c65-terminal-20261016/cli-scanner-build-349/cargo-target/aarch64-apple-darwin/debug/deps/q_periapt_cli-8004e9d8cfa8b2bf",
+        "scanner::tests::fifo_replacement_is_rejected_before_reading",
+        "--exact",
+        "--test-threads=1"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 0.33752325002569705
+    },
+    "scanner-boundaries": {
+      "argv": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-codeql-9c65-terminal-20261016/cli-scanner-build-349/cargo-target/aarch64-apple-darwin/debug/deps/q_periapt_cli-8004e9d8cfa8b2bf",
+        "scanner::tests::",
+        "--test-threads=1"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 0.09965633298270404
+    },
+    "package-tests": {
+      "argv": [
+        "cargo",
+        "+1.98.1",
+        "test",
+        "-p",
+        "q-periapt-cli",
+        "--locked",
+        "--offline",
+        "--target=aarch64-apple-darwin",
+        "--jobs=1",
+        "--",
+        "--test-threads=1"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 0.3742970830062404
+    },
+    "clippy-all-features": {
+      "argv": [
+        "cargo",
+        "+1.98.1",
+        "clippy",
+        "-p",
+        "q-periapt-cli",
+        "--all-targets",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "--target=aarch64-apple-darwin",
+        "--jobs=1",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 0.8220272909966297
+    },
+    "minimum-version": {
+      "argv": [
+        "rustc",
+        "+1.90.0",
+        "-vV"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 0.14791158301522955
+    },
+    "minimum-check": {
+      "argv": [
+        "cargo",
+        "+1.90.0",
+        "check",
+        "-p",
+        "q-periapt-cli",
+        "--lib",
+        "--locked",
+        "--offline",
+        "--target=aarch64-apple-darwin",
+        "--jobs=1"
+      ],
+      "returncode": 0,
+      "elapsed_seconds": 34.80229629203677
+    }
+  },
+  "scanner_tests": 11,
+  "default_package_tests": 23,
+  "contract_tests": 224,
+  "installed": {
+    "binary_sha256": "9527e7373b111a8c8bf1231db8797ac83df3a1e422f7b1b07706dd1176127a2b",
+    "scan_cases": [
+      {
+        "case": "clean",
+        "complete": true,
+        "exit_code": 0,
+        "operations": [],
+        "tokens": []
+      },
+      {
+        "case": "legacy-finding",
+        "complete": true,
+        "exit_code": 2,
+        "operations": [],
+        "tokens": [
+          "rsa"
+        ]
+      },
+      {
+        "case": "exact-byte-limit",
+        "complete": true,
+        "exit_code": 2,
+        "operations": [],
+        "tokens": [
+          "rsa"
+        ]
+      },
+      {
+        "case": "oversized",
+        "complete": false,
+        "exit_code": 1,
+        "operations": [
+          "too_large"
+        ],
+        "tokens": []
+      },
+      {
+        "case": "invalid-utf8",
+        "complete": false,
+        "exit_code": 1,
+        "operations": [
+          "read_file"
+        ],
+        "tokens": []
+      },
+      {
+        "case": "symlink-child",
+        "complete": false,
+        "exit_code": 1,
+        "operations": [
+          "symlink_skipped"
+        ],
+        "tokens": []
+      },
+      {
+        "case": "symlink-root-trailing-separator",
+        "complete": false,
+        "exit_code": 1,
+        "operations": [
+          "symlink_skipped"
+        ],
+        "tokens": []
+      }
+    ],
+    "sbom_components": 290,
+    "scope": "Actual task-local cargo install and command execution on Apple Silicon. Controlled replacement interleavings are covered by the native scanner boundary tests; no Windows/Linux run or release admission is claimed."
+  },
+  "license_resolution": {
+    "completed": true,
+    "lock_sha256": "8e1bebf9c4c84a9b78de769dcf88f2f61af251ed0915d7a6b4b9a5626aab38aa",
+    "release_claim_eligible": false,
+    "scope": "Offline target-filtered dependency resolution and actual license copying/readback; no Linux or Windows compilation/runtime result.",
+    "target_inventories": [
+      {
+        "inventory_sha256": "437ca748a5963d29dbf76da33519eec4910b0f4712d6b6b1580663731298e2d2",
+        "packages": 85,
+        "target": "aarch64-apple-darwin"
+      },
+      {
+        "inventory_sha256": "03ea1bb1e24ecf85f82beda92b860450e7cce0a51586a8a469550a474dde3d5d",
+        "packages": 89,
+        "target": "x86_64-unknown-linux-gnu"
+      },
+      {
+        "inventory_sha256": "ac873fd7b7865409ec38f72d1658b0738afe1fc71c80b947bc3a6c5ded4bcb92",
+        "packages": 91,
+        "target": "x86_64-pc-windows-msvc"
+      }
+    ]
+  },
+  "current_source_inventories": {
+    "tracked_rust_files": 695,
+    "proof_inputs": 256,
+    "historical_proof_inputs": 249
+  },
+  "failed_attempts": [
+    "349: unused import after module extraction; removed before tests",
+    "350: FIFO refused promptly but expected error wording differed; aligned precise error text",
+    "352: isolated toolchain had no Clippy; used existing byte-identical compiler with Clippy",
+    "353: moved scanner tests exposed strict unwrap/index/panic lints; fixed without allowances",
+    "354 contract phase: worktree correctly rejected by standalone Git provenance; new proof-map keys also required historical-delta and marker updates; 356 clean checkout passes"
+  ],
+  "open_boundaries": [
+    "Linux and Windows native execution for this change",
+    "Full current-source hosted CI",
+    "Existing protocol, resource, maintenance and external-review release requirements"
+  ],
+  "release_claim_eligible": false
+}

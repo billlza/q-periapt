@@ -11,6 +11,8 @@ import apple_publication_contract as apple_contract
 import crates_io_publication_contract as crates_contract
 import platform_publication_contract as platform_contract
 import platform_stable_publication_contract as stable_platform_contract
+import platform_maintenance_contract as maintenance_contract
+from platform_distribution_contract import PlatformReleaseProfile
 
 
 RELEASE_PUBLICATION_KEYS = frozenset(
@@ -596,6 +598,9 @@ def validate_release_publications(manifest: dict[str, object]) -> None:
     publications = _validate_leaf_dispatch(manifest)
     state = _stable_cohort_state(publications)
     _validate_source_crosslinks(manifest, publications, state)
+    maintenance_identity = maintenance_source_identity(manifest)
+    if maintenance_identity is not None:
+        validate_stable_source_currentness(manifest)
     if state != PUBLICATION_STATE_SOURCE:
         validate_stable_source_currentness(manifest)
     if state == PUBLICATION_STATE_VERIFIED:
@@ -623,6 +628,46 @@ def validate_release_publications(manifest: dict[str, object]) -> None:
         swift.get("active_publication_key") == expected_active,
         "active Apple selector differs from the coordinated cohort state",
     )
+
+
+def maintenance_source_identity(
+    manifest: dict[str, object],
+    *,
+    profile: PlatformReleaseProfile | None = None,
+) -> StableSourceIdentity | None:
+    """Bind one SDK revision to its own source with an external immutable Q."""
+
+    publications = _publication_entries(manifest)
+    try:
+        selected = maintenance_contract.selected_profile(publications)
+        if profile is not None:
+            maintenance_contract.product_contract(profile)
+            _require(
+                selected is None or selected is profile,
+                "maintenance source profile differs",
+            )
+        if selected is None:
+            return None
+        receipt = maintenance_contract.publication(
+            publications[selected.publication_key], profile=selected
+        )
+    except maintenance_contract.PlatformMaintenanceContractError as exc:
+        raise ReleasePublicationContractError(str(exc)) from exc
+    _require(
+        _stable_cohort_state(publications) == PUBLICATION_STATE_SOURCE,
+        "maintenance results cannot replace or mix the original stable cohort",
+    )
+    identity = _source_identity(
+        _source_object(receipt, domain="platform"), f"platform {selected.revision}"
+    )
+    provenance = _object(manifest.get("provenance"), "maintenance results provenance")
+    _require(
+        provenance.get("snapshot_commit") == identity.source_parent_commit
+        and manifest.get("proof_source_tree_sha256")
+        == identity.canonical_source_tree_sha256,
+        "maintenance source differs from its own results provenance",
+    )
+    return identity
 
 
 def stable_source_identity(

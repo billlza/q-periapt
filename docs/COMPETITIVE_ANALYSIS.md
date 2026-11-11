@@ -1,14 +1,15 @@
 # Comparative evidence analysis — capabilities, boundaries, and unclosed claims
 
 > **External comparison baseline: 2026-08-16; local model status: 2026-08-16.**
-> Q-Periapt is a pre-1.0, unaudited research
+> Q-Periapt is a pre-1.0 research
 > artifact. This document separates construction-level security, protocol scope,
 > implementation assurance, performance, standardization, and deployment. A win on
 > one axis is never reported as a win on all axes. Machine-readable claim status is
 > in [`../artifact/claim-ledger.json`](../artifact/claim-ledger.json).
 > External rows are scoped to the linked standard, specification, vendor documentation,
 > or project repository—the primary source for what that baseline publicly claims.
-> They are not independent audits, an exhaustive market survey, or an aggregate ranking.
+> The comparison covers those named baselines and linked capabilities; it does not
+> provide an exhaustive market survey or an aggregate ranking.
 
 ## Executive answer
 
@@ -52,10 +53,10 @@ production superiority.
 | [Signal PQXDH](https://signal.org/docs/specifications/pqxdh/) | Asynchronous initial key agreement | Identity, signed/one-time classical and PQ prekeys, offline first ciphertext, replay and server-trust analysis; its published analyses include conditional KCI resistance | Authentication is classical in the current revision; one-time-key exhaustion, last-resort keys, replay, and directory trust remain protocol concerns. Any modified hybrid/PQ identity mode must re-prove KCI for its own assumptions and compromise schedules. PQXDH is only the bootstrap component. |
 | [Signal SPQR / Triple Ratchet](https://signal.org/docs/specifications/doubleratchet/) + [ML-KEM Braid](https://signal.org/docs/specifications/mlkembraid/) | Ongoing hybrid FS/PCS | Sparse PQ continuous key agreement, bounded epoch/skipped-key state, dropped-message analysis, heterogeneous migration, public specifications | This removes the old comparison claim that Signal has only initial PQ protection. Q-Periapt has no comparable state machine or implementation-level proof. |
 | [Signal Sesame](https://signal.org/docs/specifications/sesame/) | Asynchronous multi-device session management | Per-device active/inactive sessions, convergence, retries, stale devices, bounded storage/error handling | Q-Periapt has no user/device/session graph, queue, retry, revocation, or recovery implementation. |
-| [Apple PQ3](https://security.apple.com/blog/imessage-pq3/) | Deployed messaging protocol with asynchronous establishment and ongoing PQ ratcheting | Pairwise per-device sessions, Contact Key Verification, hardware-backed classical device authentication, periodic PQ healing, protocol analysis, external review, huge deployment | Authentication remains classical against an active quantum attacker; cadence and platform infrastructure are product trade-offs. Q-Periapt still has no comparable ratchet, transparency service, audit, telemetry, or scale. |
+| [Apple PQ3](https://security.apple.com/blog/imessage-pq3/) | Deployed messaging protocol with asynchronous establishment and ongoing PQ ratcheting | Pairwise per-device sessions, Contact Key Verification, hardware-backed classical device authentication, periodic PQ healing, protocol analysis, external review, huge deployment | Authentication remains classical against an active quantum attacker; cadence and platform infrastructure are product trade-offs. Q-Periapt still has no comparable ratchet, transparency service, telemetry, or scale. |
 | [Apple CryptoKit / Secure Enclave PQ APIs](https://developer.apple.com/documentation/cryptokit/secureenclave) | Platform provider surface on supported current Apple systems | X-Wing and ML-KEM APIs plus Secure Enclave ML-KEM-768/1024 and ML-DSA-65/87 private-key operations | A valuable provider/security/performance baseline, not a Q-Periapt invention. Current software `mlkem-native`/`fips204` keys do not automatically gain hardware isolation; OS/device availability, background/lock behavior, error semantics, and speed/energy must be measured on physical devices. |
 | Q-Periapt `CompatXWing` | Byte-exact MLKEM768-X25519 construction/control profile | Three retained X-Wing draft-10 vectors plus the official `concrete-hybrid-kems-04` Appendix B.2 vector (stored as the repository vector-0 fixture); seed-`dk` guard; noncanonical metadata rejection | The construction has no suite/version/context inputs, so the local K-CTX wrapper property is inapplicable. Q-Periapt requires canonical absence (`[]`, `0`, `[]`) and rejects supplied values instead of implying that they are bound. KAT equality is not independent endpoint interoperability or RFC status. |
-| Q-Periapt `ContextBound` | Non-standard committing hybrid profile | Binds suite/version/all ct/pk/context; machine-checked reductions and countermodels | Research profile; no standards adoption, external audit, or formal spec-to-Rust refinement. |
+| Q-Periapt `ContextBound` | Non-standard committing hybrid profile | Binds suite/version/all ct/pk/context; machine-checked reductions and countermodels | Research profile; no standards adoption or formal spec-to-Rust refinement. |
 
 For operational KEM guidance, NIST’s [SP 800-227](https://csrc.nist.gov/pubs/sp/800/227/final)
 and the IETF’s [RFC 9958](https://www.rfc-editor.org/rfc/rfc9958.html) reinforce the
@@ -188,7 +189,7 @@ source-CT/hax claim transfers. In particular,
 `fips203` 0.4.3's historical probe failed on both ISAs in
 [CI run 29230650107](https://github.com/billlza/q-periapt/actions/runs/29230650107);
 those counts do not transfer to the current provider. This cannot be generalized to every
-primitive, feature, or ISA. The old HQC/PQClean backend was pre-standard, unaudited,
+primitive, feature, or ISA. The old HQC/PQClean backend was pre-standard,
 known timing-leaky, and unmaintained; it has now been removed from the publishable and
 runtime-suite graph rather than carried as a hedge. Its 193/22,849 Memcheck counts are
 historical older-source evidence, not the current CT gate. The live gate uses a synthetic
@@ -202,8 +203,7 @@ but as of 2026-07-12 the official FIPS 207 IPD is unavailable and NIST says it i
 The native selection is an implementation optimization, not formal-assurance evidence.
 Upstream HOL-Light evidence is limited to selected upstream assembly source/object
 routines under its stated preconditions; it does not prove downstream reassembly,
-the Rust/C wrapper, the full ABI, or a released package. This integration has no
-independent audit.
+the Rust/C wrapper, the full ABI, or a released package.
 
 ### 2.8 Evidence islands create false green claims
 
@@ -472,7 +472,8 @@ Priority order:
    relative/absolute thresholds to iPad/iPhone energy and public APIs.
 4. **Portable CT:** extend binary/dataflow evidence to every shipping primitive/backend/ISA;
    remove unmaintained experimental dependencies from product claims.
-5. **External review:** obtain cryptographic, formal-methods, FFI, and side-channel audits.
+5. **Security validation:** complete internal cryptographic/FFI boundary review and
+   source-bound formal-methods and side-channel checks.
 6. **Standards strategy:** submit the authenticated-policy/context and proof-ledger ideas as
    composable extensions/evidence, not as a claim that a private-use wire should replace X-Wing.
 7. **Continuity reference lane:** implement component-conformant PQXDH bootstrap and

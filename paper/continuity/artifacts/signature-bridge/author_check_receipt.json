@@ -1,0 +1,98 @@
+{
+  "status": "passed",
+  "normal_optimized_pairs_identical": true,
+  "runs": [
+    {
+      "case": "author_checks",
+      "optimized": false,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "/workspace/scratch/10a56274b2b6/research-signature-bridge-next/check_bridge.py"
+      ],
+      "exit_code": 0,
+      "output": "author_checks.json",
+      "sha256": "d859e20106d159f51c357962aefd3631854eab3eb93ab37ba1a6bf6720c272b1",
+      "stderr": ""
+    },
+    {
+      "case": "author_checks",
+      "optimized": true,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-O",
+        "/workspace/scratch/10a56274b2b6/research-signature-bridge-next/check_bridge.py"
+      ],
+      "exit_code": 0,
+      "output": "author_checks_optimized.json",
+      "sha256": "d859e20106d159f51c357962aefd3631854eab3eb93ab37ba1a6bf6720c272b1",
+      "stderr": ""
+    },
+    {
+      "case": "author_checks_finite",
+      "optimized": false,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "/workspace/scratch/10a56274b2b6/research-signature-bridge-next/check_bridge.py",
+        "--finite-only"
+      ],
+      "exit_code": 0,
+      "output": "author_checks_finite.json",
+      "sha256": "e918d1afcb948002d18f7603315f46be80b85172e0721d85da0da48deba0c84d",
+      "stderr": ""
+    },
+    {
+      "case": "author_checks_finite",
+      "optimized": true,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-O",
+        "/workspace/scratch/10a56274b2b6/research-signature-bridge-next/check_bridge.py",
+        "--finite-only"
+      ],
+      "exit_code": 0,
+      "output": "author_checks_finite_optimized.json",
+      "sha256": "e918d1afcb948002d18f7603315f46be80b85172e0721d85da0da48deba0c84d",
+      "stderr": ""
+    },
+    {
+      "case": "author_checks_provenance",
+      "optimized": false,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "/workspace/scratch/10a56274b2b6/research-signature-bridge-next/check_bridge.py",
+        "--repository",
+        "/workspace/scratch/10a56274b2b6/q-periapt",
+        "--crate-archive",
+        "/workspace/scratch/10a56274b2b6/research-signature-bridge-next/sources/fips204-0.4.6.crate"
+      ],
+      "exit_code": 0,
+      "output": "author_checks_provenance.json",
+      "sha256": "aca8a03d562330a116ec593f33bf80b28a27cf9988708c6ef06d19727c64e721",
+      "stderr": ""
+    },
+    {
+      "case": "author_checks_provenance",
+      "optimized": true,
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-O",
+        "/workspace/scratch/10a56274b2b6/research-signature-bridge-next/check_bridge.py",
+        "--repository",
+        "/workspace/scratch/10a56274b2b6/q-periapt",
+        "--crate-archive",
+        "/workspace/scratch/10a56274b2b6/research-signature-bridge-next/sources/fips204-0.4.6.crate"
+      ],
+      "exit_code": 0,
+      "output": "author_checks_provenance_optimized.json",
+      "sha256": "aca8a03d562330a116ec593f33bf80b28a27cf9988708c6ef06d19727c64e721",
+      "stderr": ""
+    }
+  ],
+  "artifacts": {
+    "proof.md": "a9f3bb6ba4934c1d5cd0e20ec978ba17a07bcf427aac21c7a0042f1fea9868c2",
+    "proposed.tex": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+    "check_bridge.py": "c476ee077f38e15cbb79eb39d793070cbe7a6980a730d789511d5022bfd55635",
+    "source_identity.json": "09eed0e31a48d9663c06e20a8dad0d8e832c87a1cb12d47a6646fb4660b2908c"
+  },
+  "scope": "finite controls and source/byte correspondence; mathematical proof reviewed separately"
+}

@@ -1,0 +1,22 @@
+{
+  "completed_at_utc": "2026-11-08T22:46:40Z",
+  "status": "passed",
+  "review_sha256": "5eceaecb2f0a8c1c81548d79e0ecff306ad8c9a68ed14b1f545d178b2f5e9411",
+  "proof_sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+  "dependency_count": 11,
+  "dependencies": {
+    "security-model.tex": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+    "candidate-local-accounting.tex": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+    "native-correspondence.tex": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
+    "opaque-rendering.tex": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+    "live-core-instantiation.tex": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+    "contextbound-connection.tex": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+    "joint-primitive-bounds.tex": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+    "joint-continuation.tex": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+    "confirmation-traffic.tex": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
+    "source-attribution.tex": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
+    "reservation-signature-bridge.tex": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c"
+  },
+  "build_input_count": 37,
+  "all_current_build_inputs_match": true
+}

@@ -1,0 +1,4 @@
+2026-10-10T20:27:59.2393472Z CODEQL_RUST_CHECKOUT_PASS commit=6510288ad1387f4096717e190d43941ccd655547
+2026-10-10T23:25:04.5917321Z CODEQL_RUST_CHECKOUT_PASS commit=6510288ad1387f4096717e190d43941ccd655547
+2026-10-10T23:31:54.2698278Z CODEQL_RUST_INTERNAL_CONSISTENCY_TELEMETRY {"path_multiple_canonical_paths":144,"path_multiple_path_resolutions":545,"path_multiple_record_fields":0,"path_multiple_resolved_targets":129,"path_multiple_tuple_fields":0,"path_resolution_inconsistencies":818,"type_ill_formed_mention":22,"type_inference_inconsistencies":25,"type_missing_parameter_id":0,"type_nonfunctional_parameter_id":0,"type_noninjective_parameter_id":0,"type_nonunique_certain_information":3}
+2026-10-10T23:31:54.2700996Z CODEQL_RUST_DATABASE_QUALITY_PASS tracked_rs=509 source_macro_calls=24951 source_format_args=731

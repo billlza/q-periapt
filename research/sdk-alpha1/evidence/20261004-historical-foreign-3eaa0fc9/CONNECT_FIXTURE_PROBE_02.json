@@ -1,0 +1,14 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+    "run",
+    "--offline"
+  ],
+  "cwd": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/connect-fixture-probe",
+  "completed": true,
+  "exit": 0,
+  "seconds": 2.2312195419799536,
+  "log_sha256": "50c1ceb0e66fda9bb1880414e25d988c503b3d45d9eca5a0ddf1d8b257c7183d",
+  "source_sha256": "e4ef38f23e53f3a14c5136560446302605dcb6b748f3b7c258b77b8bd7bd0654",
+  "scope": "Real loopback Darwin accepted-socket inheritance and bounded EOF fixture diagnostic; no production code modified"
+}

@@ -1,0 +1,19 @@
+{
+  "schema": "qperiapt-sdk-purpose-retained-native-tests/1",
+  "source_commit": "1c68aa666db22d36ee136be1ec712545a9e74f03",
+  "workflow_run_id": 42402999612,
+  "job_id": 128494629029,
+  "job_url": "https://github.com/billlza/q-periapt/actions/runs/42402999612/job/128494629029",
+  "workflow_job_conclusion": "success",
+  "native_execution_date_utc": "2026-11-07",
+  "observation": "Read completed native Rust unit-test outcomes from the existing successful check job at the inspected development checkpoint. No additional native Rust execution was started for this manuscript update.",
+  "test_count": 5,
+  "log_excerpt": "native_test_excerpt.log",
+  "tests": [
+    "2026-11-07T18:59:08.5772202Z test purpose::tests::hkdf_matches_rfc5869_appendix_a1_first_block ... ok",
+    "2026-11-07T18:59:08.5775415Z test purpose::tests::directions_labels_context_policy_and_root_are_distinct_domains ... ok",
+    "2026-11-07T18:59:08.7758133Z test tests::purpose_derivation_agrees_across_peers_and_revokes_with_its_runtime ... ok",
+    "2026-11-07T18:59:08.7908104Z test tests::purpose_derivation_rejects_invalid_shapes_and_respects_the_operation_budget ... ok",
+    "2026-11-07T18:59:08.8648479Z test tests::same_document_signed_by_another_root_does_not_share_application_keys ... ok"
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "completed": true,
+  "host_calls": 46,
+  "art_calls": 46,
+  "same_phone_accepted": true,
+  "runtime_authorization_changed": false,
+  "initial_assumption_corrected": "Same-member roster advancement need not invalidate an existing child. Native current-roster membership checks permit it. Empty R3 then rejects retained sends and fresh reopen with Scope 103.",
+  "native_contract": [
+    "research/continuity-identity-candidate/src/identity.rs:533",
+    "research/continuity-identity-candidate/src/durable/messages.rs:544"
+  ],
+  "archive": {
+    "sha256": "ab154cc8d5e56699937a31ee53d348c393c9a3d8b5bdf4521da3c887579c6b9d",
+    "members": 464,
+    "bytes": 417762
+  },
+  "device": {
+    "additional_api36_hardware_required": false,
+    "art_processes": 46,
+    "completed": true,
+    "profiles": {
+      "fixed": {
+        "aar_sha256": "c78e4448411e291beea89bc254670fc784ca6c6712ec0336509999875b50b61a",
+        "apk_sha256": "a7cf20b560935c97b38935fe80a08a6091aed113d24f91931d47c6780652b31a",
+        "business_effects": 1,
+        "foreign_processes": 23,
+        "installation_retired": true,
+        "original_message": "00000000000000000000000000000000e31e5c653d706c88007d1942aa6d9339",
+        "original_request_sha256": "b30a86906f47bcf96f34ac9bc64d5b26e0f5d1a8c1f08f8a7ae2aac5cce1b40b",
+        "original_session": "757bff73cd0c857184f4281cf1d64f7057b8c8a5d7ee2254a5766275ec06b396",
+        "remote_roster": true,
+        "removed_member_denied": true,
+        "retained_member_stays_authorized": true
+      },
+      "recoverable": {
+        "aar_sha256": "c78e4448411e291beea89bc254670fc784ca6c6712ec0336509999875b50b61a",
+        "apk_sha256": "a7cf20b560935c97b38935fe80a08a6091aed113d24f91931d47c6780652b31a",
+        "business_effects": 1,
+        "foreign_processes": 23,
+        "installation_retired": true,
+        "original_message": "00000000000000000000000000000000aebd3ff5d2570da28589244f638a4cfa",
+        "original_request_sha256": "d72d269ac2605962464e9e2e99c974309757b623bb9b293705d12e596a9f3d83",
+        "original_session": "bb992ec39d0877ab6a75975832f058b3238219157a005511c3823ef4743c353f",
+        "remote_roster": true,
+        "removed_member_denied": true,
+        "retained_member_stays_authorized": true
+      }
+    },
+    "same_phone_accepted": true,
+    "scope": "Local original sessions survive same-member peer R2 adoption; later empty R3 denies retained sends and peer reopen. No forced new session or replacement handshake."
+  },
+  "scope": "Original local sessions retain the original handshake, message and next slot across same-member peer R2 admission; R3 revocation denies retained and reopened operation. No independent protocol implementation claim.",
+  "release_claim_eligible": false
+}

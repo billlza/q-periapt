@@ -1157,19 +1157,35 @@ fn a_release_the_authority_rate_limits_outright_is_reported_unproven() -> TestRe
 /// The constant `round_trip_bound` the budget route runs against. Production
 /// reports one number from every read (`AuthorityTransportV2::round_trip_bound`
 /// returns the transport's own deadline), so the test does too.
-const LOST_RELEASE_ROUND_TRIP: Duration = Duration::from_millis(1_200);
+const LOST_RELEASE_ROUND_TRIP: Duration = Duration::from_secs(4);
 /// What the release dispatch really spends. `round_trip_bound` says only how
 /// much a call *may* cost; this is what a dispatch whose answer never comes
 /// back actually takes out of the budget.
-const LOST_RELEASE_DISPATCH_COST: Duration = Duration::from_millis(2_200);
+const LOST_RELEASE_DISPATCH_COST: Duration = Duration::from_secs(3);
 /// The release budget: above the commit plus two bounds `lease_exchange`
-/// admits with the proof reserved (3.4s), and below what would still leave
-/// the reconciling query its own admission after the dispatch above (5.8s).
-const LOST_RELEASE_BUDGET: Duration = Duration::from_millis(4_200);
+/// admits with the proof reserved (9s), and below the dispatch cost plus the
+/// query and proof bounds (11s). The injected dispatch stays within its own
+/// advertised bound; exceeding that bound would invalidate the proof reserve.
+const LOST_RELEASE_BUDGET: Duration = Duration::from_secs(10);
 
 #[test]
 fn a_release_whose_response_is_lost_and_query_misses_the_budget_is_proven_gone_by_snapshot(
 ) -> TestResult {
+    // Model a transport that respects the bound used by admission. The former
+    // 2.2s delay exceeded its 1.2s bound, so ordinary durable-write/scheduling
+    // cost could consume the proof reserve without testing this intended path.
+    assert!(LOST_RELEASE_DISPATCH_COST < LOST_RELEASE_ROUND_TRIP);
+    assert!(
+        LOST_RELEASE_BUDGET
+            > crate::repository::DURABLE_COMMIT_RESERVE + 2 * LOST_RELEASE_ROUND_TRIP
+    );
+    assert!(LOST_RELEASE_BUDGET < LOST_RELEASE_DISPATCH_COST + 2 * LOST_RELEASE_ROUND_TRIP);
+    assert!(
+        LOST_RELEASE_BUDGET
+            > LOST_RELEASE_DISPATCH_COST
+                + crate::repository::DURABLE_COMMIT_RESERVE
+                + LOST_RELEASE_ROUND_TRIP
+    );
     // The production shape: one constant bound from every read, and a
     // dispatch that really spends a round trip. What is left then admits the
     // proof (one bound) but not a reconciling query (a bound with the proof

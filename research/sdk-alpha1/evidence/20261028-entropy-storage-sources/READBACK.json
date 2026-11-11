@@ -1,0 +1,18 @@
+{
+  "archive": {
+    "bytes": 497050,
+    "sha256": "ad6f1a5e017895d36e58cc4b91144861e5d11bc69030bf7ca6eff0f5cd2dd2eb",
+    "members": 202,
+    "expanded_bytes": 6361421
+  },
+  "capture_manifest_sha256": "17e4bb6c1bd23fa9b633cd2ba74206da4f082bad983ec801cc0e9b96049a4074",
+  "all_members_read_back_and_byte_equal": true,
+  "entry_sha256": "4736abef8fc97eed60f45dd532e82c15a83118021b50eb57ee2a0da40ac53188",
+  "closed_sources": 10,
+  "remaining_sources": 8,
+  "open_snapshot_producer_children": 44,
+  "all29_formulas_modes_attributes_and_operational_prefix_unchanged": true,
+  "independent_no_search_replay_seconds": 280.9343074999997,
+  "main_origin_analysis_incomplete": true,
+  "release_claim_eligible": false
+}

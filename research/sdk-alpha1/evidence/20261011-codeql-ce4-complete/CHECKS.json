@@ -1,0 +1,67 @@
+{
+  "run_id": 38111286148,
+  "event": "pull_request",
+  "head_commit": "ce4b93cac935697bcf03027de46ba9012d12e143",
+  "analysis_commit": "760da743a40e1a5876e973308c2341d2b000eeff",
+  "full_git_tree": "d45e05c358205d94f8ac75a803ca0327d150349a",
+  "branch_and_analyzed_merge_trees_identical": true,
+  "conclusion": "success",
+  "analysis_id": 1930866657,
+  "rust_results": 878,
+  "quality_tracked_rust_sources": 515,
+  "quality_source_macro_calls": 25146,
+  "quality_source_format_args": 739,
+  "sarif_sha256": "4bbd3dd45b8defeb137149bc61702be25a218c18aba8785ad2d854d90d6b2b5a",
+  "sarif_bytes": 9427245,
+  "limitations": [
+    "Successful extraction/analysis/upload is not zero findings or a completed security review.",
+    "Internal consistency metrics include nonzero telemetry; exact values retained in quality-telemetry.txt.",
+    "This qualifies the old ce4/760da source tree, not later commits.",
+    "Full 481293818-byte diagnostics archive is indexed with its API digest but not downloaded; selected job telemetry and full Rust SARIF are retained."
+  ],
+  "complete_raw_job_log": {
+    "local_path": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/codeql-ce4-current/rust.raw.log",
+    "bytes": 717799507,
+    "sha256": "c99a95298961fb3159e5dc339098fa7678f30027f8855fb17f755f45b66d61f3",
+    "included_in_archive": false
+  },
+  "run_url": "https://github.com/billlza/q-periapt/actions/runs/38111286148",
+  "release_claim_eligible": false,
+  "archive": {
+    "path": "CAPTURE.zip",
+    "bytes": 309577,
+    "sha256": "320df81d01223dcd01c36fef1cf829920d7938dcb2936eda441fe9ba85faa97f",
+    "members": [
+      {
+        "path": "run-snapshot.json",
+        "bytes": 12692,
+        "sha256": "58fa6ad1d7f483a6e7323e71891dfac789488f0895cde97d1025bd3509be40c4"
+      },
+      {
+        "path": "artifact-index.json",
+        "bytes": 1487,
+        "sha256": "411c0f9cc80ae67d582058824071882de5297c59b12d5f2a83356ff2e5c47ede"
+      },
+      {
+        "path": "analysis-index.json",
+        "bytes": 59120,
+        "sha256": "632f1720d5862dbc43fb59f8aff965e83d91968ae4f5e02f1723b77962daa46b"
+      },
+      {
+        "path": "analyzed-commit.json",
+        "bytes": 2650,
+        "sha256": "f96a1ab857a2bbc09a4979193c78203b71b651f65f5fc69b9a1d978cca7ec488"
+      },
+      {
+        "path": "quality-telemetry.txt",
+        "bytes": 822,
+        "sha256": "d7bcbbd24b027085b647a671d6b0d1075752adb1c97492cda445afaf6c00360b"
+      },
+      {
+        "path": "rust.sarif",
+        "bytes": 9427245,
+        "sha256": "4bbd3dd45b8defeb137149bc61702be25a218c18aba8785ad2d854d90d6b2b5a"
+      }
+    ]
+  }
+}

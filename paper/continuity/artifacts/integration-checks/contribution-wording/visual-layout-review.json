@@ -1,0 +1,640 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "pdf_sha256": "e46c5f2d6beec71641a946b4cd404228817919cbd8cf2ef4132c8f5dbdcc0a18",
+  "previous_pdf_sha256": "869cafaa87a54e6d8b29d1ce60bab2377cb292ff8b3e3d562bf4cb9948cf1fc0",
+  "pdf_pages": 90,
+  "comparison_dpi": 75,
+  "pages_compared": 90,
+  "pixel_identical_pages": 81,
+  "reading_review_dpi": 115,
+  "reading_review_pages": [
+    {
+      "page": 18,
+      "png_sha256": "d06c74e4a440986bf0b60490e978b936bb0c81801ae9e78695d09ae3a52b4809"
+    },
+    {
+      "page": 19,
+      "png_sha256": "b2119b71c870537de554510e3e541db704bcddde0237955e2d3d6521fe30bb28"
+    },
+    {
+      "page": 20,
+      "png_sha256": "b27a362774bcf32d556999d4f1f2bba9214b2afcab7bc031aa5c212a2b7f6d27"
+    },
+    {
+      "page": 21,
+      "png_sha256": "f12552accb34c8a16ff3796976f4b6e4b335bda3da7072c8a51d04228b2f6838"
+    },
+    {
+      "page": 22,
+      "png_sha256": "e19200ce2ad745631dd8148329dd18a4c5ba834aa5c5ff61764411f2ded35479"
+    },
+    {
+      "page": 23,
+      "png_sha256": "c358455b58b20f0039d8b7dfaef8f35707f1d50ca2331a4154463cebf8d56876"
+    },
+    {
+      "page": 28,
+      "png_sha256": "cd93db1f3b0699a507e6f50164104f60c1004375d3643c1a5e43685a9da80802"
+    },
+    {
+      "page": 29,
+      "png_sha256": "db4b718dd47a2ba4a44b8bc8be69617d94959737e4b5bf6c986353b2bc84fa25"
+    },
+    {
+      "page": 30,
+      "png_sha256": "793f08a4b0f2f9e089a04b623ab10ee41f9a44fb72b6ace559a05f36fdb956bd"
+    }
+  ],
+  "observations": [
+    "All nine pages changed by the explanatory wording were inspected at reading resolution; text, equations and headings fit without clipping or overlap.",
+    "The other 81 pages render identically to the delivered baseline, including the matched-study tables, evaluation, abstract and conclusion."
+  ],
+  "page_comparison": [
+    {
+      "page": 1,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "a125c2fbe3d131708071797c250378e515cad60d861a7311f7ca8648fd4d4100"
+    },
+    {
+      "page": 2,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "ad0b5ed748d6480ec4e1451bcd1166617eacf994db95b8ffa02dd08d1fd5b5d3"
+    },
+    {
+      "page": 3,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "64da34da4806028918efce5ccc51917a203ffed370b31ae503fee5f8894c6dc2"
+    },
+    {
+      "page": 4,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "465a40649dcd4959996af9ade27512a60c9b4cfb202846f3abeaee59196ab8de"
+    },
+    {
+      "page": 5,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "e22ed4ad7648f0f82100cb3eeb83e598140b33766210f58564cca1e6b02c6dc2"
+    },
+    {
+      "page": 6,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "f2bfe07b7ef543295c4d5d790a9336f82f5eba0c4b6d5274e0877c91c64c700e"
+    },
+    {
+      "page": 7,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "035292b53314f4924a6043b420977691e5f67fd820fe9654da608f2112b7f6d9"
+    },
+    {
+      "page": 8,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "0fe334a636fa57778f2b71d16da200841fa27295d9b47732e1a07b051d96a0e5"
+    },
+    {
+      "page": 9,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "ce2fbc47d90ec38824cece3c21d950646872c085ae0b1af4c39506fe4a082214"
+    },
+    {
+      "page": 10,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "7c5130919713bcc168937e0fb7a96595efc68ec149586adb44f31090babeafd7"
+    },
+    {
+      "page": 11,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "f25b1f0fc41609404357d0fa68e01e144a25fe579c2aa664b377421a41d46b22"
+    },
+    {
+      "page": 12,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "6350cba1a5747a89ec6d24ff83a962e3a90deb0f4c79a280ef15de62937c079d"
+    },
+    {
+      "page": 13,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "8d1903e2edf78fdb6dfae2311c0b9346ae2c095ef78c8ab4fb91a206e614c21e"
+    },
+    {
+      "page": 14,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "da98200089af1c03bcbeb47cd3a65e0bebdbfddd438c0792875107d323e95b62"
+    },
+    {
+      "page": 15,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "0fb807e27e57cb76333e0b64d1fa348b72889799704c448fe7dff7cf58a01d4f"
+    },
+    {
+      "page": 16,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "0893f13e8241c3933722b899d431804bd011a918413f3eacf9df8e8da69a0181"
+    },
+    {
+      "page": 17,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "e62c2abe4aef90838a06eb99cc4a69a80abbed9edfc444f77e8e6202a010341a"
+    },
+    {
+      "page": 18,
+      "identical": false,
+      "change_bbox": [
+        129,
+        135,
+        517,
+        650
+      ],
+      "after_png_sha256": "bd5643b36ffadcf8496464db24fa8d431c6a374e1d372cdbd5a57c3deae4a503"
+    },
+    {
+      "page": 19,
+      "identical": false,
+      "change_bbox": [
+        103,
+        78,
+        492,
+        651
+      ],
+      "after_png_sha256": "c089ac6b7bfad09af9da4b26a7f142ec0603a77e5482f2e8ce516682fc2e5f75"
+    },
+    {
+      "page": 20,
+      "identical": false,
+      "change_bbox": [
+        129,
+        79,
+        517,
+        650
+      ],
+      "after_png_sha256": "126ea71a0d95710d16d905b84625703fc2e8858e91932d51b5cdb560710f77fd"
+    },
+    {
+      "page": 21,
+      "identical": false,
+      "change_bbox": [
+        103,
+        79,
+        492,
+        649
+      ],
+      "after_png_sha256": "b04fe089d4a68ddc79d4be7078dde22449c339950abad13407de5c7c066927da"
+    },
+    {
+      "page": 22,
+      "identical": false,
+      "change_bbox": [
+        129,
+        79,
+        517,
+        651
+      ],
+      "after_png_sha256": "3e47657355f70a3dc738db85b9dd4bda50ce125d63e688b0d272027820c02f05"
+    },
+    {
+      "page": 23,
+      "identical": false,
+      "change_bbox": [
+        103,
+        79,
+        492,
+        632
+      ],
+      "after_png_sha256": "f2d5ce9c4af3ec97758fdab5309e73f39ca919f0bc76f0a5313423a466046928"
+    },
+    {
+      "page": 24,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "edba743e3dfe181829915815112477445ff3d0a2dc212dd06fd3c6512055f9a6"
+    },
+    {
+      "page": 25,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "a7cf4599b80c0df9209c7831075e2bc07a7285fff88d80ffa99a6dae6942d7ac"
+    },
+    {
+      "page": 26,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "6ac7828138f8f7924ac1898cdc878c8d4f4abae459979180c109cc587c6a6940"
+    },
+    {
+      "page": 27,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "2303291406c12eb1bb2285b947de69748c849bb66e6c7abb1ee163b414b41f3c"
+    },
+    {
+      "page": 28,
+      "identical": false,
+      "change_bbox": [
+        130,
+        615,
+        517,
+        651
+      ],
+      "after_png_sha256": "c5d1f43583af2f229d23e8e054055fe9a25488278e352de117ff798c4cc59ad8"
+    },
+    {
+      "page": 29,
+      "identical": false,
+      "change_bbox": [
+        103,
+        79,
+        492,
+        648
+      ],
+      "after_png_sha256": "166018ed2fcd20ae19ec2064ed76bff5ed49b2e2cf4379a0481b004d14ccb699"
+    },
+    {
+      "page": 30,
+      "identical": false,
+      "change_bbox": [
+        129,
+        79,
+        517,
+        650
+      ],
+      "after_png_sha256": "897a7c36c90f262bae741513b0ffe82f8d58741d5eec794aade3dad7e450baac"
+    },
+    {
+      "page": 31,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "b05d218f715a41a4ae9061af45280a4d41dcedde5ae3a1ccb32945a8b5e6c7a7"
+    },
+    {
+      "page": 32,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "e0220cf77cef00fdbb776f8e64afabd4183271040828e794645ad42982bf2c1c"
+    },
+    {
+      "page": 33,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "f6bcc2a5f32cd4201c93f610ccc5a6cb7c88d998c2320a39c84816306af34a68"
+    },
+    {
+      "page": 34,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "b0145e88fc4951fdc148ca4ef309dd9013eb745e9ae0ca411c23f4fe0b79f47c"
+    },
+    {
+      "page": 35,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "fe0c218335336a35185de1847754c4cf54c28368f4828bbcf24939a2a93f219b"
+    },
+    {
+      "page": 36,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "9189f31a0b8bcde238ca7c4fa35336550303ca7e7375bca353a913e0ae481dad"
+    },
+    {
+      "page": 37,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "7c31ff81747357ea359e895076048e6ec133da729d69b5edd2de8ddc4248327e"
+    },
+    {
+      "page": 38,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "e3882e509700dcb80894c43f7bcac7f79dcf65147e7ead2730a184b5cf479f64"
+    },
+    {
+      "page": 39,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "bc14cf59957822cc471fd52b52ff36179da107c7be20028c768c6275b7b05495"
+    },
+    {
+      "page": 40,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "658190c290557238962b69a764605f790ec034c8c835ceec3f34b4a523fa0eba"
+    },
+    {
+      "page": 41,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "3632ee911a574f616f245b2a3c97793e2976f2857b738832239315cdbb18d118"
+    },
+    {
+      "page": 42,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "66c002a73deb3be00ad5479bc6b52c92d58ed99ce5bb6dd412e2c6c501245add"
+    },
+    {
+      "page": 43,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "17b62adef8d920d10112689b5de4e980799ad58f48f16ff63244a3cd2b9cf98f"
+    },
+    {
+      "page": 44,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "bc4821fe8f0fc2485719795d339b704b4cf232f4e52ee201f427fce4f06f293c"
+    },
+    {
+      "page": 45,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "0c9b0dd8c4b2fac7407317b75712ca97db0e4af164b77aeed4f3c9fca91bc142"
+    },
+    {
+      "page": 46,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "f61d1874b5b81ffda1e55fecf32ebafb07b1d953607f4ed24c3d22d113f94bf1"
+    },
+    {
+      "page": 47,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "afd869439f799dad21b6138bd5881816044c40effcab0e9ed926c503eeadda8e"
+    },
+    {
+      "page": 48,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "42d9027d25f400f19c9f9551662865915176ae3b920435c706fde584be0b0c18"
+    },
+    {
+      "page": 49,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "4f1cb5ad53eab2663de78cb98959aa9d2ec033600d1d2c740b7abe4cd7d5fca7"
+    },
+    {
+      "page": 50,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "9a8cb26ea6a4aee4d0f1abe75a3e451a525a0a9d8f1ac806d057507fb46a08b3"
+    },
+    {
+      "page": 51,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "e761c3895e6cb868a7cb570087e61e4fc138402b03a3593ddecd4c29f9db40c2"
+    },
+    {
+      "page": 52,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "ac40b9a72da33b165190413955e5b3afb34390af731c2a36ae539b1c64992ccb"
+    },
+    {
+      "page": 53,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "47a994843fce1aa2ccf35eb36f06f0eee7858cac47b0aa10bc581b3302cc6c65"
+    },
+    {
+      "page": 54,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "2bcd2a75b6d03af47bf6a96792fa27dca35e4fc18b97897128304c7010f6544b"
+    },
+    {
+      "page": 55,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "293aafa38967fe683ad0aa5162ff26316c420d63c0f35661b2de40eb92ddf85d"
+    },
+    {
+      "page": 56,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "b6e40a414562e12c7f6ef003c281eada47e2890cf43395f8a8a6447992568bf0"
+    },
+    {
+      "page": 57,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "83d62a8cf4753095811a6f7be0cd6ecbe7e36dd76e1b70621f3145eb61002c3d"
+    },
+    {
+      "page": 58,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "43d31b4a65503b8fee7f236a1fa43df469abd34f472922577a9b9b5bb1dd0dbf"
+    },
+    {
+      "page": 59,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "26d4a982e1d575614b278359a06a4009207227de6ca153e69b58db6552993a96"
+    },
+    {
+      "page": 60,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "e38bebc3829a95afbb0692d7ac61f39e70e4d4b4a7fd3e24a593fd79ddc358d4"
+    },
+    {
+      "page": 61,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "a60dc75a2f02d928d6257b320bd61b1b10a638890f4b46675c91a6f3f95900fd"
+    },
+    {
+      "page": 62,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "5e24bd02da20dd662bf129c5b27d7dad7fd2cf734a93a3a904c0fee7f581787c"
+    },
+    {
+      "page": 63,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "02d7dd8d1294b88fa54886259f1fe827d5ac3a612f9c99d32ce96b7a9a98962e"
+    },
+    {
+      "page": 64,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "a23e45e501df76f03b2110ba12f22231bd59150723159deec363f0fd0c6704d5"
+    },
+    {
+      "page": 65,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "8414132d2a128bdd68adedeb18ac14c79d5120df613e5fd4a31a8b809a63626b"
+    },
+    {
+      "page": 66,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "995ed3963fb6824bec918bddb46368b36c118ca0720e75c6aaff82ea2ea6d8fc"
+    },
+    {
+      "page": 67,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "cbc9e760566e5832b0843d39fcd6bef92335b0b010eb57d9fa142cb3828fc1e0"
+    },
+    {
+      "page": 68,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "f73c4dc01ec847daf728e7ef80c155ffd91a71a7cab887e2087d66adffcda034"
+    },
+    {
+      "page": 69,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "9b87803a41e704071a31535b741ee67897d1e22ef53a1752f0b06fe083ef4d84"
+    },
+    {
+      "page": 70,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "265a0d236c67aa525882800a24d9c5bf29da6ccec4f36326dbb3570f187124c0"
+    },
+    {
+      "page": 71,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "5ce2399abdcebd675cfd084956b4dc2edb9412ba064ed95aaa288a399c98a6b2"
+    },
+    {
+      "page": 72,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "7aec14aef1749f313abbc99513b3194b7db8a64712a46e25f16ce5b5f041912e"
+    },
+    {
+      "page": 73,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "a11d4e8a529dec898730de0b913e35fe842500611ff4aacd1d2c038a3ea7ecbf"
+    },
+    {
+      "page": 74,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "9addd1bff994c422e49c1c374abbfecbdb4768557dc2de8daf8bc73a52c82bd9"
+    },
+    {
+      "page": 75,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "22e2900f1e216fb6ceef08540a06bbe7af0253b89695cf04514816060bab6172"
+    },
+    {
+      "page": 76,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "5119fc9b4e412b5922452ba4f81b3ca188658751c4061e06cbf1e07d044d5ec7"
+    },
+    {
+      "page": 77,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "03309194446dd541cc526b2b558e8466bcb970f21c412c2b6abf7aaa86ffb9d8"
+    },
+    {
+      "page": 78,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "2bbdda285ec8e9dda7eb0182999a360f0ed0dc551f6a167876e0e6d93b833f86"
+    },
+    {
+      "page": 79,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "acd6a26a6b8772db1ffaa9dd2ab5ecdc7acb9cb7020e212e5df2b9cb983cfbce"
+    },
+    {
+      "page": 80,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "c29e37c6a9192df6cf89ded8b145445b15f76e3e67c17ecd38abd13c2a0e1bd8"
+    },
+    {
+      "page": 81,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "abbc9a1751e8dec425662ffe19fec67b5cfa7fec65aab69e1700ebbb7a6ae947"
+    },
+    {
+      "page": 82,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "cce5aa05c84c3ada8e3862b4aaa3280ecea7d613d1740c0989e297a1b42c0687"
+    },
+    {
+      "page": 83,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "4788872f952946dd7068077cf3d2f367259c26e96b3aca3e308f1d929a3922e9"
+    },
+    {
+      "page": 84,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "e505476514d62df3bc3034660bcba94e4cc7f93a80baca86eff1b9c048809ee6"
+    },
+    {
+      "page": 85,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "8cebe00e0a74e4c80589b8182b4aedddeff8eb76b21385c227b3bafae0c9bc9c"
+    },
+    {
+      "page": 86,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "5400dd2a91f53e93bbf7d50607265870773f8b632a4ac33dbce65426a6474ed2"
+    },
+    {
+      "page": 87,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "f1ea3fee7e82898f4ab8b9fd0f93e816cde0eb6576ccb82a1680315fcd25a73b"
+    },
+    {
+      "page": 88,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "cfbe7dcfda16f84275476ea97019f95fa98bafd76617f611b110cb1575cdb54e"
+    },
+    {
+      "page": 89,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "afe9ee6b800a5efa7448a07c93d6d6ff6ad9be3ec463fdfd8eb77283f6fabdb4"
+    },
+    {
+      "page": 90,
+      "identical": true,
+      "change_bbox": null,
+      "after_png_sha256": "14c35dc8aa64ad11e8faf1854deeb5dd26391f0b374e1bde1eda6f90dd46698f"
+    }
+  ]
+}

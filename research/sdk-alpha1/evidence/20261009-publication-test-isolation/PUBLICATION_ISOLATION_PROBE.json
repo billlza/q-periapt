@@ -1,0 +1,27 @@
+{
+  "results": {
+    "before": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/configuration-integration-current/publication-controlled-before-01/test-probe",
+        "--exact",
+        "publication::tests::publication_test_registry_isolation_probe",
+        "--nocapture"
+      ],
+      "returncode": 101,
+      "binary_sha256": "cc40c3272434635efcd6b8139a60dda11b9fe9ad1dde768007ada8793459b4e6",
+      "source_sha256": "673c59a1e513265f703294d1957743bb7d7ba7a069bf229a0cfad76de069e9dd"
+    },
+    "after": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/configuration-integration-current/publication-controlled-after-01/test-probe",
+        "--exact",
+        "publication::tests::publication_test_registry_isolation_probe",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "binary_sha256": "c61cd12f36155aa626f3a656d5808fe92415fb5add15f9d90ea95dac6b40d205",
+      "source_sha256": "4c6a2bfc86ab2a00a342de3147a6f38f03cd038c490d304e1d4d552e987d5643"
+    }
+  },
+  "scope": "Test-only scheduling probe; identical probe invokes real unchanged FFI tests while another test owns the existing shared registry guard. No debugger/process memory inspection; prototype hook excluded from product."
+}

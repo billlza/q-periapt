@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import platform_stable_publication_contract as stable_contract
 import platform_release_contract as historical_r2_contract
+import platform_maintenance_contract as maintenance_contract
 
 
 PLATFORM_R2_PUBLICATION_KEY = (
@@ -30,6 +31,10 @@ PLATFORM_PUBLICATION_KEYS = frozenset(
         PLATFORM_V0_1_3_PUBLICATION_KEY,
         PLATFORM_V0_1_4_PUBLICATION_KEY,
         PLATFORM_V0_1_5_PUBLICATION_KEY,
+        *(
+            profile.publication_key
+            for profile in maintenance_contract.MAINTENANCE_PROFILES
+        ),
     }
 )
 
@@ -742,6 +747,15 @@ def validate_release_publications(manifest: dict[str, object]) -> None:
         except stable_contract.PlatformV015PublicationContractError as exc:
             raise PlatformPublicationContractError(str(exc)) from exc
 
+    try:
+        profile = maintenance_contract.selected_profile(publications)
+        if profile is not None:
+            maintenance_contract.publication(
+                publications[profile.publication_key], profile=profile
+            )
+    except maintenance_contract.PlatformMaintenanceContractError as exc:
+        raise PlatformPublicationContractError(str(exc)) from exc
+
 
 def _publication_entries(
     manifest: dict[str, object],
@@ -799,6 +813,16 @@ def validate_release_publication_transition(
     validate_release_publications(current)
     previous_publications = _publication_entries(previous)
     current_publications = _publication_entries(current)
+
+    try:
+        for profile in maintenance_contract.MAINTENANCE_PROFILES:
+            maintenance_contract.validate_transition(
+                previous_publications.get(profile.publication_key),
+                current_publications.get(profile.publication_key),
+                profile=profile,
+            )
+    except maintenance_contract.PlatformMaintenanceContractError as exc:
+        raise PlatformPublicationContractError(str(exc)) from exc
 
     if (
         PLATFORM_R2_PUBLICATION_KEY not in previous_publications

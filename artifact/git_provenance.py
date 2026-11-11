@@ -51,6 +51,32 @@ def _repository_root(root: pathlib.Path) -> pathlib.Path:
     return resolved
 
 
+def canonical_repository_root(root: pathlib.Path) -> pathlib.Path:
+    """Admit an explicit publication checkout without following path aliases."""
+
+    if not isinstance(root, pathlib.Path) or not root.is_absolute():
+        raise GitProvenanceError("publication repository root must be absolute")
+    supplied = os.fspath(root)
+    if ".." in root.parts or supplied != os.path.realpath(supplied):
+        raise GitProvenanceError(
+            "publication repository root must be canonical and symlink-free"
+        )
+    resolved = _repository_root(root)
+    try:
+        metadata = resolved.lstat()
+    except OSError as exc:
+        raise GitProvenanceError("cannot inspect publication repository root") from exc
+    if (
+        not stat.S_ISDIR(metadata.st_mode)
+        or metadata.st_uid != os.geteuid()
+        or stat.S_IMODE(metadata.st_mode) & 0o022
+    ):
+        raise GitProvenanceError(
+            "publication repository root must be an owned non-writable-by-others directory"
+        )
+    return resolved
+
+
 def _environment() -> dict[str, str]:
     # Start from an allowlist.  In particular, no caller-controlled GIT_* value,
     # HOME, executable search path, locale, or repository selector is inherited.

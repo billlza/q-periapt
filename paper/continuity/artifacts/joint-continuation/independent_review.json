@@ -1,0 +1,246 @@
+{
+  "schema": "qperiapt-joint-continuation-independent-review/1",
+  "reviewer_agent": "/root/evidence",
+  "reviewed_at_utc": "2026-11-07T21:19:57.815387+00:00",
+  "status": "PASS",
+  "scope": "Retain the completed v0.3 hand review (21 checks); add only targeted check22 for the actual ContextBound bit-gap to score bridge and bind frozen v0.4 MD/core TeX plus unchanged primitive appendix.",
+  "proof_version": "0.4",
+  "proof_files": [
+    {
+      "path": "joint_continuation.md",
+      "sha256": "8f69ae7dc88d378ea31c0a29c4578daf81047a47907dc2b3d4fa28761e2a7a15",
+      "bytes": 36689,
+      "author_freeze_matches": true
+    },
+    {
+      "path": "joint-continuation.tex",
+      "sha256": "865b128155662d8916ef648a7852a9973e9d24f22287d29c9ec59ca191fee989",
+      "bytes": 18023,
+      "author_freeze_matches": true
+    },
+    {
+      "path": "joint-primitive-bounds.tex",
+      "sha256": "8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d",
+      "bytes": 10706,
+      "author_freeze_matches": true
+    }
+  ],
+  "native_profile_version": "0.3",
+  "native_source_files": [
+    {
+      "path": "../live-profile/source_profile.md",
+      "sha256": "5fcd49c29be2a02f38041982da9773a6373aeefa677fecc82f780b192b3a1cba",
+      "bytes": 25448
+    },
+    {
+      "path": "../live-profile/source_map.json",
+      "sha256": "e03457ad40ab0c1185ef7cff55e38df430c1299127367c95842031309d686ed1",
+      "bytes": 38746
+    },
+    {
+      "path": "../live-profile/native_kdf_encodings.json",
+      "sha256": "780fc1341648700dcb15a4c7e168251eb40fe46b53953a0e9648bdc60141fd11",
+      "bytes": 2267
+    },
+    {
+      "path": "../live-profile/source_identity_manifest.json",
+      "sha256": "09fbfb3cf3d3bd2fb8b8bebd978e9d063dfa50f26b36ded51bf0758889297c8b",
+      "bytes": 22835
+    }
+  ],
+  "source_head": "1c68aa666db22d36ee136be1ec712545a9e74f03",
+  "paper_source_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+  "checks": [
+    {
+      "id": "shared_qro",
+      "status": "PASS",
+      "finding": "All five hops and the primitive appendix retain one h; all ordinary preparation and continuation queries count.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "root_joint_ideal",
+      "status": "PASS",
+      "finding": "Independent-table ideal I is used; no cross-pair repair is claimed or needed for that ideal.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "gamma_alias",
+      "status": "PASS",
+      "finding": "Gamma classes, including zero session aliases, share handles; no conditioning on class inequality.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "numeric_key_collision",
+      "status": "PASS",
+      "finding": "Accidental equality of independently sampled keys is preserved by known-key calls to the same h.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "adaptive_expand",
+      "status": "PASS",
+      "finding": "Complete info and block counter give pointwise distinct inputs and prefix-consistent exact tables.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "fresh_material_mark",
+      "status": "PASS",
+      "finding": "Target info and direction marked before first fresh allocation; earlier entry cannot be relabelled fresh.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "material_alias_protection",
+      "status": "PASS",
+      "finding": "Every exact info alias inherits the marked protected handle; other distinct info remains available.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "hidden_parent_channel",
+      "status": "PASS",
+      "finding": "Exact parent Expand normalization precedes selected-seed hidden-input embedding.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "installation_freshness",
+      "status": "PASS",
+      "finding": "Freshness is stated at installation relative to prior state and other new target blocks, not fixed future observations.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "row_interface",
+      "status": "PASS",
+      "finding": "Multi-input row bound derives from the actual shared-root/NMAC reduction, not the immutable report experiment.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "query_budgets",
+      "status": "PASS",
+      "finding": "3+4M/4M parent row budgets, fixed selected row2 and lengths188/89 match actual encodings.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "root_initialization",
+      "status": "PASS",
+      "finding": "Known old root + separately uniform contribution enter by distinct Extract/Expand comparison with counted shared oracle.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "mac_continuation",
+      "status": "PASS",
+      "finding": "Confirmation signatures and actual chosen-wire ACK verification are regenerated with known returned keys.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "unknown_payload",
+      "status": "PASS",
+      "finding": "Challenge payload/intent are opaque private handles; outer ordinary Send journal prefix has no clear plaintext intent digest.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "send_cache",
+      "status": "PASS",
+      "finding": "First-private-computation caching retains marked material and authoritative owner/history through retries.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "active_receive",
+      "status": "PASS",
+      "finding": "Exact challenge returns authenticated marker privately; altered ciphertext retains decryption/error interface.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "score_gate",
+      "status": "PASS",
+      "finding": "HMAC fixed-b controllers are averaged; AEAD gate A is computable without b; centered score factors2 are correct.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "projection_ownership",
+      "status": "PASS",
+      "finding": "Successor root and post-commit next-seed use actual phase/field owner; current private projection stays actual residual.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "native_zero_values",
+      "status": "PASS",
+      "finding": "Live values accept zero; closed/resolved checks test explicitly overwritten erasure markers.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "md_tex_consistency",
+      "status": "PASS",
+      "finding": "Complete MD/TeX consistency checked in v0.3; the v0.4 replacement section agrees between MD and core TeX as checked in item22.",
+      "review_basis": "Retained v0.3 review; current update is limited to check22 and final identities."
+    },
+    {
+      "id": "freeze_binding",
+      "status": "PASS",
+      "finding": "All three local SHA-256 values equal the v0.4 explicit freeze; primitive appendix remains byte-identical to v0.3.",
+      "review_basis": "Updated exact identity check."
+    },
+    {
+      "id": "contextbound_score_bridge",
+      "status": "PASS",
+      "finding": "Original b_j is the random-component score; b_j^cont is the uniform-combined-contribution score. Under the actual complete ContextBound output-bit gap epsilon_CB,j, the common bounded score gives |b_j-b_j^cont|<=2 epsilon_CB,j and |b_j|<=2 epsilon_CB,j+|b_j^cont|. Same controller, interfaces, recomputed events and shared-oracle work are explicit; original outer 1/2 remains unchanged.",
+      "sources": [
+        "joint_continuation.md, Section 8",
+        "joint-continuation.tex, final contribution-entry paragraph",
+        "candidate-local-accounting.tex, definition of b_j and native advantage proposition",
+        "CONTEXTBOUND_SECRET_HOP_V1.md, actual conditional private-function interface"
+      ]
+    }
+  ],
+  "check_count": 22,
+  "unresolved_findings": [],
+  "review_changes_completed": [
+    "finite M distinct complete traffic infos without cross-endpoint uniqueness premise",
+    "fresh material/direction marking and alias protection",
+    "material/owner identity in send cache",
+    "separate HMAC fixed-b score and AEAD bit-independent gate",
+    "installation-time rather than future-conditioned freshness",
+    "ordinary Send clear-prefix availability confirmed",
+    "Separate b_j^cont from original random-component b_j and explicitly include conditional 2 epsilon_CB,j score bridge."
+  ],
+  "scope_accounting": "Existing native/component/combiner/authentication/projection terms remain separate; eligibility is unchanged.",
+  "new_native_experiments": false,
+  "new_ci_runs": false,
+  "remote_mutations": false,
+  "review_report": {
+    "path": "independent_review.md",
+    "sha256": "702ea915c1aeefe47ee679125627784d0e1e29911044335f15b7fd8dc8df199c",
+    "bytes": 10762
+  },
+  "supersedes": {
+    "proof_version": "0.3",
+    "reviewed_at_utc": "2026-11-07T21:05:28.711978+00:00",
+    "status": "PASS",
+    "check_count": 21,
+    "proof_files": [
+      {
+        "path": "joint_continuation.md",
+        "sha256": "73898618516188281e5ac6c50ad9bf827c1a000c0ecc66259ba8c703b1e02aef",
+        "bytes": 35527,
+        "author_freeze_matches": true
+      },
+      {
+        "path": "joint-continuation.tex",
+        "sha256": "f055eb16508e6e410631ee041298209df239bfcf4159363945fa3f7b4c11a225",
+        "bytes": 17161,
+        "author_freeze_matches": true
+      },
+      {
+        "path": "joint-primitive-bounds.tex",
+        "sha256": "8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d",
+        "bytes": 10706,
+        "author_freeze_matches": true
+      }
+    ],
+    "preserved_report": {
+      "path": "independent_review_v0.3.md",
+      "sha256": "15ab990a1133ac61f04b46b27968746ce206d5b323cbd20ca29b4b60b1cc7737"
+    },
+    "preserved_json": {
+      "path": "independent_review_v0.3.json",
+      "sha256": "d7d7d43b2491140d1ea1936c0617b9870f6f7aa56f04e408c2d2c9e25b06eda8"
+    }
+  }
+}

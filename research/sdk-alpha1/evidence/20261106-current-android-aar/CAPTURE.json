@@ -1,0 +1,28 @@
+{
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "members": 707,
+  "bytes": 11107856,
+  "sha256": "bf8531f2b2ede8c9c5f554b9a086fc2af30acf771dacb19aa9ac4f2e50d7bb1b",
+  "successful_aar": {
+    "bytes": 10697112,
+    "file": "q-periapt-continuity-android-0.0.0.aar",
+    "members": 229,
+    "sha256": "a21d016d0cbe69dc7bb363c488ce9d984017625ea811c17218dea4e60ab66c7e"
+  },
+  "scope": "Current arm64 candidate AAR build and independent static reread, original path-leakage package/failure, source/readers and private tool preparation receipts. No APK/ART/device qualification or product ABI2 admission.",
+  "large_tool_archives_retained_locally": {
+    "android-ndk-r29-darwin.zip": {
+      "path": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-android-tools-20261105/android-ndk-r29-darwin.zip",
+      "bytes": 1049519838
+    },
+    "rust-std-1.98.1-aarch64-linux-android.tar.xz": {
+      "path": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-android-tools-20261105/rust-std-1.98.1-aarch64-linux-android.tar.xz",
+      "bytes": 29448296
+    },
+    "rust-std-1.98.1-aarch64-linux-android.tar.xz.partial": {
+      "path": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-android-tools-20261105/rust-std-1.98.1-aarch64-linux-android.tar.xz.partial",
+      "bytes": 25173303
+    }
+  },
+  "release_claim_eligible": false
+}

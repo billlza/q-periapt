@@ -1,0 +1,381 @@
+{
+  "schema": "qperiapt/joc-main-result-entry-preservation/v1",
+  "date": "2026-11-10",
+  "status": "passed",
+  "base_head": "c0eac5469fe184338b0eb343ee46ab23736caa6b",
+  "changed_manuscript_modules": [
+    "introduction.tex",
+    "computational-roadmap.tex"
+  ],
+  "canonical_modules": 40,
+  "formal_environments": 109,
+  "proof_environments": 52,
+  "display_groups": 168,
+  "all_formal_environments_byte_identical": true,
+  "all_display_groups_byte_identical": true,
+  "unchanged_other_canonical_modules": 38,
+  "changed_module_references_resolve": true,
+  "files": [
+    {
+      "path": "acquisition-nonadditivity.tex",
+      "base_sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+      "current_sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+      "formal_environments": 2,
+      "proof_environments": 1,
+      "display_groups": 5,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "artifact-map.tex",
+      "base_sha256": "c97c63162e301538bdb656dd81955c4be23ae2db56a761382d9d9eef9244d6fd",
+      "current_sha256": "c97c63162e301538bdb656dd81955c4be23ae2db56a761382d9d9eef9244d6fd",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 0,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "bootstrap-authentication.tex",
+      "base_sha256": "72c4f982bdf7229623ca790d83d3a2dc55ef0f6cb0f32cc832a61700f28e766d",
+      "current_sha256": "72c4f982bdf7229623ca790d83d3a2dc55ef0f6cb0f32cc832a61700f28e766d",
+      "formal_environments": 13,
+      "proof_environments": 6,
+      "display_groups": 11,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "bootstrap-entry.tex",
+      "base_sha256": "c97d14ab80160319d2d87f563f349566961e3f585ef4604417b8c87cce02af2e",
+      "current_sha256": "c97d14ab80160319d2d87f563f349566961e3f585ef4604417b8c87cce02af2e",
+      "formal_environments": 2,
+      "proof_environments": 1,
+      "display_groups": 5,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "bootstrap-initial-source.tex",
+      "base_sha256": "d84118de7a0b90a451d47e2a1673a0da35a23e1655493502583976a08a279715",
+      "current_sha256": "d84118de7a0b90a451d47e2a1673a0da35a23e1655493502583976a08a279715",
+      "formal_environments": 8,
+      "proof_environments": 4,
+      "display_groups": 8,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "candidate-local-accounting.tex",
+      "base_sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "current_sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "formal_environments": 6,
+      "proof_environments": 3,
+      "display_groups": 9,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "chain-prefix-continuation.tex",
+      "base_sha256": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
+      "current_sha256": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
+      "formal_environments": 4,
+      "proof_environments": 2,
+      "display_groups": 4,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "common-virtual-accounting.tex",
+      "base_sha256": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
+      "current_sha256": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
+      "formal_environments": 2,
+      "proof_environments": 1,
+      "display_groups": 5,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "computational-roadmap.tex",
+      "base_sha256": "ba415e0eaf3e6799d1c7cce76a9cabd4dbcf2ff6c196829b61031bfcfe9da7a8",
+      "current_sha256": "26533cacec6b94b4b6cf0b83778aa538e7ba0f690c2f6b42409524dd3464db76",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 0,
+      "whole_source_unchanged": false
+    },
+    {
+      "path": "confirmation-traffic.tex",
+      "base_sha256": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
+      "current_sha256": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
+      "formal_environments": 2,
+      "proof_environments": 1,
+      "display_groups": 6,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "construction.tex",
+      "base_sha256": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
+      "current_sha256": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 2,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "contextbound-connection.tex",
+      "base_sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+      "current_sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+      "formal_environments": 6,
+      "proof_environments": 3,
+      "display_groups": 7,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "declarations.tex",
+      "base_sha256": "6cffd05abd8352442c9dc5349bc5fd9a3a49eb85d3d295955ce3ded022c80771",
+      "current_sha256": "6cffd05abd8352442c9dc5349bc5fd9a3a49eb85d3d295955ce3ded022c80771",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 0,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "discussion.tex",
+      "base_sha256": "4042b5a6d3d04f28db062abad7a9022ced67c4313702402d85bfbaf06224e7ca",
+      "current_sha256": "4042b5a6d3d04f28db062abad7a9022ced67c4313702402d85bfbaf06224e7ca",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 1,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "established-results.tex",
+      "base_sha256": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
+      "current_sha256": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
+      "formal_environments": 3,
+      "proof_environments": 1,
+      "display_groups": 1,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "evaluation.tex",
+      "base_sha256": "77a783600c6a0a48a2969c7baa2110eb69f7686b9068441ba181f49f20c30dfe",
+      "current_sha256": "77a783600c6a0a48a2969c7baa2110eb69f7686b9068441ba181f49f20c30dfe",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 0,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "guarded-provenance.tex",
+      "base_sha256": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+      "current_sha256": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+      "formal_environments": 4,
+      "proof_environments": 2,
+      "display_groups": 4,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "introduction.tex",
+      "base_sha256": "fcd3ff8514e2e9cd7adbb0b81b3d2548e64342a593c7fa83139eff3e30da4110",
+      "current_sha256": "18129e1d1a935a69ea34f6239e09b59fa01b3e209dd810f396220fe67cb432a1",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 0,
+      "whole_source_unchanged": false
+    },
+    {
+      "path": "joint-continuation.tex",
+      "base_sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+      "current_sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+      "formal_environments": 6,
+      "proof_environments": 3,
+      "display_groups": 13,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "joint-primitive-bounds.tex",
+      "base_sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+      "current_sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+      "formal_environments": 4,
+      "proof_environments": 2,
+      "display_groups": 15,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "kem-ordinary-bridge.tex",
+      "base_sha256": "871a4a3a0a8744f0288a5a9c8adee47dd8738d0c341f333a8ed465d7fafd025f",
+      "current_sha256": "871a4a3a0a8744f0288a5a9c8adee47dd8738d0c341f333a8ed465d7fafd025f",
+      "formal_environments": 2,
+      "proof_environments": 1,
+      "display_groups": 4,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "live-core-instantiation.tex",
+      "base_sha256": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+      "current_sha256": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+      "formal_environments": 2,
+      "proof_environments": 1,
+      "display_groups": 2,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "main.tex",
+      "base_sha256": "37436cf32b029d325faed36eb76211b2fbb4de829ccfb6b464a239a7a21e04b9",
+      "current_sha256": "37436cf32b029d325faed36eb76211b2fbb4de829ccfb6b464a239a7a21e04b9",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 0,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "matched-opportunities.tex",
+      "base_sha256": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",
+      "current_sha256": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 0,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "matched-opportunity-tables.tex",
+      "base_sha256": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
+      "current_sha256": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 0,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "multiple-root-entry.tex",
+      "base_sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+      "current_sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+      "formal_environments": 4,
+      "proof_environments": 2,
+      "display_groups": 4,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "native-authentication.tex",
+      "base_sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+      "current_sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+      "formal_environments": 2,
+      "proof_environments": 1,
+      "display_groups": 8,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "native-chain-composition.tex",
+      "base_sha256": "e4fda73318c6f16a672f7efde4f0c3659587f23f1a082e20e52e5d149007c04e",
+      "current_sha256": "e4fda73318c6f16a672f7efde4f0c3659587f23f1a082e20e52e5d149007c04e",
+      "formal_environments": 4,
+      "proof_environments": 2,
+      "display_groups": 4,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "native-correspondence.tex",
+      "base_sha256": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
+      "current_sha256": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 0,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "opaque-rendering.tex",
+      "base_sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+      "current_sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+      "formal_environments": 6,
+      "proof_environments": 3,
+      "display_groups": 6,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "primitive-inputs.tex",
+      "base_sha256": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
+      "current_sha256": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 7,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "reference-schedule-table.tex",
+      "base_sha256": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9",
+      "current_sha256": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 0,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "related-work.tex",
+      "base_sha256": "79986b07fb2984f048337edb6c06abeb59cda5087fc227cc5bab3fb4a12b71c8",
+      "current_sha256": "79986b07fb2984f048337edb6c06abeb59cda5087fc227cc5bab3fb4a12b71c8",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 0,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "report-composition.tex",
+      "base_sha256": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
+      "current_sha256": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
+      "formal_environments": 4,
+      "proof_environments": 2,
+      "display_groups": 8,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "reservation-signature-bridge.tex",
+      "base_sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+      "current_sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+      "formal_environments": 4,
+      "proof_environments": 2,
+      "display_groups": 7,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "retry-readiness-table.tex",
+      "base_sha256": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5",
+      "current_sha256": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 0,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "retry-readiness.tex",
+      "base_sha256": "35b1f1aa5eb5be7c306de857bfce361685c8dfc216315fc77149d47e00bbc516",
+      "current_sha256": "35b1f1aa5eb5be7c306de857bfce361685c8dfc216315fc77149d47e00bbc516",
+      "formal_environments": 0,
+      "proof_environments": 0,
+      "display_groups": 0,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "sdk-purpose-connection.tex",
+      "base_sha256": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+      "current_sha256": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+      "formal_environments": 4,
+      "proof_environments": 2,
+      "display_groups": 6,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "security-model.tex",
+      "base_sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+      "current_sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+      "formal_environments": 7,
+      "proof_environments": 2,
+      "display_groups": 10,
+      "whole_source_unchanged": true
+    },
+    {
+      "path": "source-attribution.tex",
+      "base_sha256": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
+      "current_sha256": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
+      "formal_environments": 8,
+      "proof_environments": 4,
+      "display_groups": 6,
+      "whole_source_unchanged": true
+    }
+  ],
+  "scope": "Source preservation and referenced-label existence. Semantic correspondence is recorded in review.md; final build and visual evidence are recorded by the integration build."
+}

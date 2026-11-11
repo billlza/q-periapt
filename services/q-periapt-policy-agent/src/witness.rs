@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 use q_periapt_backends::{ML_DSA_65_SK_LEN, ML_DSA_65_VK_LEN};
 use q_periapt_core::ZeroizingBytes;
+use redb::ReadableDatabase;
 use redb::{Database, Durability, ReadableTable, TableDefinition};
 
 use crate::authentication::{
@@ -17,7 +18,11 @@ use crate::codec::{
     accept_error_is_transient, encode_domain, hash_fields, read_frame_until, require_domain,
     write_frame_until, CodecError, Decoder, Encoder, MAX_FRAME_BYTES,
 };
-use crate::filesystem::{open_private_file, provision_private_file, refuse_unclean_foreign_redb};
+use crate::filesystem::provision_private_file;
+#[cfg(unix)]
+use crate::filesystem::{
+    copy_to_anonymous_scratch, open_private_parent, refuse_unclean_foreign_redb,
+};
 use crate::types::{FenceToken, OperationId, StateAdvance, StateHead};
 
 const WITNESS_REQUEST_DOMAIN: &[u8] = b"Q-PERIAPT-WITNESS-REQUEST/v1";
@@ -308,6 +313,8 @@ pub trait WitnessPort: Send + Sync {
     fn read_head(&self) -> Result<StateHead, WitnessError>;
 
     /// Attempt one exact CAS. Transport uncertainty returns `Unknown`.
+    /// A failure before request dispatch returns its error, without resolving
+    /// the outcome of any earlier attempt under the same operation identifier.
     fn compare_and_advance(&self, intent: WitnessIntent) -> Result<WitnessOutcome, WitnessError>;
 
     /// Query the same unpredictable operation identifier after an unknown result.
@@ -484,6 +491,22 @@ fn map_authentication(error: AuthenticationError) -> WitnessError {
     }
 }
 
+/// Whether this call reached the first request-write boundary. A failure
+/// before dispatch says nothing about an earlier attempt with the same id.
+#[derive(Debug)]
+enum WitnessExchangeFailure {
+    BeforeDispatch(WitnessError),
+    AfterDispatch(WitnessError),
+}
+
+impl WitnessExchangeFailure {
+    const fn into_error(self) -> WitnessError {
+        match self {
+            Self::BeforeDispatch(error) | Self::AfterDispatch(error) => error,
+        }
+    }
+}
+
 /// Mutually authenticated TCP witness client.
 pub struct AuthenticatedTcpWitness {
     address: SocketAddr,
@@ -519,39 +542,48 @@ impl AuthenticatedTcpWitness {
         })
     }
 
-    fn exchange(&self, request: &Request) -> Result<Response, WitnessError> {
-        // One absolute deadline for connect plus the whole framed exchange.
-        // Per-syscall timeouts bound a single read(), not the operation, so a
-        // peer that drips one byte at a time restarts the clock on every
-        // partial read and stalls this call far past `self.timeout` -- while
-        // the caller holds the agent mutex inside a strictly serial IPC loop.
-        // The deadline-bounded helpers rebind each syscall timeout from the
-        // remaining budget, which is what the witness server, the IPC server
-        // and the authority client already do.
-        let deadline = Instant::now()
-            .checked_add(self.timeout)
-            .ok_or(WitnessError::Unavailable)?;
-        let request_body = request.body()?;
-        let envelope = signed_envelope(&request_body, self.client_signing_key.as_bytes())?;
+    fn exchange(&self, request: &Request) -> Result<Response, WitnessExchangeFailure> {
+        // One absolute deadline covers request preparation, connect, and the
+        // framed exchange. Before the write helper is entered, this call has
+        // definitely not transmitted any request bytes.
+        let deadline = Instant::now().checked_add(self.timeout).ok_or(
+            WitnessExchangeFailure::BeforeDispatch(WitnessError::Unavailable),
+        )?;
+        let request_body = request
+            .body()
+            .map_err(WitnessExchangeFailure::BeforeDispatch)?;
+        let envelope = signed_envelope(&request_body, self.client_signing_key.as_bytes())
+            .map_err(WitnessExchangeFailure::BeforeDispatch)?;
         let connect_budget = deadline
             .checked_duration_since(Instant::now())
             .filter(|budget| !budget.is_zero())
-            .ok_or(WitnessError::Unavailable)?;
+            .ok_or(WitnessExchangeFailure::BeforeDispatch(
+                WitnessError::Unavailable,
+            ))?;
         let mut stream = TcpStream::connect_timeout(&self.address, connect_budget)
-            .map_err(|_| WitnessError::Unavailable)?;
+            .map_err(|_| WitnessExchangeFailure::BeforeDispatch(WitnessError::Unavailable))?;
+
+        // The framed writer may fail after a partial write. Every error from
+        // this boundary onward must preserve an indeterminate CAS outcome,
+        // including malformed or unauthenticated responses after a commit.
         write_frame_until(&mut stream, &envelope, deadline)
-            .map_err(|_| WitnessError::Unavailable)?;
-        let response_envelope =
-            read_frame_until(&mut stream, deadline).map_err(|_| WitnessError::Unavailable)?;
-        let response_body = verify_envelope(&response_envelope, &self.witness_verification_key)?;
-        let response = Response::decode(response_body)?;
-        let expected_digest =
-            hash_fields(WITNESS_REQUEST_DIGEST_DOMAIN, &[&request_body]).map_err(map_codec)?;
+            .map_err(|_| WitnessExchangeFailure::AfterDispatch(WitnessError::Unavailable))?;
+        let response_envelope = read_frame_until(&mut stream, deadline)
+            .map_err(|_| WitnessExchangeFailure::AfterDispatch(WitnessError::Unavailable))?;
+        let response_body = verify_envelope(&response_envelope, &self.witness_verification_key)
+            .map_err(WitnessExchangeFailure::AfterDispatch)?;
+        let response =
+            Response::decode(response_body).map_err(WitnessExchangeFailure::AfterDispatch)?;
+        let expected_digest = hash_fields(WITNESS_REQUEST_DIGEST_DOMAIN, &[&request_body])
+            .map_err(map_codec)
+            .map_err(WitnessExchangeFailure::AfterDispatch)?;
         if response.kind != request.kind
             || response.nonce != request.nonce
             || response.request_digest != expected_digest
         {
-            return Err(WitnessError::AuthenticationFailed);
+            return Err(WitnessExchangeFailure::AfterDispatch(
+                WitnessError::AuthenticationFailed,
+            ));
         }
         Ok(response)
     }
@@ -560,7 +592,9 @@ impl AuthenticatedTcpWitness {
 impl WitnessPort for AuthenticatedTcpWitness {
     fn read_head(&self) -> Result<StateHead, WitnessError> {
         let request = Request::read(random_nonce()?);
-        let response = self.exchange(&request)?;
+        let response = self
+            .exchange(&request)
+            .map_err(WitnessExchangeFailure::into_error)?;
         if response.receipt.disposition != WitnessDisposition::NotApplied
             || response.receipt.intent.is_some()
         {
@@ -571,22 +605,20 @@ impl WitnessPort for AuthenticatedTcpWitness {
 
     fn compare_and_advance(&self, intent: WitnessIntent) -> Result<WitnessOutcome, WitnessError> {
         let request = Request::compare(random_nonce()?, intent);
-        // Encode here so a failure to build the request is reported as a
-        // definite failure, before anything is transmitted. Past this point the
-        // request may reach the witness, and the witness may commit the advance.
-        let _ = request.body()?;
         match self.exchange(&request) {
             Ok(response) => {
                 let receipt = response.receipt;
                 if receipt.intent != Some(intent)
                     || matches!(receipt.disposition, WitnessDisposition::NotApplied)
                 {
-                    return Err(WitnessError::InvalidIntent);
+                    // Even an authenticated but inconsistent receipt cannot
+                    // settle the requested CAS after its request was sent.
+                    return Ok(WitnessOutcome::Unknown);
                 }
                 Ok(WitnessOutcome::Known(Box::new(receipt)))
             }
-            // This is a state-changing request, so every remaining failure is
-            // INDETERMINATE, not a definite failure. A response that fails
+            Err(WitnessExchangeFailure::BeforeDispatch(error)) => Err(error),
+            // This call reached the request-write boundary. A response that fails
             // authentication, does not decode, or does not match the request
             // still leaves the possibility that the witness applied the advance
             // and only the answer was lost or tampered with. Reporting those as
@@ -594,9 +626,8 @@ impl WitnessPort for AuthenticatedTcpWitness {
             // state that actually moved. The caller resolves it the way the
             // protocol intends -- by querying the same unpredictable operation
             // id -- which is exactly what `Unknown` asks it to do. Read-only
-            // requests keep reporting definite failures, because no state can
-            // have changed underneath them.
-            Err(_) => Ok(WitnessOutcome::Unknown),
+            // APIs retain their existing availability/authentication semantics.
+            Err(WitnessExchangeFailure::AfterDispatch(_)) => Ok(WitnessOutcome::Unknown),
         }
     }
 
@@ -610,8 +641,10 @@ impl WitnessPort for AuthenticatedTcpWitness {
                 }
                 Ok(WitnessOutcome::Known(Box::new(receipt)))
             }
-            Err(WitnessError::Unavailable) => Ok(WitnessOutcome::Unknown),
-            Err(error) => Err(error),
+            Err(failure) => match failure.into_error() {
+                WitnessError::Unavailable => Ok(WitnessOutcome::Unknown),
+                error => Err(error),
+            },
         }
     }
 
@@ -639,7 +672,9 @@ impl WitnessStore {
                 let mut transaction = database
                     .begin_write()
                     .map_err(|_| WitnessError::Persistence)?;
-                transaction.set_durability(Durability::Immediate);
+                transaction
+                    .set_durability(Durability::Immediate)
+                    .map_err(|_| WitnessError::Persistence)?;
                 transaction.set_two_phase_commit(true);
                 {
                     let mut meta = transaction
@@ -663,7 +698,7 @@ impl WitnessStore {
         )
     }
 
-    /// Open an existing store, letting redb finish crash recovery first.
+    /// Admit an existing store on a private copy while retaining the original inode lock.
     ///
     /// Every commit here is two-phase, and that is what makes recovery safe to
     /// allow: after an unclean shutdown redb only reconstructs its free-page
@@ -676,22 +711,59 @@ impl WitnessStore {
     /// that avoids the reconstruction, redb's quick-repair, saves the allocator
     /// state on every commit and measured about five times slower per durable
     /// commit on this workload, on a path every guarded operation takes.
+    /// Structural, schema and semantic rejection never opens the original in redb.
+    /// The scratch file is unlinked before copying, and its cache is released before
+    /// the same locked backend is moved into the admitted database. After admission,
+    /// opening the original may recover it and an I/O error can follow those writes;
+    /// byte preservation is not a promise for that operational failure or redb Drop.
+    #[cfg(unix)]
     fn open(path: &Path) -> Result<Self, WitnessError> {
-        let file = open_private_file(path, false).map_err(|_| WitnessError::Persistence)?;
-        refuse_unclean_foreign_redb(&file).map_err(|_| WitnessError::Persistence)?;
-        let mut database = Database::builder()
-            .create_file(file)
+        let (parent, name) = open_private_parent(path).map_err(|_| WitnessError::Persistence)?;
+        let file = parent
+            .open_state_file(name)
             .map_err(|_| WitnessError::Persistence)?;
-        if !database
+        let mut reader = file.try_clone().map_err(|_| WitnessError::Persistence)?;
+        // The clone shares the original open file description. No content is read
+        // until FileBackend has obtained its nonblocking exclusive flock.
+        let backend = q_periapt_host_store::filesystem::LockedFileBackend::new(file)
+            .map_err(|_| WitnessError::Persistence)?;
+        refuse_unclean_foreign_redb(&backend).map_err(|_| WitnessError::Persistence)?;
+        {
+            let mut scratch = parent
+                .create_anonymous_scratch()
+                .map_err(|_| WitnessError::Persistence)?;
+            copy_to_anonymous_scratch(&mut reader, &mut scratch)
+                .map_err(|_| WitnessError::Persistence)?;
+            let database = Database::builder()
+                .create_file(scratch)
+                .map_err(|_| WitnessError::Persistence)?;
+            let mut validation = Self { database };
+            validation.validate_existing()?;
+        }
+        // Moving this backend does not run its unlocking destructor. Reopening the
+        // original path or constructing a second backend would break this lock span.
+        let database = Database::builder()
+            .create_with_backend(backend)
+            .map_err(|_| WitnessError::Persistence)?;
+        Ok(Self { database })
+    }
+
+    #[cfg(not(unix))]
+    fn open(_: &Path) -> Result<Self, WitnessError> {
+        Err(WitnessError::Persistence)
+    }
+
+    #[cfg(unix)]
+    fn validate_existing(&mut self) -> Result<(), WitnessError> {
+        if !self
+            .database
             .check_integrity()
             .map_err(|_| WitnessError::Persistence)?
         {
             return Err(WitnessError::Persistence);
         }
-        let store = Self { database };
-        store.head()?;
-        store.verify_semantics()?;
-        Ok(store)
+        self.head()?;
+        self.verify_semantics()
     }
 
     /// Validate at open the invariants the request paths already assume.
@@ -703,6 +775,7 @@ impl WitnessStore {
     /// late failure: capacity is enforced against `META_OPERATION_COUNT`, so a
     /// counter that under-reports the rows actually present would let the
     /// explicit operation limit be exceeded.
+    #[cfg(unix)]
     fn verify_semantics(&self) -> Result<(), WitnessError> {
         let transaction = self
             .database
@@ -838,7 +911,9 @@ impl WitnessStore {
             .database
             .begin_write()
             .map_err(|_| WitnessError::Persistence)?;
-        transaction.set_durability(Durability::Immediate);
+        transaction
+            .set_durability(Durability::Immediate)
+            .map_err(|_| WitnessError::Persistence)?;
         transaction.set_two_phase_commit(true);
         let receipt = {
             let mut meta = transaction
@@ -1056,6 +1131,7 @@ impl ReferenceWitnessServer {
 pub(crate) mod test_support {
     use super::*;
     use crate::codec::write_frame;
+    use crate::filesystem::open_private_file;
 
     /// Record an applied receipt for an advance the head does not reflect,
     /// leaving a store that holds proof it moved past the head it reports.
@@ -1073,7 +1149,9 @@ pub(crate) mod test_support {
         let mut transaction = database
             .begin_write()
             .map_err(|_| WitnessError::Persistence)?;
-        transaction.set_durability(Durability::Immediate);
+        transaction
+            .set_durability(Durability::Immediate)
+            .map_err(|_| WitnessError::Persistence)?;
         transaction.set_two_phase_commit(true);
         {
             let mut meta = transaction
@@ -1121,7 +1199,9 @@ pub(crate) mod test_support {
         let mut transaction = database
             .begin_write()
             .map_err(|_| WitnessError::Persistence)?;
-        transaction.set_durability(Durability::Immediate);
+        transaction
+            .set_durability(Durability::Immediate)
+            .map_err(|_| WitnessError::Persistence)?;
         transaction.set_two_phase_commit(true);
         {
             let mut meta = transaction
@@ -1156,6 +1236,15 @@ pub(crate) mod test_support {
         WitnessStore::open(path)?.head()
     }
 
+    /// Inspect the existing production store while its accepted backend still owns the lock.
+    pub(crate) fn with_open_head<T>(
+        path: &Path,
+        inspect: impl FnOnce(StateHead) -> T,
+    ) -> Result<T, WitnessError> {
+        let store = WitnessStore::open(path)?;
+        Ok(inspect(store.head()?))
+    }
+
     /// Open the store exactly as the server does, apply one compare-and-advance
     /// through the production commit path, and exit the process with `code`
     /// while the store is still open.
@@ -1188,7 +1277,9 @@ pub(crate) mod test_support {
         let mut transaction = database
             .begin_write()
             .map_err(|_| WitnessError::Persistence)?;
-        transaction.set_durability(Durability::Immediate);
+        transaction
+            .set_durability(Durability::Immediate)
+            .map_err(|_| WitnessError::Persistence)?;
         transaction.set_two_phase_commit(true);
         {
             let mut meta = transaction
@@ -1201,6 +1292,26 @@ pub(crate) mod test_support {
             .commit()
             .map_err(|_| WitnessError::Persistence)?;
         Ok(())
+    }
+
+    /// Authenticate and decode a real request, then sign a response carrying
+    /// the supplied receipt while preserving its outer request binding.
+    pub(crate) fn response_with_receipt(
+        request_envelope: &[u8],
+        client_verification_key: &[u8],
+        witness_signing_key: &[u8],
+        receipt: WitnessReceipt,
+    ) -> Result<Vec<u8>, WitnessError> {
+        let body = verify_envelope(request_envelope, client_verification_key)?;
+        let request = Request::decode(body)?;
+        let response = Response {
+            kind: request.kind,
+            nonce: request.nonce,
+            request_digest: hash_fields(WITNESS_REQUEST_DIGEST_DOMAIN, &[body])
+                .map_err(map_codec)?,
+            receipt,
+        };
+        signed_envelope(&response.body()?, witness_signing_key)
     }
 
     pub(crate) fn framed_read_request(

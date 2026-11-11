@@ -20,7 +20,11 @@ use q_periapt_backends::{
 use q_periapt_core::{Kem, Xof256};
 use q_periapt_sig::{SigAlg, Signer};
 use serde_json::{json, Value};
-use std::path::Path;
+
+#[cfg(feature = "sdk-cbom")]
+mod sdk_cbom;
+#[cfg(feature = "sdk-cbom")]
+pub use sdk_cbom::{native_sdk_cbom, CbomError};
 
 /// The CycloneDX facts about an algorithm that no suite crate represents.
 ///
@@ -125,7 +129,8 @@ struct CryptoAsset {
 }
 
 const KEM_FUNCTIONS: &[&str] = &["keygen", "encapsulate", "decapsulate"];
-const KEY_AGREEMENT_FUNCTIONS: &[&str] = &["keygen", "key-agree"];
+// CycloneDX 1.6 calls the primitive key-agree, but its function keyderive.
+const KEY_AGREEMENT_FUNCTIONS: &[&str] = &["keygen", "keyderive"];
 const SIGNATURE_FUNCTIONS: &[&str] = &["keygen", "sign", "verify"];
 const DIGEST_FUNCTIONS: &[&str] = &["digest"];
 
@@ -574,92 +579,8 @@ fn contains_legacy_dsa(lower: &str) -> bool {
     false
 }
 
-/// Recursively scan `root` for legacy / quantum-vulnerable crypto.
-#[must_use]
-pub fn scan(root: &Path) -> ScanReport {
-    let mut report = ScanReport::default();
-    scan_path(root, &mut report, true);
-    report
-}
-
-fn push_scan_error(
-    report: &mut ScanReport,
-    path: &Path,
-    operation: &'static str,
-    error: std::io::Error,
-) {
-    report.errors.push(ScanError {
-        path: path.display().to_string(),
-        operation,
-        message: error.to_string(),
-    });
-}
-
-fn scan_path(path: &Path, report: &mut ScanReport, is_root: bool) {
-    let meta = match std::fs::symlink_metadata(path) {
-        Ok(meta) => meta,
-        Err(e) => {
-            push_scan_error(report, path, "metadata", e);
-            return;
-        }
-    };
-    if meta.is_dir() {
-        // Skip rules apply only to descendants: an explicitly named root
-        // (`qperiapt scan vendor`, `qperiapt scan .config`) must always be scanned.
-        if !is_root {
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                if SKIP_DIRS.contains(&name) || name.starts_with('.') && name != "." {
-                    return;
-                }
-            }
-        }
-        match std::fs::read_dir(path) {
-            Ok(entries) => {
-                let mut paths = Vec::new();
-                for entry in entries {
-                    match entry {
-                        Ok(entry) => paths.push(entry.path()),
-                        Err(e) => push_scan_error(report, path, "dir_entry", e),
-                    }
-                }
-                paths.sort();
-                for p in paths {
-                    scan_path(&p, report, false);
-                }
-            }
-            Err(e) => push_scan_error(report, path, "read_dir", e),
-        }
-    } else if meta.is_file() {
-        let ext_ok = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(|e| CODE_EXTS.contains(&e))
-            .unwrap_or(false);
-        if !ext_ok {
-            return;
-        }
-        if meta.len() > 2 * 1024 * 1024 {
-            report.errors.push(ScanError {
-                path: path.display().to_string(),
-                operation: "too_large",
-                message: "code file exceeds 2 MiB scanner limit".to_string(),
-            });
-            return;
-        }
-        match std::fs::read_to_string(path) {
-            Ok(text) => scan_text(&path.display().to_string(), &text, &mut report.findings),
-            Err(e) => push_scan_error(report, path, "read_file", e),
-        }
-    } else if meta.is_symlink() {
-        // Fail closed: symlinks are never auto-followed (cycles, tree escapes), but
-        // silently skipping one would let the report claim a clean, complete scan.
-        report.errors.push(ScanError {
-            path: path.display().to_string(),
-            operation: "symlink_skipped",
-            message: "symlink not followed; scan its target explicitly".to_string(),
-        });
-    }
-}
+mod scanner;
+pub use scanner::scan;
 
 fn scan_text(file: &str, text: &str, out: &mut Vec<Finding>) {
     for (idx, line) in text.lines().enumerate() {
@@ -819,68 +740,5 @@ mod tests {
         );
         assert!(legacy.iter().any(|f| f.token == "dsa" && f.line == 1));
         assert!(legacy.iter().any(|f| f.token == "dsa" && f.line == 2));
-    }
-
-    #[test]
-    fn scan_reports_missing_root_as_incomplete() {
-        let report = scan(Path::new("/definitely/not/q-periapt/missing"));
-        assert!(report.findings.is_empty());
-        assert_eq!(report.errors.len(), 1);
-        assert_eq!(report.errors[0].operation, "metadata");
-    }
-
-    fn scratch_dir(tag: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("q-periapt-cli-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn scan_records_symlink_as_error_so_report_is_incomplete() {
-        let dir = scratch_dir("symlink");
-        std::fs::write(dir.join("real.rs"), "use rsa::Pkcs1v15;\n").unwrap();
-        let link = dir.join("link.rs");
-        std::os::unix::fs::symlink(dir.join("real.rs"), &link).unwrap();
-
-        let report = scan(&dir);
-        assert!(report.findings.iter().any(|f| f.token == "rsa"));
-        assert_eq!(report.errors.len(), 1);
-        assert_eq!(report.errors[0].operation, "symlink_skipped");
-        assert_eq!(report.errors[0].path, link.display().to_string());
-        assert_eq!(scan_report_to_json(&report)["complete"], false);
-
-        std::fs::remove_dir_all(&dir).unwrap();
-    }
-
-    #[test]
-    fn scan_never_skips_the_explicitly_named_root() {
-        let parent = scratch_dir("root-skip");
-        for name in ["target", ".config"] {
-            let root = parent.join(name);
-            std::fs::create_dir(&root).unwrap();
-            std::fs::write(root.join("legacy.rs"), "let s = ecdsa_sign();\n").unwrap();
-            // A skip-listed descendant is still pruned.
-            let nested = root.join("target");
-            std::fs::create_dir(&nested).unwrap();
-            std::fs::write(nested.join("gen.rs"), "let h = Md5::new();\n").unwrap();
-
-            let report = scan(&root);
-            assert!(
-                report.errors.is_empty(),
-                "scan of root {name:?} hit errors: {:?}",
-                report.errors
-            );
-            assert!(
-                report.findings.iter().any(|f| f.token == "ecdsa"),
-                "root {name:?} must be scanned even though it matches the skip rules"
-            );
-            assert!(
-                !report.findings.iter().any(|f| f.token == "md5"),
-                "descendant skip dirs under root {name:?} must still be pruned"
-            );
-        }
-        std::fs::remove_dir_all(&parent).unwrap();
     }
 }

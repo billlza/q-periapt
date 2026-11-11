@@ -1,0 +1,34 @@
+{
+  "schema": "qperiapt-artifact-manifest/1",
+  "scope": "Exact retained artifact bytes; the manifest excludes itself.",
+  "files": {
+    "README.md": {
+      "bytes": 3811,
+      "sha256": "6f6635f297b65bf7cc908405657072216d41cc1d80f505cf99e5178c64a038d2"
+    },
+    "auth_bit_accounting_controls.json": {
+      "bytes": 1420,
+      "sha256": "c8664cdfd178468df08508f53944bf15bce4eeffe54f3d2ac6dd959fb78b8399"
+    },
+    "author_identity.json": {
+      "bytes": 812,
+      "sha256": "78fff6d5539a9e355f86fa9d859d9ce88639e08ea35ff52a1b6283421500300d"
+    },
+    "independent_review.json": {
+      "bytes": 10880,
+      "sha256": "5eceaecb2f0a8c1c81548d79e0ecff306ad8c9a68ed14b1f545d178b2f5e9411"
+    },
+    "independent_review.md": {
+      "bytes": 3986,
+      "sha256": "36c7889d7e9c935eeb55266565c26b5ed786cc125f6069329202bbfa397e97ba"
+    },
+    "proof.tex": {
+      "bytes": 13617,
+      "sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170"
+    },
+    "review_auth_bit_accounting.py": {
+      "bytes": 3899,
+      "sha256": "0e93c1e4ff47780593c20996e38b2ec751a60acdd799da1a5094395e007e28c2"
+    }
+  }
+}

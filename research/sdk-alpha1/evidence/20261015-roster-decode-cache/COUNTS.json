@@ -1,0 +1,693 @@
+{
+  "after_binary_sha256": "d47006e777793f23df9625d5aa308b32dc57d3b2d3bf9b61493025152fb432d4",
+  "before_binary_sha256": "52d5a72c13e44559c59c8dccb4498797a030f1a8607eab6e446d84b256bf1916",
+  "completed": true,
+  "profiles": {
+    "local": {
+      "baseline": {
+        "AccountAuthorityCheck": {
+          "calls": [
+            46
+          ],
+          "median_inclusive_ns": 1522.5
+        },
+        "AnchorCheckCurrent": {
+          "calls": [
+            20
+          ],
+          "median_inclusive_ns": 707.0
+        },
+        "DatabaseCommit": {
+          "calls": [
+            10
+          ],
+          "median_inclusive_ns": 89904208.5
+        },
+        "DualSignatureVerify": {
+          "calls": [
+            103
+          ],
+          "median_inclusive_ns": 31158123.5
+        },
+        "ImageAttempt": {
+          "calls": [
+            9
+          ],
+          "median_inclusive_ns": 7545833.0
+        },
+        "ImageLoad": {
+          "calls": [
+            9
+          ],
+          "median_inclusive_ns": 7542375.0
+        },
+        "ImageUnseal": {
+          "calls": [
+            14
+          ],
+          "median_inclusive_ns": 11530146.0
+        },
+        "MldsaSignatureVerify": {
+          "calls": [
+            103
+          ],
+          "median_inclusive_ns": 15928040.5
+        },
+        "P256KeyDecode": {
+          "calls": [
+            103
+          ],
+          "median_inclusive_ns": 832183.0
+        },
+        "P256SignatureVerify": {
+          "calls": [
+            103
+          ],
+          "median_inclusive_ns": 14353708.0
+        },
+        "PersistAttempt": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 99499042.0
+        },
+        "PublicKeyDecode": {
+          "calls": [
+            103
+          ],
+          "median_inclusive_ns": 859190.0
+        },
+        "SealEncrypt": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 530978.0
+        },
+        "SealNextImage": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 3897978.5
+        },
+        "SessionRelease": {
+          "calls": [
+            6
+          ],
+          "median_inclusive_ns": 9675646.5
+        },
+        "ValidateCancellation": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 1103.5
+        },
+        "ValidateMessages": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 755835.0
+        },
+        "ValidatePrekeys": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 142270.5
+        },
+        "ValidateRosters": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 11943522.5
+        },
+        "VerifyAnchorReply": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "VerifyAnchorRequest": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "VerifyCredential": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "VerifyOther": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "VerifyRoster": {
+          "calls": [
+            103
+          ],
+          "median_inclusive_ns": 31151460.0
+        },
+        "VerifySessionPolicy": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "WriteIntentApply": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 44456772.0
+        },
+        "WriteIntentCommit": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 95349938.5
+        },
+        "WriteIntentReserve": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 45794520.5
+        }
+      },
+      "optimized": {
+        "AccountAuthorityCheck": {
+          "calls": [
+            46
+          ],
+          "median_inclusive_ns": 1687.5
+        },
+        "AnchorCheckCurrent": {
+          "calls": [
+            20
+          ],
+          "median_inclusive_ns": 915.5
+        },
+        "DatabaseCommit": {
+          "calls": [
+            10
+          ],
+          "median_inclusive_ns": 343733584.0
+        },
+        "DualSignatureVerify": {
+          "calls": [
+            28
+          ],
+          "median_inclusive_ns": 7507562.0
+        },
+        "ImageAttempt": {
+          "calls": [
+            9
+          ],
+          "median_inclusive_ns": 6727083.0
+        },
+        "ImageLoad": {
+          "calls": [
+            9
+          ],
+          "median_inclusive_ns": 6722354.5
+        },
+        "ImageUnseal": {
+          "calls": [
+            14
+          ],
+          "median_inclusive_ns": 10324584.5
+        },
+        "MldsaSignatureVerify": {
+          "calls": [
+            28
+          ],
+          "median_inclusive_ns": 3925584.0
+        },
+        "P256KeyDecode": {
+          "calls": [
+            28
+          ],
+          "median_inclusive_ns": 192395.0
+        },
+        "P256SignatureVerify": {
+          "calls": [
+            28
+          ],
+          "median_inclusive_ns": 3353334.5
+        },
+        "PersistAttempt": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 348611749.5
+        },
+        "PublicKeyDecode": {
+          "calls": [
+            28
+          ],
+          "median_inclusive_ns": 209709.0
+        },
+        "SealEncrypt": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 446561.5
+        },
+        "SealNextImage": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 690750.0
+        },
+        "SessionRelease": {
+          "calls": [
+            6
+          ],
+          "median_inclusive_ns": 110312.0
+        },
+        "ValidateCancellation": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 1043.0
+        },
+        "ValidateMessages": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 684166.5
+        },
+        "ValidatePrekeys": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 128664.5
+        },
+        "ValidateRosters": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 7937605.5
+        },
+        "VerifyAnchorReply": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "VerifyAnchorRequest": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "VerifyCredential": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "VerifyOther": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "VerifyRoster": {
+          "calls": [
+            28
+          ],
+          "median_inclusive_ns": 7503624.0
+        },
+        "VerifySessionPolicy": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "WriteIntentApply": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 160217311.0
+        },
+        "WriteIntentCommit": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 348050104.0
+        },
+        "WriteIntentReserve": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 190436395.5
+        }
+      }
+    },
+    "witness": {
+      "baseline": {
+        "AccountAuthorityCheck": {
+          "calls": [
+            46
+          ],
+          "median_inclusive_ns": 1751.0
+        },
+        "AnchorCheckCurrent": {
+          "calls": [
+            20
+          ],
+          "median_inclusive_ns": 51613978.5
+        },
+        "DatabaseCommit": {
+          "calls": [
+            10
+          ],
+          "median_inclusive_ns": 88435416.0
+        },
+        "DualSignatureVerify": {
+          "calls": [
+            159
+          ],
+          "median_inclusive_ns": 43707047.0
+        },
+        "ImageAttempt": {
+          "calls": [
+            9
+          ],
+          "median_inclusive_ns": 29409480.0
+        },
+        "ImageLoad": {
+          "calls": [
+            9
+          ],
+          "median_inclusive_ns": 6834644.0
+        },
+        "ImageUnseal": {
+          "calls": [
+            14
+          ],
+          "median_inclusive_ns": 10436499.5
+        },
+        "MldsaSignatureVerify": {
+          "calls": [
+            159
+          ],
+          "median_inclusive_ns": 22519664.5
+        },
+        "P256KeyDecode": {
+          "calls": [
+            159
+          ],
+          "median_inclusive_ns": 1159576.5
+        },
+        "P256SignatureVerify": {
+          "calls": [
+            159
+          ],
+          "median_inclusive_ns": 19984879.0
+        },
+        "PersistAttempt": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 169895313.0
+        },
+        "PublicKeyDecode": {
+          "calls": [
+            159
+          ],
+          "median_inclusive_ns": 1186498.5
+        },
+        "SealEncrypt": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 457146.5
+        },
+        "SealNextImage": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 3416000.5
+        },
+        "SessionRelease": {
+          "calls": [
+            6
+          ],
+          "median_inclusive_ns": 25716500.0
+        },
+        "ValidateCancellation": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 1226.5
+        },
+        "ValidateMessages": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 698938.5
+        },
+        "ValidatePrekeys": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 138042.0
+        },
+        "ValidateRosters": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 10637978.5
+        },
+        "VerifyAnchorReply": {
+          "calls": [
+            25
+          ],
+          "median_inclusive_ns": 7021730.0
+        },
+        "VerifyAnchorRequest": {
+          "calls": [
+            25
+          ],
+          "median_inclusive_ns": 7264228.5
+        },
+        "VerifyCredential": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "VerifyOther": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "VerifyRoster": {
+          "calls": [
+            109
+          ],
+          "median_inclusive_ns": 29427102.5
+        },
+        "VerifySessionPolicy": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "WriteIntentApply": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 44638749.5
+        },
+        "WriteIntentCommit": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 153003896.5
+        },
+        "WriteIntentReserve": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 45374292.5
+        }
+      },
+      "optimized": {
+        "AccountAuthorityCheck": {
+          "calls": [
+            46
+          ],
+          "median_inclusive_ns": 2017.5
+        },
+        "AnchorCheckCurrent": {
+          "calls": [
+            20
+          ],
+          "median_inclusive_ns": 51802854.5
+        },
+        "DatabaseCommit": {
+          "calls": [
+            10
+          ],
+          "median_inclusive_ns": 387854625.0
+        },
+        "DualSignatureVerify": {
+          "calls": [
+            78
+          ],
+          "median_inclusive_ns": 21493856.0
+        },
+        "ImageAttempt": {
+          "calls": [
+            9
+          ],
+          "median_inclusive_ns": 29122395.0
+        },
+        "ImageLoad": {
+          "calls": [
+            9
+          ],
+          "median_inclusive_ns": 6650603.5
+        },
+        "ImageUnseal": {
+          "calls": [
+            14
+          ],
+          "median_inclusive_ns": 10325250.5
+        },
+        "MldsaSignatureVerify": {
+          "calls": [
+            78
+          ],
+          "median_inclusive_ns": 11299748.5
+        },
+        "P256KeyDecode": {
+          "calls": [
+            78
+          ],
+          "median_inclusive_ns": 554229.0
+        },
+        "P256SignatureVerify": {
+          "calls": [
+            78
+          ],
+          "median_inclusive_ns": 9609668.5
+        },
+        "PersistAttempt": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 642930604.0
+        },
+        "PublicKeyDecode": {
+          "calls": [
+            78
+          ],
+          "median_inclusive_ns": 594250.5
+        },
+        "SealEncrypt": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 482542.0
+        },
+        "SealNextImage": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 724375.5
+        },
+        "SessionRelease": {
+          "calls": [
+            6
+          ],
+          "median_inclusive_ns": 15204917.5
+        },
+        "ValidateCancellation": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 2000.0
+        },
+        "ValidateMessages": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 695936.0
+        },
+        "ValidatePrekeys": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 137999.5
+        },
+        "ValidateRosters": {
+          "calls": [
+            19
+          ],
+          "median_inclusive_ns": 7928145.0
+        },
+        "VerifyAnchorReply": {
+          "calls": [
+            25
+          ],
+          "median_inclusive_ns": 6915499.5
+        },
+        "VerifyAnchorRequest": {
+          "calls": [
+            25
+          ],
+          "median_inclusive_ns": 7145208.5
+        },
+        "VerifyCredential": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "VerifyOther": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "VerifyRoster": {
+          "calls": [
+            28
+          ],
+          "median_inclusive_ns": 7487563.0
+        },
+        "VerifySessionPolicy": {
+          "calls": [
+            0
+          ],
+          "median_inclusive_ns": 0.0
+        },
+        "WriteIntentApply": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 199051562.0
+        },
+        "WriteIntentCommit": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 626720270.5
+        },
+        "WriteIntentReserve": {
+          "calls": [
+            5
+          ],
+          "median_inclusive_ns": 184819896.0
+        }
+      }
+    }
+  },
+  "release_claim_eligible": false,
+  "timing_scope": "Inclusive diagnostic spans, with concurrent native regression during optimized collection; call counts only are compared for attribution, not latency speedup."
+}
