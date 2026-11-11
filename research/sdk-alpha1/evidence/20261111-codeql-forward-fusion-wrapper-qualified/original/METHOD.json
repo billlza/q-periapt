@@ -1,0 +1,43 @@
+{
+  "analysis_seconds": 600,
+  "database_scope": "New extraction on Ubuntu 24.04; source bytes fixed, new database byte identity recorded",
+  "evidence_commit": "99340939848d290191651ab306d1b5edc0f59df2",
+  "extraction_configuration": "Authenticated extractor runtime and controlled environment; test extract has no pack-manager configuration option",
+  "extraction_seconds": 300,
+  "heap_policy": "production resolver and actual evaluator invocation",
+  "hosted_profile_receipt_created": false,
+  "input_path_changes": {
+    "fixture": {
+      "current": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/reproduction/fixture/env",
+      "original": "/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/fixture-pack/env"
+    },
+    "sysroot": {
+      "current": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust",
+      "original": "/workspace/scratch/4b61438fb07b/rustix-toolchain/install"
+    },
+    "sysroot_source": {
+      "current": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust-source/rust-src/lib/rustlib/src/rust/library",
+      "original": "/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/toolchain-source/unpack/rust-src-1.98.1/rust-src/lib/rustlib/src/rust/library"
+    }
+  },
+  "kind": "qperiapt.hosted_nonempty_wrapper_fixture",
+  "local_1024_4096_allocation_used": false,
+  "method_source": {
+    "bytes": 26622,
+    "sha256": "5000799a7ea72a69e71ff1d97a6e03f6079bd2289c9fbdc91fdf65baa6c0332a"
+  },
+  "off_heap_ram_mb": 9329,
+  "production_source_commit": "9c0d63d4d258f126af92a8bda64aec090019a1b3",
+  "query_threads": 4,
+  "requested_ram_mb": 14000,
+  "retained_baselines_rerun": false,
+  "run_attempt": "1",
+  "run_id": "43069971846",
+  "runner_arch": "X64",
+  "runner_os": "Linux",
+  "sarif_upload_requested": false,
+  "schema": 1,
+  "started_utc": "2026-11-11T17:37:44.509169+00:00",
+  "state": "started",
+  "workflow_source_commit": "e28782427c519f46750445c906a56a77ceb9c1fe"
+}

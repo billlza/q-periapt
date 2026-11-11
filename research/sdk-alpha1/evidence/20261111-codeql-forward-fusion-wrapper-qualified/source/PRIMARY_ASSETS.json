@@ -1,0 +1,30 @@
+{
+  "source_commit": "9c0d63d4d258f126af92a8bda64aec090019a1b3",
+  "artifact_tree": "8da8708f44f747f5f9ba512dd45c32de223f04e0",
+  "files": [
+    {
+      "path": "codeql-summary-projection-plan.zip",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "97b2a488f20cce6a0e42892c693d1ad603141135",
+      "size": 621407,
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/97b2a488f20cce6a0e42892c693d1ad603141135"
+    },
+    {
+      "path": "codeql_summary_projection.patch",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e3ec8b7c19d9d95f25cf331a97ea9a2220e34701",
+      "size": 8275,
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/e3ec8b7c19d9d95f25cf331a97ea9a2220e34701"
+    },
+    {
+      "path": "codeql_summary_projection_dependencies.json.gz",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "97fc244c40597a03bf121885dbf91fca31883be5",
+      "size": 117207,
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/97fc244c40597a03bf121885dbf91fca31883be5"
+    }
+  ]
+}

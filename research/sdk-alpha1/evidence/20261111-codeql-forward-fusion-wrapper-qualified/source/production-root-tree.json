@@ -1,0 +1,214 @@
+{
+  "sha": "85fcc41a318020290955f6862b65b99a96b79691",
+  "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/85fcc41a318020290955f6862b65b99a96b79691",
+  "tree": [
+    {
+      "path": ".cargo",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ceeea1862ed5ae8d348c1a7fcac650f1231c1aab",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/ceeea1862ed5ae8d348c1a7fcac650f1231c1aab"
+    },
+    {
+      "path": ".dockerignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6ff7329cf164b6e73f4f5fdef47df2cb5464e6ee",
+      "size": 286,
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/6ff7329cf164b6e73f4f5fdef47df2cb5464e6ee"
+    },
+    {
+      "path": ".gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7b9efe5fdc35711ae68f7dd34af3ab37b91116f3",
+      "size": 955,
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/7b9efe5fdc35711ae68f7dd34af3ab37b91116f3"
+    },
+    {
+      "path": ".github",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "fd2b7b2e1210dd33dfdc6ccb9621a7a5f74baec4",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/fd2b7b2e1210dd33dfdc6ccb9621a7a5f74baec4"
+    },
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "996456e651763e0e0d2553f8501da08e56ccf7c1",
+      "size": 1025,
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/996456e651763e0e0d2553f8501da08e56ccf7c1"
+    },
+    {
+      "path": "ARTIFACT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "987b3a08738861151d2d24144db850dbb6324d52",
+      "size": 102233,
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/987b3a08738861151d2d24144db850dbb6324d52"
+    },
+    {
+      "path": "Cargo.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "972623895fa3ed14a8812a5f691838e63e486c51",
+      "size": 68571,
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/972623895fa3ed14a8812a5f691838e63e486c51"
+    },
+    {
+      "path": "Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9781f4181ece3f47f27e487f49f6dd837bcc88ae",
+      "size": 2030,
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/9781f4181ece3f47f27e487f49f6dd837bcc88ae"
+    },
+    {
+      "path": "LICENSE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "33ff4378d85d1ee7940f2e2eaabccf7ef2af81a6",
+      "size": 203,
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/33ff4378d85d1ee7940f2e2eaabccf7ef2af81a6"
+    },
+    {
+      "path": "LICENSES",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f09ab74875f0241d5eb5d7c2cb7e00d76d78f67a",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/f09ab74875f0241d5eb5d7c2cb7e00d76d78f67a"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "916eb940f8b163cd5bd6f7ea8e9d7f82d0caa962",
+      "size": 73153,
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/916eb940f8b163cd5bd6f7ea8e9d7f82d0caa962"
+    },
+    {
+      "path": "SECURITY.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "82ca0ebb87378367f2460f70b20739e4d468f630",
+      "size": 4966,
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/82ca0ebb87378367f2460f70b20739e4d468f630"
+    },
+    {
+      "path": "artifact",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8da8708f44f747f5f9ba512dd45c32de223f04e0",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/8da8708f44f747f5f9ba512dd45c32de223f04e0"
+    },
+    {
+      "path": "bench",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d564d0bc3dd917926892c55e3706cc116d5b165e",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/d564d0bc3dd917926892c55e3706cc116d5b165e"
+    },
+    {
+      "path": "bindings",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "0c908338b08a548a4eb458687e87fab8c93b5080",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/0c908338b08a548a4eb458687e87fab8c93b5080"
+    },
+    {
+      "path": "camera-ready-bare-metal.sh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "9c43012f0c0d1dff6c27d038fb5ca784eee7d430",
+      "size": 69709,
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/9c43012f0c0d1dff6c27d038fb5ca784eee7d430"
+    },
+    {
+      "path": "crates",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "fce161b080df016173e9af1494956af8342a6b60",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/fce161b080df016173e9af1494956af8342a6b60"
+    },
+    {
+      "path": "ctstats",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "4ad3b08e219de0caea827044caffa1363977ab82",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/4ad3b08e219de0caea827044caffa1363977ab82"
+    },
+    {
+      "path": "docs",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ac06a9695ae1a341d406ebc78b7d57487ab1d94c",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/ac06a9695ae1a341d406ebc78b7d57487ab1d94c"
+    },
+    {
+      "path": "formal",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "50abaf7d137270d3aa5b8c1852a680164ab666ea",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/50abaf7d137270d3aa5b8c1852a680164ab666ea"
+    },
+    {
+      "path": "fuzz",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "619d0fa567855e1beeba54b592d8b2889bb8efaa",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/619d0fa567855e1beeba54b592d8b2889bb8efaa"
+    },
+    {
+      "path": "models",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1e5c7cbd950c905a57a721ab8c0e491278d0907d",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/1e5c7cbd950c905a57a721ab8c0e491278d0907d"
+    },
+    {
+      "path": "paper",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "351477853bb8121ae18e899c2f3832db3d246190",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/351477853bb8121ae18e899c2f3832db3d246190"
+    },
+    {
+      "path": "research",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a2d5f3cba7e145ba99ad91e65622f91ea2b4c51d",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/a2d5f3cba7e145ba99ad91e65622f91ea2b4c51d"
+    },
+    {
+      "path": "rust-toolchain.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "561133512e815cda437f82f01919e7c9237f3712",
+      "size": 378,
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/561133512e815cda437f82f01919e7c9237f3712"
+    },
+    {
+      "path": "sbom",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d564d0bc3dd917926892c55e3706cc116d5b165e",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/d564d0bc3dd917926892c55e3706cc116d5b165e"
+    },
+    {
+      "path": "services",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "fda29e7b099b7238002e53fb44e17cc41026fde0",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/fda29e7b099b7238002e53fb44e17cc41026fde0"
+    },
+    {
+      "path": "tests",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7d02fca4cbf9372b46949bae07d98df41807ac37",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/7d02fca4cbf9372b46949bae07d98df41807ac37"
+    }
+  ],
+  "truncated": false
+}
