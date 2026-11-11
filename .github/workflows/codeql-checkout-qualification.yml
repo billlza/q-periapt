@@ -1,0 +1,133 @@
+name: CodeQL checkout qualification
+
+on:
+  push:
+    branches: [diagnostic/codeql-checkout]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CHECKOUT_SOURCE: 7c1c1b6f95747b9ccb877b803bd1ad7cee3cdd9d
+
+jobs:
+  source-checkout:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Start checkout measurement
+        run: python3 -c 'import time; print("CHECKOUT_STARTED=" + str(time.monotonic()))' >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.CHECKOUT_SOURCE }}
+          persist-credentials: false
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/research/sdk-alpha1/evidence/**/*.zip
+            /research/sdk-alpha1/evidence/**/
+      - name: Verify every retained file and the exact omission set
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY_CHECKOUT'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import stat
+          import subprocess
+          import time
+
+          elapsed = time.monotonic() - float(os.environ['CHECKOUT_STARTED'])
+          root = Path.cwd()
+          output = Path(os.environ['RUNNER_TEMP']) / 'checkout-evidence'
+          output.mkdir(mode=0o700)
+          def git(*args):
+              return subprocess.check_output(['git', *args], timeout=30)
+          commit = git('rev-parse', 'HEAD').decode().strip()
+          tree = git('rev-parse', 'HEAD^{tree}').decode().strip()
+          assert commit == os.environ['CHECKOUT_SOURCE'], 'checkout source differs'
+          assert git('config', '--get', 'remote.origin.promisor').strip() == b'true'
+          assert git('config', '--get', 'remote.origin.partialclonefilter').strip() == b'blob:none'
+          expected = {}
+          for line in git('ls-tree', '-r', '-z', 'HEAD').split(b'\0'):
+              if not line:
+                  continue
+              metadata, raw_path = line.split(b'\t', 1)
+              mode, kind, blob = metadata.decode().split()
+              assert kind == 'blob' and mode in ('100644', '100755')
+              expected[raw_path.decode()] = (mode, blob)
+          indexed = {}
+          for line in git('ls-files', '--stage', '-z').split(b'\0'):
+              if not line:
+                  continue
+              metadata, raw_path = line.split(b'\t', 1)
+              mode, blob, stage = metadata.decode().split()
+              assert stage == '0'
+              indexed[raw_path.decode()] = (mode, blob)
+          assert indexed == expected, 'index differs from complete HEAD tree'
+          flags = {}
+          for line in git('ls-files', '-v', '-z').split(b'\0'):
+              if line:
+                  flags[line[2:].decode()] = line[:1].decode()
+          omitted = {p for p in expected if p.startswith('research/sdk-alpha1/evidence/') and p.endswith('.zip')}
+          assert len(omitted) == 542, 'qualified historical archive census differs'
+          assert set(flags) == set(expected)
+          assert {p for p, flag in flags.items() if flag == 'S'} == omitted
+          assert all(flag == ('S' if p in omitted else 'H') for p, flag in flags.items())
+          retained = []
+          for relative, (mode, blob) in sorted(expected.items()):
+              path = root / relative
+              if relative in omitted:
+                  assert not os.path.lexists(path), 'excluded archive was materialized'
+                  continue
+              metadata = path.lstat()
+              assert stat.S_ISREG(metadata.st_mode), 'nonregular retained file'
+              assert stat.S_IMODE(metadata.st_mode) == int(mode[-3:], 8), 'file mode differs'
+              digest = hashlib.sha1(usedforsecurity=False)
+              digest.update(b'blob ' + str(metadata.st_size).encode() + b'\0')
+              with path.open('rb') as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+                      digest.update(chunk)
+              assert digest.hexdigest() == blob, 'retained bytes differ: ' + relative
+              retained.append({'path': relative, 'git_blob': blob, 'bytes': metadata.st_size, 'mode': mode})
+          assert git('status', '--porcelain=v1', '--untracked-files=all') == b''
+          assert len([p for p in expected if p.endswith('.rs')]) == 1241
+          gitdir = Path(git('rev-parse', '--git-dir').decode().strip())
+          object_bytes = sum(p.stat().st_size for p in (gitdir / 'objects').rglob('*') if p.is_file())
+          receipt = {
+              'source_commit': commit, 'source_tree': tree,
+              'workflow_commit': os.environ['GITHUB_SHA'],
+              'run_id': os.environ['GITHUB_RUN_ID'], 'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'checkout_elapsed_seconds': elapsed, 'tracked_files': len(expected),
+              'omitted_archives': len(omitted), 'retained_files': len(retained),
+              'retained_bytes': sum(x['bytes'] for x in retained),
+              'git_object_bytes': object_bytes, 'tracked_rust_files': 1241,
+              'index_matches_complete_head': True, 'all_retained_blob_identities_match': True,
+              'exact_skip_worktree_set': True, 'checkout_clean': True,
+              'partial_clone_filter': 'blob:none',
+          }
+          (output / 'CHECKOUT.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          (output / 'RETAINED_FILES.json').write_text(json.dumps(retained, indent=2) + '\n')
+          (output / 'OMITTED_ARCHIVES.json').write_text(json.dumps([
+              {'path': p, 'git_blob': expected[p][1]} for p in sorted(omitted)], indent=2) + '\n')
+          (output / 'git-object-count.txt').write_bytes(git('count-objects', '-v'))
+          print(json.dumps(receipt, indent=2))
+          PY_CHECKOUT
+      - name: Verify pinned archived Rust sources and checkout contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh artifact/python-run.sh -m unittest -v test_codeql_workflow_contract 2>&1 | tee "$RUNNER_TEMP/checkout-evidence/contracts.log"
+          sh artifact/python-run.sh -c 'import codeql_rust_quality as q; paths=q.tracked_rust_paths(); archive=q.validate_archive_inventory(q.REPOSITORY_ROOT, paths); assert len(paths)==1241 and len(archive)==68; print("1241 tracked Rust sources; 68 authenticated archived sources")' | tee "$RUNNER_TEMP/checkout-evidence/source-census.log"
+      - name: Retain checkout and source inventory evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-checkout-evidence
+          path: ${{ runner.temp }}/checkout-evidence/
+          if-no-files-found: error
+          retention-days: 14
