@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "kind": "qperiapt.stage4_projected_read_review_packet",
+  "scope": "review-only compiled prototype; no runtime admission or hosted run",
+  "source_root": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility",
+  "packet_root": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet",
+  "independent_review_original_path": "/workspace/scratch/4b61438fb07b/summary-plan-independent-review.json",
+  "recommended_repository_path": "research/sdk-alpha1/evidence/20261111-summary-target-projection",
+  "files": {
+    "ADMISSION.md": {
+      "bytes": 3523,
+      "sha256": "f40a39214b89d89d0400a026b3c32501404f954e28ff502e0152ee8270944d87",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/ADMISSION.md"
+    },
+    "CANDIDATE_BOUND_COMPILE.json": {
+      "bytes": 1768,
+      "sha256": "d811ea167043484da7527af044b983e4717eabf0e2d3a5162112064825461f04",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/CANDIDATE_BOUND_COMPILE.json"
+    },
+    "CANDIDATE_CAPSULE.json": {
+      "bytes": 3656,
+      "sha256": "520d41816cd06a6cd7398039877eb295765dd28fc18c660e3d2d4acc77fe9762",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/CANDIDATE_CAPSULE.json"
+    },
+    "CANDIDATE_COMPILE.binding.json": {
+      "bytes": 550,
+      "sha256": "1a9ac6f2e664afbaa8ed911ff903703563a8bacd58a46d70f1b9c1d41b682dbe",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/CANDIDATE_COMPILE.binding.json"
+    },
+    "CANDIDATE_COMPILE.json": {
+      "bytes": 1864,
+      "sha256": "f6b9333315f85bc229428714412579ec7a0b1be7911c9f4273cb5ad9a713d685",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/CANDIDATE_COMPILE.json"
+    },
+    "CANDIDATE_SOURCE.json": {
+      "bytes": 1173,
+      "sha256": "e4024f86718aeeff87d696cf42f2c3c7240bf4b87e0379897fb0cdf444bc9570",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/CANDIDATE_SOURCE.json"
+    },
+    "DEPENDENCY_IDENTITY.json": {
+      "bytes": 721,
+      "sha256": "4761e07d9c5efde6a00d09edeeead60512952fffb514253d2d5cff0a697617ba",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/DEPENDENCY_IDENTITY.json"
+    },
+    "DEPENDENCY_INVENTORIES.json.gz": {
+      "bytes": 117234,
+      "sha256": "e14c4a9036d0fcc6116348897c63b78cd1521b95218b39671c992105e9a91735",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/DEPENDENCY_INVENTORIES.json.gz"
+    },
+    "EQUIVALENCE.md": {
+      "bytes": 3764,
+      "sha256": "710279bc2411ac9cf13f98b8b515ae75bf3ddc0ca706f6dd076da44a989f6e6a",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/EQUIVALENCE.md"
+    },
+    "EXPORT.json": {
+      "bytes": 1549,
+      "sha256": "99389f47c5304e3d1b82cbff91bb631d5104031c2c32ec8e3024652655fdaa38",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/EXPORT.json"
+    },
+    "INDEPENDENT_REVIEW.json": {
+      "bytes": 8761,
+      "sha256": "20a7e8d433331c551690e937d3ae972635fda79d725693a74be3bbebd97efacc",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/INDEPENDENT_REVIEW.json"
+    },
+    "INDEPENDENT_SOURCE_REVIEW.json": {
+      "bytes": 871,
+      "sha256": "3275ad8b2cec2ffa0ff147e538e8a0653d8d58e75360e345b410506d0a8bf092",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/INDEPENDENT_SOURCE_REVIEW.json"
+    },
+    "IR_COMPARISON.json": {
+      "bytes": 6053,
+      "sha256": "912a0b3aac67078451d4d8ac55ebc84c98d7191b386264af6e3bbeefc9e6c3ef",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/IR_COMPARISON.json"
+    },
+    "IR_EXCERPTS.txt": {
+      "bytes": 13033,
+      "sha256": "892999916926971cdbdb1d74d1e32c17afd93a54c591d14fce971904e0888d9a",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/IR_EXCERPTS.txt"
+    },
+    "QUERY_SET_IDENTITY.json": {
+      "bytes": 2132,
+      "sha256": "ac105bae6a8bd5a535165c1876e039d2d27daec8eb447dcd8140d1353e8fe793",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/QUERY_SET_IDENTITY.json"
+    },
+    "README.md": {
+      "bytes": 5061,
+      "sha256": "f8b2b03b6cc45e61f5ec40ceb5c8dbd685704c360c379c01676c6f7f74a53b57",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/README.md"
+    },
+    "SOURCE_EQUIVALENCE_CHECK.json": {
+      "bytes": 681,
+      "sha256": "f7afb9bad20dea08631ac2cf68b3c82023f8b5c40117d9988aa74e48e7f9cbb4",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/SOURCE_EQUIVALENCE_CHECK.json"
+    },
+    "UPSTREAM-LICENSE": {
+      "bytes": 1074,
+      "sha256": "66056d06b874e3eb6a22f5fff297e1676a23dc43e8c8b81279c1ef33a6a270df",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/UPSTREAM-LICENSE"
+    },
+    "baseline-compiler.log.gz": {
+      "bytes": 2399,
+      "sha256": "fc7d0436b85a7ccada644f85d254161d7ca071695ebbddbe685fc0debca7b202",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/baseline-compiler.log.gz"
+    },
+    "candidate-bound-compile.stderr": {
+      "bytes": 269,
+      "sha256": "a0e8646987388042df122fbd77ae2d66f8862b7ae35b9c084649d9a3a651f95b",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/candidate-bound-compile.stderr"
+    },
+    "candidate-bound-hash.stderr": {
+      "bytes": 258,
+      "sha256": "429824bc926ddee51d0b0a85f7787b4ccd4f2b21e0fe44a47764b0021d30a9de",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/candidate-bound-hash.stderr"
+    },
+    "candidate-bound-hash.stdout": {
+      "bytes": 144,
+      "sha256": "26ef9b316e298a34e809eac05eed84495de0f856f955d25d63f59d10fe3e53a4",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/candidate-bound-hash.stdout"
+    },
+    "candidate-compile.stderr": {
+      "bytes": 269,
+      "sha256": "7aeadcc625bb0256eb6bd872955f3839ded47d2e571367a27607143454a2dcc7",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/candidate-compile.stderr"
+    },
+    "candidate-compiler.log.gz": {
+      "bytes": 2388,
+      "sha256": "ba0a1747f8e6d24baed7117b90062185e80fea3d33ba0992f40d213f141e3721",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/candidate-compiler.log.gz"
+    },
+    "codeql-stage4-projected-read.zip": {
+      "bytes": 620156,
+      "sha256": "1fe6db109a540d6063fca24e25e9d6c56a88f972a5c248d74fd95f7248fb6132",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/codeql-stage4-projected-read.zip"
+    },
+    "compile.stderr": {
+      "bytes": 321,
+      "sha256": "01782d82c66334bc5e820081a9aa540d26574bf948b2e161bb08abcb699d01de",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/compile.stderr"
+    },
+    "invalid-binding-compiler.log.gz": {
+      "bytes": 2431,
+      "sha256": "c7e605c0383144142cdad03d2d11aa384841e6f5e311c24e7474fdf9d3cd8065",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/invalid-binding-compiler.log.gz"
+    },
+    "original-all.ra.gz": {
+      "bytes": 943115,
+      "sha256": "a3155fe6db5ee23c39f203e26912306f2de919da6e5f1da66148ec7f9fbcdb7f",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/original-all.ra.gz"
+    },
+    "projected-read-target.ra.gz": {
+      "bytes": 943262,
+      "sha256": "a7e1fe7a75e9d9c247cf43d33483f4de202f333d93019b2972b741ab27f4bea8",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/projected-read-target.ra.gz"
+    },
+    "stage4-read-target-projection.patch": {
+      "bytes": 2876,
+      "sha256": "282378060da1b9929c84ae040cbd99f64b7424874a364a76d6f5f46af47ceba9",
+      "original_path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/stage4-read-target-projection.patch"
+    }
+  },
+  "file_count": 30,
+  "total_bytes": 2691356
+}

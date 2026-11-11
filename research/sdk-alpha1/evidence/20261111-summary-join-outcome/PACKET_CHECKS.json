@@ -1,0 +1,19 @@
+{
+  "kind": "qperiapt.summary_join_publication_packet_check",
+  "unchanged_copied_files_verified": 37,
+  "original_receipts_verified": 20,
+  "source_snapshot_members_verified": 8,
+  "editorial_json_fields": [
+    "/new_source",
+    "/comparison_limits/3"
+  ],
+  "other_comparison_json_values_unchanged": true,
+  "included_text_files_scanned": 42,
+  "source_snapshot_members_scanned": 8,
+  "internal_role_labels_found": false,
+  "private_download_references_found": false,
+  "signed_urls_or_literal_credential_material_found": false,
+  "portable_launcher_syntax": "parsed",
+  "portable_launcher_executed": false,
+  "additional_query_evaluations_or_benchmarks": 0
+}

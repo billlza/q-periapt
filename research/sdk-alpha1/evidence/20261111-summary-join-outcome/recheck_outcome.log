@@ -1,0 +1,27 @@
+{
+  "status": "verified_two_supervised_timeouts_with_38_equivalent_fresh_results",
+  "arms": {
+    "heap-2048": {
+      "evaluation": {
+        "returncode": null,
+        "stopped": "timeout",
+        "cleanup_ambiguous": false,
+        "seconds": 18001.126614768
+      },
+      "verified_fresh_results": 38,
+      "precompiled_loads": 39,
+      "implicit_compilations": 0
+    },
+    "heap-1536": {
+      "evaluation": {
+        "returncode": null,
+        "stopped": "timeout",
+        "cleanup_ambiguous": false,
+        "seconds": 18001.191254521
+      },
+      "verified_fresh_results": 38,
+      "precompiled_loads": 39,
+      "implicit_compilations": 0
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "kind": "qperiapt.codeql_summary_local_readback_commands",
+  "recorded_at": "2026-11-11T10:05:33.133361+00:00",
+  "experiment_commit": "e54c9d12223a72973b956acb15ff7b1597140e4f",
+  "commands": [
+    {
+      "argv": [
+        "python",
+        "recheck_outcome.py",
+        "--repository",
+        "/workspace/scratch/4b61438fb07b/q-periapt"
+      ],
+      "exit_code": 0,
+      "log": "recheck_outcome.log"
+    },
+    {
+      "argv": [
+        "python",
+        "source/codeql_summary_control.py",
+        "compare",
+        "--baseline",
+        "heap-2048/RESULT.json",
+        "--candidate",
+        "heap-1536/RESULT.json",
+        "--summary-plan-mode",
+        "all",
+        "--output",
+        "LOCAL_COMPARISON.json"
+      ],
+      "exit_code": 1,
+      "log": "local-comparison.log"
+    }
+  ]
+}

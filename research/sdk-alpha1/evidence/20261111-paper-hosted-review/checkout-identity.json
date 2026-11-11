@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "source_url": "https://api.github.com/repos/billlza/q-periapt/commits/5e269d2fb399890b5d37944541031c9670b2e90d",
+  "captured_response_sha256": "06da524a46475bfbc2c7dc668343d172b293591b5634570737ef34038d4df3a6",
+  "captured_response_bytes": 1186622,
+  "commit_sha": "5e269d2fb399890b5d37944541031c9670b2e90d",
+  "tree": {
+    "sha": "865d6aafb8e6a2adf8b28c5076cedd9cbc520863",
+    "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/865d6aafb8e6a2adf8b28c5076cedd9cbc520863"
+  },
+  "parents": [
+    {
+      "sha": "48d0fb9a5651b50494ec33d025dda52bd2ff5eae",
+      "url": "https://api.github.com/repos/billlza/q-periapt/commits/48d0fb9a5651b50494ec33d025dda52bd2ff5eae",
+      "html_url": "https://github.com/billlza/q-periapt/commit/48d0fb9a5651b50494ec33d025dda52bd2ff5eae"
+    },
+    {
+      "sha": "87fee58926f8b849a142018efb6d7502cbad673f",
+      "url": "https://api.github.com/repos/billlza/q-periapt/commits/87fee58926f8b849a142018efb6d7502cbad673f",
+      "html_url": "https://github.com/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f"
+    }
+  ],
+  "message": "Merge 87fee58926f8b849a142018efb6d7502cbad673f into 48d0fb9a5651b50494ec33d025dda52bd2ff5eae",
+  "selection": "Identity fields selected from the captured public commit response. The full immutable diff is retrievable by commit SHA and is omitted from publication."
+}

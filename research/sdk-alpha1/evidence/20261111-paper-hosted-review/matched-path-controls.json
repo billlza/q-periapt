@@ -1,0 +1,27 @@
+{
+  "utc": "2026-11-11T10:03:13.758239+00:00",
+  "source_ref": "87fee58926f8b849a142018efb6d7502cbad673f",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-B",
+    "/workspace/scratch/4b61438fb07b/paper-codeql-hosted-20261111/matched-path-controls/test_audit_input_boundaries.py",
+    "-v"
+  ],
+  "returncode": 0,
+  "files": {
+    "paper/continuity/artifacts/matched-comparison/audit_matched_traces.py": {
+      "bytes": 18157,
+      "sha256": "6157726a6aa22f2bf8727da0680fc8f73293e8b129403e9ded53d2297cae658f"
+    },
+    "paper/continuity/artifacts/matched-comparison/test_audit_input_boundaries.py": {
+      "bytes": 8330,
+      "sha256": "fc07c06308fc56fb531e719502893917c69ff7bdb35daf8565f7754519067cb0"
+    },
+    "paper/continuity/artifacts/matched-comparison/sources/public-manifest.json": {
+      "bytes": 17721,
+      "sha256": "d7602eab190e9b1cd7c48dcce2788f5d0f777af4f303a113c452656d60f45dc1"
+    }
+  },
+  "scope": "Existing ten input-boundary tests from unchanged canonical source, run in isolated scratch copy with exact public-manifest fixture. No repository edits."
+}

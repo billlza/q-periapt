@@ -1,0 +1,827 @@
+{
+  "schema_version": 1,
+  "kind": "qperiapt.codeql_fixed_summary_plan_resource_comparison",
+  "read_only": true,
+  "old_run": 42822797947,
+  "new_run": 42956070561,
+  "baseline_source": "git object research/sdk-alpha1/evidence/20261111-codeql-summary-resources at local9847e6714 tree7d4ca678; source-bound prior raw-archive analysis retained by repository",
+  "new_source": "Unmodified new workflow ZIPs 13844956987 and 13844887141 were downloaded and verified against the API digests; this parser independently checked both raw evaluator-log SHA-256 digests against EVALUATOR_OBSERVATIONS.json.",
+  "arms": {
+    "heap-1536": {
+      "identity_equal": {
+        "configuration": true,
+        "input_identity": true,
+        "tool_identity": true,
+        "query_hashes": true,
+        "source": true
+      },
+      "command_differences": [
+        [
+          "--dynamic-join-order-mode=none",
+          "--dynamic-join-order-mode=all"
+        ]
+      ],
+      "host_old": {
+        "model name": "AMD EPYC 9V74 80-Core Processor",
+        "cache size": "1024 KB",
+        "cpu cores": "2",
+        "siblings": "4",
+        "logical_cpus": 4,
+        "kernel": "7.0.0-1017-azure",
+        "MemTotal_kB": 16367524,
+        "MemAvailable_kB": 15255204,
+        "SwapTotal_kB": 3145724,
+        "SwapFree_kB": 3145724
+      },
+      "host_new": {
+        "model name": "AMD EPYC 7763 64-Core Processor",
+        "cache size": "512 KB",
+        "cpu cores": "2",
+        "siblings": "4",
+        "logical_cpus": 4,
+        "kernel": "7.0.0-1017-azure",
+        "MemTotal_kB": 16367520,
+        "MemAvailable_kB": 15343152,
+        "SwapTotal_kB": 3145724,
+        "SwapFree_kB": 3145724
+      },
+      "old": {
+        "run": 42822797947,
+        "max_stage4_iteration": 282,
+        "stage4_first_seconds": 1029.0,
+        "sampled_tree_peak_rss_GiB": 13.315,
+        "java_mean_cores": 1.566,
+        "java_read_GiB": 692.217,
+        "java_write_GiB": 152.249,
+        "evictions": 66033,
+        "logical_vital_evictions_GiB": 20100.247,
+        "hot_predicates": [
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+            "seconds": 10292.0,
+            "completed_iterations": 269,
+            "max_delta_rows": 158521862
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+            "seconds": 4049.0,
+            "completed_iterations": 278,
+            "max_delta_rows": 129238080
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowThrough/7#64f4f391",
+            "seconds": 1304.0,
+            "completed_iterations": 249,
+            "max_delta_rows": 25703589
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow1/7#04ea745a",
+            "seconds": 657.0,
+            "completed_iterations": 278,
+            "max_delta_rows": 30594557
+          }
+        ]
+      },
+      "new": {
+        "run": 42956070561,
+        "artifact": "13844887141",
+        "evaluator_seconds": 18001.191254521,
+        "stopped": "timeout",
+        "max_stage4_iteration": 281,
+        "stage4_first_seconds": 2031.0,
+        "sampled_tree_peak_rss_GiB": 13.753875732421875,
+        "java_mean_cores": 2.288805384635801,
+        "java_read_GiB": 689.982837677002,
+        "java_write_GiB": 173.46791458129883,
+        "evictions": 66582,
+        "logical_vital_evictions_GiB": 20033.234150384524,
+        "hot_predicates": [
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+            "matched_seconds": 8514.0,
+            "matched_deltas": 267,
+            "max_delta_rows": 143463320
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+            "matched_seconds": 4194.0,
+            "matched_deltas": 277,
+            "max_delta_rows": 129274419
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowThrough/7#64f4f391",
+            "matched_seconds": 1029.0,
+            "matched_deltas": 247,
+            "max_delta_rows": 25998496
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81",
+            "matched_seconds": 323.0,
+            "matched_deltas": 720,
+            "max_delta_rows": 2678741
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlow0/7#80c977db",
+            "matched_seconds": 150.0,
+            "matched_deltas": 737,
+            "max_delta_rows": 1378729
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRetFromArg/6#886f63ee",
+            "matched_seconds": 84.0,
+            "matched_deltas": 247,
+            "max_delta_rows": 8605018
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow1/7#04ea745a",
+            "matched_seconds": 75.0,
+            "matched_deltas": 276,
+            "max_delta_rows": 30594253
+          }
+        ],
+        "sampler_status": "stopped",
+        "sampler_shutdown_complete": true,
+        "sampler_io_unavailable": 1,
+        "sampler_proc_read_errors": 5,
+        "last_stage4_start": {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9/11",
+          "iteration": 281,
+          "seconds": 17797.0,
+          "line": 2608697,
+          "text": "[2026-11-11 09:43:38] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9/11@i281#8c6c3vwq (iteration 281)"
+        }
+      },
+      "stage4_landmarks": {
+        "200": {
+          "old": 1266.0,
+          "new": 2338.0
+        },
+        "250": {
+          "old": 4886.0,
+          "new": 6119.0
+        },
+        "270": {
+          "old": 10306.0,
+          "new": 11852.0
+        },
+        "280": {
+          "old": 15992.0,
+          "new": 17182.0
+        },
+        "281": {
+          "old": 16672.0,
+          "new": 17788.0
+        },
+        "282": {
+          "old": 17259.0,
+          "new": null
+        },
+        "288": {
+          "old": null,
+          "new": null
+        }
+      },
+      "selected_new_deltas": [
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2",
+          "iteration": 250,
+          "seconds": 0.0,
+          "delta_rows": 147575,
+          "start_seconds": 6119.0,
+          "finish_seconds": 6119.0,
+          "start_line": 2518737,
+          "finish_line": 2518738
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+          "iteration": 250,
+          "seconds": 139.0,
+          "delta_rows": 41994638,
+          "start_seconds": 6120.0,
+          "finish_seconds": 6259.0,
+          "start_line": 2518745,
+          "finish_line": 2520480
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow1/7#04ea745a",
+          "iteration": 250,
+          "seconds": 0.0,
+          "delta_rows": 3216157,
+          "start_seconds": 6272.0,
+          "finish_seconds": 6272.0,
+          "start_line": 2520595,
+          "finish_line": 2520598
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+          "iteration": 250,
+          "seconds": 41.0,
+          "delta_rows": 20609098,
+          "start_seconds": 6272.0,
+          "finish_seconds": 6313.0,
+          "start_line": 2520599,
+          "finish_line": 2520900
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2",
+          "iteration": 270,
+          "seconds": 1.0,
+          "delta_rows": 230636,
+          "start_seconds": 11853.0,
+          "finish_seconds": 11854.0,
+          "start_line": 2566375,
+          "finish_line": 2566378
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+          "iteration": 270,
+          "seconds": 250.0,
+          "delta_rows": 116620488,
+          "start_seconds": 11855.0,
+          "finish_seconds": 12105.0,
+          "start_line": 2566387,
+          "finish_line": 2568986
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow1/7#04ea745a",
+          "iteration": 270,
+          "seconds": 2.0,
+          "delta_rows": 13769600,
+          "start_seconds": 12131.0,
+          "finish_seconds": 12133.0,
+          "start_line": 2569183,
+          "finish_line": 2569190
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+          "iteration": 270,
+          "seconds": 88.0,
+          "delta_rows": 72582637,
+          "start_seconds": 12134.0,
+          "finish_seconds": 12222.0,
+          "start_line": 2569193,
+          "finish_line": 2569862
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2",
+          "iteration": 280,
+          "seconds": 1.0,
+          "delta_rows": 295822,
+          "start_seconds": 17185.0,
+          "finish_seconds": 17186.0,
+          "start_line": 2604191,
+          "finish_line": 2604194
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+          "iteration": 280,
+          "seconds": 314.0,
+          "delta_rows": 124302365,
+          "start_seconds": 17189.0,
+          "finish_seconds": 17503.0,
+          "start_line": 2604211,
+          "finish_line": 2607108
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow1/7#04ea745a",
+          "iteration": 280,
+          "seconds": 2.0,
+          "delta_rows": 13208936,
+          "start_seconds": 17550.0,
+          "finish_seconds": 17552.0,
+          "start_line": 2607407,
+          "finish_line": 2607414
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+          "iteration": 280,
+          "seconds": 139.0,
+          "delta_rows": 129274419,
+          "start_seconds": 17556.0,
+          "finish_seconds": 17695.0,
+          "start_line": 2607435,
+          "finish_line": 2608344
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2",
+          "iteration": 281,
+          "seconds": 1.0,
+          "delta_rows": 321281,
+          "start_seconds": 17792.0,
+          "finish_seconds": 17793.0,
+          "start_line": 2608675,
+          "finish_line": 2608676
+        }
+      ],
+      "stage4_iteration280_duration_from_stage_start": {
+        "old": 14963.0,
+        "new": 15151.0
+      }
+    },
+    "heap-2048": {
+      "identity_equal": {
+        "configuration": true,
+        "input_identity": true,
+        "tool_identity": true,
+        "query_hashes": true,
+        "source": true
+      },
+      "command_differences": [
+        [
+          "--dynamic-join-order-mode=none",
+          "--dynamic-join-order-mode=all"
+        ]
+      ],
+      "host_old": {
+        "model name": "AMD EPYC 9V74 80-Core Processor",
+        "cache size": "1024 KB",
+        "cpu cores": "2",
+        "siblings": "4",
+        "logical_cpus": 4,
+        "kernel": "7.0.0-1017-azure",
+        "MemTotal_kB": 16367524,
+        "MemAvailable_kB": 15258840,
+        "SwapTotal_kB": 3145724,
+        "SwapFree_kB": 3145724
+      },
+      "host_new": {
+        "model name": "AMD EPYC 9V45 96-Core Processor",
+        "cache size": "1024 KB",
+        "cpu cores": "2",
+        "siblings": "4",
+        "logical_cpus": 4,
+        "kernel": "7.0.0-1017-azure",
+        "MemTotal_kB": 16367524,
+        "MemAvailable_kB": 15313520,
+        "SwapTotal_kB": 3145724,
+        "SwapFree_kB": 3145724
+      },
+      "old": {
+        "run": 42822797947,
+        "max_stage4_iteration": 282,
+        "stage4_first_seconds": 1373.0,
+        "sampled_tree_peak_rss_GiB": 12.224,
+        "java_mean_cores": 1.947,
+        "java_read_GiB": 551.377,
+        "java_write_GiB": 147.218,
+        "evictions": 69236,
+        "logical_vital_evictions_GiB": 20287.789,
+        "hot_predicates": [
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+            "seconds": 10160.0,
+            "completed_iterations": 268,
+            "max_delta_rows": 143463351
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+            "seconds": 3669.0,
+            "completed_iterations": 278,
+            "max_delta_rows": 129238874
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowThrough/7#64f4f391",
+            "seconds": 1376.0,
+            "completed_iterations": 248,
+            "max_delta_rows": 25693960
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow1/7#04ea745a",
+            "seconds": 685.0,
+            "completed_iterations": 277,
+            "max_delta_rows": 30594567
+          }
+        ]
+      },
+      "new": {
+        "run": 42956070561,
+        "artifact": "13844956987",
+        "evaluator_seconds": 18001.126614768,
+        "stopped": "timeout",
+        "max_stage4_iteration": 288,
+        "stage4_first_seconds": 1481.0,
+        "sampled_tree_peak_rss_GiB": 14.101818084716797,
+        "java_mean_cores": 2.0012222284482184,
+        "java_read_GiB": 1119.8890914916992,
+        "java_write_GiB": 224.9576530456543,
+        "evictions": 92464,
+        "logical_vital_evictions_GiB": 26715.206064475657,
+        "hot_predicates": [
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+            "matched_seconds": 8950.0,
+            "matched_deltas": 275,
+            "max_delta_rows": 181684098
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+            "matched_seconds": 4364.0,
+            "matched_deltas": 285,
+            "max_delta_rows": 192627561
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowThrough/7#64f4f391",
+            "matched_seconds": 1008.0,
+            "matched_deltas": 255,
+            "max_delta_rows": 27967815
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81",
+            "matched_seconds": 242.0,
+            "matched_deltas": 720,
+            "max_delta_rows": 2678741
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRetFromArg/6#886f63ee",
+            "matched_seconds": 140.0,
+            "matched_deltas": 255,
+            "max_delta_rows": 8605025
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlow0/7#80c977db",
+            "matched_seconds": 126.0,
+            "matched_deltas": 737,
+            "max_delta_rows": 1393323
+          },
+          {
+            "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow1/7#04ea745a",
+            "matched_seconds": 61.0,
+            "matched_deltas": 284,
+            "max_delta_rows": 30594253
+          }
+        ],
+        "sampler_status": "stopped",
+        "sampler_shutdown_complete": true,
+        "sampler_io_unavailable": 1,
+        "sampler_proc_read_errors": 2,
+        "last_stage4_start": {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::FwdFlowInNoThrough::fwdFlowInValidEdgeTypeFlowEnabled/8#28cffdb4/8",
+          "iteration": 288,
+          "seconds": 17997.0,
+          "line": 2663626,
+          "text": "[2026-11-11 09:46:44] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::FwdFlowInNoThrough::fwdFlowInValidEdgeTypeFlowEnabled/8#28cffdb4/8@i288#8c6c3wiq (iteration 288)"
+        }
+      },
+      "stage4_landmarks": {
+        "200": {
+          "old": 1644.0,
+          "new": 1702.0
+        },
+        "250": {
+          "old": 5823.0,
+          "new": 4531.0
+        },
+        "270": {
+          "old": 11299.0,
+          "new": 8772.0
+        },
+        "280": {
+          "old": 16611.0,
+          "new": 12729.0
+        },
+        "281": {
+          "old": 17206.0,
+          "new": 13199.0
+        },
+        "282": {
+          "old": 17757.0,
+          "new": 13663.0
+        },
+        "288": {
+          "old": null,
+          "new": 17417.0
+        }
+      },
+      "selected_new_deltas": [
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2",
+          "iteration": 250,
+          "seconds": 0.0,
+          "delta_rows": 147575,
+          "start_seconds": 4532.0,
+          "finish_seconds": 4532.0,
+          "start_line": 2523816,
+          "finish_line": 2523817
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+          "iteration": 250,
+          "seconds": 95.0,
+          "delta_rows": 41994638,
+          "start_seconds": 4532.0,
+          "finish_seconds": 4627.0,
+          "start_line": 2523824,
+          "finish_line": 2525595
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow1/7#04ea745a",
+          "iteration": 250,
+          "seconds": 0.0,
+          "delta_rows": 3216157,
+          "start_seconds": 4636.0,
+          "finish_seconds": 4636.0,
+          "start_line": 2525714,
+          "finish_line": 2525717
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+          "iteration": 250,
+          "seconds": 92.0,
+          "delta_rows": 20607520,
+          "start_seconds": 4636.0,
+          "finish_seconds": 4728.0,
+          "start_line": 2525718,
+          "finish_line": 2526291
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2",
+          "iteration": 270,
+          "seconds": 0.0,
+          "delta_rows": 230636,
+          "start_seconds": 8773.0,
+          "finish_seconds": 8773.0,
+          "start_line": 2574234,
+          "finish_line": 2574237
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+          "iteration": 270,
+          "seconds": 183.0,
+          "delta_rows": 116620488,
+          "start_seconds": 8774.0,
+          "finish_seconds": 8957.0,
+          "start_line": 2574248,
+          "finish_line": 2576917
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow1/7#04ea745a",
+          "iteration": 270,
+          "seconds": 1.0,
+          "delta_rows": 13769600,
+          "start_seconds": 8975.0,
+          "finish_seconds": 8976.0,
+          "start_line": 2577118,
+          "finish_line": 2577125
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+          "iteration": 270,
+          "seconds": 80.0,
+          "delta_rows": 72619534,
+          "start_seconds": 8977.0,
+          "finish_seconds": 9057.0,
+          "start_line": 2577128,
+          "finish_line": 2578081
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2",
+          "iteration": 280,
+          "seconds": 0.0,
+          "delta_rows": 295822,
+          "start_seconds": 12732.0,
+          "finish_seconds": 12732.0,
+          "start_line": 2614200,
+          "finish_line": 2614201
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+          "iteration": 280,
+          "seconds": 218.0,
+          "delta_rows": 124302365,
+          "start_seconds": 12735.0,
+          "finish_seconds": 12953.0,
+          "start_line": 2614220,
+          "finish_line": 2616927
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow1/7#04ea745a",
+          "iteration": 280,
+          "seconds": 2.0,
+          "delta_rows": 13208936,
+          "start_seconds": 12989.0,
+          "finish_seconds": 12991.0,
+          "start_line": 2617246,
+          "finish_line": 2617253
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+          "iteration": 280,
+          "seconds": 96.0,
+          "delta_rows": 129286993,
+          "start_seconds": 12994.0,
+          "finish_seconds": 13090.0,
+          "start_line": 2617276,
+          "finish_line": 2618197
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2",
+          "iteration": 281,
+          "seconds": 1.0,
+          "delta_rows": 321281,
+          "start_seconds": 13201.0,
+          "finish_seconds": 13202.0,
+          "start_line": 2618542,
+          "finish_line": 2618543
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+          "iteration": 281,
+          "seconds": 236.0,
+          "delta_rows": 122501044,
+          "start_seconds": 13205.0,
+          "finish_seconds": 13441.0,
+          "start_line": 2618564,
+          "finish_line": 2621437
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow1/7#04ea745a",
+          "iteration": 281,
+          "seconds": 2.0,
+          "delta_rows": 17596767,
+          "start_seconds": 13507.0,
+          "finish_seconds": 13509.0,
+          "start_line": 2621936,
+          "finish_line": 2621945
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+          "iteration": 281,
+          "seconds": 111.0,
+          "delta_rows": 109587789,
+          "start_seconds": 13510.0,
+          "finish_seconds": 13621.0,
+          "start_line": 2621952,
+          "finish_line": 2622971
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2",
+          "iteration": 282,
+          "seconds": 0.0,
+          "delta_rows": 271208,
+          "start_seconds": 13666.0,
+          "finish_seconds": 13666.0,
+          "start_line": 2623188,
+          "finish_line": 2623189
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+          "iteration": 282,
+          "seconds": 291.0,
+          "delta_rows": 158521820,
+          "start_seconds": 13667.0,
+          "finish_seconds": 13958.0,
+          "start_line": 2623198,
+          "finish_line": 2627081
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow1/7#04ea745a",
+          "iteration": 282,
+          "seconds": 2.0,
+          "delta_rows": 22940944,
+          "start_seconds": 13987.0,
+          "finish_seconds": 13989.0,
+          "start_line": 2627378,
+          "finish_line": 2627387
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+          "iteration": 282,
+          "seconds": 114.0,
+          "delta_rows": 84081081,
+          "start_seconds": 13995.0,
+          "finish_seconds": 14109.0,
+          "start_line": 2627426,
+          "finish_line": 2628481
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2",
+          "iteration": 287,
+          "seconds": 1.0,
+          "delta_rows": 341624,
+          "start_seconds": 16663.0,
+          "finish_seconds": 16664.0,
+          "start_line": 2651656,
+          "finish_line": 2651657
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+          "iteration": 287,
+          "seconds": 521.0,
+          "delta_rows": 155598173,
+          "start_seconds": 16666.0,
+          "finish_seconds": 17187.0,
+          "start_line": 2651680,
+          "finish_line": 2656231
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow1/7#04ea745a",
+          "iteration": 287,
+          "seconds": 2.0,
+          "delta_rows": 15864172,
+          "start_seconds": 17223.0,
+          "finish_seconds": 17225.0,
+          "start_line": 2656574,
+          "finish_line": 2656581
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+          "iteration": 287,
+          "seconds": 130.0,
+          "delta_rows": 121722798,
+          "start_seconds": 17233.0,
+          "finish_seconds": 17363.0,
+          "start_line": 2656638,
+          "finish_line": 2657781
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2",
+          "iteration": 288,
+          "seconds": 0.0,
+          "delta_rows": 502292,
+          "start_seconds": 17421.0,
+          "finish_seconds": 17421.0,
+          "start_line": 2658032,
+          "finish_line": 2658033
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+          "iteration": 288,
+          "seconds": 283.0,
+          "delta_rows": 181684098,
+          "start_seconds": 17424.0,
+          "finish_seconds": 17707.0,
+          "start_line": 2658060,
+          "finish_line": 2661551
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow1/7#04ea745a",
+          "iteration": 288,
+          "seconds": 1.0,
+          "delta_rows": 18110548,
+          "start_seconds": 17750.0,
+          "finish_seconds": 17751.0,
+          "start_line": 2661930,
+          "finish_line": 2661939
+        },
+        {
+          "predicate": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+          "iteration": 288,
+          "seconds": 161.0,
+          "delta_rows": 106505730,
+          "start_seconds": 17753.0,
+          "finish_seconds": 17914.0,
+          "start_line": 2661948,
+          "finish_line": 2663301
+        }
+      ],
+      "stage4_iteration280_duration_from_stage_start": {
+        "old": 15238.0,
+        "new": 11248.0
+      }
+    }
+  },
+  "comparison_limits": [
+    "Inputs, query-source identities, runtime allocation and command structure agree, except intended full-summary compiled capsule and dynamic join flag. Same-allocation historical host CPU model differs in both pairs. This is an observational diagnostic comparison, not an isolated causal speedup measurement.",
+    "Matched predicate intervals use one-second log timestamps and may overlap; they are not exclusive CPU times. Delta row counts and iteration positions may depend on evaluator scheduling, so iteration count alone is not equal work.",
+    "RSS is non-atomic sampled tree sum, not physical high-water or PSS; Java IO is one observed process, not summed tree IO. Logical VITAL evictions are repeated logical table bytes and are not kernel read bytes.",
+    "The full SummaryStats output remains absent in both new arms. The independent byte, semantic, and comparator readback is retained in this packet; full-suite admission still requires all 39 results.",
+    "The1437 starting cache files match exactly, but the changed compiled stage bytes may change effective cache reuse; equal starting inventory alone does not establish equal runtime cache hits. No cache-hit equivalence claim is made from these observations."
+  ],
+  "observations": [
+    "Both new arms reached supervised five-hour timeout and remain38/39. Full-summary Stage4 still grows large read/forward-flow tables.",
+    "Across old/new arms, fwdFlowRead and fwdFlow0 remain dominant matched intervals. New combined intervals are12708s(heap1536) and13314s(heap2048); new maximum completed fwdFlowRead delta143463320 and181684098 rows respectively.",
+    "Stage4 fwdFlow1 matched intervals decrease from657/685s to75/61s. Same predicate hash and near-equal maximum delta cardinality support a real local execution observation; old per-iteration deltas were not retained in the available small baseline report, so no exact equal-work causal speedup is asserted.",
+    "New2048 reaches logged Stage4 iteration280 at12729s vs16611s historical; new1536 reaches it at17182s vs15992s historical. Opposite aggregate direction plus changed CPUs prevents promotion of the global all-plan to a demonstrated robust performance fix.",
+    "New1536 terminates with an unmatched fwdFlowRead iteration281 start at17797s. New2048 last recorded Stage4 iteration288 helpers all have completed delta records at17997s; the last start must not be reported as that helper still running.",
+    "Stage4 begins at2031s versus1029s in heap1536, and1481s versus1373s in heap2048. After subtracting this pre-Stage4 time, reaching iteration280 takes15151s versus14963s in heap1536 and11248s versus15238s in heap2048. This separates the observed front-loaded stage cost from later progress without attributing either solely to hardware or the plan."
+  ],
+  "next_candidate": {
+    "scope": "A targeted, source-equivalent full-summary execution-plan change; preserve all39 queries, threat model, dataflow/access-path/context semantics and five-hour budget. No implementation or run started by this review.",
+    "target": "shared/dataflow/codeql/dataflow/internal/DataFlowImpl.qll at codeql-cli/v2.27.2: fwdFlowRead0 lines836\u2013844, fwdFlowRead lines848\u2013862, its read projection into fwdFlow0 lines618\u2013620.",
+    "proposal": "Inspect compiled relation consumers for fwdFlowRead/11. In the read-to-fwdFlow0 path, factor the join on(ap1,c), push the key semijoin before wide tuple expansion, and materialize/deduplicate only the target-state projection(node2,t2,ap2,stored2,cc,summaryCtx) when that consumer needs only existential witnesses. Preserve the full relation for any other consumer that needs source/content columns. This targets the measured wide read relation instead of another global allocation/flag search.",
+    "equivalence": "For full compatible join A=fwdFlowRead0 and B=fwdFlowConsCand, A join B = A join(B semijoin projection_(ap1,c)(A)); projecting the original complete output to the target-state columns is equivalent to existentially eliminating only the unused witness columns after applying every original type/access-path/stored constraint. No source, sink, context or access-path case may be dropped.",
+    "status": "Relational identity is the basis for the candidate, not evidence of a faster CodeQL implementation. First inspect the actual IR and whether full11-column materialization is still demanded by other consumers; compile a dedicated capsule and use the existing semantic admission before any separately authorized retained-database run.",
+    "primary_sources": [
+      "https://github.com/github/codeql/blob/codeql-cli/v2.27.2/shared/dataflow/codeql/dataflow/internal/DataFlowImpl.qll",
+      "https://github.com/github/codeql/blob/codeql-cli/v2.27.2/rust/ql/src/queries/summary/TaintReach.qll",
+      "https://github.com/github/codeql/blob/codeql-cli/v2.27.2/rust/ql/src/queries/summary/SummaryStats.ql"
+    ]
+  },
+  "verification": {
+    "new_benchmarks_run": 0,
+    "source_edits": 0,
+    "remote_actions": 0,
+    "analysis": "Static source reading; retained artifact parsing and raw-log SHA-256; resource-counter arithmetic and timestamped start/delta matching."
+  },
+  "input_hashes": {
+    "baseline/EVALUATOR_PHASES.json": "17a467a6266f0052531b9a15860574079a14586f573ee511df4bf446e9b528be",
+    "baseline/RESOURCE_WINDOWS.json": "a3abebd371405ce28acf917a7da92f000d4a5522e68b3d9748d86bf5bf02cd4b",
+    "analyze_new.py": "b56b830eda4b8591075559ceac3af0142735252a99697ec2581f4fc601574a1d",
+    "heap-1536/EVALUATOR_PHASES.json": "52cda59f020dbd91940225a44b2b77dd05d477ec846c3b6fd0b8daab58b2df60",
+    "heap-1536/RESOURCE_WINDOWS.json": "a09825e4ebe76d8ebc0f4017ca53eb1ea35aed4e684ebc04fdc3b1254723f91e",
+    "heap-1536/TAIL_EXCERPTS.json": "ffa0bd458eb8c627241b795679b904f5301bff21891b7c5db7015155344d6aac",
+    "heap-2048/EVALUATOR_PHASES.json": "0f54db39c66c6a117e5251f9afc9c2b5a6d0de3d18a8c89010a4f7c187259a9e",
+    "heap-2048/RESOURCE_WINDOWS.json": "ac4a25655e7404101870d8dc786e757e60e6f6cadbd6a5b30f8b62cc02b8fa75",
+    "heap-2048/TAIL_EXCERPTS.json": "a49ac9a82314fb509caef50cc67679885154aade2eb8310017214fc5cf86c26a"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "kind": "qperiapt.stage4_read_target_projection_candidate",
+  "status": "correctly_bound_ql_compile_and_recursive_layer_structure_verified",
+  "upstream_package": "codeql/dataflow@2.1.15",
+  "upstream_url": "https://github.com/github/codeql/blob/codeql-cli/v2.27.2/shared/dataflow/codeql/dataflow/internal/DataFlowImpl.qll",
+  "upstream_source_sha256": "48abc6ae3a155494379f139d6a71d0d9b27469824e8f2dc5a72ff39a82ce64bf",
+  "patched_source_sha256": "c2578c2642d0e382ca5438c7d72f69415ca115b5b248778eb0b8b1398526ca06",
+  "patch_sha256": "282378060da1b9929c84ae040cbd99f64b7424874a364a76d6f5f46af47ceba9",
+  "query_source_sha256": "7278d53373afb4f8069122e287c9c036a959ba0d167c152d67cd0de885881d67",
+  "scope": "One library file. StageParam defaults to original path; only Stage4 selects the exact six-column recursive read target. Full fwdFlowRead body and all other consumers remain unchanged.",
+  "hosted_ci_started": false,
+  "database_evaluation_performed": false,
+  "actual_resolved_dependency": "candidate-query-pack/.codeql/libraries/codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll",
+  "compiler_inputs_digest": "70fcc50b9809b694b26b77a11722cdbb"
+}

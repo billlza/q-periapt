@@ -1,0 +1,170 @@
+{
+  "total": {
+    "first_seconds": 2.013895009999999,
+    "last_seconds": 18000.874906321,
+    "samples": 8951,
+    "peak_tree_rss_GiB": 13.753875732421875,
+    "mean_tree_rss_GiB": 12.694672080048395,
+    "java_cpu_seconds": 41195.89,
+    "java_mean_cores": 2.288805384635801,
+    "io_samples": 8950,
+    "io_first_seconds": 2.013895009999999,
+    "io_last_seconds": 17998.863905484002,
+    "java_io_GiB": {
+      "read_bytes": 689.982837677002,
+      "write_bytes": 173.46791458129883,
+      "cancelled_write_bytes": 0.5640144348144531
+    }
+  },
+  "hourly": {
+    "0": {
+      "first_seconds": 2.013895009999999,
+      "last_seconds": 3599.9763435229997,
+      "samples": 1789,
+      "peak_tree_rss_GiB": 13.123737335205078,
+      "mean_tree_rss_GiB": 12.701107634986293,
+      "java_cpu_seconds": 8993.7,
+      "java_mean_cores": 2.4996647765784776,
+      "io_samples": 1789,
+      "io_first_seconds": 2.013895009999999,
+      "io_last_seconds": 3599.9763435229997,
+      "java_io_GiB": {
+        "read_bytes": 33.4161491394043,
+        "write_bytes": 37.83143997192383,
+        "cancelled_write_bytes": 0.3595619201660156
+      }
+    },
+    "3600": {
+      "first_seconds": 3601.9918927149997,
+      "last_seconds": 7199.860786584,
+      "samples": 1790,
+      "peak_tree_rss_GiB": 12.763755798339844,
+      "mean_tree_rss_GiB": 12.663191971166174,
+      "java_cpu_seconds": 8326.22,
+      "java_mean_cores": 2.3142088401799223,
+      "io_samples": 1790,
+      "io_first_seconds": 3601.9918927149997,
+      "io_last_seconds": 7199.860786584,
+      "java_io_GiB": {
+        "read_bytes": 116.43466186523438,
+        "write_bytes": 31.326576232910156,
+        "cancelled_write_bytes": 0.09255218505859375
+      }
+    },
+    "7200": {
+      "first_seconds": 7201.8698881830005,
+      "last_seconds": 10798.999714295,
+      "samples": 1790,
+      "peak_tree_rss_GiB": 13.080039978027344,
+      "mean_tree_rss_GiB": 12.688302218048266,
+      "java_cpu_seconds": 7988.9,
+      "java_mean_cores": 2.22090955461424,
+      "io_samples": 1790,
+      "io_first_seconds": 7201.8698881830005,
+      "io_last_seconds": 10798.999714295,
+      "java_io_GiB": {
+        "read_bytes": 147.09860610961914,
+        "write_bytes": 32.66865158081055,
+        "cancelled_write_bytes": 0.07120513916015625
+      }
+    },
+    "10800": {
+      "first_seconds": 10801.008685654,
+      "last_seconds": 14398.082389471,
+      "samples": 1790,
+      "peak_tree_rss_GiB": 13.753875732421875,
+      "mean_tree_rss_GiB": 12.713059515926425,
+      "java_cpu_seconds": 7949.48,
+      "java_mean_cores": 2.2099852976502783,
+      "io_samples": 1790,
+      "io_first_seconds": 10801.008685654,
+      "io_last_seconds": 14398.082389471,
+      "java_io_GiB": {
+        "read_bytes": 187.1020278930664,
+        "write_bytes": 35.734012603759766,
+        "cancelled_write_bytes": 0.028743743896484375
+      }
+    },
+    "14400": {
+      "first_seconds": 14400.091899525,
+      "last_seconds": 17998.863905484002,
+      "samples": 1791,
+      "peak_tree_rss_GiB": 13.355232238769531,
+      "mean_tree_rss_GiB": 12.714783415589368,
+      "java_cpu_seconds": 7914.65,
+      "java_mean_cores": 2.1992640786619932,
+      "io_samples": 1791,
+      "io_first_seconds": 14400.091899525,
+      "io_last_seconds": 17998.863905484002,
+      "java_io_GiB": {
+        "read_bytes": 205.57624435424805,
+        "write_bytes": 35.796470642089844,
+        "cancelled_write_bytes": 0.011951446533203125
+      }
+    }
+  },
+  "final_600_seconds": {
+    "first_seconds": 17401.832534808,
+    "last_seconds": 18000.874906321,
+    "samples": 299,
+    "peak_tree_rss_GiB": 12.712711334228516,
+    "mean_tree_rss_GiB": 12.669476588832893,
+    "java_cpu_seconds": 1300.19,
+    "java_mean_cores": 2.170447470545546,
+    "io_samples": 298,
+    "io_first_seconds": 17401.832534808,
+    "io_last_seconds": 17998.863905484002,
+    "java_io_GiB": {
+      "read_bytes": 31.431419372558594,
+      "write_bytes": 4.027774810791016,
+      "cancelled_write_bytes": 0.0
+    }
+  },
+  "sampler": {
+    "clock_ticks_per_second": 100,
+    "controller_pid": 3012,
+    "controller_start_ticks": 5173,
+    "excluded_preexisting_roots": 0,
+    "interpretation": {
+      "cpu": "sum of maximum observed own-process user/system ticks per identity",
+      "exit": "evaluator exit, deadline, query coverage and result admission are independent",
+      "io": "per-process raw counters only; may include waited-for children",
+      "omissions": "short-lived or already-reparented unseen descendants and between-sample peaks may be missed",
+      "peak": "maximum recorded non-atomic sample, not actual job peak or PSS",
+      "rss": "approximate proc stat RSS; tree sums may double-count shared pages"
+    },
+    "interval_seconds": 2.0,
+    "io_unavailable": 1,
+    "kind": "qperiapt.codeql_process_resources",
+    "limits": {
+      "census_processes": 8192,
+      "observed_identities": 4096,
+      "output_bytes": 33554432,
+      "proc_file_bytes": 16384,
+      "samples": 10000,
+      "scan_work_seconds": 0.75,
+      "selected_processes": 512,
+      "shutdown_wait_seconds": 2.0
+    },
+    "max_sample_span_seconds": 0.035293320000164385,
+    "observed_process_cpu_seconds": 41201.03,
+    "observed_process_identities": 2,
+    "observed_root_identities": 1,
+    "output_bytes": 7021241,
+    "page_bytes": 4096,
+    "partial_censuses": 0,
+    "peak_sampled_roots_rss_bytes": 1851392,
+    "peak_sampled_tree_rss_bytes": 14768111616,
+    "platform": "Linux",
+    "proc_read_errors": 5,
+    "sampler_cpu_seconds": 73.216887868,
+    "samples": 8952,
+    "samples_file": "PROCESS_RESOURCES.jsonl",
+    "samples_with_processes": 8951,
+    "sampling_wall_seconds": 18001.185516168,
+    "schema": 1,
+    "scope": "new controller descendants observed during query evaluation",
+    "shutdown_complete": true,
+    "status": "stopped"
+  }
+}

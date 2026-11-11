@@ -1,0 +1,13 @@
+{
+  "kind": "independent_read_only_agent_source_review",
+  "reviewer": "joc_research",
+  "patch_sha256": "282378060da1b9929c84ae040cbd99f64b7424874a364a76d6f5f46af47ceba9",
+  "findings": [
+    "Helper join and guard body matches original full read body.",
+    "Five new existential variables are precisely the old forward-consumer wildcards: node1,t1,ap1,stored1,c.",
+    "Both typechecks and both ApNil/nonNil stored/getNodeTyp branches remain.",
+    "With the documented only-recursive-consumer condition, target projection preserves the least fixed point; full relation must remain available after the component."
+  ],
+  "scope": "Source review and algebra; reviewer did not run compilation or database evaluation. Correct compiled structure is independently evidenced by compiler receipts and IR_COMPARISON.json.",
+  "source_level_counterexample_identified": false
+}

@@ -1,0 +1,49 @@
+{
+  "kind": "qperiapt.stage4_projection_candidate_compile",
+  "binding": "actual_embedded_dependency_verified_only_target_source_changed",
+  "dependency_identity": "DEPENDENCY_IDENTITY.json",
+  "command": [
+    "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tool/codeql/codeql",
+    "query",
+    "compile",
+    "--precompile",
+    "--dynamic-join-order-mode=all",
+    "--no-default-compilation-cache",
+    "--common-caches=/workspace/scratch/4b61438fb07b/summary-plan-feasibility/bound-cache",
+    "--threads=2",
+    "--ram=3072",
+    "-J-Xmx3072M",
+    "--dump-ra",
+    "--format=text",
+    "--logdir=/workspace/scratch/4b61438fb07b/summary-plan-feasibility/bound-logs",
+    "--",
+    "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/candidate-query-pack/queries/summary/SummaryStats.ql"
+  ],
+  "environment": {
+    "HOME": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/home",
+    "TMPDIR": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tmp",
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "timeout_seconds": 180,
+  "maximum_output_bytes": 134217728,
+  "hash_only_preflight_key": "70fcc50b9809b694b26b77a11722cdbb",
+  "query_source_sha256": "7278d53373afb4f8069122e287c9c036a959ba0d167c152d67cd0de885881d67",
+  "query_compilation_executed": true,
+  "query_evaluation_executed": false,
+  "returncode": 0,
+  "stopped": null,
+  "seconds": 78.38495236800009,
+  "files": {
+    "candidate-bound-all.ra": {
+      "bytes": 10608562,
+      "sha256": "53080bf67a287135e9fc88a08980bdd8fd60efffbd46188c44dc075916623e55"
+    },
+    "candidate-bound-compile.stderr": {
+      "bytes": 269,
+      "sha256": "a0e8646987388042df122fbd77ae2d66f8862b7ae35b9c084649d9a3a651f95b"
+    }
+  }
+}

@@ -1,0 +1,98 @@
+[
+  {
+    "line": 2608576,
+    "text": "[2026-11-11 09:43:10] \t\t\t - TaintReach::TaintReachFlow::Flow::Stage4::FwdFlowInNoThrough::fwdFlowInValidEdgeTypeFlowEnabled/8#28cffdb4_delta has 37 rows (order for disjuncts: delta=<standard>)."
+  },
+  {
+    "line": 2608635,
+    "text": "[2026-11-11 09:43:29] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::getAnApLengthLowerBound/1#1e4e6bb4/2@i281#8c6c36xq (iteration 281)"
+  },
+  {
+    "line": 2608636,
+    "text": "[2026-11-11 09:43:29] Empty delta for TaintReach::TaintReachFlow::Flow::Stage4::getAnApLengthLowerBound/1#1e4e6bb4_delta (order for disjuncts: delta=<standard>)."
+  },
+  {
+    "line": 2608639,
+    "text": "[2026-11-11 09:43:29] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowConsCand/5#647d45b6/5@i281#8c6c35xq (iteration 281)"
+  },
+  {
+    "line": 2608640,
+    "text": "[2026-11-11 09:43:29] \t\t\t - TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowConsCand/5#647d45b6_delta has 5057 rows (order for disjuncts: delta=<standard>)."
+  },
+  {
+    "line": 2608643,
+    "text": "[2026-11-11 09:43:30] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowInFlowThrough/6#f992157f/6@i281#8c6c34xq (iteration 281)"
+  },
+  {
+    "line": 2608646,
+    "text": "[2026-11-11 09:43:30] \t\t\t - TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowInFlowThrough/6#f992157f_delta has 4286 rows (order for disjuncts: delta=<standard>)."
+  },
+  {
+    "line": 2608649,
+    "text": "[2026-11-11 09:43:30] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowIsEntered/6#774d731a/6@i281#8c6c33xq (iteration 281)"
+  },
+  {
+    "line": 2608662,
+    "text": "[2026-11-11 09:43:32] \t\t\t - TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowIsEntered/6#774d731a_delta has 2925505 rows (order for disjuncts: delta=<standard>)."
+  },
+  {
+    "line": 2608663,
+    "text": "[2026-11-11 09:43:32] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowOutCand/6#693da644/6@i281#8c6c32xq (iteration 281)"
+  },
+  {
+    "line": 2608664,
+    "text": "[2026-11-11 09:43:32] Empty delta for TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowOutCand/6#693da644_delta (order for disjuncts: delta=<standard>)."
+  },
+  {
+    "line": 2608665,
+    "text": "[2026-11-11 09:43:32] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::dataFlowTakenCallEdgeOut0/7#a14b778f/7@i281#8c6c31xq (iteration 281)"
+  },
+  {
+    "line": 2608666,
+    "text": "[2026-11-11 09:43:32] \t\t\t - TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::dataFlowTakenCallEdgeOut0/7#a14b778f_delta has 2093 rows (order for disjuncts: delta=<standard>)."
+  },
+  {
+    "line": 2608669,
+    "text": "[2026-11-11 09:43:33] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowIntoArg/8#3141b088/8@i281#8c6c30xq (iteration 281)"
+  },
+  {
+    "line": 2608672,
+    "text": "[2026-11-11 09:43:33] \t\t\t - TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowIntoArg/8#3141b088_delta has 1517064 rows (order for disjuncts: delta=<standard>)."
+  },
+  {
+    "line": 2608673,
+    "text": "[2026-11-11 09:43:33] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::dataFlowTakenCallEdgeIn0/8#c7ffbf9d/8@i281#8c6c3zwq (iteration 281)"
+  },
+  {
+    "line": 2608674,
+    "text": "[2026-11-11 09:43:33] \t\t\t - TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::dataFlowTakenCallEdgeIn0/8#c7ffbf9d_delta has 18136 rows (order for disjuncts: delta=<standard>)."
+  },
+  {
+    "line": 2608675,
+    "text": "[2026-11-11 09:43:33] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2/8@i281#8c6c3ywq (iteration 281)"
+  },
+  {
+    "line": 2608676,
+    "text": "[2026-11-11 09:43:34] \t\t\t - TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2_delta has 321281 rows (order for disjuncts: delta=<standard>)."
+  },
+  {
+    "line": 2608677,
+    "text": "[2026-11-11 09:43:34] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowIsEntered0/10#533e0818/10@i281#8c6c3xwq (iteration 281)"
+  },
+  {
+    "line": 2608682,
+    "text": "[2026-11-11 09:43:35] \t\t\t - TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowIsEntered0/10#533e0818_delta has 1088036 rows (order for disjuncts: delta=<standard>)."
+  },
+  {
+    "line": 2608683,
+    "text": "[2026-11-11 09:43:35] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowStore/10#c1938703/10@i281#8c6c3wwq (iteration 281)"
+  },
+  {
+    "line": 2608694,
+    "text": "[2026-11-11 09:43:38] \t\t\t - TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowStore/10#c1938703_delta has 12948060 rows (order for disjuncts: delta=<standard>)."
+  },
+  {
+    "line": 2608697,
+    "text": "[2026-11-11 09:43:38] Starting to evaluate predicate TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9/11@i281#8c6c3vwq (iteration 281)"
+  }
+]

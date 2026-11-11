@@ -1,0 +1,155 @@
+{
+  "schema": 1,
+  "readback_utc": "2026-11-11 10:09:48 UTC",
+  "head_commit": "87fee58926f8b849a142018efb6d7502cbad673f",
+  "checkout_commit": "5e269d2fb399890b5d37944541031c9670b2e90d",
+  "tree_sha": "865d6aafb8e6a2adf8b28c5076cedd9cbc520863",
+  "check": {
+    "id": 130438613213,
+    "name": "audit",
+    "node_id": "CR_kwDOTD-aVc8AAAAeXr9I3Q",
+    "head_sha": "87fee58926f8b849a142018efb6d7502cbad673f",
+    "external_id": "3f8ca002-b24b-5178-97ea-e1305f311558",
+    "url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130438613213",
+    "html_url": "https://github.com/billlza/q-periapt/actions/runs/42995542913/job/130438613213",
+    "details_url": "https://github.com/billlza/q-periapt/actions/runs/42995542913/job/130438613213",
+    "status": "completed",
+    "conclusion": "success",
+    "started_at": "2026-11-11T10:01:09Z",
+    "completed_at": "2026-11-11T10:03:56Z",
+    "output": {
+      "title": null,
+      "summary": null,
+      "text": null,
+      "annotations_count": 1,
+      "annotations_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130438613213/annotations"
+    },
+    "check_suite": {
+      "id": 116433865603
+    },
+    "app": {
+      "id": 15368,
+      "client_id": "Iv1.05c79e9ad1f6bdfa",
+      "slug": "github-actions",
+      "node_id": "MDM6QXBwMTUzNjg=",
+      "owner": {
+        "login": "github",
+        "id": 9919,
+        "node_id": "MDEyOk9yZ2FuaXphdGlvbjk5MTk=",
+        "avatar_url": "https://avatars.githubusercontent.com/u/9919?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/github",
+        "html_url": "https://github.com/github",
+        "followers_url": "https://api.github.com/users/github/followers",
+        "following_url": "https://api.github.com/users/github/following{/other_user}",
+        "gists_url": "https://api.github.com/users/github/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/github/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/github/subscriptions",
+        "organizations_url": "https://api.github.com/users/github/orgs",
+        "repos_url": "https://api.github.com/users/github/repos",
+        "events_url": "https://api.github.com/users/github/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/github/received_events",
+        "type": "Organization",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "name": "GitHub Actions",
+      "description": "Automate your workflow from idea to production",
+      "external_url": "https://help.github.com/en/actions",
+      "html_url": "https://github.com/apps/github-actions",
+      "created_at": "2018-07-30T09:30:17Z",
+      "updated_at": "2026-06-18T16:17:48Z",
+      "permissions": {
+        "actions": "write",
+        "administration": "read",
+        "artifact_metadata": "write",
+        "attestations": "write",
+        "checks": "write",
+        "code_quality": "write",
+        "contents": "write",
+        "copilot_requests": "write",
+        "deployments": "write",
+        "discussions": "write",
+        "drives": "write",
+        "issues": "write",
+        "merge_queues": "write",
+        "metadata": "read",
+        "models": "read",
+        "packages": "write",
+        "pages": "write",
+        "pull_requests": "write",
+        "repository_hooks": "write",
+        "repository_projects": "write",
+        "security_events": "write",
+        "statuses": "write",
+        "vulnerability_alerts": "read"
+      },
+      "events": [
+        "branch_protection_rule",
+        "check_run",
+        "check_suite",
+        "create",
+        "delete",
+        "deployment",
+        "deployment_status",
+        "discussion",
+        "discussion_comment",
+        "fork",
+        "gollum",
+        "issues",
+        "issue_comment",
+        "label",
+        "merge_group",
+        "milestone",
+        "page_build",
+        "public",
+        "pull_request",
+        "pull_request_review",
+        "pull_request_review_comment",
+        "push",
+        "registry_package",
+        "release",
+        "repository",
+        "repository_dispatch",
+        "status",
+        "watch",
+        "workflow_dispatch",
+        "workflow_run"
+      ]
+    },
+    "pull_requests": [
+      {
+        "url": "https://api.github.com/repos/billlza/q-periapt/pulls/119",
+        "id": 5205883804,
+        "number": 119,
+        "head": {
+          "ref": "paper/joc-persistent-recovery",
+          "sha": "87fee58926f8b849a142018efb6d7502cbad673f",
+          "repo": {
+            "id": 1279236693,
+            "url": "https://api.github.com/repos/billlza/q-periapt",
+            "name": "q-periapt"
+          }
+        },
+        "base": {
+          "ref": "main",
+          "sha": "48d0fb9a5651b50494ec33d025dda52bd2ff5eae",
+          "repo": {
+            "id": 1279236693,
+            "url": "https://api.github.com/repos/billlza/q-periapt",
+            "name": "q-periapt"
+          }
+        }
+      }
+    ]
+  },
+  "raw_log": {
+    "file": "audit-job-130438613213.log.gz",
+    "gzip_bytes": 19061,
+    "gzip_sha256": "5db3a621174819e080df18a78121122c9f61b6945b047444a39ad1a4a7b9b5b1",
+    "decoded_bytes": 93947,
+    "decoded_sha256": "4e8ff5ae865fb53bb73f625170476807be9cc1818a1ccf522a4c76c63040fe42"
+  },
+  "pass_line": "2026-11-11T10:03:55.0436642Z RUST_WORKSPACE_DEPENDENCY_AUDIT_PASS workspace_registry_packages=227 fuzz_registry_packages=38 advisory_db_commit=31cf5a8673e10d3a4d7d829ad5095f47ed419049 workspace_lock_sha256=654e5fced398f3fe955a6fae28781172dca644a816f3a7ca0507f551e3b0fff6 fuzz_lock_sha256=b6e1d8a6f34af0d6ca891b7a43973365e4da96709d0d408b57dcc9d7fc14cbb2 locks_stable=1 sparse_checksums=exact yanked=0 warnings=denied ambient_cargo_home_data=unused",
+  "scope": "Full canonical hosted dependency gate: exact sparse-index checksums, yanked=0, denied warnings and unchanged workspace/fuzz locks. The cargo-audit executable's own installer dependencies are separate from the two audited project graphs."
+}

@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/workspace/scratch/4b61438fb07b/summary-join-readback-42956070561/source/codeql_summary_control.py", line 970, in <module>
+    main()
+  File "/workspace/scratch/4b61438fb07b/summary-join-readback-42956070561/source/codeql_summary_control.py", line 964, in main
+    raise RuntimeError("Paired memory comparison is incomplete; inspect its receipt") from None
+RuntimeError: Paired memory comparison is incomplete; inspect its receipt

@@ -1,0 +1,49 @@
+{
+  "kind": "qperiapt.stage4_projection_candidate_compile",
+  "command": [
+    "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tool/codeql/codeql",
+    "query",
+    "compile",
+    "--precompile",
+    "--dynamic-join-order-mode=all",
+    "--additional-packs=/workspace/scratch/4b61438fb07b/summary-plan-feasibility/candidate-libraries",
+    "--search-path=/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tool/codeql/qlpacks",
+    "--no-default-compilation-cache",
+    "--common-caches=/workspace/scratch/4b61438fb07b/summary-plan-feasibility/candidate-cache",
+    "--threads=2",
+    "--ram=3072",
+    "-J-Xmx3072M",
+    "--dump-ra",
+    "--format=text",
+    "--logdir=/workspace/scratch/4b61438fb07b/summary-plan-feasibility/candidate-logs",
+    "--",
+    "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/candidate-query-pack/queries/summary/SummaryStats.ql"
+  ],
+  "environment": {
+    "HOME": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/home",
+    "TMPDIR": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tmp",
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "timeout_seconds": 180,
+  "maximum_output_bytes": 134217728,
+  "query_source_sha256": "7278d53373afb4f8069122e287c9c036a959ba0d167c152d67cd0de885881d67",
+  "patched_library_sha256": "c2578c2642d0e382ca5438c7d72f69415ca115b5b248778eb0b8b1398526ca06",
+  "query_compilation_executed": true,
+  "query_evaluation_executed": false,
+  "returncode": 0,
+  "stopped": null,
+  "seconds": 76.89962644500065,
+  "files": {
+    "candidate-all.ra": {
+      "bytes": 10606899,
+      "sha256": "8f1b5041566436d0bcf105fee6b6dc62cbcc14134cb2c8a29894239389eeced4"
+    },
+    "candidate-compile.stderr": {
+      "bytes": 269,
+      "sha256": "7aeadcc625bb0256eb6bd872955f3839ded47d2e571367a27607143454a2dcc7"
+    }
+  }
+}

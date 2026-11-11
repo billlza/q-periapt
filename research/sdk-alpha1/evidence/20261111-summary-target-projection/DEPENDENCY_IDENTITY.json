@@ -1,0 +1,20 @@
+{
+  "status": "corrected_actual_resolved_dependency",
+  "dependency_files": 1175,
+  "paths_equal": true,
+  "changed": {
+    "codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll": {
+      "before": {
+        "bytes": 138246,
+        "sha256": "48abc6ae3a155494379f139d6a71d0d9b27469824e8f2dc5a72ff39a82ce64bf"
+      },
+      "after": {
+        "bytes": 139632,
+        "sha256": "c2578c2642d0e382ca5438c7d72f69415ca115b5b248778eb0b8b1398526ca06"
+      }
+    }
+  },
+  "original_inventory_sha256": "cc5094dfbf7174718ed834b8f21dd0efb6be55388102009dcd4e9d1795ea48f6",
+  "candidate_inventory_sha256": "be9ab53000782d96523d8ec1fc81fa8503333916fad38dd9c8f76586e36b879e",
+  "post_compile_inventory_unchanged": true
+}

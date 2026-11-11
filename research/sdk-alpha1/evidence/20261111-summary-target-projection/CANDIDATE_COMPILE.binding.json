@@ -1,0 +1,7 @@
+{
+  "status": "invalid-candidate-binding",
+  "compile_receipt": "CANDIDATE_COMPILE.json",
+  "reason": "Published query pack includes .codeql/libraries; resolver selected its unmodified embedded dependency instead of --additional-packs overlay. The identical original compiler key and byte-identical RA diagnose input binding, not optimizer rejection or candidate QL validity.",
+  "observed_compiler_inputs_digest": "209f28c6b9e8d5465a3f8417573e42d6",
+  "actual_dependency_sha256": "48abc6ae3a155494379f139d6a71d0d9b27469824e8f2dc5a72ff39a82ce64bf"
+}

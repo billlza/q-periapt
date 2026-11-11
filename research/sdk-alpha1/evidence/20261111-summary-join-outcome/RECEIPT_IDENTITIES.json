@@ -1,0 +1,86 @@
+{
+  "heap-1536": {
+    "RESULT.json": {
+      "bytes": 64049,
+      "sha256": "be939c1a7f09eeea8afe641fd57b3a34a934da48bba47d0a23f8bc22739d3845"
+    },
+    "query.json": {
+      "bytes": 2759,
+      "sha256": "4187d5d964958ecbaeab46f4437c9f37570a7a76ee932ee7dea9145a68f75aaf"
+    },
+    "PARTIAL_RESULTS.json": {
+      "bytes": 17893,
+      "sha256": "12cdda29295c170957657b761c9a6acb2be7a23e336734319c30122be22087e0"
+    },
+    "EVALUATOR_OBSERVATIONS.json": {
+      "bytes": 6148,
+      "sha256": "7d97209595640ca37c778bf63089131af0d2679855f0d65df20e9e86cd7d433c"
+    },
+    "PROCESS_RESOURCES.json": {
+      "bytes": 1731,
+      "sha256": "ca22ddd08fabc41375024da68de932f377edc4dca82f9da4ed0e2b364aad6863"
+    },
+    "SUMMARY_PLAN.json": {
+      "bytes": 3435,
+      "sha256": "74bcb3662890b08d5d69f57c7946a6632a3f846ac86bb3b60293268cf7b0b8ca"
+    },
+    "SUMMARY_PLAN_AFTER.json": {
+      "bytes": 3435,
+      "sha256": "74bcb3662890b08d5d69f57c7946a6632a3f846ac86bb3b60293268cf7b0b8ca"
+    },
+    "DATABASE_ARCHIVE.json": {
+      "bytes": 3893,
+      "sha256": "abf5ae81b30279456f7e61d63ac9d846d8189ab162e39816f26f8584581ec3c0"
+    },
+    "DATABASE_INPUTS.json": {
+      "bytes": 682584,
+      "sha256": "d8c980be0947246969c7f1249e9bbfdca65c991f0920698ee99bf1a1a4b26037"
+    },
+    "query.stderr": {
+      "bytes": 14081,
+      "sha256": "49bd7c4f8e263296b905deabdfe857789cec5a01a412dee037b74405add4bbad"
+    }
+  },
+  "heap-2048": {
+    "RESULT.json": {
+      "bytes": 64772,
+      "sha256": "7306c76b331786134cfca2c8ee2abd1fca97b8e14c905eadcee2682e8f518270"
+    },
+    "query.json": {
+      "bytes": 2756,
+      "sha256": "2e4975e7ad86ceab1399454dd1dcb0fb510ad9ed69a4eda6cc968df3b9dbe021"
+    },
+    "PARTIAL_RESULTS.json": {
+      "bytes": 17895,
+      "sha256": "1892c6cc198b85a85d7e49950ab4ea94bfe1c53ced3ef4e01973346bc3c8b143"
+    },
+    "EVALUATOR_OBSERVATIONS.json": {
+      "bytes": 6148,
+      "sha256": "332065065a60b0c417c2792fc4dfcc2d367e56a6e1a8335454ec3e456b91aa50"
+    },
+    "PROCESS_RESOURCES.json": {
+      "bytes": 1728,
+      "sha256": "235527923ffd89983012c04576dbed82d1977429b66e2f5f47713a4cc5f6d2cc"
+    },
+    "SUMMARY_PLAN.json": {
+      "bytes": 3435,
+      "sha256": "74bcb3662890b08d5d69f57c7946a6632a3f846ac86bb3b60293268cf7b0b8ca"
+    },
+    "SUMMARY_PLAN_AFTER.json": {
+      "bytes": 3435,
+      "sha256": "74bcb3662890b08d5d69f57c7946a6632a3f846ac86bb3b60293268cf7b0b8ca"
+    },
+    "DATABASE_ARCHIVE.json": {
+      "bytes": 3893,
+      "sha256": "abf5ae81b30279456f7e61d63ac9d846d8189ab162e39816f26f8584581ec3c0"
+    },
+    "DATABASE_INPUTS.json": {
+      "bytes": 682584,
+      "sha256": "d8c980be0947246969c7f1249e9bbfdca65c991f0920698ee99bf1a1a4b26037"
+    },
+    "query.stderr": {
+      "bytes": 13967,
+      "sha256": "d96041d0f20b0d3f165dfb924eb98db908d30d19b6525a45df67f6c99a6701c2"
+    }
+  }
+}

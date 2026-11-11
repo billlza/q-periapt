@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.canonical_hosted_review_publication",
+  "head_commit": "87fee58926f8b849a142018efb6d7502cbad673f",
+  "tree_sha": "865d6aafb8e6a2adf8b28c5076cedd9cbc520863",
+  "publication_scope": "Review evidence only; do not recursively add unlisted working files.",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 6837,
+      "sha256": "3e71c49fe5d322caf630f5700fde3b28a4b95115701b2f46484ee6d073c78c36",
+      "filename": "README.md",
+      "relative_path": "README.md",
+      "repository_path": "research/sdk-alpha1/evidence/20261111-paper-hosted-review/README.md"
+    },
+    {
+      "path": "REVIEW.json",
+      "bytes": 44858,
+      "sha256": "62a44311d9436e9df847cdf0428585a376449c011ba18962aac403f6c45aa3a4",
+      "filename": "REVIEW.json",
+      "relative_path": "REVIEW.json",
+      "repository_path": "research/sdk-alpha1/evidence/20261111-paper-hosted-review/REVIEW.json"
+    },
+    {
+      "path": "annotations.json",
+      "bytes": 13008,
+      "sha256": "1e81d41a36786c475a804f6c1d0d76e819718218cca0be7c4a3b2e8b63f3d1e7",
+      "filename": "annotations.json",
+      "relative_path": "annotations.json",
+      "repository_path": "research/sdk-alpha1/evidence/20261111-paper-hosted-review/annotations.json"
+    },
+    {
+      "path": "annotations.public.html.gz",
+      "bytes": 5616,
+      "sha256": "987bea6a4c56f8b86743bb9e9a5d65daaa666c4112d753954043b66c06c3524d",
+      "filename": "annotations.public.html.gz",
+      "relative_path": "annotations.public.html.gz",
+      "repository_path": "research/sdk-alpha1/evidence/20261111-paper-hosted-review/annotations.public.html.gz"
+    },
+    {
+      "path": "run.json",
+      "bytes": 14539,
+      "sha256": "a315ef67c5d131bb513d1d39aa56047dfb5d6d5aca3bec62f3a7e7ef1ca1a490",
+      "filename": "run.json",
+      "relative_path": "run.json",
+      "repository_path": "research/sdk-alpha1/evidence/20261111-paper-hosted-review/run.json"
+    },
+    {
+      "path": "jobs.json",
+      "bytes": 22438,
+      "sha256": "30fc97de815f985c0071a8415a7f342e43bdf11f95240cec955d4b99f030464f",
+      "filename": "jobs.json",
+      "relative_path": "jobs.json",
+      "repository_path": "research/sdk-alpha1/evidence/20261111-paper-hosted-review/jobs.json"
+    },
+    {
+      "path": "checks.json",
+      "bytes": 4240,
+      "sha256": "e863249009f3024ab723f5ebfc194e7beca50f60ef3c0a4d94e53da41964f8f7",
+      "filename": "checks.json",
+      "relative_path": "checks.json",
+      "repository_path": "research/sdk-alpha1/evidence/20261111-paper-hosted-review/checks.json"
+    },
+    {
+      "path": "checkout-identity.json",
+      "bytes": 1385,
+      "sha256": "1ccbe9098054379840037978b8f60322aa513bd24a24ef41d7afbd9b997fd546",
+      "filename": "checkout-identity.json",
+      "relative_path": "checkout-identity.json",
+      "repository_path": "research/sdk-alpha1/evidence/20261111-paper-hosted-review/checkout-identity.json"
+    },
+    {
+      "path": "rust-job-130438751368.log.gz",
+      "bytes": 45702,
+      "sha256": "a54b61560dcfd7c4ae590b9cc41dcd678221c9b91eeb06618399f1b9d3eba66e",
+      "filename": "rust-job-130438751368.log.gz",
+      "relative_path": "rust-job-130438751368.log.gz",
+      "repository_path": "research/sdk-alpha1/evidence/20261111-paper-hosted-review/rust-job-130438751368.log.gz"
+    },
+    {
+      "path": "matched-path-controls.json",
+      "bytes": 1201,
+      "sha256": "b8c6cb97cad537f34c784e99dea30bf13e84d1b44c15a23d8a5dc31979aa0574",
+      "filename": "matched-path-controls.json",
+      "relative_path": "matched-path-controls.json",
+      "repository_path": "research/sdk-alpha1/evidence/20261111-paper-hosted-review/matched-path-controls.json"
+    },
+    {
+      "path": "matched-path-controls.log",
+      "bytes": 1575,
+      "sha256": "b6a0b11a74a94e3cc726f467a4e2203d34a48ddf28728f68e00dd52e6e90628f",
+      "filename": "matched-path-controls.log",
+      "relative_path": "matched-path-controls.log",
+      "repository_path": "research/sdk-alpha1/evidence/20261111-paper-hosted-review/matched-path-controls.log"
+    },
+    {
+      "path": "audit-hosted.json",
+      "bytes": 6015,
+      "sha256": "73d9df21cf0de9f32432846dcd68aac0209fa048cdb6b599cda17dba377af61c",
+      "filename": "audit-hosted.json",
+      "relative_path": "audit-hosted.json",
+      "repository_path": "research/sdk-alpha1/evidence/20261111-paper-hosted-review/audit-hosted.json"
+    },
+    {
+      "path": "audit-job-130438613213.log.gz",
+      "bytes": 19061,
+      "sha256": "5db3a621174819e080df18a78121122c9f61b6945b047444a39ad1a4a7b9b5b1",
+      "filename": "audit-job-130438613213.log.gz",
+      "relative_path": "audit-job-130438613213.log.gz",
+      "repository_path": "research/sdk-alpha1/evidence/20261111-paper-hosted-review/audit-job-130438613213.log.gz"
+    },
+    {
+      "path": "publication-review.json",
+      "bytes": 7822,
+      "sha256": "b9d5966cb7b6e9e181e196a30c502bd880dc709d27f7381cfc044b4de0ae93ab",
+      "filename": "publication-review.json",
+      "relative_path": "publication-review.json",
+      "repository_path": "research/sdk-alpha1/evidence/20261111-paper-hosted-review/publication-review.json"
+    }
+  ],
+  "payload_total_bytes": 194297,
+  "manifest_note": "MANIFEST.json is also part of the packet; its own hash is supplied externally to avoid a self-reference.",
+  "target_directory": "research/sdk-alpha1/evidence/20261111-paper-hosted-review"
+}

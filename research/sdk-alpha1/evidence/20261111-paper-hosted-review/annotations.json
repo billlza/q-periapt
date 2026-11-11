@@ -1,0 +1,296 @@
+[
+  {
+    "index": 1,
+    "location": "Check failure on line 66 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+    "title": "Uncontrolled data used in path expression",
+    "severity": "High",
+    "message": "This path depends on a user-provided value Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+    "links": [
+      {
+        "text": "Check failure on line 66 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502903747"
+      },
+      {
+        "text": "",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502903747"
+      },
+      {
+        "text": "Please reload this page",
+        "href": ""
+      }
+    ]
+  },
+  {
+    "index": 2,
+    "location": "Check failure on line 66 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+    "title": "Uncontrolled data used in path expression",
+    "severity": "High",
+    "message": "This path depends on a user-provided value Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+    "links": [
+      {
+        "text": "Check failure on line 66 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502903922"
+      },
+      {
+        "text": "",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502903922"
+      },
+      {
+        "text": "Please reload this page",
+        "href": ""
+      }
+    ]
+  },
+  {
+    "index": 3,
+    "location": "Check failure on line 67 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+    "title": "Uncontrolled data used in path expression",
+    "severity": "High",
+    "message": "This path depends on a user-provided value Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+    "links": [
+      {
+        "text": "Check failure on line 67 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502904141"
+      },
+      {
+        "text": "",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502904141"
+      },
+      {
+        "text": "Please reload this page",
+        "href": ""
+      }
+    ]
+  },
+  {
+    "index": 4,
+    "location": "Check failure on line 71 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+    "title": "Uncontrolled data used in path expression",
+    "severity": "High",
+    "message": "This path depends on a user-provided value Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+    "links": [
+      {
+        "text": "Check failure on line 71 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502904358"
+      },
+      {
+        "text": "",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502904358"
+      },
+      {
+        "text": "Please reload this page",
+        "href": ""
+      }
+    ]
+  },
+  {
+    "index": 5,
+    "location": "Check failure on line 306 in paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey.rs",
+    "title": "Uncontrolled data used in path expression",
+    "severity": "High",
+    "message": "This path depends on a user-provided value Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+    "links": [
+      {
+        "text": "Check failure on line 306 in paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey.rs",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228018"
+      },
+      {
+        "text": "",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228018"
+      },
+      {
+        "text": "Please reload this page",
+        "href": ""
+      }
+    ]
+  },
+  {
+    "index": 6,
+    "location": "Check failure on line 14 in paper/continuity/artifacts/bootstrap/entry/source/crates/q-periapt-sdk/src/purpose.rs",
+    "title": "Hard-coded cryptographic value",
+    "severity": "Critical",
+    "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+    "links": [
+      {
+        "text": "Check failure on line 14 in paper/continuity/artifacts/bootstrap/entry/source/crates/q-periapt-sdk/src/purpose.rs",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228253"
+      },
+      {
+        "text": "",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228253"
+      },
+      {
+        "text": "Please reload this page",
+        "href": ""
+      }
+    ]
+  },
+  {
+    "index": 7,
+    "location": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/entry/source/research/continuity-identity-candidate/src/bootstrap.rs",
+    "title": "Hard-coded cryptographic value",
+    "severity": "Critical",
+    "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+    "links": [
+      {
+        "text": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/entry/source/research/continuity-identity-candidate/src/bootstrap.rs",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228455"
+      },
+      {
+        "text": "",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228455"
+      },
+      {
+        "text": "Please reload this page",
+        "href": ""
+      }
+    ]
+  },
+  {
+    "index": 8,
+    "location": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/entry/source/research/continuity-identity-candidate/src/bootstrap.rs",
+    "title": "Hard-coded cryptographic value",
+    "severity": "Critical",
+    "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+    "links": [
+      {
+        "text": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/entry/source/research/continuity-identity-candidate/src/bootstrap.rs",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228690"
+      },
+      {
+        "text": "",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228690"
+      },
+      {
+        "text": "Please reload this page",
+        "href": ""
+      }
+    ]
+  },
+  {
+    "index": 9,
+    "location": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs",
+    "title": "Hard-coded cryptographic value",
+    "severity": "Critical",
+    "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+    "links": [
+      {
+        "text": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228956"
+      },
+      {
+        "text": "",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228956"
+      },
+      {
+        "text": "Please reload this page",
+        "href": ""
+      }
+    ]
+  },
+  {
+    "index": 10,
+    "location": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs",
+    "title": "Hard-coded cryptographic value",
+    "severity": "Critical",
+    "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+    "links": [
+      {
+        "text": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229254"
+      },
+      {
+        "text": "",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229254"
+      },
+      {
+        "text": "Please reload this page",
+        "href": ""
+      }
+    ]
+  },
+  {
+    "index": 11,
+    "location": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap.rs",
+    "title": "Hard-coded cryptographic value",
+    "severity": "Critical",
+    "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+    "links": [
+      {
+        "text": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap.rs",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229538"
+      },
+      {
+        "text": "",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229538"
+      },
+      {
+        "text": "Please reload this page",
+        "href": ""
+      }
+    ]
+  },
+  {
+    "index": 12,
+    "location": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap.rs",
+    "title": "Hard-coded cryptographic value",
+    "severity": "Critical",
+    "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+    "links": [
+      {
+        "text": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap.rs",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229737"
+      },
+      {
+        "text": "",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229737"
+      },
+      {
+        "text": "Please reload this page",
+        "href": ""
+      }
+    ]
+  },
+  {
+    "index": 13,
+    "location": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap.rs",
+    "title": "Hard-coded cryptographic value",
+    "severity": "Critical",
+    "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+    "links": [
+      {
+        "text": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap.rs",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229988"
+      },
+      {
+        "text": "",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229988"
+      },
+      {
+        "text": "Please reload this page",
+        "href": ""
+      }
+    ]
+  },
+  {
+    "index": 14,
+    "location": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap.rs",
+    "title": "Hard-coded cryptographic value",
+    "severity": "Critical",
+    "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+    "links": [
+      {
+        "text": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap.rs",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503230241"
+      },
+      {
+        "text": "",
+        "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503230241"
+      },
+      {
+        "text": "Please reload this page",
+        "href": ""
+      }
+    ]
+  }
+]

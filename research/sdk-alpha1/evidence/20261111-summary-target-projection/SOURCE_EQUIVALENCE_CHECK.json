@@ -1,0 +1,22 @@
+{
+  "full_read_function_unchanged": true,
+  "target_join_and_guard_suffix_byte_equal": true,
+  "original_full_function_suffix_sha256": "69cc7290354eaa89007d8fd165059c2d7f8a0bac502da3037eaf474ccd8275ac",
+  "guard_suffix_sha256": "8e6eb354d39b592856056f66d0a6cdc1d31a20cf209d4cc6518839895f412ae9",
+  "existential_witnesses_added": [
+    "node1",
+    "t1",
+    "ap1",
+    "stored1",
+    "c"
+  ],
+  "existing_existential_witnesses_retained": [
+    "ct1",
+    "ct2"
+  ],
+  "stage_parameter_default": "false",
+  "only_stage_override": "Stage4=true",
+  "path_graph_full_read_consumer_retained": true,
+  "read_step_fwd_full_read_consumer_retained": true,
+  "new_database_evaluations": 0
+}

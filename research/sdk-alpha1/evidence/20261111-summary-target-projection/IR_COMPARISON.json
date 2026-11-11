@@ -1,0 +1,130 @@
+{
+  "baseline_compiler_input_key": "209f28c6b9e8d5465a3f8417573e42d6",
+  "candidate_compiler_input_key": "70fcc50b9809b694b26b77a11722cdbb",
+  "baseline_full_read": {
+    "line": 175499,
+    "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+    "header_line": 174954,
+    "header": "EVALUATE RECURSIVE LAYER:",
+    "recursive": true
+  },
+  "candidate_full_read": {
+    "line": 177233,
+    "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+    "header_line": 177232,
+    "header": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+    "recursive": false
+  },
+  "candidate_recursive_target": {
+    "line": 175226,
+    "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac",
+    "header_line": 174954,
+    "header": "EVALUATE RECURSIVE LAYER:",
+    "recursive": true
+  },
+  "candidate_fwd_flow0": {
+    "line": 176729,
+    "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+    "header_line": 174954,
+    "header": "EVALUATE RECURSIVE LAYER:",
+    "recursive": true
+  },
+  "candidate_post_closure_edge_consumer": {
+    "line": 177268,
+    "relation": "TaintReach::TaintReachFlow::Flow::Stage4::readStepFwd/5#09e21249",
+    "header_line": 177267,
+    "header": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+    "recursive": false
+  },
+  "old_scc_consumers_excluding_self_dedup": [
+    "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a"
+  ],
+  "new_scc_has_no_full_read_reference": true,
+  "only_stage4_has_target_helper": true,
+  "full_read_references_before": [
+    {
+      "line": 175499,
+      "relation_context": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+      "header_line": 174954,
+      "header": "EVALUATE RECURSIVE LAYER:",
+      "text": "  JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :- "
+    },
+    {
+      "line": 175578,
+      "relation_context": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+      "header_line": 174954,
+      "header": "EVALUATE RECURSIVE LAYER:",
+      "text": "      `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9#prev`/11"
+    },
+    {
+      "line": 176875,
+      "relation_context": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+      "header_line": 174954,
+      "header": "EVALUATE RECURSIVE LAYER:",
+      "text": "        `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9#prev_delta`/11"
+    },
+    {
+      "line": 177232,
+      "relation_context": "TaintReach::TaintReachFlow::Flow::Stage4::readStepFwd/5#09e21249",
+      "header_line": 177230,
+      "header": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+      "text": "    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`"
+    },
+    {
+      "line": 177233,
+      "relation_context": "TaintReach::TaintReachFlow::Flow::Stage4::readStepFwd/5#09e21249",
+      "header_line": 177230,
+      "header": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+      "text": "    `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`/11"
+    }
+  ],
+  "full_read_and_target_references_after": [
+    {
+      "line": 175226,
+      "relation_context": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac",
+      "header_line": 174954,
+      "header": "EVALUATE RECURSIVE LAYER:",
+      "text": "  JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac`(numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :- "
+    },
+    {
+      "line": 175307,
+      "relation_context": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac",
+      "header_line": 174954,
+      "header": "EVALUATE RECURSIVE LAYER:",
+      "text": "      `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac#prev`/6"
+    },
+    {
+      "line": 176877,
+      "relation_context": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow0/7#1a81f90a",
+      "header_line": 174954,
+      "header": "EVALUATE RECURSIVE LAYER:",
+      "text": "        `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac#prev_delta`/6"
+    },
+    {
+      "line": 177233,
+      "relation_context": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9",
+      "header_line": 177232,
+      "header": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+      "text": "  `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :- "
+    },
+    {
+      "line": 177269,
+      "relation_context": "TaintReach::TaintReachFlow::Flow::Stage4::readStepFwd/5#09e21249",
+      "header_line": 177267,
+      "header": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+      "text": "    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`"
+    },
+    {
+      "line": 177270,
+      "relation_context": "TaintReach::TaintReachFlow::Flow::Stage4::readStepFwd/5#09e21249",
+      "header_line": 177267,
+      "header": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+      "text": "    `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`/11"
+    }
+  ],
+  "raw_ra_sha256": {
+    "baseline": "8f1b5041566436d0bcf105fee6b6dc62cbcc14134cb2c8a29894239389eeced4",
+    "candidate": "53080bf67a287135e9fc88a08980bdd8fd60efffbd46188c44dc075916623e55"
+  },
+  "interpretation": "Original11-column read relation is outside the Stage4 forward recursive layer; six-column target relation is inside it. Full relation and post-closure edge projection remain present. No database evaluation was performed."
+}

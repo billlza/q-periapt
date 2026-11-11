@@ -1,0 +1,46 @@
+{
+  "kind": "qperiapt.single_full_summary_ra_export",
+  "command": [
+    "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tool/codeql/codeql",
+    "query",
+    "compile",
+    "--precompile",
+    "--dynamic-join-order-mode=all",
+    "--no-default-compilation-cache",
+    "--common-caches=/workspace/scratch/4b61438fb07b/summary-plan-feasibility/cache",
+    "--threads=2",
+    "--ram=3072",
+    "-J-Xmx3072M",
+    "--dump-ra",
+    "--format=text",
+    "--logdir=/workspace/scratch/4b61438fb07b/summary-plan-feasibility/logs",
+    "--",
+    "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStats.ql"
+  ],
+  "environment": {
+    "HOME": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/home",
+    "TMPDIR": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tmp",
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "timeout_seconds": 180,
+  "maximum_output_bytes": 134217728,
+  "source_sha256": "7278d53373afb4f8069122e287c9c036a959ba0d167c152d67cd0de885881d67",
+  "query_compilation_executed": true,
+  "query_evaluation_executed": false,
+  "returncode": 0,
+  "stopped": null,
+  "seconds": 77.93596927100043,
+  "files": {
+    "summary-all.ra": {
+      "bytes": 10606899,
+      "sha256": "8f1b5041566436d0bcf105fee6b6dc62cbcc14134cb2c8a29894239389eeced4"
+    },
+    "compile.stderr": {
+      "bytes": 321,
+      "sha256": "01782d82c66334bc5e820081a9aa540d26574bf948b2e161bb08abcb699d01de"
+    }
+  }
+}

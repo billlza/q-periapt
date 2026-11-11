@@ -1,0 +1,83 @@
+{
+  "commit": "1b47a1931cab2a944902316619cdcf479bd64ab0",
+  "workflow_run": 42822797947,
+  "files": {
+    "README.md": {
+      "repository_path": "research/sdk-alpha1/evidence/20261111-codeql-summary-resources/README.md",
+      "bytes": 10536,
+      "sha256": "566e3c8c920847019b6a2bcd1d560e48ba2ec9425995cb3643dd2b06f143102d",
+      "git_blob": "afc3b507bfc23b62b210c300603c12d28bfa921f",
+      "url": "https://github.com/billlza/q-periapt/blob/1b47a1931cab2a944902316619cdcf479bd64ab0/research/sdk-alpha1/evidence/20261111-codeql-summary-resources/README.md"
+    },
+    "EVALUATOR_PHASES.json": {
+      "repository_path": "research/sdk-alpha1/evidence/20261111-codeql-summary-resources/EVALUATOR_PHASES.json",
+      "bytes": 128370,
+      "sha256": "17a467a6266f0052531b9a15860574079a14586f573ee511df4bf446e9b528be",
+      "git_blob": "bcb7bf8bd2d888c463cc29a992c5dc607d3870a9",
+      "url": "https://github.com/billlza/q-periapt/blob/1b47a1931cab2a944902316619cdcf479bd64ab0/research/sdk-alpha1/evidence/20261111-codeql-summary-resources/EVALUATOR_PHASES.json"
+    },
+    "RESOURCE_WINDOWS.json": {
+      "repository_path": "research/sdk-alpha1/evidence/20261111-codeql-summary-resources/RESOURCE_WINDOWS.json",
+      "bytes": 8580,
+      "sha256": "a3abebd371405ce28acf917a7da92f000d4a5522e68b3d9748d86bf5bf02cd4b",
+      "git_blob": "d9bd7aa6ac8e37a4aef633ff9068a061a2edaa30",
+      "url": "https://github.com/billlza/q-periapt/blob/1b47a1931cab2a944902316619cdcf479bd64ab0/research/sdk-alpha1/evidence/20261111-codeql-summary-resources/RESOURCE_WINDOWS.json"
+    },
+    "SEMANTICS_RECHECK.json": {
+      "repository_path": "research/sdk-alpha1/evidence/20261111-codeql-summary-resources/SEMANTICS_RECHECK.json",
+      "bytes": 46372,
+      "sha256": "b7b7ed4d7262cc67ffbf49d33ea771a7d0567e395cd085c119ad1ff19176834e",
+      "git_blob": "6a01fac6cf1c8753dcec41b78fa3611c20f82c63",
+      "url": "https://github.com/billlza/q-periapt/blob/1b47a1931cab2a944902316619cdcf479bd64ab0/research/sdk-alpha1/evidence/20261111-codeql-summary-resources/SEMANTICS_RECHECK.json"
+    },
+    "reproduce_evaluator_phases.py": {
+      "repository_path": "research/sdk-alpha1/evidence/20261111-codeql-summary-resources/reproduce_evaluator_phases.py",
+      "bytes": 4730,
+      "sha256": "6ead9a1fa679b7975b38bdac0d6210f7c4a5093bf1318ee818aed042278ec870",
+      "git_blob": "2d3dd591e6a9216b8d1f87a73bab7dc7f7c07c9d",
+      "url": "https://github.com/billlza/q-periapt/blob/1b47a1931cab2a944902316619cdcf479bd64ab0/research/sdk-alpha1/evidence/20261111-codeql-summary-resources/reproduce_evaluator_phases.py"
+    },
+    "heap-1536/RESULT.json": {
+      "repository_path": "research/sdk-alpha1/evidence/20261111-codeql-summary-resources/heap-1536/RESULT.json",
+      "bytes": 51861,
+      "sha256": "ca79a847056d5cbe10204ebb6a3579ca09c5bd7adc258056a63ed88cec5ff161",
+      "git_blob": "1fb6a7235cb4c7c8fba31b6246b28df122ce978d",
+      "url": "https://github.com/billlza/q-periapt/blob/1b47a1931cab2a944902316619cdcf479bd64ab0/research/sdk-alpha1/evidence/20261111-codeql-summary-resources/heap-1536/RESULT.json"
+    },
+    "heap-1536/EVALUATOR_OBSERVATIONS.json": {
+      "repository_path": "research/sdk-alpha1/evidence/20261111-codeql-summary-resources/heap-1536/EVALUATOR_OBSERVATIONS.json",
+      "bytes": 686,
+      "sha256": "0048a2d1c635383eff55c8c539b70c279dd10382c6ceee1fc58353134ce7f456",
+      "git_blob": "a1d46d63175de2f84fc1b57d09a3c4f923356db0",
+      "url": "https://github.com/billlza/q-periapt/blob/1b47a1931cab2a944902316619cdcf479bd64ab0/research/sdk-alpha1/evidence/20261111-codeql-summary-resources/heap-1536/EVALUATOR_OBSERVATIONS.json"
+    },
+    "heap-1536/PROCESS_RESOURCES.json": {
+      "repository_path": "research/sdk-alpha1/evidence/20261111-codeql-summary-resources/heap-1536/PROCESS_RESOURCES.json",
+      "bytes": 1729,
+      "sha256": "e3d64a4c3c1a364807f203585ddcffafef9e974914da192612c625b9fdc85013",
+      "git_blob": "d5f7a2378f596ee1216daf2c934421b41bf2b188",
+      "url": "https://github.com/billlza/q-periapt/blob/1b47a1931cab2a944902316619cdcf479bd64ab0/research/sdk-alpha1/evidence/20261111-codeql-summary-resources/heap-1536/PROCESS_RESOURCES.json"
+    },
+    "heap-2048/RESULT.json": {
+      "repository_path": "research/sdk-alpha1/evidence/20261111-codeql-summary-resources/heap-2048/RESULT.json",
+      "bytes": 51264,
+      "sha256": "6d8856ace4cc4475f63e84c985c9f405bf99fee04ffc702e49dec141c5c40eb1",
+      "git_blob": "504b5dbfb4cbf958934c33d7dc16023feba83005",
+      "url": "https://github.com/billlza/q-periapt/blob/1b47a1931cab2a944902316619cdcf479bd64ab0/research/sdk-alpha1/evidence/20261111-codeql-summary-resources/heap-2048/RESULT.json"
+    },
+    "heap-2048/EVALUATOR_OBSERVATIONS.json": {
+      "repository_path": "research/sdk-alpha1/evidence/20261111-codeql-summary-resources/heap-2048/EVALUATOR_OBSERVATIONS.json",
+      "bytes": 686,
+      "sha256": "f358e1a9e8c694d87d601da821db44d41bb101eaa65fd32be55a97ff21b98ce5",
+      "git_blob": "c70853dc9f5b40f1d31ace918a0e3678ca250a68",
+      "url": "https://github.com/billlza/q-periapt/blob/1b47a1931cab2a944902316619cdcf479bd64ab0/research/sdk-alpha1/evidence/20261111-codeql-summary-resources/heap-2048/EVALUATOR_OBSERVATIONS.json"
+    },
+    "heap-2048/PROCESS_RESOURCES.json": {
+      "repository_path": "research/sdk-alpha1/evidence/20261111-codeql-summary-resources/heap-2048/PROCESS_RESOURCES.json",
+      "bytes": 1730,
+      "sha256": "2b44cd3f33539f61e6e93eb19dde9dda97406d2fd0c7e3e15b8ab20e8c04c3c7",
+      "git_blob": "9a0e554cdad7898f6a855d011b17de0c30a1cbfd",
+      "url": "https://github.com/billlza/q-periapt/blob/1b47a1931cab2a944902316619cdcf479bd64ab0/research/sdk-alpha1/evidence/20261111-codeql-summary-resources/heap-2048/PROCESS_RESOURCES.json"
+    }
+  }
+}

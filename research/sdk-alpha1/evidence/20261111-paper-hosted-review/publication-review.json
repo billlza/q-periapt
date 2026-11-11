@@ -1,0 +1,210 @@
+{
+  "schema": 1,
+  "prepared_utc": "2026-11-11T10:13:57.326619+00:00",
+  "scope": "Evidence-only packaging; no new tests and no candidate-head changes.",
+  "source_html": {
+    "file_omitted": "codeql-check.html",
+    "original_bytes": 306886,
+    "original_sha256": "dd7d1f6825210b6f0d48b3e05893054d63af161e8eed483164a6ab5ef37d2591",
+    "signed_websocket_attributes_omitted": 11,
+    "annotation_elements": 14,
+    "raw_annotation_blocks_sha256": "cfaa8bd88fb253ef021b9242bf314f754dbf126b9327f6e591a1dbf3f28eaba6",
+    "raw_annotation_blocks_bytes": 115053,
+    "transient_ui_nonce_attributes_removed": 14,
+    "published_excerpt": "annotations.public.html.gz",
+    "excerpt_decoded_sha256": "d040e5e32b8935c6cfaa06c253cdaf9cd847b22ffdf2e301b0b1347f2b34ef4a",
+    "excerpt_decoded_bytes": 114679,
+    "excerpt_gzip_sha256": "987bea6a4c56f8b86743bb9e9a5d65daaa666c4112d753954043b66c06c3524d",
+    "excerpt_gzip_bytes": 5616,
+    "method": "Extract the 14 complete check-annotation div elements using HTML nesting; remove only data-nonce attributes; wrap in a minimal UTF-8 HTML document. All annotation text and source links are preserved."
+  },
+  "omitted_recoverable_inputs": [
+    {
+      "path": "checkout-commit.json",
+      "reason": "Large immutable diff; exact commit/tree/parents retained in checkout-identity.json and retrievable through the fixed API URL."
+    },
+    {
+      "path": "matched-path-controls/",
+      "reason": "Exact source and public-manifest copies used for the prior local test; fixed commit paths and SHA-256 values retained in matched-path-controls.json."
+    },
+    {
+      "path": "rust-job-130438751368.log",
+      "reason": "Exact same decoded bytes retained in rust-job-130438751368.log.gz."
+    }
+  ],
+  "publication_scan": {
+    "files": [
+      {
+        "file": "README.md",
+        "decoded_sha256": "3e71c49fe5d322caf630f5700fde3b28a4b95115701b2f46484ee6d073c78c36",
+        "pattern_counts": {
+          "github_token": 0,
+          "private_key": 0,
+          "signed_url": 0,
+          "signed_socket_channel": 0,
+          "ui_nonce": 0
+        },
+        "authorization_headers": 0,
+        "authorization_headers_already_github_redacted": true
+      },
+      {
+        "file": "REVIEW.json",
+        "decoded_sha256": "62a44311d9436e9df847cdf0428585a376449c011ba18962aac403f6c45aa3a4",
+        "pattern_counts": {
+          "github_token": 0,
+          "private_key": 0,
+          "signed_url": 0,
+          "signed_socket_channel": 0,
+          "ui_nonce": 0
+        },
+        "authorization_headers": 0,
+        "authorization_headers_already_github_redacted": true
+      },
+      {
+        "file": "annotations.json",
+        "decoded_sha256": "1e81d41a36786c475a804f6c1d0d76e819718218cca0be7c4a3b2e8b63f3d1e7",
+        "pattern_counts": {
+          "github_token": 0,
+          "private_key": 0,
+          "signed_url": 0,
+          "signed_socket_channel": 0,
+          "ui_nonce": 0
+        },
+        "authorization_headers": 0,
+        "authorization_headers_already_github_redacted": true
+      },
+      {
+        "file": "annotations.public.html.gz",
+        "decoded_sha256": "d040e5e32b8935c6cfaa06c253cdaf9cd847b22ffdf2e301b0b1347f2b34ef4a",
+        "pattern_counts": {
+          "github_token": 0,
+          "private_key": 0,
+          "signed_url": 0,
+          "signed_socket_channel": 0,
+          "ui_nonce": 0
+        },
+        "authorization_headers": 0,
+        "authorization_headers_already_github_redacted": true
+      },
+      {
+        "file": "run.json",
+        "decoded_sha256": "a315ef67c5d131bb513d1d39aa56047dfb5d6d5aca3bec62f3a7e7ef1ca1a490",
+        "pattern_counts": {
+          "github_token": 0,
+          "private_key": 0,
+          "signed_url": 0,
+          "signed_socket_channel": 0,
+          "ui_nonce": 0
+        },
+        "authorization_headers": 0,
+        "authorization_headers_already_github_redacted": true
+      },
+      {
+        "file": "jobs.json",
+        "decoded_sha256": "30fc97de815f985c0071a8415a7f342e43bdf11f95240cec955d4b99f030464f",
+        "pattern_counts": {
+          "github_token": 0,
+          "private_key": 0,
+          "signed_url": 0,
+          "signed_socket_channel": 0,
+          "ui_nonce": 0
+        },
+        "authorization_headers": 0,
+        "authorization_headers_already_github_redacted": true
+      },
+      {
+        "file": "checks.json",
+        "decoded_sha256": "e863249009f3024ab723f5ebfc194e7beca50f60ef3c0a4d94e53da41964f8f7",
+        "pattern_counts": {
+          "github_token": 0,
+          "private_key": 0,
+          "signed_url": 0,
+          "signed_socket_channel": 0,
+          "ui_nonce": 0
+        },
+        "authorization_headers": 0,
+        "authorization_headers_already_github_redacted": true
+      },
+      {
+        "file": "checkout-identity.json",
+        "decoded_sha256": "1ccbe9098054379840037978b8f60322aa513bd24a24ef41d7afbd9b997fd546",
+        "pattern_counts": {
+          "github_token": 0,
+          "private_key": 0,
+          "signed_url": 0,
+          "signed_socket_channel": 0,
+          "ui_nonce": 0
+        },
+        "authorization_headers": 0,
+        "authorization_headers_already_github_redacted": true
+      },
+      {
+        "file": "rust-job-130438751368.log.gz",
+        "decoded_sha256": "2a625ecdf4a20c8cb1d6cf172dbd093e16f12b5f57b3fed08bc02c5720b9604b",
+        "pattern_counts": {
+          "github_token": 0,
+          "private_key": 0,
+          "signed_url": 0,
+          "signed_socket_channel": 0,
+          "ui_nonce": 0
+        },
+        "authorization_headers": 1,
+        "authorization_headers_already_github_redacted": true
+      },
+      {
+        "file": "matched-path-controls.json",
+        "decoded_sha256": "b8c6cb97cad537f34c784e99dea30bf13e84d1b44c15a23d8a5dc31979aa0574",
+        "pattern_counts": {
+          "github_token": 0,
+          "private_key": 0,
+          "signed_url": 0,
+          "signed_socket_channel": 0,
+          "ui_nonce": 0
+        },
+        "authorization_headers": 0,
+        "authorization_headers_already_github_redacted": true
+      },
+      {
+        "file": "matched-path-controls.log",
+        "decoded_sha256": "b6a0b11a74a94e3cc726f467a4e2203d34a48ddf28728f68e00dd52e6e90628f",
+        "pattern_counts": {
+          "github_token": 0,
+          "private_key": 0,
+          "signed_url": 0,
+          "signed_socket_channel": 0,
+          "ui_nonce": 0
+        },
+        "authorization_headers": 0,
+        "authorization_headers_already_github_redacted": true
+      },
+      {
+        "file": "audit-hosted.json",
+        "decoded_sha256": "73d9df21cf0de9f32432846dcd68aac0209fa048cdb6b599cda17dba377af61c",
+        "pattern_counts": {
+          "github_token": 0,
+          "private_key": 0,
+          "signed_url": 0,
+          "signed_socket_channel": 0,
+          "ui_nonce": 0
+        },
+        "authorization_headers": 0,
+        "authorization_headers_already_github_redacted": true
+      },
+      {
+        "file": "audit-job-130438613213.log.gz",
+        "decoded_sha256": "4e8ff5ae865fb53bb73f625170476807be9cc1818a1ccf522a4c76c63040fe42",
+        "pattern_counts": {
+          "github_token": 0,
+          "private_key": 0,
+          "signed_url": 0,
+          "signed_socket_channel": 0,
+          "ui_nonce": 0
+        },
+        "authorization_headers": 1,
+        "authorization_headers_already_github_redacted": true
+      }
+    ],
+    "result": "No GitHub-token or private-key patterns, temporary signed download URLs, signed socket channels or UI nonces found in selected decoded publication files. Authorization headers in original hosted logs are already redacted by GitHub as basic ***.",
+    "qualification": "Targeted content and URL/attribute inspection of this packet; not a claim of a general-purpose secret-scanning certification."
+  }
+}

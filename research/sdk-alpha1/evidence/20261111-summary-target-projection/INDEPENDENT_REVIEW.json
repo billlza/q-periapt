@@ -1,0 +1,196 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.stage4_read_projection_independent_review",
+  "status": "source_equivalence_and_full_consumer_preservation_confirmed",
+  "review_scope": "Read-only review of the identified source patch, original and resolved candidate library bytes, original and correctly bound candidate RA, and the supplied least-fixed-point argument.",
+  "source_identity": {
+    "upstream_package": "codeql/dataflow@2.1.15",
+    "upstream_url": "https://github.com/github/codeql/blob/codeql-cli/v2.27.2/shared/dataflow/codeql/dataflow/internal/DataFlowImpl.qll",
+    "upstream_source_sha256": "48abc6ae3a155494379f139d6a71d0d9b27469824e8f2dc5a72ff39a82ce64bf",
+    "candidate_source_sha256": "c2578c2642d0e382ca5438c7d72f69415ca115b5b248778eb0b8b1398526ca06",
+    "resolved_candidate_source_equal": true,
+    "patch_sha256": "282378060da1b9929c84ae040cbd99f64b7424874a364a76d6f5f46af47ceba9",
+    "candidate_compiler_input_key": "70fcc50b9809b694b26b77a11722cdbb"
+  },
+  "projection": {
+    "target_columns": [
+      "node2",
+      "t2",
+      "ap2",
+      "stored2",
+      "cc",
+      "summaryCtx"
+    ],
+    "new_existential_witnesses": [
+      "node1",
+      "t1",
+      "ap1",
+      "stored1",
+      "c"
+    ],
+    "original_existential_witnesses_retained": [
+      "ct1",
+      "ct2"
+    ],
+    "join_and_guard_suffix_byte_equal": true,
+    "preserved_constraints": [
+      "fwdFlowRead0 membership",
+      "fwdFlowConsCand membership",
+      "typecheck(t1,ct1)",
+      "typecheck(t2,ct2)",
+      "ApNil branch: stored2.isNone() and stored1.asSome()=t2",
+      "non-Nil branch: stored2=stored1 and t2=getNodeTyp(node2)",
+      "all six target-state columns and their original types"
+    ],
+    "consumer_semantics": "The original five wildcard arguments in the fwdFlow0 read branch are existential witnesses under QL set semantics; no witness multiplicity is consumed by that branch."
+  },
+  "consumer_preservation": {
+    "full_read_definition_byte_equal": true,
+    "full_read_definition_sha256": "da89284a9b6879715e3d734b9f478beeb9c62ce3f89e09e4bb1b18670fa703dd",
+    "readStepFwd_definition_byte_equal": true,
+    "readStepFwd_definition_sha256": "57120d19094fb0b186c1ee5d75bd744d5869a48a14f475c2576e47691b1190e4",
+    "path_graph_read_call_unchanged": true,
+    "path_graph_read_call": "fwdFlowRead(mid, t0, ap0, stored0, _, node, t, ap, stored, cc, summaryCtx)",
+    "original_direct_full_read_calls": [
+      {
+        "line": 619,
+        "text": "fwdFlowRead(_, _, _, _, _, node, t, ap, stored, cc, summaryCtx) and"
+      },
+      {
+        "line": 1271,
+        "text": "fwdFlowRead(n1, _, ap1, _, c, n2, _, ap2, _, _, _)"
+      },
+      {
+        "line": 2299,
+        "text": "fwdFlowRead(mid, t0, ap0, stored0, _, node, t, ap, stored, cc, summaryCtx) and"
+      }
+    ],
+    "candidate_direct_full_read_calls": [
+      {
+        "line": 625,
+        "text": "fwdFlowRead(_, _, _, _, _, node, t, ap, stored, cc, summaryCtx)"
+      },
+      {
+        "line": 1302,
+        "text": "fwdFlowRead(n1, _, ap1, _, c, n2, _, ap2, _, _, _)"
+      },
+      {
+        "line": 2330,
+        "text": "fwdFlowRead(mid, t0, ap0, stored0, _, node, t, ap, stored, cc, summaryCtx) and"
+      }
+    ],
+    "stage_parameter_default": "false",
+    "only_enabled_stage": "Stage4"
+  },
+  "least_fixed_point_review": {
+    "result": "The supplied Phi/Kleene argument covers the concrete transformation; no missing source constraint or semantic dependency was identified.",
+    "equations": [
+      "Original: F(X,R)=(G(X,P(R)),H(X))",
+      "Candidate: Fprime(X,T)=(G(X,T),P(H(X)))",
+      "Phi(X,R)=(X,P(R))",
+      "Phi(F(X,R))=Fprime(Phi(X,R))"
+    ],
+    "conditions_checked": [
+      "P retains the exact six columns consumed by fwdFlow0.",
+      "H is the unchanged complete guarded read join.",
+      "The original compiled forward recursive component consumes R only through P, apart from seminaive self-deduplication.",
+      "The Stage4 selection is a constant module parameter; the type-membership branch does not introduce recursive negation.",
+      "Projection maps bottom to bottom and commutes with increasing unions under set semantics.",
+      "The full R=H(X*) definition and downstream readStepFwd/PathGraph consumers remain available after the forward closure."
+    ],
+    "conclusion": "The candidate forward closure equals the projected original least fixed point; reconstructing unchanged H at that closure preserves the original full read relation for downstream consumers.",
+    "physical_plan_distinction": "Moving the full relation out of the recursive layer is separately confirmed in the correctly bound RA. This review makes no workload runtime claim."
+  },
+  "ra_identity_and_references": {
+    "summary-all.ra": {
+      "bytes": 10606899,
+      "sha256": "8f1b5041566436d0bcf105fee6b6dc62cbcc14134cb2c8a29894239389eeced4",
+      "read_references": [
+        {
+          "line": 175499,
+          "layer_header_line": 174954,
+          "layer_header": "EVALUATE RECURSIVE LAYER:",
+          "text": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :-"
+        },
+        {
+          "line": 175578,
+          "layer_header_line": 174954,
+          "layer_header": "EVALUATE RECURSIVE LAYER:",
+          "text": "`TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9#prev`/11"
+        },
+        {
+          "line": 176875,
+          "layer_header_line": 174954,
+          "layer_header": "EVALUATE RECURSIVE LAYER:",
+          "text": "`TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9#prev_delta`/11"
+        },
+        {
+          "line": 177232,
+          "layer_header_line": 177230,
+          "layer_header": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+          "text": "SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`"
+        },
+        {
+          "line": 177233,
+          "layer_header_line": 177230,
+          "layer_header": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+          "text": "`TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`/11"
+        }
+      ],
+      "target_helper_stages": []
+    },
+    "candidate-bound-all.ra": {
+      "bytes": 10608562,
+      "sha256": "53080bf67a287135e9fc88a08980bdd8fd60efffbd46188c44dc075916623e55",
+      "read_references": [
+        {
+          "line": 175226,
+          "layer_header_line": 174954,
+          "layer_header": "EVALUATE RECURSIVE LAYER:",
+          "text": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac`(numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :-"
+        },
+        {
+          "line": 175307,
+          "layer_header_line": 174954,
+          "layer_header": "EVALUATE RECURSIVE LAYER:",
+          "text": "`TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac#prev`/6"
+        },
+        {
+          "line": 176877,
+          "layer_header_line": 174954,
+          "layer_header": "EVALUATE RECURSIVE LAYER:",
+          "text": "`TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac#prev_delta`/6"
+        },
+        {
+          "line": 177233,
+          "layer_header_line": 177232,
+          "layer_header": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+          "text": "`TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :-"
+        },
+        {
+          "line": 177269,
+          "layer_header_line": 177267,
+          "layer_header": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+          "text": "SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`"
+        },
+        {
+          "line": 177270,
+          "layer_header_line": 177267,
+          "layer_header": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+          "text": "`TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`/11"
+        }
+      ],
+      "target_helper_stages": [
+        "4"
+      ]
+    }
+  },
+  "equivalence_document_sha256": "d31fae61ed475f08d53acb2e85511b076ada7464b19c62f99c45458e01bde84b",
+  "actions": {
+    "source_files_modified": false,
+    "candidate_compilations_started": 0,
+    "database_evaluations_started": 0,
+    "tests_or_benchmarks_started": 0
+  },
+  "material_source_findings": []
+}

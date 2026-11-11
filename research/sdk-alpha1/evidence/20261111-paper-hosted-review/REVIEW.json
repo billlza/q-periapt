@@ -1,0 +1,870 @@
+{
+  "schema": 1,
+  "reviewed_utc": "2026-11-11T10:05:45.955411+00:00",
+  "repository": "billlza/q-periapt",
+  "head_commit": "87fee58926f8b849a142018efb6d7502cbad673f",
+  "head_tree": "865d6aafb8e6a2adf8b28c5076cedd9cbc520863",
+  "run_id": 42995542891,
+  "run_url": "https://github.com/billlza/q-periapt/actions/runs/42995542891",
+  "checkout_commit": "5e269d2fb399890b5d37944541031c9670b2e90d",
+  "checkout_parents": [
+    "48d0fb9a5651b50494ec33d025dda52bd2ff5eae",
+    "87fee58926f8b849a142018efb6d7502cbad673f"
+  ],
+  "checkout_tree": "865d6aafb8e6a2adf8b28c5076cedd9cbc520863",
+  "checkout_note": "Hosted PR merge checkout and head have identical trees; metadata differs. Both before/after checkout gates passed on5e269d2f.",
+  "rust_job": {
+    "id": 130438751368,
+    "status": "completed",
+    "conclusion": "success",
+    "tracked_rust_sources": 174,
+    "current_rust_sources": 106,
+    "exact_pinned_archival_sources": 68,
+    "archival_semantic_context_diagnostics": 68,
+    "archival_unresolved_macros": 615,
+    "current_unresolved_macros": 0,
+    "current_unresolved_basis": "Passing gate rejects every unresolved-macro detail outside exact archived paths (codeql_rust_quality.py925-927), then validates current-source metrics. The raw log retains all615 archive details.",
+    "source_macro_calls": 6155,
+    "source_format_args": 212,
+    "standard_queries_completed": 38,
+    "query_categories": {
+      "security": 18,
+      "diagnostics": 10,
+      "summary": 8,
+      "telemetry": 2
+    },
+    "queries": [
+      {
+        "ordinal": 1,
+        "duration": "2.6s",
+        "result": "codeql/rust-queries/queries/diagnostics/ExtractionWarnings.bqrs"
+      },
+      {
+        "ordinal": 2,
+        "duration": "6.2s",
+        "result": "codeql/rust-queries/queries/diagnostics/ExtractionErrors.bqrs"
+      },
+      {
+        "ordinal": 3,
+        "duration": "6.1s",
+        "result": "codeql/rust-queries/queries/diagnostics/UnextractedElements.bqrs"
+      },
+      {
+        "ordinal": 4,
+        "duration": "11s",
+        "result": "codeql/rust-queries/queries/diagnostics/ExtractedFiles.bqrs"
+      },
+      {
+        "ordinal": 5,
+        "duration": "28.1s",
+        "result": "codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.bqrs"
+      },
+      {
+        "ordinal": 6,
+        "duration": "28.1s",
+        "result": "codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs"
+      },
+      {
+        "ordinal": 7,
+        "duration": "43.9s",
+        "result": "codeql/rust-queries/queries/summary/LinesOfCode.bqrs"
+      },
+      {
+        "ordinal": 8,
+        "duration": "43.9s",
+        "result": "codeql/rust-queries/queries/summary/LinesOfUserCode.bqrs"
+      },
+      {
+        "ordinal": 9,
+        "duration": "44.8s",
+        "result": "codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.bqrs"
+      },
+      {
+        "ordinal": 10,
+        "duration": "1m16s",
+        "result": "codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.bqrs"
+      },
+      {
+        "ordinal": 11,
+        "duration": "1m29s",
+        "result": "codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.bqrs"
+      },
+      {
+        "ordinal": 12,
+        "duration": "1m26s",
+        "result": "codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.bqrs"
+      },
+      {
+        "ordinal": 13,
+        "duration": "1m48s",
+        "result": "codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs"
+      },
+      {
+        "ordinal": 14,
+        "duration": "2m14s",
+        "result": "codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.bqrs"
+      },
+      {
+        "ordinal": 15,
+        "duration": "2m16s",
+        "result": "codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.bqrs"
+      },
+      {
+        "ordinal": 16,
+        "duration": "2m15s",
+        "result": "codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.bqrs"
+      },
+      {
+        "ordinal": 17,
+        "duration": "2m21s",
+        "result": "codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.bqrs"
+      },
+      {
+        "ordinal": 18,
+        "duration": "2m18s",
+        "result": "codeql/rust-queries/queries/security/CWE-020/RegexInjection.bqrs"
+      },
+      {
+        "ordinal": 19,
+        "duration": "2m18s",
+        "result": "codeql/rust-queries/queries/security/CWE-079/XSS.bqrs"
+      },
+      {
+        "ordinal": 20,
+        "duration": "2m19s",
+        "result": "codeql/rust-queries/queries/security/CWE-089/SqlInjection.bqrs"
+      },
+      {
+        "ordinal": 21,
+        "duration": "2m19s",
+        "result": "codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.bqrs"
+      },
+      {
+        "ordinal": 22,
+        "duration": "2m20s",
+        "result": "codeql/rust-queries/queries/security/CWE-319/UseOfHttp.bqrs"
+      },
+      {
+        "ordinal": 23,
+        "duration": "2m21s",
+        "result": "codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs"
+      },
+      {
+        "ordinal": 24,
+        "duration": "2m21s",
+        "result": "codeql/rust-queries/queries/security/CWE-614/InsecureCookie.bqrs"
+      },
+      {
+        "ordinal": 25,
+        "duration": "2m21s",
+        "result": "codeql/rust-queries/queries/security/CWE-117/LogInjection.bqrs"
+      },
+      {
+        "ordinal": 26,
+        "duration": "2m22s",
+        "result": "codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.bqrs"
+      },
+      {
+        "ordinal": 27,
+        "duration": "2m23s",
+        "result": "codeql/rust-queries/queries/security/CWE-022/TaintedPath.bqrs"
+      },
+      {
+        "ordinal": 28,
+        "duration": "2m23s",
+        "result": "codeql/rust-queries/queries/security/CWE-312/CleartextLogging.bqrs"
+      },
+      {
+        "ordinal": 29,
+        "duration": "2m24s",
+        "result": "codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.bqrs"
+      },
+      {
+        "ordinal": 30,
+        "duration": "2m24s",
+        "result": "codeql/rust-queries/queries/security/CWE-918/RequestForgery.bqrs"
+      },
+      {
+        "ordinal": 31,
+        "duration": "2m25s",
+        "result": "codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.bqrs"
+      },
+      {
+        "ordinal": 32,
+        "duration": "2m25s",
+        "result": "codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.bqrs"
+      },
+      {
+        "ordinal": 33,
+        "duration": "2m24s",
+        "result": "codeql/rust-queries/queries/summary/SummaryStatsReduced.bqrs"
+      },
+      {
+        "ordinal": 34,
+        "duration": "2m24s",
+        "result": "codeql/rust-queries/queries/telemetry/ExtractorInformation.bqrs"
+      },
+      {
+        "ordinal": 35,
+        "duration": "2m24s",
+        "result": "codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.bqrs"
+      },
+      {
+        "ordinal": 36,
+        "duration": "2m29s",
+        "result": "codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs"
+      },
+      {
+        "ordinal": 37,
+        "duration": "2m29s",
+        "result": "codeql/rust-queries/queries/summary/QuerySinkCounts.bqrs"
+      },
+      {
+        "ordinal": 38,
+        "duration": "2m34s",
+        "result": "codeql/rust-queries/queries/summary/SummaryStats.bqrs"
+      }
+    ],
+    "sarif_upload": "success",
+    "important_log_lines": [
+      "2026-11-11T09:37:38.9783162Z CODEQL_RUST_CHECKOUT_PASS commit=5e269d2fb399890b5d37944541031c9670b2e90d",
+      "2026-11-11T09:42:38.6515844Z [38/38 eval 2m34s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs.",
+      "2026-11-11T09:42:42.8430006Z CODEQL_RUST_CHECKOUT_PASS commit=5e269d2fb399890b5d37944541031c9670b2e90d",
+      "2026-11-11T09:46:47.2268791Z CODEQL_RUST_DATABASE_QUALITY_PASS tracked_rs=174 current_rs=106 pinned_archive_rs=68 archive_semantics_warnings=68 archive_unresolved_macros=615 source_macro_calls=6155 source_format_args=212",
+      "2026-11-11T09:46:48.8942945Z Successfully uploaded results"
+    ],
+    "log_sha256": "2a625ecdf4a20c8cb1d6cf172dbd093e16f12b5f57b3fed08bc02c5720b9604b",
+    "log_bytes": 345979,
+    "log_gzip_sha256": "a54b61560dcfd7c4ae590b9cc41dcd678221c9b91eeb06618399f1b9d3eba66e",
+    "log_gzip_bytes": 45702,
+    "raw_log_source": "GitHub fetch_workflow_job_logs structuredContent.content; saved decoded log exactly, including final newline."
+  },
+  "aggregate_check": {
+    "id": 130443254661,
+    "conclusion": "failure",
+    "missing_configuration": "/language:swift",
+    "swift_job_id": 130438751730,
+    "swift_status_at_check": "queued",
+    "annotations_count": 14,
+    "critical": 9,
+    "high": 5,
+    "note": "Aggregate failure remains recorded. Rust analysis and quality-gated upload have succeeded; Swift configuration is pending its queued job."
+  },
+  "annotation_capture": {
+    "url": "https://github.com/billlza/q-periapt/runs/130443254661",
+    "html_sha256": "dd7d1f6825210b6f0d48b3e05893054d63af161e8eed483164a6ab5ef37d2591",
+    "html_bytes": 306886,
+    "count": 14,
+    "limitation": "Public HTML exposes alert title,severity,file,line and message; related-location popups report loading errors. Source-level tracing used exact current commit bytes, not invented hidden SARIF flows.",
+    "original_html_included_in_publication": false,
+    "original_html_omission_reason": "The full public page includes transient signed websocket channels and UI request nonces outside the review evidence.",
+    "public_excerpt": "annotations.public.html.gz",
+    "public_excerpt_gzip_sha256": "987bea6a4c56f8b86743bb9e9a5d65daaa666c4112d753954043b66c06c3524d",
+    "public_excerpt_decoded_sha256": "d040e5e32b8935c6cfaa06c253cdaf9cd847b22ffdf2e301b0b1347f2b34ef4a",
+    "public_excerpt_description": "All 14 complete annotation div elements, preserving warning text and source links; 14 transient data-nonce UI attributes removed. No annotation text or link was changed.",
+    "original_annotations_json_sha256": "5dfc03c136df5584e08d5ddeff519f63deaeee968c284fa2c32a46b1fa340d88",
+    "annotations_json_publication_change": "Removed fragments fields that contained only UI data-nonce and display attributes. All alert locations, titles, severities, messages and links are unchanged."
+  },
+  "annotation_groups": {
+    "public_trace_auditor_cli_paths": 4,
+    "test_only_crash_effect_path": 1,
+    "public_hkdf_domain_salt": 1,
+    "public_synthetic_kat": 8
+  },
+  "annotations": [
+    {
+      "index": 1,
+      "location": "Check failure on line 66 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+      "title": "Uncontrolled data used in path expression",
+      "severity": "High",
+      "message": "This path depends on a user-provided value Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+      "links": [
+        {
+          "text": "Check failure on line 66 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502903747"
+        },
+        {
+          "text": "",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502903747"
+        },
+        {
+          "text": "Please reload this page",
+          "href": ""
+        }
+      ],
+      "path": "paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+      "line": 66,
+      "assessment": {
+        "classification": "CLI-selected local inputs with fixed corpus-path admission",
+        "reason": "The evidence root and compact-results path are explicit positional CLI arguments. Manifest members supply metadata only: all filesystem reads driven by manifest processing iterate the fixed126-name EXPECTED_MANIFEST_PATHS. Canonical relative paths, symlink rejection and file descriptor identity checks are present. Existing10 input-boundary controls passed on exact87fee sources in an isolated scratch copy.",
+        "source_ranges": [
+          "64-79",
+          "100-135",
+          "313-340"
+        ],
+        "counterexample_status": "No unauthorized path-selection counterexample identified in the inspected entrypoint. This is a local public-evidence reader; no network or privileged-service caller was established.",
+        "validation": "matched-path-controls.json"
+      },
+      "group": "public_trace_auditor_cli_paths"
+    },
+    {
+      "index": 2,
+      "location": "Check failure on line 66 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+      "title": "Uncontrolled data used in path expression",
+      "severity": "High",
+      "message": "This path depends on a user-provided value Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+      "links": [
+        {
+          "text": "Check failure on line 66 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502903922"
+        },
+        {
+          "text": "",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502903922"
+        },
+        {
+          "text": "Please reload this page",
+          "href": ""
+        }
+      ],
+      "path": "paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+      "line": 66,
+      "assessment": {
+        "classification": "CLI-selected local inputs with fixed corpus-path admission",
+        "reason": "The evidence root and compact-results path are explicit positional CLI arguments. Manifest members supply metadata only: all filesystem reads driven by manifest processing iterate the fixed126-name EXPECTED_MANIFEST_PATHS. Canonical relative paths, symlink rejection and file descriptor identity checks are present. Existing10 input-boundary controls passed on exact87fee sources in an isolated scratch copy.",
+        "source_ranges": [
+          "64-79",
+          "100-135",
+          "313-340"
+        ],
+        "counterexample_status": "No unauthorized path-selection counterexample identified in the inspected entrypoint. This is a local public-evidence reader; no network or privileged-service caller was established.",
+        "validation": "matched-path-controls.json"
+      },
+      "group": "public_trace_auditor_cli_paths"
+    },
+    {
+      "index": 3,
+      "location": "Check failure on line 67 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+      "title": "Uncontrolled data used in path expression",
+      "severity": "High",
+      "message": "This path depends on a user-provided value Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+      "links": [
+        {
+          "text": "Check failure on line 67 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502904141"
+        },
+        {
+          "text": "",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502904141"
+        },
+        {
+          "text": "Please reload this page",
+          "href": ""
+        }
+      ],
+      "path": "paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+      "line": 67,
+      "assessment": {
+        "classification": "CLI-selected local inputs with fixed corpus-path admission",
+        "reason": "The evidence root and compact-results path are explicit positional CLI arguments. Manifest members supply metadata only: all filesystem reads driven by manifest processing iterate the fixed126-name EXPECTED_MANIFEST_PATHS. Canonical relative paths, symlink rejection and file descriptor identity checks are present. Existing10 input-boundary controls passed on exact87fee sources in an isolated scratch copy.",
+        "source_ranges": [
+          "64-79",
+          "100-135",
+          "313-340"
+        ],
+        "counterexample_status": "No unauthorized path-selection counterexample identified in the inspected entrypoint. This is a local public-evidence reader; no network or privileged-service caller was established.",
+        "validation": "matched-path-controls.json"
+      },
+      "group": "public_trace_auditor_cli_paths"
+    },
+    {
+      "index": 4,
+      "location": "Check failure on line 71 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+      "title": "Uncontrolled data used in path expression",
+      "severity": "High",
+      "message": "This path depends on a user-provided value Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+      "links": [
+        {
+          "text": "Check failure on line 71 in paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502904358"
+        },
+        {
+          "text": "",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103502904358"
+        },
+        {
+          "text": "Please reload this page",
+          "href": ""
+        }
+      ],
+      "path": "paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+      "line": 71,
+      "assessment": {
+        "classification": "CLI-selected local inputs with fixed corpus-path admission",
+        "reason": "The evidence root and compact-results path are explicit positional CLI arguments. Manifest members supply metadata only: all filesystem reads driven by manifest processing iterate the fixed126-name EXPECTED_MANIFEST_PATHS. Canonical relative paths, symlink rejection and file descriptor identity checks are present. Existing10 input-boundary controls passed on exact87fee sources in an isolated scratch copy.",
+        "source_ranges": [
+          "64-79",
+          "100-135",
+          "313-340"
+        ],
+        "counterexample_status": "No unauthorized path-selection counterexample identified in the inspected entrypoint. This is a local public-evidence reader; no network or privileged-service caller was established.",
+        "validation": "matched-path-controls.json"
+      },
+      "group": "public_trace_auditor_cli_paths"
+    },
+    {
+      "index": 5,
+      "location": "Check failure on line 306 in paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey.rs",
+      "title": "Uncontrolled data used in path expression",
+      "severity": "High",
+      "message": "This path depends on a user-provided value Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+      "links": [
+        {
+          "text": "Check failure on line 306 in paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey.rs",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228018"
+        },
+        {
+          "text": "",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228018"
+        },
+        {
+          "text": "Please reload this page",
+          "href": ""
+        }
+      ],
+      "path": "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey.rs",
+      "line": 306,
+      "assessment": {
+        "classification": "Unix unit-test crash instrumentation",
+        "reason": "after_effect is gated by #[cfg(all(test,unix))], and both callsites are likewise test/unix gated. It writes public test effect bytes to an explicitly supplied test environment directory plus the fixed rekey-effect basename, using create_new. The function is absent from non-test builds.",
+        "source_ranges": [
+          "300-311",
+          "392-396",
+          "435-439"
+        ],
+        "counterexample_status": "Environment path selection exists by design in the test hook; no production callsite survives the cfg boundary."
+      },
+      "group": "test_only_crash_effect_path"
+    },
+    {
+      "index": 6,
+      "location": "Check failure on line 14 in paper/continuity/artifacts/bootstrap/entry/source/crates/q-periapt-sdk/src/purpose.rs",
+      "title": "Hard-coded cryptographic value",
+      "severity": "Critical",
+      "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+      "links": [
+        {
+          "text": "Check failure on line 14 in paper/continuity/artifacts/bootstrap/entry/source/crates/q-periapt-sdk/src/purpose.rs",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228253"
+        },
+        {
+          "text": "",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228253"
+        },
+        {
+          "text": "Please reload this page",
+          "href": ""
+        }
+      ],
+      "path": "paper/continuity/artifacts/bootstrap/entry/source/crates/q-periapt-sdk/src/purpose.rs",
+      "line": 14,
+      "assessment": {
+        "classification": "Public domain-separation constant passed as HKDF salt",
+        "reason": "SALT is the public ASCII protocol/version label QPeriapt-SDK-HKDF-SHA256-v1. derive passes SharedSecret bytes as IKM and binds suite,profile,state,trust-root,purpose,label,context,length in info. This constant is neither a hard-coded secret key nor a password secret. RFC5869 sections2.2 and3.1 define salt as non-secret and HKDF with or without random salt; a constant alone does not establish disclosed or predictable derived keys.",
+        "source_ranges": [
+          "14-15",
+          "77-86",
+          "89-122",
+          "125-149"
+        ],
+        "counterexample_status": "No key-disclosure or predictable-output counterexample established from this warning. Assessment is scoped to the actual reported constant and dataflow, not a complete protocol proof.",
+        "primary_reference": "https://www.rfc-editor.org/rfc/rfc5869.html#section-3.1"
+      },
+      "group": "public_hkdf_domain_salt"
+    },
+    {
+      "index": 7,
+      "location": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/entry/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "title": "Hard-coded cryptographic value",
+      "severity": "Critical",
+      "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+      "links": [
+        {
+          "text": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/entry/source/research/continuity-identity-candidate/src/bootstrap.rs",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228455"
+        },
+        {
+          "text": "",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228455"
+        },
+        {
+          "text": "Please reload this page",
+          "href": ""
+        }
+      ],
+      "path": "paper/continuity/artifacts/bootstrap/entry/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "line": 1969,
+      "assessment": {
+        "classification": "Public deterministic known-answer test",
+        "reason": "The two annotated derives are inside #[cfg(test)] pub(crate) mod tests and #[test] key_schedule_matches_independent_python_hmac_sha256_and_sha3_vectors. Comments explicitly identify public synthetic inputs. Fixed IKM and salt are intentional reproducible vector inputs; assertions check fixed independently computed outputs. All four archived bootstrap.rs files are byte-identical.",
+        "source_ranges": [
+          "1045-1046",
+          "1955-1987"
+        ],
+        "counterexample_status": "The fixed salt belongs to a deterministic test vector; it is not used by a non-test build through this annotated code."
+      },
+      "group": "public_synthetic_kat"
+    },
+    {
+      "index": 8,
+      "location": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/entry/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "title": "Hard-coded cryptographic value",
+      "severity": "Critical",
+      "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+      "links": [
+        {
+          "text": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/entry/source/research/continuity-identity-candidate/src/bootstrap.rs",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228690"
+        },
+        {
+          "text": "",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228690"
+        },
+        {
+          "text": "Please reload this page",
+          "href": ""
+        }
+      ],
+      "path": "paper/continuity/artifacts/bootstrap/entry/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "line": 1974,
+      "assessment": {
+        "classification": "Public deterministic known-answer test",
+        "reason": "The two annotated derives are inside #[cfg(test)] pub(crate) mod tests and #[test] key_schedule_matches_independent_python_hmac_sha256_and_sha3_vectors. Comments explicitly identify public synthetic inputs. Fixed IKM and salt are intentional reproducible vector inputs; assertions check fixed independently computed outputs. All four archived bootstrap.rs files are byte-identical.",
+        "source_ranges": [
+          "1045-1046",
+          "1955-1987"
+        ],
+        "counterexample_status": "The fixed salt belongs to a deterministic test vector; it is not used by a non-test build through this annotated code."
+      },
+      "group": "public_synthetic_kat"
+    },
+    {
+      "index": 9,
+      "location": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "title": "Hard-coded cryptographic value",
+      "severity": "Critical",
+      "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+      "links": [
+        {
+          "text": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228956"
+        },
+        {
+          "text": "",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503228956"
+        },
+        {
+          "text": "Please reload this page",
+          "href": ""
+        }
+      ],
+      "path": "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "line": 1969,
+      "assessment": {
+        "classification": "Public deterministic known-answer test",
+        "reason": "The two annotated derives are inside #[cfg(test)] pub(crate) mod tests and #[test] key_schedule_matches_independent_python_hmac_sha256_and_sha3_vectors. Comments explicitly identify public synthetic inputs. Fixed IKM and salt are intentional reproducible vector inputs; assertions check fixed independently computed outputs. All four archived bootstrap.rs files are byte-identical.",
+        "source_ranges": [
+          "1045-1046",
+          "1955-1987"
+        ],
+        "counterexample_status": "The fixed salt belongs to a deterministic test vector; it is not used by a non-test build through this annotated code."
+      },
+      "group": "public_synthetic_kat"
+    },
+    {
+      "index": 10,
+      "location": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "title": "Hard-coded cryptographic value",
+      "severity": "Critical",
+      "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+      "links": [
+        {
+          "text": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229254"
+        },
+        {
+          "text": "",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229254"
+        },
+        {
+          "text": "Please reload this page",
+          "href": ""
+        }
+      ],
+      "path": "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "line": 1974,
+      "assessment": {
+        "classification": "Public deterministic known-answer test",
+        "reason": "The two annotated derives are inside #[cfg(test)] pub(crate) mod tests and #[test] key_schedule_matches_independent_python_hmac_sha256_and_sha3_vectors. Comments explicitly identify public synthetic inputs. Fixed IKM and salt are intentional reproducible vector inputs; assertions check fixed independently computed outputs. All four archived bootstrap.rs files are byte-identical.",
+        "source_ranges": [
+          "1045-1046",
+          "1955-1987"
+        ],
+        "counterexample_status": "The fixed salt belongs to a deterministic test vector; it is not used by a non-test build through this annotated code."
+      },
+      "group": "public_synthetic_kat"
+    },
+    {
+      "index": 11,
+      "location": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "title": "Hard-coded cryptographic value",
+      "severity": "Critical",
+      "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+      "links": [
+        {
+          "text": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap.rs",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229538"
+        },
+        {
+          "text": "",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229538"
+        },
+        {
+          "text": "Please reload this page",
+          "href": ""
+        }
+      ],
+      "path": "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "line": 1969,
+      "assessment": {
+        "classification": "Public deterministic known-answer test",
+        "reason": "The two annotated derives are inside #[cfg(test)] pub(crate) mod tests and #[test] key_schedule_matches_independent_python_hmac_sha256_and_sha3_vectors. Comments explicitly identify public synthetic inputs. Fixed IKM and salt are intentional reproducible vector inputs; assertions check fixed independently computed outputs. All four archived bootstrap.rs files are byte-identical.",
+        "source_ranges": [
+          "1045-1046",
+          "1955-1987"
+        ],
+        "counterexample_status": "The fixed salt belongs to a deterministic test vector; it is not used by a non-test build through this annotated code."
+      },
+      "group": "public_synthetic_kat"
+    },
+    {
+      "index": 12,
+      "location": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "title": "Hard-coded cryptographic value",
+      "severity": "Critical",
+      "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+      "links": [
+        {
+          "text": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap.rs",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229737"
+        },
+        {
+          "text": "",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229737"
+        },
+        {
+          "text": "Please reload this page",
+          "href": ""
+        }
+      ],
+      "path": "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "line": 1974,
+      "assessment": {
+        "classification": "Public deterministic known-answer test",
+        "reason": "The two annotated derives are inside #[cfg(test)] pub(crate) mod tests and #[test] key_schedule_matches_independent_python_hmac_sha256_and_sha3_vectors. Comments explicitly identify public synthetic inputs. Fixed IKM and salt are intentional reproducible vector inputs; assertions check fixed independently computed outputs. All four archived bootstrap.rs files are byte-identical.",
+        "source_ranges": [
+          "1045-1046",
+          "1955-1987"
+        ],
+        "counterexample_status": "The fixed salt belongs to a deterministic test vector; it is not used by a non-test build through this annotated code."
+      },
+      "group": "public_synthetic_kat"
+    },
+    {
+      "index": 13,
+      "location": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "title": "Hard-coded cryptographic value",
+      "severity": "Critical",
+      "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+      "links": [
+        {
+          "text": "Check failure on line 1969 in paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap.rs",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229988"
+        },
+        {
+          "text": "",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503229988"
+        },
+        {
+          "text": "Please reload this page",
+          "href": ""
+        }
+      ],
+      "path": "paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "line": 1969,
+      "assessment": {
+        "classification": "Public deterministic known-answer test",
+        "reason": "The two annotated derives are inside #[cfg(test)] pub(crate) mod tests and #[test] key_schedule_matches_independent_python_hmac_sha256_and_sha3_vectors. Comments explicitly identify public synthetic inputs. Fixed IKM and salt are intentional reproducible vector inputs; assertions check fixed independently computed outputs. All four archived bootstrap.rs files are byte-identical.",
+        "source_ranges": [
+          "1045-1046",
+          "1955-1987"
+        ],
+        "counterexample_status": "The fixed salt belongs to a deterministic test vector; it is not used by a non-test build through this annotated code."
+      },
+      "group": "public_synthetic_kat"
+    },
+    {
+      "index": 14,
+      "location": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "title": "Hard-coded cryptographic value",
+      "severity": "Critical",
+      "message": "This hard-coded value is used as a salt Error loading related location Loading Uh oh! There was an error while loading. Please reload this page . .",
+      "links": [
+        {
+          "text": "Check failure on line 1974 in paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap.rs",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503230241"
+        },
+        {
+          "text": "",
+          "href": "/billlza/q-periapt/commit/87fee58926f8b849a142018efb6d7502cbad673f#annotation_103503230241"
+        },
+        {
+          "text": "Please reload this page",
+          "href": ""
+        }
+      ],
+      "path": "paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "line": 1974,
+      "assessment": {
+        "classification": "Public deterministic known-answer test",
+        "reason": "The two annotated derives are inside #[cfg(test)] pub(crate) mod tests and #[test] key_schedule_matches_independent_python_hmac_sha256_and_sha3_vectors. Comments explicitly identify public synthetic inputs. Fixed IKM and salt are intentional reproducible vector inputs; assertions check fixed independently computed outputs. All four archived bootstrap.rs files are byte-identical.",
+        "source_ranges": [
+          "1045-1046",
+          "1955-1987"
+        ],
+        "counterexample_status": "The fixed salt belongs to a deterministic test vector; it is not used by a non-test build through this annotated code."
+      },
+      "group": "public_synthetic_kat"
+    }
+  ],
+  "source_files": {
+    "paper/continuity/artifacts/matched-comparison/audit_matched_traces.py": {
+      "bytes": 18157,
+      "sha256": "6157726a6aa22f2bf8727da0680fc8f73293e8b129403e9ded53d2297cae658f",
+      "url": "https://github.com/billlza/q-periapt/blob/87fee58926f8b849a142018efb6d7502cbad673f/paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+      "alert_lines": [
+        66,
+        66,
+        67,
+        71
+      ]
+    },
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey.rs": {
+      "bytes": 17022,
+      "sha256": "74f8b76dad4fc7f95a5cbaf47bc7cf51ef2231f18bc1f940e68793a050483a10",
+      "url": "https://github.com/billlza/q-periapt/blob/87fee58926f8b849a142018efb6d7502cbad673f/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey.rs",
+      "alert_lines": [
+        306
+      ]
+    },
+    "paper/continuity/artifacts/bootstrap/entry/source/crates/q-periapt-sdk/src/purpose.rs": {
+      "bytes": 8705,
+      "sha256": "9776014b4253eb12d8ffa84fbeb4ae87dcf14d59a32c023a5961fa6c2ec278ad",
+      "url": "https://github.com/billlza/q-periapt/blob/87fee58926f8b849a142018efb6d7502cbad673f/paper/continuity/artifacts/bootstrap/entry/source/crates/q-periapt-sdk/src/purpose.rs",
+      "alert_lines": [
+        14
+      ]
+    },
+    "paper/continuity/artifacts/bootstrap/entry/source/research/continuity-identity-candidate/src/bootstrap.rs": {
+      "bytes": 74151,
+      "sha256": "f72bce264806a900affe2cac33beb449e77aeaa45e6e264549eaa0f2ece7a286",
+      "url": "https://github.com/billlza/q-periapt/blob/87fee58926f8b849a142018efb6d7502cbad673f/paper/continuity/artifacts/bootstrap/entry/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "alert_lines": [
+        1969,
+        1974
+      ]
+    },
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs": {
+      "bytes": 74151,
+      "sha256": "f72bce264806a900affe2cac33beb449e77aeaa45e6e264549eaa0f2ece7a286",
+      "url": "https://github.com/billlza/q-periapt/blob/87fee58926f8b849a142018efb6d7502cbad673f/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "alert_lines": [
+        1969,
+        1974
+      ]
+    },
+    "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap.rs": {
+      "bytes": 74151,
+      "sha256": "f72bce264806a900affe2cac33beb449e77aeaa45e6e264549eaa0f2ece7a286",
+      "url": "https://github.com/billlza/q-periapt/blob/87fee58926f8b849a142018efb6d7502cbad673f/paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "alert_lines": [
+        1969,
+        1974
+      ]
+    },
+    "paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap.rs": {
+      "bytes": 74151,
+      "sha256": "f72bce264806a900affe2cac33beb449e77aeaa45e6e264549eaa0f2ece7a286",
+      "url": "https://github.com/billlza/q-periapt/blob/87fee58926f8b849a142018efb6d7502cbad673f/paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap.rs",
+      "alert_lines": [
+        1969,
+        1974
+      ]
+    },
+    "artifact/codeql_rust_quality.py": {
+      "bytes": 42187,
+      "sha256": "0b7da941fa5d24beac3f892a8454fab74a234bed723051062283420612f7a021",
+      "url": "https://github.com/billlza/q-periapt/blob/87fee58926f8b849a142018efb6d7502cbad673f/artifact/codeql_rust_quality.py"
+    }
+  },
+  "existing_input_controls": {
+    "utc": "2026-11-11T10:03:13.758239+00:00",
+    "source_ref": "87fee58926f8b849a142018efb6d7502cbad673f",
+    "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+      "-B",
+      "/workspace/scratch/4b61438fb07b/paper-codeql-hosted-20261111/matched-path-controls/test_audit_input_boundaries.py",
+      "-v"
+    ],
+    "returncode": 0,
+    "files": {
+      "paper/continuity/artifacts/matched-comparison/audit_matched_traces.py": {
+        "bytes": 18157,
+        "sha256": "6157726a6aa22f2bf8727da0680fc8f73293e8b129403e9ded53d2297cae658f"
+      },
+      "paper/continuity/artifacts/matched-comparison/test_audit_input_boundaries.py": {
+        "bytes": 8330,
+        "sha256": "fc07c06308fc56fb531e719502893917c69ff7bdb35daf8565f7754519067cb0"
+      },
+      "paper/continuity/artifacts/matched-comparison/sources/public-manifest.json": {
+        "bytes": 17721,
+        "sha256": "d7602eab190e9b1cd7c48dcce2788f5d0f777af4f303a113c452656d60f45dc1"
+      }
+    },
+    "scope": "Existing ten input-boundary tests from unchanged canonical source, run in isolated scratch copy with exact public-manifest fixture. No repository edits."
+  },
+  "primary_reference": {
+    "url": "https://www.rfc-editor.org/rfc/rfc5869.html",
+    "sections": [
+      "2.2",
+      "3.1"
+    ],
+    "used_claim": "HKDF salt is non-secret and optional; HKDF is defined with and without random salt. This observation is used only to distinguish a public HKDF domain label from a hard-coded secret."
+  },
+  "actions": "Read-only hosted/source investigation plus unchanged existing10 boundary tests in isolated scratch. No code,rule,archive,check configuration,alert state or remote mutation.",
+  "hosted_dependency_audit": {
+    "receipt": "audit-hosted.json",
+    "job_id": 130438613213,
+    "run_id": 42995542913,
+    "conclusion": "success",
+    "head_commit": "87fee58926f8b849a142018efb6d7502cbad673f",
+    "checkout_commit": "5e269d2fb399890b5d37944541031c9670b2e90d",
+    "tree_sha": "865d6aafb8e6a2adf8b28c5076cedd9cbc520863",
+    "completed_at": "2026-11-11T10:03:56Z",
+    "pass_line": "2026-11-11T10:03:55.0436642Z RUST_WORKSPACE_DEPENDENCY_AUDIT_PASS workspace_registry_packages=227 fuzz_registry_packages=38 advisory_db_commit=31cf5a8673e10d3a4d7d829ad5095f47ed419049 workspace_lock_sha256=654e5fced398f3fe955a6fae28781172dca644a816f3a7ca0507f551e3b0fff6 fuzz_lock_sha256=b6e1d8a6f34af0d6ca891b7a43973365e4da96709d0d408b57dcc9d7fc14cbb2 locks_stable=1 sparse_checksums=exact yanked=0 warnings=denied ambient_cargo_home_data=unused",
+    "scope": "Full production dependency audit for the canonical workspace and fuzz graphs, including exact sparse-index checksums, yanked-package checks, denied warnings, and stable lockfiles. SDK hosted audit completion is not inferred from this result.",
+    "tool_graph_note": "rustix 1.1.4 in cargo-audit installation output is an installer dependency of that executable, separate from the audited project graphs containing the rustix 1.1.6 update."
+  },
+  "publication_note": "Publish only the files listed by MANIFEST.json. Source copies used for local controls and the large immutable checkout-commit response are omitted; their fixed commit paths and byte identities remain in receipts."
+}
