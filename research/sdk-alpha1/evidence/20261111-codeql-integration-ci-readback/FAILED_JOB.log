@@ -1,0 +1,497 @@
+﻿2026-11-11T20:03:01.5097428Z Current runner version: '2.338.2'
+2026-11-11T20:03:01.5111955Z ##[group]Runner Image Provisioner
+2026-11-11T20:03:01.5112444Z Hosted Compute Agent
+2026-11-11T20:03:01.5112880Z Version: 20261028.624
+2026-11-11T20:03:01.5113236Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-11T20:03:01.5113677Z Build Date: 2026-10-28T21:51:42Z
+2026-11-11T20:03:01.5114092Z Worker ID: {a01fe6c5-d909-4948-848f-487ce6244946}
+2026-11-11T20:03:01.5114479Z Region: centralus
+2026-11-11T20:03:01.5114837Z Cloud: Azure
+2026-11-11T20:03:01.5115147Z ##[endgroup]
+2026-11-11T20:03:01.5115871Z ##[group]Operating System
+2026-11-11T20:03:01.5116252Z Ubuntu
+2026-11-11T20:03:01.5116555Z 26.04.1
+2026-11-11T20:03:01.5117093Z LTS
+2026-11-11T20:03:01.5117389Z ##[endgroup]
+2026-11-11T20:03:01.5117728Z ##[group]Runner Image
+2026-11-11T20:03:01.5118105Z Image: ubuntu-26.04
+2026-11-11T20:03:01.5118425Z Version: 20261101.186.1
+2026-11-11T20:03:01.5119161Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-11T20:03:01.5120017Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-11T20:03:01.5120587Z ##[endgroup]
+2026-11-11T20:03:01.5121234Z ##[group]GITHUB_TOKEN Permissions
+2026-11-11T20:03:01.5122322Z Contents: read
+2026-11-11T20:03:01.5122646Z Metadata: read
+2026-11-11T20:03:01.5123045Z ##[endgroup]
+2026-11-11T20:03:01.5124190Z Secret source: Actions
+2026-11-11T20:03:01.5124762Z Cache mode: write
+2026-11-11T20:03:01.5125136Z Prepare workflow directory
+2026-11-11T20:03:01.5358480Z Prepare all required actions
+2026-11-11T20:03:01.5387867Z Getting action download info
+2026-11-11T20:03:01.7705106Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-11T20:03:01.8593294Z Download action repository 'dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c' (SHA:2c7215f132e9ebf062739d9130488b56d53c060c)
+2026-11-11T20:03:02.1021771Z Complete job name: Binary CT [x86_64-portable]
+2026-11-11T20:03:02.1525524Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-11T20:03:02.1526041Z with:
+2026-11-11T20:03:02.1526285Z   persist-credentials: false
+2026-11-11T20:03:02.1526569Z   repository: billlza/q-periapt
+2026-11-11T20:03:02.1528897Z   token: ***
+2026-11-11T20:03:02.1529128Z   ssh-strict: true
+2026-11-11T20:03:02.1529374Z   ssh-user: git
+2026-11-11T20:03:02.1529603Z   clean: true
+2026-11-11T20:03:02.1529852Z   sparse-checkout-cone-mode: true
+2026-11-11T20:03:02.1530136Z   fetch-depth: 1
+2026-11-11T20:03:02.1530371Z   fetch-tags: false
+2026-11-11T20:03:02.1530620Z   show-progress: true
+2026-11-11T20:03:02.1530865Z   lfs: false
+2026-11-11T20:03:02.1531095Z   submodules: false
+2026-11-11T20:03:02.1531347Z   set-safe-directory: true
+2026-11-11T20:03:02.1531624Z   allow-unsafe-pr-checkout: false
+2026-11-11T20:03:02.1531984Z env:
+2026-11-11T20:03:02.1532215Z   CARGO_TERM_COLOR: always
+2026-11-11T20:03:02.1532489Z   RUSTFLAGS: -D warnings
+2026-11-11T20:03:02.1532777Z   CARGO_NET_RETRY: 10
+2026-11-11T20:03:02.1533038Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:03:02.1533313Z   GIT_CONFIG_COUNT: 1
+2026-11-11T20:03:02.1533571Z   GIT_CONFIG_KEY_0: init.defaultBranch
+2026-11-11T20:03:02.1533863Z   GIT_CONFIG_VALUE_0: main
+2026-11-11T20:03:02.1534122Z ##[endgroup]
+2026-11-11T20:03:02.3326006Z Syncing repository: billlza/q-periapt
+2026-11-11T20:03:02.3327227Z ##[group]Getting Git version info
+2026-11-11T20:03:02.3327614Z Working directory is '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T20:03:02.3328144Z [command]/usr/bin/git version
+2026-11-11T20:03:02.3335538Z git version 2.56.0
+2026-11-11T20:03:02.3347406Z ##[endgroup]
+2026-11-11T20:03:02.3353956Z Temporarily overriding HOME='/home/runner/work/_temp/810ef876-deb2-4d3f-915f-42e613088976' before making global git config changes
+2026-11-11T20:03:02.3354698Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T20:03:02.3358865Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T20:03:02.3408147Z Deleting the contents of '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T20:03:02.3410024Z ##[group]Determining repository object format
+2026-11-11T20:03:02.3411110Z ##[endgroup]
+2026-11-11T20:03:02.3411616Z ##[group]Initializing the repository
+2026-11-11T20:03:02.3413955Z [command]/usr/bin/git init /home/runner/work/q-periapt/q-periapt
+2026-11-11T20:03:02.3499164Z Initialized empty Git repository in /home/runner/work/q-periapt/q-periapt/.git/
+2026-11-11T20:03:02.3506307Z [command]/usr/bin/git remote add origin https://github.com/billlza/q-periapt
+2026-11-11T20:03:02.3547086Z ##[endgroup]
+2026-11-11T20:03:02.3547750Z ##[group]Disabling automatic garbage collection
+2026-11-11T20:03:02.3549098Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-11T20:03:02.3588960Z ##[endgroup]
+2026-11-11T20:03:02.3589693Z ##[group]Setting up auth
+2026-11-11T20:03:02.3590174Z Removing SSH command configuration
+2026-11-11T20:03:02.3590654Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T20:03:02.3614742Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T20:03:02.3996133Z Removing HTTP extra header
+2026-11-11T20:03:02.3999974Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T20:03:02.4029959Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T20:03:02.4262176Z Removing includeIf entries pointing to credentials config files
+2026-11-11T20:03:02.4265969Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T20:03:02.4297239Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T20:03:02.4516095Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-7055343b-1a93-44ae-895e-26b5a3a6f59f.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-11T20:03:02.4549845Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path /home/runner/work/_temp/git-credentials-7055343b-1a93-44ae-895e-26b5a3a6f59f.config
+2026-11-11T20:03:02.4574835Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-7055343b-1a93-44ae-895e-26b5a3a6f59f.config
+2026-11-11T20:03:02.4606695Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-7055343b-1a93-44ae-895e-26b5a3a6f59f.config
+2026-11-11T20:03:02.4636643Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-7055343b-1a93-44ae-895e-26b5a3a6f59f.config
+2026-11-11T20:03:02.4661908Z ##[endgroup]
+2026-11-11T20:03:02.4662315Z ##[group]Fetching the repository
+2026-11-11T20:03:02.4666823Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +0209a8ee381b53dedd342bff41dbbe7dfe08dcf3:refs/remotes/pull/121/merge
+2026-11-11T20:04:25.2909443Z From https://github.com/billlza/q-periapt
+2026-11-11T20:04:25.2910084Z  * [new ref]         0209a8ee381b53dedd342bff41dbbe7dfe08dcf3 -> pull/121/merge
+2026-11-11T20:04:25.2916522Z ##[endgroup]
+2026-11-11T20:04:25.2916979Z ##[group]Determining the checkout info
+2026-11-11T20:04:25.2917338Z ##[endgroup]
+2026-11-11T20:04:25.2917623Z [command]/usr/bin/git sparse-checkout disable
+2026-11-11T20:04:25.2960625Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-11T20:04:25.3049902Z ##[group]Checking out the ref
+2026-11-11T20:04:25.3051016Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/121/merge
+2026-11-11T20:04:26.5174792Z Updating files:  71% (5685/7939)
+2026-11-11T20:04:26.8974394Z Updating files:  72% (5717/7939)
+2026-11-11T20:04:27.1603020Z Updating files:  73% (5796/7939)
+2026-11-11T20:04:27.3187290Z Updating files:  74% (5875/7939)
+2026-11-11T20:04:27.4180442Z Updating files:  74% (5943/7939)
+2026-11-11T20:04:27.5115476Z Updating files:  75% (5955/7939)
+2026-11-11T20:04:28.0350081Z Updating files:  76% (6034/7939)
+2026-11-11T20:04:28.1377876Z Updating files:  77% (6114/7939)
+2026-11-11T20:04:28.2692509Z Updating files:  78% (6193/7939)
+2026-11-11T20:04:28.3832945Z Updating files:  79% (6272/7939)
+2026-11-11T20:04:28.5459457Z Updating files:  79% (6311/7939)
+2026-11-11T20:04:29.4497943Z Updating files:  80% (6352/7939)
+2026-11-11T20:04:29.6113363Z Updating files:  80% (6412/7939)
+2026-11-11T20:04:30.4683249Z Updating files:  81% (6431/7939)
+2026-11-11T20:04:31.4090703Z Updating files:  81% (6484/7939)
+2026-11-11T20:04:31.4153992Z Updating files:  81% (6503/7939)
+2026-11-11T20:04:32.2650329Z Updating files:  82% (6510/7939)
+2026-11-11T20:04:32.3141350Z Updating files:  83% (6590/7939)
+2026-11-11T20:04:32.3147482Z Updating files:  83% (6662/7939)
+2026-11-11T20:04:32.3824055Z Updating files:  84% (6669/7939)
+2026-11-11T20:04:33.1308144Z Updating files:  85% (6749/7939)
+2026-11-11T20:04:33.3233508Z Updating files:  86% (6828/7939)
+2026-11-11T20:04:33.6402320Z Updating files:  86% (6850/7939)
+2026-11-11T20:04:34.3804134Z Updating files:  87% (6907/7939)
+2026-11-11T20:04:35.4328672Z Updating files:  87% (6948/7939)
+2026-11-11T20:04:35.6357923Z Updating files:  87% (6960/7939)
+2026-11-11T20:04:36.3586574Z Updating files:  88% (6987/7939)
+2026-11-11T20:04:37.5292373Z Updating files:  88% (7002/7939)
+2026-11-11T20:04:38.4015653Z Updating files:  88% (7030/7939)
+2026-11-11T20:04:38.5203907Z Updating files:  88% (7052/7939)
+2026-11-11T20:04:39.5237524Z Updating files:  89% (7066/7939)
+2026-11-11T20:04:39.6076117Z Updating files:  89% (7126/7939)
+2026-11-11T20:04:40.3634642Z Updating files:  90% (7146/7939)
+2026-11-11T20:04:40.8010221Z Updating files:  90% (7165/7939)
+2026-11-11T20:04:40.9781086Z Updating files:  91% (7225/7939)
+2026-11-11T20:04:40.9821127Z Updating files:  92% (7304/7939)
+2026-11-11T20:04:40.9937281Z Updating files:  93% (7384/7939)
+2026-11-11T20:04:40.9974043Z Updating files:  94% (7463/7939)
+2026-11-11T20:04:41.0074317Z Updating files:  95% (7543/7939)
+2026-11-11T20:04:41.0465625Z Updating files:  96% (7622/7939)
+2026-11-11T20:04:41.0636288Z Updating files:  97% (7701/7939)
+2026-11-11T20:04:41.0697183Z Updating files:  98% (7781/7939)
+2026-11-11T20:04:41.0834761Z Updating files:  99% (7860/7939)
+2026-11-11T20:04:41.0835130Z Updating files: 100% (7939/7939)
+2026-11-11T20:04:41.0835399Z Updating files: 100% (7939/7939), done.
+2026-11-11T20:04:41.1415069Z Note: switching to 'refs/remotes/pull/121/merge'.
+2026-11-11T20:04:41.1415272Z 
+2026-11-11T20:04:41.1415391Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-11T20:04:41.1415685Z changes and commit them, and you can discard any commits you make in this
+2026-11-11T20:04:41.1415938Z state without impacting any branches by switching back to a branch.
+2026-11-11T20:04:41.1416181Z 
+2026-11-11T20:04:41.1416310Z If you want to create a new branch to retain commits you create, you may
+2026-11-11T20:04:41.1416554Z do so (now or later) by using -c with the switch command. Example:
+2026-11-11T20:04:41.1417517Z 
+2026-11-11T20:04:41.1417691Z   git switch -c <new-branch-name>
+2026-11-11T20:04:41.1417793Z 
+2026-11-11T20:04:41.1417862Z Or undo this operation with:
+2026-11-11T20:04:41.1417953Z 
+2026-11-11T20:04:41.1418005Z   git switch -
+2026-11-11T20:04:41.1418076Z 
+2026-11-11T20:04:41.1418192Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-11T20:04:41.1418357Z 
+2026-11-11T20:04:41.1418537Z HEAD is now at 0209a8e Merge 0aa4da50f6a28ad4abf3d15205452864346683b1 into 48d0fb9a5651b50494ec33d025dda52bd2ff5eae
+2026-11-11T20:04:41.2155514Z ##[endgroup]
+2026-11-11T20:04:41.2195668Z [command]/usr/bin/git log -1 --format=%H
+2026-11-11T20:04:41.2219503Z 0209a8ee381b53dedd342bff41dbbe7dfe08dcf3
+2026-11-11T20:04:41.2227636Z ##[group]Removing auth
+2026-11-11T20:04:41.2228156Z Removing SSH command configuration
+2026-11-11T20:04:41.2229776Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T20:04:41.2274249Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T20:04:41.2496830Z Removing HTTP extra header
+2026-11-11T20:04:41.2503278Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T20:04:41.2531314Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T20:04:41.2748492Z Removing includeIf entries pointing to credentials config files
+2026-11-11T20:04:41.2750781Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T20:04:41.2771932Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T20:04:41.2772371Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T20:04:41.2772777Z includeif.gitdir:/github/workspace/.git.path
+2026-11-11T20:04:41.2773015Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T20:04:41.2780098Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T20:04:41.2799870Z /home/runner/work/_temp/git-credentials-7055343b-1a93-44ae-895e-26b5a3a6f59f.config
+2026-11-11T20:04:41.2814727Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-7055343b\-1a93\-44ae\-895e\-26b5a3a6f59f\.config
+2026-11-11T20:04:41.3022567Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T20:04:41.3042749Z /home/runner/work/_temp/git-credentials-7055343b-1a93-44ae-895e-26b5a3a6f59f.config
+2026-11-11T20:04:41.3049432Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-7055343b\-1a93\-44ae\-895e\-26b5a3a6f59f\.config
+2026-11-11T20:04:41.4446853Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-11T20:04:41.4473444Z /github/runner_temp/git-credentials-7055343b-1a93-44ae-895e-26b5a3a6f59f.config
+2026-11-11T20:04:41.4479586Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-7055343b\-1a93\-44ae\-895e\-26b5a3a6f59f\.config
+2026-11-11T20:04:41.6327624Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T20:04:41.6351559Z /github/runner_temp/git-credentials-7055343b-1a93-44ae-895e-26b5a3a6f59f.config
+2026-11-11T20:04:41.6357248Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-7055343b\-1a93\-44ae\-895e\-26b5a3a6f59f\.config
+2026-11-11T20:04:41.7929141Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T20:04:41.8150134Z Removing credentials config '/home/runner/work/_temp/git-credentials-7055343b-1a93-44ae-895e-26b5a3a6f59f.config'
+2026-11-11T20:04:41.8159283Z ##[endgroup]
+2026-11-11T20:04:41.9411286Z ##[group]Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+2026-11-11T20:04:41.9411629Z with:
+2026-11-11T20:04:41.9411829Z   toolchain: 1.98.1
+2026-11-11T20:04:41.9412011Z env:
+2026-11-11T20:04:41.9412353Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:41.9412572Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:41.9412770Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:41.9412970Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:41.9413188Z ##[endgroup]
+2026-11-11T20:04:41.9473490Z ##[start-action display=Run : parse toolchain version;id=__dtolnay_rust-toolchain.parse]
+2026-11-11T20:04:42.1811714Z ##[group]Run : parse toolchain version
+2026-11-11T20:04:42.1811966Z [36;1m: parse toolchain version[0m
+2026-11-11T20:04:42.1812129Z [36;1mif [[ -z $toolchain ]]; then[0m
+2026-11-11T20:04:42.1812418Z [36;1m  # GitHub does not enforce `required: true` inputs itself. https://github.com/actions/runner/issues/1070[0m
+2026-11-11T20:04:42.1812817Z [36;1m  echo "'toolchain' is a required input" >&2[0m
+2026-11-11T20:04:42.1812983Z [36;1m  exit 1[0m
+2026-11-11T20:04:42.1813170Z [36;1melif [[ $toolchain =~ ^stable' '[0-9]+' '(year|month|week|day)s?' 'ago$ ]]; then[0m
+2026-11-11T20:04:42.1813396Z [36;1m  if [[ Linux == macOS ]]; then[0m
+2026-11-11T20:04:42.1813695Z [36;1m    echo "toolchain=1.$((($(date -v-$(sed 's/stable \([0-9]*\) \(.\).*/\1\2/' <<< $toolchain) +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2026-11-11T20:04:42.1813970Z [36;1m  else[0m
+2026-11-11T20:04:42.1814196Z [36;1m    echo "toolchain=1.$((($(date --date "${toolchain#stable }" +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2026-11-11T20:04:42.1814434Z [36;1m  fi[0m
+2026-11-11T20:04:42.1814603Z [36;1melif [[ $toolchain =~ ^stable' 'minus' '[0-9]+' 'releases?$ ]]; then[0m
+2026-11-11T20:04:42.1814885Z [36;1m  echo "toolchain=1.$((($(date +%s)/60/60/24-16569)/7/6-${toolchain//[^0-9]/}))" >> $GITHUB_OUTPUT[0m
+2026-11-11T20:04:42.1815135Z [36;1melif [[ $toolchain =~ ^1\.[0-9]+$ ]]; then[0m
+2026-11-11T20:04:42.1815415Z [36;1m  echo "toolchain=1.$((i=${toolchain#1.}, c=($(date +%s)/60/60/24-16569)/7/6, i+9*i*(10*i<=c)+90*i*(100*i<=c)))" >> $GITHUB_OUTPUT[0m
+2026-11-11T20:04:42.1815674Z [36;1melse[0m
+2026-11-11T20:04:42.1815826Z [36;1m  echo "toolchain=$toolchain" >> $GITHUB_OUTPUT[0m
+2026-11-11T20:04:42.1815992Z [36;1mfi[0m
+2026-11-11T20:04:42.1861179Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T20:04:42.1861369Z env:
+2026-11-11T20:04:42.1861499Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:42.1861639Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:42.1861771Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:42.1861904Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:42.1862046Z   toolchain: 1.98.1
+2026-11-11T20:04:42.1862166Z ##[endgroup]
+2026-11-11T20:04:42.3097750Z ##[end-action id=__dtolnay_rust-toolchain.parse;outcome=success;conclusion=success;duration_ms=362]
+2026-11-11T20:04:42.3113391Z ##[start-action display=Run : construct rustup command line;id=__dtolnay_rust-toolchain.flags]
+2026-11-11T20:04:42.4212551Z ##[group]Run : construct rustup command line
+2026-11-11T20:04:42.4212781Z [36;1m: construct rustup command line[0m
+2026-11-11T20:04:42.4213031Z [36;1mecho "targets=$(for t in ${targets//,/ }; do echo -n ' --target' $t; done)" >> $GITHUB_OUTPUT[0m
+2026-11-11T20:04:42.4213378Z [36;1mecho "components=$(for c in ${components//,/ }; do echo -n ' --component' $c; done)" >> $GITHUB_OUTPUT[0m
+2026-11-11T20:04:42.4213636Z [36;1mecho "downgrade=" >> $GITHUB_OUTPUT[0m
+2026-11-11T20:04:42.4255506Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T20:04:42.4255692Z env:
+2026-11-11T20:04:42.4255818Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:42.4255955Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:42.4256086Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:42.4256219Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:42.4256364Z   targets: 
+2026-11-11T20:04:42.4256482Z   components: 
+2026-11-11T20:04:42.4256596Z ##[endgroup]
+2026-11-11T20:04:42.4337609Z ##[end-action id=__dtolnay_rust-toolchain.flags;outcome=success;conclusion=success;duration_ms=122]
+2026-11-11T20:04:42.4340602Z ##[start-action display=Run : set $CARGO_HOME;id=__dtolnay_rust-toolchain.__run]
+2026-11-11T20:04:42.4391181Z ##[group]Run : set $CARGO_HOME
+2026-11-11T20:04:42.4391457Z [36;1m: set $CARGO_HOME[0m
+2026-11-11T20:04:42.4391642Z [36;1mecho CARGO_HOME=${CARGO_HOME:-"$HOME/.cargo"} >> $GITHUB_ENV[0m
+2026-11-11T20:04:42.4428446Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T20:04:42.4428631Z env:
+2026-11-11T20:04:42.4428750Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:42.4428888Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:42.4429017Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:42.4429153Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:42.4429293Z ##[endgroup]
+2026-11-11T20:04:42.4531626Z ##[end-action id=__dtolnay_rust-toolchain.__run;outcome=success;conclusion=success;duration_ms=19]
+2026-11-11T20:04:42.4533062Z ##[start-action display=Run : install rustup if needed;id=__dtolnay_rust-toolchain.__run_2]
+2026-11-11T20:04:42.4713059Z ##[group]Run : install rustup if needed
+2026-11-11T20:04:42.4713267Z [36;1m: install rustup if needed[0m
+2026-11-11T20:04:42.4713445Z [36;1mif ! command -v rustup &>/dev/null; then[0m
+2026-11-11T20:04:42.4713854Z [36;1m  curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused --location --silent --show-error --fail https://sh.rustup.rs | sh -s -- --default-toolchain none -y[0m
+2026-11-11T20:04:42.4714267Z [36;1m  echo "$CARGO_HOME/bin" >> $GITHUB_PATH[0m
+2026-11-11T20:04:42.4714426Z [36;1mfi[0m
+2026-11-11T20:04:42.4756204Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T20:04:42.4756391Z env:
+2026-11-11T20:04:42.4756538Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:42.4756773Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:42.4756972Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:42.4757108Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:42.4757258Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T20:04:42.4757402Z ##[endgroup]
+2026-11-11T20:04:42.5029489Z ##[end-action id=__dtolnay_rust-toolchain.__run_2;outcome=success;conclusion=success;duration_ms=49]
+2026-11-11T20:04:42.5033420Z ##[start-action display=Run : install rustup if needed on windows;id=__dtolnay_rust-toolchain.__run_3]
+2026-11-11T20:04:42.5039154Z ##[end-action id=__dtolnay_rust-toolchain.__run_3;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-11T20:04:42.5041103Z ##[start-action display=rustup toolchain install 1.98.1;id=__dtolnay_rust-toolchain.__run_4]
+2026-11-11T20:04:42.5114018Z ##[group]Run rustup toolchain install 1.98.1 --profile minimal --no-self-update
+2026-11-11T20:04:42.5114334Z [36;1mrustup toolchain install 1.98.1 --profile minimal --no-self-update[0m
+2026-11-11T20:04:42.5157179Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T20:04:42.5157372Z env:
+2026-11-11T20:04:42.5157495Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:42.5157643Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:42.5157775Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:42.5157922Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:42.5158073Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T20:04:42.5158220Z   RUSTUP_PERMIT_COPY_RENAME: 1
+2026-11-11T20:04:42.5158358Z ##[endgroup]
+2026-11-11T20:04:42.5815394Z info: syncing channel updates for 1.98.1-x86_64-unknown-linux-gnu
+2026-11-11T20:04:43.0707905Z info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+2026-11-11T20:04:43.0711264Z info: downloading 3 components
+2026-11-11T20:04:50.2483070Z 
+2026-11-11T20:04:50.2541766Z   1.98.1-x86_64-unknown-linux-gnu installed - rustc 1.98.1 (48a229cea 2026-09-01)
+2026-11-11T20:04:50.2541988Z 
+2026-11-11T20:04:50.2732784Z ##[end-action id=__dtolnay_rust-toolchain.__run_4;outcome=success;conclusion=success;duration_ms=7769]
+2026-11-11T20:04:50.2738128Z ##[start-action display=Run rustup default 1.98.1;id=__dtolnay_rust-toolchain.__run_5]
+2026-11-11T20:04:50.2755257Z ##[group]Run rustup default 1.98.1
+2026-11-11T20:04:50.2755442Z [36;1mrustup default 1.98.1[0m
+2026-11-11T20:04:50.2794115Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T20:04:50.2794299Z env:
+2026-11-11T20:04:50.2794423Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:50.2794566Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:50.2794796Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:50.2794926Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:50.2795074Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T20:04:50.2795213Z ##[endgroup]
+2026-11-11T20:04:50.2881007Z info: using existing install for 1.98.1-x86_64-unknown-linux-gnu
+2026-11-11T20:04:50.2887029Z info: default toolchain set to 1.98.1-x86_64-unknown-linux-gnu
+2026-11-11T20:04:50.2887251Z 
+2026-11-11T20:04:50.2941883Z   1.98.1-x86_64-unknown-linux-gnu unchanged - rustc 1.98.1 (48a229cea 2026-09-01)
+2026-11-11T20:04:50.2942096Z 
+2026-11-11T20:04:50.2942713Z info: note that the toolchain '1.98.1-x86_64-unknown-linux-gnu' is currently in use (overridden by '/home/runner/work/q-periapt/q-periapt/rust-toolchain.toml')
+2026-11-11T20:04:50.2958524Z ##[end-action id=__dtolnay_rust-toolchain.__run_5;outcome=success;conclusion=success;duration_ms=21]
+2026-11-11T20:04:50.2962149Z ##[start-action display=Run : create cachekey;id=__dtolnay_rust-toolchain.rustc-version]
+2026-11-11T20:04:50.2979035Z ##[group]Run : create cachekey
+2026-11-11T20:04:50.2979232Z [36;1m: create cachekey[0m
+2026-11-11T20:04:50.2979505Z [36;1mDATE=$(rustc +1.98.1 --version --verbose | sed -ne 's/^commit-date: \(20[0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)$/\1\2\3/p')[0m
+2026-11-11T20:04:50.2979842Z [36;1mHASH=$(rustc +1.98.1 --version --verbose | sed -ne 's/^commit-hash: //p')[0m
+2026-11-11T20:04:50.2980104Z [36;1mecho "cachekey=$(echo $DATE$HASH | head -c12)" >> $GITHUB_OUTPUT[0m
+2026-11-11T20:04:50.3019374Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T20:04:50.3019558Z env:
+2026-11-11T20:04:50.3019680Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:50.3019817Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:50.3019948Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:50.3020093Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:50.3020245Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T20:04:50.3020391Z ##[endgroup]
+2026-11-11T20:04:50.3304539Z ##[end-action id=__dtolnay_rust-toolchain.rustc-version;outcome=success;conclusion=success;duration_ms=34]
+2026-11-11T20:04:50.3306730Z ##[start-action display=Run : disable incremental compilation;id=__dtolnay_rust-toolchain.__run_6]
+2026-11-11T20:04:50.3323909Z ##[group]Run : disable incremental compilation
+2026-11-11T20:04:50.3324142Z [36;1m: disable incremental compilation[0m
+2026-11-11T20:04:50.3324336Z [36;1mif [ -z "${CARGO_INCREMENTAL+set}" ]; then[0m
+2026-11-11T20:04:50.3324532Z [36;1m  echo CARGO_INCREMENTAL=0 >> $GITHUB_ENV[0m
+2026-11-11T20:04:50.3324694Z [36;1mfi[0m
+2026-11-11T20:04:50.3363913Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T20:04:50.3364121Z env:
+2026-11-11T20:04:50.3364246Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:50.3364383Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:50.3364531Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:50.3364665Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:50.3364812Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T20:04:50.3364987Z ##[endgroup]
+2026-11-11T20:04:50.3429594Z ##[end-action id=__dtolnay_rust-toolchain.__run_6;outcome=success;conclusion=success;duration_ms=12]
+2026-11-11T20:04:50.3431689Z ##[start-action display=Run : enable colors in Cargo output;id=__dtolnay_rust-toolchain.__run_7]
+2026-11-11T20:04:50.3448708Z ##[group]Run : enable colors in Cargo output
+2026-11-11T20:04:50.3448908Z [36;1m: enable colors in Cargo output[0m
+2026-11-11T20:04:50.3449086Z [36;1mif [ -z "${CARGO_TERM_COLOR+set}" ]; then[0m
+2026-11-11T20:04:50.3449272Z [36;1m  echo CARGO_TERM_COLOR=always >> $GITHUB_ENV[0m
+2026-11-11T20:04:50.3449433Z [36;1mfi[0m
+2026-11-11T20:04:50.3488820Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T20:04:50.3489004Z env:
+2026-11-11T20:04:50.3489127Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:50.3489403Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:50.3489533Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:50.3489665Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:50.3489812Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T20:04:50.3489956Z   CARGO_INCREMENTAL: 0
+2026-11-11T20:04:50.3490193Z ##[endgroup]
+2026-11-11T20:04:50.3547149Z ##[end-action id=__dtolnay_rust-toolchain.__run_7;outcome=success;conclusion=success;duration_ms=11]
+2026-11-11T20:04:50.3550510Z ##[start-action display=Run : enable Cargo sparse registry;id=__dtolnay_rust-toolchain.__run_8]
+2026-11-11T20:04:50.3566217Z ##[group]Run : enable Cargo sparse registry
+2026-11-11T20:04:50.3566417Z [36;1m: enable Cargo sparse registry[0m
+2026-11-11T20:04:50.3566618Z [36;1m# implemented in 1.66, stabilized in 1.68, made default in 1.70[0m
+2026-11-11T20:04:50.3567159Z [36;1mif [ -z "${CARGO_REGISTRIES_CRATES_IO_PROTOCOL+set}" -o -f "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol ]; then[0m
+2026-11-11T20:04:50.3567549Z [36;1m  if rustc +1.98.1 --version --verbose | grep -q '^release: 1\.6[89]\.'; then[0m
+2026-11-11T20:04:50.3567843Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2026-11-11T20:04:50.3568126Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse >> $GITHUB_ENV[0m
+2026-11-11T20:04:50.3568396Z [36;1m  elif rustc +1.98.1 --version --verbose | grep -q '^release: 1\.6[67]\.'; then[0m
+2026-11-11T20:04:50.3568690Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2026-11-11T20:04:50.3568962Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git >> $GITHUB_ENV[0m
+2026-11-11T20:04:50.3569182Z [36;1m  fi[0m
+2026-11-11T20:04:50.3569294Z [36;1mfi[0m
+2026-11-11T20:04:50.3602918Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T20:04:50.3603116Z env:
+2026-11-11T20:04:50.3603239Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:50.3603375Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:50.3603506Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:50.3603646Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:50.3603794Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T20:04:50.3603934Z   CARGO_INCREMENTAL: 0
+2026-11-11T20:04:50.3604072Z ##[endgroup]
+2026-11-11T20:04:50.3848008Z ##[end-action id=__dtolnay_rust-toolchain.__run_8;outcome=success;conclusion=success;duration_ms=29]
+2026-11-11T20:04:50.3851607Z ##[start-action display=Run : work around spurious network errors in curl 8.0;id=__dtolnay_rust-toolchain.__run_9]
+2026-11-11T20:04:50.3868885Z ##[group]Run : work around spurious network errors in curl 8.0
+2026-11-11T20:04:50.3869148Z [36;1m: work around spurious network errors in curl 8.0[0m
+2026-11-11T20:04:50.3869458Z [36;1m# https://rust-lang.zulipchat.com/#narrow/stream/246057-t-cargo/topic/timeout.20investigation[0m
+2026-11-11T20:04:50.3869794Z [36;1mif rustc +1.98.1 --version --verbose | grep -q '^release: 1\.7[01]\.'; then[0m
+2026-11-11T20:04:50.3870041Z [36;1m  echo CARGO_HTTP_MULTIPLEXING=false >> $GITHUB_ENV[0m
+2026-11-11T20:04:50.3870225Z [36;1mfi[0m
+2026-11-11T20:04:50.3909276Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T20:04:50.3909465Z env:
+2026-11-11T20:04:50.3909603Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:50.3909751Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:50.3909885Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:50.3910013Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:50.3910162Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T20:04:50.3910308Z   CARGO_INCREMENTAL: 0
+2026-11-11T20:04:50.3910439Z ##[endgroup]
+2026-11-11T20:04:50.4063400Z ##[end-action id=__dtolnay_rust-toolchain.__run_9;outcome=success;conclusion=success;duration_ms=21]
+2026-11-11T20:04:50.4066670Z ##[start-action display=Run rustc +1.98.1 --version --verbose;id=__dtolnay_rust-toolchain.__run_10]
+2026-11-11T20:04:50.4083191Z ##[group]Run rustc +1.98.1 --version --verbose
+2026-11-11T20:04:50.4083407Z [36;1mrustc +1.98.1 --version --verbose[0m
+2026-11-11T20:04:50.4121984Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T20:04:50.4122483Z env:
+2026-11-11T20:04:50.4122671Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:50.4122865Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:50.4123102Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:50.4123354Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:50.4123692Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T20:04:50.4123932Z   CARGO_INCREMENTAL: 0
+2026-11-11T20:04:50.4124116Z ##[endgroup]
+2026-11-11T20:04:50.4275696Z rustc 1.98.1 (48a229cea 2026-09-01)
+2026-11-11T20:04:50.4276007Z binary: rustc
+2026-11-11T20:04:50.4276234Z commit-hash: 48a229ceaefd4985c50990b14116b6d856af0985
+2026-11-11T20:04:50.4276521Z commit-date: 2026-09-01
+2026-11-11T20:04:50.4276674Z host: x86_64-unknown-linux-gnu
+2026-11-11T20:04:50.4276818Z release: 1.98.1
+2026-11-11T20:04:50.4277101Z LLVM version: 22.1.8
+2026-11-11T20:04:50.4290511Z ##[end-action id=__dtolnay_rust-toolchain.__run_10;outcome=success;conclusion=success;duration_ms=22]
+2026-11-11T20:04:50.4341679Z ##[group]Run case "$EXPECTED_GATE_IDENTITY:$EXPECTED_RUST_HOST:$EXPECTED_UNAME_MACHINE" in
+2026-11-11T20:04:50.4342040Z [36;1mcase "$EXPECTED_GATE_IDENTITY:$EXPECTED_RUST_HOST:$EXPECTED_UNAME_MACHINE" in[0m
+2026-11-11T20:04:50.4342315Z [36;1m  x86_64-portable:x86_64-unknown-linux-gnu:x86_64) ;;[0m
+2026-11-11T20:04:50.4342563Z [36;1m  aarch64-native:aarch64-unknown-linux-gnu:aarch64) ;;[0m
+2026-11-11T20:04:50.4342796Z [36;1m  *) echo "invalid binary-CT matrix identity" >&2; exit 2 ;;[0m
+2026-11-11T20:04:50.4343013Z [36;1mesac[0m
+2026-11-11T20:04:50.4343199Z [36;1mtest "$(rustc -vV | sed -n 's/^host: //p')" = "$EXPECTED_RUST_HOST"[0m
+2026-11-11T20:04:50.4343425Z [36;1mtest "$(uname -m)" = "$EXPECTED_UNAME_MACHINE"[0m
+2026-11-11T20:04:50.4382734Z shell: /usr/bin/bash -e {0}
+2026-11-11T20:04:50.4382879Z env:
+2026-11-11T20:04:50.4382993Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:50.4383129Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:50.4383258Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:50.4383429Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:50.4383579Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T20:04:50.4383723Z   CARGO_INCREMENTAL: 0
+2026-11-11T20:04:50.4383860Z   EXPECTED_GATE_IDENTITY: x86_64-portable
+2026-11-11T20:04:50.4384032Z   EXPECTED_RUST_HOST: x86_64-unknown-linux-gnu
+2026-11-11T20:04:50.4384208Z   EXPECTED_UNAME_MACHINE: x86_64
+2026-11-11T20:04:50.4384348Z ##[endgroup]
+2026-11-11T20:04:50.4825738Z info: syncing channel updates for 1.98.1-x86_64-unknown-linux-gnu
+2026-11-11T20:04:50.6591628Z info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+2026-11-11T20:04:50.6687590Z info: downloading 2 components
+2026-11-11T20:04:51.3312335Z ##[group]Run bash artifact/ci_apt.sh valgrind
+2026-11-11T20:04:51.3312551Z [36;1mbash artifact/ci_apt.sh valgrind[0m
+2026-11-11T20:04:51.3351695Z shell: /usr/bin/bash -e {0}
+2026-11-11T20:04:51.3351841Z env:
+2026-11-11T20:04:51.3351957Z   CARGO_TERM_COLOR: always
+2026-11-11T20:04:51.3352094Z   RUSTFLAGS: -D warnings
+2026-11-11T20:04:51.3352224Z   CARGO_NET_RETRY: 10
+2026-11-11T20:04:51.3352353Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T20:04:51.3352501Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T20:04:51.3352642Z   CARGO_INCREMENTAL: 0
+2026-11-11T20:04:51.3352769Z ##[endgroup]
+2026-11-11T20:04:51.3519758Z APT source: https://mirrors.edge.kernel.org/ubuntu; suite=resolute; architecture=amd64
+2026-11-11T20:05:11.6900182Z Ign:1 https://mirrors.edge.kernel.org/ubuntu resolute InRelease
+2026-11-11T20:05:11.6900546Z Ign:2 https://mirrors.edge.kernel.org/ubuntu resolute-updates InRelease
+2026-11-11T20:05:11.6900908Z Ign:3 https://mirrors.edge.kernel.org/ubuntu resolute-security InRelease
+2026-11-11T20:05:11.6901185Z Ign:4 https://mirrors.edge.kernel.org/ubuntu resolute-backports InRelease
+2026-11-11T20:05:12.6909971Z Err:4 https://mirrors.edge.kernel.org/ubuntu resolute-backports InRelease
+2026-11-11T20:05:12.6910620Z   Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)
+2026-11-11T20:05:12.6911164Z Err:3 https://mirrors.edge.kernel.org/ubuntu resolute-security InRelease
+2026-11-11T20:05:12.6911689Z   Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)
+2026-11-11T20:05:12.6912707Z Err:2 https://mirrors.edge.kernel.org/ubuntu resolute-updates InRelease
+2026-11-11T20:05:12.6913214Z   Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)
+2026-11-11T20:05:12.6913709Z Err:1 https://mirrors.edge.kernel.org/ubuntu resolute InRelease
+2026-11-11T20:05:12.6914441Z   Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable) Could not connect to mirrors.edge.kernel.org:443 (142.0.200.124), connection timed out
+2026-11-11T20:05:12.6915299Z   Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)
+2026-11-11T20:05:12.7023873Z Reading package lists...
+2026-11-11T20:05:12.7043223Z E: Failed to fetch https://mirrors.edge.kernel.org/ubuntu/dists/resolute/InRelease  Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)
+2026-11-11T20:05:12.7044383Z E: Failed to fetch https://mirrors.edge.kernel.org/ubuntu/dists/resolute-updates/InRelease  Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)
+2026-11-11T20:05:12.7045502Z E: Failed to fetch https://mirrors.edge.kernel.org/ubuntu/dists/resolute-security/InRelease  Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)
+2026-11-11T20:05:12.7046559Z E: Failed to fetch https://mirrors.edge.kernel.org/ubuntu/dists/resolute-backports/InRelease  Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)
+2026-11-11T20:05:12.7047342Z E: Some index files failed to download. They have been ignored, or old ones used instead.
+2026-11-11T20:05:12.7145911Z ##[error]Process completed with exit code 100.
+2026-11-11T20:05:12.7243246Z Post job cleanup.
+2026-11-11T20:05:12.7858379Z [command]/usr/bin/git version
+2026-11-11T20:05:12.7891187Z git version 2.56.0
+2026-11-11T20:05:12.7914028Z Temporarily overriding HOME='/home/runner/work/_temp/608ee676-e863-491e-970a-88f796967260' before making global git config changes
+2026-11-11T20:05:12.7914897Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T20:05:12.7917857Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T20:05:12.7950643Z Removing SSH command configuration
+2026-11-11T20:05:12.7955331Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T20:05:12.7988506Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T20:05:12.8239638Z Removing HTTP extra header
+2026-11-11T20:05:12.8244257Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T20:05:12.8279903Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T20:05:12.8538505Z Removing includeIf entries pointing to credentials config files
+2026-11-11T20:05:12.8543772Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T20:05:12.8572288Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T20:05:12.8921578Z Cleaning up orphan processes

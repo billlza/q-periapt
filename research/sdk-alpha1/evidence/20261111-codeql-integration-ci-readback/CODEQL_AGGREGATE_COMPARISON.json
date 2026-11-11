@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "comparison_kind": "aggregate_output_text_and_metadata_only",
+  "current": {
+    "head": "0aa4da50f6a28ad4abf3d15205452864346683b1",
+    "check_run_id": 130771382809,
+    "status": "completed",
+    "conclusion": "failure",
+    "title": "2 configurations not found",
+    "summary_utf8_bytes": 641,
+    "summary_sha256": "a65d4fce89513bc456380f19645cff5477a94b86ea636c7ab7d8225b33036c0a",
+    "annotations_count": 103
+  },
+  "previous": {
+    "head": "3b042375d4ac8e40b10d07941595341a6cc9b807",
+    "check_run_id": 130713518049,
+    "status": "completed",
+    "conclusion": "failure",
+    "title": "2 configurations not found",
+    "summary_utf8_bytes": 641,
+    "summary_sha256": "a65d4fce89513bc456380f19645cff5477a94b86ea636c7ab7d8225b33036c0a",
+    "annotations_count": 103
+  },
+  "title_equal": true,
+  "full_summary_equal": true,
+  "annotations_count_equal": true,
+  "aggregate_severity_counts": {
+    "critical": 12,
+    "high": 513
+  },
+  "individual_annotations_retrieved": false,
+  "individual_annotation_equality": "not assessed",
+  "retrieval_routes": [
+    "/repos/billlza/q-periapt/commits/0aa4da50f6a28ad4abf3d15205452864346683b1/check-runs?per_page=100&filter=latest",
+    "/repos/billlza/q-periapt/commits/3b042375d4ac8e40b10d07941595341a6cc9b807/check-runs?per_page=100&filter=latest"
+  ]
+}

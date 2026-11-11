@@ -1,0 +1,66 @@
+{
+  "source_file": "FAILED_JOB.log",
+  "line_numbering": "1-based split on newline; raw complete log retained",
+  "events": [
+    {
+      "line": 461,
+      "text": "2026-11-11T20:04:51.3519758Z APT source: https://mirrors.edge.kernel.org/ubuntu; suite=resolute; architecture=amd64"
+    },
+    {
+      "line": 466,
+      "text": "2026-11-11T20:05:12.6909971Z Err:4 https://mirrors.edge.kernel.org/ubuntu resolute-backports InRelease"
+    },
+    {
+      "line": 467,
+      "text": "2026-11-11T20:05:12.6910620Z   Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)"
+    },
+    {
+      "line": 468,
+      "text": "2026-11-11T20:05:12.6911164Z Err:3 https://mirrors.edge.kernel.org/ubuntu resolute-security InRelease"
+    },
+    {
+      "line": 469,
+      "text": "2026-11-11T20:05:12.6911689Z   Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)"
+    },
+    {
+      "line": 470,
+      "text": "2026-11-11T20:05:12.6912707Z Err:2 https://mirrors.edge.kernel.org/ubuntu resolute-updates InRelease"
+    },
+    {
+      "line": 471,
+      "text": "2026-11-11T20:05:12.6913214Z   Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)"
+    },
+    {
+      "line": 472,
+      "text": "2026-11-11T20:05:12.6913709Z Err:1 https://mirrors.edge.kernel.org/ubuntu resolute InRelease"
+    },
+    {
+      "line": 473,
+      "text": "2026-11-11T20:05:12.6914441Z   Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable) Could not connect to mirrors.edge.kernel.org:443 (142.0.200.124), connection timed out"
+    },
+    {
+      "line": 474,
+      "text": "2026-11-11T20:05:12.6915299Z   Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)"
+    },
+    {
+      "line": 476,
+      "text": "2026-11-11T20:05:12.7043223Z E: Failed to fetch https://mirrors.edge.kernel.org/ubuntu/dists/resolute/InRelease  Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)"
+    },
+    {
+      "line": 477,
+      "text": "2026-11-11T20:05:12.7044383Z E: Failed to fetch https://mirrors.edge.kernel.org/ubuntu/dists/resolute-updates/InRelease  Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)"
+    },
+    {
+      "line": 478,
+      "text": "2026-11-11T20:05:12.7045502Z E: Failed to fetch https://mirrors.edge.kernel.org/ubuntu/dists/resolute-security/InRelease  Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)"
+    },
+    {
+      "line": 479,
+      "text": "2026-11-11T20:05:12.7046559Z E: Failed to fetch https://mirrors.edge.kernel.org/ubuntu/dists/resolute-backports/InRelease  Cannot initiate the connection to mirrors.edge.kernel.org:443 (2605:f480:58:1:0:1994:3:14). - connect (101: Network is unreachable)"
+    },
+    {
+      "line": 481,
+      "text": "2026-11-11T20:05:12.7145911Z ##[error]Process completed with exit code 100."
+    }
+  ]
+}

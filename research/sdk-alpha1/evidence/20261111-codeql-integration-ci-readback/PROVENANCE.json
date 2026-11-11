@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "serialization": {
+    "raw_text_files": [
+      "SOURCE_COMMIT_API.json",
+      "CI_RUN_API.json",
+      "CODEQL_RUN_API.json",
+      "CODEQL_JOBS_API.json",
+      "JOC_RUN_API.json",
+      "FAILED_JOB.log",
+      "source/ci_apt.sh"
+    ],
+    "raw_text_definition": "Exact UTF-8 encoding of connector-returned content strings, without newline or BOM normalization.",
+    "selected_api_objects": [
+      "FAILED_JOB.json",
+      "CODEQL_AGGREGATE_CURRENT.json",
+      "CODEQL_AGGREGATE_PREVIOUS.json"
+    ],
+    "selected_object_definition": "Complete selected JSON object from the corresponding successful listing response, serialized with JSON.stringify(value, null, 2) and a final newline; not claimed to retain original HTTP formatting.",
+    "derived_records": [
+      "SNAPSHOT.json",
+      "CODEQL_AGGREGATE_COMPARISON.json",
+      "FAILURE_EVENTS.json"
+    ],
+    "root_retry_copy": "ROOT_RERUN_REJECTION.json contains the root's supplied actual response, explicitly attributed."
+  },
+  "source_commit": "0aa4da50f6a28ad4abf3d15205452864346683b1",
+  "source_tree": "380aa20d15853c214b5d82f3f9f4f2228b62d8e6",
+  "source_file": {
+    "path": "artifact/ci_apt.sh",
+    "bytes": 2518,
+    "sha256": "f679d9f8c4929c02f83c4e29215f45a3eb3c2042195a92b2299f0f05c5411ce5",
+    "git_blob": "a7adeea75b7ada1c74a0656ab880492e46e2db73"
+  },
+  "failed_job": {
+    "id": 130771136263,
+    "listing_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43091923386/jobs?per_page=100",
+    "listing_total_count": 68,
+    "listing_received": 68
+  },
+  "original_job_log": {
+    "retrieval_origin": "Root agent's successful workflow-job-log connector call, then retained as a public Git blob. Publisher independently fetched that blob and checked the complete bytes.",
+    "git_blob": "600380ddd58f5b824b7f8001ac236916999eb8ad",
+    "unicode_characters": 40715,
+    "utf8_bytes": 40717,
+    "sha256": "fc67ef7f11459edc2311768ebbafb0da7eefc9d78f812ac6881c64e48286e139",
+    "split_newline_elements": 498
+  },
+  "codeql_aggregate_route": "Only commit-scoped check-runs listings were fetched; individual check-run and annotation routes were not called.",
+  "publication_parent": "f0e0e4950319973cf202b368c9ad360f0bb6f970",
+  "retrieval_times": {
+    "workflow_jobs_batch_clock_utc": "2026-11-11 20:20:41 UTC",
+    "root_log_blob_readback_clock_utc": "2026-11-11 20:22:16 UTC",
+    "aggregate_objects": "Read after the workflow snapshot through the two recorded commit-scoped listing routes."
+  }
+}

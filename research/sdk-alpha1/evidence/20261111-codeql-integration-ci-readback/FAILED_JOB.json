@@ -1,0 +1,116 @@
+{
+  "id": 130771136263,
+  "run_id": 43091923386,
+  "workflow_name": "ci",
+  "head_branch": "integration/sdk-020",
+  "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43091923386",
+  "run_attempt": 1,
+  "node_id": "CR_kwDOTD-aVc8AAAAecpEvBw",
+  "head_sha": "0aa4da50f6a28ad4abf3d15205452864346683b1",
+  "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130771136263",
+  "html_url": "https://github.com/billlza/q-periapt/actions/runs/43091923386/job/130771136263",
+  "status": "completed",
+  "conclusion": "failure",
+  "created_at": "2026-11-11T19:57:36Z",
+  "started_at": "2026-11-11T20:03:00Z",
+  "completed_at": "2026-11-11T20:05:14Z",
+  "name": "Binary CT [x86_64-portable]",
+  "steps": [
+    {
+      "name": "Set up job",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 1,
+      "started_at": "2026-11-11T20:03:01Z",
+      "completed_at": "2026-11-11T20:03:02Z"
+    },
+    {
+      "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 2,
+      "started_at": "2026-11-11T20:03:02Z",
+      "completed_at": "2026-11-11T20:04:41Z"
+    },
+    {
+      "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 3,
+      "started_at": "2026-11-11T20:04:41Z",
+      "completed_at": "2026-11-11T20:04:50Z"
+    },
+    {
+      "name": "Verify the fixed CT architecture identity",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 4,
+      "started_at": "2026-11-11T20:04:50Z",
+      "completed_at": "2026-11-11T20:04:51Z"
+    },
+    {
+      "name": "Install Valgrind (provides valgrind/memcheck.h for the shim)",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 5,
+      "started_at": "2026-11-11T20:04:51Z",
+      "completed_at": "2026-11-11T20:05:12Z"
+    },
+    {
+      "name": "Build the ct_verify harness (real Memcheck client requests)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 6,
+      "started_at": "2026-11-11T20:05:12Z",
+      "completed_at": "2026-11-11T20:05:12Z"
+    },
+    {
+      "name": "Memcheck — no secret-dependent control flow (hard gate)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 7,
+      "started_at": "2026-11-11T20:05:12Z",
+      "completed_at": "2026-11-11T20:05:12Z"
+    },
+    {
+      "name": "Build the shipped-backend binary CT probes",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 8,
+      "started_at": "2026-11-11T20:05:12Z",
+      "completed_at": "2026-11-11T20:05:12Z"
+    },
+    {
+      "name": "Memcheck — shipped ML-KEM provider probes (self-validating)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 9,
+      "started_at": "2026-11-11T20:05:12Z",
+      "completed_at": "2026-11-11T20:05:12Z"
+    },
+    {
+      "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 18,
+      "started_at": "2026-11-11T20:05:12Z",
+      "completed_at": "2026-11-11T20:05:12Z"
+    },
+    {
+      "name": "Complete job",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 19,
+      "started_at": "2026-11-11T20:05:12Z",
+      "completed_at": "2026-11-11T20:05:12Z"
+    }
+  ],
+  "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130771136263",
+  "labels": [
+    "ubuntu-latest"
+  ],
+  "runner_id": 1000089674,
+  "runner_name": "GitHub Actions 1000089674",
+  "runner_group_id": 0,
+  "runner_group_name": "GitHub Actions"
+}

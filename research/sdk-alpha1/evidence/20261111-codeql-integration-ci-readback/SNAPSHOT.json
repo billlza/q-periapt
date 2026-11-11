@@ -1,0 +1,159 @@
+{
+  "schema": 1,
+  "source_commit": "0aa4da50f6a28ad4abf3d15205452864346683b1",
+  "snapshot_utc": "2026-11-11 20:20:41 UTC",
+  "failed_job": {
+    "run_id": 43091923386,
+    "id": 130771136263,
+    "name": "Binary CT [x86_64-portable]",
+    "status": "completed",
+    "conclusion": "failure",
+    "failed_step": {
+      "name": "Install Valgrind (provides valgrind/memcheck.h for the shim)",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 5,
+      "started_at": "2026-11-11T20:04:51Z",
+      "completed_at": "2026-11-11T20:05:12Z"
+    },
+    "skipped_ct_steps": [
+      {
+        "name": "Build the ct_verify harness (real Memcheck client requests)",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 6,
+        "started_at": "2026-11-11T20:05:12Z",
+        "completed_at": "2026-11-11T20:05:12Z"
+      },
+      {
+        "name": "Memcheck — no secret-dependent control flow (hard gate)",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 7,
+        "started_at": "2026-11-11T20:05:12Z",
+        "completed_at": "2026-11-11T20:05:12Z"
+      },
+      {
+        "name": "Build the shipped-backend binary CT probes",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 8,
+        "started_at": "2026-11-11T20:05:12Z",
+        "completed_at": "2026-11-11T20:05:12Z"
+      },
+      {
+        "name": "Memcheck — shipped ML-KEM provider probes (self-validating)",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 9,
+        "started_at": "2026-11-11T20:05:12Z",
+        "completed_at": "2026-11-11T20:05:12Z"
+      }
+    ],
+    "failure_stage": "apt-get update in ci_apt.sh, before package installation or CT consumers",
+    "repository_origin": "https://mirrors.edge.kernel.org/ubuntu",
+    "suite": "resolute",
+    "network_errors": [
+      "IPv6 connect returned Network is unreachable",
+      "IPv4 connection timed out"
+    ],
+    "exit_code": 100,
+    "ct_executed": false
+  },
+  "joc": {
+    "run_id": 43091923693,
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "codeql": {
+    "run_id": 43091923478,
+    "jobs": [
+      {
+        "id": 130770903018,
+        "name": "Analyze Rust (native)",
+        "status": "pending",
+        "conclusion": null,
+        "started_at": "2026-11-11T19:57:09Z",
+        "completed_at": null,
+        "active_step": null
+      },
+      {
+        "id": 130770903434,
+        "name": "Analyze Rust (wasm)",
+        "status": "in_progress",
+        "conclusion": null,
+        "started_at": "2026-11-11T20:16:41Z",
+        "completed_at": null,
+        "active_step": "Compile and extract the actual target"
+      },
+      {
+        "id": 130770903587,
+        "name": "Analyze (python)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-11T19:57:14Z",
+        "completed_at": "2026-11-11T20:01:56Z",
+        "active_step": null
+      },
+      {
+        "id": 130770903706,
+        "name": "Analyze (java-kotlin)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-11T19:57:14Z",
+        "completed_at": "2026-11-11T20:01:35Z",
+        "active_step": null
+      },
+      {
+        "id": 130770903778,
+        "name": "Analyze (c-cpp)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-11T19:57:13Z",
+        "completed_at": "2026-11-11T19:58:47Z",
+        "active_step": null
+      },
+      {
+        "id": 130770903784,
+        "name": "Analyze (actions)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-11T19:57:14Z",
+        "completed_at": "2026-11-11T19:58:17Z",
+        "active_step": null
+      },
+      {
+        "id": 130770904124,
+        "name": "Analyze (swift)",
+        "status": "pending",
+        "conclusion": null,
+        "started_at": "2026-11-11T19:57:09Z",
+        "completed_at": null,
+        "active_step": null
+      },
+      {
+        "id": 130770904678,
+        "name": "Prepare Rust (macos)",
+        "status": "pending",
+        "conclusion": null,
+        "started_at": "2026-11-11T19:57:09Z",
+        "completed_at": null,
+        "active_step": null
+      }
+    ],
+    "aggregate_check": {
+      "id": 130771382809,
+      "status": "completed",
+      "conclusion": "failure",
+      "title": "2 configurations not found"
+    },
+    "wasm_query_analysis_completed": false
+  },
+  "retry": {
+    "requester": "root agent",
+    "requested_at_utc": "2026-11-11 20:13:26 UTC",
+    "status_code": 403,
+    "message": "The workflow run containing this job is already running",
+    "successful_rerun": false
+  }
+}
