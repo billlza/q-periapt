@@ -1,0 +1,332 @@
+[
+  {
+    "path": "artifact/android_runtime_control.py",
+    "old_blob": "889e21179d3279c5ac5840cb43d6c145232e65e2",
+    "new_blob": "889e21179d3279c5ac5840cb43d6c145232e65e2",
+    "identical": true
+  },
+  {
+    "path": "artifact/android_sdk_package.py",
+    "old_blob": "8a601ec9d05ff095311e9b2a7126f24adbdb5976",
+    "new_blob": "8a601ec9d05ff095311e9b2a7126f24adbdb5976",
+    "identical": true
+  },
+  {
+    "path": "artifact/apple_sdk_profile.py",
+    "old_blob": "2d77eb92e935530b1a210957a0496af580646433",
+    "new_blob": "2d77eb92e935530b1a210957a0496af580646433",
+    "identical": true
+  },
+  {
+    "path": "artifact/bounded_process.py",
+    "old_blob": "63bc8ff305c80721469e9f46f480395c8a036b76",
+    "new_blob": "63bc8ff305c80721469e9f46f480395c8a036b76",
+    "identical": true
+  },
+  {
+    "path": "artifact/ci_protoc.py",
+    "old_blob": null,
+    "new_blob": "1cc2b44177f2121c94594317fcfbba7aacb97a04",
+    "identical": false
+  },
+  {
+    "path": "artifact/codeql_memory_control.py",
+    "old_blob": "257c8f9ef3ccf96d23d1f7b9abddb17f0b038127",
+    "new_blob": "257c8f9ef3ccf96d23d1f7b9abddb17f0b038127",
+    "identical": true
+  },
+  {
+    "path": "artifact/codeql_summary_control.py",
+    "old_blob": "8f96c20d263319fd861ce8ab3de678b178324043",
+    "new_blob": "8f96c20d263319fd861ce8ab3de678b178324043",
+    "identical": true
+  },
+  {
+    "path": "artifact/continuity_android_build.py",
+    "old_blob": "28210a7c3f90da32b4f556868e2d1821ffa32f3c",
+    "new_blob": "28210a7c3f90da32b4f556868e2d1821ffa32f3c",
+    "identical": true
+  },
+  {
+    "path": "artifact/continuity_host_exchange.py",
+    "old_blob": "98c4e7b4ed806c74cfe833144790a4bbe139adb9",
+    "new_blob": "98c4e7b4ed806c74cfe833144790a4bbe139adb9",
+    "identical": true
+  },
+  {
+    "path": "artifact/continuity_independent_install.py",
+    "old_blob": "c29d9484a108d68817e19ae24d5cc5208c4df9f0",
+    "new_blob": "c29d9484a108d68817e19ae24d5cc5208c4df9f0",
+    "identical": true
+  },
+  {
+    "path": "artifact/continuity_independent_package.py",
+    "old_blob": "1fcbedfafee312cf751be8f95a407d03ae2a5b4a",
+    "new_blob": "1fcbedfafee312cf751be8f95a407d03ae2a5b4a",
+    "identical": true
+  },
+  {
+    "path": "artifact/continuity_independent_python_run.py",
+    "old_blob": "3c6ee3e653c02f8f60a0b99f4bf689a3454b04a9",
+    "new_blob": "3c6ee3e653c02f8f60a0b99f4bf689a3454b04a9",
+    "identical": true
+  },
+  {
+    "path": "artifact/continuity_kotlin_consumer.py",
+    "old_blob": "fd3ca0287a8fdef8386182ff8dd83edf49985197",
+    "new_blob": "fd3ca0287a8fdef8386182ff8dd83edf49985197",
+    "identical": true
+  },
+  {
+    "path": "artifact/continuity_package.py",
+    "old_blob": "29b9cd346d8f2c0b6e3e96584d22009727b31a46",
+    "new_blob": "29b9cd346d8f2c0b6e3e96584d22009727b31a46",
+    "identical": true
+  },
+  {
+    "path": "artifact/continuity_profiles.py",
+    "old_blob": "4905c265e7ba23d6e1640a1c83b8594082e3bd97",
+    "new_blob": "4905c265e7ba23d6e1640a1c83b8594082e3bd97",
+    "identical": true
+  },
+  {
+    "path": "artifact/continuity_recovery_proof.py",
+    "old_blob": "09f400f0184b3c46a804420dfaca1cc878dedd76",
+    "new_blob": "09f400f0184b3c46a804420dfaca1cc878dedd76",
+    "identical": true
+  },
+  {
+    "path": "artifact/continuity_windows_network_review.py",
+    "old_blob": "9c36884df403a83a557bf287fdeafbca4ba2f39d",
+    "new_blob": "9c36884df403a83a557bf287fdeafbca4ba2f39d",
+    "identical": true
+  },
+  {
+    "path": "artifact/evidence_io.py",
+    "old_blob": "a0358296cc398609c048e56cbcd960ff81fe7d27",
+    "new_blob": "a0358296cc398609c048e56cbcd960ff81fe7d27",
+    "identical": true
+  },
+  {
+    "path": "artifact/fanout_latency.py",
+    "old_blob": "f1aec1208ada2b0273b2df4c4c3b96b6fa61b5c6",
+    "new_blob": "f1aec1208ada2b0273b2df4c4c3b96b6fa61b5c6",
+    "identical": true
+  },
+  {
+    "path": "artifact/fanout_latency_review.py",
+    "old_blob": "b26f2a821986cb6feadc4766e58bd8ed2561f5d8",
+    "new_blob": "b26f2a821986cb6feadc4766e58bd8ed2561f5d8",
+    "identical": true
+  },
+  {
+    "path": "artifact/jvm_sdk_package.py",
+    "old_blob": "8cfc3db35d35db3e5fc69b732c9f194422f146ce",
+    "new_blob": "8cfc3db35d35db3e5fc69b732c9f194422f146ce",
+    "identical": true
+  },
+  {
+    "path": "artifact/policy_maintenance_package.py",
+    "old_blob": "8cdda83cdc7877e20a6727e6aa305f23f97b1fc6",
+    "new_blob": "8cdda83cdc7877e20a6727e6aa305f23f97b1fc6",
+    "identical": true
+  },
+  {
+    "path": "artifact/rust_sdk_profile.py",
+    "old_blob": "444902870f0689291c635a88f87e2ecf6bfb6bfa",
+    "new_blob": "444902870f0689291c635a88f87e2ecf6bfb6bfa",
+    "identical": true
+  },
+  {
+    "path": "artifact/sdk_connection_interop.py",
+    "old_blob": "04a3ce7aae9d1fa3209bbb9c391b3cd4bdeadfa2",
+    "new_blob": "04a3ce7aae9d1fa3209bbb9c391b3cd4bdeadfa2",
+    "identical": true
+  },
+  {
+    "path": "artifact/sdk_connection_performance.py",
+    "old_blob": "ae4f4f7182b04d56f7c7a34ccce8aef524d257f4",
+    "new_blob": "ae4f4f7182b04d56f7c7a34ccce8aef524d257f4",
+    "identical": true
+  },
+  {
+    "path": "artifact/sdk_installed_connection.py",
+    "old_blob": "6328796b0c40ec502a44010c8b69636a915b3837",
+    "new_blob": "6328796b0c40ec502a44010c8b69636a915b3837",
+    "identical": true
+  },
+  {
+    "path": "artifact/standard_tls_interop.py",
+    "old_blob": "b131f156b1a14cc9967f2ab19b73967f3d004f92",
+    "new_blob": "b131f156b1a14cc9967f2ab19b73967f3d004f92",
+    "identical": true
+  },
+  {
+    "path": "artifact/test_codeql_rust_profile.py",
+    "old_blob": "15eaba10935c79f8c5e402ed0b3c50306d3873db",
+    "new_blob": "15eaba10935c79f8c5e402ed0b3c50306d3873db",
+    "identical": true
+  },
+  {
+    "path": "artifact/wasm_sdk_package.py",
+    "old_blob": "d1de1a0cef53e743ee9ffbd59488f7fa7c0cc4f7",
+    "new_blob": "d1de1a0cef53e743ee9ffbd59488f7fa7c0cc4f7",
+    "identical": true
+  },
+  {
+    "path": "research/continuity-identity-candidate/scripts/verify_anchor_vectors.py",
+    "old_blob": "279019b6c1a7a692a7aa86efb75b20a5632a1309",
+    "new_blob": "279019b6c1a7a692a7aa86efb75b20a5632a1309",
+    "identical": true
+  },
+  {
+    "path": "research/continuity-identity-candidate/scripts/verify_public_vectors.py",
+    "old_blob": "228b5f19f82995f18ecc2736a8fd574e81e3e74b",
+    "new_blob": "228b5f19f82995f18ecc2736a8fd574e81e3e74b",
+    "identical": true
+  },
+  {
+    "path": "research/continuity-reference-app/tests/host_account_credential.py",
+    "old_blob": "6ef7b710290bcabdab15b3a98fd1eb0eaa30560e",
+    "new_blob": "6ef7b710290bcabdab15b3a98fd1eb0eaa30560e",
+    "identical": true
+  },
+  {
+    "path": "research/continuity-reference-app/tests/host_replacement.py",
+    "old_blob": "1117160e7648200c0a5b488296d1e1aa8b293f33",
+    "new_blob": "1117160e7648200c0a5b488296d1e1aa8b293f33",
+    "identical": true
+  },
+  {
+    "path": "research/continuity-reference-app/tests/host_replacement_device.py",
+    "old_blob": "89416d9147c323f20ab91adf95031312edb13f49",
+    "new_blob": "89416d9147c323f20ab91adf95031312edb13f49",
+    "identical": true
+  },
+  {
+    "path": "research/continuity-reference-app/tests/host_replacement_process.py",
+    "old_blob": "2d948fe567870f1792294c1a37703981e14d1286",
+    "new_blob": "2d948fe567870f1792294c1a37703981e14d1286",
+    "identical": true
+  },
+  {
+    "path": "research/continuity-reference-app/tests/host_roster.py",
+    "old_blob": "86abbe72436256f37642c4dddf4e6b076380fa5e",
+    "new_blob": "86abbe72436256f37642c4dddf4e6b076380fa5e",
+    "identical": true
+  },
+  {
+    "path": "research/continuity-reference-app/tests/native_exchange.py",
+    "old_blob": "15d620e2af2c8ed19b4e37a41c2f2d4221379d1a",
+    "new_blob": "15d620e2af2c8ed19b4e37a41c2f2d4221379d1a",
+    "identical": true
+  },
+  {
+    "path": "research/continuity-reference-app/tests/native_exchange_fixture.py",
+    "old_blob": "75b060c9531c7bf5896da7cbca93990a7f33b5bf",
+    "new_blob": "75b060c9531c7bf5896da7cbca93990a7f33b5bf",
+    "identical": true
+  },
+  {
+    "path": "research/continuity-reference-app/tests/native_network_driver.py",
+    "old_blob": "0f14c8e1be3103b48d2a9258db52b06a28622b2a",
+    "new_blob": "0f14c8e1be3103b48d2a9258db52b06a28622b2a",
+    "identical": true
+  },
+  {
+    "path": "research/continuity-reference-app/tests/witness_account_credential_cli.py",
+    "old_blob": "9fea39e104dc0f1af2c80b52aa9b274bc1287f2b",
+    "new_blob": "9fea39e104dc0f1af2c80b52aa9b274bc1287f2b",
+    "identical": true
+  },
+  {
+    "path": "research/continuity-reference-app/tests/witness_cli_exchange.py",
+    "old_blob": "b047724af8ff6103c60a1129c539d05ec853d945",
+    "new_blob": "b047724af8ff6103c60a1129c539d05ec853d945",
+    "identical": true
+  },
+  {
+    "path": "research/sdk-alpha1/evidence/20261004-enrollment-cancellation-6b7a940e/run-history-foreign.py",
+    "old_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+    "new_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+    "identical": true
+  },
+  {
+    "path": "research/sdk-alpha1/evidence/20261004-foreign-cancellation-7d92d80a/run-cancellation-c-quality.py",
+    "old_blob": "b9d6ddaee339b738b4eb787c366911c06eb809de",
+    "new_blob": "b9d6ddaee339b738b4eb787c366911c06eb809de",
+    "identical": true
+  },
+  {
+    "path": "research/sdk-alpha1/evidence/20261004-foreign-cancellation-7d92d80a/run-history-foreign.py",
+    "old_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+    "new_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+    "identical": true
+  },
+  {
+    "path": "research/sdk-alpha1/evidence/20261004-foreign-commit-error-2a1d5ada/run-commit-error-language-build.py",
+    "old_blob": "1810007751c193d58a0ca9810975f0893407c600",
+    "new_blob": "1810007751c193d58a0ca9810975f0893407c600",
+    "identical": true
+  },
+  {
+    "path": "research/sdk-alpha1/evidence/20261004-foreign-commit-error-2a1d5ada/run-commit-loss-quality.py",
+    "old_blob": "ca46e30071e30d14337d0be0433327ae03d2fa2b",
+    "new_blob": "ca46e30071e30d14337d0be0433327ae03d2fa2b",
+    "identical": true
+  },
+  {
+    "path": "research/sdk-alpha1/evidence/20261004-foreign-commit-loss-dc1c2fd1/run-commit-loss-quality.py",
+    "old_blob": "ca46e30071e30d14337d0be0433327ae03d2fa2b",
+    "new_blob": "ca46e30071e30d14337d0be0433327ae03d2fa2b",
+    "identical": true
+  },
+  {
+    "path": "research/sdk-alpha1/evidence/20261004-grant-cancellation-bb295722/run-history-foreign.py",
+    "old_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+    "new_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+    "identical": true
+  },
+  {
+    "path": "research/sdk-alpha1/evidence/20261004-historical-foreign-3eaa0fc9/run-history-foreign.py",
+    "old_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+    "new_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+    "identical": true
+  },
+  {
+    "path": "research/sdk-alpha1/evidence/20261004-historical-foreign-3eaa0fc9/run-witnessed-collector-component.py",
+    "old_blob": "957a5f66cfd805b86454e88c1a11f0fa128d7000",
+    "new_blob": "957a5f66cfd805b86454e88c1a11f0fa128d7000",
+    "identical": true
+  },
+  {
+    "path": "research/sdk-alpha1/evidence/20261004-policy-expiry-0411862b/run-history-foreign.py",
+    "old_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+    "new_blob": "6b37b4a81802267b784c6c7f1198592f328a93a6",
+    "identical": true
+  },
+  {
+    "path": "research/sdk-alpha1/evidence/20261004-policy-expiry-0411862b/run-policy-expiry-collector-component.py",
+    "old_blob": "53c3732b51a549a32f80997e5dabb42aa2e7cff6",
+    "new_blob": "53c3732b51a549a32f80997e5dabb42aa2e7cff6",
+    "identical": true
+  },
+  {
+    "path": "research/sdk-alpha1/evidence/20261004-tls-cancellation-cut-a55a8c76/run-commit-loss-quality.py",
+    "old_blob": "ca46e30071e30d14337d0be0433327ae03d2fa2b",
+    "new_blob": "ca46e30071e30d14337d0be0433327ae03d2fa2b",
+    "identical": true
+  },
+  {
+    "path": "research/sdk-alpha1/evidence/20261009-configuration-fixture-isolation/run.py",
+    "old_blob": "4abe7c4dce711d0bb64289b5199761e809a17d76",
+    "new_blob": "4abe7c4dce711d0bb64289b5199761e809a17d76",
+    "identical": true
+  },
+  {
+    "path": "research/sdk-alpha1/evidence/20261009-explicit-peer-configuration/run-gate.py",
+    "old_blob": "a0bcc474b56764508ca0d1ee781e0ea571653276",
+    "new_blob": "a0bcc474b56764508ca0d1ee781e0ea571653276",
+    "identical": true
+  }
+]

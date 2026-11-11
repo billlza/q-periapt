@@ -1,0 +1,736 @@
+{
+  "current_artifacts": [
+    {
+      "id": 13873052869,
+      "members": {
+        "python.sarif": {
+          "bytes": 13749970,
+          "sha256": "5b2d74d9f0149e6722456dd629bd646934470351650d0e3c931be88a4a4909cc"
+        },
+        "source-identity.txt": {
+          "bytes": 82,
+          "sha256": "46ca050d86cfcbf25a0308d05e168edc3e113916040757c3eae4fae54db5bcbc"
+        }
+      },
+      "name": "python.sarif",
+      "result_count": 1415,
+      "rule_counts": {
+        "py/clear-text-storage-sensitive-data": 1,
+        "py/code-injection": 1,
+        "py/command-line-injection": 52,
+        "py/overly-permissive-file": 53,
+        "py/path-injection": 1307,
+        "py/weak-sensitive-data-hashing": 1
+      },
+      "severity_counts": {
+        "7.5": 1309,
+        "7.8": 53,
+        "9.3": 1,
+        "9.8": 52
+      },
+      "source": [
+        "706207d11ddfc6371176698fd302b20d7714bbdb",
+        "81e8aa8047e9e54e9f98ea18fc25c616cb557425"
+      ],
+      "zip_bytes": 301839,
+      "zip_sha256": "cce537dec025da8df6b7d4fcee16a16f9dbffd584a30b8a0982d65d17b23b945"
+    },
+    {
+      "id": 13873027422,
+      "members": {
+        "cpp.sarif": {
+          "bytes": 530763,
+          "sha256": "1d723ab70ce27ab423e4cc94a8454780d5663d9fb51a7b70c14a665e54d887d7"
+        },
+        "source-identity.txt": {
+          "bytes": 82,
+          "sha256": "46ca050d86cfcbf25a0308d05e168edc3e113916040757c3eae4fae54db5bcbc"
+        }
+      },
+      "name": "cpp.sarif",
+      "result_count": 3,
+      "rule_counts": {
+        "cpp/path-injection": 3
+      },
+      "severity_counts": {
+        "7.5": 3
+      },
+      "source": [
+        "706207d11ddfc6371176698fd302b20d7714bbdb",
+        "81e8aa8047e9e54e9f98ea18fc25c616cb557425"
+      ],
+      "zip_bytes": 68213,
+      "zip_sha256": "4f7aafcd70174d5461adf55f9fc5c3307d367564cbe17220135559d005f784fa"
+    },
+    {
+      "id": 13872932506,
+      "members": {
+        "actions.sarif": {
+          "bytes": 176298,
+          "sha256": "46a339bad69055f3a3db8817a1f93b0908c3a1b059bd18989805830825276880"
+        },
+        "source-identity.txt": {
+          "bytes": 82,
+          "sha256": "46ca050d86cfcbf25a0308d05e168edc3e113916040757c3eae4fae54db5bcbc"
+        }
+      },
+      "name": "actions.sarif",
+      "result_count": 0,
+      "rule_counts": {},
+      "severity_counts": {},
+      "source": [
+        "706207d11ddfc6371176698fd302b20d7714bbdb",
+        "81e8aa8047e9e54e9f98ea18fc25c616cb557425"
+      ],
+      "zip_bytes": 20022,
+      "zip_sha256": "7d450ccaebde04762bbccf8078e727443a997e9695b79dccc3068a0e2f29121f"
+    },
+    {
+      "id": 13872044234,
+      "members": {
+        "java.sarif": {
+          "bytes": 848745,
+          "sha256": "5ecd1e5cb805a2080496d1717c65c700b0194e995ba303903af72aa67e2422ed"
+        },
+        "source-identity.txt": {
+          "bytes": 82,
+          "sha256": "46ca050d86cfcbf25a0308d05e168edc3e113916040757c3eae4fae54db5bcbc"
+        }
+      },
+      "name": "java.sarif",
+      "result_count": 0,
+      "rule_counts": {},
+      "severity_counts": {},
+      "source": [
+        "706207d11ddfc6371176698fd302b20d7714bbdb",
+        "81e8aa8047e9e54e9f98ea18fc25c616cb557425"
+      ],
+      "zip_bytes": 109950,
+      "zip_sha256": "9f86dd375f7b3ca66689723e84b8dc5fabf4889a7c1764030e6b40fd0f22f108"
+    }
+  ],
+  "delta": {
+    "cpp.sarif": {
+      "added": [],
+      "complete_results_equal_after_table_index_removal": 3,
+      "current": 3,
+      "previous": 3,
+      "removed": [],
+      "shared_identities": 3
+    },
+    "python.sarif": {
+      "added": [
+        {
+          "locations": [
+            [
+              "artifact/ci_protoc.py",
+              {
+                "endColumn": 82,
+                "startColumn": 76,
+                "startLine": 48
+              }
+            ]
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "85e9cf33f3c7ce03:1",
+            "primaryLocationStartColumnFingerprint": "71"
+          },
+          "ruleId": "py/path-injection"
+        },
+        {
+          "locations": [
+            [
+              "artifact/ci_protoc.py",
+              {
+                "endColumn": 84,
+                "startColumn": 17,
+                "startLine": 48
+              }
+            ]
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "85e9cf33f3c7ce03:1",
+            "primaryLocationStartColumnFingerprint": "12"
+          },
+          "ruleId": "py/path-injection"
+        },
+        {
+          "locations": [
+            [
+              "artifact/ci_protoc.py",
+              {
+                "endColumn": 41,
+                "startColumn": 32,
+                "startLine": 53
+              }
+            ]
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "ffa26d4f67336f6c:1",
+            "primaryLocationStartColumnFingerprint": "19"
+          },
+          "ruleId": "py/path-injection"
+        },
+        {
+          "locations": [
+            [
+              "artifact/ci_protoc.py",
+              {
+                "endColumn": 15,
+                "startColumn": 9,
+                "startLine": 55
+              }
+            ]
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "8c5249e18ae41f2d:1",
+            "primaryLocationStartColumnFingerprint": "0"
+          },
+          "ruleId": "py/path-injection"
+        },
+        {
+          "locations": [
+            [
+              "artifact/ci_protoc.py",
+              {
+                "endColumn": 15,
+                "startColumn": 9,
+                "startLine": 59
+              }
+            ]
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "4f21b823c4bc395d:1",
+            "primaryLocationStartColumnFingerprint": "0"
+          },
+          "ruleId": "py/path-injection"
+        },
+        {
+          "locations": [
+            [
+              "artifact/ci_protoc.py",
+              {
+                "endColumn": 30,
+                "startColumn": 20,
+                "startLine": 64
+              }
+            ]
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "ce16809d0227310e:1",
+            "primaryLocationStartColumnFingerprint": "11"
+          },
+          "ruleId": "py/path-injection"
+        },
+        {
+          "locations": [
+            [
+              "artifact/ci_protoc.py",
+              {
+                "endColumn": 63,
+                "startColumn": 53,
+                "startLine": 69
+              }
+            ]
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "557afe9d7940d027:1",
+            "primaryLocationStartColumnFingerprint": "36"
+          },
+          "ruleId": "py/path-injection"
+        },
+        {
+          "locations": [
+            [
+              "artifact/ci_protoc.py",
+              {
+                "endColumn": 32,
+                "startColumn": 23,
+                "startLine": 71
+              }
+            ]
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "2dc6b1299fce0f8e:1",
+            "primaryLocationStartColumnFingerprint": "14"
+          },
+          "ruleId": "py/path-injection"
+        },
+        {
+          "locations": [
+            [
+              "artifact/ci_protoc.py",
+              {
+                "endColumn": 45,
+                "startColumn": 14,
+                "startLine": 78
+              }
+            ]
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "e7a3ee8361fb71b6:1",
+            "primaryLocationStartColumnFingerprint": "9"
+          },
+          "ruleId": "py/path-injection"
+        },
+        {
+          "locations": [
+            [
+              "artifact/ci_protoc.py",
+              {
+                "endColumn": 21,
+                "startColumn": 10,
+                "startLine": 85
+              }
+            ]
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "7f8c2f1d89708b6b:1",
+            "primaryLocationStartColumnFingerprint": "5"
+          },
+          "ruleId": "py/path-injection"
+        },
+        {
+          "locations": [
+            [
+              "artifact/ci_protoc.py",
+              {
+                "endColumn": 21,
+                "startColumn": 10,
+                "startLine": 87
+              }
+            ]
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "c063f90382960c78:1",
+            "primaryLocationStartColumnFingerprint": "5"
+          },
+          "ruleId": "py/path-injection"
+        }
+      ],
+      "complete_results_equal_after_table_index_removal": 1388,
+      "current": 1415,
+      "new_result_sources": [
+        {
+          "identity": {
+            "locations": [
+              [
+                "artifact/ci_protoc.py",
+                {
+                  "endColumn": 82,
+                  "startColumn": 76,
+                  "startLine": 48
+                }
+              ]
+            ],
+            "partialFingerprints": {
+              "primaryLocationLineHash": "85e9cf33f3c7ce03:1",
+              "primaryLocationStartColumnFingerprint": "71"
+            },
+            "ruleId": "py/path-injection"
+          },
+          "reported_sources": [
+            {
+              "message": {
+                "text": "user-provided value"
+              },
+              "region": {
+                "endColumn": 29,
+                "startColumn": 19,
+                "startLine": 78
+              },
+              "uri": "artifact/ci_protoc.py"
+            }
+          ]
+        },
+        {
+          "identity": {
+            "locations": [
+              [
+                "artifact/ci_protoc.py",
+                {
+                  "endColumn": 84,
+                  "startColumn": 17,
+                  "startLine": 48
+                }
+              ]
+            ],
+            "partialFingerprints": {
+              "primaryLocationLineHash": "85e9cf33f3c7ce03:1",
+              "primaryLocationStartColumnFingerprint": "12"
+            },
+            "ruleId": "py/path-injection"
+          },
+          "reported_sources": [
+            {
+              "message": {
+                "text": "user-provided value"
+              },
+              "region": {
+                "endColumn": 29,
+                "startColumn": 19,
+                "startLine": 78
+              },
+              "uri": "artifact/ci_protoc.py"
+            }
+          ]
+        },
+        {
+          "identity": {
+            "locations": [
+              [
+                "artifact/ci_protoc.py",
+                {
+                  "endColumn": 41,
+                  "startColumn": 32,
+                  "startLine": 53
+                }
+              ]
+            ],
+            "partialFingerprints": {
+              "primaryLocationLineHash": "ffa26d4f67336f6c:1",
+              "primaryLocationStartColumnFingerprint": "19"
+            },
+            "ruleId": "py/path-injection"
+          },
+          "reported_sources": [
+            {
+              "message": {
+                "text": "user-provided value"
+              },
+              "region": {
+                "endColumn": 29,
+                "startColumn": 19,
+                "startLine": 78
+              },
+              "uri": "artifact/ci_protoc.py"
+            }
+          ]
+        },
+        {
+          "identity": {
+            "locations": [
+              [
+                "artifact/ci_protoc.py",
+                {
+                  "endColumn": 15,
+                  "startColumn": 9,
+                  "startLine": 55
+                }
+              ]
+            ],
+            "partialFingerprints": {
+              "primaryLocationLineHash": "8c5249e18ae41f2d:1",
+              "primaryLocationStartColumnFingerprint": "0"
+            },
+            "ruleId": "py/path-injection"
+          },
+          "reported_sources": [
+            {
+              "message": {
+                "text": "user-provided value"
+              },
+              "region": {
+                "endColumn": 29,
+                "startColumn": 19,
+                "startLine": 78
+              },
+              "uri": "artifact/ci_protoc.py"
+            }
+          ]
+        },
+        {
+          "identity": {
+            "locations": [
+              [
+                "artifact/ci_protoc.py",
+                {
+                  "endColumn": 15,
+                  "startColumn": 9,
+                  "startLine": 59
+                }
+              ]
+            ],
+            "partialFingerprints": {
+              "primaryLocationLineHash": "4f21b823c4bc395d:1",
+              "primaryLocationStartColumnFingerprint": "0"
+            },
+            "ruleId": "py/path-injection"
+          },
+          "reported_sources": [
+            {
+              "message": {
+                "text": "user-provided value"
+              },
+              "region": {
+                "endColumn": 29,
+                "startColumn": 19,
+                "startLine": 78
+              },
+              "uri": "artifact/ci_protoc.py"
+            }
+          ]
+        },
+        {
+          "identity": {
+            "locations": [
+              [
+                "artifact/ci_protoc.py",
+                {
+                  "endColumn": 30,
+                  "startColumn": 20,
+                  "startLine": 64
+                }
+              ]
+            ],
+            "partialFingerprints": {
+              "primaryLocationLineHash": "ce16809d0227310e:1",
+              "primaryLocationStartColumnFingerprint": "11"
+            },
+            "ruleId": "py/path-injection"
+          },
+          "reported_sources": [
+            {
+              "message": {
+                "text": "user-provided value"
+              },
+              "region": {
+                "endColumn": 29,
+                "startColumn": 19,
+                "startLine": 78
+              },
+              "uri": "artifact/ci_protoc.py"
+            }
+          ]
+        },
+        {
+          "identity": {
+            "locations": [
+              [
+                "artifact/ci_protoc.py",
+                {
+                  "endColumn": 63,
+                  "startColumn": 53,
+                  "startLine": 69
+                }
+              ]
+            ],
+            "partialFingerprints": {
+              "primaryLocationLineHash": "557afe9d7940d027:1",
+              "primaryLocationStartColumnFingerprint": "36"
+            },
+            "ruleId": "py/path-injection"
+          },
+          "reported_sources": [
+            {
+              "message": {
+                "text": "user-provided value"
+              },
+              "region": {
+                "endColumn": 29,
+                "startColumn": 19,
+                "startLine": 78
+              },
+              "uri": "artifact/ci_protoc.py"
+            }
+          ]
+        },
+        {
+          "identity": {
+            "locations": [
+              [
+                "artifact/ci_protoc.py",
+                {
+                  "endColumn": 32,
+                  "startColumn": 23,
+                  "startLine": 71
+                }
+              ]
+            ],
+            "partialFingerprints": {
+              "primaryLocationLineHash": "2dc6b1299fce0f8e:1",
+              "primaryLocationStartColumnFingerprint": "14"
+            },
+            "ruleId": "py/path-injection"
+          },
+          "reported_sources": [
+            {
+              "message": {
+                "text": "user-provided value"
+              },
+              "region": {
+                "endColumn": 29,
+                "startColumn": 19,
+                "startLine": 78
+              },
+              "uri": "artifact/ci_protoc.py"
+            }
+          ]
+        },
+        {
+          "identity": {
+            "locations": [
+              [
+                "artifact/ci_protoc.py",
+                {
+                  "endColumn": 45,
+                  "startColumn": 14,
+                  "startLine": 78
+                }
+              ]
+            ],
+            "partialFingerprints": {
+              "primaryLocationLineHash": "e7a3ee8361fb71b6:1",
+              "primaryLocationStartColumnFingerprint": "9"
+            },
+            "ruleId": "py/path-injection"
+          },
+          "reported_sources": [
+            {
+              "message": {
+                "text": "user-provided value"
+              },
+              "region": {
+                "endColumn": 29,
+                "startColumn": 19,
+                "startLine": 78
+              },
+              "uri": "artifact/ci_protoc.py"
+            }
+          ]
+        },
+        {
+          "identity": {
+            "locations": [
+              [
+                "artifact/ci_protoc.py",
+                {
+                  "endColumn": 21,
+                  "startColumn": 10,
+                  "startLine": 85
+                }
+              ]
+            ],
+            "partialFingerprints": {
+              "primaryLocationLineHash": "7f8c2f1d89708b6b:1",
+              "primaryLocationStartColumnFingerprint": "5"
+            },
+            "ruleId": "py/path-injection"
+          },
+          "reported_sources": [
+            {
+              "message": {
+                "text": "user-provided value"
+              },
+              "region": {
+                "endColumn": 34,
+                "startColumn": 24,
+                "startLine": 79
+              },
+              "uri": "artifact/ci_protoc.py"
+            }
+          ]
+        },
+        {
+          "identity": {
+            "locations": [
+              [
+                "artifact/ci_protoc.py",
+                {
+                  "endColumn": 21,
+                  "startColumn": 10,
+                  "startLine": 87
+                }
+              ]
+            ],
+            "partialFingerprints": {
+              "primaryLocationLineHash": "c063f90382960c78:1",
+              "primaryLocationStartColumnFingerprint": "5"
+            },
+            "ruleId": "py/path-injection"
+          },
+          "reported_sources": [
+            {
+              "message": {
+                "text": "user-provided value"
+              },
+              "region": {
+                "endColumn": 34,
+                "startColumn": 24,
+                "startLine": 80
+              },
+              "uri": "artifact/ci_protoc.py"
+            }
+          ]
+        }
+      ],
+      "previous": 1404,
+      "removed": [],
+      "shared_identities": 1404
+    }
+  },
+  "previous_artifacts": [
+    {
+      "id": 13870771389,
+      "members": {
+        "python.sarif": {
+          "bytes": 13696234,
+          "sha256": "03807d1b1e0165ed8fc641c2abbc9d390fe83d72e22b203795ff9ee11a12db65"
+        },
+        "source-identity.txt": {
+          "bytes": 82,
+          "sha256": "1ef6a721dd80f5bf859abff3c5fa39eda68eb5c486c50c0528d2f718118de995"
+        }
+      },
+      "name": "python.sarif",
+      "result_count": 1404,
+      "rule_counts": {
+        "py/clear-text-storage-sensitive-data": 1,
+        "py/code-injection": 1,
+        "py/command-line-injection": 52,
+        "py/overly-permissive-file": 53,
+        "py/path-injection": 1296,
+        "py/weak-sensitive-data-hashing": 1
+      },
+      "severity_counts": {
+        "7.5": 1298,
+        "7.8": 53,
+        "9.3": 1,
+        "9.8": 52
+      },
+      "source": [
+        "b72f7f8e8e6f2526ebab4b825b7d47402ac9835f",
+        "e992a9077e657e63c6b698527d26fe81ad67c535"
+      ],
+      "zip_bytes": 300144,
+      "zip_sha256": "9abf4a31ea99cfe5ea604153fcf6d420afe9897c5123114b76044e6456527c9b"
+    },
+    {
+      "id": 13869681729,
+      "members": {
+        "cpp.sarif": {
+          "bytes": 530915,
+          "sha256": "003405143cd42dea65e2cd1cc87f7a8d82d7d5ae1fd554610ecb1068be9a9b60"
+        },
+        "source-identity.txt": {
+          "bytes": 82,
+          "sha256": "1ef6a721dd80f5bf859abff3c5fa39eda68eb5c486c50c0528d2f718118de995"
+        }
+      },
+      "name": "cpp.sarif",
+      "result_count": 3,
+      "rule_counts": {
+        "cpp/path-injection": 3
+      },
+      "severity_counts": {
+        "7.5": 3
+      },
+      "source": [
+        "b72f7f8e8e6f2526ebab4b825b7d47402ac9835f",
+        "e992a9077e657e63c6b698527d26fe81ad67c535"
+      ],
+      "zip_bytes": 68274,
+      "zip_sha256": "c82a41e8de81a8be97fba45fb149e9c3432d0e386dc6be50b26a8a8a99feba41"
+    }
+  ]
+}

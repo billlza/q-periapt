@@ -1,0 +1,104 @@
+{
+  "kind": "codeql-source-bound-finding-delta-review",
+  "schema_version": 1,
+  "created_utc": "2026-11-11T17:00:16.183764+00:00",
+  "current_source": "2f42d2ce913421f9b7a7df39fbc56845d55717de",
+  "files": [
+    {
+      "path": "13869681729.zip",
+      "bytes": 68274,
+      "sha256": "c82a41e8de81a8be97fba45fb149e9c3432d0e386dc6be50b26a8a8a99feba41",
+      "git_blob": "31486a4a71c5f3be12121dbb329f0a47481190a4"
+    },
+    {
+      "path": "13870771389.zip",
+      "bytes": 300144,
+      "sha256": "9abf4a31ea99cfe5ea604153fcf6d420afe9897c5123114b76044e6456527c9b",
+      "git_blob": "f18558787b224f2bee02d0187967490aaad3b8a6"
+    },
+    {
+      "path": "13872044234.zip",
+      "bytes": 109950,
+      "sha256": "9f86dd375f7b3ca66689723e84b8dc5fabf4889a7c1764030e6b40fd0f22f108",
+      "git_blob": "1ef4fb30cf494d7c49beac5a5b8b52fcf09954c9"
+    },
+    {
+      "path": "13872932506.zip",
+      "bytes": 20022,
+      "sha256": "7d450ccaebde04762bbccf8078e727443a997e9695b79dccc3068a0e2f29121f",
+      "git_blob": "f764a011d1d2d7ef4f957bdceab09966a39dbfff"
+    },
+    {
+      "path": "13873027422.zip",
+      "bytes": 68213,
+      "sha256": "4f7aafcd70174d5461adf55f9fc5c3307d367564cbe17220135559d005f784fa",
+      "git_blob": "dd45d424fe7e8f7e7a7ad311bad10ad832bbcc74"
+    },
+    {
+      "path": "13873052869.zip",
+      "bytes": 301839,
+      "sha256": "cce537dec025da8df6b7d4fcee16a16f9dbffd584a30b8a0982d65d17b23b945",
+      "git_blob": "1b7b479a2c8ceca136e31d139c4c53a456dcdab1"
+    },
+    {
+      "path": "DISPOSITIONS.md",
+      "bytes": 11224,
+      "sha256": "c65d3f547cd93cfa29eb263c2300330ff496c47557803cbc34b9cdbb2553b4d5",
+      "git_blob": "067602dcb8af3269e505acd3349dc4eb7594a622"
+    },
+    {
+      "path": "READBACK.json",
+      "bytes": 20460,
+      "sha256": "2a934b6b569fe76ffc4b7fd0c20b2f21a535f975bd914234004702097f7726ff",
+      "git_blob": "6dddbc5af9b16f9f3fd293d6cb8777387a0db04e"
+    },
+    {
+      "path": "aggregate-checks.json",
+      "bytes": 8479,
+      "sha256": "c830d379eede2ba9602bb006bd1f862f5dffb30be420835db335314af091090a",
+      "git_blob": "dd2a55fa05522a79157c9622a3cb9126f1e0fe12"
+    },
+    {
+      "path": "artifacts-api.json",
+      "bytes": 3350,
+      "sha256": "4a953e825547a808cf7b957248f3d87f73f2bdbf032a7b5be5f7b498ec24924c",
+      "git_blob": "32c770e53787a6c1f68142138477666e8c28c639"
+    },
+    {
+      "path": "delta-flow-source-blobs.json",
+      "bytes": 12178,
+      "sha256": "854a00799317dfe6afc7e1a50f38e414c743e22d245dcdfe320714f653e11991",
+      "git_blob": "308d9e11ba86ab70dac3c2fc32bf306b90f3297a"
+    },
+    {
+      "path": "fingerprint-delta.json",
+      "bytes": 4568,
+      "sha256": "ca34a7fc2cfcea7e028065fe17b05176cb9911d944e6d898723eab9e1ee47e19",
+      "git_blob": "cfcc313c872718a54846ca4fc112e9d9455e0377"
+    },
+    {
+      "path": "permission-findings-context.json",
+      "bytes": 41509,
+      "sha256": "293c7edd479022c0e0e7cff0b2aa787481db3c18908452a00f2314996ea143e8",
+      "git_blob": "b0c80c79625b0e77b0afc544393dbfa4395cd666"
+    },
+    {
+      "path": "previous-artifacts-api.json",
+      "bytes": 1673,
+      "sha256": "3fa45c33e4167f0cd8d89b16fa66fceea250d815b027d8b82488984c4e7baec3",
+      "git_blob": "5f6fb75792c91f7f71afa89b208ebc843afac418"
+    },
+    {
+      "path": "qualify_alert_delta.py",
+      "bytes": 6238,
+      "sha256": "b448c4c7ff8ccc9f409b9e8e0b39c7781b225a91387a75f9ac4d0b00e08408e8",
+      "git_blob": "d51c3bcbc0b76a352acc6d3224556592b46925fb"
+    },
+    {
+      "path": "source-bindings.json",
+      "bytes": 7864,
+      "sha256": "a82e47f66a7843681921d388b08ee07e489b30855cc87b94ae1f7c5bf74a85f4",
+      "git_blob": "4b36f82e4fa30ab03260c874c6527849181266c2"
+    }
+  ]
+}

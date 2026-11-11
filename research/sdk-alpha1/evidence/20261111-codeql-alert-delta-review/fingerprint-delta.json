@@ -1,0 +1,196 @@
+{
+  "normalizer": "ruleId + primary URI and region + partialFingerprints; CodeQL artifact/table indexes are not identities",
+  "old": 1404,
+  "new": 1415,
+  "shared": 1404,
+  "added": [
+    {
+      "locations": [
+        [
+          "artifact/ci_protoc.py",
+          {
+            "endColumn": 82,
+            "startColumn": 76,
+            "startLine": 48
+          }
+        ]
+      ],
+      "partialFingerprints": {
+        "primaryLocationLineHash": "85e9cf33f3c7ce03:1",
+        "primaryLocationStartColumnFingerprint": "71"
+      },
+      "ruleId": "py/path-injection"
+    },
+    {
+      "locations": [
+        [
+          "artifact/ci_protoc.py",
+          {
+            "endColumn": 84,
+            "startColumn": 17,
+            "startLine": 48
+          }
+        ]
+      ],
+      "partialFingerprints": {
+        "primaryLocationLineHash": "85e9cf33f3c7ce03:1",
+        "primaryLocationStartColumnFingerprint": "12"
+      },
+      "ruleId": "py/path-injection"
+    },
+    {
+      "locations": [
+        [
+          "artifact/ci_protoc.py",
+          {
+            "endColumn": 41,
+            "startColumn": 32,
+            "startLine": 53
+          }
+        ]
+      ],
+      "partialFingerprints": {
+        "primaryLocationLineHash": "ffa26d4f67336f6c:1",
+        "primaryLocationStartColumnFingerprint": "19"
+      },
+      "ruleId": "py/path-injection"
+    },
+    {
+      "locations": [
+        [
+          "artifact/ci_protoc.py",
+          {
+            "endColumn": 15,
+            "startColumn": 9,
+            "startLine": 55
+          }
+        ]
+      ],
+      "partialFingerprints": {
+        "primaryLocationLineHash": "8c5249e18ae41f2d:1",
+        "primaryLocationStartColumnFingerprint": "0"
+      },
+      "ruleId": "py/path-injection"
+    },
+    {
+      "locations": [
+        [
+          "artifact/ci_protoc.py",
+          {
+            "endColumn": 15,
+            "startColumn": 9,
+            "startLine": 59
+          }
+        ]
+      ],
+      "partialFingerprints": {
+        "primaryLocationLineHash": "4f21b823c4bc395d:1",
+        "primaryLocationStartColumnFingerprint": "0"
+      },
+      "ruleId": "py/path-injection"
+    },
+    {
+      "locations": [
+        [
+          "artifact/ci_protoc.py",
+          {
+            "endColumn": 30,
+            "startColumn": 20,
+            "startLine": 64
+          }
+        ]
+      ],
+      "partialFingerprints": {
+        "primaryLocationLineHash": "ce16809d0227310e:1",
+        "primaryLocationStartColumnFingerprint": "11"
+      },
+      "ruleId": "py/path-injection"
+    },
+    {
+      "locations": [
+        [
+          "artifact/ci_protoc.py",
+          {
+            "endColumn": 63,
+            "startColumn": 53,
+            "startLine": 69
+          }
+        ]
+      ],
+      "partialFingerprints": {
+        "primaryLocationLineHash": "557afe9d7940d027:1",
+        "primaryLocationStartColumnFingerprint": "36"
+      },
+      "ruleId": "py/path-injection"
+    },
+    {
+      "locations": [
+        [
+          "artifact/ci_protoc.py",
+          {
+            "endColumn": 32,
+            "startColumn": 23,
+            "startLine": 71
+          }
+        ]
+      ],
+      "partialFingerprints": {
+        "primaryLocationLineHash": "2dc6b1299fce0f8e:1",
+        "primaryLocationStartColumnFingerprint": "14"
+      },
+      "ruleId": "py/path-injection"
+    },
+    {
+      "locations": [
+        [
+          "artifact/ci_protoc.py",
+          {
+            "endColumn": 45,
+            "startColumn": 14,
+            "startLine": 78
+          }
+        ]
+      ],
+      "partialFingerprints": {
+        "primaryLocationLineHash": "e7a3ee8361fb71b6:1",
+        "primaryLocationStartColumnFingerprint": "9"
+      },
+      "ruleId": "py/path-injection"
+    },
+    {
+      "locations": [
+        [
+          "artifact/ci_protoc.py",
+          {
+            "endColumn": 21,
+            "startColumn": 10,
+            "startLine": 85
+          }
+        ]
+      ],
+      "partialFingerprints": {
+        "primaryLocationLineHash": "7f8c2f1d89708b6b:1",
+        "primaryLocationStartColumnFingerprint": "5"
+      },
+      "ruleId": "py/path-injection"
+    },
+    {
+      "locations": [
+        [
+          "artifact/ci_protoc.py",
+          {
+            "endColumn": 21,
+            "startColumn": 10,
+            "startLine": 87
+          }
+        ]
+      ],
+      "partialFingerprints": {
+        "primaryLocationLineHash": "c063f90382960c78:1",
+        "primaryLocationStartColumnFingerprint": "5"
+      },
+      "ruleId": "py/path-injection"
+    }
+  ],
+  "removed": []
+}

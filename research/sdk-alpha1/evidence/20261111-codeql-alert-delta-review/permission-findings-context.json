@@ -1,0 +1,1118 @@
+[
+  {
+    "path": "artifact/platform_distribution.py",
+    "line": 773,
+    "scope": [
+      "assemble"
+    ],
+    "source_lines": [
+      "770:     _regular_directory(output.parent, \"platform output parent\")",
+      "771:     source = _source_identity(repository, require_head=True, profile=profile)",
+      "772:     output.mkdir(mode=0o755)",
+      "773:     os.chmod(output, 0o755)",
+      "774:     try:",
+      "775:         for name in sorted(INPUT_ASSETS):",
+      "776:             snapshot = _snapshot(input_files[name], f\"platform input asset {name}\")",
+      "777:             destination = output / name"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/platform_distribution.py",
+    "line": 779,
+    "scope": [
+      "assemble"
+    ],
+    "source_lines": [
+      "776:             snapshot = _snapshot(input_files[name], f\"platform input asset {name}\")",
+      "777:             destination = output / name",
+      "778:             destination.write_bytes(snapshot.data)",
+      "779:             os.chmod(destination, 0o644)",
+      "780:         manifest = _build_manifest(",
+      "781:             repository,",
+      "782:             output,",
+      "783:             source=source,"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/platform_distribution.py",
+    "line": 790,
+    "scope": [
+      "assemble"
+    ],
+    "source_lines": [
+      "787:         )",
+      "788:         manifest_path = output / RELEASE_MANIFEST",
+      "789:         manifest_path.write_bytes(canonical_json(manifest))",
+      "790:         os.chmod(manifest_path, 0o644)",
+      "791:         sums: list[tuple[str, str]] = []",
+      "792:         for name in sorted(INPUT_ASSETS | {RELEASE_MANIFEST}):",
+      "793:             sums.append((_snapshot(output / name, f\"release file {name}\").sha256, name))",
+      "794:         sums_path = output / RELEASE_SUMS"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/platform_distribution.py",
+    "line": 799,
+    "scope": [
+      "assemble"
+    ],
+    "source_lines": [
+      "796:             \"\".join(f\"{digest}  {name}\\n\" for digest, name in sums),",
+      "797:             encoding=\"ascii\",",
+      "798:         )",
+      "799:         os.chmod(sums_path, 0o644)",
+      "800:         verify_distribution(",
+      "801:             repository, output, android_tools=android_tools, profile=profile",
+      "802:         )",
+      "803:     except Exception:"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_apple_release_verification.py",
+    "line": 768,
+    "scope": [
+      "AppleReleaseVerificationTests",
+      "test_github_tool_requires_safe_canonical_bytes_and_resampling"
+    ],
+    "source_lines": [
+      "765:         ):",
+      "766:             verification._resample_gh_tool(identity)",
+      "767: ",
+      "768:         os.chmod(self.gh_tool, 0o522)",
+      "769:         with self.assertRaisesRegex(",
+      "770:             verification.AppleReleaseVerificationError,",
+      "771:             \"metadata is unsafe\",",
+      "772:         ):"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world writable."
+    }
+  },
+  {
+    "path": "artifact/test_apple_release_verification.py",
+    "line": 1203,
+    "scope": [
+      "AppleReleaseVerificationTests",
+      "test_output_paths_are_private_absent_and_exclusive"
+    ],
+    "source_lines": [
+      "1200: ",
+      "1201:         broad_parent = self.projection_root / \"broad-projection-parent\"",
+      "1202:         broad_parent.mkdir(mode=0o755)",
+      "1203:         os.chmod(broad_parent, 0o755)",
+      "1204:         with self.assertRaises(verification.AppleReleaseVerificationError):",
+      "1205:             verification.collect_release_verification(",
+      "1206:                 ledger,",
+      "1207:                 str(self.RELEASE_ID),"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_apple_release_verification.py",
+    "line": 1347,
+    "scope": [
+      "AppleReleaseVerificationTests",
+      "test_fixed_roots_reject_tmp_prefix_traversal_and_symlink_escape"
+    ],
+    "source_lines": [
+      "1344:                 self.assertEqual([], runner.calls)",
+      "1345:                 self.assertFalse(selected_projection.exists())",
+      "1346: ",
+      "1347:         os.chmod(self.ledger_root, 0o755)",
+      "1348:         try:",
+      "1349:             with self.assertRaisesRegex(",
+      "1350:                 verification.AppleReleaseVerificationError,",
+      "1351:                 \"safe root is not an owned non-symlink directory\","
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_apple_release_verification.py",
+    "line": 1366,
+    "scope": [
+      "AppleReleaseVerificationTests",
+      "test_fixed_roots_reject_tmp_prefix_traversal_and_symlink_escape"
+    ],
+    "source_lines": [
+      "1363:             os.chmod(self.ledger_root, 0o700)",
+      "1364:         self.assertEqual([], runner.calls)",
+      "1365: ",
+      "1366:         os.chmod(self.verification_root, 0o755)",
+      "1367:         try:",
+      "1368:             with self.assertRaisesRegex(",
+      "1369:                 verification.AppleReleaseVerificationError,",
+      "1370:                 \"safe root is not an owned non-symlink directory\","
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_apple_stable_publication.py",
+    "line": 58,
+    "scope": [
+      "AppleStablePublicationTests",
+      "setUp"
+    ],
+    "source_lines": [
+      "55:         self.root.mkdir(mode=0o755)",
+      "56:         self.target = self.root / \"target\"",
+      "57:         self.target.mkdir(mode=0o775)",
+      "58:         os.chmod(self.target, 0o775)",
+      "59:         self.artifact = self.root / \"artifact\"",
+      "60:         self.artifact.mkdir(mode=0o755)",
+      "61: ",
+      "62:         self.completion_root = self.target / \"qperiapt-apple-release-worktrees\""
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_apple_stable_publication.py",
+    "line": 74,
+    "scope": [
+      "AppleStablePublicationTests",
+      "setUp"
+    ],
+    "source_lines": [
+      "71: ",
+      "72:         self.public_root = self.target / \"qperiapt-swift-xcframework\"",
+      "73:         self.public_root.mkdir(mode=0o755)",
+      "74:         os.chmod(self.public_root, 0o755)",
+      "75:         self.public_distribution = (",
+      "76:             self.public_root / publication.APPLE_PUBLIC_DISTRIBUTION_NAME",
+      "77:         )",
+      "78:         self.public_distribution.mkdir(mode=0o755)"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_apple_stable_publication.py",
+    "line": 79,
+    "scope": [
+      "AppleStablePublicationTests",
+      "setUp"
+    ],
+    "source_lines": [
+      "76:             self.public_root / publication.APPLE_PUBLIC_DISTRIBUTION_NAME",
+      "77:         )",
+      "78:         self.public_distribution.mkdir(mode=0o755)",
+      "79:         os.chmod(self.public_distribution, 0o755)",
+      "80:         xcframework = self.public_distribution / \"CQPeriapt.xcframework\"",
+      "81:         xcframework.mkdir(mode=0o755)",
+      "82:         os.chmod(xcframework, 0o755)",
+      "83:         self.asset_bytes = {"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_apple_stable_publication.py",
+    "line": 82,
+    "scope": [
+      "AppleStablePublicationTests",
+      "setUp"
+    ],
+    "source_lines": [
+      "79:         os.chmod(self.public_distribution, 0o755)",
+      "80:         xcframework = self.public_distribution / \"CQPeriapt.xcframework\"",
+      "81:         xcframework.mkdir(mode=0o755)",
+      "82:         os.chmod(xcframework, 0o755)",
+      "83:         self.asset_bytes = {",
+      "84:             name: f\"exact fixture bytes for {name}\\n\".encode(\"ascii\")",
+      "85:             for name in apple_contract.APPLE_PUBLIC_ASSET_NAMES",
+      "86:         }"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_apple_stable_publication.py",
+    "line": 94,
+    "scope": [
+      "AppleStablePublicationTests",
+      "setUp"
+    ],
+    "source_lines": [
+      "91:         for name, data in self.asset_bytes.items():",
+      "92:             path = self.public_distribution / name",
+      "93:             path.write_bytes(data)",
+      "94:             os.chmod(path, 0o644)",
+      "95: ",
+      "96:         self.distribution = {",
+      "97:             \"apple_distribution_evidence_sha256\": self.asset_hashes[",
+      "98:                 apple_distribution.APPLE_DISTRIBUTION_NAME"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_apple_stable_publication.py",
+    "line": 310,
+    "scope": [
+      "AppleStablePublicationTests",
+      "_write_current_results"
+    ],
+    "source_lines": [
+      "307: ",
+      "308:     def _write_current_results(self) -> str:",
+      "309:         self.results_path.write_bytes(_json_bytes(self._pending_results()))",
+      "310:         os.chmod(self.results_path, 0o644)",
+      "311:         return hashlib.sha256(self.results_path.read_bytes()).hexdigest()",
+      "312: ",
+      "313:     def _read_results_fixture(",
+      "314:         self, expected_sha256: str"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_apple_stable_publication.py",
+    "line": 351,
+    "scope": [
+      "AppleStablePublicationTests",
+      "_runtime_remote_inputs"
+    ],
+    "source_lines": [
+      "348:         extraction_root = verifier_target / \"extracted\"",
+      "349:         os.chmod(verifier_target, 0o700)",
+      "350:         os.chmod(extraction_root, 0o700)",
+      "351:         os.chmod(extracted, 0o755)",
+      "352:         verifier_results = verifier_artifact / \"results.json\"",
+      "353:         verifier_results.write_bytes(_json_bytes(self._pending_results()))",
+      "354:         os.chmod(verifier_results, 0o600)",
+      "355:         release_assets = run / publication.REMOTE_CONSUMER_RELEASE_ASSETS_NAME"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_bounded_process.py",
+    "line": 513,
+    "scope": [
+      "BoundedProcessTests",
+      "test_pinned_stdin_rejects_mode_hardlink_closed_and_write_only"
+    ],
+    "source_lines": [
+      "510:         input_path.write_bytes(b\"payload\")",
+      "511:         os.chmod(input_path, 0o600)",
+      "512: ",
+      "513:         os.chmod(input_path, 0o644)",
+      "514:         descriptor = os.open(input_path, os.O_RDONLY | os.O_NOFOLLOW)",
+      "515:         try:",
+      "516:             with self.assertRaisesRegex(",
+      "517:                 bounded_process.BoundedProcessError, \"mode-0600\""
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_deterministic_archive.py",
+    "line": 231,
+    "scope": [
+      "DeterministicArchiveTests",
+      "test_tar_and_zip_are_deterministic_and_extract_exact_tree"
+    ],
+    "source_lines": [
+      "228:                 source, first_zip, root_name=\"package\", mtime=MTIME",
+      "229:             )",
+      "230:             os.utime(source / \"README.md\", (MTIME + 200, MTIME + 200))",
+      "231:             os.chmod(source / \"README.md\", 0o755)",
+      "232:             create_tar_gz(source, second_tar, root_name=\"package\", mtime=MTIME)",
+      "233:             create_zip(source, second_zip, root_name=\"package\", mtime=MTIME)",
+      "234: ",
+      "235:             self.assertEqual(first_tar.read_bytes(), second_tar.read_bytes())"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_crates_io_publication.py",
+    "line": 2321,
+    "scope": [
+      "CratesIoPublicationTests",
+      "test_incomplete_journal_recovery_rejects_unsafe_residue_without_deletion"
+    ],
+    "source_lines": [
+      "2318:                         else b\"pending\\n\"",
+      "2319:                     )",
+      "2320:                     pending.write_bytes(payload)",
+      "2321:                     os.chmod(pending, 0o644 if variant == \"wrong-mode\" else 0o600)",
+      "2322:                     if variant == \"wrong-owner\":",
+      "2323:                         patcher = altered_fstat(",
+      "2324:                             pending,",
+      "2325:                             uid=os.geteuid() + 1,"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_crates_io_publication.py",
+    "line": 2433,
+    "scope": [
+      "CratesIoPublicationTests",
+      "test_incomplete_journal_recovery_rejects_resampling_races",
+      "mutate_before_second_open"
+    ],
+    "source_lines": [
+      "2430:                             else:",
+      "2431:                                 transaction.rename(displaced)",
+      "2432:                                 transaction.mkdir(mode=0o700)",
+      "2433:                     return real_open(path, flags, mode, dir_fd=dir_fd)",
+      "2434: ",
+      "2435:                 with mock.patch.object(",
+      "2436:                     publication.os,",
+      "2437:                     \"open\","
+    ],
+    "message": {
+      "text": "Overly permissive mask in open sets file to world writable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_candidate_verifier.py",
+    "line": 187,
+    "scope": [
+      "PlatformCandidateVerifierTests",
+      "_write_executable"
+    ],
+    "source_lines": [
+      "184:     @staticmethod",
+      "185:     def _write_executable(path: pathlib.Path, source: str) -> None:",
+      "186:         path.write_text(source, encoding=\"utf-8\")",
+      "187:         os.chmod(path, 0o755)",
+      "188: ",
+      "189:     def _candidate(self, name: str) -> pathlib.Path:",
+      "190:         candidate = self.candidate_input_root / f\"candidate-{name}\"",
+      "191:         candidate.mkdir()"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_candidate_verifier.py",
+    "line": 1378,
+    "scope": [
+      "PlatformCandidateVerifierTests",
+      "test_non_private_projection_parent_fails_before_gh"
+    ],
+    "source_lines": [
+      "1375:         self._install_valid_gh_outputs(candidate)",
+      "1376:         parent = self.projection_root / \"broad-projection-parent\"",
+      "1377:         parent.mkdir(mode=0o755)",
+      "1378:         os.chmod(parent, 0o755)",
+      "1379:         projection = parent / \"candidate-attestation-projection.json\"",
+      "1380: ",
+      "1381:         process = self._run(candidate, projection_path=projection)",
+      "1382: "
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_candidate_verifier.py",
+    "line": 1488,
+    "scope": [
+      "PlatformCandidateVerifierTests",
+      "test_non_private_fixed_verification_roots_fail_before_git_or_gh"
+    ],
+    "source_lines": [
+      "1485:             with self.subTest(root=unsafe_root):",
+      "1486:                 self.git_log.unlink(missing_ok=True)",
+      "1487:                 self.gh_log.unlink(missing_ok=True)",
+      "1488:                 os.chmod(unsafe_root, 0o755)",
+      "1489:                 try:",
+      "1490:                     process = self._run(candidate)",
+      "1491:                 finally:",
+      "1492:                     os.chmod(unsafe_root, 0o700)"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_candidate_attestation.py",
+    "line": 1975,
+    "scope": [
+      "PlatformCandidateAttestationTests",
+      "test_projection_target_must_be_absolute_private_exact_and_absent"
+    ],
+    "source_lines": [
+      "1972: ",
+      "1973:         broad_parent = self.root / \"broad-parent\"",
+      "1974:         broad_parent.mkdir(mode=0o755)",
+      "1975:         os.chmod(broad_parent, 0o755)",
+      "1976:         with self.assertRaises(CandidateAttestationError):",
+      "1977:             write_candidate_snapshot(",
+      "1978:                 candidate,",
+      "1979:                 broad_parent / CANDIDATE_SNAPSHOT_NAME,"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_candidate_attestation.py",
+    "line": 2088,
+    "scope": [
+      "PlatformCandidateAttestationTests",
+      "test_fixed_roots_reject_prefix_traversal_tmp_and_symlink_escape"
+    ],
+    "source_lines": [
+      "2085:             )",
+      "2086:         self.assertFalse((outside / PROJECTION_NAME).exists())",
+      "2087: ",
+      "2088:         os.chmod(self.candidate_root, 0o755)",
+      "2089:         try:",
+      "2090:             with self.assertRaisesRegex(",
+      "2091:                 CandidateAttestationError,",
+      "2092:                 \"safe root is not an owned non-symlink directory\","
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_candidate_attestation.py",
+    "line": 2106,
+    "scope": [
+      "PlatformCandidateAttestationTests",
+      "test_private_snapshot_rejects_mode_and_hardlink_changes"
+    ],
+    "source_lines": [
+      "2103:         snapshot_path, projection_path = self._private_output_paths(\"metadata-output\")",
+      "2104:         write_candidate_snapshot(candidate, snapshot_path, projection_path)",
+      "2105: ",
+      "2106:         os.chmod(snapshot_path, 0o644)",
+      "2107:         with self.assertRaises(CandidateAttestationError):",
+      "2108:             load_candidate_snapshot(snapshot_path)",
+      "2109: ",
+      "2110:         os.chmod(snapshot_path, 0o600)"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_distribution.py",
+    "line": 441,
+    "scope": [
+      "PlatformDistributionTests",
+      "test_candidate_receipt_loader_rejects_asset_and_inventory_drift"
+    ],
+    "source_lines": [
+      "438:             receipt_path.parent.parent,",
+      "439:         ):",
+      "440:             (release / platform_distribution.ANDROID_AAR).write_bytes(b\"drift\")",
+      "441:             os.chmod(release / platform_distribution.ANDROID_AAR, 0o644)",
+      "442:             with self.assertRaisesRegex(",
+      "443:                 platform_distribution.PlatformDistributionError,",
+      "444:                 \"platform release candidate\",",
+      "445:             ):"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_distribution.py",
+    "line": 452,
+    "scope": [
+      "PlatformDistributionTests",
+      "test_candidate_receipt_loader_rejects_asset_and_inventory_drift"
+    ],
+    "source_lines": [
+      "449:             self._assemble_candidate_transaction(\"inventory-drift\")",
+      "450:         )",
+      "451:         (release / \"unexpected\").write_bytes(b\"unexpected\")",
+      "452:         os.chmod(release / \"unexpected\", 0o644)",
+      "453:         with mock.patch.object(",
+      "454:             platform_distribution,",
+      "455:             \"PLATFORM_RELEASE_CANDIDATE_ROOT\",",
+      "456:             receipt_path.parent.parent,"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_distribution.py",
+    "line": 478,
+    "scope": [
+      "PlatformDistributionTests",
+      "test_candidate_transaction_detects_precommit_asset_race",
+      "snapshot_and_mutate"
+    ],
+    "source_lines": [
+      "475:                 release = args[0]",
+      "476:                 path = release.path / platform_distribution.ANDROID_AAR",
+      "477:                 path.write_bytes(b\"raced\")",
+      "478:                 os.chmod(path, 0o644)",
+      "479:             return records",
+      "480: ",
+      "481:         validators = self._deep_validator_mocks()",
+      "482:         with ("
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_distribution.py",
+    "line": 530,
+    "scope": [
+      "PlatformDistributionTests",
+      "test_candidate_transaction_reverifies_after_assemble_returns",
+      "assemble_and_corrupt"
+    ],
+    "source_lines": [
+      "527:             release = pathlib.Path(args[2])",
+      "528:             sums = release / platform_distribution.RELEASE_SUMS",
+      "529:             sums.write_bytes(b\"post-verify corruption\\n\")",
+      "530:             os.chmod(sums, 0o644)",
+      "531:             return manifest",
+      "532: ",
+      "533:         validators = self._deep_validator_mocks()",
+      "534:         with ("
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_stable_publication.py",
+    "line": 548,
+    "scope": [
+      "PlatformV015PublicationTests",
+      "_assembly_receipt"
+    ],
+    "source_lines": [
+      "545:         os.chmod(transaction, 0o700)",
+      "546:         release = transaction / platform_distribution.PLATFORM_RELEASE_DIRECTORY_NAME",
+      "547:         release.mkdir(mode=0o755)",
+      "548:         os.chmod(release, 0o755)",
+      "549:         records: list[dict[str, object]] = []",
+      "550:         for name in contract.PUBLIC_ASSET_NAMES:",
+      "551:             data = assets[name]",
+      "552:             path = release / name"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_stable_publication.py",
+    "line": 554,
+    "scope": [
+      "PlatformV015PublicationTests",
+      "_assembly_receipt"
+    ],
+    "source_lines": [
+      "551:             data = assets[name]",
+      "552:             path = release / name",
+      "553:             path.write_bytes(data)",
+      "554:             os.chmod(path, 0o644)",
+      "555:             records.append(",
+      "556:                 {",
+      "557:                     \"bytes\": len(data),",
+      "558:                     \"content_type\": contract.PUBLIC_ASSET_CONTENT_TYPES[name],"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_stable_publication.py",
+    "line": 887,
+    "scope": [
+      "PlatformV015PublicationTests",
+      "test_pending_resamples_assembly_transaction_before_receipt_commit",
+      "load_and_mutate"
+    ],
+    "source_lines": [
+      "884:                 )",
+      "885:                 asset = release / contract.ANDROID_AAR",
+      "886:                 asset.write_bytes(b\"changed after first pending sample\")",
+      "887:                 os.chmod(asset, 0o644)",
+      "888:             return value",
+      "889: ",
+      "890:         before = set(self.receipt_root.iterdir())",
+      "891:         with ("
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_stable_publication.py",
+    "line": 1224,
+    "scope": [
+      "PlatformV015PublicationTests",
+      "test_fixed_root_bootstrap_accepts_owned_0775_parent_only"
+    ],
+    "source_lines": [
+      "1221:     def test_fixed_root_bootstrap_accepts_owned_0775_parent_only(self) -> None:",
+      "1222:         bootstrap = self.root / \"bootstrap-target\"",
+      "1223:         bootstrap.mkdir(mode=0o775)",
+      "1224:         os.chmod(bootstrap, 0o775)",
+      "1225:         receipt_root = bootstrap / \"receipts\"",
+      "1226:         verification_root = bootstrap / \"verification\"",
+      "1227:         raw_root = verification_root / \"raw\"",
+      "1228:         download_root = verification_root / \"downloads\""
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_stable_publication.py",
+    "line": 1252,
+    "scope": [
+      "PlatformV015PublicationTests",
+      "test_fixed_root_bootstrap_accepts_owned_0775_parent_only"
+    ],
+    "source_lines": [
+      "1249: ",
+      "1250:         unsafe_parent = self.root / \"world-writable-target\"",
+      "1251:         unsafe_parent.mkdir(mode=0o777)",
+      "1252:         os.chmod(unsafe_parent, 0o777)",
+      "1253:         with mock.patch.object(",
+      "1254:             publication,",
+      "1255:             \"PLATFORM_PUBLICATION_RECEIPT_ROOT\",",
+      "1256:             unsafe_parent / \"receipts\","
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world writable."
+    }
+  },
+  {
+    "path": "artifact/test_platform_stable_publication.py",
+    "line": 1266,
+    "scope": [
+      "PlatformV015PublicationTests",
+      "test_fixed_root_bootstrap_accepts_owned_0775_parent_only"
+    ],
+    "source_lines": [
+      "1263: ",
+      "1264:         actual_parent = self.root / \"actual-target\"",
+      "1265:         actual_parent.mkdir(mode=0o775)",
+      "1266:         os.chmod(actual_parent, 0o775)",
+      "1267:         symlink_parent = self.root / \"target-link\"",
+      "1268:         symlink_parent.symlink_to(actual_parent, target_is_directory=True)",
+      "1269:         with mock.patch.object(",
+      "1270:             publication,"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_publication_receipt_io.py",
+    "line": 30,
+    "scope": [
+      "PublicationReceiptIOTests",
+      "setUp"
+    ],
+    "source_lines": [
+      "27:         self.addCleanup(self.temporary.cleanup)",
+      "28:         self.parent = pathlib.Path(self.temporary.name).resolve() / \"target\"",
+      "29:         self.parent.mkdir(mode=0o775)",
+      "30:         os.chmod(self.parent, 0o775)",
+      "31:         self.safe_root = self.parent / \"publication-receipts\"",
+      "32: ",
+      "33:     def _private_input(self, payload: bytes) -> pathlib.Path:",
+      "34:         self.safe_root.mkdir(mode=0o700, exist_ok=True)"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_publication_receipt_io.py",
+    "line": 436,
+    "scope": [
+      "PublicationReceiptIOTests",
+      "test_world_writable_parent_and_competing_roots_fail_closed"
+    ],
+    "source_lines": [
+      "433:         self.assertEqual([], list(transaction.glob(\"receipt.json\")))",
+      "434: ",
+      "435:     def test_world_writable_parent_and_competing_roots_fail_closed(self) -> None:",
+      "436:         os.chmod(self.parent, 0o777)",
+      "437:         with self.assertRaisesRegex(",
+      "438:             receipt_io.PublicationReceiptIOError,",
+      "439:             \"non-world-writable\",",
+      "440:         ):"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world writable."
+    }
+  },
+  {
+    "path": "artifact/test_publication_receipt_io.py",
+    "line": 445,
+    "scope": [
+      "PublicationReceiptIOTests",
+      "test_world_writable_parent_and_competing_roots_fail_closed"
+    ],
+    "source_lines": [
+      "442:                 self.safe_root,",
+      "443:                 label=\"fixture root\",",
+      "444:             )",
+      "445:         os.chmod(self.parent, 0o775)",
+      "446: ",
+      "447:         self.safe_root.write_bytes(b\"competing file\\n\")",
+      "448:         with self.assertRaises(receipt_io.PublicationReceiptIOError):",
+      "449:             receipt_io.ensure_private_safe_root("
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_publication_receipt_io.py",
+    "line": 858,
+    "scope": [
+      "PublicationReceiptIOTests",
+      "test_private_child_create_open_failure_removes_empty_entry",
+      "fail_child_open"
+    ],
+    "source_lines": [
+      "855:         ) -> int:",
+      "856:             if path == failed_name and dir_fd is not None:",
+      "857:                 raise OSError(\"injected child open failure\")",
+      "858:             return real_open(path, flags, mode, dir_fd=dir_fd)",
+      "859: ",
+      "860:         with mock.patch.object(",
+      "861:             receipt_io.os,",
+      "862:             \"open\","
+    ],
+    "message": {
+      "text": "Overly permissive mask in open sets file to world writable."
+    }
+  },
+  {
+    "path": "artifact/test_publication_receipt_io.py",
+    "line": 894,
+    "scope": [
+      "PublicationReceiptIOTests",
+      "test_private_child_exit_revalidates_safe_root_mode"
+    ],
+    "source_lines": [
+      "891:                 direct_child_name=transaction.name,",
+      "892:                 label=\"fixture transaction\",",
+      "893:             ):",
+      "894:                 os.chmod(self.safe_root, 0o755)",
+      "895: ",
+      "896:     def test_root_open_fstat_oserror_is_domain_error_without_path(self) -> None:",
+      "897:         self.safe_root.mkdir(mode=0o700)",
+      "898:         os.chmod(self.safe_root, 0o700)"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_publication_receipt_io.py",
+    "line": 2240,
+    "scope": [
+      "PublicationReceiptIOTests",
+      "test_atomic_bytes_writer_rejects_same_bytes_rename_competitor",
+      "open_and_track"
+    ],
+    "source_lines": [
+      "2237:             dir_fd: int | None = None,",
+      "2238:         ) -> int:",
+      "2239:             nonlocal held_descriptor",
+      "2240:             descriptor = real_open(path, flags, mode, dir_fd=dir_fd)",
+      "2241:             if (",
+      "2242:                 isinstance(path, str)",
+      "2243:                 and path.startswith(\".raw.json.pending-\")",
+      "2244:                 and (flags & os.O_RDWR) == os.O_RDWR"
+    ],
+    "message": {
+      "text": "Overly permissive mask in open sets file to world writable."
+    }
+  },
+  {
+    "path": "artifact/test_publication_receipt_io.py",
+    "line": 2329,
+    "scope": [
+      "PublicationReceiptIOTests",
+      "test_atomic_bytes_held_file_close_fault_is_committed",
+      "open_and_track"
+    ],
+    "source_lines": [
+      "2326:             dir_fd: int | None = None,",
+      "2327:         ) -> int:",
+      "2328:             nonlocal held_descriptor",
+      "2329:             descriptor = real_open(path, flags, mode, dir_fd=dir_fd)",
+      "2330:             if (",
+      "2331:                 isinstance(path, str)",
+      "2332:                 and path.startswith(\".raw.json.pending-\")",
+      "2333:                 and (flags & os.O_RDWR) == os.O_RDWR"
+    ],
+    "message": {
+      "text": "Overly permissive mask in open sets file to world writable."
+    }
+  },
+  {
+    "path": "artifact/test_publication_receipt_io.py",
+    "line": 2393,
+    "scope": [
+      "PublicationReceiptIOTests",
+      "test_atomic_bytes_pre_effect_close_interrupt_is_not_retried",
+      "open_and_track"
+    ],
+    "source_lines": [
+      "2390:             dir_fd: int | None = None,",
+      "2391:         ) -> int:",
+      "2392:             nonlocal held_descriptor",
+      "2393:             descriptor = real_open(path, flags, mode, dir_fd=dir_fd)",
+      "2394:             if (",
+      "2395:                 isinstance(path, str)",
+      "2396:                 and path.startswith(\".raw.json.pending-\")",
+      "2397:                 and (flags & os.O_RDWR) == os.O_RDWR"
+    ],
+    "message": {
+      "text": "Overly permissive mask in open sets file to world writable."
+    }
+  },
+  {
+    "path": "artifact/test_publication_receipt_io.py",
+    "line": 2510,
+    "scope": [
+      "PublicationReceiptIOTests",
+      "test_atomic_bytes_after_return_interrupts_are_structured_committed",
+      "open_and_track"
+    ],
+    "source_lines": [
+      "2507:                         dir_fd: int | None = None,",
+      "2508:                     ) -> int:",
+      "2509:                         nonlocal held_descriptor",
+      "2510:                         opened = real_open(path, flags, mode, dir_fd=dir_fd)",
+      "2511:                         if (",
+      "2512:                             isinstance(path, str)",
+      "2513:                             and path.startswith(f\".{leaf}.pending-\")",
+      "2514:                             and (flags & os.O_RDWR) == os.O_RDWR"
+    ],
+    "message": {
+      "text": "Overly permissive mask in open sets file to world writable."
+    }
+  },
+  {
+    "path": "artifact/test_publication_receipt_io.py",
+    "line": 3077,
+    "scope": [
+      "PublicationReceiptIOTests",
+      "test_strict_reader_rejects_duplicates_size_mode_and_hardlinks"
+    ],
+    "source_lines": [
+      "3074:             )",
+      "3075: ",
+      "3076:         duplicate.write_bytes(b'{\"kind\":\"one\"}\\n')",
+      "3077:         os.chmod(duplicate, 0o644)",
+      "3078:         with self.assertRaises(receipt_io.PublicationReceiptIOError):",
+      "3079:             receipt_io.read_fixed_json_snapshot(",
+      "3080:                 duplicate,",
+      "3081:                 safe_root=self.safe_root,"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_publication_receipt_io.py",
+    "line": 3138,
+    "scope": [
+      "PublicationReceiptIOTests",
+      "test_invalid_parent_mode_after_open_does_not_leak_descriptors"
+    ],
+    "source_lines": [
+      "3135: ",
+      "3136:     def test_invalid_parent_mode_after_open_does_not_leak_descriptors(self) -> None:",
+      "3137:         path = self._private_input(b'{\"kind\":\"one\"}\\n')",
+      "3138:         os.chmod(path.parent, 0o755)",
+      "3139:         before = len(list(pathlib.Path(\"/dev/fd\").iterdir()))",
+      "3140:         with self.assertRaises(receipt_io.PublicationReceiptIOError):",
+      "3141:             receipt_io.read_fixed_json_snapshot(",
+      "3142:                 path,"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_publication_receipt_io.py",
+    "line": 3204,
+    "scope": [
+      "PublicationReceiptIOTests",
+      "test_lock_post_drift_dominates_body_failure_with_sanitized_type"
+    ],
+    "source_lines": [
+      "3201:                 allow_create=True,",
+      "3202:                 created_root_identity=created_identity,",
+      "3203:             ):",
+      "3204:                 os.chmod(self.safe_root / \"publication.lock\", 0o644)",
+      "3205:                 raise RuntimeError(\"synthetic body failure\")",
+      "3206:         self.assertEqual(\"RuntimeError\", caught.exception.preceding_type)",
+      "3207:         self.assertIsInstance(caught.exception.__cause__, BaseException)",
+      "3208: "
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_publication_receipt_io.py",
+    "line": 3227,
+    "scope": [
+      "PublicationReceiptIOTests",
+      "test_nested_boundary_preserves_only_sanitized_execution_fields"
+    ],
+    "source_lines": [
+      "3224:                 allow_create=True,",
+      "3225:                 created_root_identity=created_identity,",
+      "3226:             ):",
+      "3227:                 os.chmod(self.safe_root / \"publication.lock\", 0o644)",
+      "3228:                 raise StructuredFailure(\"must not be retained\")",
+      "3229:         inner = caught.exception",
+      "3230:         outer = receipt_io.PublicationBoundaryIntegrityError(",
+      "3231:             \"outer sanitized boundary\","
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_source_results_assembler.py",
+    "line": 940,
+    "scope": [
+      "SourceResultsAssemblerTests",
+      "test_validate_baseline_pins_worktree_bytes_to_head_and_mode"
+    ],
+    "source_lines": [
+      "937:                 with tempfile.TemporaryDirectory() as temporary:",
+      "938:                     path = pathlib.Path(temporary).resolve() / \"results.json\"",
+      "939:                     path.write_bytes(payload)",
+      "940:                     os.chmod(path, assembler.PUBLIC_FILE_MODE)",
+      "941:                     release_validator = mock.Mock()",
+      "942:                     currentness_validator = mock.Mock()",
+      "943:                     with (",
+      "944:                         mock.patch.object(assembler, \"RESULTS_PATH\", path),"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_source_results_assembler.py",
+    "line": 988,
+    "scope": [
+      "SourceResultsAssemblerTests",
+      "test_validate_baseline_rejects_nonidentical_head_blob"
+    ],
+    "source_lines": [
+      "985:         with tempfile.TemporaryDirectory() as temporary:",
+      "986:             path = pathlib.Path(temporary).resolve() / \"results.json\"",
+      "987:             path.write_bytes(payload)",
+      "988:             os.chmod(path, assembler.PUBLIC_FILE_MODE)",
+      "989:             with (",
+      "990:                 mock.patch.object(assembler, \"RESULTS_PATH\", path),",
+      "991:                 mock.patch.object(",
+      "992:                     assembler,"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/test_source_results_assembler.py",
+    "line": 1017,
+    "scope": [
+      "SourceResultsAssemblerTests",
+      "test_initial_baseline_rejects_same_shape_committed_byte_change"
+    ],
+    "source_lines": [
+      "1014:         with tempfile.TemporaryDirectory() as temporary:",
+      "1015:             path = pathlib.Path(temporary).resolve() / \"results.json\"",
+      "1016:             path.write_bytes(payload)",
+      "1017:             os.chmod(path, assembler.PUBLIC_FILE_MODE)",
+      "1018:             with (",
+      "1019:                 mock.patch.object(assembler, \"RESULTS_PATH\", path),",
+      "1020:                 mock.patch.object(",
+      "1021:                     assembler,"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/third_party_licenses.py",
+    "line": 460,
+    "scope": [
+      "_publish_inventory"
+    ],
+    "source_lines": [
+      "457:             for license_file in files:",
+      "458:                 destination_file = destination / license_file.name",
+      "459:                 destination_file.write_bytes(license_file.data)",
+      "460:                 os.chmod(destination_file, 0o644)",
+      "461:         staging_inventory = staging_root / \"INVENTORY.json\"",
+      "462:         staging_inventory.write_bytes(canonical_json(inventory))",
+      "463:         os.chmod(staging_inventory, 0o644)",
+      "464:         staging_root.replace(rust_root)"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  },
+  {
+    "path": "artifact/third_party_licenses.py",
+    "line": 463,
+    "scope": [
+      "_publish_inventory"
+    ],
+    "source_lines": [
+      "460:                 os.chmod(destination_file, 0o644)",
+      "461:         staging_inventory = staging_root / \"INVENTORY.json\"",
+      "462:         staging_inventory.write_bytes(canonical_json(inventory))",
+      "463:         os.chmod(staging_inventory, 0o644)",
+      "464:         staging_root.replace(rust_root)",
+      "465:         published = True",
+      "466:         verify(output_root, expected_target=expected_target,",
+      "467:                expected_targets=expected_targets, root_package=root_package)"
+    ],
+    "message": {
+      "text": "Overly permissive mask in chmod sets file to world readable."
+    }
+  }
+]

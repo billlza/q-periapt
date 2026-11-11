@@ -1,0 +1,82 @@
+[
+  {
+    "id": 13873052869,
+    "node_id": "MDg6QXJ0aWZhY3QxMzg3MzA1Mjg2OQ==",
+    "name": "codeql-results-python-43059460437-1",
+    "size_in_bytes": 301839,
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13873052869",
+    "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13873052869/zip",
+    "expired": false,
+    "digest": "sha256:cce537dec025da8df6b7d4fcee16a16f9dbffd584a30b8a0982d65d17b23b945",
+    "created_at": "2026-11-11T16:40:29Z",
+    "updated_at": "2026-11-11T16:40:29Z",
+    "expires_at": "2026-11-25T16:40:27Z",
+    "workflow_run": {
+      "id": 43059460437,
+      "repository_id": 1279236693,
+      "head_repository_id": 1279236693,
+      "head_branch": "integration/sdk-020",
+      "head_sha": "2f42d2ce913421f9b7a7df39fbc56845d55717de"
+    }
+  },
+  {
+    "id": 13873027422,
+    "node_id": "MDg6QXJ0aWZhY3QxMzg3MzAyNzQyMg==",
+    "name": "codeql-results-c-cpp-43059460437-1",
+    "size_in_bytes": 68213,
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13873027422",
+    "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13873027422/zip",
+    "expired": false,
+    "digest": "sha256:4f7aafcd70174d5461adf55f9fc5c3307d367564cbe17220135559d005f784fa",
+    "created_at": "2026-11-11T16:39:20Z",
+    "updated_at": "2026-11-11T16:39:20Z",
+    "expires_at": "2026-11-25T16:39:19Z",
+    "workflow_run": {
+      "id": 43059460437,
+      "repository_id": 1279236693,
+      "head_repository_id": 1279236693,
+      "head_branch": "integration/sdk-020",
+      "head_sha": "2f42d2ce913421f9b7a7df39fbc56845d55717de"
+    }
+  },
+  {
+    "id": 13872932506,
+    "node_id": "MDg6QXJ0aWZhY3QxMzg3MjkzMjUwNg==",
+    "name": "codeql-results-actions-43059460437-1",
+    "size_in_bytes": 20022,
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13872932506",
+    "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13872932506/zip",
+    "expired": false,
+    "digest": "sha256:7d450ccaebde04762bbccf8078e727443a997e9695b79dccc3068a0e2f29121f",
+    "created_at": "2026-11-11T16:36:58Z",
+    "updated_at": "2026-11-11T16:36:58Z",
+    "expires_at": "2026-11-25T16:36:57Z",
+    "workflow_run": {
+      "id": 43059460437,
+      "repository_id": 1279236693,
+      "head_repository_id": 1279236693,
+      "head_branch": "integration/sdk-020",
+      "head_sha": "2f42d2ce913421f9b7a7df39fbc56845d55717de"
+    }
+  },
+  {
+    "id": 13872044234,
+    "node_id": "MDg6QXJ0aWZhY3QxMzg3MjA0NDIzNA==",
+    "name": "codeql-results-java-kotlin-43059460437-1",
+    "size_in_bytes": 109950,
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13872044234",
+    "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13872044234/zip",
+    "expired": false,
+    "digest": "sha256:9f86dd375f7b3ca66689723e84b8dc5fabf4889a7c1764030e6b40fd0f22f108",
+    "created_at": "2026-11-11T16:39:32Z",
+    "updated_at": "2026-11-11T16:39:32Z",
+    "expires_at": "2026-11-25T16:39:31Z",
+    "workflow_run": {
+      "id": 43059460437,
+      "repository_id": 1279236693,
+      "head_repository_id": 1279236693,
+      "head_branch": "integration/sdk-020",
+      "head_sha": "2f42d2ce913421f9b7a7df39fbc56845d55717de"
+    }
+  }
+]
