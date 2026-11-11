@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.resource_timeout_evidence_manifest",
+  "scope": "Original 285-test invocation: 284 passed and one timeout. Exactly one unmodified single-test rerun then passed in 1.234s. No source changes and no further tests.",
+  "files": [
+    {
+      "path": "DIAGNOSIS.json",
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/DIAGNOSIS.json",
+      "bytes": 7056,
+      "sha256": "d035bf79963930018a143a86b983f1f86f4a2498ad4fe7e331b12906e67db395"
+    },
+    {
+      "path": "SINGLE_TEST.json",
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/SINGLE_TEST.json",
+      "bytes": 632,
+      "sha256": "25d4e38f04f5aaf128f464c075ae701362da06a1601d01575fdabf81b2ace3f2"
+    },
+    {
+      "path": "SINGLE_TEST_COMMAND.json",
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/SINGLE_TEST_COMMAND.json",
+      "bytes": 900,
+      "sha256": "9c98322c76d1518b566d6afbc9d92c17a84fbe9c8007360e07fb8b0ee5628f93"
+    },
+    {
+      "path": "original-aggregate/VALIDATION.json",
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/original-aggregate/VALIDATION.json",
+      "bytes": 1071,
+      "sha256": "50394d161248dd34c069ed3865edf8369bee3ed4aa14b72a3899f47f7c772e6b"
+    },
+    {
+      "path": "original-aggregate/codeql-controls.log",
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/original-aggregate/codeql-controls.log",
+      "bytes": 54707,
+      "sha256": "f9358b80389d6016493c05d11bae19cabafc072579add19593e73b8e9227c815"
+    },
+    {
+      "path": "single-test-evidence/PROCESS_RESOURCES.json",
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/single-test-evidence/PROCESS_RESOURCES.json",
+      "bytes": 1723,
+      "sha256": "da86253d8e65c28c2538efd981d8e7fec29d0052282e540bfedc852901b608d3"
+    },
+    {
+      "path": "single-test-evidence/PROCESS_RESOURCES.jsonl",
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/single-test-evidence/PROCESS_RESOURCES.jsonl",
+      "bytes": 39437,
+      "sha256": "09b4363bf50aebc16565ad328e272fac0e5f226145302c357ac8321ca211a7c7"
+    },
+    {
+      "path": "single-test-evidence/query.json",
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/single-test-evidence/query.json",
+      "bytes": 2356,
+      "sha256": "f720fb0e29848e950061908a123abfd506945a17e45add1b3112102edd7b06a9"
+    },
+    {
+      "path": "single-test-evidence/query.stderr",
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/single-test-evidence/query.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "single-test-evidence/query.stdout",
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/single-test-evidence/query.stdout",
+      "bytes": 6,
+      "sha256": "67beb5f8bf693bd1dc8e2486e2d072e3988c5dc323f066ed9510bad118425acb"
+    },
+    {
+      "path": "single-test.log",
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/single-test.log",
+      "bytes": 252,
+      "sha256": "75f2deb64c9f289f76c3d1c567c53556f2316b093b131b48b7e121d16d972e4d"
+    },
+    {
+      "path": "single_test_method.txt",
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/single_test_method.txt",
+      "bytes": 1448,
+      "sha256": "eae93f12e6a91705abc524336f5f1fd29fbe214800aab6dfd82808b7fef09714"
+    }
+  ]
+}

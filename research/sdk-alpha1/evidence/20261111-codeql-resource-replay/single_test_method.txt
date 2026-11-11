@@ -1,0 +1,17 @@
+import datetime,json,os,shutil,sys,time,unittest
+from pathlib import Path
+from unittest.mock import patch
+import test_codeql_process_resources as suite
+out=Path('/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis')
+original=suite.tempfile.TemporaryDirectory
+class RetainEvidence(original):
+    def __exit__(self, *args):
+        shutil.copytree(self.name,out/'single-test-evidence')
+        return super().__exit__(*args)
+start=time.monotonic()
+started=datetime.datetime.now(datetime.timezone.utc).isoformat()
+with patch.object(suite.tempfile,'TemporaryDirectory',RetainEvidence):
+    result=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromName('LiveResourceTests.test_real_allocating_root_and_child_are_observed',suite))
+receipt={'kind':'qperiapt.resource_timeout_single_rerun','started_utc':started,'finished_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'seconds':time.monotonic()-start,'tests_run':result.testsRun,'failures':len(result.failures),'errors':len(result.errors),'successful':result.wasSuccessful(),'python':sys.version,'executable':sys.executable,'scope':'Exact unmodified single test; TemporaryDirectory exit copies its existing evidence after the test body before normal cleanup. No sampler, deadline, fixture program or assertions changed.'}
+(out/'SINGLE_TEST.json').write_text(json.dumps(receipt,indent=2)+'\n')
+raise SystemExit(not result.wasSuccessful())

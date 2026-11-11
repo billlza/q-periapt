@@ -1,0 +1,147 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.resource_sampling_timeout_review",
+  "recorded_utc": "2026-11-11T13:50:24.685352+00:00",
+  "status": "unmodified_single_rerun_passed",
+  "source_base": "10729f12f62029901ec700266e0f5dd400c0011e",
+  "original_run": {
+    "source_tree": "ae1b6817cadd3b0847ecd1e2d16491fd2289f09f",
+    "started_utc": "2026-11-11T13:39:39.504438+00:00",
+    "finished_utc": "2026-11-11T13:40:06.086121+00:00",
+    "tests": 285,
+    "passed": 284,
+    "errors": 1,
+    "unittest_seconds": 23.789,
+    "returncode": 1,
+    "log": {
+      "path": "original-aggregate/codeql-controls.log",
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/original-aggregate/codeql-controls.log",
+      "bytes": 54707,
+      "sha256": "f9358b80389d6016493c05d11bae19cabafc072579add19593e73b8e9227c815"
+    },
+    "receipt": {
+      "path": "original-aggregate/VALIDATION.json",
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/original-aggregate/VALIDATION.json",
+      "bytes": 1071,
+      "sha256": "50394d161248dd34c069ed3865edf8369bee3ed4aa14b72a3899f47f7c772e6b"
+    }
+  },
+  "original_failure_location": {
+    "test": "LiveResourceTests.test_real_allocating_root_and_child_are_observed",
+    "call": "control.run_queries(..., seconds=5)",
+    "exception": "BoundedProcessError: command timed out after 5 seconds",
+    "capture_output_location": "The output-reader completion loop reached its existing deadline before both streams signaled EOF. This is before _wait_for_process_exit; the traceback does not identify whether the original root or child was still running or whether scheduling/pipe-reader completion was delayed.",
+    "original_per_process_receipt": "Not retained: the test TemporaryDirectory is normally removed on exception. The aggregate log alone cannot establish the precise original process or scheduler condition."
+  },
+  "source_identity": {
+    "test_codeql_process_resources.py": {
+      "sha256": "adbfe560c1f45dab042552fc8bba941c4adf9cc784d657ad39d9914259d75f1a",
+      "same_as_integration": true
+    },
+    "codeql_process_resources.py": {
+      "sha256": "8b4d14b9667a7c10e653f680311c12db595369f0e6a5b2800aae6beefeec26a6",
+      "same_as_integration": true
+    },
+    "codeql_summary_control.py": {
+      "sha256": "9b6b9baaf3570df4c7a6d24e650c0abf2a64fe70ae2618ce06747f9d335046f6",
+      "same_as_integration": true
+    },
+    "bounded_process.py": {
+      "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+      "same_as_integration": true
+    }
+  },
+  "single_rerun": {
+    "tests": 1,
+    "passed": 1,
+    "unittest_seconds": 1.234,
+    "query_seconds": 1.226145605000056,
+    "returncode": 0,
+    "deadline_seconds": 5,
+    "fixture_child_sleep_seconds": 0.8,
+    "root_allocation_bytes": 25165824,
+    "child_allocation_bytes": 33554432,
+    "pid_stdout": [
+      15,
+      18
+    ],
+    "samples": 57,
+    "joint_process_samples": 47,
+    "observed_root_identities": 1,
+    "observed_process_identities": 2,
+    "peak_sampled_roots_rss_bytes": 33816576,
+    "peak_sampled_tree_rss_bytes": 73793536,
+    "proc_read_errors": 0,
+    "partial_censuses": 0,
+    "status": "stopped",
+    "shutdown_complete": true,
+    "sampler_cpu_seconds": 0.072811371,
+    "max_sample_span_seconds": 0.0031538260000161245,
+    "root_exit": "Observed returncode 0 by the bounded supervisor after both stream readers completed; the fixture root waits for its allocating child before exiting.",
+    "method": "Run the original test exactly once under the same CPython 3.12.14 and hardened repository entrypoint. Only TemporaryDirectory exit was wrapped to copy existing evidence before normal cleanup, after the original test body; no production function, timeout, fixture or assertion was changed."
+  },
+  "conclusion": "The original test and all its resource/exit assertions pass on the same source with the existing 5-second bound. No repeatable production or test defect was found in this bounded check, so there is no source patch. The first failure is not attributed to machine load without its original process evidence. Preserve the aggregate 284-pass/1-error result and this separate one-test pass; do not relabel the aggregate invocation as all green.",
+  "production_changes": 0,
+  "test_changes": 0,
+  "additional_retries": 0,
+  "codeql_cli_runs": 0,
+  "wrapper_files_unchanged": {
+    "workflow": {
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/cli-fix/.github/workflows/codeql-wrapper-fixture.yml",
+      "bytes": 2260,
+      "sha256": "963e96f906125aab83a43673a6643b031cf5557d8ff2a14f983018a4acf9efef"
+    },
+    "method": {
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/cli-fix/artifact/codeql_wrapper_fixture.py",
+      "bytes": 26319,
+      "sha256": "007210651a191bc456d3a73ca00bbfa6e0db844bab789e0ee16fe0f260ebf4e2"
+    }
+  },
+  "records": [
+    {
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/SINGLE_TEST.json",
+      "bytes": 632,
+      "sha256": "25d4e38f04f5aaf128f464c075ae701362da06a1601d01575fdabf81b2ace3f2"
+    },
+    {
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/SINGLE_TEST_COMMAND.json",
+      "bytes": 900,
+      "sha256": "9c98322c76d1518b566d6afbc9d92c17a84fbe9c8007360e07fb8b0ee5628f93"
+    },
+    {
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/single-test.log",
+      "bytes": 252,
+      "sha256": "75f2deb64c9f289f76c3d1c567c53556f2316b093b131b48b7e121d16d972e4d"
+    },
+    {
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/single_test_method.txt",
+      "bytes": 1448,
+      "sha256": "eae93f12e6a91705abc524336f5f1fd29fbe214800aab6dfd82808b7fef09714"
+    },
+    {
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/single-test-evidence/query.json",
+      "bytes": 2356,
+      "sha256": "f720fb0e29848e950061908a123abfd506945a17e45add1b3112102edd7b06a9"
+    },
+    {
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/single-test-evidence/query.stdout",
+      "bytes": 6,
+      "sha256": "67beb5f8bf693bd1dc8e2486e2d072e3988c5dc323f066ed9510bad118425acb"
+    },
+    {
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/single-test-evidence/query.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/single-test-evidence/PROCESS_RESOURCES.json",
+      "bytes": 1723,
+      "sha256": "da86253d8e65c28c2538efd981d8e7fec29d0052282e540bfedc852901b608d3"
+    },
+    {
+      "local": "/workspace/scratch/qperiapt-recovery-20261111/resource-timeout-diagnosis/single-test-evidence/PROCESS_RESOURCES.jsonl",
+      "bytes": 39437,
+      "sha256": "09b4363bf50aebc16565ad328e272fac0e5f226145302c357ac8321ca211a7c7"
+    }
+  ]
+}

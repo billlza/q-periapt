@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "kind": "qperiapt.resource_replay_source_binding",
+  "production_commit": "951b8dcaebc11223bf01c79c1c4c3a20349be989",
+  "production_commit_tree": "ae1b6817cadd3b0847ecd1e2d16491fd2289f09f",
+  "production_commit_recorded_at": "2026-11-11T13:50:49Z",
+  "production_commit_api": "https://api.github.com/repos/billlza/q-periapt/commits/951b8dcaebc11223bf01c79c1c4c3a20349be989",
+  "original_aggregate_source_tree": "ae1b6817cadd3b0847ecd1e2d16491fd2289f09f",
+  "original_aggregate_finished_utc": "2026-11-11T13:40:06.086121+00:00",
+  "aggregate_tree_equals_published_production_tree": true,
+  "chronology": "The aggregate validation ran on this complete source tree before the later GitHub API commit was created. The original receipt is preserved without assigning it the later commit identifier.",
+  "recorded_replay_checkout_base": "10729f12f62029901ec700266e0f5dd400c0011e",
+  "replay_source_binding": "The four recorded test, sampler, control and supervisor files have the same byte hashes as the published production tree.",
+  "files": [
+    {
+      "path": "artifact/test_codeql_process_resources.py",
+      "bytes": 17634,
+      "sha256": "adbfe560c1f45dab042552fc8bba941c4adf9cc784d657ad39d9914259d75f1a",
+      "git_blob": "bd5839c5a2e3947845743f92ea78d962a553d40f",
+      "matches_recorded_replay_source": true
+    },
+    {
+      "path": "artifact/codeql_process_resources.py",
+      "bytes": 16881,
+      "sha256": "8b4d14b9667a7c10e653f680311c12db595369f0e6a5b2800aae6beefeec26a6",
+      "git_blob": "aad26f9c8e9c9f3a301372d7c5d9a833186138a8",
+      "matches_recorded_replay_source": true
+    },
+    {
+      "path": "artifact/codeql_summary_control.py",
+      "bytes": 55886,
+      "sha256": "9b6b9baaf3570df4c7a6d24e650c0abf2a64fe70ae2618ce06747f9d335046f6",
+      "git_blob": "8f96c20d263319fd861ce8ab3de678b178324043",
+      "matches_recorded_replay_source": true
+    },
+    {
+      "path": "artifact/bounded_process.py",
+      "bytes": 51311,
+      "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+      "git_blob": "63bc8ff305c80721469e9f46f480395c8a036b76",
+      "matches_recorded_replay_source": true
+    }
+  ],
+  "verification_scope": "Read Git objects and compare existing receipts only; no test, CLI or fixture was rerun while archiving."
+}

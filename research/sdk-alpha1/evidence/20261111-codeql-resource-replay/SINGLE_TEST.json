@@ -1,0 +1,13 @@
+{
+  "kind": "qperiapt.resource_timeout_single_rerun",
+  "started_utc": "2026-11-11T13:48:43.042201+00:00",
+  "finished_utc": "2026-11-11T13:48:44.276149+00:00",
+  "seconds": 1.233980106999752,
+  "tests_run": 1,
+  "failures": 0,
+  "errors": 0,
+  "successful": true,
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "executable": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+  "scope": "Exact unmodified single test; TemporaryDirectory exit copies its existing evidence after the test body before normal cleanup. No sampler, deadline, fixture program or assertions changed."
+}

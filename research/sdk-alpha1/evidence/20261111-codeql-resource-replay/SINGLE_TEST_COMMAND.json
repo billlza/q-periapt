@@ -1,0 +1,21 @@
+{
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-"
+  ],
+  "cwd": "/workspace/scratch/qperiapt-recovery-20261111/cli-fix",
+  "QPERIAPT_PYTHON": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+  "stdin_method": "single_test_method.txt",
+  "started_utc": "2026-11-11T13:48:42.033086+00:00",
+  "finished_utc": "2026-11-11T13:48:44.359626+00:00",
+  "wall_seconds": 2.326546225999664,
+  "returncode": 0,
+  "input_sha256": {
+    "test_codeql_process_resources.py": "adbfe560c1f45dab042552fc8bba941c4adf9cc784d657ad39d9914259d75f1a",
+    "codeql_process_resources.py": "8b4d14b9667a7c10e653f680311c12db595369f0e6a5b2800aae6beefeec26a6",
+    "codeql_summary_control.py": "9b6b9baaf3570df4c7a6d24e650c0abf2a64fe70ae2618ce06747f9d335046f6",
+    "bounded_process.py": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45"
+  },
+  "inputs_unchanged": true
+}

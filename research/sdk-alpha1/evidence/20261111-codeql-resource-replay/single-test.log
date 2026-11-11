@@ -1,0 +1,6 @@
+test_real_allocating_root_and_child_are_observed (test_codeql_process_resources.LiveResourceTests.test_real_allocating_root_and_child_are_observed) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 1.234s
+
+OK
