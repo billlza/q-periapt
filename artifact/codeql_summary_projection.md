@@ -91,7 +91,14 @@ compiled bytes; it performs no compilation or download of its own.
 
 The SDK workflow selects the reviewed projection explicitly for native, WASM
 and macOS-origin Rust databases. Compilation and extraction retain their
-existing platform tools and source-coverage checks. Each Linux analysis worker
+existing platform tools and source-coverage checks. Linux native preparation
+authenticates the fixed protoc 3.21.12 release by size and SHA-256, verifies its
+version and compiles a schema with a standard protobuf import before exporting
+the tool paths. WASM preparation compiles an object with the runner's existing
+clang; profile preparation then records the selected compiler path and checks
+its WASM target support.
+These target-specific steps use the required tools directly without refreshing
+the operating-system package index. Each Linux analysis worker
 downloads the fixed 98,247,028-byte official Rust archive, verifies its digest,
 and passes it to `codeql_rust_profile.py analyze --summary-plan-mode projection`.
 The production command uses the existing 14,000-MB budget, 9,329 MB outside the

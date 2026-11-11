@@ -35,10 +35,27 @@ or partial databases remain available for diagnosis. Current extractor inputs
 also include the 68 authenticated partial snapshots in the file view while
 preserving the complete source and diagnostic checks.
 
+The [dependency bootstrap](https://github.com/billlza/q-periapt/actions/runs/43057408847)
+qualifies source `251bc2ab4cc488543a5516785f3ac9788b681a0b` on five Linux
+runner configurations with the existing CMake/pkg-config/OpenSSL consumer.
+The fixed protobuf compiler's authenticated download, exact version and real
+imported-schema compilation take 0.79 seconds on the Ubuntu 24.04 x86_64 runner.
+Native and WASM preparation now select their required tools directly. The
+shared 50-line Ubuntu installer preserves the archive keyring and package
+requirements while bounding update and installation together to six minutes.
+Its actual cross-toolchain installation completes in 42.07 seconds, followed
+by successful AArch64 and RISC-V execution under QEMU. The ARM64 installation
+completes in 14.30 seconds and the Memcheck consumer reports zero errors.
+Independent readback checks the five exact source trees and all 25 receipts.
+The six protobuf rejection controls, nine existing workflow contracts and
+13 bounded-installer controls supplement these actual tool executions.
+
 The [earlier five-hour, 38-of-39 benchmark](https://github.com/billlza/q-periapt/tree/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-join-outcome)
 retains its original outcome and equal partial results. The completed fixture
 qualifies the transformed analysis path; the current native, WASM and macOS
 runs record its target-specific completion time and resource use.
+The separate Stage4-only follow-up also times out with 38 equal fresh results;
+the combined Stage3/Stage4 experiment retains its own source and active execution.
 
 ## Android account-root integration
 

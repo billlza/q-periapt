@@ -36,10 +36,36 @@ follow the command interfaces supported by the pinned version. Android API 23
 framework discovery uses an exact process query while preserving the existing
 identity, stability and deadline checks.
 
+The [Linux build bootstrap qualification](https://github.com/billlza/q-periapt/actions/runs/43057408847)
+passes all five jobs on dependency source
+`251bc2ab4cc488543a5516785f3ac9788b681a0b`: Ubuntu 22.04 and 24.04 on x86_64
+and ARM64, plus Ubuntu 26.04 on x86_64. Each compiles and executes the existing
+C/OpenSSL consumer through CMake and pkg-config. On Ubuntu 24.04 x86_64, the
+fixed protoc download, digest/version checks and imported-schema compilation
+take 0.79 seconds; the exported tool and a real WASM object also pass. The
+authenticated cross-toolchain installation takes 42.07 seconds and both
+AArch64 and RISC-V binaries execute successfully under QEMU. On Ubuntu 24.04
+ARM64, installation takes 14.30 seconds and the real Memcheck consumer reports
+zero errors. Independent artifact readback verifies all five source/tree
+identities, archive digests and the complete 25-receipt census.
+
+These changes remove redundant operating-system package refreshes from CodeQL
+preparation and native package-tool checks. Required Ubuntu package installs
+share one 50-line helper with isolated indexes, the runner's Ubuntu archive
+keyring and a six-minute total deadline. The prior SDK cohort's dependency
+failures are retained alongside the original successful preceding checks and
+Canonical's dated DNS outage record. The analysis implementation and fixed
+query plan are identical to the qualified production source above.
+
 The [retained fixed-workload benchmark](https://github.com/billlza/q-periapt/tree/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-join-outcome)
 records the earlier `all`-plan long tail: both allocation arms reached their
 five-hour bound with 38 equal fresh results. Its phase and resource evidence
-guided the projection work. Current-source native, WASM and macOS qualification
+guided the projection work. The separate
+[Stage4-only follow-up](https://github.com/billlza/q-periapt/actions/runs/43009319450)
+also reaches its five-hour bound in both arms with 38 fresh, semantically equal
+results; `SummaryStats` is the remaining query. The
+[Stage3/Stage4 experiment](https://github.com/billlza/q-periapt/actions/runs/43016694869)
+has begun evaluating the combined projection. Current-source native, WASM and macOS qualification
 provides the next complete target results and turnaround measurements.
 
 The [SDK performance record](SDK_PERFORMANCE.md) reports measured compiled C
