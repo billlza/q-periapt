@@ -59,6 +59,74 @@ class QueryCompletionReceiptTests(unittest.TestCase):
             with self.subTest(name=name), self.assertRaises(logs.ObservationError):
                 logs.read_completion_receipt(self.path, self.queries)
 
+    def test_oversized_completion_lines_cannot_hide_extra_completion_evidence(self):
+        first = self.completions[0].rstrip(b"\r\n")
+        unknown = first.replace(b"codeql/rust-queries/queries/", b"codeql/rust-queries/queries/extra/")
+        malformed = first.replace(b"[1/39", b"[40/39")
+        padding = b"x" * (logs.QueryCompletionSink.MAX_LINE_BYTES + 1)
+        cases = {
+            "duplicate_after_prefix": self.original + padding + first + b"\n",
+            "duplicate_before_suffix": first + padding + b"\n" + self.original,
+            "unknown_before_prefix": padding + unknown + b"\r\n" + self.original,
+            "malformed_after_suffix": self.original + malformed + padding + b"\n",
+            "unterminated_after_prefix": self.original + padding + first,
+            "unterminated_after_suffix": self.original + first + padding,
+        }
+        for name, content in cases.items():
+            self.path.write_bytes(content)
+            with self.subTest(name=name), self.assertRaises(logs.ObservationError):
+                logs.read_completion_receipt(self.path, self.queries)
+
+    def test_oversized_completion_marker_is_rejected_at_every_chunk_boundary(self):
+        marker = b"Evaluation done; writing results to "
+        suffix = self.completions[0].split(marker, 1)[1]
+        limit = logs.QueryCompletionSink.MAX_LINE_BYTES
+        # Exercise a marker spanning the transition into discard mode, and a
+        # marker arriving after that transition. No stream chunk carries the
+        # complete marker; the physical line still contains one.
+        for prefix_size in (limit - len(marker) // 2, limit + 1):
+            for split in range(1, len(marker)):
+                parser = logs._QueryCompletions(self.queries, strict=True)
+                parser(self.original)
+                with self.subTest(prefix_size=prefix_size, split=split), self.assertRaises(logs.ObservationError):
+                    parser(b"x" * prefix_size)
+                    parser(marker[:split])
+                    parser(marker[split:] + suffix)
+                    parser.finish()
+
+    def test_buffered_completion_is_rejected_when_a_later_chunk_overflows(self):
+        parser = logs._QueryCompletions(self.queries, strict=True)
+        parser(self.original)
+        parser(self.completions[0].rstrip(b"\r\n"))
+        with self.assertRaises(logs.ObservationError):
+            parser(b"x" * (logs.QueryCompletionSink.MAX_LINE_BYTES + 1))
+            parser.finish()
+
+    def test_unrelated_oversized_diagnostics_keep_original_receipt_and_bounded_memory(self):
+        marker = b"Evaluation done; writing results to "
+        split = len(marker) // 2
+        # Partial markers on separate physical lines must never combine. The
+        # final oversized diagnostic has no newline, exercising EOF handling.
+        blocks = [b"x" * (2 * 1024**2), marker[:split], b"\r\n",
+                  marker[split:] + b"\n", self.original, b"y" * (2 * 1024**2)]
+        parser = logs._QueryCompletions(self.queries, strict=True)
+        tracemalloc.start()
+        try:
+            for block in blocks:
+                parser(block)
+            queries = parser.finish()
+            _, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+        self.assertEqual(queries, self.queries)
+        self.assertLess(peak, 256 * 1024)
+        content = b"".join(blocks)
+        self.path.write_bytes(content)
+        receipt = logs.read_completion_receipt(self.path, self.queries)
+        self.assertEqual(receipt["queries"], self.queries)
+        self.assertEqual(receipt["bytes"], len(content))
+        self.assertEqual(receipt["sha256"], hashlib.sha256(content).hexdigest())
+
     def test_byte_changes_remain_bound_even_when_query_completions_match(self):
         before = logs.read_completion_receipt(self.path, self.queries)
         self.path.write_bytes(self.original + b"additional diagnostic bytes\n")

@@ -138,6 +138,7 @@ class _QueryCompletions:
     """One bounded parser for live progress and retained completion evidence."""
 
     MAX_LINE_BYTES = 1024
+    _COMPLETION_MARKER = b"Evaluation done; writing results to "
     _COMPLETION = re.compile(
         rb"\[([1-9][0-9]?)/39 eval "
         rb"(?:[0-9]{1,6}(?:\.[0-9]{1,3})?(?:ms|h|m|s)){1,3}"
@@ -171,12 +172,10 @@ class _QueryCompletions:
         while offset < len(block):
             newline = block.find(b"\n", offset)
             end = len(block) if newline < 0 else newline
-            if not self._discarding:
-                if len(self._pending) + end - offset > self.MAX_LINE_BYTES:
-                    self._pending.clear()
-                    self._discarding = True
-                else:
-                    self._pending.extend(block[offset:end])
+            if self._discarding or len(self._pending) + end - offset > self.MAX_LINE_BYTES:
+                self._discard_segment(block, offset, end)
+            else:
+                self._pending.extend(block[offset:end])
             if newline < 0:
                 return
             if not self._discarding:
@@ -185,12 +184,32 @@ class _QueryCompletions:
             self._discarding = False
             offset = end + 1
 
+    def _discard_segment(self, block: bytes, start: int, end: int) -> None:
+        # Display may discard long diagnostic lines. Receipt admission must
+        # still reject a completion marker anywhere in such a malformed line,
+        # including a marker split across read boundaries. Keep only its suffix;
+        # never copy an unbounded segment just to search for that marker.
+        if self._strict:
+            marker = self._COMPLETION_MARKER
+            overlap = len(marker) - 1
+            boundary = self._pending[-overlap:] + block[start:min(end, start + overlap)]
+            require(marker not in self._pending and marker not in boundary
+                    and block.find(marker, start, end) < 0,
+                    "malformed query completion message in oversized stderr line")
+            if end - start >= overlap:
+                self._pending[:] = block[end - overlap:end]
+            else:
+                self._pending[:] = boundary[-overlap:]
+        else:
+            self._pending.clear()
+        self._discarding = True
+
     def _observe_line(self, line: bytes) -> None:
         if line.endswith(b"\r"):
             line = line[:-1]
         match = self._COMPLETION.fullmatch(line)
         if match is None or int(match[1]) > 39:
-            require(not self._strict or b"Evaluation done; writing results to " not in line,
+            require(not self._strict or self._COMPLETION_MARKER not in line,
                     "malformed query completion message")
             return
         result = match[2]
