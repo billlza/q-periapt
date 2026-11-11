@@ -1,0 +1,172 @@
+{
+  "schema": "q-periapt/four-matched-auditor-path-findings-review/v1",
+  "reconstruction": {
+    "status": "Reconstructed from previously observed tool outputs after the executor filesystem snapshot changed.",
+    "original_review_files_available": false,
+    "original_test_log_available": false,
+    "raw_test_log_recreated": false,
+    "note": "Only previously observed facts are retained. No tests were rerun during reconstruction; no unavailable archive hashes or raw transcript bytes are invented."
+  },
+  "scope": "Only four py/path-injection findings at audit_matched_traces.py lines 66 (two), 67 and 71. This does not classify other SARIF findings.",
+  "canonical_check": {
+    "workflow_run_id": 42855086715,
+    "check_run_id": 130189943527,
+    "source_commit": "11e113f27d7708474cd55713d4a22cc028f80944",
+    "url": "https://github.com/billlza/q-periapt/runs/130189943527",
+    "observed_via": "Public rendered GitHub check page, accessible without sign-in.",
+    "annotation_count": 4,
+    "annotation_ids": [
+      103262164775,
+      103262164946,
+      103262165155,
+      103262165396
+    ],
+    "annotation_ids_are_not_security_alert_ids": true,
+    "security_alert_ids": null,
+    "original_workflow_artifacts_observed": [],
+    "line_66_annotation_mapping": "Both first IDs identify line 66. The public page did not expose columns, so a one-to-one assignment to SARIF columns is not asserted."
+  },
+  "sarif_provenance": {
+    "archive": "codeql-python.zip",
+    "original_local_path": "/workspace/scratch/4b61438fb07b/codeql-python.zip",
+    "workflow_run_id": 42959257074,
+    "member": "python.sarif",
+    "analyzed_merge": "834c67183c403fd10d65600252ecbcb950c1af11",
+    "analyzed_tree": "0f281a963c2bd0e6f203c025a99d507ae73da9c2",
+    "relationship": "The canonical public check supplies the four annotated rule titles and line locations. Full fingerprints, columns and source/sink flow were inspected in the retained SDK SARIF. Git object comparisons established that its analyzed auditor is byte-identical to both the old and updated canonical auditor.",
+    "archive_hash_recovered": false
+  },
+  "source_identity": {
+    "path": "paper/continuity/artifacts/matched-comparison/audit_matched_traces.py",
+    "git_blob": "b31a29f4c78b28b8dd20a3e0dbb356bf0adea238",
+    "sha256": "6157726a6aa22f2bf8727da0680fc8f73293e8b129403e9ded53d2297cae658f",
+    "bytes": 18157,
+    "identical_blob_verified_at": [
+      "11e113f27d7708474cd55713d4a22cc028f80944",
+      "f457712abd35375b0bbe01f86d1069eaa25b76ba",
+      "834c67183c403fd10d65600252ecbcb950c1af11",
+      "0e2b23dd81384f42eb63d54353155c86c1c09622"
+    ],
+    "current_binding": "paper/continuity/integration_record.json and the subsequent path-review-20261110/INDEPENDENT_REVIEW.json",
+    "historical_manifest_note": "The matched-comparison artifact_manifest.json retains the earlier auditor SHA-256 235e93ccab4e4491e97ca0c28dff586077cf0a61502a61240cc7f3930f0d1bd1. No historical manifest was rewritten."
+  },
+  "shared_source": {
+    "kind": "Operator-selected CLI positional file argument",
+    "argument": "compact_results",
+    "declaration_line": 316,
+    "parse_line": 318,
+    "parse_expression": "parser.parse_args()",
+    "read_line": 327,
+    "read_expression": "read_bytes(args.compact_results)",
+    "function_parameter_line": 64
+  },
+  "findings": [
+    {
+      "rule_id": "py/path-injection",
+      "security_severity": 7.5,
+      "line": 66,
+      "column": 13,
+      "end_column": 17,
+      "sink": "path.is_file()",
+      "partial_fingerprints": {
+        "primaryLocationLineHash": "7b762e037ad48810:1",
+        "primaryLocationStartColumnFingerprint": "8"
+      },
+      "same_line_annotation_ids": [
+        103262164775,
+        103262164946
+      ]
+    },
+    {
+      "rule_id": "py/path-injection",
+      "security_severity": 7.5,
+      "line": 66,
+      "column": 36,
+      "end_column": 40,
+      "sink": "path.is_symlink()",
+      "partial_fingerprints": {
+        "primaryLocationLineHash": "7b762e037ad48810:1",
+        "primaryLocationStartColumnFingerprint": "31"
+      },
+      "same_line_annotation_ids": [
+        103262164775,
+        103262164946
+      ]
+    },
+    {
+      "rule_id": "py/path-injection",
+      "security_severity": 7.5,
+      "line": 67,
+      "column": 14,
+      "end_column": 18,
+      "sink": "path.lstat()",
+      "partial_fingerprints": {
+        "primaryLocationLineHash": "65683eeb168f5892:1",
+        "primaryLocationStartColumnFingerprint": "9"
+      },
+      "same_line_annotation_ids": [
+        103262165155
+      ]
+    },
+    {
+      "rule_id": "py/path-injection",
+      "security_severity": 7.5,
+      "line": 71,
+      "column": 10,
+      "end_column": 14,
+      "sink": "path.open(\"rb\")",
+      "partial_fingerprints": {
+        "primaryLocationLineHash": "494b83a68acd89fc:1",
+        "primaryLocationStartColumnFingerprint": "5"
+      },
+      "same_line_annotation_ids": [
+        103262165396
+      ]
+    }
+  ],
+  "boundary_analysis": {
+    "retained_json_controls_reported_path": false,
+    "manifest_inventory_size": 126,
+    "manifest_selection": "manifest_records admits exactly EXPECTED_MANIFEST_PATHS. Manifest files[].path fields are used for fixed-set validation and metadata indexing; the filesystem loop iterates names generated from code constants.",
+    "manifest_root_guards": [
+      "Canonical relative POSIX path",
+      "Reject absolute paths, dot/parent components, Windows drives and backslashes",
+      "Reject leaf and directory symlink components",
+      "resolve(strict=True) followed by is_relative_to(selected evidence root)"
+    ],
+    "compact_results_contract": "The operator explicitly supplies this independent file path. The documented invocation selects the compact reference JSON in the repository while selecting extracted evidence in another directory. Compact JSON profile/scenario values index expected results and do not construct paths.",
+    "read_identity_guards": [
+      "Regular-file and non-symlink leaf checks",
+      "Pre-open lstat and opened fstat identity equality",
+      "Regular opened descriptor",
+      "Post-read identity and consumed-size equality"
+    ],
+    "demonstrated_violation": null,
+    "conclusion": "Expected explicit CLI file selection under the documented local command contract. Recommend false-positive disposition only for these four findings.",
+    "reason_no_patch": "No retained-JSON traversal or wrong-input acceptance was demonstrated for the reported flows. Requiring compact_results to lie within the evidence directory would break the documented independent-input contract."
+  },
+  "validation_observation": {
+    "record": "controls-observation.json",
+    "prior_actual_execution": true,
+    "passed": 10,
+    "failed": 0,
+    "command": "python -B -m unittest discover -s paper/continuity/artifacts/matched-comparison -p test_audit_input_boundaries.py -v",
+    "cwd": "/workspace/scratch/4b61438fb07b/joc-canonical-review",
+    "prior_full_corpus_review": {
+      "receipt": "paper/continuity/artifacts/matched-comparison/path-review-20261110/INDEPENDENT_REVIEW.json",
+      "compact_rows": 49,
+      "manifest_hashes": 126,
+      "all_recount_values_and_retry_details_identical": true,
+      "rerun_in_this_review": false
+    }
+  },
+  "status": {
+    "auditor_modified": false,
+    "manifest_modified": false,
+    "historical_measurements_modified": false,
+    "ci_rerun": false,
+    "alerts_dismissed": false,
+    "remote_change_in_review": false,
+    "persistence_action": "Store reconstructed records as immutable GitHub blobs only; no commit or branch move."
+  }
+}

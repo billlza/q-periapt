@@ -66,6 +66,10 @@ FULL_SUMMARY = "queries/summary/SummaryStats.ql"
 SOURCE_ALLOCATION = ["-J-Xmx3362M", "--off-heap-ram=9329"]
 TRANSFER_SECONDS = 600
 OBSERVATION_SECONDS = 120
+_EVICTION_AMOUNT = re.compile(r"[0-9.]+")
+_EVICTION_CATEGORY = re.compile(r"(?:Ki|Mi|Gi|Ti)?B ([A-Z_]+)")
+_TAINT_STAGE = re.compile(r"Stage([0-9])::")
+_TAINT_ITERATION = re.compile(r"\(iteration ([0-9]+)\)")
 PARTIAL_RESULT_SECONDS = 120
 MAX_PARTIAL_RESULT_BYTES = 512 * 1024**2
 MAX_EVALUATOR_LOG_BYTES = 2 * 1024**3
@@ -649,22 +653,41 @@ def evaluator_observations(evidence: Path) -> dict:
         if "[PROGRESS]" in text:
             result["query_starts"] += "Starting evaluation of " in text
             result["query_completions"] += "Evaluation done; writing results to " in text
-            loaded = re.search(r"\] Loaded (.+\.qlx)\.\s*$", text)
-            if loaded:
-                result["precompiled_query_loads"].append(loaded[1])
+            # The first marker and final suffix have the same selection as
+            # the former greedy search, without retrying a growing suffix
+            # at every repeated marker in a malformed, bounded log line.
+            trimmed = text.rstrip()
+            marker = "] Loaded "
+            start = trimmed.find(marker)
+            if start >= 0 and trimmed.endswith(".qlx."):
+                loaded = trimmed[start + len(marker):-1]
+                if len(loaded) > len(".qlx"):
+                    result["precompiled_query_loads"].append(loaded)
         result["query_compilations"] += "Compiling query plan for " in text
         result["pause_count"] += "Pausing evaluation to " in text
         if "Pausing evaluation to evict " in text:
             result["eviction_pause_count"] += 1
-            for category in set(re.findall(r"[0-9.]+(?:Ki|Mi|Gi|Ti)?B ([A-Z_]+)", text)):
+            # Consume each maximal numeric run once. Searching the complete
+            # old pattern could restart at every dot when its suffix failed.
+            found = set()
+            for amount in _EVICTION_AMOUNT.finditer(text):
+                category = _EVICTION_CATEGORY.match(text, amount.end())
+                if category:
+                    found.add(category[1])
+            for category in found:
                 categories = result["eviction_categories"]
                 categories[category] = categories.get(category, 0) + 1
         if "TaintReach::" in text:
-            match = re.search(r"Stage([0-9])::.*\(iteration ([0-9]+)\)", text)
-            if match:
-                stage, iteration = match.groups()
+            stage_match = _TAINT_STAGE.search(text)
+            last_iteration = None
+            if stage_match:
+                for iteration_match in _TAINT_ITERATION.finditer(text, stage_match.end()):
+                    last_iteration = iteration_match[1]
+            if last_iteration is not None:
+                stage, iteration = stage_match[1], last_iteration
                 iterations = result["max_taint_stage_iterations"]
                 iterations[stage] = max(iterations.get(stage, 0), int(iteration))
+        require(time.monotonic() <= deadline, "evaluator observation exceeded its bound")
 
     paths = sorted((evidence / "evaluator").glob("**/*"))
     require(len(paths) <= 128, "evaluator log member census exceeds its bound")
@@ -696,8 +719,11 @@ def evaluator_observations(evidence: Path) -> dict:
         path = evidence / name
         if path.exists():
             snapshot = read_regular_snapshot(path, maximum=32 * 1024**2, label="evaluator JVM output")
-            matches = re.findall(rb"(?m)^\s*(?:size_t|uintx) MaxHeapSize\s*:?=\s*([0-9]+)\s", snapshot.data)
+            # JVM flags occupy one physical line; whitespace must not join
+            # unrelated lines or restart a multi-line whitespace search.
+            matches = re.findall(rb"(?m)^[ \t]*(?:size_t|uintx) MaxHeapSize[ \t]*:?=[ \t]*([0-9]+)[ \t\r\n]", snapshot.data)
             result["max_heap_bytes_observed"].extend(int(value) for value in matches)
+    require(time.monotonic() <= deadline, "evaluator observation exceeded its bound")
     return result
 
 

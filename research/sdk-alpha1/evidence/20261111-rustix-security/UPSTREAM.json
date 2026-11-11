@@ -1,0 +1,57 @@
+{
+  "advisory": {
+    "affected": "rustix >=1.0.0, <1.1.6, the six xattr Buffer functions",
+    "classification": "unsound; undefined behavior reachable through the safe Buffer API with a zero-length output buffer",
+    "file_sha256": "a034fc3af7556e9d78d973d959c661757e66f5f3b7063fffbc1b2564cf8c3bcd",
+    "git_blob_sha1": "771621348de211646db0157792e6d23637b28581",
+    "id": "RUSTSEC-2026-0486",
+    "mechanism": "The OS treats a zero-length xattr buffer as a size query, returns an unwritten length, and affected wrappers mark that length initialized. Version 1.1.6 handles empty output buffers with zero initialized bytes and provides separate size-query APIs.",
+    "patched": ">=1.1.6",
+    "unaffected": "<1.0.0 (including 0.38)",
+    "upstream_db_commit": "31cf5a8673e10d3a4d7d829ad5095f47ed419049",
+    "url": "https://github.com/rustsec/advisory-db/blob/31cf5a8673e10d3a4d7d829ad5095f47ed419049/crates/rustix/RUSTSEC-2026-0486.md"
+  },
+  "registry": {
+    "archive_bytes": 426484,
+    "checksum_matches_all_five_updated_locks": true,
+    "crate_url": "https://static.crates.io/crates/rustix/rustix-1.1.6.crate",
+    "independently_downloaded_archive_sha256": "e5e76742e5294153d4dde1207dbec5bdd81eef6fabdc0d2118babadabfd858aa",
+    "index_checksum": "e5e76742e5294153d4dde1207dbec5bdd81eef6fabdc0d2118babadabfd858aa",
+    "index_url": "https://index.crates.io/ru/st/rustix",
+    "rust_version": "1.65",
+    "version": "1.1.6",
+    "yanked": false
+  },
+  "upstream_fix": {
+    "all_six_zero_length_guards_and_query_functions_read": true,
+    "commit": "8e6aaa6713d2bb64b1fdd8c472e3a32a10a76d70",
+    "crate_vcs_commit": "4a563ad698b2c20ff848515821023d2265a788d0",
+    "release_xattr_source_sha256": "174033bce4d6ca1bddb377951c635d6091e1702b8a9fe6912a4f3c08a9c70787",
+    "url": "https://github.com/bytecodealliance/rustix/commit/8e6aaa6713d2bb64b1fdd8c472e3a32a10a76d70"
+  },
+  "cargo_audit_bundle": {
+    "url": "https://github.com/rustsec/rustsec/releases/download/cargo-audit/v0.22.2/cargo-audit-x86_64-unknown-linux-musl-v0.22.2.tgz",
+    "release_id": 334918644,
+    "asset_id": 439292222,
+    "bytes": 6648968,
+    "sha256": "7fb9497f8594b389e5fce5ef9b92db08432996895b2e0c5a0167a69ed445c428",
+    "binary_sha256": "66f9c8f530950d106c1869ce27ef5a4008bcea53c7716c3ed8117586337ee7d8"
+  },
+  "rust_toolchain_components": [
+    {
+      "package": "cargo",
+      "url": "https://static.rust-lang.org/dist/2026-09-03/cargo-1.98.1-x86_64-unknown-linux-gnu.tar.xz",
+      "sha256": "ea1de9f9e23107d97ee2b41a72c552f34064a593da503789218387aee59f3ba4"
+    },
+    {
+      "package": "rustc",
+      "url": "https://static.rust-lang.org/dist/2026-09-03/rustc-1.98.1-x86_64-unknown-linux-gnu.tar.xz",
+      "sha256": "e974f036b28565f37c0f3bd92ddefa809bee16c04f9dcf07b9ed96e05aaaf7c4"
+    },
+    {
+      "package": "rust-std",
+      "url": "https://static.rust-lang.org/dist/2026-09-03/rust-std-1.98.1-x86_64-unknown-linux-gnu.tar.xz",
+      "sha256": "fa3ff450172a16c026944030230c5069947af93c728d9179971d44e5e0cfb561"
+    }
+  ]
+}

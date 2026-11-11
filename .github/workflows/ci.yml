@@ -1790,6 +1790,12 @@ jobs:
             target/qperiapt-android-device-smoke-runs/*/proof/emulator-memory-runtime.txt
             target/qperiapt-android-device-smoke-runs/*/proof/emulator-memory-runtime.err
             target/qperiapt-android-device-smoke-runs/*/proof/adb-uninstall-cleanup.log
+            target/qperiapt-android-device-smoke-runs/*/proof/adb-cleanup-timing.log
+            target/qperiapt-android-device-smoke-runs/*/proof/qperiapt-android-device-result.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/qperiapt-android-device-result.json
+            target/qperiapt-android-device-smoke-runs/*/proof/logcat-raw.txt
+            target/qperiapt-android-device-smoke-runs/*/proof/result-read.err
+            target/qperiapt-android-device-smoke-runs/*/proof/result-json-read.err
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.txt
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-query-*.err
             target/qperiapt-android-device-smoke-runs/*/proof/adb-package-postinstall-attempt-*.txt

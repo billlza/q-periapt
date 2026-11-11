@@ -1,0 +1,15 @@
+{
+  "command": [
+    "/workspace/scratch/4b61438fb07b/rustix-toolchain/install/bin/cargo",
+    "test",
+    "--locked",
+    "-p",
+    "q-periapt-host-store",
+    "-p",
+    "q-periapt-policy-agent"
+  ],
+  "cwd": "/workspace/scratch/4b61438fb07b/rustix-review",
+  "exit": 101,
+  "elapsed": 55.158644181,
+  "rustflags": "-D warnings"
+}
