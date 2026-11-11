@@ -1348,13 +1348,13 @@ class EvaluatorLogObservationTests(unittest.TestCase):
     def test_final_unterminated_line_cannot_complete_after_observation_deadline(self):
         (self.evidence / "evaluator/run.log").write_bytes(b"last unterminated line")
         clock = [0.0]
-        original_consumer = control.consume_regular_snapshot
+        original_consumer = control.evaluator_logs.consume_regular_snapshot
         def consume_then_expire(*args, **kwargs):
             snapshot = original_consumer(*args, **kwargs)
             clock[0] = control.OBSERVATION_SECONDS + 1
             return snapshot
         with patch.object(control.time, "monotonic", side_effect=lambda: clock[0]), \
-                patch.object(control, "consume_regular_snapshot", side_effect=consume_then_expire):
+                patch.object(control.evaluator_logs, "consume_regular_snapshot", side_effect=consume_then_expire):
             with self.assertRaisesRegex(control.ControlError, "observation exceeded"):
                 control.evaluator_observations(self.evidence)
 

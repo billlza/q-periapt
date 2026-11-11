@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 
+import codeql_rust_plan as plan
 import codeql_rust_quality as quality
 from codeql_rust_profile import (COMPILER, QUERY_VERSION, ROOT, TARGETS, VERSION,
                                  profile_host, validate_sarif, validate_linux_query_memory)
@@ -42,7 +43,8 @@ def latest_profile_directories(parent: Path, attempt: int) -> dict[str, Path]:
 
 
 def validate_profile_artifact(directory: Path, name: str, root: Path,
-                              expected_commit: str, run_id: str, attempt: int) -> MacroProfile:
+                              expected_commit: str, run_id: str, attempt: int, *,
+                              summary_plan_mode: str = "none") -> MacroProfile:
     profile = read_json(directory / "PROFILE.json")
     analysis = read_json(directory / "ANALYSIS.json")
     sdk.require(isinstance(profile, dict) and isinstance(analysis, dict), "invalid profile result")
@@ -52,10 +54,10 @@ def validate_profile_artifact(directory: Path, name: str, root: Path,
                 and profile.get("run_id") == run_id, "profile source or workflow identity differs")
     origin_generation = profile.get("run_attempt")
     generation = analysis.get("run_attempt")
-    sdk.require(type(analysis.get("schema")) is int and analysis["schema"] == 2
-                and analysis.get("profile") == name and analysis.get("target") == TARGETS[name]
+    sdk.require(analysis.get("profile") == name and analysis.get("target") == TARGETS[name]
                 and analysis.get("source_commit") == expected_commit and analysis.get("run_id") == run_id,
                 "analysis source or workflow identity differs")
+    plan.validate_publication(directory, analysis, expected_mode=summary_plan_mode)
     sdk.require(isinstance(origin_generation, str)
                 and re.fullmatch(r"[1-9][0-9]*", origin_generation) is not None
                 and isinstance(generation, str) and re.fullmatch(r"[1-9][0-9]*", generation) is not None
@@ -145,6 +147,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--inputs", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--summary-plan-mode", choices=plan.MODES, default="none")
     args = parser.parse_args()
     expected = os.environ.get("CODEQL_EXPECTED_COMMIT", "")
     run_id = os.environ.get("GITHUB_RUN_ID", "")
@@ -154,20 +157,25 @@ def main() -> None:
     quality.require_clean_checkout(expected)
     quality.require_repository_target_absent()
     directories = latest_profile_directories(args.inputs.resolve(strict=True), int(attempt))
-    profiles = [validate_profile_artifact(directories[name], name, ROOT, expected, run_id, int(attempt))
+    profiles = [validate_profile_artifact(directories[name], name, ROOT, expected, run_id, int(attempt),
+                                         summary_plan_mode=args.summary_plan_mode)
                 for name in TARGETS]
     result = validate_macro_profiles(profiles)
     args.output.mkdir()
     for name, directory in directories.items():
         with (args.output / (name + ".sarif")).open("xb") as output:
             output.write(sdk.snapshot(directory / "results.sarif", maximum=64 * 1024**2).data)
-    sdk.write_json(args.output / "PAIRED_QUALITY.json", {
+    paired = {
         "completed": True, "source_commit": expected, "run_id": run_id,
         "profile_inputs": {name: {"directory": directory.name,
                                   "profile_sha256": sdk.snapshot(directory / "PROFILE.json").sha256,
                                   "analysis_sha256": sdk.snapshot(directory / "ANALYSIS.json").sha256}
                            for name, directory in directories.items()}, "macro_coverage": result,
-    })
+    }
+    if args.summary_plan_mode == "projection":
+        paired.update(summary_plan_mode="projection",
+                      summary_plan_manifest_sha256=plan.expected_identity()["manifest_sha256"])
+    sdk.write_json(args.output / "PAIRED_QUALITY.json", paired)
     quality.require_clean_checkout(expected)
     print("CODEQL_RUST_PAIRED_QUALITY_PASS", flush=True)
 

@@ -29,6 +29,7 @@ from typing import BinaryIO
 
 from bounded_process import BoundedProcessError, TimeoutPolicy, capture_output
 from codeql_process_resources import ProcessResourceSampler
+import codeql_evaluator_logs as evaluator_logs
 import codeql_summary_plan as summary_plan
 import codeql_summary_projection as summary_projection
 from evidence_io import (EvidenceIOError, consume_regular_snapshot, fresh_output_directory,
@@ -67,10 +68,6 @@ FULL_SUMMARY = "queries/summary/SummaryStats.ql"
 SOURCE_ALLOCATION = ["-J-Xmx3362M", "--off-heap-ram=9329"]
 TRANSFER_SECONDS = 600
 OBSERVATION_SECONDS = 120
-_EVICTION_AMOUNT = re.compile(r"[0-9.]+")
-_EVICTION_CATEGORY = re.compile(r"(?:Ki|Mi|Gi|Ti)?B ([A-Z_]+)")
-_TAINT_STAGE = re.compile(r"Stage([0-9])::")
-_TAINT_ITERATION = re.compile(r"\(iteration ([0-9]+)\)")
 PARTIAL_RESULT_SECONDS = 120
 MAX_PARTIAL_RESULT_BYTES = 512 * 1024**2
 MAX_EVALUATOR_LOG_BYTES = 2 * 1024**3
@@ -197,24 +194,10 @@ def record_database_archive(inner: Path, evidence: Path) -> None:
 
 
 def metadata_root_fields(text: str) -> dict[str, list[str]]:
-    """Read scalar keys in CodeQL's block mapping; refuse other root syntax."""
-    fields: dict[str, list[str]] = {}
-    key_pattern = r'''("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[A-Za-z_][A-Za-z0-9_-]*)[ \t]*:(?:[ \t]+(.*))?'''
-    for line in text.splitlines():
-        if not line.strip() or line[0].isspace() or line.startswith("#") or line.strip() in ("---", "..."):
-            continue
-        match = re.fullmatch(key_pattern, line)
-        require(match is not None, "unsupported top-level database metadata mapping syntax")
-        key, value = match.groups()
-        if key.startswith('"'):
-            try:
-                key = parse_strict_json_bytes(key.encode("utf-8"), label="quoted database metadata key")
-            except ValueError as error:
-                raise ControlError("unsupported quoted database metadata key") from error
-        elif key.startswith("'"):
-            key = key[1:-1].replace("''", "'")
-        fields.setdefault(key, []).append((value or "").strip())
-    return fields
+    try:
+        return summary_plan.database_metadata_fields(text)
+    except summary_plan.PlanError as error:
+        raise ControlError(str(error)) from None
 
 
 def restore_database(inner_zip: Path | BinaryIO, destination: Path) -> dict:
@@ -655,99 +638,12 @@ def validate_retained_results(original: dict, fresh: dict, queries: dict) -> Non
 
 
 def evaluator_observations(evidence: Path) -> dict:
-    """Read logs once, with bounded lines/bytes/time; retain receipts on failure too."""
-    deadline = time.monotonic() + OBSERVATION_SECONDS
-    result = {"schema": 1, "logs": [], "query_starts": 0, "query_completions": 0,
-              "pause_count": 0, "eviction_pause_count": 0, "eviction_categories": {},
-              "first_timestamp": None, "last_timestamp": None, "max_taint_stage_iterations": {},
-              "max_heap_bytes_observed": [], "off_heap_mb_observed": [], "evaluator_start_lines": 0,
-              "precompiled_query_loads": [], "query_compilations": 0}
-    total_bytes = 0
-
-    def observe(line: bytes) -> None:
-        text = line.decode("utf-8", errors="replace")
-        stamp = re.match(r"\[([0-9-]{10} [0-9:]{8})\]", text)
-        if stamp:
-            result["first_timestamp"] = result["first_timestamp"] or stamp[1]
-            result["last_timestamp"] = stamp[1]
-        if "This is codeql execute queries " in text:
-            result["evaluator_start_lines"] += 1
-            result["off_heap_mb_observed"].extend(int(value) for value in re.findall(r"--off-heap-ram=([0-9]+)(?:\s|$)", text))
-        if "[PROGRESS]" in text:
-            result["query_starts"] += "Starting evaluation of " in text
-            result["query_completions"] += "Evaluation done; writing results to " in text
-            # The first marker and final suffix have the same selection as
-            # the former greedy search, without retrying a growing suffix
-            # at every repeated marker in a malformed, bounded log line.
-            trimmed = text.rstrip()
-            marker = "] Loaded "
-            start = trimmed.find(marker)
-            if start >= 0 and trimmed.endswith(".qlx."):
-                loaded = trimmed[start + len(marker):-1]
-                if len(loaded) > len(".qlx"):
-                    result["precompiled_query_loads"].append(loaded)
-        result["query_compilations"] += "Compiling query plan for " in text
-        result["pause_count"] += "Pausing evaluation to " in text
-        if "Pausing evaluation to evict " in text:
-            result["eviction_pause_count"] += 1
-            # Consume each maximal numeric run once. Searching the complete
-            # old pattern could restart at every dot when its suffix failed.
-            found = set()
-            for amount in _EVICTION_AMOUNT.finditer(text):
-                category = _EVICTION_CATEGORY.match(text, amount.end())
-                if category:
-                    found.add(category[1])
-            for category in found:
-                categories = result["eviction_categories"]
-                categories[category] = categories.get(category, 0) + 1
-        if "TaintReach::" in text:
-            stage_match = _TAINT_STAGE.search(text)
-            last_iteration = None
-            if stage_match:
-                for iteration_match in _TAINT_ITERATION.finditer(text, stage_match.end()):
-                    last_iteration = iteration_match[1]
-            if last_iteration is not None:
-                stage, iteration = stage_match[1], last_iteration
-                iterations = result["max_taint_stage_iterations"]
-                iterations[stage] = max(iterations.get(stage, 0), int(iteration))
-        require(time.monotonic() <= deadline, "evaluator observation exceeded its bound")
-
-    paths = sorted((evidence / "evaluator").glob("**/*"))
-    require(len(paths) <= 128, "evaluator log member census exceeds its bound")
-    for path in paths:
-        require(not path.is_symlink(), "evaluator log contains a symlink")
-        if path.is_dir():
-            continue
-        pending = bytearray()
-
-        def capture(block: bytes) -> None:
-            nonlocal total_bytes
-            total_bytes += len(block)
-            require(total_bytes <= MAX_EVALUATOR_TOTAL_BYTES and time.monotonic() <= deadline,
-                    "evaluator observation exceeded its bound")
-            lines = (bytes(pending) + block).split(b"\n")
-            pending[:] = lines.pop()
-            for line in lines:
-                require(len(line) <= retained.MAX_LINE_BYTES, "evaluator log line exceeds its bound")
-                observe(line)
-            require(len(pending) <= retained.MAX_LINE_BYTES, "evaluator log line exceeds its bound")
-
-        snapshot = consume_regular_snapshot(path, maximum=MAX_EVALUATOR_LOG_BYTES,
-                                            label="evaluator log", consume=capture)
-        if pending:
-            observe(bytes(pending))
-        result["logs"].append({"path": path.relative_to(evidence).as_posix(),
-                               "bytes": snapshot.size, "sha256": snapshot.sha256})
-    for name in ("query.stdout", "query.stderr"):
-        path = evidence / name
-        if path.exists():
-            snapshot = read_regular_snapshot(path, maximum=32 * 1024**2, label="evaluator JVM output")
-            # JVM flags occupy one physical line; whitespace must not join
-            # unrelated lines or restart a multi-line whitespace search.
-            matches = re.findall(rb"(?m)^[ \t]*(?:size_t|uintx) MaxHeapSize[ \t]*:?=[ \t]*([0-9]+)[ \t\r\n]", snapshot.data)
-            result["max_heap_bytes_observed"].extend(int(value) for value in matches)
-    require(time.monotonic() <= deadline, "evaluator observation exceeded its bound")
-    return result
+    try:
+        return evaluator_logs.observe(
+            evidence, seconds=OBSERVATION_SECONDS, maximum_log_bytes=MAX_EVALUATOR_LOG_BYTES,
+            maximum_total_bytes=MAX_EVALUATOR_TOTAL_BYTES, maximum_line_bytes=retained.MAX_LINE_BYTES)
+    except evaluator_logs.ObservationError as error:
+        raise ControlError(str(error)) from None
 
 
 def validate_observations(record: dict, profile: str) -> None:
@@ -771,19 +667,18 @@ def configuration(profile: str) -> dict:
 def validate_candidate_loads(record: dict, codeql: Path, query_hashes: dict) -> None:
     pack = codeql.parent / "qlpacks/codeql/rust-queries" / QUERY_VERSION
     expected = sorted(str((pack / query).with_suffix(".qlx")) for query in query_hashes)
-    observed = record.get("precompiled_query_loads")
-    require(isinstance(observed, list) and all(isinstance(item, str) for item in observed)
-            and sorted(observed) == expected and record.get("query_compilations") == 0,
-            "candidate evaluation did not load exactly the 39 admitted precompiled queries")
+    try:
+        evaluator_logs.validate_loads(record, expected)
+    except evaluator_logs.ObservationError as error:
+        raise ControlError(str(error)) from None
 
 
 def validate_plan_tool(plan, tool: dict) -> None:
     """Keep a fixed capsule bound to the controller's authenticated tool inputs."""
-    value = plan.manifest()
-    require(isinstance(tool, dict) and all(tool.get(key) == value[key] for key in
-            ("codeql_version", "query_pack", "tool_bundle_bytes", "tool_bundle_sha256"))
-            and value["query_manifest_sha256"] == MANIFEST_SHA256,
-            "candidate plan tool or query-manifest binding differs")
+    try:
+        summary_plan.validate_tool_identity(plan.manifest(), tool, query_manifest_sha256=MANIFEST_SHA256)
+    except summary_plan.PlanError as error:
+        raise ControlError(str(error)) from None
 
 
 def compare_reports(baseline: dict, candidate: dict, summary_plan_mode: str = "none") -> dict:

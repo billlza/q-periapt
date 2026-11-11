@@ -17,6 +17,7 @@ from bounded_process import BoundedProcessError, TimeoutPolicy, capture_output
 import codeql_consumer_context as consumers
 from codeql_compiler_sources import collect_compiled_sources
 import codeql_rust_quality as quality
+import codeql_rust_plan as analysis_plan
 from codeql_target_coverage import MacroProfile, parse_macro_calls, validate_active_macro_coverage
 from evidence_io import parse_strict_json_bytes
 from git_provenance import run_git_bytes
@@ -88,7 +89,7 @@ class ProfileRun:
             self.evidence.mkdir(parents=True)
 
     def command(self, label: str, argv: list[str], *, cwd: Path | None = None, seconds=900,
-                timeout_policy: TimeoutPolicy = TimeoutPolicy.STANDARD):
+                timeout_policy: TimeoutPolicy = TimeoutPolicy.STANDARD, stdin_fd: int | None = None):
         started = time.monotonic()
         record = {"argv": argv, "cwd": str(cwd or self.root), "maximum_seconds": seconds,
                   "invoked_at_utc": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
@@ -111,7 +112,8 @@ class ProfileRun:
                 result = capture_output(argv, timeout_seconds=seconds, maximum_stdout_bytes=32 * 1024**2,
                                         maximum_stderr_bytes=16 * 1024**2, environment=self.environment,
                                         stdout_sink=stdout.write, stderr_sink=stderr.write,
-                                        timeout_policy=timeout_policy)
+                                        timeout_policy=timeout_policy,
+                                        **({"stdin_fd": stdin_fd} if stdin_fd is not None else {}))
         except BoundedProcessError as exc:
             sdk.write_json(self.evidence / (label + ".json"), {
                 **record, "completed": False, "boundary": exc.kind, "reason": str(exc),
@@ -366,7 +368,11 @@ def analysis_memory_arguments(run: ProfileRun, profile: str) -> list[str]:
     return arguments
 
 
-def analyze(run: ProfileRun, query_pack: Path) -> None:
+def analyze(run: ProfileRun, query_pack: Path, *, summary_plan_mode: str = "none",
+            tool_archive: Path | None = None) -> None:
+    sdk.require(summary_plan_mode in analysis_plan.MODES and
+                (tool_archive is not None) == (summary_plan_mode == "projection"),
+                "projection analysis requires its explicit fixed tool archive")
     profile_path = run.evidence / "PROFILE.json"
     # Bind the receipt to the same snapshots whose contents are validated.
     profile_snapshot = sdk.snapshot(profile_path)
@@ -394,8 +400,12 @@ def analyze(run: ProfileRun, query_pack: Path) -> None:
                     and not (run.evidence / "TRANSFER.json").is_symlink(),
                     "native Linux extraction cannot use a macOS database transfer")
     quality.require_clean_checkout(profile["source_commit"])
+    context = analysis_plan.prepare(run, tool_archive) if summary_plan_mode == "projection" else None
+    if context is not None:
+        query_pack = context.pack
     suite = query_pack / "codeql-suites/rust-security-extended.qls"
-    resolved = parse_strict_json_bytes(run.command("resolve-suite", [str(run.codeql), "resolve", "queries", str(suite), "--format=json"]), label="CodeQL query inventory")
+    resolved = parse_strict_json_bytes(run.command("resolve-suite", [str(run.codeql), "resolve", "queries", str(suite), "--format=json",
+        *(["--qlconfig-file=" + str(context.root / "qlconfig.yml")] if context is not None else [])]), label="CodeQL query inventory")
     sdk.require(isinstance(resolved, list) and len(resolved) == len(set(resolved)) == 39, "full query suite inventory differs")
     inventory = {}
     for value in resolved:
@@ -408,12 +418,16 @@ def analyze(run: ProfileRun, query_pack: Path) -> None:
     sdk.write_json(run.evidence / "QUERY_INVENTORY.json", inventory)
     sarif = run.evidence / "results.sarif"
     memory_arguments = analysis_memory_arguments(run, profile["profile"])
-    run.command("analyze", [str(run.codeql), "database", "analyze", str(run.configuration.database), str(suite),
-                            "--format=sarif-latest", "--output=" + str(sarif),
-                            f"--threads={run.configuration.threads}", *memory_arguments,
-                            "--threat-model=local", "--no-download", "--common-caches=" + str(run.output / "cache"),
-                            "--sarif-category=" + sarif_category(profile["profile"])], seconds=18000,
-                timeout_policy=TimeoutPolicy.LONG_ANALYSIS)
+    command = ([str(run.codeql), "database", "analyze", str(run.configuration.database), str(suite),
+                             "--format=sarif-latest", "--output=" + str(sarif),
+                             f"--threads={run.configuration.threads}", *memory_arguments,
+                             "--threat-model=local", "--no-download", "--common-caches=" + str(run.output / "cache"),
+                             "--sarif-category=" + sarif_category(profile["profile"])])
+    if context is not None:
+        command = analysis_plan.analysis_command(context, run.configuration.database, run.evidence,
+                                                  profile["profile"], memory_arguments)
+    with analysis_plan.guard(run, context) if context is not None else contextlib.nullcontext():
+        run.command("analyze", command, seconds=18000, timeout_policy=TimeoutPolicy.LONG_ANALYSIS)
     results = {}
     for relative in inventory:
         path = run.configuration.database / "results/codeql/rust-queries" / Path(relative).with_suffix(".bqrs")
@@ -422,8 +436,8 @@ def analyze(run: ProfileRun, query_pack: Path) -> None:
     data = parse_strict_json_bytes(sarif_snapshot.data, label="Rust SARIF")
     validate_sarif(data, profile["profile"])
     quality.require_clean_checkout(profile["source_commit"])
-    sdk.write_json(run.evidence / "ANALYSIS.json", {
-        "schema": 2, "profile": profile["profile"], "target": profile["target"],
+    analysis = {
+        "schema": 3 if context is not None else 2, "profile": profile["profile"], "target": profile["target"],
         "source_commit": profile["source_commit"], "run_id": run_id, "run_attempt": attempt,
         "analysis_host": run.configuration.platform,
         "query_threads": run.configuration.threads, "query_ram_mb": run.configuration.ram_mb,
@@ -434,14 +448,24 @@ def analyze(run: ProfileRun, query_pack: Path) -> None:
         "query_memory_sha256": sdk.snapshot(run.evidence / "QUERY_MEMORY.json").sha256,
         **({"transfer_sha256": sdk.snapshot(run.evidence / "TRANSFER.json").sha256}
            if profile["profile"] == "macos" else {}),
-    })
+    }
+    if context is not None:
+        analysis.update(summary_plan_mode="projection", analysis_plan_sha256=analysis_plan.complete(
+            run, context, analysis, command, inventory))
+    sdk.write_json(run.evidence / "ANALYSIS.json", analysis)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("prepare", "export", "import", "analyze"))
     parser.add_argument("--profile", choices=tuple(TARGETS), required=True)
+    parser.add_argument("--summary-plan-mode", choices=analysis_plan.MODES, default="none")
+    parser.add_argument("--tool-archive", type=Path,
+                        help="Exact fixed official Rust archive required for opt-in projection analysis")
     args = parser.parse_args()
+    sdk.require((args.summary_plan_mode == "none" and args.tool_archive is None)
+                or (args.action == "analyze" and args.summary_plan_mode == "projection" and args.tool_archive is not None),
+                "the explicit projection archive is only accepted for analysis")
     sdk.require(args.action not in ("export", "import") or args.profile == "macos",
                 "only the macOS extraction uses a database transfer")
     host = profile_host(args.profile) if args.action in ("prepare", "export") else analysis_host(args.profile)
@@ -465,7 +489,7 @@ def main() -> None:
     else:
         run = ProfileRun(ROOT, output, configuration.codeql, environment, resume=True, host=host)
         pack = run.codeql.parent / "qlpacks/codeql/rust-queries" / QUERY_VERSION
-        analyze(run, pack.resolve(strict=True))
+        analyze(run, pack.resolve(strict=True), summary_plan_mode=args.summary_plan_mode, tool_archive=args.tool_archive)
 
 
 if __name__ == "__main__":

@@ -147,6 +147,32 @@ class RustTransferTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.check_record(record)
 
+    def test_anchored_transfer_cannot_import_analysis_plan_evidence(self):
+        original = copy.deepcopy(self.record)
+        reserved = ("ANALYSIS_PLAN.json", "ANALYSIS_PLAN_AFTER.json", "ANALYSIS_PLAN_FAILURE.json",
+                    "ANALYSIS_RUNTIME.json", "SUMMARY_PLAN.json", "SUMMARY_PLAN_AFTER.json",
+                    "SUMMARY_PLAN_ORIGINAL.qlx", "SUMMARY_PLAN_VENDOR_PATCH.patch",
+                    "SUMMARY_PLAN_DEPENDENCIES.json.gz", "plan-version.stdout",
+                    "plan-version.stderr", "plan-version.json", "plan-version.started.json")
+        for name in reserved:
+            extra = self.incoming / "evidence" / name
+            extra.write_bytes(b"analysis-only evidence")
+            self.record = copy.deepcopy(original)
+            self.record["evidence"][name] = {"bytes": extra.stat().st_size, "sha256": self.digest(extra)}
+            self.write_record()
+            try:
+                with self.subTest(name=name), \
+                        mock.patch.dict(os.environ, {"CODEQL_TRANSFER_SHA256": self.digest(self.incoming / "TRANSFER.json")}), \
+                        mock.patch.object(self.run, "command") as command, \
+                        self.assertRaisesRegex(ValueError, "evidence inventory"):
+                    transfer.import_database(self.run)
+                command.assert_not_called()
+                self.assertEqual(list(self.run.evidence.iterdir()), [])
+            finally:
+                extra.unlink()
+        self.record = original
+        self.write_record()
+
     def test_tampered_job_anchor_stops_before_import(self):
         with mock.patch.dict(os.environ, {"CODEQL_TRANSFER_SHA256": "f" * 64}), \
                 mock.patch.object(self.run, "command") as command, self.assertRaisesRegex(ValueError, "origin job output"):

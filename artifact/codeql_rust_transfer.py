@@ -26,7 +26,7 @@ MAX_EVIDENCE = 64 * 1024**2
 REQUIRED_EVIDENCE = {"PROFILE.json", "EXTRACTION_INPUTS.json", "Metrics.json",
                      "MacroCalls.json", "ExtractedPaths.json"}
 FORBIDDEN_EVIDENCE = {"ANALYSIS.json", "QUERY_INVENTORY.json", "QUERY_MEMORY.json",
-                      "TRANSFER.json", "results.sarif"}
+                      "ANALYSIS_RUNTIME.json", "TRANSFER.json", "results.sarif"}
 
 
 def read_json(path: Path):
@@ -51,7 +51,7 @@ def _file_record(value: object, maximum: int, *, nonempty: bool = False) -> bool
 def _evidence_name(name: object) -> bool:
     return (isinstance(name, str) and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", name) is not None
             and name not in FORBIDDEN_EVIDENCE and not name.startswith(("analyze.", "resolve-suite.",
-                "resolve-analysis-ram.", "transfer-")))
+                "resolve-analysis-ram.", "transfer-", "ANALYSIS_PLAN", "SUMMARY_PLAN", "plan-")))
 
 
 def validate_transfer_record(record: object, profile: object, profile_sha256: str, *,

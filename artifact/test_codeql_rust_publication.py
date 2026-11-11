@@ -125,6 +125,94 @@ class RustPublicationTests(unittest.TestCase):
         analysis["profile_sha256"] = self.digest(directory / "PROFILE.json")
         self.write(directory / "ANALYSIS.json", analysis)
 
+    def projection_analysis(self):
+        # Publication wiring tests mock the plan validator. Complete plan
+        # receipts and their negative controls belong to that validator's tests.
+        for directory in self.paths.values():
+            analysis = self.read(directory / "ANALYSIS.json")
+            analysis.update(schema=3, summary_plan_mode="projection", analysis_plan_sha256="e" * 64)
+            self.write(directory / "ANALYSIS.json", analysis)
+
+    def publish(self, *arguments, output_name="published"):
+        output = self.base / output_name
+        argv = ["codeql_rust_publication", "--inputs", str(self.artifacts), "--output", str(output),
+                *arguments]
+        with mock.patch("sys.argv", argv), mock.patch.object(publication, "ROOT", self.root), \
+                mock.patch.dict(publication.os.environ, {"CODEQL_EXPECTED_COMMIT": "a" * 40,
+                    "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1"}), \
+                mock.patch.object(quality, "require_clean_checkout"), \
+                mock.patch.object(quality, "require_repository_target_absent"):
+            publication.main()
+        return output
+
+    def test_default_publication_keeps_legacy_output_and_validates_each_profile(self) -> None:
+        with mock.patch.object(publication.plan, "validate_publication",
+                               wraps=publication.plan.validate_publication) as validator, \
+                mock.patch.object(publication.plan, "expected_identity") as identity:
+            output = self.publish()
+        self.assertEqual(validator.call_count, 3)
+        for name, call in zip(publication.TARGETS, validator.call_args_list):
+            self.assertEqual(call.args[0], self.paths[name])
+            self.assertEqual(call.kwargs, {"expected_mode": "none"})
+        identity.assert_not_called()
+        paired = self.read(output / "PAIRED_QUALITY.json")
+        self.assertEqual(set(paired), {"completed", "source_commit", "run_id", "profile_inputs", "macro_coverage"})
+        for name in publication.TARGETS:
+            self.assertEqual((output / (name + ".sarif")).read_bytes(),
+                             (self.paths[name] / "results.sarif").read_bytes())
+
+    def test_projection_selection_reaches_all_profiles_and_binds_the_paired_manifest(self) -> None:
+        self.projection_analysis()
+        with mock.patch.object(publication.plan, "validate_publication") as validator, \
+                mock.patch.object(publication.plan, "expected_identity",
+                                  return_value={"manifest_sha256": "f" * 64}):
+            output = self.publish("--summary-plan-mode", "projection")
+        self.assertEqual(validator.call_count, 3)
+        for name, call in zip(publication.TARGETS, validator.call_args_list):
+            self.assertEqual(call.args[0], self.paths[name])
+            self.assertEqual(call.args[1]["schema"], 3)
+            self.assertEqual(call.kwargs, {"expected_mode": "projection"})
+        paired = self.read(output / "PAIRED_QUALITY.json")
+        self.assertEqual(paired["summary_plan_mode"], "projection")
+        self.assertEqual(paired["summary_plan_manifest_sha256"], "f" * 64)
+        self.assertEqual(set(paired["profile_inputs"]), set(publication.TARGETS))
+
+    def test_any_plan_validator_failure_stops_before_publication(self) -> None:
+        self.projection_analysis()
+        for rejected in publication.TARGETS:
+            def validate(directory, analysis, *, expected_mode):
+                self.assertEqual(expected_mode, "projection")
+                if directory == self.paths[rejected]:
+                    raise ValueError("injected plan admission failure")
+            with self.subTest(profile=rejected), \
+                    mock.patch.object(publication.plan, "validate_publication", side_effect=validate), \
+                    self.assertRaisesRegex(ValueError, "plan admission failure"):
+                self.publish("--summary-plan-mode", "projection", output_name="rejected-" + rejected)
+            self.assertFalse((self.base / ("rejected-" + rejected)).exists())
+
+    def test_projection_cannot_replace_the_complete_query_result_gate(self) -> None:
+        self.projection_analysis()
+        directory = self.paths["native"]
+        analysis = self.read(directory / "ANALYSIS.json")
+        del analysis["query_result_sha256"]["queries/summary/SummaryStats.ql"]
+        self.write(directory / "ANALYSIS.json", analysis)
+        with mock.patch.object(publication.plan, "validate_publication"), \
+                self.assertRaisesRegex(ValueError, "census is incomplete"):
+            publication.validate_profile_artifact(directory, "native", self.root, "a" * 40, "123", 1,
+                                                   summary_plan_mode="projection")
+
+    def test_projection_selector_rejects_legacy_profile_receipts(self) -> None:
+        for name in publication.TARGETS:
+            with self.subTest(profile=name), self.assertRaises(ValueError):
+                publication.validate_profile_artifact(self.paths[name], name, self.root, "a" * 40, "123", 1,
+                                                       summary_plan_mode="projection")
+
+    def test_default_selector_rejects_projection_profile_receipts(self) -> None:
+        self.projection_analysis()
+        for name in publication.TARGETS:
+            with self.subTest(profile=name), self.assertRaises(ValueError):
+                self.validate(name)
+
     def test_all_three_completed_profiles_are_required(self) -> None:
         selected = publication.latest_profile_directories(self.artifacts, 1)
         self.assertEqual(selected, self.paths)

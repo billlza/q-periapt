@@ -44,6 +44,35 @@ def require(condition: bool, message: str) -> None:
         raise PlanError(message)
 
 
+def validate_tool_identity(value: dict, tool: dict, *, query_manifest_sha256: str) -> None:
+    """Bind a fixed compiled plan to its authenticated tool and root queries."""
+    require(isinstance(tool, dict) and all(tool.get(key) == value[key] for key in
+            ("codeql_version", "query_pack", "tool_bundle_bytes", "tool_bundle_sha256"))
+            and value["query_manifest_sha256"] == query_manifest_sha256,
+            "candidate plan tool or query-manifest binding differs")
+
+
+
+def database_metadata_fields(text: str) -> dict[str, list[str]]:
+    """Read scalar keys in CodeQL's block mapping; refuse other root syntax."""
+    fields: dict[str, list[str]] = {}
+    key_pattern = r'''("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[A-Za-z_][A-Za-z0-9_-]*)[ \t]*:(?:[ \t]+(.*))?'''
+    for line in text.splitlines():
+        if not line.strip() or line[0].isspace() or line.startswith("#") or line.strip() in ("---", "..."):
+            continue
+        match = re.fullmatch(key_pattern, line)
+        require(match is not None, "unsupported top-level database metadata mapping syntax")
+        key, value = match.groups()
+        if key.startswith('"'):
+            try:
+                key = parse_strict_json_bytes(key.encode("utf-8"), label="quoted database metadata key")
+            except ValueError as error:
+                raise PlanError("unsupported quoted database metadata key") from error
+        elif key.startswith("'"):
+            key = key[1:-1].replace("''", "'")
+        fields.setdefault(key, []).append((value or "").strip())
+    return fields
+
 def manifest() -> dict:
     snapshot = read_regular_snapshot(MANIFEST, maximum=64 * 1024, label="summary plan manifest")
     require(snapshot.sha256 == MANIFEST_SHA256, "summary plan manifest digest differs")
