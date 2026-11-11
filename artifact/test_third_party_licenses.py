@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import contextlib
+import copy
+import io
 import json
 import os
 import pathlib
@@ -109,6 +111,170 @@ class ThirdPartyLicenseTests(unittest.TestCase):
             expected_target="x86_64-unknown-linux-gnu",
         )
         self.assertEqual(first, verified)
+
+    def union_metadata(self) -> dict[str, dict]:
+        """Non-nested production closures: no one ABI can represent the AAR."""
+        targets = ("aarch64-linux-android", "x86_64-linux-android",
+                   "armv7-linux-androideabi", "i686-linux-android")
+        extra_packages = []
+        lock = [f'version = 4\n[[package]]\nname = "dep"\nversion = "1.2.3"\n'
+                f'source = "{self.source}"\nchecksum = "{self.checksum}"\n']
+        for name, version, digest in (("cpufeatures", "0.2.17", "b"),
+                                      ("x86-only", "2.0.0", "c"),
+                                      ("dev-only", "1.0.0", "d")):
+            directory = self.dependency_root.parent / f"{name}-{version}"
+            directory.mkdir()
+            (directory / "Cargo.toml").write_text(
+                f'[package]\nname = "{name}"\nversion = "{version}"\n', encoding="utf-8")
+            (directory / "LICENSE").write_text(f"Synthetic {name} license\n", encoding="utf-8")
+            extra_packages.append({"id": name, "name": name, "version": version,
+                "source": self.source, "license": "MIT", "license_file": None,
+                "manifest_path": str(directory / "Cargo.toml")})
+            lock.append(f'[[package]]\nname = "{name}"\nversion = "{version}"\n'
+                        f'source = "{self.source}"\nchecksum = "{digest * 64}"\n')
+        (self.root / "Cargo.lock").write_text("".join(lock), encoding="utf-8")
+        result = {}
+        for target in targets:
+            metadata = self.metadata()
+            metadata["packages"].extend(copy.deepcopy(extra_packages))
+            nodes = metadata["resolve"]["nodes"]
+            nodes.extend({"id": item["id"], "deps": []} for item in extra_packages)
+            nodes[0]["deps"].append({"pkg": "dev-only", "dep_kinds": [{"kind": "dev", "target": None}]})
+            selected = {"aarch64-linux-android": "cpufeatures", "x86_64-linux-android": "x86-only"}.get(target)
+            if selected:
+                nodes[0]["deps"].append({"pkg": selected, "dep_kinds": [{"kind": None, "target": None}]})
+            result[target] = metadata
+        return result
+
+    def test_multi_target_generation_ships_exact_union_and_retains_each_closure(self) -> None:
+        metadata = self.union_metadata()
+        inventory = third_party_licenses.collect_union(self.root, self.package_root,
+            tuple(metadata), resolved_metadata=metadata)
+        self.assertEqual(inventory["schema_version"], 2)
+        self.assertEqual(inventory["targets"], sorted(metadata))
+        self.assertEqual([p["name"] for p in inventory["packages"]], ["cpufeatures", "dep", "x86-only"])
+        for target, names in (("aarch64-linux-android", ["cpufeatures", "dep"]),
+                              ("x86_64-linux-android", ["dep", "x86-only"]),
+                              ("armv7-linux-androideabi", ["dep"]),
+                              ("i686-linux-android", ["dep"])):
+            self.assertEqual([item[0] for item in inventory["target_packages"][target]], names)
+        self.assertEqual((self.package_root / "THIRD_PARTY/rust/cpufeatures-0.2.17/LICENSE").read_bytes(),
+                         b"Synthetic cpufeatures license\n")
+        self.assertEqual(len(list((self.package_root / "THIRD_PARTY/rust").rglob("LICENSE*"))), 3)
+        self.assertEqual(inventory, third_party_licenses.verify(self.package_root, expected_targets=tuple(metadata)))
+
+    def test_multi_target_cli_is_order_independent_and_resolves_every_target(self) -> None:
+        metadata = self.union_metadata()
+        first = None
+        for index, targets in enumerate((tuple(metadata), tuple(reversed(metadata)))):
+            destination = self.package_root / str(index)
+            destination.mkdir()
+            arguments = [argument for target in targets for argument in ("--target", target)]
+            with mock.patch.object(third_party_licenses, "_cargo_metadata",
+                    side_effect=lambda root, target: metadata[target]) as cargo, contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(third_party_licenses.main(["create", "--root", str(self.root),
+                    "--package-root", str(destination), *arguments]), 0)
+            self.assertEqual([call.args[1] for call in cargo.call_args_list], sorted(metadata))
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(third_party_licenses.main(["verify", "--package-root", str(destination),
+                    *[argument for target in targets for argument in ("--expected-target", target)]]), 0)
+            current = (destination / third_party_licenses.INVENTORY_RELATIVE).read_bytes()
+            if first is None:
+                first = current
+            else:
+                self.assertEqual(current, first)
+
+    def test_multi_target_missing_arch_specific_license_or_lock_entry_fails_before_publication(self) -> None:
+        metadata = self.union_metadata()
+        path = self.dependency_root.parent / "cpufeatures-0.2.17/LICENSE"
+        data = path.read_bytes()
+        path.unlink()
+        with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "no distributable license text"):
+            third_party_licenses.collect_union(self.root, self.package_root, tuple(metadata), resolved_metadata=metadata)
+        self.assertFalse((self.package_root / "THIRD_PARTY").exists())
+        path.write_bytes(data)
+        lock = self.root / "Cargo.lock"
+        lock.write_text(lock.read_text().replace('name = "cpufeatures"', 'name = "unrelated"'), encoding="utf-8")
+        with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "absent from Cargo.lock"):
+            third_party_licenses.collect_union(self.root, self.package_root, tuple(metadata), resolved_metadata=metadata)
+        self.assertFalse((self.package_root / "THIRD_PARTY").exists())
+
+    def test_multi_target_conflicting_shared_license_evidence_fails_closed(self) -> None:
+        metadata = self.union_metadata()
+        metadata["x86_64-linux-android"]["packages"][1]["license"] = "BSD-3-Clause"
+        with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "differs between targets"):
+            third_party_licenses.collect_union(self.root, self.package_root, tuple(metadata), resolved_metadata=metadata)
+        self.assertFalse((self.package_root / "THIRD_PARTY").exists())
+
+    def test_multi_target_verifier_rejects_omitted_target_and_arch_specific_package(self) -> None:
+        metadata = self.union_metadata()
+        inventory = third_party_licenses.collect_union(self.root, self.package_root,
+            tuple(metadata), resolved_metadata=metadata)
+        path = self.package_root / third_party_licenses.INVENTORY_RELATIVE
+        for mutation, message in (("target", "target set differs"),
+                                  ("closure", "target closure set differs"),
+                                  ("package", "missing from union"),
+                                  ("duplicate", "duplicate or unsorted"),
+                                  ("unselected", "unselected package")):
+            changed = copy.deepcopy(inventory)
+            if mutation == "target":
+                changed["targets"].remove("aarch64-linux-android")
+            elif mutation == "closure":
+                del changed["target_packages"]["aarch64-linux-android"]
+            elif mutation == "package":
+                changed["packages"] = [item for item in changed["packages"] if item["name"] != "cpufeatures"]
+            elif mutation == "duplicate":
+                rows = changed["target_packages"]["aarch64-linux-android"]
+                rows.insert(0, rows[0])
+            else:
+                changed["target_packages"]["aarch64-linux-android"] = [
+                    row for row in changed["target_packages"]["aarch64-linux-android"] if row[0] != "cpufeatures"]
+            path.write_bytes(third_party_licenses.canonical_json(changed))
+            with self.subTest(mutation=mutation), self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, message):
+                third_party_licenses.verify(self.package_root, expected_targets=tuple(metadata))
+        path.write_bytes(third_party_licenses.canonical_json(inventory))
+        (self.package_root / "THIRD_PARTY/rust/cpufeatures-0.2.17/LICENSE").write_bytes(b"changed\n")
+        with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "bytes differ"):
+            third_party_licenses.verify(self.package_root, expected_targets=tuple(metadata))
+
+    def test_multi_target_union_limits_apply_after_deduplicating_shared_packages(self) -> None:
+        metadata = self.union_metadata()
+        with mock.patch.object(third_party_licenses, "MAX_LICENSE_FILES", 2), \
+                self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "package count exceeds limit"):
+            third_party_licenses.collect_union(self.root, self.package_root, tuple(metadata), resolved_metadata=metadata)
+        self.assertFalse((self.package_root / "THIRD_PARTY").exists())
+
+        common = len((self.dependency_root / "LICENSE-MIT").read_bytes())
+        arm = len((self.dependency_root.parent / "cpufeatures-0.2.17/LICENSE").read_bytes())
+        x86 = len((self.dependency_root.parent / "x86-only-2.0.0/LICENSE").read_bytes())
+        with mock.patch.object(third_party_licenses, "MAX_TOTAL_LICENSE_BYTES", common + max(arm, x86)), \
+                self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "license text total exceeds limit"):
+            third_party_licenses.collect_union(self.root, self.package_root, tuple(metadata), resolved_metadata=metadata)
+        self.assertFalse((self.package_root / "THIRD_PARTY").exists())
+
+    def test_multi_target_schema_and_single_target_admission_remain_explicit(self) -> None:
+        metadata = self.union_metadata()
+        inventory = third_party_licenses.collect_union(self.root, self.package_root,
+            tuple(metadata), resolved_metadata=metadata)
+        with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "requires expected_targets"):
+            third_party_licenses.verify(self.package_root, expected_target="x86_64-linux-android")
+        path = self.package_root / third_party_licenses.INVENTORY_RELATIVE
+        for schema in (2.0, True):
+            path.write_bytes(third_party_licenses.canonical_json(dict(inventory, schema_version=schema)))
+            with self.subTest(schema=schema), self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "schema differs"):
+                third_party_licenses.verify(self.package_root, expected_targets=tuple(metadata))
+
+    def test_multi_target_requires_distinct_targets_and_exact_resolution_inputs(self) -> None:
+        metadata = self.union_metadata()
+        with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "targets are duplicate"):
+            third_party_licenses.collect_union(self.root, self.package_root,
+                ("aarch64-linux-android", "aarch64-linux-android"), resolved_metadata=metadata)
+        with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "metadata target set differs"):
+            third_party_licenses.collect_union(self.root, self.package_root,
+                tuple(metadata), resolved_metadata={"aarch64-linux-android": metadata["aarch64-linux-android"]})
+        self.collect()
+        with self.assertRaisesRegex(third_party_licenses.ThirdPartyLicenseError, "does not cover multiple targets"):
+            third_party_licenses.verify(self.package_root, expected_targets=tuple(metadata))
 
     def test_installed_continuity_resolution_keeps_the_exact_lock_and_licenses(self) -> None:
         metadata = self.metadata()

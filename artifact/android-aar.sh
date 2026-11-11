@@ -511,52 +511,17 @@ printf '\n=== Collect production Rust dependency licenses ===\n'
 PYTHONPATH=artifact python3 artifact/third_party_licenses.py create \
 	--root "$ROOT" \
 	--package-root "$STAGE/META-INF" \
-	--target x86_64-linux-android
+	--target aarch64-linux-android \
+	--target x86_64-linux-android \
+	--target armv7-linux-androideabi \
+	--target i686-linux-android
 PYTHONPATH=artifact python3 artifact/third_party_licenses.py verify \
 	--package-root "$STAGE/META-INF" \
-	--expected-target x86_64-linux-android
-LICENSE_MATRIX="$WORK/license-matrix"
-mkdir -p "$LICENSE_MATRIX"
-for license_target in aarch64-linux-android armv7-linux-androideabi i686-linux-android; do
-	mkdir "$LICENSE_MATRIX/$license_target"
-	PYTHONPATH=artifact python3 artifact/third_party_licenses.py create \
-		--root "$ROOT" \
-		--package-root "$LICENSE_MATRIX/$license_target" \
-		--target "$license_target"
-done
-PYTHONPATH=artifact python3 - \
-	"$STAGE/META-INF/THIRD_PARTY/rust/INVENTORY.json" \
-	"$LICENSE_MATRIX/aarch64-linux-android/THIRD_PARTY/rust/INVENTORY.json" \
-	"$LICENSE_MATRIX/armv7-linux-androideabi/THIRD_PARTY/rust/INVENTORY.json" \
-	"$LICENSE_MATRIX/i686-linux-android/THIRD_PARTY/rust/INVENTORY.json" <<'PY'
-import pathlib
-import sys
-
-from evidence_io import load_json_object_snapshot
-
-inventories = [
-    load_json_object_snapshot(pathlib.Path(raw), label="Android Rust license matrix").value
-    for raw in sys.argv[1:]
-]
-
-def identities(inventory):
-    return {
-        (package["name"], package["version"], package["source"])
-        for package in inventory["packages"]
-    }
-
-reference = identities(inventories[0])
-union = set().union(*(identities(inventory) for inventory in inventories))
-if reference != union:
-    missing = sorted(union - reference)
-    raise SystemExit(
-        "error: x86_64 Android license closure is not a superset of all shipped ABI closures: "
-        f"missing={missing}"
-    )
-print(f"ANDROID_RUST_LICENSE_TARGET_SUPERSET_PASS packages={len(reference)} targets=4")
-PY
-rm -rf "$LICENSE_MATRIX"
-printf 'PASS: production Rust dependency license closure\n'
+	--expected-target aarch64-linux-android \
+	--expected-target x86_64-linux-android \
+	--expected-target armv7-linux-androideabi \
+	--expected-target i686-linux-android
+printf 'PASS: production Rust dependency license union across all four shipped ABIs\n'
 
 printf '\n=== Assemble built payload with canonical AAR archive structure ===\n'
 python3 - "$STAGE" "$AAR_PATH" <<'PY'
