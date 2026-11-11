@@ -1,0 +1,14 @@
+{
+  "artifact_id": 13862281372,
+  "counts": {
+    "evaluator_start_lines": 1,
+    "query_compilations": 0,
+    "query_completions": 37,
+    "query_starts": 39
+  },
+  "error": "production evaluator completion census differs",
+  "heap_mb": 3484,
+  "old_validation": "rejected",
+  "pack": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44",
+  "source_commit": "951b8dcaebc11223bf01c79c1c4c3a20349be989"
+}

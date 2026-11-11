@@ -1,0 +1,25 @@
+{
+  "actual_artifact_replay": "REPLAY_BEFORE.json and REPLAY_AFTER.json use original run43032937156 observations and stderr, not simulated query results.",
+  "codeql_queries_executed": 0,
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "test_codeql_progress",
+    "test_codeql_rust_plan",
+    "test_codeql_rust_publication",
+    "test_codeql_rust_profile",
+    "test_codeql_summary_control"
+  ],
+  "commit": "8acd265d0a261cebb64ca6ffb3884bc15f7eebce",
+  "new_tests": 8,
+  "output_retention": "Final tool-output chunk retained as targeted-tests.tail.log; initial streamed chunk remains in the execution transcript. This file is not labeled a complete command log.",
+  "parent": "951b8dcaebc11223bf01c79c1c4c3a20349be989",
+  "returncode": 0,
+  "schema": 1,
+  "tests": 201,
+  "tree": "8bd4c68aef4ddabe448f47996a709619b5c03924",
+  "unittest_seconds": 6.473
+}

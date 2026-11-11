@@ -1,0 +1,599 @@
+diff --git a/.gitattributes b/.gitattributes
+index 62203ca..7b9efe5 100644
+--- a/.gitattributes
++++ b/.gitattributes
+@@ -14,3 +14,6 @@ LICENSES/continuity-services/** -text -whitespace
+ 
+ # This source-bound vendor patch includes significant unified-diff context spaces.
+ artifact/codeql_summary_projection.patch -text -whitespace
++
++# Retained CLI output is a byte-bound regression input.
++artifact/codeql-fixtures/*.stderr -text
+diff --git a/artifact/codeql-fixtures/rust-analyze-2.27.2.stderr b/artifact/codeql-fixtures/rust-analyze-2.27.2.stderr
+new file mode 100644
+index 0000000..3518a49
+--- /dev/null
++++ b/artifact/codeql-fixtures/rust-analyze-2.27.2.stderr
+@@ -0,0 +1,167 @@
++Running queries.
++Resolving data extensions.
++Finished resolving data extensions.
++Loading data extensions.
++Finished loading data extensions.
++[1/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractedFiles.qlx.
++[2/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractionErrors.qlx.
++[3/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractionWarnings.qlx.
++[4/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/AstConsistencyCounts.qlx.
++[5/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/CfgConsistencyCounts.qlx.
++[6/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/SsaConsistencyCounts.qlx.
++[7/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/UnextractedElements.qlx.
++[8/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/UnresolvedMacroCalls.qlx.
++[9/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/TypeInferenceConsistencyCounts.qlx.
++[10/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-020/RegexInjection.qlx.
++[11/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/DataFlowConsistencyCounts.qlx.
++[12/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-022/TaintedPath.qlx.
++[13/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-078/CommandInjection.qlx.
++[14/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-079/XSS.qlx.
++[15/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-089/SqlInjection.qlx.
++[16/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-117/LogInjection.qlx.
++[17/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-295/DisabledCertificateCheck.qlx.
++[18/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-311/CleartextTransmission.qlx.
++[19/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-327/BrokenCryptoAlgorithm.qlx.
++[20/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-312/CleartextLogging.qlx.
++[21/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-312/CleartextStorageDatabase.qlx.
++[22/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-319/UseOfHttp.qlx.
++[23/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-770/UncontrolledAllocationSize.qlx.
++[24/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-798/HardcodedCryptographicValue.qlx.
++[25/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-327/WeakSensitiveDataHashing.qlx.
++[26/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-614/InsecureCookie.qlx.
++[27/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/LinesOfCode.qlx.
++[28/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/LinesOfUserCode.qlx.
++[29/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NodesWithTypeAtLengthLimit.qlx.
++[30/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-825/AccessAfterLifetime.qlx.
++[31/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NumberOfSuccessfullyExtractedFiles.qlx.
++[32/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NumberOfFilesExtractedWithErrors.qlx.
++[33/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/QuerySinkCounts.qlx.
++[34/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-918/RequestForgery.qlx.
++[35/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-825/AccessInvalidPointer.qlx.
++[36/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/telemetry/DatabaseQualityDiagnostics.qlx.
++[37/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/telemetry/ExtractorInformation.qlx.
++[38/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStatsReduced.qlx.
++[39/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStats.qlx.
++Starting evaluation of codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.ql.
++Starting evaluation of codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.ql.
++Starting evaluation of codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.ql.
++Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractedFiles.ql.
++Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractionErrors.ql.
++Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractionWarnings.ql.
++Starting evaluation of codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.ql.
++Starting evaluation of codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.ql.
++Starting evaluation of codeql/rust-queries/queries/diagnostics/UnextractedElements.ql.
++Starting evaluation of codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-020/RegexInjection.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-022/TaintedPath.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-078/CommandInjection.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-079/XSS.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-089/SqlInjection.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-117/LogInjection.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-312/CleartextLogging.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-319/UseOfHttp.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-614/InsecureCookie.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.ql.
++Starting evaluation of codeql/rust-queries/queries/security/CWE-918/RequestForgery.ql.
++Starting evaluation of codeql/rust-queries/queries/summary/LinesOfCode.ql.
++Starting evaluation of codeql/rust-queries/queries/summary/LinesOfUserCode.ql.
++Starting evaluation of codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.ql.
++Starting evaluation of codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.ql.
++Starting evaluation of codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.ql.
++Starting evaluation of codeql/rust-queries/queries/summary/QuerySinkCounts.ql.
++Starting evaluation of codeql/rust-queries/queries/summary/SummaryStats.ql.
++Starting evaluation of codeql/rust-queries/queries/summary/SummaryStatsReduced.ql.
++Starting evaluation of codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.ql.
++Starting evaluation of codeql/rust-queries/queries/telemetry/ExtractorInformation.ql.
++[1/39 eval 30s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractedFiles.bqrs.
++[2/39 eval 30s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionErrors.bqrs.
++[3/39 eval 30s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionWarnings.bqrs.
++[4/39 eval 26.6s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnextractedElements.bqrs.
++[5/39 eval 26.2s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.bqrs.
++[6/39 eval 26.2s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs.
++[7/39 eval 27.5s] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfCode.bqrs.
++[8/39 eval 27.5s] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfUserCode.bqrs.
++[9/39 eval 29s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.bqrs.
++[10/39 eval 47.6s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.bqrs.
++[11/39 eval 54.6s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.bqrs.
++[12/39 eval 54.6s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.bqrs.
++[13/39 eval 58.5s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs.
++[14/39 eval 58.6s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.bqrs.
++[15/39 eval 1m4s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.bqrs.
++[16/39 eval 60s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.bqrs.
++[17/39 eval 59.9s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextLogging.bqrs.
++[18/39 eval 59.9s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.bqrs.
++[19/39 eval 59.9s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.bqrs.
++[20/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-022/TaintedPath.bqrs.
++[21/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-020/RegexInjection.bqrs.
++[22/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-089/SqlInjection.bqrs.
++[23/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-078/CommandInjection.bqrs.
++[24/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-079/XSS.bqrs.
++[25/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-117/LogInjection.bqrs.
++[26/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs.
++[27/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.bqrs.
++[28/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-614/InsecureCookie.bqrs.
++[29/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-319/UseOfHttp.bqrs.
++[30/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.bqrs.
++[31/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.bqrs.
++[32/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-918/RequestForgery.bqrs.
++[33/39 eval 1m1s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.bqrs.
++[34/39 eval 1m1s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs.
++[35/39 eval 1m1s] Evaluation done; writing results to codeql/rust-queries/queries/summary/QuerySinkCounts.bqrs.
++[36/39 eval 58.6s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStatsReduced.bqrs.
++[37/39 eval 58.6s] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.bqrs.
++[38/39 eval 58.6s] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/ExtractorInformation.bqrs.
++[39/39 eval 1m14s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs.
++Shutting down query evaluator.
++Interpreting results.
++Resolving extensions
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/AstConsistencyCounts.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/CfgConsistencyCounts.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/DataFlowConsistencyCounts.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractedFiles.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractionErrors.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractionWarnings.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/SsaConsistencyCounts.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/TypeInferenceConsistencyCounts.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/UnextractedElements.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/UnresolvedMacroCalls.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-020/RegexInjection.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-022/TaintedPath.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-078/CommandInjection.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-079/XSS.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-089/SqlInjection.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-117/LogInjection.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-295/DisabledCertificateCheck.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-311/CleartextTransmission.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-312/CleartextLogging.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-312/CleartextStorageDatabase.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-319/UseOfHttp.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-327/BrokenCryptoAlgorithm.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-327/WeakSensitiveDataHashing.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-614/InsecureCookie.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-770/UncontrolledAllocationSize.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-798/HardcodedCryptographicValue.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-825/AccessAfterLifetime.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-825/AccessInvalidPointer.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-918/RequestForgery.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/LinesOfCode.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/LinesOfUserCode.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NodesWithTypeAtLengthLimit.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NumberOfFilesExtractedWithErrors.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NumberOfSuccessfullyExtractedFiles.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/QuerySinkCounts.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStats.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStatsReduced.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/telemetry/DatabaseQualityDiagnostics.ql...
++Interpreting /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/telemetry/ExtractorInformation.ql...
++Reading source archive /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database/src
++Exporting results to SARIF...
++Exported results to SARIF (134ms).
+diff --git a/artifact/codeql_evaluator_logs.py b/artifact/codeql_evaluator_logs.py
+index ca82398..fd973cb 100644
+--- a/artifact/codeql_evaluator_logs.py
++++ b/artifact/codeql_evaluator_logs.py
+@@ -134,13 +134,8 @@ def validate_loads(record: dict, expected: list[str]) -> None:
+             "candidate evaluation did not load exactly the 39 admitted precompiled queries")
+ 
+ 
+-class QueryCompletionSink:
+-    """Retain stderr first, then display bounded progress for an admitted suite.
+-
+-    The caller supplies the 39 relative query paths from its validated manifest.
+-    This is display-only evidence: completion receipts, output inventories and
+-    failure propagation remain the responsibility of the existing caller.
+-    """
++class _QueryCompletions:
++    """One bounded parser for live progress and retained completion evidence."""
+ 
+     MAX_LINE_BYTES = 1024
+     _COMPLETION = re.compile(
+@@ -149,9 +144,8 @@ class QueryCompletionSink:
+         rb"\] Evaluation done; writing results to ([^\r\n]+\.bqrs)\."
+     )
+ 
+-    def __init__(self, write, query_paths):
+-        require(callable(write), "query progress requires the original stderr sink")
+-        expected = set()
++    def __init__(self, query_paths, *, strict=False, on_progress=None):
++        expected = {}
+         for relative in query_paths:
+             require(len(expected) < 39, "query progress requires exactly 39 query paths")
+             require(isinstance(relative, str) and relative.startswith("queries/")
+@@ -163,19 +157,16 @@ class QueryCompletionSink:
+             require(len(encoded) <= 512, "query progress path exceeds its bound")
+             result = b"codeql/rust-queries/" + encoded[:-3] + b".bqrs"
+             require(result not in expected, "query progress query paths must be unique")
+-            expected.add(result)
++            expected[result] = relative
+         require(len(expected) == 39, "query progress requires exactly 39 query paths")
+-        self._write = write
+         self._expected = expected
++        self._strict = strict
++        self._on_progress = on_progress
+         self._seen = set()
+         self._pending = bytearray()
+         self._discarding = False
+ 
+     def __call__(self, block: bytes) -> None:
+-        # The supervisor applies its existing total-byte limit before this
+-        # callback. Preserve every original byte before observing the chunk;
+-        # real sink or console I/O failures retain that supervisor's error path.
+-        self._write(block)
+         offset = 0
+         while offset < len(block):
+             newline = block.find(b"\n", offset)
+@@ -199,11 +190,73 @@ class QueryCompletionSink:
+             line = line[:-1]
+         match = self._COMPLETION.fullmatch(line)
+         if match is None or int(match[1]) > 39:
++            require(not self._strict or b"Evaluation done; writing results to " not in line,
++                    "malformed query completion message")
+             return
+         result = match[2]
+         if result not in self._expected or result in self._seen:
++            require(not self._strict, "unknown or duplicate query completion")
+             return
+         # Reconstruct the count from distinct admitted completion messages.
+         # A repeated, reordered or inflated raw counter cannot jump this count.
+         self._seen.add(result)
+-        print(f"CodeQL query completions observed: {len(self._seen)}/39", flush=True)
++        if self._on_progress is not None:
++            self._on_progress(len(self._seen))
++
++    def finish(self) -> list[str]:
++        if self._pending and not self._discarding:
++            self._observe_line(bytes(self._pending))
++        require(self._seen == self._expected.keys(),
++                "retained stderr does not complete exactly the 39 admitted queries")
++        return sorted(self._expected[result] for result in self._seen)
++
++
++def read_completion_receipt(path: Path, query_paths, *, maximum_bytes=16 * 1024**2,
++                            seconds=30) -> dict:
++    """Bind every distinct completion to one bounded snapshot of original stderr.
++
++    The CLI's stderr progress stream can contain completion messages absent
++    from its internal evaluator log. Keep the latter's observations intact and
++    require the complete admitted query set from this independently retained
++    stream. Publication calls this same reader on the uploaded original bytes.
++    """
++    deadline = time.monotonic() + seconds
++    completions = _QueryCompletions(query_paths, strict=True)
++
++    def capture(block: bytes) -> None:
++        require(time.monotonic() <= deadline, "query completion read exceeded its bound")
++        completions(block)
++
++    snapshot = consume_regular_snapshot(path, maximum=maximum_bytes,
++                                        label="query completion stderr", consume=capture)
++    queries = completions.finish()
++    require(time.monotonic() <= deadline, "query completion read exceeded its bound")
++    return {"schema": 1, "source": path.name, "bytes": snapshot.size,
++            "sha256": snapshot.sha256, "queries": queries}
++
++
++class QueryCompletionSink:
++    """Retain stderr first, then display bounded progress for an admitted suite.
++
++    Completion admission rereads the original stderr independently; a displayed
++    count alone never creates a completion or publication receipt.
++    """
++
++    MAX_LINE_BYTES = _QueryCompletions.MAX_LINE_BYTES
++    _COMPLETION = _QueryCompletions._COMPLETION
++
++    def __init__(self, write, query_paths):
++        require(callable(write), "query progress requires the original stderr sink")
++        self._write = write
++        self._completions = _QueryCompletions(query_paths, on_progress=self._display)
++
++    @staticmethod
++    def _display(count: int) -> None:
++        print(f"CodeQL query completions observed: {count}/39", flush=True)
++
++    def __call__(self, block: bytes) -> None:
++        # The supervisor applies its existing total-byte limit before this
++        # callback. Retain every original byte before parsing or console output;
++        # either I/O failure keeps the supervisor's original failure behavior.
++        self._write(block)
++        self._completions(block)
+diff --git a/artifact/codeql_rust_plan.py b/artifact/codeql_rust_plan.py
+index 8e011d8..caa9166 100644
+--- a/artifact/codeql_rust_plan.py
++++ b/artifact/codeql_rust_plan.py
+@@ -304,7 +304,8 @@ def guard(run, context: AnalysisContext):
+                 raise
+ 
+ 
+-def validate_observations(value: object, pack: Path, queries: dict, heap_mb: int) -> None:
++def validate_observations(value: object, pack: Path, queries: dict, heap_mb: int, *,
++                          completion: object) -> None:
+     require(isinstance(value, dict) and set(value) == set(OBSERVATION_FIELDS)
+             and type(value["schema"]) is int and value["schema"] == 1,
+             "production evaluator observations are malformed")
+@@ -312,9 +313,21 @@ def validate_observations(value: object, pack: Path, queries: dict, heap_mb: int
+                                          for relative in queries])
+     require(all(type(value[key]) is int for key in
+                 ("query_starts", "query_completions", "query_compilations", "evaluator_start_lines"))
+-            and value["query_starts"] == value["query_completions"] == 39
++            and value["query_starts"] == 39 and 0 <= value["query_completions"] <= 39
+             and value["query_compilations"] == 0 and value["evaluator_start_lines"] == 1,
+-            "production evaluator completion census differs")
++            "production evaluator execution census differs")
++    # Internal logs can omit a completion progress message even when the CLI
++    # retains it on stderr. Preserve that log count, and bind the complete
++    # per-query completion set to the independently read original stderr.
++    require(isinstance(completion, dict) and set(completion) == {
++                "schema", "source", "bytes", "sha256", "queries"}
++            and type(completion["schema"]) is int and completion["schema"] == 1
++            and completion["source"] == "analyze.stderr"
++            and type(completion["bytes"]) is int and 0 < completion["bytes"] <= 16 * 1024**2
++            and isinstance(completion["sha256"], str)
++            and re.fullmatch(r"[0-9a-f]{64}", completion["sha256"]) is not None
++            and completion["queries"] == sorted(queries) and len(queries) == 39,
++            "production stderr completion census or identity differs")
+     require(type(heap_mb) is int and 0 < heap_mb <= 14000 - 9329
+             and value["jvm_heap_mb_arguments"] == [heap_mb]
+             and value["off_heap_mb_observed"] == [9329],
+@@ -348,12 +361,13 @@ def complete(run, context: AnalysisContext, analysis: dict, command: list[str],
+     observed = evaluator_logs.observe(context.root, pattern="execute-queries-*.log",
+                                       stdio_prefix=None, capture_invocation=True)
+     observations = {key: observed[key] for key in OBSERVATION_FIELDS}
++    completion = evaluator_logs.read_completion_receipt(run.evidence / "analyze.stderr", queries)
+     memory = parse_strict_json_bytes(read_regular_snapshot(
+         run.evidence / "QUERY_MEMORY.json", maximum=64 * 1024,
+         label="analysis memory receipt").data, label="analysis memory receipt")
+-    validate_observations(observations, context.pack, queries, memory["heap_mb"])
++    validate_observations(observations, context.pack, queries, memory["heap_mb"], completion=completion)
+     record = {
+-        "schema": 1, "kind": "qperiapt.codeql_rust_projection_analysis", "completed": True,
++        "schema": 2, "kind": "qperiapt.codeql_rust_projection_analysis", "completed": True,
+         "summary_plan_mode": "projection",
+         **{key: analysis[key] for key in
+            ("profile", "target", "source_commit", "run_id", "run_attempt", "query_inventory_sha256")},
+@@ -363,7 +377,7 @@ def complete(run, context: AnalysisContext, analysis: dict, command: list[str],
+             run.evidence / RUNTIME_RECEIPT, maximum=MAX_RECEIPT_BYTES,
+             label="analysis runtime receipt").sha256,
+         "database_before": context.database_before, "database_after": context.database_after,
+-        "query_command": command, "observations": observations,
++        "query_command": command, "observations": observations, "completion_stderr": completion,
+         "suite_sha256": read_regular_snapshot(context.suite, maximum=64 * 1024,
+                                               label="frozen production suite").sha256,
+         "qlconfig_sha256": hashlib.sha256(QLCONFIG).hexdigest(),
+@@ -397,10 +411,10 @@ def validate_publication(directory: Path, analysis: dict, *, expected_mode: str
+         "schema", "kind", "completed", "summary_plan_mode", "profile", "target", "source_commit",
+         "run_id", "run_attempt", "query_inventory_sha256", "summary_plan_before", "summary_plan_after",
+         "tool", "runtime_receipt_sha256", "database_before", "database_after", "query_command",
+-        "observations", "suite_sha256", "qlconfig_sha256", "postcheck_receipt_sha256",
++        "observations", "completion_stderr", "suite_sha256", "qlconfig_sha256", "postcheck_receipt_sha256",
+     }
+     require(isinstance(record, dict) and set(record) == keys
+-            and type(record["schema"]) is int and record["schema"] == 1
++            and type(record["schema"]) is int and record["schema"] == 2
+             and record["kind"] == "qperiapt.codeql_rust_projection_analysis"
+             and record["completed"] is True and record["summary_plan_mode"] == "projection"
+             and all(record[key] == analysis.get(key) for key in
+@@ -444,7 +458,11 @@ def validate_publication(directory: Path, analysis: dict, *, expected_mode: str
+     memory = parse_strict_json_bytes(read_regular_snapshot(
+         directory / "QUERY_MEMORY.json", maximum=64 * 1024,
+         label="published analysis memory receipt").data, label="published analysis memory receipt")
+-    validate_observations(record["observations"], context.pack, queries, memory["heap_mb"])
++    completion = evaluator_logs.read_completion_receipt(directory / "analyze.stderr", queries)
++    require(record["completion_stderr"] == completion,
++            "published completion stderr differs from its bound receipt")
++    validate_observations(record["observations"], context.pack, queries, memory["heap_mb"],
++                          completion=completion)
+     for side in ("database_before", "database_after"):
+         database = record[side]
+         require(isinstance(database, dict) and set(database) == {
+diff --git a/artifact/codeql_summary_projection.md b/artifact/codeql_summary_projection.md
+index 1291c9b..22c57c6 100644
+--- a/artifact/codeql_summary_projection.md
++++ b/artifact/codeql_summary_projection.md
+@@ -106,6 +106,14 @@ producer rechecks those identities and requires exactly 39 precompiled loads,
+ The publisher independently validates the resulting plan and runtime receipts
+ alongside the existing source, compiler, target-coverage and SARIF checks.
+ 
++The version-two plan receipt binds the complete per-query completion set to
++the original `analyze.stderr`, including its byte count and digest. Publication
++rereads that file and requires the exact 39 admitted query identities. Internal
++evaluator logs retain their observed completion count and continue to supply
++the independent start, precompiled-load, compilation and allocation evidence.
++This accounts for the pinned CLI retaining all 39 completion messages on
++stderr while its internal log can omit individual progress messages.
++
+ Production and diagnostic execution share the bounded evaluator-log reader.
+ Normal production verbosity records query progress without the much larger
+ relation-level trace. A display-only sink prints completion counts for distinct
+diff --git a/artifact/test_codeql_progress.py b/artifact/test_codeql_progress.py
+index 8459e6d..315b392 100644
+--- a/artifact/test_codeql_progress.py
++++ b/artifact/test_codeql_progress.py
+@@ -16,6 +16,73 @@ from bounded_process import capture_output
+ import codeql_evaluator_logs as logs
+ 
+ 
++class QueryCompletionReceiptTests(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        artifact = Path(__file__).parent
++        cls.queries = sorted(json.loads((artifact / "codeql_rust_queries.json").read_text())["queries"])
++        # Unmodified stderr from the pinned 2.27.2 command in the failed wrapper:
++        # https://github.com/billlza/q-periapt/actions/runs/43032937156/job/130564344658
++        cls.original = (artifact / "codeql-fixtures/rust-analyze-2.27.2.stderr").read_bytes()
++        if (len(cls.original) != 22432 or hashlib.sha256(cls.original).hexdigest()
++                != "403bb102acebc1ed83ad4d31b54c5c6133ad020a790a49a1d61e88b383448f55"):
++            raise AssertionError("the original hosted stderr fixture changed")
++        cls.completions = [line for line in cls.original.splitlines(keepends=True)
++                           if b"Evaluation done; writing results to " in line]
++
++    def setUp(self):
++        temporary = tempfile.TemporaryDirectory()
++        self.addCleanup(temporary.cleanup)
++        self.path = Path(temporary.name) / "analyze.stderr"
++        self.path.write_bytes(self.original)
++
++    def test_original_hosted_stderr_binds_all_39_exact_query_completions(self):
++        receipt = logs.read_completion_receipt(self.path, self.queries)
++        self.assertEqual(receipt, {
++            "schema": 1, "source": "analyze.stderr", "bytes": len(self.original),
++            "sha256": hashlib.sha256(self.original).hexdigest(), "queries": self.queries,
++        })
++
++    def test_missing_duplicate_unknown_and_malformed_completions_are_rejected(self):
++        first, second = self.completions[:2]
++        unknown = first.replace(b"codeql/rust-queries/queries/", b"codeql/rust-queries/queries/extra/")
++        cases = {
++            "missing": self.original.replace(first, b""),
++            "replaced_with_duplicate": self.original.replace(first, second),
++            "extra_duplicate": self.original + first,
++            "unknown": self.original + unknown,
++            "forged_prefix": self.original.replace(first, b"::warning::" + first),
++            "invalid_counter": self.original.replace(first, first.replace(b"[1/39", b"[40/39")),
++        }
++        for name, content in cases.items():
++            self.path.write_bytes(content)
++            with self.subTest(name=name), self.assertRaises(logs.ObservationError):
++                logs.read_completion_receipt(self.path, self.queries)
++
++    def test_byte_changes_remain_bound_even_when_query_completions_match(self):
++        before = logs.read_completion_receipt(self.path, self.queries)
++        self.path.write_bytes(self.original + b"additional diagnostic bytes\n")
++        after = logs.read_completion_receipt(self.path, self.queries)
++        self.assertEqual(before["queries"], after["queries"])
++        self.assertNotEqual(before["sha256"], after["sha256"])
++        self.assertGreater(after["bytes"], before["bytes"])
++
++    def test_completion_snapshot_keeps_byte_and_time_bounds(self):
++        with self.assertRaises(ValueError):
++            logs.read_completion_receipt(self.path, self.queries, maximum_bytes=len(self.original) - 1)
++        with mock.patch.object(logs.time, "monotonic", side_effect=[0, 31]):
++            with self.assertRaisesRegex(logs.ObservationError, "exceeded its bound"):
++                logs.read_completion_receipt(self.path, self.queries)
++
++    @unittest.skipUnless(os.name == "posix", "symlink control requires POSIX")
++    def test_completion_snapshot_rejects_a_redirected_stderr(self):
++        target = self.path.with_name("original.stderr")
++        self.path.rename(target)
++        self.path.symlink_to(target)
++        with self.assertRaises(ValueError):
++            logs.read_completion_receipt(self.path, self.queries)
++
++
+ class QueryCompletionProgressTests(unittest.TestCase):
+     @classmethod
+     def setUpClass(cls):
+diff --git a/artifact/test_codeql_rust_plan.py b/artifact/test_codeql_rust_plan.py
+index a4ef076..3f0ba14 100644
+--- a/artifact/test_codeql_rust_plan.py
++++ b/artifact/test_codeql_rust_plan.py
+@@ -163,8 +163,11 @@ class ProductionProjectionTests(unittest.TestCase):
+             lines.extend([
+                 "[PROGRESS] Loaded " + str((self.pack / name).with_suffix(".qlx")) + ".",
+                 "[PROGRESS] Starting evaluation of " + name + ".",
+-                "[PROGRESS] Evaluation done; writing results to " + name + ".bqrs",
+             ])
++            if not (self.inject == "missing_internal_completions" and
++                    name in ("queries/security/CWE-295/DisabledCertificateCheck.ql",
++                             "queries/security/CWE-319/UseOfHttp.ql")):
++                lines.append("[PROGRESS] Evaluation done; writing results to " + name + ".bqrs")
+         if self.inject == "implicit_compile":
+             lines.append("[PROGRESS] Compiling query plan for SummaryStats.ql")
+         if self.inject == "extra_load":
+@@ -174,6 +177,14 @@ class ProductionProjectionTests(unittest.TestCase):
+         data = ("\n".join(lines) + "\n").encode()
+         write(self.private_root / "evaluator/execute-queries-fixture.log", data)
+         write(self.private_root / "evaluator/database-analyze-fixture.log", data)
++        # Original successful command stderr from run 43032937156; its internal
++        # log omitted two completion messages while stderr retained all 39.
++        stderr = Path(__file__).with_name("codeql-fixtures").joinpath(
++            "rust-analyze-2.27.2.stderr").read_bytes()
++        if self.inject == "missing_stderr_completion":
++            stderr = b"\n".join(line for line in stderr.split(b"\n")
++                                  if b"[39/39 eval " not in line)
++        write(self.run.evidence / "analyze.stderr", stderr)
+         if self.inject in ("runtime_mutation", "primary_and_postcheck_failure"):
+             write(self.private_root / "tool/codeql/tools/codeql.jar", b"different runtime")
+         if self.inject == "qlconfig_mutation":
+@@ -205,13 +216,54 @@ class ProductionProjectionTests(unittest.TestCase):
+         self.assertEqual(self.run.environment["PATH"], "/usr/bin:/bin")
+         plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
+         record = json.loads((self.run.evidence / plan.PLAN_RECEIPT).read_text())
++        self.assertEqual(record["schema"], 2)
+         self.assertEqual(record["observations"]["query_completions"], 39)
++        self.assertEqual(record["completion_stderr"]["queries"], sorted(self.queries))
++        self.assertEqual(record["completion_stderr"]["sha256"],
++                         digest((self.run.evidence / "analyze.stderr").read_bytes()))
+         self.assertEqual(len(record["observations"]["logs"]), 1)
+         self.assertEqual(record["observations"]["jvm_heap_mb_arguments"], [3356])
+         self.assertEqual(record["observations"]["off_heap_mb_observed"], [9329])
+         with self.assertRaisesRegex(ValueError, "default production"):
+             plan.validate_publication(self.run.evidence, analysis)
+ 
++    def test_complete_stderr_keeps_actual_missing_internal_completion_messages_visible(self) -> None:
++        self.inject = "missing_internal_completions"
++        analysis = self.analyze()
++        record = json.loads((self.run.evidence / plan.PLAN_RECEIPT).read_text())
++        self.assertEqual(record["observations"]["query_completions"], 37)
++        self.assertEqual(record["observations"]["query_starts"], 39)
++        self.assertEqual(record["completion_stderr"]["queries"], sorted(self.queries))
++        plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
++
++    def test_missing_stderr_completion_blocks_success_despite_all_internal_messages(self) -> None:
++        self.inject = "missing_stderr_completion"
++        with self.assertRaisesRegex(ValueError, "exactly the 39 admitted queries"):
++            self.analyze()
++        self.assertFalse((self.run.evidence / plan.PLAN_RECEIPT).exists())
++        self.assertFalse((self.run.evidence / "ANALYSIS.json").exists())
++
++    def test_publication_rereads_the_complete_original_stderr(self) -> None:
++        analysis = self.analyze()
++        stderr = self.run.evidence / "analyze.stderr"
++        original = stderr.read_bytes()
++        stderr.write_bytes(original + b"additional diagnostic bytes\n")
++        with self.assertRaisesRegex(ValueError, "completion stderr differs"):
++            plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
++        stderr.write_bytes(b"\n".join(line for line in original.split(b"\n")
++                                     if b"[39/39 eval " not in line))
++        record_path = self.run.evidence / plan.PLAN_RECEIPT
++        record = json.loads(record_path.read_text())
++        record["completion_stderr"].update(bytes=stderr.stat().st_size,
++                                            sha256=digest(stderr.read_bytes()))
++        replace_fixture(record_path, json.dumps(record).encode())
++        analysis["analysis_plan_sha256"] = digest(record_path.read_bytes())
++        with self.assertRaisesRegex(ValueError, "exactly the 39 admitted queries"):
++            plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
++        stderr.unlink()
++        with self.assertRaises(ValueError):
++            plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
++
+     def test_derived_metadata_keeps_both_snapshots_and_stable_source_identity(self) -> None:
+         self.inject = "derived_metadata"
+         analysis = self.analyze()
+@@ -244,7 +296,10 @@ class ProductionProjectionTests(unittest.TestCase):
+             ("qlconfig", lambda value: set_path(value, ("qlconfig_sha256",), "f" * 64)),
+             ("threat_model", lambda value: value["query_command"].remove("--threat-model=local")),
+             ("compilation", lambda value: set_path(value, ("observations", "query_compilations"), 1)),
+-            ("completion", lambda value: set_path(value, ("observations", "query_completions"), 38)),
++            ("completion", lambda value: set_path(value, ("completion_stderr", "queries"),
++                                                    sorted(self.queries)[:-1])),
++            ("internal_completion", lambda value: set_path(value, ("observations", "query_completions"), 40)),
++            ("completion_source", lambda value: set_path(value, ("completion_stderr", "source"), "other.stderr")),
+             ("heap", lambda value: set_path(value, ("observations", "jvm_heap_mb_arguments"), [3355])),
+             ("overlay", lambda value: set_path(value, ("database_after", "overlay"), True)),
+         ]

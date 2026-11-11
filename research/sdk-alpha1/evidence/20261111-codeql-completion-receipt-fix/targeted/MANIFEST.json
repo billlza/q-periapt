@@ -1,0 +1,25 @@
+{
+  "files": {
+    "REPLAY_AFTER.json": {
+      "bytes": 2927,
+      "sha256": "1f2becb7eaa44623a30205dbc10460172812ffaab33f988a66cac7efbb23c973"
+    },
+    "REPLAY_BEFORE.json": {
+      "bytes": 470,
+      "sha256": "f38fa866d8de7ee8be5fc10280a7183725a89fe4deed1533d77f3d3bfd907877"
+    },
+    "VALIDATION.json": {
+      "bytes": 902,
+      "sha256": "90508eca1e8b9d44f8bebbbd9c36d6a8c3c184019113524b537a3a68feea529e"
+    },
+    "receipt-fix.patch": {
+      "bytes": 48179,
+      "sha256": "d760cecff979fa14959e4ddabc97eea23e9cfd77d1cb90c8213b27cc31e3fd62"
+    },
+    "targeted-tests.tail.log": {
+      "bytes": 32199,
+      "sha256": "c33bafd67bb762b8c9bd7c32764110bc145723be58feb71e431fd2c3ecd3529b"
+    }
+  },
+  "schema": 1
+}

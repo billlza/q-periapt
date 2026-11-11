@@ -1,0 +1,67 @@
+{
+  "author": {
+    "email": "149552943+billlza@users.noreply.github.com",
+    "name": "月溅星河"
+  },
+  "changed_sources": {
+    ".gitattributes": {
+      "bytes": 955,
+      "git_blob_sha": "7b9efe5fdc35711ae68f7dd34af3ab37b91116f3",
+      "sha256": "7ae717f3fe8860fc4e6010c9f535fdf6494f354ed103f38b09aaec9ac73216a6"
+    },
+    "artifact/codeql-fixtures/rust-analyze-2.27.2.stderr": {
+      "bytes": 22432,
+      "git_blob_sha": "3518a494f9b6eba32c78f120376a97ab9729f03e",
+      "sha256": "403bb102acebc1ed83ad4d31b54c5c6133ad020a790a49a1d61e88b383448f55"
+    },
+    "artifact/codeql_evaluator_logs.py": {
+      "bytes": 12808,
+      "git_blob_sha": "fd973cb88fb67240ef5e509e09450e42a3a11c1b",
+      "sha256": "c0eb3dc25c6c09fa2d5655bf95a285d7fc2f4aedaa6ea133ab8d1ed1793d9a44"
+    },
+    "artifact/codeql_rust_plan.py": {
+      "bytes": 27476,
+      "git_blob_sha": "caa9166c9954b916c58ace1147816e6cbad82035",
+      "sha256": "3faedf266eed968bf4c49cca2a9e7564577514cf9687e6690f7f7e06b293351a"
+    },
+    "artifact/codeql_summary_projection.md": {
+      "bytes": 10943,
+      "git_blob_sha": "22c57c607c75a4cc80956bf0ec50f006dad185f8",
+      "sha256": "4f627d489cebef3eb29d453e54860de6b63e16447f0109224f8771d2b441a5de"
+    },
+    "artifact/test_codeql_progress.py": {
+      "bytes": 13190,
+      "git_blob_sha": "315b3924abde94e0ceabb0d9040f60a28c4356b2",
+      "sha256": "4e08cf4341b7abcc2600f7be313b8f6cfd37d07806186d32d673323f05937ca5"
+    },
+    "artifact/test_codeql_rust_plan.py": {
+      "bytes": 27739,
+      "git_blob_sha": "3f0ba147c1ba4921ce6210672c7ac189fee4be1a",
+      "sha256": "16b62e985ba5ec46d538f629d6bfa031d7cac60c903995e86cffd82b21ee414b"
+    }
+  },
+  "combined_validation_finished_utc": "2026-11-11T15:27:49.651829+00:00",
+  "committer": {
+    "email": "149552943+billlza@users.noreply.github.com",
+    "name": "月溅星河"
+  },
+  "identical_tree": "8bd4c68aef4ddabe448f47996a709619b5c03924",
+  "local_test_commit": "8acd265d0a261cebb64ca6ffb3884bc15f7eebce",
+  "ordering": "The tests ran against the local commit before the equivalent public commit was created. The complete source trees are identical.",
+  "original_artifact": {
+    "bytes": 3561748,
+    "id": 13862281372,
+    "sha256": "26a213027695de66807bd2c9999cd4287dbfa932b05cf06435fe027d4c033057"
+  },
+  "original_evidence_commit": "4d589266c71236974519bba3d03fffa27304d713",
+  "original_evidence_directory": "research/sdk-alpha1/evidence/20261111-codeql-wrapper-completion",
+  "original_hosted_job": 130564344658,
+  "original_hosted_run": 43032937156,
+  "original_production_source": "951b8dcaebc11223bf01c79c1c4c3a20349be989",
+  "original_workflow_source": "cd33c64e34a39046a57010bfa56f6964acdca2c2",
+  "public_commit_created_utc": "2026-11-11T15:28:48Z",
+  "public_commit_verified_by": "GitHub Git commit API; exact tree, single parent, author and committer checked",
+  "published_production_commit": "b5185165283880527a54289b47397fde78ddf553",
+  "schema": 1,
+  "source_parent": "951b8dcaebc11223bf01c79c1c4c3a20349be989"
+}
