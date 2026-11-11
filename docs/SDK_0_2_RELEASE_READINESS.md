@@ -51,11 +51,23 @@ identities, archive digests and the complete 25-receipt census.
 
 These changes remove redundant operating-system package refreshes from CodeQL
 preparation and native package-tool checks. Required Ubuntu package installs
-share one 50-line helper with isolated indexes, the runner's Ubuntu archive
+share one small helper with isolated indexes, the runner's Ubuntu archive
 keyring and a six-minute total deadline. The prior SDK cohort's dependency
 failures are retained alongside the original successful preceding checks and
 Canonical's dated DNS outage record. The analysis implementation and fixed
 query plan are identical to the qualified production source above.
+
+The [Ubuntu 26.04 architecture-variant qualification](https://github.com/billlza/q-periapt/actions/runs/43062177678)
+passes on installer source `96e9a63cf8359b130003cd851008a7ce3649aea7`.
+The runner reports native `amd64` and enables `amd64v3` through APT. The
+installer now preserves that configured selection when it writes its isolated
+sources; the earlier explicit base-architecture filter caused APT to refuse
+proposed downgrades in five jobs. With the filter removed, the real signed
+installation of all four dependency sets takes 59.40 seconds and adds 146
+packages. All 1,234 previously installed packages retain their exact versions,
+with no removals or downgrades. Memcheck, compiled RISC-V execution under QEMU,
+Graphviz, ZIP integrity, OCaml, GTK2 and the existing C/OpenSSL consumer pass.
+The archive keyring, strict update errors and six-minute deadline are unchanged.
 
 The [retained fixed-workload benchmark](https://github.com/billlza/q-periapt/tree/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-join-outcome)
 records the earlier `all`-plan long tail: both allocation arms reached their

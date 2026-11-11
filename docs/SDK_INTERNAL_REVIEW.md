@@ -41,7 +41,7 @@ runner configurations with the existing CMake/pkg-config/OpenSSL consumer.
 The fixed protobuf compiler's authenticated download, exact version and real
 imported-schema compilation take 0.79 seconds on the Ubuntu 24.04 x86_64 runner.
 Native and WASM preparation now select their required tools directly. The
-shared 50-line Ubuntu installer preserves the archive keyring and package
+shared Ubuntu installer preserves the archive keyring and package
 requirements while bounding update and installation together to six minutes.
 Its actual cross-toolchain installation completes in 42.07 seconds, followed
 by successful AArch64 and RISC-V execution under QEMU. The ARM64 installation
@@ -49,6 +49,16 @@ completes in 14.30 seconds and the Memcheck consumer reports zero errors.
 Independent readback checks the five exact source trees and all 25 receipts.
 The six protobuf rejection controls, nine existing workflow contracts and
 13 bounded-installer controls supplement these actual tool executions.
+
+The [Ubuntu 26.04 follow-up](https://github.com/billlza/q-periapt/actions/runs/43062177678)
+qualifies source `96e9a63cf8359b130003cd851008a7ce3649aea7` with the runner's
+actual `amd64v3` configuration. Removing the explicit base-architecture filter
+lets APT retain its existing variant selection. All four previously failing
+dependency sets install in 59.40 seconds; the independent before/after census
+records 146 additions and unchanged versions for all 1,234 existing packages.
+Actual Memcheck, RISC-V, formal-tool dependency and OpenSSL consumers pass.
+The minimal source change preserves package trust, the total time budget and
+downgrade refusal. The five original job failures remain in the evidence record.
 
 The [earlier five-hour, 38-of-39 benchmark](https://github.com/billlza/q-periapt/tree/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-join-outcome)
 retains its original outcome and equal partial results. The completed fixture
