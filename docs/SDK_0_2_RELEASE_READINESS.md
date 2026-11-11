@@ -5,7 +5,35 @@ Continuity scope and quality and maintainability review before delivery.
 No release-readiness claim is made until every applicable requirement has
 current-source evidence. The user's latest direction is **retain ABI major 2**.
 
-## Current hosted checkpoint (2026-11-07)
+## Current verification and maintenance checkpoint (2026-11-11)
+
+The [fixed-workload CodeQL readback](https://github.com/billlza/q-periapt/blob/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-join-outcome/README.md)
+identifies a concrete remaining analysis-completion defect. Hosted run
+`42956070561` applied the admitted fixed `all` join plan to the retained Rust
+database for source `56f191f04a57806869b8a03078ee4d27ffe900ab`, with separate
+1,536 MiB and 2,048 MiB heap arms. Both reached the 18,000-second supervisor
+bound after producing 38 of the 39 required fresh results. All 38 results were
+decoded independently and matched between arms and against their retained
+references; the full `SummaryStats` result remains the outstanding member of
+that workload. The original artifacts, source and plan identities, timeout
+outcomes and decoded-result comparisons are preserved in the readback.
+
+Analysis completion and turnaround are part of the SDK's maintenance cost.
+The [resource and phase comparison](https://github.com/billlza/q-periapt/blob/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-join-outcome/performance/COMPARISON.md)
+locates the remaining work in the recursive read and forward-flow relations.
+A [source-bound projection prototype](https://github.com/billlza/q-periapt/blob/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-target-projection/README.md)
+preserves the full read relation for its downstream consumers while giving the
+recursive Stage4 consumer a six-column target relation. Its source equivalence
+argument, compiled plan and complete capsule are recorded. The next execution
+checkpoint is complete result equality and completion under the declared
+budget; these results determine adoption of the candidate.
+
+The [SDK performance record](SDK_PERFORMANCE.md) reports measurements of actual
+compiled C and Swift boundary operations. This ledger separately records the
+verification work needed to maintain those implementations. Both runtime
+behavior and verification turnaround contribute to the engineering assessment.
+
+## Completed hosted checkpoint (2026-11-07)
 
 The [completed push cohort](../research/sdk-alpha1/evidence/20261107-ci-release-readback/README.md)
 passes installed Rust/C, all six Swift/Kotlin/Android JNI Debug/Release partitions

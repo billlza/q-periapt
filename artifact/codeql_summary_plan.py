@@ -85,16 +85,28 @@ def member_path(pack: Path, name: str) -> Path:
     return pack / relative
 
 
-def admit_header(data: bytes, files: dict) -> None:
+def admit_header(data: bytes, files: dict, *, compiler_inputs_digest: str | None = None) -> None:
+    expected_key = COMPILER_INPUTS_DIGEST if compiler_inputs_digest is None else compiler_inputs_digest
     header, separator, _ = data.partition(b"\n...\n")
     require(bool(separator) and len(header) <= 16 * 1024, "summary plan header boundary differs")
     text = header.decode("utf-8")
     require(re.findall(r"^inputsDigest: ([a-z0-9]+)$", text, re.MULTILINE)
-            == [COMPILER_INPUTS_DIGEST], "summary plan compiler input key differs")
+            == [expected_key], "summary plan compiler input key differs")
     names = re.findall(r"^- filename: ([a-z0-9]+\.bytes\.qlx)$", text, re.MULTILINE)
     require(len(names) == len(set(names)) == STAGES
             and {".codeql/precompiled/" + name for name in names} == set(files) - {PLAN_PATH},
             "summary plan referenced stage closure differs")
+
+
+def validate_members(pack: Path, files: dict, *, compiler_inputs_digest: str) -> None:
+    """Recheck the complete closure selected by a separately pinned manifest."""
+    for name, expected in files.items():
+        snapshot = read_regular_snapshot(member_path(pack, name), maximum=MAX_MEMBER_BYTES,
+                                         label="effective summary plan member")
+        require(snapshot.size == expected["bytes"] and snapshot.sha256 == expected["sha256"],
+                "effective summary plan member differs: " + name)
+        if name == PLAN_PATH:
+            admit_header(snapshot.data, files, compiler_inputs_digest=compiler_inputs_digest)
 
 
 def validate(pack: Path) -> dict:
@@ -103,13 +115,7 @@ def validate(pack: Path) -> dict:
     source = read_regular_snapshot(member_path(pack, PLAN_PATH).with_suffix(".ql"),
                                    maximum=64 * 1024, label="full summary query source")
     require(source.sha256 == SOURCE_SHA256, "full summary query source changed")
-    for name, expected in value["files"].items():
-        snapshot = read_regular_snapshot(member_path(pack, name), maximum=MAX_MEMBER_BYTES,
-                                         label="effective summary plan member")
-        require(snapshot.size == expected["bytes"] and snapshot.sha256 == expected["sha256"],
-                "effective summary plan member differs: " + name)
-        if name == PLAN_PATH:
-            admit_header(snapshot.data, value["files"])
+    validate_members(pack, value["files"], compiler_inputs_digest=COMPILER_INPUTS_DIGEST)
     return expected_identity()
 
 
@@ -117,6 +123,32 @@ def write_exclusive(path: Path, data: bytes) -> None:
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW, 0o400)
     with os.fdopen(descriptor, "wb") as stream:
         require(stream.write(data) == len(data), "summary plan write was incomplete")
+
+
+def read_capsule(pack: Path, path: Path, *, size: int, digest: str, files: dict,
+                 compiler_inputs_digest: str) -> dict[str, bytes]:
+    """Admit all fixed capsule bytes before the caller mutates the query pack."""
+    capsule = read_regular_snapshot(path, maximum=size, label="summary plan capsule")
+    require(capsule.size == size and capsule.sha256 == digest,
+            "summary plan capsule digest or size differs")
+    payloads = {}
+    with zipfile.ZipFile(io.BytesIO(capsule.data)) as archive:
+        members = archive.infolist()
+        require(len(members) == len({member.filename for member in members}) == STAGES + 1
+                and {member.filename for member in members} == set(files),
+                "summary plan capsule member census differs")
+        for member in members:
+            expected = files[member.filename]
+            require(stat.S_IFMT(member.external_attr >> 16) == stat.S_IFREG
+                    and member.file_size == expected["bytes"] <= MAX_MEMBER_BYTES,
+                    "summary plan capsule member type or size differs")
+            data = archive.read(member)
+            require(hashlib.sha256(data).hexdigest() == expected["sha256"],
+                    "summary plan capsule member digest differs")
+            member_path(pack, member.filename)
+            payloads[member.filename] = data
+    admit_header(payloads[PLAN_PATH], files, compiler_inputs_digest=compiler_inputs_digest)
+    return payloads
 
 
 def install(pack: Path, evidence: Path) -> dict:
@@ -128,26 +160,8 @@ def install(pack: Path, evidence: Path) -> dict:
     source = read_regular_snapshot(member_path(pack, PLAN_PATH).with_suffix(".ql"),
                                    maximum=64 * 1024, label="full summary query source")
     require(source.sha256 == SOURCE_SHA256, "full summary query source changed")
-    capsule = read_regular_snapshot(CAPSULE, maximum=CAPSULE_BYTES, label="summary plan capsule")
-    require(capsule.size == CAPSULE_BYTES and capsule.sha256 == CAPSULE_SHA256,
-            "summary plan capsule digest or size differs")
-    payloads = {}
-    with zipfile.ZipFile(io.BytesIO(capsule.data)) as archive:
-        members = archive.infolist()
-        require(len(members) == len({member.filename for member in members}) == STAGES + 1
-                and {member.filename for member in members} == set(value["files"]),
-                "summary plan capsule member census differs")
-        for member in members:
-            expected = value["files"][member.filename]
-            require(stat.S_IFMT(member.external_attr >> 16) == stat.S_IFREG
-                    and member.file_size == expected["bytes"] <= MAX_MEMBER_BYTES,
-                    "summary plan capsule member type or size differs")
-            data = archive.read(member)
-            require(hashlib.sha256(data).hexdigest() == expected["sha256"],
-                    "summary plan capsule member digest differs")
-            member_path(pack, member.filename)
-            payloads[member.filename] = data
-    admit_header(payloads[PLAN_PATH], value["files"])
+    payloads = read_capsule(pack, CAPSULE, size=CAPSULE_BYTES, digest=CAPSULE_SHA256,
+                            files=value["files"], compiler_inputs_digest=COMPILER_INPUTS_DIGEST)
     # Admit the entire capsule before any pack mutation. New stage files are
     # exclusive creations, and the QLX is atomically replaced only after them.
     for name in payloads:

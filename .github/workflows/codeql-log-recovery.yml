@@ -1,12 +1,7 @@
 name: Retained CodeQL query-log recovery
 
 on:
-  push:
-    branches: [integration/sdk-020]
-    paths:
-      - .github/workflows/codeql-log-recovery.yml
-      - artifact/codeql_log_recovery.py
-      - artifact/test_codeql_log_recovery.py
+  workflow_dispatch:
 
 permissions:
   contents: read

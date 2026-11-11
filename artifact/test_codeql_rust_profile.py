@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import contextlib
 import dataclasses
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -615,11 +616,50 @@ class RustProfileTests(unittest.TestCase):
                             "import sys,time;print('query started',flush=True);"
                             "print('query diagnostic',file=sys.stderr,flush=True);time.sleep(5)"], seconds=1)
             record = json.loads((run.evidence / "timeout.json").read_text())
+            launch = json.loads((run.evidence / "timeout.started.json").read_text())
+            self.assertEqual(record["invoked_at_utc"], launch["invoked_at_utc"])
+            self.assertEqual(datetime.fromisoformat(record["finished_at_utc"]).tzinfo, timezone.utc)
             self.assertFalse(record["completed"])
             self.assertEqual(record["boundary"], "timeout")
             self.assertFalse(record["cleanup_ambiguous"])
             self.assertEqual((run.evidence / "timeout.stdout").read_text(), "query started\n")
             self.assertEqual((run.evidence / "timeout.stderr").read_text(), "query diagnostic\n")
+            self.assertFalse((run.evidence / "ANALYSIS.json").exists())
+
+    def test_command_invocation_is_visible_to_the_child_before_completion(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = dict(os.environ, CODEQL_EXPECTED_COMMIT="a" * 40,
+                               GITHUB_RUN_ID="123", GITHUB_RUN_ATTEMPT="2")
+            run = ProfileRun(root, root / "run", Path(sys.executable), environment)
+            launch_path = run.evidence / "observe.started.json"
+            completion_path = run.evidence / "observe.json"
+            command = [sys.executable, "-c",
+                       "import json, pathlib, sys; "
+                       "value=json.loads(pathlib.Path(sys.argv[1]).read_text()); "
+                       "assert not pathlib.Path(sys.argv[2]).exists(); "
+                       "print(value['source_commit'], value['run_id'], value['run_attempt'])",
+                       str(launch_path), str(completion_path)]
+            self.assertEqual(run.command("observe", command, seconds=10), ("a" * 40 + " 123 2\n").encode())
+            launch = json.loads(launch_path.read_text())
+            final = json.loads(completion_path.read_text())
+            self.assertEqual(launch["argv"], command)
+            self.assertEqual(launch["maximum_seconds"], 10)
+            self.assertEqual(datetime.fromisoformat(launch["invoked_at_utc"]).tzinfo, timezone.utc)
+            self.assertEqual(final["invoked_at_utc"], launch["invoked_at_utc"])
+            self.assertEqual(final["returncode"], 0)
+            self.assertNotIn("completed", launch)
+            self.assertFalse((run.evidence / "ANALYSIS.json").exists())
+
+    def test_interrupted_worker_retains_invocation_without_fabricating_completion(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+            with mock.patch.object(profile_module, "capture_output", side_effect=KeyboardInterrupt), \
+                    self.assertRaises(KeyboardInterrupt):
+                run.command("interrupted", [sys.executable, "-c", "pass"])
+            self.assertTrue((run.evidence / "interrupted.started.json").is_file())
+            self.assertFalse((run.evidence / "interrupted.json").exists())
             self.assertFalse((run.evidence / "ANALYSIS.json").exists())
 
     def test_full_and_reduced_summary_queries_are_both_required_by_the_pinned_suite(self) -> None:

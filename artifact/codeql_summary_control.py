@@ -30,6 +30,7 @@ from typing import BinaryIO
 from bounded_process import BoundedProcessError, TimeoutPolicy, capture_output
 from codeql_process_resources import ProcessResourceSampler
 import codeql_summary_plan as summary_plan
+import codeql_summary_projection as summary_projection
 from evidence_io import (EvidenceIOError, consume_regular_snapshot, fresh_output_directory,
                          parse_strict_json_bytes, read_regular_snapshot)
 import codeql_log_recovery as retained
@@ -75,6 +76,7 @@ MAX_PARTIAL_RESULT_BYTES = 512 * 1024**2
 MAX_EVALUATOR_LOG_BYTES = 2 * 1024**3
 MAX_EVALUATOR_TOTAL_BYTES = 4 * 1024**3
 CACHE_SCOPE = "Warm-cache control: exact retained database/cache; fresh common cache and all 39 output BQRS."
+SUMMARY_PLANS = {"none": None, "all": summary_plan, "projection": summary_projection}
 # Filled from the authenticated archive, independent of either experiment arm.
 INPUT_IDENTITY = {'cache_file_count': 1437,
  'cache_inventory_sha256': '2e972c45962dc468698ac7db6cf3fcde6a17bb3b3bc954af06a9166eab3bdbe0',
@@ -343,9 +345,19 @@ def input_identity(inventory: dict) -> dict:
     return identity
 
 
-def prepare_database(root: Path) -> tuple[Path, dict]:
-    outer, inner = root / "diagnostics.zip", root / "retained-database.zip"
-    download(outer)
+def prepare_database(root: Path, *, retained_archive: Path | None = None) -> tuple[Path, dict]:
+    """Restore the same pinned input from its API transfer or a local archive.
+
+    A local archive is an explicit transport choice. Both routes pass through
+    the same descriptor-bound size/digest check before any ZIP parsing, then
+    the same complete database/cache/result inventory admission.
+    """
+    inner = root / "retained-database.zip"
+    if retained_archive is None:
+        outer = root / "diagnostics.zip"
+        download(outer)
+    else:
+        outer = retained_archive
     with verified_source(outer, size=SOURCE["artifact_bytes"], digest=SOURCE["artifact_sha256"],
                          label="outer artifact") as source, zipfile.ZipFile(source) as archive:
         members = archive.infolist()
@@ -372,6 +384,14 @@ def prepare_database(root: Path) -> tuple[Path, dict]:
     write_json(root / "evidence/DATABASE_INPUTS.json", inventory)
     identity = input_identity(inventory)
     require(identity == INPUT_IDENTITY, "retained database/cache/result inventory differs")
+    write_json(root / "evidence/SOURCE_TRANSPORT.json", {
+        "schema": 1,
+        "transport": "github_artifact" if retained_archive is None else "local_archive",
+        "artifact_id": SOURCE["artifact_id"],
+        "archive_bytes": SOURCE["artifact_bytes"],
+        "archive_sha256": SOURCE["artifact_sha256"],
+        "input_identity": identity,
+    })
     return database, identity
 
 
@@ -445,10 +465,11 @@ def jvm_probe(codeql: Path, root: Path, environment: dict, profile: str) -> dict
 def query_command(codeql: Path, database: Path, root: Path, profile: str,
                   summary_plan_mode: str = "none") -> list[str]:
     require(profile in PROFILES, "unknown allocation profile")
-    require(summary_plan_mode in ("none", "all"), "unknown summary plan mode")
+    require(summary_plan_mode in SUMMARY_PLANS, "unknown summary plan mode")
     heap, native = PROFILES[profile]
+    join_mode = "none" if SUMMARY_PLANS[summary_plan_mode] is None else "all"
     return [str(codeql), "execute", "queries", f"-J-Xmx{heap}M", f"--off-heap-ram={native}", "-J-XX:+PrintFlagsFinal",
-            "--threads=4", "--threat-model=local", "--warnings=show", "--dynamic-join-order-mode=" + summary_plan_mode,
+            "--threads=4", "--threat-model=local", "--warnings=show", "--dynamic-join-order-mode=" + join_mode,
             "--no-rerun", "--verbosity=progress", "--evaluator-log-level=5",
             "--common-caches=" + str(root / "cache"), "--logdir=" + str(root / "evidence/evaluator"),
             "--output=" + str(root / "results"), "--", str(database / "db-rust"), "path:" + str(root / "frozen.qls")]
@@ -754,8 +775,18 @@ def validate_candidate_loads(record: dict, codeql: Path, query_hashes: dict) -> 
             "candidate evaluation did not load exactly the 39 admitted precompiled queries")
 
 
+def validate_plan_tool(plan, tool: dict) -> None:
+    """Keep a fixed capsule bound to the controller's authenticated tool inputs."""
+    value = plan.manifest()
+    require(isinstance(tool, dict) and all(tool.get(key) == value[key] for key in
+            ("codeql_version", "query_pack", "tool_bundle_bytes", "tool_bundle_sha256"))
+            and value["query_manifest_sha256"] == MANIFEST_SHA256,
+            "candidate plan tool or query-manifest binding differs")
+
+
 def compare_reports(baseline: dict, candidate: dict, summary_plan_mode: str = "none") -> dict:
-    require(summary_plan_mode in ("none", "all"), "unknown comparison summary plan mode")
+    require(summary_plan_mode in SUMMARY_PLANS, "unknown comparison summary plan mode")
+    plan = SUMMARY_PLANS[summary_plan_mode]
     for profile, report in (("heap-2048", baseline), ("heap-1536", candidate)):
         require(report.get("schema") == 1 and report.get("kind") == "qperiapt.codeql_summary_control"
                 and report.get("profile") == profile, "comparison report identity differs")
@@ -764,8 +795,8 @@ def compare_reports(baseline: dict, candidate: dict, summary_plan_mode: str = "n
         require(report.get("configuration") == configuration(profile), "comparison allocation differs")
         require(report.get("summary_plan_mode", "none") == summary_plan_mode,
                 "comparison summary plan mode differs")
-        if summary_plan_mode == "all":
-            expected_plan = summary_plan.expected_identity()
+        if plan is not None:
+            expected_plan = plan.expected_identity()
             require(report.get("summary_plan") == expected_plan
                     and report.get("summary_plan_after") == expected_plan
                     and "summary_plan_after_failure" not in report,
@@ -792,11 +823,13 @@ def compare_reports(baseline: dict, candidate: dict, summary_plan_mode: str = "n
             and tool.get("tool_bundle_bytes") == TOOL_BUNDLE_BYTES
             and tool.get("codeql_sha256") == CODEQL_LAUNCHER_SHA256,
             "paired tool identity differs from the authenticated bundle")
+    if plan is not None:
+        validate_plan_tool(plan, tool)
     require(sha(QUERY_MANIFEST) == MANIFEST_SHA256, "pinned query manifest differs")
     pinned = read_json(QUERY_MANIFEST)
     validate_query_inventory(baseline["query_hashes"], pinned)
     compiled = baseline["compiled_query_hashes"]
-    compiled_pin = (summary_plan.COMPILED_INVENTORY_SHA256 if summary_plan_mode == "all"
+    compiled_pin = (plan.COMPILED_INVENTORY_SHA256 if plan is not None
                     else COMPILED_INVENTORY_SHA256)
     require(isinstance(compiled, dict) and set(compiled) == set(baseline["query_hashes"])
             and all(is_sha256(value) for value in compiled.values())
@@ -827,7 +860,7 @@ def compare_reports(baseline: dict, candidate: dict, summary_plan_mode: str = "n
                                                 "codeql_version": CLI_VERSION},
                 "actual bundle JVM admission is missing or malformed")
         validate_observations(report.get("observations"), profile)
-        if summary_plan_mode == "all":
+        if plan is not None:
             validate_candidate_loads(report["observations"], Path(report["query_command"][0]), baseline["query_hashes"])
         validate_retained_results(report.get("retained_results"), report.get("results"), baseline["query_hashes"])
         evaluation = report.get("evaluation", {})
@@ -858,10 +891,11 @@ def compare_reports(baseline: dict, candidate: dict, summary_plan_mode: str = "n
 
 
 def evaluate(codeql: Path, bundle: Path, output: Path, profile: str,
-             summary_plan_mode: str = "none") -> None:
+             summary_plan_mode: str = "none", *, retained_archive: Path | None = None) -> None:
     require(profile in PROFILES and platform.system() == "Linux" and platform.machine() == "x86_64",
             "requires a supported Linux x86_64 allocation profile")
-    require(summary_plan_mode in ("none", "all"), "unknown summary plan mode")
+    require(summary_plan_mode in SUMMARY_PLANS, "unknown summary plan mode")
+    plan = SUMMARY_PLANS[summary_plan_mode]
     root = fresh_output_directory(output, within=Path(os.environ["RUNNER_TEMP"]).resolve(),
                                   label="retained SummaryStats allocation control")
     root.mkdir(mode=0o700, parents=True)
@@ -877,7 +911,7 @@ def evaluate(codeql: Path, bundle: Path, output: Path, profile: str,
     phase = "prepare_database"
     write_json(evidence / "RESULT.json", report)
     try:
-        database, report["input_identity"] = prepare_database(root)
+        database, report["input_identity"] = prepare_database(root, retained_archive=retained_archive)
         for name in ("home", "tmp", "cache", "results"):
             (root / name).mkdir(mode=0o700)
         (evidence / "evaluator").mkdir(mode=0o700)
@@ -889,12 +923,13 @@ def evaluate(codeql: Path, bundle: Path, output: Path, profile: str,
         codeql = codeql.absolute()
         queries, report["tool_identity"], report["query_hashes"], report["compiled_query_hashes"], report["ram_resolution"] = \
             admit_tool(codeql, bundle, database, root, environment)
-        if summary_plan_mode == "all":
+        if plan is not None:
             phase = "install_summary_plan"
+            validate_plan_tool(plan, report["tool_identity"])
             pack = codeql.parent / "qlpacks/codeql/rust-queries" / QUERY_VERSION
-            report["summary_plan"] = summary_plan.install(pack, evidence)
+            report["summary_plan"] = plan.install(pack, evidence)
             effective = {relative: sha(path.with_suffix(".qlx")) for relative, path in queries.items()}
-            require(canonical_sha(effective) == summary_plan.COMPILED_INVENTORY_SHA256,
+            require(canonical_sha(effective) == plan.COMPILED_INVENTORY_SHA256,
                     "candidate changed another compiled query or did not install the fixed full summary")
             validate_query_inventory({relative: sha(path) for relative, path in queries.items()},
                                      read_json(QUERY_MANIFEST))
@@ -917,7 +952,7 @@ def evaluate(codeql: Path, bundle: Path, output: Path, profile: str,
                 write_json(evidence / "EVALUATOR_OBSERVATIONS.json", report["observations"])
             except (ValueError, OSError) as error:
                 report["observation_failure"] = {"type": type(error).__name__}
-            if summary_plan_mode == "all":
+            if plan is not None:
                 # Always recheck effective bytes after the stopped evaluator.
                 # Retain a secondary integrity failure without replacing the
                 # evaluator's original exception or timeout.
@@ -926,7 +961,7 @@ def evaluate(codeql: Path, bundle: Path, output: Path, profile: str,
                             "query source changed during candidate evaluation")
                     require({relative: sha(path.with_suffix(".qlx")) for relative, path in queries.items()}
                             == report["compiled_query_hashes"], "compiled query changed during candidate evaluation")
-                    report["summary_plan_after"] = summary_plan.validate(pack)
+                    report["summary_plan_after"] = plan.validate(pack)
                     write_json(evidence / "SUMMARY_PLAN_AFTER.json", report["summary_plan_after"])
                 except (ValueError, OSError) as error:
                     report["summary_plan_after_failure"] = {"type": type(error).__name__, "message": str(error)}
@@ -936,7 +971,7 @@ def evaluate(codeql: Path, bundle: Path, output: Path, profile: str,
                         report["summary_plan_failure_retention_error"] = {"type": type(retention_error).__name__}
         validate_observations(report.get("observations"), profile)
         require(report["evaluation"]["returncode"] == 0, "query evaluation did not complete")
-        if summary_plan_mode == "all":
+        if plan is not None:
             require(report.get("summary_plan_after") == report["summary_plan"]
                     and "summary_plan_after_failure" not in report, "candidate effective plan changed during evaluation")
             validate_candidate_loads(report["observations"], codeql, report["query_hashes"])
@@ -970,15 +1005,18 @@ def main() -> None:
     run.add_argument("--tool-archive", type=Path, required=True)
     run.add_argument("--output", type=Path, required=True)
     run.add_argument("--profile", choices=tuple(PROFILES), required=True)
-    run.add_argument("--summary-plan-mode", choices=("none", "all"), default="none")
+    run.add_argument("--retained-archive", type=Path,
+                     help="Read the exact pinned artifact from this local file instead of downloading it")
+    run.add_argument("--summary-plan-mode", choices=tuple(SUMMARY_PLANS), default="none")
     compare = commands.add_parser("compare")
     compare.add_argument("--baseline", type=Path, required=True)
     compare.add_argument("--candidate", type=Path, required=True)
     compare.add_argument("--output", type=Path, required=True)
-    compare.add_argument("--summary-plan-mode", choices=("none", "all"), default="none")
+    compare.add_argument("--summary-plan-mode", choices=tuple(SUMMARY_PLANS), default="none")
     args = parser.parse_args()
     if args.action == "run":
-        evaluate(args.codeql, args.tool_archive, args.output, args.profile, args.summary_plan_mode)
+        evaluate(args.codeql, args.tool_archive, args.output, args.profile, args.summary_plan_mode,
+                 retained_archive=args.retained_archive)
     else:
         result = {"schema": 1, "kind": "qperiapt.codeql_summary_control_comparison", "completed": False,
                   "sarif_published": False, "release_claim_eligible": False}

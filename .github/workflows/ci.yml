@@ -2,7 +2,9 @@ name: ci
 
 on:
   push:
-    branches: [main, integration/sdk-020]
+    # Candidate branches are covered by pull_request. Running integration
+    # pushes as well creates a second full matrix for the same revision.
+    branches: [main]
     tags: ['**']
   pull_request:
   workflow_dispatch:
