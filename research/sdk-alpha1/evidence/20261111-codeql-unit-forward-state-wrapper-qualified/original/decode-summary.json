@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/codeql",
+    "bqrs",
+    "decode",
+    "--format=json",
+    "-J-Xmx512M",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/summary/SummaryStats.bqrs"
+  ],
+  "cwd": "/home/runner/work/q-periapt/q-periapt",
+  "elapsed_seconds": 0.5483288970000046,
+  "finished_at_utc": "2026-11-11T18:27:21.286+00:00",
+  "invoked_at_utc": "2026-11-11T18:27:20.738+00:00",
+  "maximum_seconds": 120,
+  "returncode": 0,
+  "run_attempt": "1",
+  "run_id": "43076555996",
+  "source_commit": "e9ecdb3c5f0cbb496a3be9a1b0bebd518b1fbebe"
+}

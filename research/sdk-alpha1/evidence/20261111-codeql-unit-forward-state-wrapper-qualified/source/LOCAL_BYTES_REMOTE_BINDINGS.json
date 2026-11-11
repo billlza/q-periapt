@@ -1,0 +1,48 @@
+{
+  "production_commit": "ed38e305552db2825d90622c130973df87e16d50",
+  "copy_source": "/workspace/scratch/qperiapt-recovery-20261111/forward-unit-state-candidate/artifact",
+  "bindings": [
+    {
+      "path": "codeql_rust_plan.py",
+      "sha256": "f3144bf92a35624a29cb98f80c43548b125b334dd7d1db5cd3303c4ba6ae29cc",
+      "git_blob": "e16de1e2ba95ea287661e4bb5e37324d5019fadc",
+      "bytes": 27476,
+      "remote_blob_url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/e16de1e2ba95ea287661e4bb5e37324d5019fadc"
+    },
+    {
+      "path": "codeql_summary_projection.json",
+      "sha256": "efd65ee72a4f966620a3d9bd6ac97b0a6d8ef5567017f3c342f654c4e1f55873",
+      "git_blob": "193805f8a85267162d9a6682ba40533942170530",
+      "bytes": 6587,
+      "remote_blob_url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/193805f8a85267162d9a6682ba40533942170530"
+    },
+    {
+      "path": "codeql_summary_projection.py",
+      "sha256": "36467935b98f9e1eb8d361713904cef25cf16575407729b0b1e65db53682397d",
+      "git_blob": "7ec825bc98c28fb0cb553d4952e774db6780b568",
+      "bytes": 14848,
+      "remote_blob_url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/7ec825bc98c28fb0cb553d4952e774db6780b568"
+    },
+    {
+      "path": "codeql-summary-projection-plan.zip",
+      "sha256": "35ab9955321008fb55e436c78b38725370fd5930885635e43ed093ab672fc6d3",
+      "git_blob": "676762bddc186f877eb67d52f2b7f9efabff3e6a",
+      "bytes": 621211,
+      "remote_blob_url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/676762bddc186f877eb67d52f2b7f9efabff3e6a"
+    },
+    {
+      "path": "codeql_summary_projection_dependencies.json.gz",
+      "sha256": "1a76d5d9eaf26bd931ba9710db92904fa8314b39daeb9d450a1600b8bb44cf95",
+      "git_blob": "87671090e456faff865ee99b72df03b67df2afe9",
+      "bytes": 117209,
+      "remote_blob_url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/87671090e456faff865ee99b72df03b67df2afe9"
+    },
+    {
+      "path": "codeql_summary_projection.patch",
+      "sha256": "2e01d15c01f2240d8915fb124865f0d7f81b486929245ba5f61ad0502de06207",
+      "git_blob": "869d980ae9097d6b4b53d71fcb350ba076137f8d",
+      "bytes": 8974,
+      "remote_blob_url": "https://api.github.com/repos/billlza/q-periapt/git/blobs/869d980ae9097d6b4b53d71fcb350ba076137f8d"
+    }
+  ]
+}

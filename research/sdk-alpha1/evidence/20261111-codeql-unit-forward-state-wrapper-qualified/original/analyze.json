@@ -1,0 +1,31 @@
+{
+  "argv": [
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/codeql",
+    "database",
+    "analyze",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/frozen.qls",
+    "--format=sarif-latest",
+    "--output=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/evidence/results.sarif",
+    "--threads=4",
+    "--ram=14000",
+    "--off-heap-ram=9329",
+    "--threat-model=local",
+    "--no-download",
+    "--common-caches=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/cache",
+    "--sarif-category=/language:rust",
+    "--dynamic-join-order-mode=all",
+    "--verbosity=progress",
+    "--logdir=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator",
+    "--qlconfig-file=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/qlconfig.yml"
+  ],
+  "cwd": "/home/runner/work/q-periapt/q-periapt",
+  "elapsed_seconds": 94.944334919,
+  "finished_at_utc": "2026-11-11T18:27:20.380+00:00",
+  "invoked_at_utc": "2026-11-11T18:25:45.435+00:00",
+  "maximum_seconds": 600,
+  "returncode": 0,
+  "run_attempt": "1",
+  "run_id": "43076555996",
+  "source_commit": "e9ecdb3c5f0cbb496a3be9a1b0bebd518b1fbebe"
+}

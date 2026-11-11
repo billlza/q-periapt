@@ -1,0 +1,101 @@
+{
+  "capsule_members_verified": 16,
+  "compiled_root_queries_verified": 39,
+  "compiler_inputs_digest": "c327768d3f383933ff70cd941341916b",
+  "complete_root_and_artifact_trees_reconstructed": true,
+  "dependency_files_verified": 1175,
+  "fixture_source_support_files_verified": 8,
+  "fixture_zip_members_verified": 13,
+  "full_plan_before_after_matches_primary_manifest": true,
+  "manifest_sha256": "efd65ee72a4f966620a3d9bd6ac97b0a6d8ef5567017f3c342f654c4e1f55873",
+  "official_download_receipts_bound": 5,
+  "primary_assets": {
+    "codeql-summary-projection-plan.zip": {
+      "bytes": 621211,
+      "git_blob": "676762bddc186f877eb67d52f2b7f9efabff3e6a",
+      "sha256": "35ab9955321008fb55e436c78b38725370fd5930885635e43ed093ab672fc6d3"
+    },
+    "codeql_summary_projection.patch": {
+      "bytes": 8974,
+      "git_blob": "869d980ae9097d6b4b53d71fcb350ba076137f8d",
+      "sha256": "2e01d15c01f2240d8915fb124865f0d7f81b486929245ba5f61ad0502de06207"
+    },
+    "codeql_summary_projection_dependencies.json.gz": {
+      "bytes": 117209,
+      "git_blob": "87671090e456faff865ee99b72df03b67df2afe9",
+      "sha256": "1a76d5d9eaf26bd931ba9710db92904fa8314b39daeb9d450a1600b8bb44cf95"
+    }
+  },
+  "production_commit": "ed38e305552db2825d90622c130973df87e16d50",
+  "production_source_bindings": {
+    "bounded_process.py": {
+      "bytes": 51311,
+      "git_blob": "63bc8ff305c80721469e9f46f480395c8a036b76",
+      "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45"
+    },
+    "codeql_evaluator_logs.py": {
+      "bytes": 12808,
+      "git_blob": "fd973cb88fb67240ef5e509e09450e42a3a11c1b",
+      "sha256": "c0eb3dc25c6c09fa2d5655bf95a285d7fc2f4aedaa6ea133ab8d1ed1793d9a44"
+    },
+    "codeql_process_resources.py": {
+      "bytes": 16881,
+      "git_blob": "aad26f9c8e9c9f3a301372d7c5d9a833186138a8",
+      "sha256": "8b4d14b9667a7c10e653f680311c12db595369f0e6a5b2800aae6beefeec26a6"
+    },
+    "codeql_rust_plan.py": {
+      "bytes": 27476,
+      "git_blob": "e16de1e2ba95ea287661e4bb5e37324d5019fadc",
+      "sha256": "f3144bf92a35624a29cb98f80c43548b125b334dd7d1db5cd3303c4ba6ae29cc"
+    },
+    "codeql_rust_profile.py": {
+      "bytes": 31700,
+      "git_blob": "76647ca31d04397d66c01f4b7cd83f92e3e11b3e",
+      "sha256": "532a5470108200b807197ba9a20c8b626c46440d37226938e5820d11b03e98fa"
+    },
+    "codeql_rust_quality.py": {
+      "bytes": 38244,
+      "git_blob": "02a9be695c14473940fc917617252e5840e16cc2",
+      "sha256": "78560445e1cbea13bbb57fc379eeaf9f5db4618e98490001a32027c14b2db4f8"
+    },
+    "codeql_rust_queries.json": {
+      "bytes": 4737,
+      "git_blob": "27d459e2e6611f7fd8d1fe12818cb214f66cdbe0",
+      "sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b"
+    },
+    "codeql_summary_plan.py": {
+      "bytes": 10946,
+      "git_blob": "f46bbb667ccc35bff778643efd77d955561ecec8",
+      "sha256": "bc736901daf1271d287b7fa38a20788013e8a2bea927c70658c5490a89479a6b"
+    },
+    "codeql_summary_projection.json": {
+      "bytes": 6587,
+      "git_blob": "193805f8a85267162d9a6682ba40533942170530",
+      "sha256": "efd65ee72a4f966620a3d9bd6ac97b0a6d8ef5567017f3c342f654c4e1f55873"
+    },
+    "codeql_summary_projection.py": {
+      "bytes": 14848,
+      "git_blob": "7ec825bc98c28fb0cb553d4952e774db6780b568",
+      "sha256": "36467935b98f9e1eb8d361713904cef25cf16575407729b0b1e65db53682397d"
+    },
+    "evidence_io.py": {
+      "bytes": 44308,
+      "git_blob": "a0358296cc398609c048e56cbcd960ff81fe7d27",
+      "sha256": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d"
+    },
+    "rust_sdk_profile.py": {
+      "bytes": 27974,
+      "git_blob": "444902870f0689291c635a88f87e2ecf6bfb6bfa",
+      "sha256": "f23d73ec6afabaee763328557c93f4bf542365384ed8ee10b386b6d697ed7af5"
+    }
+  },
+  "production_tree": "9daa64caa7814d759397fbde3218b6a2f6721348",
+  "referenced_stages_verified": 15,
+  "retained_baseline_byte_equal": true,
+  "root_query_sources_verified": 39,
+  "schema": 1,
+  "source_or_runtime_execution_requested": false,
+  "unchanged_other_compiled_queries": 38,
+  "workflow_commit": "e9ecdb3c5f0cbb496a3be9a1b0bebd518b1fbebe",
+  "workflow_tree": "937e62defb074235d0e43074eee236c7b65522b0"
+}

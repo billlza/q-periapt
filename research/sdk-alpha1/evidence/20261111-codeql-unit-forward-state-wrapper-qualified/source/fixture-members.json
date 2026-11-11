@@ -1,0 +1,69 @@
+{
+  "archive": "reproduction-inputs.zip",
+  "archive_bytes": 20895,
+  "archive_sha256": "dc13ea1f6e1d7ea7ea1ef766dbb4599cf481dbbea2a990beb22daa87515d5ece",
+  "compression": "deflate",
+  "expanded_bytes": 77260,
+  "kind": "qperiapt.completed_fixture_reproduction_inputs",
+  "member_bytes_preserved": true,
+  "member_count": 13,
+  "member_paths_preserved": true,
+  "member_timestamp_utc": "2026-11-11T11:06:30Z",
+  "members": {
+    "fixture/LICENSE": {
+      "bytes": 1074,
+      "sha256": "66056d06b874e3eb6a22f5fff297e1676a23dc43e8c8b81279c1ef33a6a270df"
+    },
+    "fixture/default-threat-models.model.yml": {
+      "bytes": 137,
+      "sha256": "6113286dc4e158d263e3a14de334d012be35cf8273505f1918b1cc961e94cd8f"
+    },
+    "fixture/env/Cargo.lock": {
+      "bytes": 148,
+      "sha256": "58878cede52db96164e2b06834ef8c6616a639731bb7a08428084a59eb645d0a"
+    },
+    "fixture/env/Cargo.toml": {
+      "bytes": 111,
+      "sha256": "8af4c7fc55c379d8fd5575b313af32e7fc00b4f2eef60f91a828c9b8ddd39078"
+    },
+    "fixture/env/lib.rs": {
+      "bytes": 13,
+      "sha256": "745dfdef04ca8413ef4975546b95cfaed5cf58599092d0871b6ab704f3743062"
+    },
+    "fixture/env/options.yml": {
+      "bytes": 25,
+      "sha256": "a367eded8a8ca8139fb15d349c8ad808252772290aa7bc7d8f0f0ac60086b720"
+    },
+    "fixture/env/test.rs": {
+      "bytes": 2334,
+      "sha256": "0d9e89f408a47fa29869e3b9b533dabb04e95255bf99cc9db8e2a765123170cb"
+    },
+    "fixture/qlpack.yml": {
+      "bytes": 229,
+      "sha256": "c02d80ebffa9cabb4f0f74e52ea5abe5144a5c09f845d978ac53e5f4f4cf795f"
+    },
+    "methods/bounded_process.py": {
+      "bytes": 51311,
+      "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45"
+    },
+    "methods/build_packet.py": {
+      "bytes": 3196,
+      "sha256": "d317f4e01c656086f4be1561d32f1824c30242511a524d3ab2f763de34bb9331"
+    },
+    "methods/compare_results.py": {
+      "bytes": 7934,
+      "sha256": "05f8006907f0627dbce3bf7526198bbaedd0adeffa24f74d2f25bbaa6ab26135"
+    },
+    "methods/prepare_arms.py": {
+      "bytes": 6877,
+      "sha256": "2e9bb04f93b9065cd2bac437b26277213b8de3706cc7d61043fa0abfae63fac9"
+    },
+    "methods/run_bounded.py": {
+      "bytes": 3871,
+      "sha256": "41036e1ad508fbe44fb73b30d528dac747b84c938d8f69b4e14f2753a2c1c2be"
+    }
+  },
+  "previous_packet_manifest_sha256": "fedd6d14dbbcf75827c0cf5e7fea1ec827771664a5a948df8fc379b58f8deae2",
+  "schema": 1,
+  "upstream_license_member": "fixture/LICENSE"
+}

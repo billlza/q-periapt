@@ -1,0 +1,443 @@
+{
+  "diagnosis": "The original stderr contains all 39 admitted completion events. The internal progress count and missing paths are measured independently and retained verbatim; fresh BQRS identity validation below is independent of these progress records.",
+  "internal_events": [
+    {
+      "line": 22590,
+      "query_result": "codeql/rust-queries/queries/diagnostics/ExtractionErrors.bqrs",
+      "text": "[2026-11-11 18:26:24] [PROGRESS] execute queries> [1/39 eval 32.4s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionErrors.bqrs."
+    },
+    {
+      "line": 22593,
+      "query_result": "codeql/rust-queries/queries/diagnostics/ExtractedFiles.bqrs",
+      "text": "[2026-11-11 18:26:24] [PROGRESS] execute queries> [2/39 eval 32.4s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractedFiles.bqrs."
+    },
+    {
+      "line": 22596,
+      "query_result": "codeql/rust-queries/queries/diagnostics/UnextractedElements.bqrs",
+      "text": "[2026-11-11 18:26:24] [PROGRESS] execute queries> [3/39 eval 28.5s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnextractedElements.bqrs."
+    },
+    {
+      "line": 22599,
+      "query_result": "codeql/rust-queries/queries/diagnostics/ExtractionWarnings.bqrs",
+      "text": "[2026-11-11 18:26:24] [PROGRESS] execute queries> [4/39 eval 32.4s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionWarnings.bqrs."
+    },
+    {
+      "line": 22602,
+      "query_result": "codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.bqrs",
+      "text": "[2026-11-11 18:26:24] [PROGRESS] execute queries> [5/39 eval 28.2s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.bqrs."
+    },
+    {
+      "line": 22605,
+      "query_result": "codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs",
+      "text": "[2026-11-11 18:26:24] [PROGRESS] execute queries> [6/39 eval 28.2s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs."
+    },
+    {
+      "line": 22802,
+      "query_result": "codeql/rust-queries/queries/summary/LinesOfCode.bqrs",
+      "text": "[2026-11-11 18:26:25] [PROGRESS] execute queries> [7/39 eval 29.7s] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfCode.bqrs."
+    },
+    {
+      "line": 22806,
+      "query_result": "codeql/rust-queries/queries/summary/LinesOfUserCode.bqrs",
+      "text": "[2026-11-11 18:26:25] [PROGRESS] execute queries> [8/39 eval 29.7s] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfUserCode.bqrs."
+    },
+    {
+      "line": 23375,
+      "query_result": "codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.bqrs",
+      "text": "[2026-11-11 18:26:26] [PROGRESS] execute queries> [9/39 eval 31.2s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.bqrs."
+    },
+    {
+      "line": 33334,
+      "query_result": "codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.bqrs",
+      "text": "[2026-11-11 18:26:43] [PROGRESS] execute queries> [10/39 eval 52.2s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.bqrs."
+    },
+    {
+      "line": 42625,
+      "query_result": "codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.bqrs",
+      "text": "[2026-11-11 18:26:51] [PROGRESS] execute queries> [11/39 eval 59.8s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.bqrs."
+    },
+    {
+      "line": 42632,
+      "query_result": "codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.bqrs",
+      "text": "[2026-11-11 18:26:51] [PROGRESS] execute queries> [12/39 eval 59.8s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.bqrs."
+    },
+    {
+      "line": 76948,
+      "query_result": "codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs",
+      "text": "[2026-11-11 18:26:59] [PROGRESS] execute queries> [13/39 eval 1m4s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs."
+    },
+    {
+      "line": 77192,
+      "query_result": "codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.bqrs",
+      "text": "[2026-11-11 18:27:00] [PROGRESS] execute queries> [14/39 eval 1m4s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.bqrs."
+    },
+    {
+      "line": 88298,
+      "query_result": "codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.bqrs",
+      "text": "[2026-11-11 18:27:01] [PROGRESS] execute queries> [15/39 eval 1m10s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.bqrs."
+    },
+    {
+      "line": 88302,
+      "query_result": "codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.bqrs",
+      "text": "[2026-11-11 18:27:01] [PROGRESS] execute queries> [16/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.bqrs."
+    },
+    {
+      "line": 88313,
+      "query_result": "codeql/rust-queries/queries/security/CWE-312/CleartextLogging.bqrs",
+      "text": "[2026-11-11 18:27:01] [PROGRESS] execute queries> [17/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextLogging.bqrs."
+    },
+    {
+      "line": 88316,
+      "query_result": "codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.bqrs",
+      "text": "[2026-11-11 18:27:01] [PROGRESS] execute queries> [18/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.bqrs."
+    },
+    {
+      "line": 88319,
+      "query_result": "codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs",
+      "text": "[2026-11-11 18:27:01] [PROGRESS] execute queries> [19/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs."
+    },
+    {
+      "line": 88322,
+      "query_result": "codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.bqrs",
+      "text": "[2026-11-11 18:27:01] [PROGRESS] execute queries> [20/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.bqrs."
+    },
+    {
+      "line": 89165,
+      "query_result": "codeql/rust-queries/queries/security/CWE-022/TaintedPath.bqrs",
+      "text": "[2026-11-11 18:27:01] [PROGRESS] execute queries> [21/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-022/TaintedPath.bqrs."
+    },
+    {
+      "line": 91525,
+      "query_result": "codeql/rust-queries/queries/security/CWE-078/CommandInjection.bqrs",
+      "text": "[2026-11-11 18:27:01] [PROGRESS] execute queries> [22/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-078/CommandInjection.bqrs."
+    },
+    {
+      "line": 91544,
+      "query_result": "codeql/rust-queries/queries/security/CWE-089/SqlInjection.bqrs",
+      "text": "[2026-11-11 18:27:01] [PROGRESS] execute queries> [23/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-089/SqlInjection.bqrs."
+    },
+    {
+      "line": 92609,
+      "query_result": "codeql/rust-queries/queries/security/CWE-020/RegexInjection.bqrs",
+      "text": "[2026-11-11 18:27:01] [PROGRESS] execute queries> [24/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-020/RegexInjection.bqrs."
+    },
+    {
+      "line": 93808,
+      "query_result": "codeql/rust-queries/queries/security/CWE-079/XSS.bqrs",
+      "text": "[2026-11-11 18:27:01] [PROGRESS] execute queries> [25/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-079/XSS.bqrs."
+    },
+    {
+      "line": 95386,
+      "query_result": "codeql/rust-queries/queries/security/CWE-117/LogInjection.bqrs",
+      "text": "[2026-11-11 18:27:01] [PROGRESS] execute queries> [26/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-117/LogInjection.bqrs."
+    },
+    {
+      "line": 96663,
+      "query_result": "codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.bqrs",
+      "text": "[2026-11-11 18:27:01] [PROGRESS] execute queries> [27/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.bqrs."
+    },
+    {
+      "line": 99483,
+      "query_result": "codeql/rust-queries/queries/security/CWE-614/InsecureCookie.bqrs",
+      "text": "[2026-11-11 18:27:01] [PROGRESS] execute queries> [29/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-614/InsecureCookie.bqrs."
+    },
+    {
+      "line": 102545,
+      "query_result": "codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.bqrs",
+      "text": "[2026-11-11 18:27:02] [PROGRESS] execute queries> [30/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.bqrs."
+    },
+    {
+      "line": 102548,
+      "query_result": "codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.bqrs",
+      "text": "[2026-11-11 18:27:02] [PROGRESS] execute queries> [31/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.bqrs."
+    },
+    {
+      "line": 102615,
+      "query_result": "codeql/rust-queries/queries/security/CWE-918/RequestForgery.bqrs",
+      "text": "[2026-11-11 18:27:02] [PROGRESS] execute queries> [32/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-918/RequestForgery.bqrs."
+    },
+    {
+      "line": 103860,
+      "query_result": "codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.bqrs",
+      "text": "[2026-11-11 18:27:02] [PROGRESS] execute queries> [33/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.bqrs."
+    },
+    {
+      "line": 105484,
+      "query_result": "codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs",
+      "text": "[2026-11-11 18:27:02] [PROGRESS] execute queries> [34/39 eval 1m7s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs."
+    },
+    {
+      "line": 105583,
+      "query_result": "codeql/rust-queries/queries/summary/QuerySinkCounts.bqrs",
+      "text": "[2026-11-11 18:27:02] [PROGRESS] execute queries> [35/39 eval 1m7s] Evaluation done; writing results to codeql/rust-queries/queries/summary/QuerySinkCounts.bqrs."
+    },
+    {
+      "line": 108050,
+      "query_result": "codeql/rust-queries/queries/summary/SummaryStatsReduced.bqrs",
+      "text": "[2026-11-11 18:27:03] [PROGRESS] execute queries> [36/39 eval 1m5s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStatsReduced.bqrs."
+    },
+    {
+      "line": 108155,
+      "query_result": "codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.bqrs",
+      "text": "[2026-11-11 18:27:03] [PROGRESS] execute queries> [37/39 eval 1m5s] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.bqrs."
+    },
+    {
+      "line": 108177,
+      "query_result": "codeql/rust-queries/queries/telemetry/ExtractorInformation.bqrs",
+      "text": "[2026-11-11 18:27:03] [PROGRESS] execute queries> [38/39 eval 1m5s] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/ExtractorInformation.bqrs."
+    },
+    {
+      "line": 152733,
+      "query_result": "codeql/rust-queries/queries/summary/SummaryStats.bqrs",
+      "text": "[2026-11-11 18:27:17] [PROGRESS] execute queries> [39/39 eval 1m21s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs."
+    }
+  ],
+  "internal_log": {
+    "bytes": 29319757,
+    "sha256": "e242b96c02109457803cb0f846956be06d8f9185799e6ab3433bc5f35aeeae1d"
+  },
+  "internal_log_member": "qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator/execute-queries-20261111.182546.988.log",
+  "missing_from_internal_log": [
+    "codeql/rust-queries/queries/security/CWE-319/UseOfHttp.bqrs"
+  ],
+  "stderr": {
+    "bytes": 22434,
+    "sha256": "78768a63e60fc552510f24c81b9870d6b80378f19e98f791f8364e1d12cb02cb"
+  },
+  "stderr_events": [
+    {
+      "counter": 1,
+      "line": 84,
+      "query_result": "codeql/rust-queries/queries/diagnostics/ExtractionErrors.bqrs",
+      "text": "[1/39 eval 32.4s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionErrors.bqrs."
+    },
+    {
+      "counter": 2,
+      "line": 85,
+      "query_result": "codeql/rust-queries/queries/diagnostics/ExtractedFiles.bqrs",
+      "text": "[2/39 eval 32.4s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractedFiles.bqrs."
+    },
+    {
+      "counter": 3,
+      "line": 86,
+      "query_result": "codeql/rust-queries/queries/diagnostics/UnextractedElements.bqrs",
+      "text": "[3/39 eval 28.5s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnextractedElements.bqrs."
+    },
+    {
+      "counter": 4,
+      "line": 87,
+      "query_result": "codeql/rust-queries/queries/diagnostics/ExtractionWarnings.bqrs",
+      "text": "[4/39 eval 32.4s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionWarnings.bqrs."
+    },
+    {
+      "counter": 5,
+      "line": 88,
+      "query_result": "codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.bqrs",
+      "text": "[5/39 eval 28.2s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.bqrs."
+    },
+    {
+      "counter": 6,
+      "line": 89,
+      "query_result": "codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs",
+      "text": "[6/39 eval 28.2s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs."
+    },
+    {
+      "counter": 7,
+      "line": 90,
+      "query_result": "codeql/rust-queries/queries/summary/LinesOfCode.bqrs",
+      "text": "[7/39 eval 29.7s] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfCode.bqrs."
+    },
+    {
+      "counter": 8,
+      "line": 91,
+      "query_result": "codeql/rust-queries/queries/summary/LinesOfUserCode.bqrs",
+      "text": "[8/39 eval 29.7s] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfUserCode.bqrs."
+    },
+    {
+      "counter": 9,
+      "line": 92,
+      "query_result": "codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.bqrs",
+      "text": "[9/39 eval 31.2s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.bqrs."
+    },
+    {
+      "counter": 10,
+      "line": 93,
+      "query_result": "codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.bqrs",
+      "text": "[10/39 eval 52.2s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.bqrs."
+    },
+    {
+      "counter": 11,
+      "line": 94,
+      "query_result": "codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.bqrs",
+      "text": "[11/39 eval 59.8s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.bqrs."
+    },
+    {
+      "counter": 12,
+      "line": 95,
+      "query_result": "codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.bqrs",
+      "text": "[12/39 eval 59.8s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.bqrs."
+    },
+    {
+      "counter": 13,
+      "line": 96,
+      "query_result": "codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs",
+      "text": "[13/39 eval 1m4s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs."
+    },
+    {
+      "counter": 14,
+      "line": 97,
+      "query_result": "codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.bqrs",
+      "text": "[14/39 eval 1m4s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.bqrs."
+    },
+    {
+      "counter": 15,
+      "line": 98,
+      "query_result": "codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.bqrs",
+      "text": "[15/39 eval 1m10s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.bqrs."
+    },
+    {
+      "counter": 16,
+      "line": 99,
+      "query_result": "codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.bqrs",
+      "text": "[16/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.bqrs."
+    },
+    {
+      "counter": 17,
+      "line": 100,
+      "query_result": "codeql/rust-queries/queries/security/CWE-312/CleartextLogging.bqrs",
+      "text": "[17/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextLogging.bqrs."
+    },
+    {
+      "counter": 18,
+      "line": 101,
+      "query_result": "codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.bqrs",
+      "text": "[18/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.bqrs."
+    },
+    {
+      "counter": 19,
+      "line": 102,
+      "query_result": "codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs",
+      "text": "[19/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs."
+    },
+    {
+      "counter": 20,
+      "line": 103,
+      "query_result": "codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.bqrs",
+      "text": "[20/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.bqrs."
+    },
+    {
+      "counter": 21,
+      "line": 104,
+      "query_result": "codeql/rust-queries/queries/security/CWE-022/TaintedPath.bqrs",
+      "text": "[21/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-022/TaintedPath.bqrs."
+    },
+    {
+      "counter": 22,
+      "line": 105,
+      "query_result": "codeql/rust-queries/queries/security/CWE-078/CommandInjection.bqrs",
+      "text": "[22/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-078/CommandInjection.bqrs."
+    },
+    {
+      "counter": 23,
+      "line": 106,
+      "query_result": "codeql/rust-queries/queries/security/CWE-089/SqlInjection.bqrs",
+      "text": "[23/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-089/SqlInjection.bqrs."
+    },
+    {
+      "counter": 24,
+      "line": 107,
+      "query_result": "codeql/rust-queries/queries/security/CWE-020/RegexInjection.bqrs",
+      "text": "[24/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-020/RegexInjection.bqrs."
+    },
+    {
+      "counter": 25,
+      "line": 108,
+      "query_result": "codeql/rust-queries/queries/security/CWE-079/XSS.bqrs",
+      "text": "[25/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-079/XSS.bqrs."
+    },
+    {
+      "counter": 26,
+      "line": 109,
+      "query_result": "codeql/rust-queries/queries/security/CWE-117/LogInjection.bqrs",
+      "text": "[26/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-117/LogInjection.bqrs."
+    },
+    {
+      "counter": 27,
+      "line": 110,
+      "query_result": "codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.bqrs",
+      "text": "[27/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.bqrs."
+    },
+    {
+      "counter": 28,
+      "line": 111,
+      "query_result": "codeql/rust-queries/queries/security/CWE-319/UseOfHttp.bqrs",
+      "text": "[28/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-319/UseOfHttp.bqrs."
+    },
+    {
+      "counter": 29,
+      "line": 112,
+      "query_result": "codeql/rust-queries/queries/security/CWE-614/InsecureCookie.bqrs",
+      "text": "[29/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-614/InsecureCookie.bqrs."
+    },
+    {
+      "counter": 30,
+      "line": 113,
+      "query_result": "codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.bqrs",
+      "text": "[30/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.bqrs."
+    },
+    {
+      "counter": 31,
+      "line": 114,
+      "query_result": "codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.bqrs",
+      "text": "[31/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.bqrs."
+    },
+    {
+      "counter": 32,
+      "line": 115,
+      "query_result": "codeql/rust-queries/queries/security/CWE-918/RequestForgery.bqrs",
+      "text": "[32/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-918/RequestForgery.bqrs."
+    },
+    {
+      "counter": 33,
+      "line": 116,
+      "query_result": "codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.bqrs",
+      "text": "[33/39 eval 1m6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.bqrs."
+    },
+    {
+      "counter": 34,
+      "line": 117,
+      "query_result": "codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs",
+      "text": "[34/39 eval 1m7s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs."
+    },
+    {
+      "counter": 35,
+      "line": 118,
+      "query_result": "codeql/rust-queries/queries/summary/QuerySinkCounts.bqrs",
+      "text": "[35/39 eval 1m7s] Evaluation done; writing results to codeql/rust-queries/queries/summary/QuerySinkCounts.bqrs."
+    },
+    {
+      "counter": 36,
+      "line": 119,
+      "query_result": "codeql/rust-queries/queries/summary/SummaryStatsReduced.bqrs",
+      "text": "[36/39 eval 1m5s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStatsReduced.bqrs."
+    },
+    {
+      "counter": 37,
+      "line": 120,
+      "query_result": "codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.bqrs",
+      "text": "[37/39 eval 1m5s] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.bqrs."
+    },
+    {
+      "counter": 38,
+      "line": 121,
+      "query_result": "codeql/rust-queries/queries/telemetry/ExtractorInformation.bqrs",
+      "text": "[38/39 eval 1m5s] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/ExtractorInformation.bqrs."
+    },
+    {
+      "counter": 39,
+      "line": 122,
+      "query_result": "codeql/rust-queries/queries/summary/SummaryStats.bqrs",
+      "text": "[39/39 eval 1m21s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs."
+    }
+  ]
+}

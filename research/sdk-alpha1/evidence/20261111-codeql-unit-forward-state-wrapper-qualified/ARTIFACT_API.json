@@ -1,0 +1,25 @@
+{
+  "total_count": 1,
+  "artifacts": [
+    {
+      "id": 13882738653,
+      "node_id": "MDg6QXJ0aWZhY3QxMzg4MjczODY1Mw==",
+      "name": "codeql-wrapper-fixture-43076555996-1",
+      "size_in_bytes": 3769482,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13882738653",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13882738653/zip",
+      "expired": false,
+      "digest": "sha256:0ec4111efbc5109df1125033f830860673caee6915d866898b4cc2b628da1581",
+      "created_at": "2026-11-11T18:27:25Z",
+      "updated_at": "2026-11-11T18:27:25Z",
+      "expires_at": "2026-11-25T18:27:23Z",
+      "workflow_run": {
+        "id": 43076555996,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "diagnostic/codeql-unit-state-fixture",
+        "head_sha": "e9ecdb3c5f0cbb496a3be9a1b0bebd518b1fbebe"
+      }
+    }
+  ]
+}

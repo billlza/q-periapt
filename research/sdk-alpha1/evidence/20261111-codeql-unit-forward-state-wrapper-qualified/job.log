@@ -1,0 +1,439 @@
+﻿2026-11-11T18:24:27.5716683Z Current runner version: '2.338.2'
+2026-11-11T18:24:27.5742486Z ##[group]Runner Image Provisioner
+2026-11-11T18:24:27.5743437Z Hosted Compute Agent
+2026-11-11T18:24:27.5743953Z Version: 20261028.624
+2026-11-11T18:24:27.5744565Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-11T18:24:27.5745250Z Build Date: 2026-10-28T21:51:42Z
+2026-11-11T18:24:27.5746167Z Worker ID: {752d43a5-30f0-4f28-8a10-0932bb5a810d}
+2026-11-11T18:24:27.5746822Z Region: eastus3
+2026-11-11T18:24:27.5747355Z Cloud: Azure
+2026-11-11T18:24:27.5747963Z ##[endgroup]
+2026-11-11T18:24:27.5749468Z ##[group]Operating System
+2026-11-11T18:24:27.5750065Z Ubuntu
+2026-11-11T18:24:27.5750557Z 24.04.5
+2026-11-11T18:24:27.5751025Z LTS
+2026-11-11T18:24:27.5751525Z ##[endgroup]
+2026-11-11T18:24:27.5752055Z ##[group]Runner Image
+2026-11-11T18:24:27.5752587Z Image: ubuntu-24.04
+2026-11-11T18:24:27.5753538Z Version: 20261101.360.1
+2026-11-11T18:24:27.5754925Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-11T18:24:27.5756415Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261101.360
+2026-11-11T18:24:27.5757264Z ##[endgroup]
+2026-11-11T18:24:27.5758337Z ##[group]GITHUB_TOKEN Permissions
+2026-11-11T18:24:27.5761222Z Contents: read
+2026-11-11T18:24:27.5762162Z Metadata: read
+2026-11-11T18:24:27.5763279Z ##[endgroup]
+2026-11-11T18:24:27.5766097Z Secret source: Actions
+2026-11-11T18:24:27.5766977Z Cache mode: write
+2026-11-11T18:24:27.5767985Z Prepare workflow directory
+2026-11-11T18:24:27.6109314Z Prepare all required actions
+2026-11-11T18:24:27.6161487Z Getting action download info
+2026-11-11T18:24:27.8820982Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-11T18:24:28.0329266Z Download action repository 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' (SHA:043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
+2026-11-11T18:24:28.2636540Z Complete job name: Full 39-query wrapper and retained SummaryStats equality
+2026-11-11T18:24:28.3463461Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-11T18:24:28.3464725Z with:
+2026-11-11T18:24:28.3465248Z   persist-credentials: false
+2026-11-11T18:24:28.3465813Z   fetch-depth: 1
+2026-11-11T18:24:28.3466383Z   sparse-checkout: artifact
+.github/workflows
+
+2026-11-11T18:24:28.3467230Z   repository: billlza/q-periapt
+2026-11-11T18:24:28.3470909Z   token: ***
+2026-11-11T18:24:28.3471389Z   ssh-strict: true
+2026-11-11T18:24:28.3471874Z   ssh-user: git
+2026-11-11T18:24:28.3472351Z   clean: true
+2026-11-11T18:24:28.3472862Z   sparse-checkout-cone-mode: true
+2026-11-11T18:24:28.3473823Z   fetch-tags: false
+2026-11-11T18:24:28.3474313Z   show-progress: true
+2026-11-11T18:24:28.3474818Z   lfs: false
+2026-11-11T18:24:28.3475289Z   submodules: false
+2026-11-11T18:24:28.3475771Z   set-safe-directory: true
+2026-11-11T18:24:28.3476292Z   allow-unsafe-pr-checkout: false
+2026-11-11T18:24:28.3477262Z ##[endgroup]
+2026-11-11T18:24:29.0411956Z Syncing repository: billlza/q-periapt
+2026-11-11T18:24:29.0415155Z ##[group]Getting Git version info
+2026-11-11T18:24:29.0416559Z Working directory is '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T18:24:29.0418715Z [command]/usr/bin/git version
+2026-11-11T18:24:29.0712316Z git version 2.56.0
+2026-11-11T18:24:29.0737299Z ##[endgroup]
+2026-11-11T18:24:29.0749899Z Temporarily overriding HOME='/home/runner/work/_temp/e8cea734-60f0-4455-906c-6a2d5d40be3e' before making global git config changes
+2026-11-11T18:24:29.0751649Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T18:24:29.0757842Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T18:24:29.0824411Z Deleting the contents of '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T18:24:29.0830877Z ##[group]Determining repository object format
+2026-11-11T18:24:29.0833233Z ##[endgroup]
+2026-11-11T18:24:29.0834818Z ##[group]Initializing the repository
+2026-11-11T18:24:29.0836916Z [command]/usr/bin/git init /home/runner/work/q-periapt/q-periapt
+2026-11-11T18:24:29.1331249Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-11T18:24:29.1335750Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-11T18:24:29.1339079Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-11T18:24:29.1339900Z hint: call:
+2026-11-11T18:24:29.1340592Z hint:
+2026-11-11T18:24:29.1342495Z hint: 	git config --global init.defaultBranch <name>
+2026-11-11T18:24:29.1343873Z hint:
+2026-11-11T18:24:29.1344973Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-11T18:24:29.1346855Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-11T18:24:29.1349740Z hint:
+2026-11-11T18:24:29.1351395Z hint: 	git branch -m <name>
+2026-11-11T18:24:29.1352407Z hint:
+2026-11-11T18:24:29.1354675Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-11T18:24:29.1358181Z Initialized empty Git repository in /home/runner/work/q-periapt/q-periapt/.git/
+2026-11-11T18:24:29.1364933Z [command]/usr/bin/git remote add origin https://github.com/billlza/q-periapt
+2026-11-11T18:24:29.1447093Z ##[endgroup]
+2026-11-11T18:24:29.1448826Z ##[group]Disabling automatic garbage collection
+2026-11-11T18:24:29.1452374Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-11T18:24:29.1492225Z ##[endgroup]
+2026-11-11T18:24:29.1494239Z ##[group]Setting up auth
+2026-11-11T18:24:29.1495585Z Removing SSH command configuration
+2026-11-11T18:24:29.1497822Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T18:24:29.1712256Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T18:24:29.2338676Z Removing HTTP extra header
+2026-11-11T18:24:29.2365256Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T18:24:29.2389222Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T18:24:29.2635292Z Removing includeIf entries pointing to credentials config files
+2026-11-11T18:24:29.2645024Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T18:24:29.2690897Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T18:24:29.2939054Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-ed74d481-5e7e-45fd-8cd4-a529c074503d.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-11T18:24:29.2985022Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path /home/runner/work/_temp/git-credentials-ed74d481-5e7e-45fd-8cd4-a529c074503d.config
+2026-11-11T18:24:29.3018681Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-ed74d481-5e7e-45fd-8cd4-a529c074503d.config
+2026-11-11T18:24:29.3155371Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-ed74d481-5e7e-45fd-8cd4-a529c074503d.config
+2026-11-11T18:24:29.3191884Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-ed74d481-5e7e-45fd-8cd4-a529c074503d.config
+2026-11-11T18:24:29.3223393Z ##[endgroup]
+2026-11-11T18:24:29.3224457Z ##[group]Fetching the repository
+2026-11-11T18:24:29.3231637Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --filter=blob:none --depth=1 origin +e9ecdb3c5f0cbb496a3be9a1b0bebd518b1fbebe:refs/remotes/origin/diagnostic/codeql-unit-state-fixture
+2026-11-11T18:24:29.7289081Z From https://github.com/billlza/q-periapt
+2026-11-11T18:24:29.7291515Z  * [new ref]         e9ecdb3c5f0cbb496a3be9a1b0bebd518b1fbebe -> origin/diagnostic/codeql-unit-state-fixture
+2026-11-11T18:24:29.7298994Z [command]/usr/bin/git branch --list --remote origin/diagnostic/codeql-unit-state-fixture
+2026-11-11T18:24:29.7326339Z   origin/diagnostic/codeql-unit-state-fixture
+2026-11-11T18:24:29.7335347Z [command]/usr/bin/git rev-parse refs/remotes/origin/diagnostic/codeql-unit-state-fixture
+2026-11-11T18:24:29.7360354Z e9ecdb3c5f0cbb496a3be9a1b0bebd518b1fbebe
+2026-11-11T18:24:29.7365400Z ##[endgroup]
+2026-11-11T18:24:29.7367478Z ##[group]Determining the checkout info
+2026-11-11T18:24:29.7369233Z ##[endgroup]
+2026-11-11T18:24:29.7371377Z ##[group]Setting up sparse checkout
+2026-11-11T18:24:29.7373688Z [command]/usr/bin/git sparse-checkout set artifact .github/workflows
+2026-11-11T18:24:29.7430357Z ##[endgroup]
+2026-11-11T18:24:29.7432039Z ##[group]Checking out the ref
+2026-11-11T18:24:29.7435991Z [command]/usr/bin/git checkout --progress --force -B diagnostic/codeql-unit-state-fixture refs/remotes/origin/diagnostic/codeql-unit-state-fixture
+2026-11-11T18:24:31.2256452Z Updating files:   0% (1/638)
+2026-11-11T18:24:31.2265435Z Updating files:   1% (7/638)
+2026-11-11T18:24:31.2269781Z Updating files:   2% (13/638)
+2026-11-11T18:24:31.2270410Z Updating files:   3% (20/638)
+2026-11-11T18:24:31.2278038Z Updating files:   4% (26/638)
+2026-11-11T18:24:31.2285924Z Updating files:   5% (32/638)
+2026-11-11T18:24:31.2294615Z Updating files:   6% (39/638)
+2026-11-11T18:24:31.2304715Z Updating files:   7% (45/638)
+2026-11-11T18:24:31.2324985Z Updating files:   8% (52/638)
+2026-11-11T18:24:31.2329333Z Updating files:   9% (58/638)
+2026-11-11T18:24:31.2338905Z Updating files:  10% (64/638)
+2026-11-11T18:24:31.2346792Z Updating files:  11% (71/638)
+2026-11-11T18:24:31.2358974Z Updating files:  12% (77/638)
+2026-11-11T18:24:31.2366870Z Updating files:  13% (83/638)
+2026-11-11T18:24:31.2377419Z Updating files:  14% (90/638)
+2026-11-11T18:24:31.2398681Z Updating files:  15% (96/638)
+2026-11-11T18:24:31.2403575Z Updating files:  16% (103/638)
+2026-11-11T18:24:31.2410149Z Updating files:  17% (109/638)
+2026-11-11T18:24:31.2417132Z Updating files:  18% (115/638)
+2026-11-11T18:24:31.2423182Z Updating files:  19% (122/638)
+2026-11-11T18:24:31.2427911Z Updating files:  20% (128/638)
+2026-11-11T18:24:31.2434412Z Updating files:  21% (134/638)
+2026-11-11T18:24:31.2437539Z Updating files:  22% (141/638)
+2026-11-11T18:24:31.2441522Z Updating files:  23% (147/638)
+2026-11-11T18:24:31.2446174Z Updating files:  24% (154/638)
+2026-11-11T18:24:31.2454374Z Updating files:  25% (160/638)
+2026-11-11T18:24:31.2457904Z Updating files:  26% (166/638)
+2026-11-11T18:24:31.2465848Z Updating files:  27% (173/638)
+2026-11-11T18:24:31.2469861Z Updating files:  28% (179/638)
+2026-11-11T18:24:31.2474438Z Updating files:  29% (186/638)
+2026-11-11T18:24:31.2478414Z Updating files:  30% (192/638)
+2026-11-11T18:24:31.2484016Z Updating files:  31% (198/638)
+2026-11-11T18:24:31.2496361Z Updating files:  32% (205/638)
+2026-11-11T18:24:31.2497207Z Updating files:  33% (211/638)
+2026-11-11T18:24:31.2498246Z Updating files:  34% (217/638)
+2026-11-11T18:24:31.2503547Z Updating files:  35% (224/638)
+2026-11-11T18:24:31.2511753Z Updating files:  36% (230/638)
+2026-11-11T18:24:31.2516908Z Updating files:  37% (237/638)
+2026-11-11T18:24:31.2522071Z Updating files:  38% (243/638)
+2026-11-11T18:24:31.2527401Z Updating files:  39% (249/638)
+2026-11-11T18:24:31.2533353Z Updating files:  40% (256/638)
+2026-11-11T18:24:31.2537202Z Updating files:  41% (262/638)
+2026-11-11T18:24:31.2552630Z Updating files:  42% (268/638)
+2026-11-11T18:24:31.2556679Z Updating files:  43% (275/638)
+2026-11-11T18:24:31.2562520Z Updating files:  44% (281/638)
+2026-11-11T18:24:31.2626677Z Updating files:  45% (288/638)
+2026-11-11T18:24:31.2632798Z Updating files:  46% (294/638)
+2026-11-11T18:24:31.2637687Z Updating files:  47% (300/638)
+2026-11-11T18:24:31.2644873Z Updating files:  48% (307/638)
+2026-11-11T18:24:31.2654756Z Updating files:  49% (313/638)
+2026-11-11T18:24:31.2662282Z Updating files:  50% (319/638)
+2026-11-11T18:24:31.2671778Z Updating files:  51% (326/638)
+2026-11-11T18:24:31.2682620Z Updating files:  52% (332/638)
+2026-11-11T18:24:31.2693121Z Updating files:  53% (339/638)
+2026-11-11T18:24:31.2698182Z Updating files:  54% (345/638)
+2026-11-11T18:24:31.2705960Z Updating files:  55% (351/638)
+2026-11-11T18:24:31.2718341Z Updating files:  56% (358/638)
+2026-11-11T18:24:31.2743544Z Updating files:  57% (364/638)
+2026-11-11T18:24:31.2747210Z Updating files:  58% (371/638)
+2026-11-11T18:24:31.2753523Z Updating files:  59% (377/638)
+2026-11-11T18:24:31.2763896Z Updating files:  60% (383/638)
+2026-11-11T18:24:31.2771326Z Updating files:  61% (390/638)
+2026-11-11T18:24:31.2778360Z Updating files:  62% (396/638)
+2026-11-11T18:24:31.2783439Z Updating files:  63% (402/638)
+2026-11-11T18:24:31.2792536Z Updating files:  64% (409/638)
+2026-11-11T18:24:31.2801278Z Updating files:  65% (415/638)
+2026-11-11T18:24:31.2806337Z Updating files:  66% (422/638)
+2026-11-11T18:24:31.2809801Z Updating files:  67% (428/638)
+2026-11-11T18:24:31.2813051Z Updating files:  68% (434/638)
+2026-11-11T18:24:31.2816567Z Updating files:  69% (441/638)
+2026-11-11T18:24:31.2820237Z Updating files:  70% (447/638)
+2026-11-11T18:24:31.2826590Z Updating files:  71% (453/638)
+2026-11-11T18:24:31.2829546Z Updating files:  72% (460/638)
+2026-11-11T18:24:31.2833661Z Updating files:  73% (466/638)
+2026-11-11T18:24:31.2838268Z Updating files:  74% (473/638)
+2026-11-11T18:24:31.2844861Z Updating files:  75% (479/638)
+2026-11-11T18:24:31.2848960Z Updating files:  76% (485/638)
+2026-11-11T18:24:31.2854969Z Updating files:  77% (492/638)
+2026-11-11T18:24:31.2860077Z Updating files:  78% (498/638)
+2026-11-11T18:24:31.2865564Z Updating files:  79% (505/638)
+2026-11-11T18:24:31.2868907Z Updating files:  80% (511/638)
+2026-11-11T18:24:31.2874975Z Updating files:  81% (517/638)
+2026-11-11T18:24:31.2879088Z Updating files:  82% (524/638)
+2026-11-11T18:24:31.2881365Z Updating files:  83% (530/638)
+2026-11-11T18:24:31.2890958Z Updating files:  84% (536/638)
+2026-11-11T18:24:31.2897133Z Updating files:  85% (543/638)
+2026-11-11T18:24:31.2905828Z Updating files:  86% (549/638)
+2026-11-11T18:24:31.2909694Z Updating files:  87% (556/638)
+2026-11-11T18:24:31.2923417Z Updating files:  88% (562/638)
+2026-11-11T18:24:31.2931262Z Updating files:  89% (568/638)
+2026-11-11T18:24:31.2946697Z Updating files:  90% (575/638)
+2026-11-11T18:24:31.2957125Z Updating files:  91% (581/638)
+2026-11-11T18:24:31.2965458Z Updating files:  92% (587/638)
+2026-11-11T18:24:31.2968455Z Updating files:  93% (594/638)
+2026-11-11T18:24:31.2977572Z Updating files:  94% (600/638)
+2026-11-11T18:24:31.2985553Z Updating files:  95% (607/638)
+2026-11-11T18:24:31.2988920Z Updating files:  96% (613/638)
+2026-11-11T18:24:31.2992801Z Updating files:  97% (619/638)
+2026-11-11T18:24:31.3001248Z Updating files:  98% (626/638)
+2026-11-11T18:24:31.3013705Z Updating files:  99% (632/638)
+2026-11-11T18:24:31.3014550Z Updating files: 100% (638/638)
+2026-11-11T18:24:31.3015107Z Updating files: 100% (638/638), done.
+2026-11-11T18:24:31.3120669Z Switched to a new branch 'diagnostic/codeql-unit-state-fixture'
+2026-11-11T18:24:31.3126776Z branch 'diagnostic/codeql-unit-state-fixture' set up to track 'origin/diagnostic/codeql-unit-state-fixture'.
+2026-11-11T18:24:31.3134352Z ##[endgroup]
+2026-11-11T18:24:31.3181515Z [command]/usr/bin/git log -1 --format=%H
+2026-11-11T18:24:31.3208614Z e9ecdb3c5f0cbb496a3be9a1b0bebd518b1fbebe
+2026-11-11T18:24:31.3217802Z ##[group]Removing auth
+2026-11-11T18:24:31.3218203Z Removing SSH command configuration
+2026-11-11T18:24:31.3223877Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T18:24:31.3256808Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T18:24:31.3740726Z Removing HTTP extra header
+2026-11-11T18:24:31.3744947Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T18:24:31.3778131Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T18:24:31.3990788Z Removing includeIf entries pointing to credentials config files
+2026-11-11T18:24:31.3994320Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T18:24:31.4026474Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T18:24:31.4027480Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T18:24:31.4028245Z includeif.gitdir:/github/workspace/.git.path
+2026-11-11T18:24:31.4028917Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T18:24:31.4042698Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T18:24:31.4068544Z /home/runner/work/_temp/git-credentials-ed74d481-5e7e-45fd-8cd4-a529c074503d.config
+2026-11-11T18:24:31.4079647Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-ed74d481\-5e7e\-45fd\-8cd4\-a529c074503d\.config
+2026-11-11T18:24:31.4113279Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T18:24:31.4141752Z /home/runner/work/_temp/git-credentials-ed74d481-5e7e-45fd-8cd4-a529c074503d.config
+2026-11-11T18:24:31.4153552Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-ed74d481\-5e7e\-45fd\-8cd4\-a529c074503d\.config
+2026-11-11T18:24:31.4271654Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-11T18:24:31.4293497Z /github/runner_temp/git-credentials-ed74d481-5e7e-45fd-8cd4-a529c074503d.config
+2026-11-11T18:24:31.4302696Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-ed74d481\-5e7e\-45fd\-8cd4\-a529c074503d\.config
+2026-11-11T18:24:31.4340005Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T18:24:31.4365154Z /github/runner_temp/git-credentials-ed74d481-5e7e-45fd-8cd4-a529c074503d.config
+2026-11-11T18:24:31.4371927Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-ed74d481\-5e7e\-45fd\-8cd4\-a529c074503d\.config
+2026-11-11T18:24:31.4406925Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T18:24:31.4617978Z Removing credentials config '/home/runner/work/_temp/git-credentials-ed74d481-5e7e-45fd-8cd4-a529c074503d.config'
+2026-11-11T18:24:31.4628018Z ##[endgroup]
+2026-11-11T18:24:31.4860395Z ##[group]Run set -eu
+2026-11-11T18:24:31.4860843Z [36;1mset -eu[0m
+2026-11-11T18:24:31.4861592Z [36;1m/usr/bin/python3 -I -S -B -c 'import ast, pathlib; ast.parse(pathlib.Path("artifact/codeql_wrapper_fixture.py").read_text(encoding="utf-8"))'[0m
+2026-11-11T18:24:31.4862424Z [36;1mgit rev-parse HEAD 'HEAD^{tree}' > "$RUNNER_TEMP/qperiapt-wrapper-source.txt"[0m
+2026-11-11T18:24:31.4863320Z [36;1msh artifact/python-run.sh -m unittest -v test_codeql_workflow_contract[0m
+2026-11-11T18:24:31.4881911Z shell: /usr/bin/bash -e {0}
+2026-11-11T18:24:31.4882258Z ##[endgroup]
+2026-11-11T18:24:31.8943709Z test_all_production_targets_and_publication_use_the_authenticated_projection (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_all_production_targets_and_publication_use_the_authenticated_projection) ... ok
+2026-11-11T18:24:31.8950887Z test_both_summary_workers_receive_the_same_projection_capsule_and_mode (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_both_summary_workers_receive_the_same_projection_capsule_and_mode) ... ok
+2026-11-11T18:24:31.8963697Z test_candidate_ci_has_one_automatic_matrix_without_losing_release_or_pr_checks (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_candidate_ci_has_one_automatic_matrix_without_losing_release_or_pr_checks) ... ok
+2026-11-11T18:24:31.9178140Z test_non_rust_checkout_keeps_sources_and_omits_only_historical_zip_files (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_non_rust_checkout_keeps_sources_and_omits_only_historical_zip_files) ... ok
+2026-11-11T18:24:31.9180705Z test_production_codeql_keeps_pr_main_and_periodic_coverage (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_production_codeql_keeps_pr_main_and_periodic_coverage) ... ok
+2026-11-11T18:24:31.9198053Z test_production_jobs_queue_independently_without_cancelling_running_analysis (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_production_jobs_queue_independently_without_cancelling_running_analysis) ... ok
+2026-11-11T18:24:31.9200152Z test_projection_push_is_an_explicit_opt_in_with_an_unambiguous_plan (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_projection_push_is_an_explicit_opt_in_with_an_unambiguous_plan) ... ok
+2026-11-11T18:24:31.9201791Z test_retained_auxiliary_diagnostics_require_an_explicit_dispatch (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_retained_auxiliary_diagnostics_require_an_explicit_dispatch) ... ok
+2026-11-11T18:24:31.9209359Z test_rust_publication_waits_for_every_profile_and_validation_before_upload (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_rust_publication_waits_for_every_profile_and_validation_before_upload) ... ok
+2026-11-11T18:24:31.9212442Z test_summary_comparison_keeps_both_fresh_complete_results_and_failure_evidence (test_codeql_workflow_contract.CodeQLWorkflowContractTests.test_summary_comparison_keeps_both_fresh_complete_results_and_failure_evidence) ... ok
+2026-11-11T18:24:31.9215195Z 
+2026-11-11T18:24:31.9233174Z ----------------------------------------------------------------------
+2026-11-11T18:24:31.9233692Z Ran 10 tests in 0.028s
+2026-11-11T18:24:31.9233844Z 
+2026-11-11T18:24:31.9233915Z OK
+2026-11-11T18:24:31.9365720Z ##[group]Run set -eu
+2026-11-11T18:24:31.9365991Z [36;1mset -eu[0m
+2026-11-11T18:24:31.9366300Z [36;1msh artifact/python-run.sh artifact/codeql_wrapper_fixture.py \[0m
+2026-11-11T18:24:31.9366800Z [36;1m  --output "$RUNNER_TEMP/qperiapt-codeql-wrapper-fixture"[0m
+2026-11-11T18:24:31.9379765Z shell: /usr/bin/bash -e {0}
+2026-11-11T18:24:31.9380024Z ##[endgroup]
+2026-11-11T18:24:32.5892617Z fetch-frozen-inputs invoked at 2026-11-11T18:24:32.588+00:00 (bound 180s)
+2026-11-11T18:24:32.8563804Z fetch-frozen-inputs complete
+2026-11-11T18:24:32.8565709Z source-codeql_rust_plan-py invoked at 2026-11-11T18:24:32.856+00:00 (bound 180s)
+2026-11-11T18:24:32.8604656Z source-codeql_rust_plan-py complete
+2026-11-11T18:24:32.8607216Z source-codeql_rust_profile-py invoked at 2026-11-11T18:24:32.860+00:00 (bound 180s)
+2026-11-11T18:24:32.8634063Z source-codeql_rust_profile-py complete
+2026-11-11T18:24:32.8637114Z source-codeql_evaluator_logs-py invoked at 2026-11-11T18:24:32.863+00:00 (bound 180s)
+2026-11-11T18:24:32.8663307Z source-codeql_evaluator_logs-py complete
+2026-11-11T18:24:32.8665103Z source-codeql_summary_projection-py invoked at 2026-11-11T18:24:32.866+00:00 (bound 180s)
+2026-11-11T18:24:32.8689661Z source-codeql_summary_projection-py complete
+2026-11-11T18:24:32.8691499Z source-codeql_summary_projection-json invoked at 2026-11-11T18:24:32.868+00:00 (bound 180s)
+2026-11-11T18:24:32.8714588Z source-codeql_summary_projection-json complete
+2026-11-11T18:24:32.8716688Z source-codeql_summary_plan-py invoked at 2026-11-11T18:24:32.871+00:00 (bound 180s)
+2026-11-11T18:24:32.8740000Z source-codeql_summary_plan-py complete
+2026-11-11T18:24:32.8742840Z source-bounded_process-py invoked at 2026-11-11T18:24:32.873+00:00 (bound 180s)
+2026-11-11T18:24:32.8776851Z source-bounded_process-py complete
+2026-11-11T18:24:32.8778923Z source-evidence_io-py invoked at 2026-11-11T18:24:32.877+00:00 (bound 180s)
+2026-11-11T18:24:32.8805628Z source-evidence_io-py complete
+2026-11-11T18:24:32.8808343Z source-codeql_process_resources-py invoked at 2026-11-11T18:24:32.880+00:00 (bound 180s)
+2026-11-11T18:24:32.8841179Z source-codeql_process_resources-py complete
+2026-11-11T18:24:32.8844994Z source-codeql_rust_queries-json invoked at 2026-11-11T18:24:32.884+00:00 (bound 180s)
+2026-11-11T18:24:32.8868136Z source-codeql_rust_queries-json complete
+2026-11-11T18:24:32.8870274Z source-codeql_rust_quality-py invoked at 2026-11-11T18:24:32.886+00:00 (bound 180s)
+2026-11-11T18:24:32.8895439Z source-codeql_rust_quality-py complete
+2026-11-11T18:24:32.8898544Z source-rust_sdk_profile-py invoked at 2026-11-11T18:24:32.889+00:00 (bound 180s)
+2026-11-11T18:24:32.8923980Z source-rust_sdk_profile-py complete
+2026-11-11T18:24:32.8927619Z fixture-archive invoked at 2026-11-11T18:24:32.892+00:00 (bound 180s)
+2026-11-11T18:24:33.0884597Z fixture-archive complete
+2026-11-11T18:24:33.0886464Z fixture-members invoked at 2026-11-11T18:24:33.088+00:00 (bound 180s)
+2026-11-11T18:24:33.2534707Z fixture-members complete
+2026-11-11T18:24:33.2536112Z retained-summary invoked at 2026-11-11T18:24:33.253+00:00 (bound 180s)
+2026-11-11T18:24:33.4230585Z retained-summary complete
+2026-11-11T18:24:33.4383883Z download-codeql invoked at 2026-11-11T18:24:33.438+00:00 (bound 300s)
+2026-11-11T18:24:34.3702733Z download-codeql complete
+2026-11-11T18:24:34.4603699Z download-cargo invoked at 2026-11-11T18:24:34.459+00:00 (bound 300s)
+2026-11-11T18:24:34.6484761Z download-cargo complete
+2026-11-11T18:24:34.6605725Z download-rustc invoked at 2026-11-11T18:24:34.660+00:00 (bound 300s)
+2026-11-11T18:24:35.0507976Z download-rustc complete
+2026-11-11T18:24:35.1235173Z download-rust-std invoked at 2026-11-11T18:24:35.123+00:00 (bound 300s)
+2026-11-11T18:24:35.7620019Z download-rust-std complete
+2026-11-11T18:24:35.7917138Z download-rust-src invoked at 2026-11-11T18:24:35.791+00:00 (bound 300s)
+2026-11-11T18:24:35.9756945Z download-rust-src complete
+2026-11-11T18:24:35.9842450Z unpack-cargo invoked at 2026-11-11T18:24:35.983+00:00 (bound 180s)
+2026-11-11T18:24:36.7574140Z unpack-cargo complete
+2026-11-11T18:24:36.7574712Z install-cargo invoked at 2026-11-11T18:24:36.757+00:00 (bound 180s)
+2026-11-11T18:24:37.1132375Z install-cargo complete
+2026-11-11T18:24:37.1134803Z unpack-rustc invoked at 2026-11-11T18:24:37.113+00:00 (bound 180s)
+2026-11-11T18:24:42.4844740Z unpack-rustc complete
+2026-11-11T18:24:42.4846556Z install-rustc invoked at 2026-11-11T18:24:42.484+00:00 (bound 180s)
+2026-11-11T18:24:42.9476084Z install-rustc complete
+2026-11-11T18:24:42.9478449Z unpack-rust-std invoked at 2026-11-11T18:24:42.947+00:00 (bound 180s)
+2026-11-11T18:24:45.1314833Z unpack-rust-std complete
+2026-11-11T18:24:45.1316293Z install-rust-std invoked at 2026-11-11T18:24:45.131+00:00 (bound 180s)
+2026-11-11T18:24:45.6878214Z install-rust-std complete
+2026-11-11T18:24:45.6879586Z unpack-rust-src invoked at 2026-11-11T18:24:45.687+00:00 (bound 180s)
+2026-11-11T18:24:46.1441574Z unpack-rust-src complete
+2026-11-11T18:24:46.1822484Z rustc-version invoked at 2026-11-11T18:24:46.181+00:00 (bound 180s)
+2026-11-11T18:24:46.1902431Z rustc-version complete
+2026-11-11T18:24:46.1904555Z cargo-version invoked at 2026-11-11T18:24:46.190+00:00 (bound 180s)
+2026-11-11T18:24:46.2023025Z cargo-version complete
+2026-11-11T18:24:46.3203367Z plan-extract invoked at 2026-11-11T18:24:46.319+00:00 (bound 300s)
+2026-11-11T18:24:47.1120912Z plan-extract complete
+2026-11-11T18:25:42.3642327Z analysis-plan-extract invoked at 2026-11-11T18:25:42.363+00:00 (bound 300s)
+2026-11-11T18:25:42.8471804Z analysis-plan-extract complete
+2026-11-11T18:25:43.4464259Z analysis-plan-version invoked at 2026-11-11T18:25:43.445+00:00 (bound 180s)
+2026-11-11T18:25:43.9671405Z analysis-plan-version complete
+2026-11-11T18:25:44.7083810Z resolve-analysis-ram invoked at 2026-11-11T18:25:44.707+00:00 (bound 180s)
+2026-11-11T18:25:45.4310107Z resolve-analysis-ram complete
+2026-11-11T18:25:45.4364255Z analyze invoked at 2026-11-11T18:25:45.435+00:00 (bound 600s)
+2026-11-11T18:26:24.0763898Z CodeQL query completions observed: 1/39
+2026-11-11T18:26:24.0923937Z CodeQL query completions observed: 2/39
+2026-11-11T18:26:24.0953501Z CodeQL query completions observed: 3/39
+2026-11-11T18:26:24.0954107Z CodeQL query completions observed: 4/39
+2026-11-11T18:26:24.0983524Z CodeQL query completions observed: 5/39
+2026-11-11T18:26:24.1013542Z CodeQL query completions observed: 6/39
+2026-11-11T18:26:25.6320270Z CodeQL query completions observed: 7/39
+2026-11-11T18:26:25.6344134Z CodeQL query completions observed: 8/39
+2026-11-11T18:26:26.7734248Z CodeQL query completions observed: 9/39
+2026-11-11T18:26:43.8165460Z CodeQL query completions observed: 10/39
+2026-11-11T18:26:51.4473943Z CodeQL query completions observed: 11/39
+2026-11-11T18:26:51.4504157Z CodeQL query completions observed: 12/39
+2026-11-11T18:26:59.5619409Z CodeQL query completions observed: 13/39
+2026-11-11T18:27:00.0464548Z CodeQL query completions observed: 14/39
+2026-11-11T18:27:01.3964249Z CodeQL query completions observed: 15/39
+2026-11-11T18:27:01.4224524Z CodeQL query completions observed: 16/39
+2026-11-11T18:27:01.4434194Z CodeQL query completions observed: 17/39
+2026-11-11T18:27:01.4474014Z CodeQL query completions observed: 18/39
+2026-11-11T18:27:01.4474981Z CodeQL query completions observed: 19/39
+2026-11-11T18:27:01.4503719Z CodeQL query completions observed: 20/39
+2026-11-11T18:27:01.4817011Z CodeQL query completions observed: 21/39
+2026-11-11T18:27:01.5824049Z CodeQL query completions observed: 22/39
+2026-11-11T18:27:01.5865902Z CodeQL query completions observed: 23/39
+2026-11-11T18:27:01.6247043Z CodeQL query completions observed: 24/39
+2026-11-11T18:27:01.6421662Z CodeQL query completions observed: 25/39
+2026-11-11T18:27:01.7754040Z CodeQL query completions observed: 26/39
+2026-11-11T18:27:01.9531504Z CodeQL query completions observed: 27/39
+2026-11-11T18:27:01.9684076Z CodeQL query completions observed: 28/39
+2026-11-11T18:27:01.9943978Z CodeQL query completions observed: 29/39
+2026-11-11T18:27:02.0864632Z CodeQL query completions observed: 30/39
+2026-11-11T18:27:02.0894688Z CodeQL query completions observed: 31/39
+2026-11-11T18:27:02.0991220Z CodeQL query completions observed: 32/39
+2026-11-11T18:27:02.2245455Z CodeQL query completions observed: 33/39
+2026-11-11T18:27:02.7314068Z CodeQL query completions observed: 34/39
+2026-11-11T18:27:02.7772460Z CodeQL query completions observed: 35/39
+2026-11-11T18:27:03.6785452Z CodeQL query completions observed: 36/39
+2026-11-11T18:27:03.7213901Z CodeQL query completions observed: 37/39
+2026-11-11T18:27:03.7353960Z CodeQL query completions observed: 38/39
+2026-11-11T18:27:17.2439911Z CodeQL query completions observed: 39/39
+2026-11-11T18:27:20.3809147Z analyze complete
+2026-11-11T18:27:20.7386892Z decode-summary invoked at 2026-11-11T18:27:20.738+00:00 (bound 120s)
+2026-11-11T18:27:21.2869643Z decode-summary complete
+2026-11-11T18:27:23.5054573Z ##[group]Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+2026-11-11T18:27:23.5054972Z with:
+2026-11-11T18:27:23.5055210Z   name: codeql-wrapper-fixture-43076555996-1
+2026-11-11T18:27:23.5056821Z   path: /home/runner/work/_temp/qperiapt-wrapper-source.txt
+/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/evidence/**
+/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database/results/**
+/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-logs/**
+/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database-extracted/log/**
+/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator/**
+
+2026-11-11T18:27:23.5058380Z   if-no-files-found: error
+2026-11-11T18:27:23.5058625Z   include-hidden-files: true
+2026-11-11T18:27:23.5058862Z   retention-days: 14
+2026-11-11T18:27:23.5059211Z   compression-level: 6
+2026-11-11T18:27:23.5059436Z   overwrite: false
+2026-11-11T18:27:23.5059649Z   archive: true
+2026-11-11T18:27:23.5059901Z ##[endgroup]
+2026-11-11T18:27:23.7493798Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-11-11T18:27:23.7496516Z The least common ancestor is /home/runner/work/_temp. This will be the root directory of the artifact
+2026-11-11T18:27:23.7497443Z With the provided path, there will be 257 files uploaded
+2026-11-11T18:27:23.7498297Z Artifact name is valid!
+2026-11-11T18:27:23.7498715Z Root directory input is valid!
+2026-11-11T18:27:24.0182306Z Uploading artifact: codeql-wrapper-fixture-43076555996-1.zip
+2026-11-11T18:27:24.0218674Z Beginning upload of artifact content to blob storage
+2026-11-11T18:27:24.9308305Z Uploaded bytes 3769482
+2026-11-11T18:27:24.9875852Z Finished uploading artifact content to blob storage!
+2026-11-11T18:27:24.9876751Z SHA256 digest of uploaded artifact is 0ec4111efbc5109df1125033f830860673caee6915d866898b4cc2b628da1581
+2026-11-11T18:27:24.9877584Z Finalizing artifact upload
+2026-11-11T18:27:25.3754495Z Artifact codeql-wrapper-fixture-43076555996-1 successfully finalized. Artifact ID 13882738653
+2026-11-11T18:27:25.3756196Z Artifact codeql-wrapper-fixture-43076555996-1 has been successfully uploaded! Final size is 3769482 bytes. Artifact ID is 13882738653
+2026-11-11T18:27:25.3758494Z Artifact download URL: https://github.com/billlza/q-periapt/actions/runs/43076555996/artifacts/13882738653
+2026-11-11T18:27:25.3996780Z Post job cleanup.
+2026-11-11T18:27:25.4893212Z [command]/usr/bin/git version
+2026-11-11T18:27:25.4936094Z git version 2.56.0
+2026-11-11T18:27:25.4984765Z Temporarily overriding HOME='/home/runner/work/_temp/270dc592-c83b-455d-91ac-5e08934caae6' before making global git config changes
+2026-11-11T18:27:25.4986266Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T18:27:25.4989985Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T18:27:25.5026143Z Removing SSH command configuration
+2026-11-11T18:27:25.5033417Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T18:27:25.5071459Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T18:27:25.5309076Z Removing HTTP extra header
+2026-11-11T18:27:25.5315270Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T18:27:25.5350770Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T18:27:25.5588348Z Removing includeIf entries pointing to credentials config files
+2026-11-11T18:27:25.5595149Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T18:27:25.5631442Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T18:27:25.6046028Z Cleaning up orphan processes

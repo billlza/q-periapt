@@ -1,0 +1,36 @@
+{
+  "sha": "ed38e305552db2825d90622c130973df87e16d50",
+  "node_id": "C_kwDOTD-aVdoAKGVkMzhlMzA1NTUyZGIyODI1ZDkwNjIyYzEzMDk3M2RmODdlMTZkNTA",
+  "url": "https://api.github.com/repos/billlza/q-periapt/git/commits/ed38e305552db2825d90622c130973df87e16d50",
+  "html_url": "https://github.com/billlza/q-periapt/commit/ed38e305552db2825d90622c130973df87e16d50",
+  "author": {
+    "name": "月溅星河",
+    "email": "149552943+billlza@users.noreply.github.com",
+    "date": "2026-11-11T18:14:49Z"
+  },
+  "committer": {
+    "name": "月溅星河",
+    "email": "149552943+billlza@users.noreply.github.com",
+    "date": "2026-11-11T18:14:49Z"
+  },
+  "tree": {
+    "sha": "9daa64caa7814d759397fbde3218b6a2f6721348",
+    "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/9daa64caa7814d759397fbde3218b6a2f6721348"
+  },
+  "message": "Specialize Unit forward states to five columns",
+  "parents": [
+    {
+      "sha": "9c0d63d4d258f126af92a8bda64aec090019a1b3",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/commits/9c0d63d4d258f126af92a8bda64aec090019a1b3",
+      "html_url": "https://github.com/billlza/q-periapt/commit/9c0d63d4d258f126af92a8bda64aec090019a1b3"
+    }
+  ],
+  "verification": {
+    "verified": false,
+    "reason": "unsigned",
+    "signature": null,
+    "payload": null,
+    "verified_at": null
+  }
+}
+

@@ -1,0 +1,1544 @@
+{
+  "qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator/database-analyze-20261111.182546.015.log": {
+    "bytes": 3716,
+    "compressed_bytes": 709,
+    "crc32": "ffd0b06a",
+    "sha256": "46b8995049c1d7fdbe9672695cfe2703f5fa60088b74bb4b4dd395d4da2782d1"
+  },
+  "qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator/database-interpret-results-20261111.182718.380.log": {
+    "bytes": 366004,
+    "compressed_bytes": 14111,
+    "crc32": "b1e31ec1",
+    "sha256": "71fa6e150d4c260cafa44acddea7a0ea9e17826d254a7f4ba16e15ad735b2771"
+  },
+  "qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator/execute-queries-20261111.182546.988.log": {
+    "bytes": 29319757,
+    "compressed_bytes": 2440485,
+    "crc32": "2f1813df",
+    "sha256": "e242b96c02109457803cb0f846956be06d8f9185799e6ab3433bc5f35aeeae1d"
+  },
+  "qperiapt-codeql-wrapper-fixture/database-extracted/log/qltest.log": {
+    "bytes": 17619777,
+    "compressed_bytes": 134452,
+    "crc32": "ad57c39a",
+    "sha256": "7249ada6f1ef2b043ee36035ecfe76962f81a6e0a63e6c017e1f1cd9e7981805"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.bqrs": {
+    "bytes": 615,
+    "compressed_bytes": 375,
+    "crc32": "a3fa95c5",
+    "sha256": "968ab4c24cbab3760f95f3a613c66edbf9e7e1c47cac9ce16a2d82145f32c98c"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.bqrs": {
+    "bytes": 787,
+    "compressed_bytes": 477,
+    "crc32": "f4bf1e58",
+    "sha256": "27e3131c146fffe85b3d89ded379abd4c83e5b2152aec9036d8f328f34c4aae6"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.bqrs": {
+    "bytes": 1655,
+    "compressed_bytes": 804,
+    "crc32": "f563041e",
+    "sha256": "ec0e77bc1ae8119661c1933db41e56f3954d783cd844413724a6f7e00f867e77"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/diagnostics/ExtractedFiles.bqrs": {
+    "bytes": 802,
+    "compressed_bytes": 356,
+    "crc32": "944b6e25",
+    "sha256": "5432dbc8bcb296c06bfde3f044d0e8ce5df9b66a05abf0994768ed0ee24298ad"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/diagnostics/ExtractionErrors.bqrs": {
+    "bytes": 339,
+    "compressed_bytes": 227,
+    "crc32": "7c18347c",
+    "sha256": "3a2d977c341859ecd50e3716bcc56d990d6162a51aa6dc1a48a4e4d919232c23"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/diagnostics/ExtractionWarnings.bqrs": {
+    "bytes": 349,
+    "compressed_bytes": 232,
+    "crc32": "49fb768e",
+    "sha256": "deb57c50daac1fb257c30cf735f65cb7e148fa73f793703171f885a41caa20bd"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.bqrs": {
+    "bytes": 880,
+    "compressed_bytes": 468,
+    "crc32": "be3d0e51",
+    "sha256": "49b5bcaa6748eb1fa8c77d307ee5260b571954fe0991555c9eaf1bb507c001f0"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs": {
+    "bytes": 591,
+    "compressed_bytes": 349,
+    "crc32": "794a55a9",
+    "sha256": "e46a3d657225e6bf199924d4054bc3a8a8689f6f9e5bb5e2a851f119f9a0448f"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/diagnostics/UnextractedElements.bqrs": {
+    "bytes": 361,
+    "compressed_bytes": 239,
+    "crc32": "c40b69c2",
+    "sha256": "7eb81bb425719f6e5ac1a0c5cf08472f21689f2497b8adee963a93f263eb1773"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.bqrs": {
+    "bytes": 338,
+    "compressed_bytes": 231,
+    "crc32": "76f55465",
+    "sha256": "e305f582a1647c45256980bf5b56b768d00101f71daf3e4077fb300b3a16ea18"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-020/RegexInjection.bqrs": {
+    "bytes": 857,
+    "compressed_bytes": 483,
+    "crc32": "5ec5484b",
+    "sha256": "318a0f2415b6abd8d3f44fd96af71ac84334e263457342394ef976d14164d8ea"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-022/TaintedPath.bqrs": {
+    "bytes": 753,
+    "compressed_bytes": 417,
+    "crc32": "f5e29a3f",
+    "sha256": "3fc505a2b1597f1245f8f2c62a48c6bfc00d25ebe98896ec14d39adb85db1f42"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-078/CommandInjection.bqrs": {
+    "bytes": 712,
+    "compressed_bytes": 418,
+    "crc32": "f58f4a68",
+    "sha256": "dc54e86653357bfb2c595251e5726c7a13e0befb9e7fe5a9503e9d5143fb014d"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-079/XSS.bqrs": {
+    "bytes": 646,
+    "compressed_bytes": 391,
+    "crc32": "511407e7",
+    "sha256": "07108bbf4c1a2114bd9adbee69bfb25af2064668580b85faaf9e733f8a96eeac"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-089/SqlInjection.bqrs": {
+    "bytes": 665,
+    "compressed_bytes": 412,
+    "crc32": "a287ec02",
+    "sha256": "3e91aefb6f3681395ed1ec4e95082365e75165760ed3e72602cf3e44a52faf17"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-117/LogInjection.bqrs": {
+    "bytes": 658,
+    "compressed_bytes": 404,
+    "crc32": "21714066",
+    "sha256": "86beff82f931b5033cf98e3b37c2ac2be7c678bff789d9d947840d6140184665"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.bqrs": {
+    "bytes": 676,
+    "compressed_bytes": 409,
+    "crc32": "8d2e0323",
+    "sha256": "e43e5531a9b0f73bc9402d7d43130ca2563a41917983115d58877c8fa599733b"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.bqrs": {
+    "bytes": 695,
+    "compressed_bytes": 407,
+    "crc32": "ff89e65a",
+    "sha256": "1d6ac6c0401f5b502fafc00c5879e23a3ba22d007a33de9eb96cee692d17215e"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-312/CleartextLogging.bqrs": {
+    "bytes": 710,
+    "compressed_bytes": 398,
+    "crc32": "e3914ff6",
+    "sha256": "afa5b5cd186fccf697f72106ba652c5be455308e6c84b23e0c0da5662d1f8451"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.bqrs": {
+    "bytes": 704,
+    "compressed_bytes": 411,
+    "crc32": "b6ddc7bd",
+    "sha256": "f6caa846c12497be3e79015cb81046167a040bbc122835dd66f330f5be09caa4"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-319/UseOfHttp.bqrs": {
+    "bytes": 613,
+    "compressed_bytes": 395,
+    "crc32": "70f04539",
+    "sha256": "d21762a1693fa6fb62d480e2a79a1c6f853319d69940ca5391342038a08bdff4"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs": {
+    "bytes": 524,
+    "compressed_bytes": 318,
+    "crc32": "6709f4ce",
+    "sha256": "538f90efaec9b2b93ea58fdef1de7661fa1447814ace83809b92eba2ea7c5448"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs": {
+    "bytes": 738,
+    "compressed_bytes": 412,
+    "crc32": "c7275a36",
+    "sha256": "f4daed7350ee7f6685ccdbb45b7e72443d0e5204ac5945528415419f644ef3df"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-614/InsecureCookie.bqrs": {
+    "bytes": 769,
+    "compressed_bytes": 450,
+    "crc32": "a7da053c",
+    "sha256": "f63dc761d7a6f7e379a029514901544c8a62d49a216c332d37d1272d07fbd968"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.bqrs": {
+    "bytes": 823,
+    "compressed_bytes": 466,
+    "crc32": "c035eb89",
+    "sha256": "93eaf293562df9f6a29cdb3279e2fcf50c12f3475cd7306356b5dabcdd624e7c"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.bqrs": {
+    "bytes": 761,
+    "compressed_bytes": 416,
+    "crc32": "682957dc",
+    "sha256": "9c70ad2cc8e818c0f0eda63f25000727954e3efd9dae4ce371a4d506ec647f00"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.bqrs": {
+    "bytes": 753,
+    "compressed_bytes": 442,
+    "crc32": "3afc5cbf",
+    "sha256": "ce3395b6a7618f0fd53f98c8d912ab828c9b1408d1486fd00c1b8deafc3db9ec"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.bqrs": {
+    "bytes": 707,
+    "compressed_bytes": 423,
+    "crc32": "a7a383ae",
+    "sha256": "b5a96183568256afde35bd7b167329881861e5e7c2ca96337731a920388e1ead"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/security/CWE-918/RequestForgery.bqrs": {
+    "bytes": 623,
+    "compressed_bytes": 395,
+    "crc32": "39ee20cd",
+    "sha256": "be76b335264fba59ba05a661d9e880d2745c0cf903b7fce210e59202f589e360"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/summary/LinesOfCode.bqrs": {
+    "bytes": 655,
+    "compressed_bytes": 390,
+    "crc32": "bd2cceee",
+    "sha256": "981289e0c346c29025de5009f26b28a51318fb0a0c7d105dcd10b6e5f1417146"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/summary/LinesOfUserCode.bqrs": {
+    "bytes": 501,
+    "compressed_bytes": 325,
+    "crc32": "71563ee6",
+    "sha256": "111455785b183df98890736fa244ace9df4edc4b139e48bfe29ff4b82b4c0e41"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.bqrs": {
+    "bytes": 398,
+    "compressed_bytes": 269,
+    "crc32": "44ac3732",
+    "sha256": "424dd61efba2c24d580591c8195deba304f95817f2eac6eb9c0cd217d8f57d44"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.bqrs": {
+    "bytes": 520,
+    "compressed_bytes": 319,
+    "crc32": "3ce0af40",
+    "sha256": "eee31b8d8e4a8afdb99553c19f7ce258ecd732b0ee08e64235a01f97832cedfc"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs": {
+    "bytes": 498,
+    "compressed_bytes": 305,
+    "crc32": "517e942b",
+    "sha256": "3e2821428190f399ec962029265cd9921f3b7d1d6173fa265ffcc6c3591bec03"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/summary/QuerySinkCounts.bqrs": {
+    "bytes": 548,
+    "compressed_bytes": 355,
+    "crc32": "72090875",
+    "sha256": "c32125ceb5d5af01c629654cdf8c501e196560364bcffd8c9e19cc527db9f940"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/summary/SummaryStats.bqrs": {
+    "bytes": 1204,
+    "compressed_bytes": 643,
+    "crc32": "95500292",
+    "sha256": "9ab9b30d0a7ff4afa3ae79577f72835526b3d4c0795c483608aec1759cf9df4b"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/summary/SummaryStatsReduced.bqrs": {
+    "bytes": 895,
+    "compressed_bytes": 492,
+    "crc32": "363456a6",
+    "sha256": "9aa40a206910f34bdd30816aa11a4362f259a6622fe631f8499a271f16f50bf2"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.bqrs": {
+    "bytes": 351,
+    "compressed_bytes": 238,
+    "crc32": "0011709b",
+    "sha256": "07953064197bebc473edc1f7849428c1965e31543f4ada1147bd24d47a2923fd"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/telemetry/ExtractorInformation.bqrs": {
+    "bytes": 1162,
+    "compressed_bytes": 538,
+    "crc32": "c08bbad3",
+    "sha256": "a7418d9cb48ebd43b3f9c5632071b5b2b358b62f0295ff90db31c8bed969a45d"
+  },
+  "qperiapt-codeql-wrapper-fixture/database/results/run-info-20261111.182548.467.yml": {
+    "bytes": 99397,
+    "compressed_bytes": 19382,
+    "crc32": "1b2219f4",
+    "sha256": "d5f2c09cebb38711ee14f644ae89b8fc8f21480af6b1a197ed229313ed516947"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/ANALYSIS_PLAN_AFTER.json": {
+    "bytes": 8166,
+    "compressed_bytes": 3166,
+    "crc32": "6df490c2",
+    "sha256": "e4472639f3d0f262eb820550fc0d7bdd2eb158b71ea37f5f187ef54f02483ae6"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/ANALYSIS_RUNTIME.json": {
+    "bytes": 488780,
+    "compressed_bytes": 106440,
+    "crc32": "cc5b7475",
+    "sha256": "4d9809afe846ce0867040f7d2f9b8999383b657b923df8b768a086e3da0f73c8"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/COMPILER_IDENTITY.json": {
+    "bytes": 245,
+    "compressed_bytes": 159,
+    "crc32": "15df60a2",
+    "sha256": "8109d22bb2caf4f74b337f7fe701a6a89ad813788117c0938e35c1f63b1ac58a"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/DATABASE_INPUTS.json": {
+    "bytes": 328,
+    "compressed_bytes": 236,
+    "crc32": "c83e4b1e",
+    "sha256": "e6366d70b7db83c97bd5c730e3619b0959da21c9259b4c1a3758ed9f0536448b"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/EVALUATOR_OBSERVATIONS.json": {
+    "bytes": 7057,
+    "compressed_bytes": 901,
+    "crc32": "de00287e",
+    "sha256": "4d7ebd7a1062bddb2f13e804127011cdd7f383053ef40f6527c623ec3a8a062a"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/FIXTURE_INPUTS.json": {
+    "bytes": 1075,
+    "compressed_bytes": 493,
+    "crc32": "a0b9b3e6",
+    "sha256": "17d4f38aedfdc6a20e23ca8e8acf76bfac85437e7ac651adf883048096048add"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/FIXTURE_WRAPPER_RESULT.json": {
+    "bytes": 12179,
+    "compressed_bytes": 4493,
+    "crc32": "c9fb5c41",
+    "sha256": "fe577a08c4f9cea00e97021e4a232158ee81dd6378cb3bc74d299affca8f97a8"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/FRESH_RESULTS.json": {
+    "bytes": 6147,
+    "compressed_bytes": 2297,
+    "crc32": "dcb45273",
+    "sha256": "b340067f9f83f538d3edffdfd582486784df4b8a77fd97bf3627a5b14ca3bcb8"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/INITIAL_DATABASE_FILES.json.gz": {
+    "bytes": 338431,
+    "compressed_bytes": 338536,
+    "crc32": "bf4e555e",
+    "sha256": "2ade379b2710a6940c89fc0395ffb75929e13f7c49930dfd79f447992cac7d3f"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/METHOD.json": {
+    "bytes": 1962,
+    "compressed_bytes": 888,
+    "crc32": "5d7a83ab",
+    "sha256": "c23a283b9ab08525f2f5feddb228cd07c04ebd17f173696ac70acd1739c91f16"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/OFFICIAL_DOWNLOADS.json": {
+    "bytes": 1746,
+    "compressed_bytes": 546,
+    "crc32": "ec5fa90b",
+    "sha256": "71fce9c7a859d01fd3c5c894ab9ced708fd4646adf904f288ac2788b79948667"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/PACK_BEFORE.json": {
+    "bytes": 262908,
+    "compressed_bytes": 66594,
+    "crc32": "8d09de00",
+    "sha256": "ab17d67383b3824c99ea10597bcc54e970b70515de3c8ce3d11ce6de0a9d68c2"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/PROCESS_RESOURCES.jsonl": {
+    "bytes": 36182,
+    "compressed_bytes": 2991,
+    "crc32": "c3008041",
+    "sha256": "1dd2eb04e33cb12149fc64af55185ad84e07fc872a1aaa4c69ed6365b5ea31b9"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/QUERY_COMPLETIONS.json": {
+    "bytes": 2172,
+    "compressed_bytes": 664,
+    "crc32": "2fd92f29",
+    "sha256": "869e3e321b4db40d2291ef61f4f3e95641aec53468d2a11aaf619f9cfa6f1177"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/QUERY_MEMORY.json": {
+    "bytes": 253,
+    "compressed_bytes": 176,
+    "crc32": "68c54865",
+    "sha256": "2f0df34e10c2742f314af88a119df29a210738bce1e70cafb12a3b31b252a193"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/RESOURCE_OBSERVATION_STATUS.json": {
+    "bytes": 1726,
+    "compressed_bytes": 831,
+    "crc32": "a03b2525",
+    "sha256": "538822e141cb6f9625adc23a5b73e3d39a6d3b3462b35ac3f7f6ebbfc5fc7928"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/SOURCE_CONTRACT.json": {
+    "bytes": 1638,
+    "compressed_bytes": 691,
+    "crc32": "c8a06bd2",
+    "sha256": "0cdd33ee93201aa8ad6a0c515563ebe70ed2b237d3b242d8a4fe5d6760447917"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/SUMMARY_PLAN.json": {
+    "bytes": 6858,
+    "compressed_bytes": 2743,
+    "crc32": "79fb93f2",
+    "sha256": "a85153781618fe70fd9a8efcd9f8689bc16025d40737a24ba94afaa7ad0fe35a"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/SUMMARY_PLAN_DEPENDENCIES.json.gz": {
+    "bytes": 117209,
+    "compressed_bytes": 117249,
+    "crc32": "e0b7f73c",
+    "sha256": "1a76d5d9eaf26bd931ba9710db92904fa8314b39daeb9d450a1600b8bb44cf95"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/SUMMARY_PLAN_ORIGINAL.qlx": {
+    "bytes": 208304,
+    "compressed_bytes": 207990,
+    "crc32": "f0238dc5",
+    "sha256": "bc65daf746a13e0d162f0853b3a21eda41ff2d573774e6862983a916c06244a6"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/SUMMARY_PLAN_VENDOR_ORIGINAL.qll": {
+    "bytes": 138246,
+    "compressed_bytes": 23044,
+    "crc32": "cbd34645",
+    "sha256": "48abc6ae3a155494379f139d6a71d0d9b27469824e8f2dc5a72ff39a82ce64bf"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/SUMMARY_PLAN_VENDOR_PATCH.patch": {
+    "bytes": 8974,
+    "compressed_bytes": 2280,
+    "crc32": "7ee41a66",
+    "sha256": "2e01d15c01f2240d8915fb124865f0d7f81b486929245ba5f61ad0502de06207"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/analysis-plan-extract.json": {
+    "bytes": 585,
+    "compressed_bytes": 339,
+    "crc32": "6d27e0fc",
+    "sha256": "c7eb3b1351c9f42f9936689355599ca921cfb1c13d094d3660c04d01974b2c9f"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/analysis-plan-extract.started.json": {
+    "bytes": 470,
+    "compressed_bytes": 295,
+    "crc32": "c5e4ca5b",
+    "sha256": "50f01590b18b0bef0616a8edff1376856921d2b44adf94ee5b6aed367747395d"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/analysis-plan-extract.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/analysis-plan-extract.stdout": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/analysis-plan-version.json": {
+    "bytes": 507,
+    "compressed_bytes": 302,
+    "crc32": "f3ad1c88",
+    "sha256": "a7c1601c8926102aab998ba480b023f5c1959036287ee10e3b7609fcd1c47d4e"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/analysis-plan-version.started.json": {
+    "bytes": 393,
+    "compressed_bytes": 261,
+    "crc32": "4d8de164",
+    "sha256": "e15ce4ebf77ea4cb6a12c55695867771b3b354810675857d739b28aea38e5bf0"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/analysis-plan-version.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/analysis-plan-version.stdout": {
+    "bytes": 7,
+    "compressed_bytes": 9,
+    "crc32": "165df238",
+    "sha256": "76aea453698ecab1f061990a3b977d5e6f28fde9ede6ee73d8e8321d1e725426"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/analyze.json": {
+    "bytes": 1298,
+    "compressed_bytes": 504,
+    "crc32": "0b28162a",
+    "sha256": "3c41258684935d20598c9091ee74c4e8f53f32b6a1b25cdc4341f9317e26e49b"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/analyze.started.json": {
+    "bytes": 1190,
+    "compressed_bytes": 462,
+    "crc32": "b242f3be",
+    "sha256": "5153d01355ba3a8566914495d1754ed62e5c2c010479d3f524f3dbb105b2728c"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/analyze.stderr": {
+    "bytes": 22434,
+    "compressed_bytes": 1732,
+    "crc32": "dbf43c25",
+    "sha256": "78768a63e60fc552510f24c81b9870d6b80378f19e98f791f8364e1d12cb02cb"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/analyze.stdout": {
+    "bytes": 339,
+    "compressed_bytes": 137,
+    "crc32": "b24d6a59",
+    "sha256": "7b12c2aba29287fff6bb1e5e3ab9baf2b678c6093707d4098115039d94e0cc9d"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/cargo-version.json": {
+    "bytes": 488,
+    "compressed_bytes": 287,
+    "crc32": "4c5f12bb",
+    "sha256": "fa89fc6d8a8056689d63706f011d6a210ab51ae691511472d1e905066b053d99"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/cargo-version.started.json": {
+    "bytes": 372,
+    "compressed_bytes": 246,
+    "crc32": "e84f6b67",
+    "sha256": "61eb3b6ed299c075e5459465b09609c47d274e9a011da8accb4e2671b8cb12c9"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/cargo-version.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/cargo-version.stdout": {
+    "bytes": 335,
+    "compressed_bytes": 232,
+    "crc32": "c8f6f256",
+    "sha256": "7fc6ad478d019e0476951b73108239883610ccde17d169b59fa201aa336ef38e"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/decode-summary.json": {
+    "bytes": 669,
+    "compressed_bytes": 366,
+    "crc32": "94cfb1c4",
+    "sha256": "992463158a5175376bb69ef19cef885eba7770ab83873492053af216f3e39105"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/decode-summary.started.json": {
+    "bytes": 555,
+    "compressed_bytes": 318,
+    "crc32": "f87662ee",
+    "sha256": "7e491309f0221b01517c90ccc3c7d185095611b9c09baa7c8759c66d0ffb14f4"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/decode-summary.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/decode-summary.stdout": {
+    "bytes": 1185,
+    "compressed_bytes": 443,
+    "crc32": "dcc6bf87",
+    "sha256": "f05f212ce3a9847d01191fb595c9a154aac94a83e33faf6fdc7f85dbb19b259e"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-cargo.json": {
+    "bytes": 811,
+    "compressed_bytes": 416,
+    "crc32": "7fca3e41",
+    "sha256": "5959089caa03c270e7cd76ccd6ac126bda3d3e93e478e834ca8baffcf7f36626"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-cargo.started.json": {
+    "bytes": 696,
+    "compressed_bytes": 374,
+    "crc32": "c0b6e3dc",
+    "sha256": "5b71e760af40fb5e2b17efd7f9bd4d3ce64926ca7f99e4b7f8f1ba51fe1a5a97"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-cargo.stderr": {
+    "bytes": 317,
+    "compressed_bytes": 141,
+    "crc32": "ff6c8bc9",
+    "sha256": "59a1d5b0c579e7a9652355affa8746383ec2832d1eef26f8b8a8897dc81623fd"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-cargo.stdout": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-codeql.json": {
+    "bytes": 825,
+    "compressed_bytes": 411,
+    "crc32": "6bd9f8a8",
+    "sha256": "779e7c5d1600acbcf5e1c9dbc220515f8b30629cebc2c6f3173599c3508ec59d"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-codeql.started.json": {
+    "bytes": 711,
+    "compressed_bytes": 369,
+    "crc32": "38986fcd",
+    "sha256": "9230fafbd4def1ecb51c7bbb65e647ad1cb8fdd7b1ed9ac2a463a172063fc259"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-codeql.stderr": {
+    "bytes": 476,
+    "compressed_bytes": 164,
+    "crc32": "12213889",
+    "sha256": "8739ec7df1aa1ac35e76698222f7ea1a282903543ad6337314ac9c62fd69ca81"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-codeql.stdout": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-rust-src.json": {
+    "bytes": 767,
+    "compressed_bytes": 397,
+    "crc32": "5e1619e6",
+    "sha256": "02de1f8fc981df101117c2c4c17a6c0a9fb4b61329f8eb7416beff620e52503f"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-rust-src.started.json": {
+    "bytes": 652,
+    "compressed_bytes": 355,
+    "crc32": "648427f9",
+    "sha256": "0f8b304de6c5abac90de0b3641219ada327521331a2c97764ea91a7dd7bf2b8c"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-rust-src.stderr": {
+    "bytes": 317,
+    "compressed_bytes": 139,
+    "crc32": "a0673b23",
+    "sha256": "31ff5af0303ed7c4d759b36b27d1864cde08dab1a0ccb7dd3a354420bd08e5de"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-rust-src.stdout": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-rust-std.json": {
+    "bytes": 809,
+    "compressed_bytes": 413,
+    "crc32": "e9b1482a",
+    "sha256": "4edb8fa06b4318a25007205e277d799bd8a2516eaf655685275a68b92b7a814a"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-rust-std.started.json": {
+    "bytes": 702,
+    "compressed_bytes": 375,
+    "crc32": "e2f1d05f",
+    "sha256": "613edfc39ef4e7a5cbdabeeab6e8a0161e66161423cf20d145535e1735422f71"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-rust-std.stderr": {
+    "bytes": 317,
+    "compressed_bytes": 141,
+    "crc32": "a62340c9",
+    "sha256": "d7a8f4073b742c7d4037ac51e079af02c608bbfcfd8bc0387639c94af3d09f83"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-rust-std.stdout": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-rustc.json": {
+    "bytes": 810,
+    "compressed_bytes": 415,
+    "crc32": "77373f32",
+    "sha256": "d755bc4eb1657abc686fc2e5a8b2922643a9cb4d651f42bcfe1f17269379e3cc"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-rustc.started.json": {
+    "bytes": 696,
+    "compressed_bytes": 373,
+    "crc32": "700ec56a",
+    "sha256": "6d30dd3752af0847d0dc54f1c9db578300ee8bf7b7e944b2679cc32254475dd3"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-rustc.stderr": {
+    "bytes": 317,
+    "compressed_bytes": 139,
+    "crc32": "b2463033",
+    "sha256": "356725e09e41bcd71a470ae8e9ad67a709d3f4ed3c619992239f6ccf6fb63fe8"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/download-rustc.stdout": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/extract.json": {
+    "bytes": 1237,
+    "compressed_bytes": 455,
+    "crc32": "c4681102",
+    "sha256": "9a0e0e1f530809fcec9701945ac70a36a9e5c9e4b35ab7cbfb0b8f4c46a2bc2d"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/extract.started.json": {
+    "bytes": 1137,
+    "compressed_bytes": 413,
+    "crc32": "4f53a271",
+    "sha256": "a468cebaf91cfd03779af9c9e6e96743463da83616362c20fe791f856ad1b889"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/extract.stderr": {
+    "bytes": 602,
+    "compressed_bytes": 245,
+    "crc32": "83f1be26",
+    "sha256": "a85a6e1c54be114663887accbbbded515c0e9b8c7b733a3e5e5b0ec605c2578d"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/extract.stdout": {
+    "bytes": 85,
+    "compressed_bytes": 73,
+    "crc32": "9ea84834",
+    "sha256": "f1592f38038dabf010b7c3af190b07e8f0d99a2d1f2ba5c7ba00c739eff57e88"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/fetch-frozen-inputs.json": {
+    "bytes": 607,
+    "compressed_bytes": 341,
+    "crc32": "eda9a0e0",
+    "sha256": "a09cf27bc4f23f30e95233cc8b86c11d7cd707764dbbe9f7d6f79d95f1437ec4"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/fetch-frozen-inputs.started.json": {
+    "bytes": 492,
+    "compressed_bytes": 298,
+    "crc32": "8f57066f",
+    "sha256": "080421f409e578ab8866be101ae89ff81ea09dd82f4eb95f050702f9731b1216"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/fetch-frozen-inputs.stderr": {
+    "bytes": 194,
+    "compressed_bytes": 141,
+    "crc32": "57466a7c",
+    "sha256": "745b30c598c8a17e03c39cce9d5951a0b63895100779a39a73b592c6188e19e0"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/fetch-frozen-inputs.stdout": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/fixture-archive.json": {
+    "bytes": 599,
+    "compressed_bytes": 350,
+    "crc32": "3c8c7c5b",
+    "sha256": "a821b96efde7199734fd9a4bd4352bdfb092b25823a6788c29226684d977e2df"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/fixture-archive.started.json": {
+    "bytes": 484,
+    "compressed_bytes": 305,
+    "crc32": "f2f6091e",
+    "sha256": "8e3fd7c2e168ea21e2f16b74d68968838cd9a5634f4c5439d7ef75f4dd7cc3b4"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/fixture-archive.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/fixture-archive.stdout": {
+    "bytes": 20895,
+    "compressed_bytes": 20013,
+    "crc32": "96fd2cf7",
+    "sha256": "dc13ea1f6e1d7ea7ea1ef766dbb4599cf481dbbea2a990beb22daa87515d5ece"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/fixture-members.json": {
+    "bytes": 599,
+    "compressed_bytes": 364,
+    "crc32": "9a87fcec",
+    "sha256": "e24fdcc8b2c20b00d9d135d45510b97cc1bef93208d0f23cc45323345b3af5e7"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/fixture-members.started.json": {
+    "bytes": 485,
+    "compressed_bytes": 321,
+    "crc32": "3c20e2c9",
+    "sha256": "97b07a5896321a9989dc210791852e40cd35e22b7bd9b4eb748ae55b2946366e"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/fixture-members.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/fixture-members.stdout": {
+    "bytes": 2461,
+    "compressed_bytes": 1072,
+    "crc32": "e93e1a7f",
+    "sha256": "ee2de48ff6042bed38a007f85e1c50eca416dc25a7f8899fcbf84d74e6cf31ef"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/install-cargo.json": {
+    "bytes": 584,
+    "compressed_bytes": 321,
+    "crc32": "214be2b9",
+    "sha256": "83028abff09c753930a8f20688c9e86c8063da7d450f51828eea830908eb803b"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/install-cargo.started.json": {
+    "bytes": 469,
+    "compressed_bytes": 277,
+    "crc32": "dfb430d4",
+    "sha256": "8ff955e011828e97b7c773867172eb14b69feb2412ff64d53ed8ff73d4567573"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/install-cargo.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/install-cargo.stdout": {
+    "bytes": 185,
+    "compressed_bytes": 125,
+    "crc32": "1d508b10",
+    "sha256": "fb2026568f6b8f114b77088ba43664843cea5f4b8ce3884635ab384721f6059e"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/install-rust-std.json": {
+    "bytes": 586,
+    "compressed_bytes": 320,
+    "crc32": "ab53edba",
+    "sha256": "39dbd0a80924bc55390b8f5268ff316ce04461a1ccd9f3298ca40cb4bc86d4cf"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/install-rust-std.started.json": {
+    "bytes": 472,
+    "compressed_bytes": 277,
+    "crc32": "8abad080",
+    "sha256": "e1fb3ac824a5f89b7461f71b08e409244ca1d072ae55e8913da0cbc7335f2430"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/install-rust-std.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/install-rust-std.stdout": {
+    "bytes": 216,
+    "compressed_bytes": 148,
+    "crc32": "0a9a7c30",
+    "sha256": "2eb81eda69a211549fe8aaaf021afd2c234488696dacd67dfbea727905a7cfb5"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/install-rustc.json": {
+    "bytes": 583,
+    "compressed_bytes": 318,
+    "crc32": "580401b5",
+    "sha256": "8de55c36c0d7e92b53830e52102662b28298dd995cdbfc87c9288fe95fe44022"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/install-rustc.started.json": {
+    "bytes": 469,
+    "compressed_bytes": 276,
+    "crc32": "0620a829",
+    "sha256": "7c8a96891163ce66fe9de4699c132122fa56f9a11711c421d42be1d9ce930ce2"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/install-rustc.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/install-rustc.stdout": {
+    "bytes": 185,
+    "compressed_bytes": 124,
+    "crc32": "67b8dae6",
+    "sha256": "8165c37acc1f724c81d6c6a1201b9db12f082544dd7e5dbe80338428492ef58c"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/plan-extract.json": {
+    "bytes": 580,
+    "compressed_bytes": 334,
+    "crc32": "3963fa7e",
+    "sha256": "2684c0c16e8025e07f00fa605a1209551ae5f20de40bc9975be98f8587516ee9"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/plan-extract.started.json": {
+    "bytes": 467,
+    "compressed_bytes": 289,
+    "crc32": "fdb7b4a2",
+    "sha256": "0b6a7d5281936a18ed0b7166f3ed1ee7808759c67365e5e98bc4e71bf7d55108"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/plan-extract.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/plan-extract.stdout": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/reproduction-inputs.zip": {
+    "bytes": 20895,
+    "compressed_bytes": 20013,
+    "crc32": "96fd2cf7",
+    "sha256": "dc13ea1f6e1d7ea7ea1ef766dbb4599cf481dbbea2a990beb22daa87515d5ece"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/resolve-analysis-ram.json": {
+    "bytes": 653,
+    "compressed_bytes": 349,
+    "crc32": "30063a97",
+    "sha256": "81a6172d75d8b79d84b51aab60e052a40f803b538d8ef4a65b77999c65804358"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/resolve-analysis-ram.started.json": {
+    "bytes": 539,
+    "compressed_bytes": 304,
+    "crc32": "ffe45261",
+    "sha256": "d62ab98d684e731e01ef6abddab7c3a17802b83baf38a599a57d778471237e9d"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/resolve-analysis-ram.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/resolve-analysis-ram.stdout": {
+    "bytes": 45,
+    "compressed_bytes": 44,
+    "crc32": "a24dc922",
+    "sha256": "705fbc80dca7db3756b8f85de58ee030f1311f4f415293faec0954bd3e3c524d"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results.sarif": {
+    "bytes": 58219,
+    "compressed_bytes": 6765,
+    "crc32": "9088d173",
+    "sha256": "4e50a51299106fc0573ffcbc6a10726aa47ba956a8e9bbde1b4738ab2daed639"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/diagnostics/AstConsistencyCounts.bqrs": {
+    "bytes": 615,
+    "compressed_bytes": 375,
+    "crc32": "a3fa95c5",
+    "sha256": "968ab4c24cbab3760f95f3a613c66edbf9e7e1c47cac9ce16a2d82145f32c98c"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/diagnostics/CfgConsistencyCounts.bqrs": {
+    "bytes": 787,
+    "compressed_bytes": 477,
+    "crc32": "f4bf1e58",
+    "sha256": "27e3131c146fffe85b3d89ded379abd4c83e5b2152aec9036d8f328f34c4aae6"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/diagnostics/DataFlowConsistencyCounts.bqrs": {
+    "bytes": 1655,
+    "compressed_bytes": 804,
+    "crc32": "f563041e",
+    "sha256": "ec0e77bc1ae8119661c1933db41e56f3954d783cd844413724a6f7e00f867e77"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/diagnostics/ExtractedFiles.bqrs": {
+    "bytes": 802,
+    "compressed_bytes": 356,
+    "crc32": "944b6e25",
+    "sha256": "5432dbc8bcb296c06bfde3f044d0e8ce5df9b66a05abf0994768ed0ee24298ad"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/diagnostics/ExtractionErrors.bqrs": {
+    "bytes": 339,
+    "compressed_bytes": 227,
+    "crc32": "7c18347c",
+    "sha256": "3a2d977c341859ecd50e3716bcc56d990d6162a51aa6dc1a48a4e4d919232c23"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/diagnostics/ExtractionWarnings.bqrs": {
+    "bytes": 349,
+    "compressed_bytes": 232,
+    "crc32": "49fb768e",
+    "sha256": "deb57c50daac1fb257c30cf735f65cb7e148fa73f793703171f885a41caa20bd"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/diagnostics/SsaConsistencyCounts.bqrs": {
+    "bytes": 880,
+    "compressed_bytes": 468,
+    "crc32": "be3d0e51",
+    "sha256": "49b5bcaa6748eb1fa8c77d307ee5260b571954fe0991555c9eaf1bb507c001f0"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs": {
+    "bytes": 591,
+    "compressed_bytes": 349,
+    "crc32": "794a55a9",
+    "sha256": "e46a3d657225e6bf199924d4054bc3a8a8689f6f9e5bb5e2a851f119f9a0448f"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/diagnostics/UnextractedElements.bqrs": {
+    "bytes": 361,
+    "compressed_bytes": 239,
+    "crc32": "c40b69c2",
+    "sha256": "7eb81bb425719f6e5ac1a0c5cf08472f21689f2497b8adee963a93f263eb1773"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/diagnostics/UnresolvedMacroCalls.bqrs": {
+    "bytes": 338,
+    "compressed_bytes": 231,
+    "crc32": "76f55465",
+    "sha256": "e305f582a1647c45256980bf5b56b768d00101f71daf3e4077fb300b3a16ea18"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-020/RegexInjection.bqrs": {
+    "bytes": 857,
+    "compressed_bytes": 483,
+    "crc32": "5ec5484b",
+    "sha256": "318a0f2415b6abd8d3f44fd96af71ac84334e263457342394ef976d14164d8ea"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-022/TaintedPath.bqrs": {
+    "bytes": 753,
+    "compressed_bytes": 417,
+    "crc32": "f5e29a3f",
+    "sha256": "3fc505a2b1597f1245f8f2c62a48c6bfc00d25ebe98896ec14d39adb85db1f42"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-078/CommandInjection.bqrs": {
+    "bytes": 712,
+    "compressed_bytes": 418,
+    "crc32": "f58f4a68",
+    "sha256": "dc54e86653357bfb2c595251e5726c7a13e0befb9e7fe5a9503e9d5143fb014d"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-079/XSS.bqrs": {
+    "bytes": 646,
+    "compressed_bytes": 391,
+    "crc32": "511407e7",
+    "sha256": "07108bbf4c1a2114bd9adbee69bfb25af2064668580b85faaf9e733f8a96eeac"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-089/SqlInjection.bqrs": {
+    "bytes": 665,
+    "compressed_bytes": 412,
+    "crc32": "a287ec02",
+    "sha256": "3e91aefb6f3681395ed1ec4e95082365e75165760ed3e72602cf3e44a52faf17"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-117/LogInjection.bqrs": {
+    "bytes": 658,
+    "compressed_bytes": 404,
+    "crc32": "21714066",
+    "sha256": "86beff82f931b5033cf98e3b37c2ac2be7c678bff789d9d947840d6140184665"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-295/DisabledCertificateCheck.bqrs": {
+    "bytes": 676,
+    "compressed_bytes": 409,
+    "crc32": "8d2e0323",
+    "sha256": "e43e5531a9b0f73bc9402d7d43130ca2563a41917983115d58877c8fa599733b"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-311/CleartextTransmission.bqrs": {
+    "bytes": 695,
+    "compressed_bytes": 407,
+    "crc32": "ff89e65a",
+    "sha256": "1d6ac6c0401f5b502fafc00c5879e23a3ba22d007a33de9eb96cee692d17215e"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-312/CleartextLogging.bqrs": {
+    "bytes": 710,
+    "compressed_bytes": 398,
+    "crc32": "e3914ff6",
+    "sha256": "afa5b5cd186fccf697f72106ba652c5be455308e6c84b23e0c0da5662d1f8451"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-312/CleartextStorageDatabase.bqrs": {
+    "bytes": 704,
+    "compressed_bytes": 411,
+    "crc32": "b6ddc7bd",
+    "sha256": "f6caa846c12497be3e79015cb81046167a040bbc122835dd66f330f5be09caa4"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-319/UseOfHttp.bqrs": {
+    "bytes": 613,
+    "compressed_bytes": 395,
+    "crc32": "70f04539",
+    "sha256": "d21762a1693fa6fb62d480e2a79a1c6f853319d69940ca5391342038a08bdff4"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs": {
+    "bytes": 524,
+    "compressed_bytes": 318,
+    "crc32": "6709f4ce",
+    "sha256": "538f90efaec9b2b93ea58fdef1de7661fa1447814ace83809b92eba2ea7c5448"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs": {
+    "bytes": 738,
+    "compressed_bytes": 412,
+    "crc32": "c7275a36",
+    "sha256": "f4daed7350ee7f6685ccdbb45b7e72443d0e5204ac5945528415419f644ef3df"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-614/InsecureCookie.bqrs": {
+    "bytes": 769,
+    "compressed_bytes": 450,
+    "crc32": "a7da053c",
+    "sha256": "f63dc761d7a6f7e379a029514901544c8a62d49a216c332d37d1272d07fbd968"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-770/UncontrolledAllocationSize.bqrs": {
+    "bytes": 823,
+    "compressed_bytes": 466,
+    "crc32": "c035eb89",
+    "sha256": "93eaf293562df9f6a29cdb3279e2fcf50c12f3475cd7306356b5dabcdd624e7c"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-798/HardcodedCryptographicValue.bqrs": {
+    "bytes": 761,
+    "compressed_bytes": 416,
+    "crc32": "682957dc",
+    "sha256": "9c70ad2cc8e818c0f0eda63f25000727954e3efd9dae4ce371a4d506ec647f00"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-825/AccessAfterLifetime.bqrs": {
+    "bytes": 753,
+    "compressed_bytes": 442,
+    "crc32": "3afc5cbf",
+    "sha256": "ce3395b6a7618f0fd53f98c8d912ab828c9b1408d1486fd00c1b8deafc3db9ec"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-825/AccessInvalidPointer.bqrs": {
+    "bytes": 707,
+    "compressed_bytes": 423,
+    "crc32": "a7a383ae",
+    "sha256": "b5a96183568256afde35bd7b167329881861e5e7c2ca96337731a920388e1ead"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/security/CWE-918/RequestForgery.bqrs": {
+    "bytes": 623,
+    "compressed_bytes": 395,
+    "crc32": "39ee20cd",
+    "sha256": "be76b335264fba59ba05a661d9e880d2745c0cf903b7fce210e59202f589e360"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/summary/LinesOfCode.bqrs": {
+    "bytes": 655,
+    "compressed_bytes": 390,
+    "crc32": "bd2cceee",
+    "sha256": "981289e0c346c29025de5009f26b28a51318fb0a0c7d105dcd10b6e5f1417146"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/summary/LinesOfUserCode.bqrs": {
+    "bytes": 501,
+    "compressed_bytes": 325,
+    "crc32": "71563ee6",
+    "sha256": "111455785b183df98890736fa244ace9df4edc4b139e48bfe29ff4b82b4c0e41"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/summary/NodesWithTypeAtLengthLimit.bqrs": {
+    "bytes": 398,
+    "compressed_bytes": 269,
+    "crc32": "44ac3732",
+    "sha256": "424dd61efba2c24d580591c8195deba304f95817f2eac6eb9c0cd217d8f57d44"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/summary/NumberOfFilesExtractedWithErrors.bqrs": {
+    "bytes": 520,
+    "compressed_bytes": 319,
+    "crc32": "3ce0af40",
+    "sha256": "eee31b8d8e4a8afdb99553c19f7ce258ecd732b0ee08e64235a01f97832cedfc"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs": {
+    "bytes": 498,
+    "compressed_bytes": 305,
+    "crc32": "517e942b",
+    "sha256": "3e2821428190f399ec962029265cd9921f3b7d1d6173fa265ffcc6c3591bec03"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/summary/QuerySinkCounts.bqrs": {
+    "bytes": 548,
+    "compressed_bytes": 355,
+    "crc32": "72090875",
+    "sha256": "c32125ceb5d5af01c629654cdf8c501e196560364bcffd8c9e19cc527db9f940"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/summary/SummaryStats.bqrs": {
+    "bytes": 1204,
+    "compressed_bytes": 643,
+    "crc32": "95500292",
+    "sha256": "9ab9b30d0a7ff4afa3ae79577f72835526b3d4c0795c483608aec1759cf9df4b"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/summary/SummaryStatsReduced.bqrs": {
+    "bytes": 895,
+    "compressed_bytes": 492,
+    "crc32": "363456a6",
+    "sha256": "9aa40a206910f34bdd30816aa11a4362f259a6622fe631f8499a271f16f50bf2"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/telemetry/DatabaseQualityDiagnostics.bqrs": {
+    "bytes": 351,
+    "compressed_bytes": 238,
+    "crc32": "0011709b",
+    "sha256": "07953064197bebc473edc1f7849428c1965e31543f4ada1147bd24d47a2923fd"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/results/queries/telemetry/ExtractorInformation.bqrs": {
+    "bytes": 1162,
+    "compressed_bytes": 538,
+    "crc32": "c08bbad3",
+    "sha256": "a7418d9cb48ebd43b3f9c5632071b5b2b358b62f0295ff90db31c8bed969a45d"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/retained-summary.json": {
+    "bytes": 609,
+    "compressed_bytes": 357,
+    "crc32": "73c08d10",
+    "sha256": "f27bb6877b3dbb1773ab28b3b3d7b692a6d22ff899eef9e1037ed39aaf90ac59"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/retained-summary.started.json": {
+    "bytes": 494,
+    "compressed_bytes": 316,
+    "crc32": "81e28b70",
+    "sha256": "02f21c584c36860aacb48f6a8a368bff11fb368b24645a06bc14b1166f3d3881"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/retained-summary.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/retained-summary.stdout": {
+    "bytes": 1185,
+    "compressed_bytes": 443,
+    "crc32": "dcc6bf87",
+    "sha256": "f05f212ce3a9847d01191fb595c9a154aac94a83e33faf6fdc7f85dbb19b259e"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/rustc-version.json": {
+    "bytes": 488,
+    "compressed_bytes": 284,
+    "crc32": "81000199",
+    "sha256": "5c3dbfbbb8598bd976d4d6be8b72ba098249b18cb3f3c0e0d96dec8c022b0624"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/rustc-version.started.json": {
+    "bytes": 372,
+    "compressed_bytes": 243,
+    "crc32": "ae346690",
+    "sha256": "4aa502e746abf4f17af5ca96310ec110f041df1e50daa5668e77ff6bfba69b99"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/rustc-version.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/rustc-version.stdout": {
+    "bytes": 196,
+    "compressed_bytes": 149,
+    "crc32": "7adf917d",
+    "sha256": "778fbc643a806f0dd123c056e66201d7e8a56a61928ec0a33171be8d6c2d5a37"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-bounded_process-py.json": {
+    "bytes": 539,
+    "compressed_bytes": 307,
+    "crc32": "65c4659d",
+    "sha256": "46032ecb26592aa5811cce74671286d7f20da319051d49c6d19b28ba1a194203"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-bounded_process-py.started.json": {
+    "bytes": 423,
+    "compressed_bytes": 265,
+    "crc32": "4469eba2",
+    "sha256": "d2142e74dfc0d24dccc5cd36000b9c26d0dbdde8108b3f2d036cf4281f801b90"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-bounded_process-py.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-bounded_process-py.stdout": {
+    "bytes": 51311,
+    "compressed_bytes": 9708,
+    "crc32": "f47832eb",
+    "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_evaluator_logs-py.json": {
+    "bytes": 545,
+    "compressed_bytes": 313,
+    "crc32": "3cc4dd51",
+    "sha256": "2c7290c0316c71134f396a73211f378cbce88f826ffe5018afd776af1e08ddbf"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_evaluator_logs-py.started.json": {
+    "bytes": 429,
+    "compressed_bytes": 271,
+    "crc32": "022039ef",
+    "sha256": "13906822a6ea0152b55903912ad2af43f5d2a7da03fedeed274d441eab23f222"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_evaluator_logs-py.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_evaluator_logs-py.stdout": {
+    "bytes": 12808,
+    "compressed_bytes": 4044,
+    "crc32": "57b4fb42",
+    "sha256": "c0eb3dc25c6c09fa2d5655bf95a285d7fc2f4aedaa6ea133ab8d1ed1793d9a44"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_process_resources-py.json": {
+    "bytes": 549,
+    "compressed_bytes": 312,
+    "crc32": "067396e4",
+    "sha256": "9bfa39c375fecc0daf83e2aeff08a86b3a3ace397d560bf53603364e77ca7588"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_process_resources-py.started.json": {
+    "bytes": 432,
+    "compressed_bytes": 272,
+    "crc32": "5803c168",
+    "sha256": "2ce5c54e9bb5c2536f2459882a3ab8cbaba34bd9942a4b17570adeb91257d3e6"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_process_resources-py.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_process_resources-py.stdout": {
+    "bytes": 16881,
+    "compressed_bytes": 4915,
+    "crc32": "fc530ce5",
+    "sha256": "8b4d14b9667a7c10e653f680311c12db595369f0e6a5b2800aae6beefeec26a6"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_plan-py.json": {
+    "bytes": 541,
+    "compressed_bytes": 310,
+    "crc32": "4b704221",
+    "sha256": "257c1bc58b3e8930063b763cf7805575ba1918a5b687293bbeffbbc866d850f9"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_plan-py.started.json": {
+    "bytes": 424,
+    "compressed_bytes": 267,
+    "crc32": "a69d6aed",
+    "sha256": "62b9375b65075efa22d4b702ff2fb77a2fef69294490dc1d1fba86836c62f825"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_plan-py.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_plan-py.stdout": {
+    "bytes": 27476,
+    "compressed_bytes": 7362,
+    "crc32": "2fe654c3",
+    "sha256": "f3144bf92a35624a29cb98f80c43548b125b334dd7d1db5cd3303c4ba6ae29cc"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_profile-py.json": {
+    "bytes": 544,
+    "compressed_bytes": 313,
+    "crc32": "1006386b",
+    "sha256": "b9438eb0c45876023989008ce85320615a07854871da03622d9952cdfe88a72e"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_profile-py.started.json": {
+    "bytes": 427,
+    "compressed_bytes": 269,
+    "crc32": "77dc96ec",
+    "sha256": "86a8e5c72ef8615ab4cfb94098e74e9e1564f5a4c2c4bbc736783e73d2e4b5c2"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_profile-py.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_profile-py.stdout": {
+    "bytes": 31700,
+    "compressed_bytes": 9290,
+    "crc32": "7e5c59ae",
+    "sha256": "532a5470108200b807197ba9a20c8b626c46440d37226938e5820d11b03e98fa"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_quality-py.json": {
+    "bytes": 542,
+    "compressed_bytes": 312,
+    "crc32": "f1984697",
+    "sha256": "c995d2d7ea6b5cf2332661083f4d0d13f64e51fc0ab3a8f3379b40514edef52f"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_quality-py.started.json": {
+    "bytes": 427,
+    "compressed_bytes": 269,
+    "crc32": "3a1f9ee2",
+    "sha256": "c854272d8af335ed59f9b104e9dd769d30a2225483f68091d2aa8add86895bc8"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_quality-py.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_quality-py.stdout": {
+    "bytes": 38244,
+    "compressed_bytes": 8656,
+    "crc32": "74f1c4b0",
+    "sha256": "78560445e1cbea13bbb57fc379eeaf9f5db4618e98490001a32027c14b2db4f8"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_queries-json.json": {
+    "bytes": 545,
+    "compressed_bytes": 314,
+    "crc32": "94597401",
+    "sha256": "5e86d21a5634798cf547be54ec22821aa3797a38d95512669bc86238ab8e7b3a"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_queries-json.started.json": {
+    "bytes": 429,
+    "compressed_bytes": 269,
+    "crc32": "ed45cf4c",
+    "sha256": "c85ec470332d94e5454f8657b65214a5f78cd859f17ecadf63fe041b74182000"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_queries-json.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_rust_queries-json.stdout": {
+    "bytes": 4737,
+    "compressed_bytes": 2171,
+    "crc32": "5948a1a1",
+    "sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_summary_plan-py.json": {
+    "bytes": 544,
+    "compressed_bytes": 313,
+    "crc32": "e3370461",
+    "sha256": "81b1264f4f716c5b680c223541a59eda08142409efa9058557080a4bc616b21c"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_summary_plan-py.started.json": {
+    "bytes": 427,
+    "compressed_bytes": 269,
+    "crc32": "4acc5b6a",
+    "sha256": "94af359c10d04a2daa724e646476c3529dffc908a758eb1e150189fc89d0576e"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_summary_plan-py.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_summary_plan-py.stdout": {
+    "bytes": 10946,
+    "compressed_bytes": 3732,
+    "crc32": "8c825bf4",
+    "sha256": "bc736901daf1271d287b7fa38a20788013e8a2bea927c70658c5490a89479a6b"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_summary_projection-json.json": {
+    "bytes": 551,
+    "compressed_bytes": 320,
+    "crc32": "4406cc5b",
+    "sha256": "0ec9a16e7bc9a50a35d455431547fe27e5deda9599e02458b31152f72bbea7de"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_summary_projection-json.started.json": {
+    "bytes": 435,
+    "compressed_bytes": 274,
+    "crc32": "1eebad5a",
+    "sha256": "f726dfc85cf153b73e9f719b33f37fde3ac351ff880de4626c82125dc5023680"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_summary_projection-json.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_summary_projection-json.stdout": {
+    "bytes": 6587,
+    "compressed_bytes": 2686,
+    "crc32": "d3a7a981",
+    "sha256": "efd65ee72a4f966620a3d9bd6ac97b0a6d8ef5567017f3c342f654c4e1f55873"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_summary_projection-py.json": {
+    "bytes": 550,
+    "compressed_bytes": 319,
+    "crc32": "34eabee5",
+    "sha256": "49f2d53e68a06ea86f1955a3d4090883b9100b2fe01065aa549d76240461872d"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_summary_projection-py.started.json": {
+    "bytes": 433,
+    "compressed_bytes": 273,
+    "crc32": "cd5dbc59",
+    "sha256": "94d3c2e002f6c5582839a9af7cc84c8b56ac2110dc36bb37c67682cceeb9a89c"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_summary_projection-py.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-codeql_summary_projection-py.stdout": {
+    "bytes": 14848,
+    "compressed_bytes": 4485,
+    "crc32": "51ca20a1",
+    "sha256": "36467935b98f9e1eb8d361713904cef25cf16575407729b0b1e65db53682397d"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-evidence_io-py.json": {
+    "bytes": 535,
+    "compressed_bytes": 304,
+    "crc32": "c27a3bfa",
+    "sha256": "3111117b85c971d5f06a976b85d37b33f70c2cdc12b9331b93b3c7ddc7ec47e4"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-evidence_io-py.started.json": {
+    "bytes": 419,
+    "compressed_bytes": 262,
+    "crc32": "4d5533e7",
+    "sha256": "741c34f708a2f1da8fd5f17e0d8cb69c94fa119fb825e912b71b0df00921f584"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-evidence_io-py.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-evidence_io-py.stdout": {
+    "bytes": 44308,
+    "compressed_bytes": 9803,
+    "crc32": "d93455af",
+    "sha256": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-rust_sdk_profile-py.json": {
+    "bytes": 541,
+    "compressed_bytes": 312,
+    "crc32": "cf688ab7",
+    "sha256": "6c8b1d142a1cd5032175564c42bbb543dfa05cf7adb499324ff7e9e3a82eb254"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-rust_sdk_profile-py.started.json": {
+    "bytes": 424,
+    "compressed_bytes": 266,
+    "crc32": "78cb5f0b",
+    "sha256": "d25d9d32a3efe590e4fcb6ad0b09e1287892bb76b3a1caea829168fb8d498272"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-rust_sdk_profile-py.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/source-rust_sdk_profile-py.stdout": {
+    "bytes": 27974,
+    "compressed_bytes": 8456,
+    "crc32": "192c6517",
+    "sha256": "f23d73ec6afabaee763328557c93f4bf542365384ed8ee10b386b6d697ed7af5"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-cargo.json": {
+    "bytes": 668,
+    "compressed_bytes": 362,
+    "crc32": "77cb5407",
+    "sha256": "57d8538f662516f04387d7d66a32be0cf0bddabf511e4e3b1d2b857c8edb4b4b"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-cargo.started.json": {
+    "bytes": 554,
+    "compressed_bytes": 318,
+    "crc32": "a7e30baa",
+    "sha256": "080cfd7ae052261511b6fe0d1a81c86a5fad56406f739376e169a379091a9b03"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-cargo.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-cargo.stdout": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-rust-src.json": {
+    "bytes": 641,
+    "compressed_bytes": 345,
+    "crc32": "27ba9549",
+    "sha256": "fe4bab920bbb17fcab36ca78a59c485027aa4a91fdb6102abd7c9da843eabb60"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-rust-src.started.json": {
+    "bytes": 527,
+    "compressed_bytes": 299,
+    "crc32": "9ee78fb5",
+    "sha256": "b02d489aa341eb2881469d9f934fcfdfd5837973114a3613d0ac11044c2367db"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-rust-src.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-rust-src.stdout": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-rust-std.json": {
+    "bytes": 674,
+    "compressed_bytes": 364,
+    "crc32": "9a32174f",
+    "sha256": "25027181ee9fbb5f253a8fac7daf8ce936713c1bb7c05e320355474252010701"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-rust-std.started.json": {
+    "bytes": 560,
+    "compressed_bytes": 318,
+    "crc32": "0ef8452d",
+    "sha256": "ed849fb73ed8d528404af472e9b28309f4931e3f81090226b903aa9c9037e0e3"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-rust-std.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-rust-std.stdout": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-rustc.json": {
+    "bytes": 667,
+    "compressed_bytes": 362,
+    "crc32": "4b12dd3f",
+    "sha256": "85822f972aa489f1d7862b6c8179890d455a8bf780975bcf1b0eb40a68583e37"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-rustc.started.json": {
+    "bytes": 554,
+    "compressed_bytes": 318,
+    "crc32": "6427275e",
+    "sha256": "3b5728cfc8dfe9654dec7e1cb522f46ffbcdefc0ad938511551eea7b1585092d"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-rustc.stderr": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/evidence/unpack-rustc.stdout": {
+    "bytes": 0,
+    "compressed_bytes": 2,
+    "crc32": "00000000",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "qperiapt-codeql-wrapper-fixture/extract-logs/test-extract-20261111.182448.233.log": {
+    "bytes": 258996,
+    "compressed_bytes": 29422,
+    "crc32": "90cf1807",
+    "sha256": "af4ea18acea294f8a5fdba07849285c8a70180acf41eef8b6ea3bf15fd5f416a"
+  },
+  "qperiapt-wrapper-source.txt": {
+    "bytes": 82,
+    "compressed_bytes": 62,
+    "crc32": "d518caef",
+    "sha256": "c74df8eb4b4087f66f203879df558cd21b6ed634f68f598ea53f4d63b6203295"
+  }
+}

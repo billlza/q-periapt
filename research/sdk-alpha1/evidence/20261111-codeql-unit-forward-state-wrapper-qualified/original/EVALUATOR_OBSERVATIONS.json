@@ -1,0 +1,61 @@
+{
+  "evaluator_start_lines": 1,
+  "jvm_heap_mb_arguments": [
+    3484
+  ],
+  "logs": [
+    {
+      "bytes": 29319757,
+      "path": "evaluator/execute-queries-20261111.182546.988.log",
+      "sha256": "e242b96c02109457803cb0f846956be06d8f9185799e6ab3433bc5f35aeeae1d"
+    }
+  ],
+  "off_heap_mb_observed": [
+    9329
+  ],
+  "precompiled_query_loads": [
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractedFiles.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractionErrors.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractionWarnings.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/AstConsistencyCounts.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/SsaConsistencyCounts.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/CfgConsistencyCounts.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/UnextractedElements.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/UnresolvedMacroCalls.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/TypeInferenceConsistencyCounts.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/DataFlowConsistencyCounts.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-078/CommandInjection.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-020/RegexInjection.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-022/TaintedPath.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-079/XSS.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-089/SqlInjection.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-117/LogInjection.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-295/DisabledCertificateCheck.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-311/CleartextTransmission.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-312/CleartextLogging.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-327/BrokenCryptoAlgorithm.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-319/UseOfHttp.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-312/CleartextStorageDatabase.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-770/UncontrolledAllocationSize.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-327/WeakSensitiveDataHashing.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-798/HardcodedCryptographicValue.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-614/InsecureCookie.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-825/AccessAfterLifetime.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/LinesOfCode.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/LinesOfUserCode.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NumberOfFilesExtractedWithErrors.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NodesWithTypeAtLengthLimit.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NumberOfSuccessfullyExtractedFiles.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-825/AccessInvalidPointer.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/QuerySinkCounts.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-918/RequestForgery.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/telemetry/DatabaseQualityDiagnostics.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/telemetry/ExtractorInformation.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStatsReduced.qlx",
+    "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStats.qlx"
+  ],
+  "query_compilations": 0,
+  "query_completions": 38,
+  "query_starts": 39,
+  "schema": 1
+}

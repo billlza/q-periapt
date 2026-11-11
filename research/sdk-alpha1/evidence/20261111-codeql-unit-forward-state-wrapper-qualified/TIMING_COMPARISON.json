@@ -1,0 +1,264 @@
+{
+  "cases": {
+    "earlier_wrapper": {
+      "analyze": {
+        "argv": [
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/codeql",
+          "database",
+          "analyze",
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database",
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/frozen.qls",
+          "--format=sarif-latest",
+          "--output=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/evidence/results.sarif",
+          "--threads=4",
+          "--ram=14000",
+          "--off-heap-ram=9329",
+          "--threat-model=local",
+          "--no-download",
+          "--common-caches=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/cache",
+          "--sarif-category=/language:rust",
+          "--dynamic-join-order-mode=all",
+          "--verbosity=progress",
+          "--logdir=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator",
+          "--qlconfig-file=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/qlconfig.yml"
+        ],
+        "cwd": "/home/runner/work/q-periapt/q-periapt",
+        "elapsed_seconds": 71.72268667099999,
+        "finished_at_utc": "2026-11-11T15:32:16.401+00:00",
+        "invoked_at_utc": "2026-11-11T15:31:04.679+00:00",
+        "maximum_seconds": 600,
+        "returncode": 0,
+        "run_attempt": "1",
+        "run_id": "43048934821",
+        "source_commit": "74101a672c945d0e952e283a4750748a8da27065"
+      },
+      "artifact_bytes": 3741772,
+      "artifact_sha256": "8b98728022af8d3a51708e6ac497f1f6184c8a1bb1f33c6f3b80d1bebc1701c3",
+      "evaluator_log": {
+        "bytes": 29133392,
+        "member": "qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator/execute-queries-20261111.153105.899.log",
+        "sha256": "bec7e8a2fd7e67a34d5c2aa7f8aca462f992e04bac8c7b22f1ed3d5b30f21253"
+      },
+      "extract": {
+        "command": [
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extraction-tool/codeql/codeql",
+          "test",
+          "extract",
+          "-J-Xmx1536M",
+          "--database=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database-extracted",
+          "--common-caches=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-cache",
+          "--logdir=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-logs",
+          "--show-extractor-output",
+          "--format=json",
+          "--",
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/reproduction/fixture/env"
+        ],
+        "cwd": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture",
+        "environment_inputs": {
+          "CARGO_NET_OFFLINE": "true",
+          "CODEQL_EXTRACTOR_RUST_SYSROOT": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust",
+          "CODEQL_EXTRACTOR_RUST_SYSROOT_SRC": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust-source/rust-src/lib/rustlib/src/rust/library",
+          "PATH": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust/bin:/usr/bin:/bin"
+        },
+        "finished_utc": "2026-11-11T15:30:58.551690+00:00",
+        "maximum_seconds": 300,
+        "returncode": 0,
+        "seconds": 40.85847585799999,
+        "started_utc": "2026-11-11T15:30:17.692990+00:00"
+      },
+      "milestones": [
+        {
+          "line": 4757,
+          "text": "[2026-11-11 15:31:07] [PROGRESS] execute queries> [1/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractedFiles.qlx."
+        },
+        {
+          "line": 4830,
+          "text": "[2026-11-11 15:31:09] [PROGRESS] execute queries> [39/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStats.qlx."
+        },
+        {
+          "line": 11092,
+          "text": "[2026-11-11 15:31:12] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/SummaryStats.ql."
+        },
+        {
+          "line": 152219,
+          "text": "[2026-11-11 15:32:13] [PROGRESS] execute queries> [39/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs."
+        }
+      ],
+      "summary_progress": "[39/39 eval 1m0s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs."
+    },
+    "forward_fusion": {
+      "analyze": {
+        "argv": [
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/codeql",
+          "database",
+          "analyze",
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database",
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/frozen.qls",
+          "--format=sarif-latest",
+          "--output=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/evidence/results.sarif",
+          "--threads=4",
+          "--ram=14000",
+          "--off-heap-ram=9329",
+          "--threat-model=local",
+          "--no-download",
+          "--common-caches=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/cache",
+          "--sarif-category=/language:rust",
+          "--dynamic-join-order-mode=all",
+          "--verbosity=progress",
+          "--logdir=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator",
+          "--qlconfig-file=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/qlconfig.yml"
+        ],
+        "cwd": "/home/runner/work/q-periapt/q-periapt",
+        "elapsed_seconds": 86.180217655,
+        "finished_at_utc": "2026-11-11T17:40:18.661+00:00",
+        "invoked_at_utc": "2026-11-11T17:38:52.481+00:00",
+        "maximum_seconds": 600,
+        "returncode": 0,
+        "run_attempt": "1",
+        "run_id": "43069971846",
+        "source_commit": "e28782427c519f46750445c906a56a77ceb9c1fe"
+      },
+      "artifact_bytes": 3696640,
+      "artifact_sha256": "da02e25c836dcbef67a6d97d4d440ed051caf66ba4c0316cf6846f11801ccc13",
+      "evaluator_log": {
+        "bytes": 28398388,
+        "member": "qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator/execute-queries-20261111.173853.965.log",
+        "sha256": "4a8dbf55e9b633e44ba4a0c5b73f440538537f6dd3ff596f95a2bb3f99dc06d8"
+      },
+      "extract": {
+        "command": [
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extraction-tool/codeql/codeql",
+          "test",
+          "extract",
+          "-J-Xmx1536M",
+          "--database=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database-extracted",
+          "--common-caches=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-cache",
+          "--logdir=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-logs",
+          "--show-extractor-output",
+          "--format=json",
+          "--",
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/reproduction/fixture/env"
+        ],
+        "cwd": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture",
+        "environment_inputs": {
+          "CARGO_NET_OFFLINE": "true",
+          "CODEQL_EXTRACTOR_RUST_SYSROOT": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust",
+          "CODEQL_EXTRACTOR_RUST_SYSROOT_SRC": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust-source/rust-src/lib/rustlib/src/rust/library",
+          "PATH": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust/bin:/usr/bin:/bin"
+        },
+        "finished_utc": "2026-11-11T17:38:44.588732+00:00",
+        "maximum_seconds": 300,
+        "returncode": 0,
+        "seconds": 44.924213953000006,
+        "started_utc": "2026-11-11T17:37:59.664343+00:00"
+      },
+      "milestones": [
+        {
+          "line": 4757,
+          "text": "[2026-11-11 17:38:56] [PROGRESS] execute queries> [1/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractedFiles.qlx."
+        },
+        {
+          "line": 4830,
+          "text": "[2026-11-11 17:38:58] [PROGRESS] execute queries> [39/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStats.qlx."
+        },
+        {
+          "line": 11084,
+          "text": "[2026-11-11 17:39:02] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/SummaryStats.ql."
+        },
+        {
+          "line": 149652,
+          "text": "[2026-11-11 17:40:15] [PROGRESS] execute queries> [39/39 eval 1m13s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs."
+        }
+      ],
+      "summary_progress": "[39/39 eval 1m13s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs."
+    },
+    "unit_state": {
+      "analyze": {
+        "argv": [
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/codeql",
+          "database",
+          "analyze",
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database",
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/frozen.qls",
+          "--format=sarif-latest",
+          "--output=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/evidence/results.sarif",
+          "--threads=4",
+          "--ram=14000",
+          "--off-heap-ram=9329",
+          "--threat-model=local",
+          "--no-download",
+          "--common-caches=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/cache",
+          "--sarif-category=/language:rust",
+          "--dynamic-join-order-mode=all",
+          "--verbosity=progress",
+          "--logdir=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator",
+          "--qlconfig-file=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/qlconfig.yml"
+        ],
+        "cwd": "/home/runner/work/q-periapt/q-periapt",
+        "elapsed_seconds": 94.944334919,
+        "finished_at_utc": "2026-11-11T18:27:20.380+00:00",
+        "invoked_at_utc": "2026-11-11T18:25:45.435+00:00",
+        "maximum_seconds": 600,
+        "returncode": 0,
+        "run_attempt": "1",
+        "run_id": "43076555996",
+        "source_commit": "e9ecdb3c5f0cbb496a3be9a1b0bebd518b1fbebe"
+      },
+      "artifact_bytes": 3769482,
+      "artifact_sha256": "0ec4111efbc5109df1125033f830860673caee6915d866898b4cc2b628da1581",
+      "evaluator_log": {
+        "bytes": 29319757,
+        "member": "qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator/execute-queries-20261111.182546.988.log",
+        "sha256": "e242b96c02109457803cb0f846956be06d8f9185799e6ab3433bc5f35aeeae1d"
+      },
+      "extract": {
+        "command": [
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extraction-tool/codeql/codeql",
+          "test",
+          "extract",
+          "-J-Xmx1536M",
+          "--database=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database-extracted",
+          "--common-caches=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-cache",
+          "--logdir=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-logs",
+          "--show-extractor-output",
+          "--format=json",
+          "--",
+          "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/reproduction/fixture/env"
+        ],
+        "cwd": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture",
+        "environment_inputs": {
+          "CARGO_NET_OFFLINE": "true",
+          "CODEQL_EXTRACTOR_RUST_SYSROOT": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust",
+          "CODEQL_EXTRACTOR_RUST_SYSROOT_SRC": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust-source/rust-src/lib/rustlib/src/rust/library",
+          "PATH": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust/bin:/usr/bin:/bin"
+        },
+        "finished_utc": "2026-11-11T18:25:38.704306+00:00",
+        "maximum_seconds": 300,
+        "returncode": 0,
+        "seconds": 50.998139436,
+        "started_utc": "2026-11-11T18:24:47.705947+00:00"
+      },
+      "milestones": [
+        {
+          "line": 4757,
+          "text": "[2026-11-11 18:25:49] [PROGRESS] execute queries> [1/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractedFiles.qlx."
+        },
+        {
+          "line": 4830,
+          "text": "[2026-11-11 18:25:51] [PROGRESS] execute queries> [39/39] Loaded /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStats.qlx."
+        },
+        {
+          "line": 11107,
+          "text": "[2026-11-11 18:25:55] [PROGRESS] execute queries> Starting evaluation of codeql/rust-queries/queries/summary/SummaryStats.ql."
+        },
+        {
+          "line": 152733,
+          "text": "[2026-11-11 18:27:17] [PROGRESS] execute queries> [39/39 eval 1m21s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs."
+        }
+      ],
+      "summary_progress": "[39/39 eval 1m21s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs."
+    }
+  },
+  "measurements": "Original command receipts and displayed progress lines, kept at recorded precision. Query times are not additive or stage-attributed.",
+  "schema": 1
+}

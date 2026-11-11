@@ -1,0 +1,17 @@
+{
+  "production_commit": "ed38e305552db2825d90622c130973df87e16d50",
+  "production_tree": "9daa64caa7814d759397fbde3218b6a2f6721348",
+  "production_parent": "9c0d63d4d258f126af92a8bda64aec090019a1b3",
+  "workflow_commit": "e9ecdb3c5f0cbb496a3be9a1b0bebd518b1fbebe",
+  "workflow_tree": "937e62defb074235d0e43074eee236c7b65522b0",
+  "run_id": 43076555996,
+  "job_id": 130717765889,
+  "artifact_id": 13882738653,
+  "artifact_bytes": 3769482,
+  "artifact_sha256": "0ec4111efbc5109df1125033f830860673caee6915d866898b4cc2b628da1581",
+  "method_blob": "7ddd709645baa65f47e58cdf40049ca947d86ef4",
+  "contract_tests": 10,
+  "status": "independent_full_readback_passed",
+  "publication_parent": "1dd35b683864c2b2b35aa879486e62fd7fdaf0c6",
+  "publication_parent_tree": "5d1a0c4fefdcb61cc1fdee54df0f679b1b2f9480"
+}

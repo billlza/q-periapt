@@ -1,0 +1,8 @@
+Running database init in /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/reproduction/fixture/env.
+Running legacy rust test extraction in /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/reproduction/fixture/env.
+Finalizing test database in /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/reproduction/fixture/env.
+Running TRAP import for CodeQL database at /home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database-extracted...
+Importing TRAP files
+Merging relations
+Finished writing database (relations: 39.73 MiB; string pool: 11.03 MiB).
+TRAP import complete (17.4s).

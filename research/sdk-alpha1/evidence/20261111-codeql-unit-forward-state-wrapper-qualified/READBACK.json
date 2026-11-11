@@ -1,0 +1,447 @@
+{
+  "analysis": {
+    "argv": [
+      "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/codeql",
+      "database",
+      "analyze",
+      "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database",
+      "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/frozen.qls",
+      "--format=sarif-latest",
+      "--output=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/evidence/results.sarif",
+      "--threads=4",
+      "--ram=14000",
+      "--off-heap-ram=9329",
+      "--threat-model=local",
+      "--no-download",
+      "--common-caches=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/cache",
+      "--sarif-category=/language:rust",
+      "--dynamic-join-order-mode=all",
+      "--verbosity=progress",
+      "--logdir=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator",
+      "--qlconfig-file=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/qlconfig.yml"
+    ],
+    "cwd": "/home/runner/work/q-periapt/q-periapt",
+    "elapsed_seconds": 94.944334919,
+    "finished_at_utc": "2026-11-11T18:27:20.380+00:00",
+    "invoked_at_utc": "2026-11-11T18:25:45.435+00:00",
+    "maximum_seconds": 600,
+    "returncode": 0,
+    "run_attempt": "1",
+    "run_id": "43076555996",
+    "source_commit": "e9ecdb3c5f0cbb496a3be9a1b0bebd518b1fbebe"
+  },
+  "artifact": {
+    "bytes": 3769482,
+    "sha256": "0ec4111efbc5109df1125033f830860673caee6915d866898b4cc2b628da1581"
+  },
+  "artifact_id": 13882738653,
+  "attempt": 1,
+  "completion_receipt": {
+    "bytes": 22434,
+    "queries": [
+      "queries/diagnostics/AstConsistencyCounts.ql",
+      "queries/diagnostics/CfgConsistencyCounts.ql",
+      "queries/diagnostics/DataFlowConsistencyCounts.ql",
+      "queries/diagnostics/ExtractedFiles.ql",
+      "queries/diagnostics/ExtractionErrors.ql",
+      "queries/diagnostics/ExtractionWarnings.ql",
+      "queries/diagnostics/SsaConsistencyCounts.ql",
+      "queries/diagnostics/TypeInferenceConsistencyCounts.ql",
+      "queries/diagnostics/UnextractedElements.ql",
+      "queries/diagnostics/UnresolvedMacroCalls.ql",
+      "queries/security/CWE-020/RegexInjection.ql",
+      "queries/security/CWE-022/TaintedPath.ql",
+      "queries/security/CWE-078/CommandInjection.ql",
+      "queries/security/CWE-079/XSS.ql",
+      "queries/security/CWE-089/SqlInjection.ql",
+      "queries/security/CWE-117/LogInjection.ql",
+      "queries/security/CWE-295/DisabledCertificateCheck.ql",
+      "queries/security/CWE-311/CleartextTransmission.ql",
+      "queries/security/CWE-312/CleartextLogging.ql",
+      "queries/security/CWE-312/CleartextStorageDatabase.ql",
+      "queries/security/CWE-319/UseOfHttp.ql",
+      "queries/security/CWE-327/BrokenCryptoAlgorithm.ql",
+      "queries/security/CWE-327/WeakSensitiveDataHashing.ql",
+      "queries/security/CWE-614/InsecureCookie.ql",
+      "queries/security/CWE-770/UncontrolledAllocationSize.ql",
+      "queries/security/CWE-798/HardcodedCryptographicValue.ql",
+      "queries/security/CWE-825/AccessAfterLifetime.ql",
+      "queries/security/CWE-825/AccessInvalidPointer.ql",
+      "queries/security/CWE-918/RequestForgery.ql",
+      "queries/summary/LinesOfCode.ql",
+      "queries/summary/LinesOfUserCode.ql",
+      "queries/summary/NodesWithTypeAtLengthLimit.ql",
+      "queries/summary/NumberOfFilesExtractedWithErrors.ql",
+      "queries/summary/NumberOfSuccessfullyExtractedFiles.ql",
+      "queries/summary/QuerySinkCounts.ql",
+      "queries/summary/SummaryStats.ql",
+      "queries/summary/SummaryStatsReduced.ql",
+      "queries/telemetry/DatabaseQualityDiagnostics.ql",
+      "queries/telemetry/ExtractorInformation.ql"
+    ],
+    "schema": 1,
+    "sha256": "78768a63e60fc552510f24c81b9870d6b80378f19e98f791f8364e1d12cb02cb",
+    "source": "analyze.stderr"
+  },
+  "contract_tests": {
+    "passed": true,
+    "seconds": 0.028,
+    "tests": 10
+  },
+  "decode": {
+    "argv": [
+      "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/analysis-plan/tool/codeql/codeql",
+      "bqrs",
+      "decode",
+      "--format=json",
+      "-J-Xmx512M",
+      "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database/results/codeql/rust-queries/queries/summary/SummaryStats.bqrs"
+    ],
+    "cwd": "/home/runner/work/q-periapt/q-periapt",
+    "elapsed_seconds": 0.5483288970000046,
+    "finished_at_utc": "2026-11-11T18:27:21.286+00:00",
+    "invoked_at_utc": "2026-11-11T18:27:20.738+00:00",
+    "maximum_seconds": 120,
+    "returncode": 0,
+    "run_attempt": "1",
+    "run_id": "43076555996",
+    "source_commit": "e9ecdb3c5f0cbb496a3be9a1b0bebd518b1fbebe"
+  },
+  "decoded_summary": {
+    "bytes": 1185,
+    "retained_baseline_byte_equal": true,
+    "retained_baseline_semantic_equal": true,
+    "rows": 29,
+    "semantic_sha256": "e2582f4726e1866ef348bf49f05d8c70c62afc6ce8a913eb883bf88684101725",
+    "sha256": "f05f212ce3a9847d01191fb595c9a154aac94a83e33faf6fdc7f85dbb19b259e",
+    "values": {
+      "Elements extracted": 5252379,
+      "Elements unextracted": 0,
+      "Extraction errors": 0,
+      "Extraction warnings": 0,
+      "Files extracted - total": 2917,
+      "Files extracted - total user": 2,
+      "Files extracted - with errors": 0,
+      "Files extracted - without errors": 2,
+      "Files extracted - without errors %": 100,
+      "Inconsistencies - AST": 0,
+      "Inconsistencies - CFG": 0,
+      "Inconsistencies - Path resolution": 0,
+      "Inconsistencies - SSA": 0,
+      "Inconsistencies - Type inference": 0,
+      "Inconsistencies - data flow": 0,
+      "Lines of code extracted": 53,
+      "Lines of user code extracted": 53,
+      "Macro calls - resolved": 6,
+      "Macro calls - total": 6,
+      "Macro calls - unresolved": 0,
+      "Taint edges - number of edges": 34775,
+      "Taint reach - nodes tainted": 106,
+      "Taint reach - per million nodes": 33618,
+      "Taint reach - total non-summary nodes": 3153,
+      "Taint sinks - cryptographic operations": 0,
+      "Taint sinks - query sinks": 7,
+      "Taint sources - active": 15,
+      "Taint sources - disabled": 0,
+      "Taint sources - sensitive data": 0
+    }
+  },
+  "evaluator_invocations": 1,
+  "extraction": {
+    "command": [
+      "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extraction-tool/codeql/codeql",
+      "test",
+      "extract",
+      "-J-Xmx1536M",
+      "--database=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database-extracted",
+      "--common-caches=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-cache",
+      "--logdir=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-logs",
+      "--show-extractor-output",
+      "--format=json",
+      "--",
+      "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/reproduction/fixture/env"
+    ],
+    "cwd": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture",
+    "environment_inputs": {
+      "CARGO_NET_OFFLINE": "true",
+      "CODEQL_EXTRACTOR_RUST_SYSROOT": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust",
+      "CODEQL_EXTRACTOR_RUST_SYSROOT_SRC": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust-source/rust-src/lib/rustlib/src/rust/library",
+      "PATH": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust/bin:/usr/bin:/bin"
+    },
+    "finished_utc": "2026-11-11T18:25:38.704306+00:00",
+    "maximum_seconds": 300,
+    "returncode": 0,
+    "seconds": 50.998139436,
+    "started_utc": "2026-11-11T18:24:47.705947+00:00"
+  },
+  "fresh_result_count": 39,
+  "fresh_result_identities": {
+    "queries/diagnostics/AstConsistencyCounts.bqrs": {
+      "bytes": 615,
+      "sha256": "968ab4c24cbab3760f95f3a613c66edbf9e7e1c47cac9ce16a2d82145f32c98c"
+    },
+    "queries/diagnostics/CfgConsistencyCounts.bqrs": {
+      "bytes": 787,
+      "sha256": "27e3131c146fffe85b3d89ded379abd4c83e5b2152aec9036d8f328f34c4aae6"
+    },
+    "queries/diagnostics/DataFlowConsistencyCounts.bqrs": {
+      "bytes": 1655,
+      "sha256": "ec0e77bc1ae8119661c1933db41e56f3954d783cd844413724a6f7e00f867e77"
+    },
+    "queries/diagnostics/ExtractedFiles.bqrs": {
+      "bytes": 802,
+      "sha256": "5432dbc8bcb296c06bfde3f044d0e8ce5df9b66a05abf0994768ed0ee24298ad"
+    },
+    "queries/diagnostics/ExtractionErrors.bqrs": {
+      "bytes": 339,
+      "sha256": "3a2d977c341859ecd50e3716bcc56d990d6162a51aa6dc1a48a4e4d919232c23"
+    },
+    "queries/diagnostics/ExtractionWarnings.bqrs": {
+      "bytes": 349,
+      "sha256": "deb57c50daac1fb257c30cf735f65cb7e148fa73f793703171f885a41caa20bd"
+    },
+    "queries/diagnostics/SsaConsistencyCounts.bqrs": {
+      "bytes": 880,
+      "sha256": "49b5bcaa6748eb1fa8c77d307ee5260b571954fe0991555c9eaf1bb507c001f0"
+    },
+    "queries/diagnostics/TypeInferenceConsistencyCounts.bqrs": {
+      "bytes": 591,
+      "sha256": "e46a3d657225e6bf199924d4054bc3a8a8689f6f9e5bb5e2a851f119f9a0448f"
+    },
+    "queries/diagnostics/UnextractedElements.bqrs": {
+      "bytes": 361,
+      "sha256": "7eb81bb425719f6e5ac1a0c5cf08472f21689f2497b8adee963a93f263eb1773"
+    },
+    "queries/diagnostics/UnresolvedMacroCalls.bqrs": {
+      "bytes": 338,
+      "sha256": "e305f582a1647c45256980bf5b56b768d00101f71daf3e4077fb300b3a16ea18"
+    },
+    "queries/security/CWE-020/RegexInjection.bqrs": {
+      "bytes": 857,
+      "sha256": "318a0f2415b6abd8d3f44fd96af71ac84334e263457342394ef976d14164d8ea"
+    },
+    "queries/security/CWE-022/TaintedPath.bqrs": {
+      "bytes": 753,
+      "sha256": "3fc505a2b1597f1245f8f2c62a48c6bfc00d25ebe98896ec14d39adb85db1f42"
+    },
+    "queries/security/CWE-078/CommandInjection.bqrs": {
+      "bytes": 712,
+      "sha256": "dc54e86653357bfb2c595251e5726c7a13e0befb9e7fe5a9503e9d5143fb014d"
+    },
+    "queries/security/CWE-079/XSS.bqrs": {
+      "bytes": 646,
+      "sha256": "07108bbf4c1a2114bd9adbee69bfb25af2064668580b85faaf9e733f8a96eeac"
+    },
+    "queries/security/CWE-089/SqlInjection.bqrs": {
+      "bytes": 665,
+      "sha256": "3e91aefb6f3681395ed1ec4e95082365e75165760ed3e72602cf3e44a52faf17"
+    },
+    "queries/security/CWE-117/LogInjection.bqrs": {
+      "bytes": 658,
+      "sha256": "86beff82f931b5033cf98e3b37c2ac2be7c678bff789d9d947840d6140184665"
+    },
+    "queries/security/CWE-295/DisabledCertificateCheck.bqrs": {
+      "bytes": 676,
+      "sha256": "e43e5531a9b0f73bc9402d7d43130ca2563a41917983115d58877c8fa599733b"
+    },
+    "queries/security/CWE-311/CleartextTransmission.bqrs": {
+      "bytes": 695,
+      "sha256": "1d6ac6c0401f5b502fafc00c5879e23a3ba22d007a33de9eb96cee692d17215e"
+    },
+    "queries/security/CWE-312/CleartextLogging.bqrs": {
+      "bytes": 710,
+      "sha256": "afa5b5cd186fccf697f72106ba652c5be455308e6c84b23e0c0da5662d1f8451"
+    },
+    "queries/security/CWE-312/CleartextStorageDatabase.bqrs": {
+      "bytes": 704,
+      "sha256": "f6caa846c12497be3e79015cb81046167a040bbc122835dd66f330f5be09caa4"
+    },
+    "queries/security/CWE-319/UseOfHttp.bqrs": {
+      "bytes": 613,
+      "sha256": "d21762a1693fa6fb62d480e2a79a1c6f853319d69940ca5391342038a08bdff4"
+    },
+    "queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs": {
+      "bytes": 524,
+      "sha256": "538f90efaec9b2b93ea58fdef1de7661fa1447814ace83809b92eba2ea7c5448"
+    },
+    "queries/security/CWE-327/WeakSensitiveDataHashing.bqrs": {
+      "bytes": 738,
+      "sha256": "f4daed7350ee7f6685ccdbb45b7e72443d0e5204ac5945528415419f644ef3df"
+    },
+    "queries/security/CWE-614/InsecureCookie.bqrs": {
+      "bytes": 769,
+      "sha256": "f63dc761d7a6f7e379a029514901544c8a62d49a216c332d37d1272d07fbd968"
+    },
+    "queries/security/CWE-770/UncontrolledAllocationSize.bqrs": {
+      "bytes": 823,
+      "sha256": "93eaf293562df9f6a29cdb3279e2fcf50c12f3475cd7306356b5dabcdd624e7c"
+    },
+    "queries/security/CWE-798/HardcodedCryptographicValue.bqrs": {
+      "bytes": 761,
+      "sha256": "9c70ad2cc8e818c0f0eda63f25000727954e3efd9dae4ce371a4d506ec647f00"
+    },
+    "queries/security/CWE-825/AccessAfterLifetime.bqrs": {
+      "bytes": 753,
+      "sha256": "ce3395b6a7618f0fd53f98c8d912ab828c9b1408d1486fd00c1b8deafc3db9ec"
+    },
+    "queries/security/CWE-825/AccessInvalidPointer.bqrs": {
+      "bytes": 707,
+      "sha256": "b5a96183568256afde35bd7b167329881861e5e7c2ca96337731a920388e1ead"
+    },
+    "queries/security/CWE-918/RequestForgery.bqrs": {
+      "bytes": 623,
+      "sha256": "be76b335264fba59ba05a661d9e880d2745c0cf903b7fce210e59202f589e360"
+    },
+    "queries/summary/LinesOfCode.bqrs": {
+      "bytes": 655,
+      "sha256": "981289e0c346c29025de5009f26b28a51318fb0a0c7d105dcd10b6e5f1417146"
+    },
+    "queries/summary/LinesOfUserCode.bqrs": {
+      "bytes": 501,
+      "sha256": "111455785b183df98890736fa244ace9df4edc4b139e48bfe29ff4b82b4c0e41"
+    },
+    "queries/summary/NodesWithTypeAtLengthLimit.bqrs": {
+      "bytes": 398,
+      "sha256": "424dd61efba2c24d580591c8195deba304f95817f2eac6eb9c0cd217d8f57d44"
+    },
+    "queries/summary/NumberOfFilesExtractedWithErrors.bqrs": {
+      "bytes": 520,
+      "sha256": "eee31b8d8e4a8afdb99553c19f7ce258ecd732b0ee08e64235a01f97832cedfc"
+    },
+    "queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs": {
+      "bytes": 498,
+      "sha256": "3e2821428190f399ec962029265cd9921f3b7d1d6173fa265ffcc6c3591bec03"
+    },
+    "queries/summary/QuerySinkCounts.bqrs": {
+      "bytes": 548,
+      "sha256": "c32125ceb5d5af01c629654cdf8c501e196560364bcffd8c9e19cc527db9f940"
+    },
+    "queries/summary/SummaryStats.bqrs": {
+      "bytes": 1204,
+      "sha256": "9ab9b30d0a7ff4afa3ae79577f72835526b3d4c0795c483608aec1759cf9df4b"
+    },
+    "queries/summary/SummaryStatsReduced.bqrs": {
+      "bytes": 895,
+      "sha256": "9aa40a206910f34bdd30816aa11a4362f259a6622fe631f8499a271f16f50bf2"
+    },
+    "queries/telemetry/DatabaseQualityDiagnostics.bqrs": {
+      "bytes": 351,
+      "sha256": "07953064197bebc473edc1f7849428c1965e31543f4ada1147bd24d47a2923fd"
+    },
+    "queries/telemetry/ExtractorInformation.bqrs": {
+      "bytes": 1162,
+      "sha256": "a7418d9cb48ebd43b3f9c5632071b5b2b358b62f0295ff90db31c8bed969a45d"
+    }
+  },
+  "hosted_source_pack_runtime_postchecks_passed": true,
+  "implicit_compilations": 0,
+  "initial_bqrs_count": 0,
+  "initial_database_files": 6651,
+  "initial_database_inventory_sha256": "0c43dabf4161068da76d41c98837531523260f880b9c2009071405be6b398dab",
+  "internal_completions": 38,
+  "internal_missing_completion_paths": [
+    "codeql/rust-queries/queries/security/CWE-319/UseOfHttp.bqrs"
+  ],
+  "internal_precompiled_loads": 39,
+  "internal_starts": 39,
+  "job_id": 130717765889,
+  "memory": {
+    "codeql_version": "2.27.2",
+    "heap_mb": 3484,
+    "off_heap_ram_mb": 9329,
+    "profile": "native",
+    "remaining_budget_mb": 1187,
+    "requested_ram_mb": 14000,
+    "resolved_arguments": [
+      "-J-Xmx3484M",
+      "--off-heap-ram=9329"
+    ],
+    "schema": 1
+  },
+  "pack_inventory_files": 1357,
+  "pack_inventory_sha256": "332897d1bbd8506384f3788f1e27635593b815e7a7e739154e6b340885e726be",
+  "production_commit": "ed38e305552db2825d90622c130973df87e16d50",
+  "projection_before_after_equal": true,
+  "projection_key": "c327768d3f383933ff70cd941341916b",
+  "readback_execution": "Original bytes only; no additional CodeQL, JVM, compilation, extraction, query or test run.",
+  "result_copies_verified": 78,
+  "run_id": 43076555996,
+  "runtime": {
+    "bytes": 231156107,
+    "files": 2282,
+    "inventory_sha256": "1d61c12cb67e01730a1ec5031aefe669035e52290081dc6822333cb5ab861c90"
+  },
+  "sarif": {
+    "bytes": 58219,
+    "category": "/language:rust/",
+    "execution_successful": true,
+    "run_count": 1,
+    "security_result_count": 0,
+    "sha256": "4e50a51299106fc0573ffcbc6a10726aa47ba956a8e9bbde1b4738ab2daed639",
+    "tool": "CodeQL 2.27.2",
+    "tool_warning_error_notifications": 0,
+    "version": "2.1.0"
+  },
+  "sarif_uploaded": false,
+  "schema": 1,
+  "source_contract_files_verified": {
+    "bounded_process.py": {
+      "bytes": 51311,
+      "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45"
+    },
+    "codeql_evaluator_logs.py": {
+      "bytes": 12808,
+      "sha256": "c0eb3dc25c6c09fa2d5655bf95a285d7fc2f4aedaa6ea133ab8d1ed1793d9a44"
+    },
+    "codeql_process_resources.py": {
+      "bytes": 16881,
+      "sha256": "8b4d14b9667a7c10e653f680311c12db595369f0e6a5b2800aae6beefeec26a6"
+    },
+    "codeql_rust_plan.py": {
+      "bytes": 27476,
+      "sha256": "f3144bf92a35624a29cb98f80c43548b125b334dd7d1db5cd3303c4ba6ae29cc"
+    },
+    "codeql_rust_profile.py": {
+      "bytes": 31700,
+      "sha256": "532a5470108200b807197ba9a20c8b626c46440d37226938e5820d11b03e98fa"
+    },
+    "codeql_rust_quality.py": {
+      "bytes": 38244,
+      "sha256": "78560445e1cbea13bbb57fc379eeaf9f5db4618e98490001a32027c14b2db4f8"
+    },
+    "codeql_rust_queries.json": {
+      "bytes": 4737,
+      "sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b"
+    },
+    "codeql_summary_plan.py": {
+      "bytes": 10946,
+      "sha256": "bc736901daf1271d287b7fa38a20788013e8a2bea927c70658c5490a89479a6b"
+    },
+    "codeql_summary_projection.json": {
+      "bytes": 6587,
+      "sha256": "efd65ee72a4f966620a3d9bd6ac97b0a6d8ef5567017f3c342f654c4e1f55873"
+    },
+    "codeql_summary_projection.py": {
+      "bytes": 14848,
+      "sha256": "36467935b98f9e1eb8d361713904cef25cf16575407729b0b1e65db53682397d"
+    },
+    "evidence_io.py": {
+      "bytes": 44308,
+      "sha256": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d"
+    },
+    "rust_sdk_profile.py": {
+      "bytes": 27974,
+      "sha256": "f23d73ec6afabaee763328557c93f4bf542365384ed8ee10b386b6d697ed7af5"
+    }
+  },
+  "stderr_complete_frozen_query_set": true,
+  "stderr_distinct_completion_count": 39,
+  "three_target_publication_claimed": false,
+  "whole_wrapper_qualified": true,
+  "workflow_commit": "e9ecdb3c5f0cbb496a3be9a1b0bebd518b1fbebe",
+  "workflow_conclusion": "success",
+  "wrapper_method_verified": {
+    "bytes": 26622,
+    "sha256": "76f9c636453debcbb304418a9790738149a47aba6b9e0a12373f506935367679"
+  }
+}
