@@ -1,4 +1,4 @@
-# Stage3 and Stage4 read-target projection
+# Stage3 and Stage4 projected forward closure
 
 The `projection` mode gives the full Rust SummaryStats query an explicit,
 source-bound compiled plan. Within each of the Stage3 and Stage4 forward
@@ -6,6 +6,9 @@ recursions, it carries the six columns consumed by the next forward state. The
 original eleven-column read relation is reconstructed after each closure for its
 complete downstream consumers, including reverse traversal and PathGraph. The source patch retains
 the original join, both type checks, and both access-path branches.
+In the same two stages, their singleton `Unit` type permits the candidate and
+filtering layers to be fused into the six-column forward closure. Every original
+seven-column consumer is preserved through an exact equal-type embedding.
 
 The retained-database controller exposes three explicit modes:
 
@@ -13,10 +16,10 @@ The retained-database controller exposes three explicit modes:
 | --- | --- | --- | --- |
 | `none` (default) | Original official QLX | Original official source | `none` |
 | `all` | Existing fixed join-order capsule | Original official source | `all` |
-| `projection` | Fixed Stage3+Stage4 target-projection capsule | One declared vendor patch | `all` |
+| `projection` | Fixed Stage3+Stage4 projection and state-fusion capsule | One declared vendor patch | `all` |
 
 `projection` is an admission mode, not a new CodeQL command-line value. Its
-compiler input key is `6a7530eb694360655ab8331a895c9fcd`. Both retained-database allocation arms use
+compiler input key is `0ee092250be1b05f03b994a868d639cc`. Both retained-database allocation arms use
 the same capsule and patch. The comparison command must select `projection`
 explicitly; reports from other modes cannot be substituted even though `all`
 and `projection` have the same evaluator join option.
@@ -28,10 +31,11 @@ official Rust CLI 2.27.2 bundle, all 39 root-query identities, the original
 compiled-query inventory, the projected inventory, and the complete capsule.
 Its digest is independently fixed in the installer. The capsule contains the
 full SummaryStats QLX and its 15 referenced stages. Its SHA-256 is
-`5b17fb41cd3c59fea564ec4e9cb49ef586c0ad06ccc3f2445e46b7b5ca8430cb`.
+`d90df7ba37cc05bfa7f603f74e9758b9dd0d791920b9e67b42d66414196dcbdf`.
 
-These pins identify the Stage3+Stage4 product. The earlier Stage4-only capsule
-has a different compiler key, source inventory and compiled-query inventory;
+These pins identify the Stage3+Stage4 projection with Unit forward-state fusion.
+The earlier Stage4-only and Stage3+Stage4 projection capsules have different
+compiler keys, source inventories and compiled-query inventories;
 the current admission checks distinguish those products even though their
 controller mode is named `projection`.
 
@@ -161,6 +165,36 @@ recursive layer and the complete eleven-column relation outside it. Both later
 equivalence and the intended compiled structure. Runtime completion and resource
 measurements are obtained from the explicitly selected evaluation and retained
 in its report.
+
+## Unit forward-state fusion
+
+Stage3 and Stage4 both set `Typ = Unit`. In these instantiations, the two type
+positions of `fwdFlow1` necessarily contain the same unique value. The candidate
+copies the complete `fwdFlow0` body and its original outer filtering conjunction
+into `fwdFlow`; it reconstructs the seven-column `fwdFlow1` relation by inserting
+the equal initial-type column. All other stages select the original bodies.
+
+This is an order-preserving correspondence between fixed points of the original
+and fused equations. The two forward type-flow consumers retain positive
+feedback through the reconstructed relation, and the Graph consumer retains its
+original signature. At a fixed point the seven-column relation is exactly
+`fwdFlow1(n,c,s,t0,t,a,v) = (t0 = t and fwdFlow(n,c,s,t,a,v))`.
+Substituting this equality in all consumers and the original candidate body in
+its sole filtered consumer preserves the order and least fixed point. The
+argument retains every original branch and guard; it does not depend on equal
+observed row counts or on matching iteration schedules.
+
+The final official 2.27.2 compilation used explicit join mode `all`, empty private
+caches, no default compilation caches or global QL configuration, 4,096 MB, two
+threads, and a 180-second deadline. It completed in 75.94 seconds with maximum
+child RSS 1,993,984 KiB. Its optimized RA contains no Stage3/Stage4 `fwdFlow0/7`
+or `fwdFlow1/7` entity or reference, while each selected stage retains its
+recursive `fwdFlow/6`, recursive read target, and complete downstream read
+relation. Stage2, Stage5, and Stage6 retain their original intermediate state
+relations. The final compiler input key is
+`0ee092250be1b05f03b994a868d639cc`; the source and capsule digests above bind
+that plan. Complete query-result
+and workload timing comparisons use the existing full 39-query workflow.
 
 ## Maintenance and verification
 

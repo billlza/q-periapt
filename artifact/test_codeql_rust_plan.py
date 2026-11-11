@@ -461,10 +461,13 @@ class FixedProductionIdentityTests(unittest.TestCase):
         identity = plan.expected_identity()
         self.assertEqual(identity["manifest_sha256"], plan.PRODUCTION_MANIFEST_SHA256)
         self.assertEqual(identity["compiler_inputs_digest"], plan.STAGE34_COMPILER_KEY)
-        changed = dict(identity, compiler_inputs_digest="70fcc50bc6a1479b6fc92e9f1d624e0e")
-        with patch.object(plan.projection, "expected_identity", return_value=changed):
-            with self.assertRaisesRegex(ValueError, "Stage3/Stage4"):
-                plan.expected_identity()
+        for previous_key in ("70fcc50bc6a1479b6fc92e9f1d624e0e",
+                             "6a7530eb694360655ab8331a895c9fcd"):
+            with self.subTest(previous_key=previous_key):
+                changed = dict(identity, compiler_inputs_digest=previous_key)
+                with patch.object(plan.projection, "expected_identity", return_value=changed):
+                    with self.assertRaisesRegex(ValueError, "Stage3/Stage4"):
+                        plan.expected_identity()
 
     def test_launcher_only_inventory_cannot_claim_the_official_runtime(self) -> None:
         with self.assertRaisesRegex(ValueError, "complete official"):

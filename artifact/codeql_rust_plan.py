@@ -27,8 +27,8 @@ from evidence_io import (consume_regular_snapshot, fresh_output_directory,
 
 
 MODES = ("none", "projection")
-PRODUCTION_MANIFEST_SHA256 = "2cb1739ba0f0aeeb00e8a017b7cd0218a0a7519771a58dd47cb7f89a8813ca91"
-STAGE34_COMPILER_KEY = "6a7530eb694360655ab8331a895c9fcd"
+PRODUCTION_MANIFEST_SHA256 = "2b961807f0147058e7c2012586a3f5c67d7b718b7ed86ea92bf6ec25087632c1"
+STAGE34_COMPILER_KEY = "0ee092250be1b05f03b994a868d639cc"
 LAUNCHER_SHA256 = "5010324098d11f9e2d34e0fcf53bb44e40e8e3ffc8aecefe695269b54edaa413"
 PACK_RELATIVE = "qlpacks/codeql/rust-queries/0.1.44"
 # Derived by streaming the exact authenticated archive, excluding only the
