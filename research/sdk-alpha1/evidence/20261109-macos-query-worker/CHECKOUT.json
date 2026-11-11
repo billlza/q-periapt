@@ -1,8 +1,0 @@
-{
-  "base": "a381f0803691238d90ad63f958a163bcbeaf7b54",
-  "candidate_tree": "d3a006ece048b8949329447cbec7cce6463518cb",
-  "repository": "/workspace/scratch/084f6c1d017a/next-ci/macos-candidate/validation-repository",
-  "git_directory_is_regular_directory": true,
-  "index_tree_exact": true,
-  "unstaged_changes": false
-}

@@ -1,8 +1,0 @@
-test_caller_forbidden_text_and_credentials_are_rejected_without_echoing_secret (test_release_binary_scan.ReleaseBinaryScanTests.test_caller_forbidden_text_and_credentials_are_rejected_without_echoing_secret) ... ok
-test_binds_exact_layout_certificate_and_static_slice_hashes (test_apple_distribution.SigningEvidenceTests.test_binds_exact_layout_certificate_and_static_slice_hashes) ... ok
-test_rejects_wrong_pinned_certificate (test_apple_distribution.SigningEvidenceTests.test_rejects_wrong_pinned_certificate) ... ok
-
-----------------------------------------------------------------------
-Ran 3 tests in 0.007s
-
-OK

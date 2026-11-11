@@ -1,6 +1,0 @@
-# LaTeX build cruft + verification PNGs (PDFs are the committed assets)
-*.aux
-*.log
-*.png
-*.synctex.gz
-__pycache__/

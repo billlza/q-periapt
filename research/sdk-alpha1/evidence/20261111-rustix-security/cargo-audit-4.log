@@ -1,2 +1,0 @@
-      Loaded 1453 security advisories (from /workspace/scratch/4b61438fb07b/rustix-advisory-db)
-    Scanning /workspace/scratch/4b61438fb07b/rustix-review/research/continuity-reference-app/Cargo.lock for vulnerabilities (270 crate dependencies)

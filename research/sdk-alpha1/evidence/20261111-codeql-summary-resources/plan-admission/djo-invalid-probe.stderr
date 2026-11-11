@@ -1,2 +1,0 @@
-Invalid value for option '--dynamic-join-order-mode': expected one of [NONE, none, NON_REC, non-recursive, ALL, all] (case-sensitive) but was 'invalid'
-Try codeql execute queries --help for usage help.

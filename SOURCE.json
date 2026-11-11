@@ -1,0 +1,43 @@
+{
+  "base_commit": "6d55b2eab651538eb3c9f09df131beb16a01a1f3",
+  "purpose": "isolated retained-database capacity experiment; no production qualification",
+  "allocation": {
+    "slurm_cpus": 4,
+    "slurm_mem_mb": 65536,
+    "query_budget_mb": 56000,
+    "heap_mb": 4096,
+    "native_mb": 50595,
+    "threads": 4,
+    "deadline_seconds": 18000
+  },
+  "files": {
+    "artifact/bounded_process.py": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+    "artifact/codeql-fixtures/rust-analyze-2.27.2.stderr": "403bb102acebc1ed83ad4d31b54c5c6133ad020a790a49a1d61e88b383448f55",
+    "artifact/codeql-summary-dynamic-plan.zip": "ce21381b3bec721aab246b26b84c00834959871235e1e82354addca8a40dcef7",
+    "artifact/codeql-summary-projection-plan.LICENSE": "66056d06b874e3eb6a22f5fff297e1676a23dc43e8c8b81279c1ef33a6a270df",
+    "artifact/codeql-summary-projection-plan.zip": "35ab9955321008fb55e436c78b38725370fd5930885635e43ed093ab672fc6d3",
+    "artifact/codeql_evaluator_logs.py": "38d6f519ed3866c971eb8cc97c18ce9eff2e33b8c95e6aa6622bcae13863adb4",
+    "artifact/codeql_log_recovery.py": "8ff89ca9b86c93f304c099b0d8eb65eb0079d8a084bd72bc820b84369d104378",
+    "artifact/codeql_process_resources.py": "8b4d14b9667a7c10e653f680311c12db595369f0e6a5b2800aae6beefeec26a6",
+    "artifact/codeql_rust_queries.json": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b",
+    "artifact/codeql_summary_control.py": "684f035cb745bb66a6dff0a778ceb8f4f772bd15783cd748e2b4a4bacab30703",
+    "artifact/codeql_summary_dynamic_plan.json": "308a36a957741fdfa8a58f40fb81ffae6e863759527b516ca93816c75057c1f7",
+    "artifact/codeql_summary_plan.py": "bc736901daf1271d287b7fa38a20788013e8a2bea927c70658c5490a89479a6b",
+    "artifact/codeql_summary_projection.json": "efd65ee72a4f966620a3d9bd6ac97b0a6d8ef5567017f3c342f654c4e1f55873",
+    "artifact/codeql_summary_projection.patch": "2e01d15c01f2240d8915fb124865f0d7f81b486929245ba5f61ad0502de06207",
+    "artifact/codeql_summary_projection.py": "36467935b98f9e1eb8d361713904cef25cf16575407729b0b1e65db53682397d",
+    "artifact/codeql_summary_projection_dependencies.json.gz": "1a76d5d9eaf26bd931ba9710db92904fa8314b39daeb9d450a1600b8bb44cf95",
+    "artifact/evidence_io.py": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d",
+    "artifact/python-env.sh": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49",
+    "artifact/python-run.sh": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255",
+    "artifact/python_bootstrap.py": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
+    "artifact/test_codeql_process_resources.py": "adbfe560c1f45dab042552fc8bba941c4adf9cc784d657ad39d9914259d75f1a",
+    "artifact/test_codeql_progress.py": "358d20a9cc47ec8137e5035ea41915506e50d26037ed49100186eebddd244001",
+    "artifact/test_codeql_summary_archive_input.py": "2f75fdfab4a078c046b6f2a68aa9dc12d9a7883583f9eec1c9a5dc16ab2e0f59",
+    "artifact/test_codeql_summary_capacity.py": "29b605a5aa91633b127acbb4688136ccd9350f7b037ea66409ffefb617b2191c",
+    "artifact/test_codeql_summary_control.py": "f870233220c320f4521d2a6dea6efb9e0a2b17355da6d30a0e9be3aacff905f0",
+    "artifact/test_codeql_summary_plan.py": "534e3a4b33c13d6699112ad7c8dc8ef54c0dc492ce8a3ca6fde250f9fa5d6ba0",
+    "artifact/test_codeql_summary_projection.py": "baaa6633b7fd083b4f7a19fd2b987bbf33bb88a1fd3f94ec9363c3e4540182c0",
+    "capacity.sbatch": "69f9bf003f2f8ba7b3db7b53723984c9e1e23d27cdec85c0c2d6e6e5f7f02f2c"
+  }
+}

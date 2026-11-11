@@ -1,9 +1,0 @@
-test_framework_probe_requires_services_and_a_live_process_incarnation (artifact.test_android_bounded_command.AndroidBoundedCommandTests.test_framework_probe_requires_services_and_a_live_process_incarnation) ... ok
-test_framework_wait_replays_sticky_boot_crash_and_provider_exception (artifact.test_android_bounded_command.AndroidBoundedCommandTests.test_framework_wait_replays_sticky_boot_crash_and_provider_exception) ... ok
-test_postinstall_runtime_steps_fail_with_actionable_diagnostics (artifact.test_android_device_proof.AndroidDeviceProofProvenanceTests.test_postinstall_runtime_steps_fail_with_actionable_diagnostics) ... ok
-test_framework_readiness_failure_keeps_crash_diagnostics_without_install_or_cleanup_arm (artifact.test_android_device_proof.AndroidDeviceProofProvenanceTests.test_framework_readiness_failure_keeps_crash_diagnostics_without_install_or_cleanup_arm) ... ok
-
-----------------------------------------------------------------------
-Ran 4 tests in 2.806s
-
-OK

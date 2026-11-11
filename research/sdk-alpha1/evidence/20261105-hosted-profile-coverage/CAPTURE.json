@@ -1,9 +1,0 @@
-{
-  "source_commit": "232ace17915407596d66f3a5fd7c7765251a38cc",
-  "members": 44,
-  "bytes": 6109850,
-  "sha256": "362bb5436096e84099e87f8e9fef11f5b9ac7350dc2780538c85e6ebe2ca7c2f",
-  "scope": "Original six-partition metadata join only; does not repair missing public exports, qualify a later source, or establish physical-device execution.",
-  "source_bytes_dependency": "../20261105-hosted-swift-pair/INPUTS.zip",
-  "source_bytes_dependency_sha256": "9a46fb9d761588cb6da670168d140838a94a17a222608a05aac54447c8e119cd"
-}

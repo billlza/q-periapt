@@ -1,1 +1,0 @@
-ERROR: this audit checker requires enabled assertions; run without -O, -OO, or PYTHONOPTIMIZE.

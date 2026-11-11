@@ -1,4 +1,0 @@
-module CQPCOwner [system] {
-    header "bridge.h"
-    export *
-}
