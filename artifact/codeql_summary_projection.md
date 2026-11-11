@@ -106,6 +106,14 @@ producer rechecks those identities and requires exactly 39 precompiled loads,
 The publisher independently validates the resulting plan and runtime receipts
 alongside the existing source, compiler, target-coverage and SARIF checks.
 
+The version-two plan receipt binds the complete per-query completion set to
+the original `analyze.stderr`, including its byte count and digest. Publication
+rereads that file and requires the exact 39 admitted query identities. Internal
+evaluator logs retain their observed completion count and continue to supply
+the independent start, precompiled-load, compilation and allocation evidence.
+This accounts for the pinned CLI retaining all 39 completion messages on
+stderr while its internal log can omit individual progress messages.
+
 Production and diagnostic execution share the bounded evaluator-log reader.
 Normal production verbosity records query progress without the much larger
 relation-level trace. A display-only sink prints completion counts for distinct

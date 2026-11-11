@@ -304,7 +304,8 @@ def guard(run, context: AnalysisContext):
                 raise
 
 
-def validate_observations(value: object, pack: Path, queries: dict, heap_mb: int) -> None:
+def validate_observations(value: object, pack: Path, queries: dict, heap_mb: int, *,
+                          completion: object) -> None:
     require(isinstance(value, dict) and set(value) == set(OBSERVATION_FIELDS)
             and type(value["schema"]) is int and value["schema"] == 1,
             "production evaluator observations are malformed")
@@ -312,9 +313,21 @@ def validate_observations(value: object, pack: Path, queries: dict, heap_mb: int
                                          for relative in queries])
     require(all(type(value[key]) is int for key in
                 ("query_starts", "query_completions", "query_compilations", "evaluator_start_lines"))
-            and value["query_starts"] == value["query_completions"] == 39
+            and value["query_starts"] == 39 and 0 <= value["query_completions"] <= 39
             and value["query_compilations"] == 0 and value["evaluator_start_lines"] == 1,
-            "production evaluator completion census differs")
+            "production evaluator execution census differs")
+    # Internal logs can omit a completion progress message even when the CLI
+    # retains it on stderr. Preserve that log count, and bind the complete
+    # per-query completion set to the independently read original stderr.
+    require(isinstance(completion, dict) and set(completion) == {
+                "schema", "source", "bytes", "sha256", "queries"}
+            and type(completion["schema"]) is int and completion["schema"] == 1
+            and completion["source"] == "analyze.stderr"
+            and type(completion["bytes"]) is int and 0 < completion["bytes"] <= 16 * 1024**2
+            and isinstance(completion["sha256"], str)
+            and re.fullmatch(r"[0-9a-f]{64}", completion["sha256"]) is not None
+            and completion["queries"] == sorted(queries) and len(queries) == 39,
+            "production stderr completion census or identity differs")
     require(type(heap_mb) is int and 0 < heap_mb <= 14000 - 9329
             and value["jvm_heap_mb_arguments"] == [heap_mb]
             and value["off_heap_mb_observed"] == [9329],
@@ -348,12 +361,13 @@ def complete(run, context: AnalysisContext, analysis: dict, command: list[str], 
     observed = evaluator_logs.observe(context.root, pattern="execute-queries-*.log",
                                       stdio_prefix=None, capture_invocation=True)
     observations = {key: observed[key] for key in OBSERVATION_FIELDS}
+    completion = evaluator_logs.read_completion_receipt(run.evidence / "analyze.stderr", queries)
     memory = parse_strict_json_bytes(read_regular_snapshot(
         run.evidence / "QUERY_MEMORY.json", maximum=64 * 1024,
         label="analysis memory receipt").data, label="analysis memory receipt")
-    validate_observations(observations, context.pack, queries, memory["heap_mb"])
+    validate_observations(observations, context.pack, queries, memory["heap_mb"], completion=completion)
     record = {
-        "schema": 1, "kind": "qperiapt.codeql_rust_projection_analysis", "completed": True,
+        "schema": 2, "kind": "qperiapt.codeql_rust_projection_analysis", "completed": True,
         "summary_plan_mode": "projection",
         **{key: analysis[key] for key in
            ("profile", "target", "source_commit", "run_id", "run_attempt", "query_inventory_sha256")},
@@ -363,7 +377,7 @@ def complete(run, context: AnalysisContext, analysis: dict, command: list[str], 
             run.evidence / RUNTIME_RECEIPT, maximum=MAX_RECEIPT_BYTES,
             label="analysis runtime receipt").sha256,
         "database_before": context.database_before, "database_after": context.database_after,
-        "query_command": command, "observations": observations,
+        "query_command": command, "observations": observations, "completion_stderr": completion,
         "suite_sha256": read_regular_snapshot(context.suite, maximum=64 * 1024,
                                               label="frozen production suite").sha256,
         "qlconfig_sha256": hashlib.sha256(QLCONFIG).hexdigest(),
@@ -397,10 +411,10 @@ def validate_publication(directory: Path, analysis: dict, *, expected_mode: str 
         "schema", "kind", "completed", "summary_plan_mode", "profile", "target", "source_commit",
         "run_id", "run_attempt", "query_inventory_sha256", "summary_plan_before", "summary_plan_after",
         "tool", "runtime_receipt_sha256", "database_before", "database_after", "query_command",
-        "observations", "suite_sha256", "qlconfig_sha256", "postcheck_receipt_sha256",
+        "observations", "completion_stderr", "suite_sha256", "qlconfig_sha256", "postcheck_receipt_sha256",
     }
     require(isinstance(record, dict) and set(record) == keys
-            and type(record["schema"]) is int and record["schema"] == 1
+            and type(record["schema"]) is int and record["schema"] == 2
             and record["kind"] == "qperiapt.codeql_rust_projection_analysis"
             and record["completed"] is True and record["summary_plan_mode"] == "projection"
             and all(record[key] == analysis.get(key) for key in
@@ -444,7 +458,11 @@ def validate_publication(directory: Path, analysis: dict, *, expected_mode: str 
     memory = parse_strict_json_bytes(read_regular_snapshot(
         directory / "QUERY_MEMORY.json", maximum=64 * 1024,
         label="published analysis memory receipt").data, label="published analysis memory receipt")
-    validate_observations(record["observations"], context.pack, queries, memory["heap_mb"])
+    completion = evaluator_logs.read_completion_receipt(directory / "analyze.stderr", queries)
+    require(record["completion_stderr"] == completion,
+            "published completion stderr differs from its bound receipt")
+    validate_observations(record["observations"], context.pack, queries, memory["heap_mb"],
+                          completion=completion)
     for side in ("database_before", "database_after"):
         database = record[side]
         require(isinstance(database, dict) and set(database) == {

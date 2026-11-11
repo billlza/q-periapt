@@ -163,8 +163,11 @@ class ProductionProjectionTests(unittest.TestCase):
             lines.extend([
                 "[PROGRESS] Loaded " + str((self.pack / name).with_suffix(".qlx")) + ".",
                 "[PROGRESS] Starting evaluation of " + name + ".",
-                "[PROGRESS] Evaluation done; writing results to " + name + ".bqrs",
             ])
+            if not (self.inject == "missing_internal_completions" and
+                    name in ("queries/security/CWE-295/DisabledCertificateCheck.ql",
+                             "queries/security/CWE-319/UseOfHttp.ql")):
+                lines.append("[PROGRESS] Evaluation done; writing results to " + name + ".bqrs")
         if self.inject == "implicit_compile":
             lines.append("[PROGRESS] Compiling query plan for SummaryStats.ql")
         if self.inject == "extra_load":
@@ -174,6 +177,14 @@ class ProductionProjectionTests(unittest.TestCase):
         data = ("\n".join(lines) + "\n").encode()
         write(self.private_root / "evaluator/execute-queries-fixture.log", data)
         write(self.private_root / "evaluator/database-analyze-fixture.log", data)
+        # Original successful command stderr from run 43032937156; its internal
+        # log omitted two completion messages while stderr retained all 39.
+        stderr = Path(__file__).with_name("codeql-fixtures").joinpath(
+            "rust-analyze-2.27.2.stderr").read_bytes()
+        if self.inject == "missing_stderr_completion":
+            stderr = b"\n".join(line for line in stderr.split(b"\n")
+                                  if b"[39/39 eval " not in line)
+        write(self.run.evidence / "analyze.stderr", stderr)
         if self.inject in ("runtime_mutation", "primary_and_postcheck_failure"):
             write(self.private_root / "tool/codeql/tools/codeql.jar", b"different runtime")
         if self.inject == "qlconfig_mutation":
@@ -205,12 +216,53 @@ class ProductionProjectionTests(unittest.TestCase):
         self.assertEqual(self.run.environment["PATH"], "/usr/bin:/bin")
         plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
         record = json.loads((self.run.evidence / plan.PLAN_RECEIPT).read_text())
+        self.assertEqual(record["schema"], 2)
         self.assertEqual(record["observations"]["query_completions"], 39)
+        self.assertEqual(record["completion_stderr"]["queries"], sorted(self.queries))
+        self.assertEqual(record["completion_stderr"]["sha256"],
+                         digest((self.run.evidence / "analyze.stderr").read_bytes()))
         self.assertEqual(len(record["observations"]["logs"]), 1)
         self.assertEqual(record["observations"]["jvm_heap_mb_arguments"], [3356])
         self.assertEqual(record["observations"]["off_heap_mb_observed"], [9329])
         with self.assertRaisesRegex(ValueError, "default production"):
             plan.validate_publication(self.run.evidence, analysis)
+
+    def test_complete_stderr_keeps_actual_missing_internal_completion_messages_visible(self) -> None:
+        self.inject = "missing_internal_completions"
+        analysis = self.analyze()
+        record = json.loads((self.run.evidence / plan.PLAN_RECEIPT).read_text())
+        self.assertEqual(record["observations"]["query_completions"], 37)
+        self.assertEqual(record["observations"]["query_starts"], 39)
+        self.assertEqual(record["completion_stderr"]["queries"], sorted(self.queries))
+        plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
+
+    def test_missing_stderr_completion_blocks_success_despite_all_internal_messages(self) -> None:
+        self.inject = "missing_stderr_completion"
+        with self.assertRaisesRegex(ValueError, "exactly the 39 admitted queries"):
+            self.analyze()
+        self.assertFalse((self.run.evidence / plan.PLAN_RECEIPT).exists())
+        self.assertFalse((self.run.evidence / "ANALYSIS.json").exists())
+
+    def test_publication_rereads_the_complete_original_stderr(self) -> None:
+        analysis = self.analyze()
+        stderr = self.run.evidence / "analyze.stderr"
+        original = stderr.read_bytes()
+        stderr.write_bytes(original + b"additional diagnostic bytes\n")
+        with self.assertRaisesRegex(ValueError, "completion stderr differs"):
+            plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
+        stderr.write_bytes(b"\n".join(line for line in original.split(b"\n")
+                                     if b"[39/39 eval " not in line))
+        record_path = self.run.evidence / plan.PLAN_RECEIPT
+        record = json.loads(record_path.read_text())
+        record["completion_stderr"].update(bytes=stderr.stat().st_size,
+                                            sha256=digest(stderr.read_bytes()))
+        replace_fixture(record_path, json.dumps(record).encode())
+        analysis["analysis_plan_sha256"] = digest(record_path.read_bytes())
+        with self.assertRaisesRegex(ValueError, "exactly the 39 admitted queries"):
+            plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
+        stderr.unlink()
+        with self.assertRaises(ValueError):
+            plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
 
     def test_derived_metadata_keeps_both_snapshots_and_stable_source_identity(self) -> None:
         self.inject = "derived_metadata"
@@ -244,7 +296,10 @@ class ProductionProjectionTests(unittest.TestCase):
             ("qlconfig", lambda value: set_path(value, ("qlconfig_sha256",), "f" * 64)),
             ("threat_model", lambda value: value["query_command"].remove("--threat-model=local")),
             ("compilation", lambda value: set_path(value, ("observations", "query_compilations"), 1)),
-            ("completion", lambda value: set_path(value, ("observations", "query_completions"), 38)),
+            ("completion", lambda value: set_path(value, ("completion_stderr", "queries"),
+                                                    sorted(self.queries)[:-1])),
+            ("internal_completion", lambda value: set_path(value, ("observations", "query_completions"), 40)),
+            ("completion_source", lambda value: set_path(value, ("completion_stderr", "source"), "other.stderr")),
             ("heap", lambda value: set_path(value, ("observations", "jvm_heap_mb_arguments"), [3355])),
             ("overlay", lambda value: set_path(value, ("database_after", "overlay"), True)),
         ]

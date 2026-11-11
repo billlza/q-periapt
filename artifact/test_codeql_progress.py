@@ -16,6 +16,73 @@ from bounded_process import capture_output
 import codeql_evaluator_logs as logs
 
 
+class QueryCompletionReceiptTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        artifact = Path(__file__).parent
+        cls.queries = sorted(json.loads((artifact / "codeql_rust_queries.json").read_text())["queries"])
+        # Unmodified stderr from the pinned 2.27.2 command in the failed wrapper:
+        # https://github.com/billlza/q-periapt/actions/runs/43032937156/job/130564344658
+        cls.original = (artifact / "codeql-fixtures/rust-analyze-2.27.2.stderr").read_bytes()
+        if (len(cls.original) != 22432 or hashlib.sha256(cls.original).hexdigest()
+                != "403bb102acebc1ed83ad4d31b54c5c6133ad020a790a49a1d61e88b383448f55"):
+            raise AssertionError("the original hosted stderr fixture changed")
+        cls.completions = [line for line in cls.original.splitlines(keepends=True)
+                           if b"Evaluation done; writing results to " in line]
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.path = Path(temporary.name) / "analyze.stderr"
+        self.path.write_bytes(self.original)
+
+    def test_original_hosted_stderr_binds_all_39_exact_query_completions(self):
+        receipt = logs.read_completion_receipt(self.path, self.queries)
+        self.assertEqual(receipt, {
+            "schema": 1, "source": "analyze.stderr", "bytes": len(self.original),
+            "sha256": hashlib.sha256(self.original).hexdigest(), "queries": self.queries,
+        })
+
+    def test_missing_duplicate_unknown_and_malformed_completions_are_rejected(self):
+        first, second = self.completions[:2]
+        unknown = first.replace(b"codeql/rust-queries/queries/", b"codeql/rust-queries/queries/extra/")
+        cases = {
+            "missing": self.original.replace(first, b""),
+            "replaced_with_duplicate": self.original.replace(first, second),
+            "extra_duplicate": self.original + first,
+            "unknown": self.original + unknown,
+            "forged_prefix": self.original.replace(first, b"::warning::" + first),
+            "invalid_counter": self.original.replace(first, first.replace(b"[1/39", b"[40/39")),
+        }
+        for name, content in cases.items():
+            self.path.write_bytes(content)
+            with self.subTest(name=name), self.assertRaises(logs.ObservationError):
+                logs.read_completion_receipt(self.path, self.queries)
+
+    def test_byte_changes_remain_bound_even_when_query_completions_match(self):
+        before = logs.read_completion_receipt(self.path, self.queries)
+        self.path.write_bytes(self.original + b"additional diagnostic bytes\n")
+        after = logs.read_completion_receipt(self.path, self.queries)
+        self.assertEqual(before["queries"], after["queries"])
+        self.assertNotEqual(before["sha256"], after["sha256"])
+        self.assertGreater(after["bytes"], before["bytes"])
+
+    def test_completion_snapshot_keeps_byte_and_time_bounds(self):
+        with self.assertRaises(ValueError):
+            logs.read_completion_receipt(self.path, self.queries, maximum_bytes=len(self.original) - 1)
+        with mock.patch.object(logs.time, "monotonic", side_effect=[0, 31]):
+            with self.assertRaisesRegex(logs.ObservationError, "exceeded its bound"):
+                logs.read_completion_receipt(self.path, self.queries)
+
+    @unittest.skipUnless(os.name == "posix", "symlink control requires POSIX")
+    def test_completion_snapshot_rejects_a_redirected_stderr(self):
+        target = self.path.with_name("original.stderr")
+        self.path.rename(target)
+        self.path.symlink_to(target)
+        with self.assertRaises(ValueError):
+            logs.read_completion_receipt(self.path, self.queries)
+
+
 class QueryCompletionProgressTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
