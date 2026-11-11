@@ -6,6 +6,13 @@ The manuscript is **Exposure and Recovery with Persistent Randomness Reservation
 
 The confirmed author is **Ziang Li (李子昂)**, Department of Engineering, Durham University. Correspondence: **2403871950@qq.com**. Alternative contact: **bhmq03@durham.ac.uk**. The current author list contains one person.
 
+On 11 November 2026, the author confirmed no research funding, no relevant
+financial or non-financial competing interests, and responsibility for all
+current research and manuscript contributions. The Declarations section and
+`author-metadata.json` now record these facts. Any future manuscript review is
+recorded when it occurs. The assembled submission awaits the author's final
+review and approval.
+
 ## Joint schedule and retained source profile
 
 The prior origin-normalization, guarded record-exposure, private-image simulation, reverse-report composition and candidate-local accounting results remain in place. The preceding computation increment established:
@@ -183,7 +190,8 @@ are bound by `integration_record.json`. Historical artifact records retain
 their original source and run identities. Engineering release admission
 continues through current-source checks and platform artifacts on PR #121;
 [the submission readiness note](SUBMISSION_READINESS.md) separately records the
-remaining manuscript review.
+completed editorial review, confirmed author declarations and final submission
+approval.
 
 ## SkyBridge allocation
 
