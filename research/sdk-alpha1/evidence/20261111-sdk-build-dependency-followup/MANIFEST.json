@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "directory": "research/sdk-alpha1/evidence/20261111-sdk-build-dependency-followup",
+  "parent_commit": "8abb26513e75fdd40053184c9630aadd34657919",
+  "source_commit": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+  "files": [
+    {
+      "path": "CANONICAL_READBACK.json",
+      "bytes": 767,
+      "sha256": "5384ecdc5683508ffbad7f99f6822e24241ade7d2aef49df966e96faee78e7b4",
+      "git_blob": "ebdd460205056f44fea4119bf1fca2840226691a"
+    },
+    {
+      "path": "EXTERNAL_CONTEXT.json",
+      "bytes": 1671,
+      "sha256": "02a6b9be8fc2218fd1d33363321d2f0f8201240e5cc11e89a1659a4dabc952ee",
+      "git_blob": "542b83a3866d8fbd0d7063cb0644beedead78ab7"
+    },
+    {
+      "path": "FAILURE_ANALYSIS.json",
+      "bytes": 28152,
+      "sha256": "f7c0132613491ad216831c64e4f79e01c0c506d1237c636c5fc86218649b8883",
+      "git_blob": "0c1fb762a4f2767d4ceee1abf2a83476e7ab02de"
+    },
+    {
+      "path": "FOLLOWUP_STEPS.json",
+      "bytes": 19783,
+      "sha256": "7bf67311b530d10c3de3348ada782dd6c2cff96d1619f8bc2b1535fedf415598",
+      "git_blob": "d9385fd857e7c8ebbcf2d63d67766f977de7f5c5"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3746,
+      "sha256": "149af2d2c22fce7f67a00a080183c5d16c9e21b3eab8720debeeba28ea48bbc8",
+      "git_blob": "9fa4381b587f38f9cd1f6cca1aad59c05671a4f5"
+    },
+    {
+      "path": "canonical-status.rss",
+      "bytes": 11040,
+      "sha256": "dc07d6475089af8e8794f9bacd46ab59ca9f25e881b710af92abf21774bd9788",
+      "git_blob": "2646c5374ae204acb4c139319150254beee74db6"
+    },
+    {
+      "path": "logs/130625398900.log",
+      "bytes": 74216,
+      "sha256": "a959d3be051e33a7409beb9b5fc24447b89416d9a12ae2d0e74e644951f425ca",
+      "git_blob": "e1f0bf64b1f581e47a488d28a4bbb30f1f01f9eb"
+    },
+    {
+      "path": "logs/130625398966.log",
+      "bytes": 111446,
+      "sha256": "da5b143e10b2b3b6615c5ade68bbf65e68c39af4b638c5e05ebfe6a18c26f6cd",
+      "git_blob": "3c84a2d40e1d4639d5eecdd95f51aec1be8fd9c9"
+    },
+    {
+      "path": "logs/130625399125.log",
+      "bytes": 40840,
+      "sha256": "beac5865a4e7d8ed03b91740b000272a8328306e7c5ab46def8254a5e3369f9e",
+      "git_blob": "fc2e8b5c624c20f7c970cefaab0130b04a1902ce"
+    },
+    {
+      "path": "logs/130625399165.log",
+      "bytes": 48803,
+      "sha256": "8c31bf5bb5af796cb2a33ae725c7e66ac7296308c4408b1a4f17bed9a85d05b6",
+      "git_blob": "72e3f62960477e16fec34e540ccc3b207559cd10"
+    },
+    {
+      "path": "logs/130625399245.log",
+      "bytes": 60602,
+      "sha256": "c9e3aa129c2dfb50cbd19e641a4aba10a872faa7022a044536a64f6b7b45103a",
+      "git_blob": "6732724816fdf3868693f3f39f02b0e5cb78205b"
+    },
+    {
+      "path": "logs/130625399323.log",
+      "bytes": 46881,
+      "sha256": "96c5d54e4afad4dc4e4a9f3e0a40a64d8946184713af8c49fc4e897aeff3e824",
+      "git_blob": "2bc6e31f10ac02ee61cf87d14b3eecaa27e6b319"
+    },
+    {
+      "path": "logs/130625399456.log",
+      "bytes": 63498,
+      "sha256": "e283024b8cb9c4d1ec2e42cf2000c825328be96db49e6a318f984f3cc83c0d56",
+      "git_blob": "eece396b898797a1a588f09495283dc9c4fff374"
+    },
+    {
+      "path": "logs/130625399514.log",
+      "bytes": 63711,
+      "sha256": "987e389626bc704026b15a94a8d5269c63aa79503a04090c7d96efafa888672a",
+      "git_blob": "af7e374fa7b0a52d781f8832113553e4cf2a5687"
+    },
+    {
+      "path": "ubuntu2604-runner-image.md",
+      "bytes": 15952,
+      "sha256": "96726820a76acc3c80bb4716babf0f8a99bcd76bdf28edd3c35ea20ca2771fd4",
+      "git_blob": "a0fba64bf8ccbb95f625595e99b689bb5512b1d4"
+    }
+  ]
+}

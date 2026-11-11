@@ -1,0 +1,885 @@
+{
+  "schema": 1,
+  "repository": "billlza/q-periapt",
+  "workflow_run_id": 43050342715,
+  "sdk_head": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+  "checked_out_commit": "b72f7f8e8e6f2526ebab4b825b7d47402ac9835f",
+  "result": "All eight selected jobs reached an APT dependency failure with exit code 100 after hostname-resolution errors. The later package, cross-build, Memcheck, audit, or proof operations were skipped. Earlier successful source checks remain recorded.",
+  "jobs": [
+    {
+      "job_id": 130625398900,
+      "name": "check",
+      "run_id": 43050342715,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715/job/130625398900",
+      "log": "logs/130625398900.log",
+      "log_integrity": {
+        "job_id": 130625398900,
+        "bytes": 74216,
+        "sha256": "a959d3be051e33a7409beb9b5fc24447b89416d9a12ae2d0e74e644951f425ca",
+        "git_blob": "e1f0bf64b1f581e47a488d28a4bbb30f1f01f9eb"
+      },
+      "image": [
+        {
+          "line": 17,
+          "text": "2026-11-11T15:45:55.2000991Z Image: ubuntu-22.04"
+        },
+        {
+          "line": 18,
+          "text": "2026-11-11T15:45:55.2001571Z Version: 20261101.347.1"
+        },
+        {
+          "line": 19,
+          "text": "2026-11-11T15:45:55.2002824Z Included Software: https://github.com/actions/runner-images/blob/ubuntu22/20261101.347/images/ubuntu/Ubuntu2204-Readme.md"
+        }
+      ],
+      "checkout": {
+        "line": 352,
+        "text": "2026-11-11T15:47:10.4538886Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "first_failed_step": {
+        "name": "Run sudo apt-get update && sudo apt-get install -y cmake pkg-config",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 6
+      },
+      "apt_commands": [
+        {
+          "line": 664,
+          "text": "2026-11-11T15:47:38.1170649Z sudo apt-get update && sudo apt-get install -y cmake pkg-config"
+        }
+      ],
+      "dns_hosts": [
+        "azure.archive.ubuntu.com"
+      ],
+      "dns_line_count": 20,
+      "first_dns_error": {
+        "line": 687,
+        "text": "2026-11-11T15:49:58.4992759Z   Temporary failure resolving 'azure.archive.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 758,
+          "text": "2026-11-11T15:55:52.6093671Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [
+        {
+          "line": 776,
+          "text": "2026-11-11T15:55:52.7691493Z ##[error]No files were found with the provided path: target/artifact-tooling-checks/. No artifacts will be uploaded."
+        }
+      ],
+      "prior_successful_steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Verify checkout provenance",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Set up canonical artifact Python",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        }
+      ],
+      "skipped_work_steps": [
+        {
+          "number": 7,
+          "name": "Run cargo +1.98.1 install cbindgen --version 0.29.4 --locked"
+        },
+        {
+          "number": 8,
+          "name": "Run cargo fmt --all --check"
+        },
+        {
+          "number": 9,
+          "name": "Run cargo clippy --workspace --all-targets --locked -- -D warnings"
+        },
+        {
+          "number": 10,
+          "name": "Run cargo test --workspace --locked"
+        },
+        {
+          "number": 11,
+          "name": "Verify offline policy-store migration"
+        },
+        {
+          "number": 12,
+          "name": "Install and consume the policy-store maintenance command"
+        },
+        {
+          "number": 13,
+          "name": "Verify current SDK ABI 2 header and retained 0.1.5 contract"
+        },
+        {
+          "number": 14,
+          "name": "Set up Java 21 LTS"
+        },
+        {
+          "number": 15,
+          "name": "Verify Java 21 LTS"
+        },
+        {
+          "number": 16,
+          "name": "Exercise all artifact tooling"
+        },
+        {
+          "number": 18,
+          "name": "Exact SDK source and historical evidence boundary"
+        },
+        {
+          "number": 19,
+          "name": "Paired performance harness schema (shared-runner, no numeric claim)"
+        },
+        {
+          "number": 20,
+          "name": "Run sh bindings/c/build-and-run.sh"
+        },
+        {
+          "number": 21,
+          "name": "Run sh artifact/c-package.sh --profile sdk-020"
+        }
+      ]
+    },
+    {
+      "job_id": 130625399514,
+      "name": "cross (aarch64-unknown-linux-gnu)",
+      "run_id": 43050342715,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715/job/130625399514",
+      "log": "logs/130625399514.log",
+      "log_integrity": {
+        "job_id": 130625399514,
+        "bytes": 63711,
+        "sha256": "987e389626bc704026b15a94a8d5269c63aa79503a04090c7d96efafa888672a",
+        "git_blob": "af7e374fa7b0a52d781f8832113553e4cf2a5687"
+      },
+      "image": [
+        {
+          "line": 17,
+          "text": "2026-11-11T15:38:21.9510008Z Image: ubuntu-24.04"
+        },
+        {
+          "line": 18,
+          "text": "2026-11-11T15:38:21.9510422Z Version: 20261101.360.1"
+        },
+        {
+          "line": 19,
+          "text": "2026-11-11T15:38:21.9511230Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md"
+        }
+      ],
+      "checkout": {
+        "line": 171,
+        "text": "2026-11-11T15:42:04.4739975Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "first_failed_step": {
+        "name": "Install AArch64 C cross-toolchain",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 4
+      },
+      "apt_commands": [
+        {
+          "line": 429,
+          "text": "2026-11-11T15:42:19.3878427Z sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu"
+        }
+      ],
+      "dns_hosts": [
+        "azure.archive.ubuntu.com"
+      ],
+      "dns_line_count": 52,
+      "first_dns_error": {
+        "line": 453,
+        "text": "2026-11-11T15:44:39.7554758Z   Temporary failure resolving 'azure.archive.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 642,
+          "text": "2026-11-11T16:01:04.8062032Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [],
+      "prior_successful_steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        }
+      ],
+      "skipped_work_steps": [
+        {
+          "number": 5,
+          "name": "Install RISC-V C cross-toolchain"
+        },
+        {
+          "number": 6,
+          "name": "Install and verify the pinned WebAssembly C compiler"
+        },
+        {
+          "number": 7,
+          "name": "Run cargo build --locked -p q-periapt-core -p q-periapt-kem -p q-periapt-backends --target aarch64-unknown-linux-gnu"
+        }
+      ]
+    },
+    {
+      "job_id": 130625399245,
+      "name": "cross (riscv64gc-unknown-linux-gnu)",
+      "run_id": 43050342715,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715/job/130625399245",
+      "log": "logs/130625399245.log",
+      "log_integrity": {
+        "job_id": 130625399245,
+        "bytes": 60602,
+        "sha256": "c9e3aa129c2dfb50cbd19e641a4aba10a872faa7022a044536a64f6b7b45103a",
+        "git_blob": "6732724816fdf3868693f3f39f02b0e5cb78205b"
+      },
+      "image": [
+        {
+          "line": 17,
+          "text": "2026-11-11T15:38:22.5904403Z Image: ubuntu-24.04"
+        },
+        {
+          "line": 18,
+          "text": "2026-11-11T15:38:22.5904913Z Version: 20261101.360.1"
+        },
+        {
+          "line": 19,
+          "text": "2026-11-11T15:38:22.5906113Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md"
+        }
+      ],
+      "checkout": {
+        "line": 173,
+        "text": "2026-11-11T15:42:29.4983022Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "first_failed_step": {
+        "name": "Install RISC-V C cross-toolchain",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 5
+      },
+      "apt_commands": [
+        {
+          "line": 431,
+          "text": "2026-11-11T15:42:43.9658749Z sudo apt-get update && sudo apt-get install -y gcc-riscv64-linux-gnu"
+        }
+      ],
+      "dns_hosts": [
+        "azure.archive.ubuntu.com"
+      ],
+      "dns_line_count": 46,
+      "first_dns_error": {
+        "line": 454,
+        "text": "2026-11-11T15:45:04.1292433Z   Temporary failure resolving 'azure.archive.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 622,
+          "text": "2026-11-11T15:59:29.6760855Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [],
+      "prior_successful_steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        }
+      ],
+      "skipped_work_steps": [
+        {
+          "number": 4,
+          "name": "Install AArch64 C cross-toolchain"
+        },
+        {
+          "number": 6,
+          "name": "Install and verify the pinned WebAssembly C compiler"
+        },
+        {
+          "number": 7,
+          "name": "Run cargo build --locked -p q-periapt-core -p q-periapt-kem -p q-periapt-backends --target riscv64gc-unknown-linux-gnu"
+        }
+      ]
+    },
+    {
+      "job_id": 130625399456,
+      "name": "audit",
+      "run_id": 43050342715,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715/job/130625399456",
+      "log": "logs/130625399456.log",
+      "log_integrity": {
+        "job_id": 130625399456,
+        "bytes": 63498,
+        "sha256": "e283024b8cb9c4d1ec2e42cf2000c825328be96db49e6a318f984f3cc83c0d56",
+        "git_blob": "eece396b898797a1a588f09495283dc9c4fff374"
+      },
+      "image": [
+        {
+          "line": 17,
+          "text": "2026-11-11T15:53:55.7257010Z Image: ubuntu-26.04"
+        },
+        {
+          "line": 18,
+          "text": "2026-11-11T15:53:55.7257610Z Version: 20261101.186.1"
+        },
+        {
+          "line": 19,
+          "text": "2026-11-11T15:53:55.7258894Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md"
+        }
+      ],
+      "checkout": {
+        "line": 170,
+        "text": "2026-11-11T15:58:25.8681082Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "first_failed_step": {
+        "name": "Native SDK CBOM producer and distinct closed package profile",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 6
+      },
+      "apt_commands": [
+        {
+          "line": 660,
+          "text": "2026-11-11T15:58:58.5378580Z sudo apt-get update && sudo apt-get install -y cmake pkg-config"
+        }
+      ],
+      "dns_hosts": [
+        "azure.archive.ubuntu.com",
+        "archive.ubuntu.com",
+        "security.ubuntu.com"
+      ],
+      "dns_line_count": 32,
+      "first_dns_error": {
+        "line": 690,
+        "text": "2026-11-11T16:01:18.8944789Z   Temporary failure resolving 'azure.archive.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 764,
+          "text": "2026-11-11T16:05:44.8250216Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [],
+      "prior_successful_steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Generate byte-identical CycloneDX BOM output modes",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        }
+      ],
+      "skipped_work_steps": [
+        {
+          "number": 7,
+          "name": "Retain native SDK inventory"
+        },
+        {
+          "number": 8,
+          "name": "Install fixed dependency-audit tool"
+        },
+        {
+          "number": 9,
+          "name": "Verify workspace dependency audit"
+        },
+        {
+          "number": 10,
+          "name": "Verify separate Continuity dependency lock"
+        }
+      ]
+    },
+    {
+      "job_id": 130625399323,
+      "name": "Binary CT [aarch64-native]",
+      "run_id": 43050342715,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715/job/130625399323",
+      "log": "logs/130625399323.log",
+      "log_integrity": {
+        "job_id": 130625399323,
+        "bytes": 46881,
+        "sha256": "96c5d54e4afad4dc4e4a9f3e0a40a64d8946184713af8c49fc4e897aeff3e824",
+        "git_blob": "2bc6e31f10ac02ee61cf87d14b3eecaa27e6b319"
+      },
+      "image": [
+        {
+          "line": 17,
+          "text": "2026-11-11T15:58:23.9937853Z Image: ubuntu-24.04-arm"
+        },
+        {
+          "line": 18,
+          "text": "2026-11-11T15:58:23.9941571Z Version: 20261101.172.1"
+        },
+        {
+          "line": 19,
+          "text": "2026-11-11T15:58:23.9943187Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24-arm64/20261101.172/images/ubuntu/Ubuntu2404-Arm64-Readme.md"
+        }
+      ],
+      "checkout": {
+        "line": 169,
+        "text": "2026-11-11T15:59:26.4284451Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "first_failed_step": {
+        "name": "Install Valgrind (provides valgrind/memcheck.h for the shim)",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 5
+      },
+      "apt_commands": [
+        {
+          "line": 449,
+          "text": "2026-11-11T15:59:37.5630510Z sudo apt-get update && sudo apt-get install -y valgrind"
+        }
+      ],
+      "dns_hosts": [
+        "ports.ubuntu.com"
+      ],
+      "dns_line_count": 20,
+      "first_dns_error": {
+        "line": 476,
+        "text": "2026-11-11T16:03:56.2994805Z   Temporary failure resolving 'ports.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 542,
+          "text": "2026-11-11T16:13:21.3972979Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [],
+      "prior_successful_steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Verify the fixed CT architecture identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        }
+      ],
+      "skipped_work_steps": [
+        {
+          "number": 6,
+          "name": "Build the ct_verify harness (real Memcheck client requests)"
+        },
+        {
+          "number": 7,
+          "name": "Memcheck — no secret-dependent control flow (hard gate)"
+        },
+        {
+          "number": 8,
+          "name": "Build the shipped-backend binary CT probes"
+        },
+        {
+          "number": 9,
+          "name": "Memcheck — shipped ML-KEM provider probes (self-validating)"
+        }
+      ]
+    },
+    {
+      "job_id": 130625398966,
+      "name": "x86-avx2-candidate",
+      "run_id": 43050342715,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715/job/130625398966",
+      "log": "logs/130625398966.log",
+      "log_integrity": {
+        "job_id": 130625398966,
+        "bytes": 111446,
+        "sha256": "da5b143e10b2b3b6615c5ade68bbf65e68c39af4b638c5e05ebfe6a18c26f6cd",
+        "git_blob": "3c84a2d40e1d4639d5eecdd95f51aec1be8fd9c9"
+      },
+      "image": [
+        {
+          "line": 17,
+          "text": "2026-11-11T15:49:38.8089500Z Image: ubuntu-26.04"
+        },
+        {
+          "line": 18,
+          "text": "2026-11-11T15:49:38.8090087Z Version: 20261101.186.1"
+        },
+        {
+          "line": 19,
+          "text": "2026-11-11T15:49:38.8091789Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md"
+        }
+      ],
+      "checkout": {
+        "line": 169,
+        "text": "2026-11-11T15:54:45.0628436Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "first_failed_step": {
+        "name": "Install Memcheck and build the candidate binary probes",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 6
+      },
+      "apt_commands": [
+        {
+          "line": 1198,
+          "text": "2026-11-11T15:58:24.6912383Z sudo apt-get update && sudo apt-get install -y valgrind"
+        }
+      ],
+      "dns_hosts": [
+        "azure.archive.ubuntu.com",
+        "archive.ubuntu.com",
+        "security.ubuntu.com"
+      ],
+      "dns_line_count": 40,
+      "first_dns_error": {
+        "line": 1224,
+        "text": "2026-11-11T16:00:44.9609835Z   Temporary failure resolving 'azure.archive.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 1315,
+          "text": "2026-11-11T16:06:28.1433169Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [
+        {
+          "line": 1333,
+          "text": "2026-11-11T16:06:28.3039626Z ##[error]No files were found with the provided path: target/x86-avx2-ct.*. No artifacts will be uploaded."
+        }
+      ],
+      "prior_successful_steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Verify native Linux x86-64 and source identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Candidate Clippy, KAT, differential, rejection and SDK checks",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        }
+      ],
+      "skipped_work_steps": [
+        {
+          "number": 7,
+          "name": "Require actual AVX2 under Memcheck and preserve controls"
+        }
+      ]
+    },
+    {
+      "job_id": 130625399125,
+      "name": "tamarin-proof",
+      "run_id": 43050342715,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715/job/130625399125",
+      "log": "logs/130625399125.log",
+      "log_integrity": {
+        "job_id": 130625399125,
+        "bytes": 40840,
+        "sha256": "beac5865a4e7d8ed03b91740b000272a8328306e7c5ab46def8254a5e3369f9e",
+        "git_blob": "fc2e8b5c624c20f7c970cefaab0130b04a1902ce"
+      },
+      "image": [
+        {
+          "line": 17,
+          "text": "2026-11-11T15:54:53.0320867Z Image: ubuntu-26.04"
+        },
+        {
+          "line": 18,
+          "text": "2026-11-11T15:54:53.0321357Z Version: 20261101.186.1"
+        },
+        {
+          "line": 19,
+          "text": "2026-11-11T15:54:53.0322383Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md"
+        }
+      ],
+      "checkout": {
+        "line": 172,
+        "text": "2026-11-11T15:56:02.5752577Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "first_failed_step": {
+        "name": "Install Maude + Tamarin",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 4
+      },
+      "apt_commands": [
+        {
+          "line": 280,
+          "text": "2026-11-11T15:56:03.2528166Z sudo apt-get update"
+        },
+        {
+          "line": 281,
+          "text": "2026-11-11T15:56:03.2528402Z sudo apt-get install -y graphviz unzip"
+        }
+      ],
+      "dns_hosts": [
+        "azure.archive.ubuntu.com",
+        "archive.ubuntu.com",
+        "security.ubuntu.com"
+      ],
+      "dns_line_count": 52,
+      "first_dns_error": {
+        "line": 326,
+        "text": "2026-11-11T15:58:23.5389731Z   Temporary failure resolving 'azure.archive.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 441,
+          "text": "2026-11-11T16:06:12.1332087Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [
+        {
+          "line": 457,
+          "text": "2026-11-11T16:06:12.2650050Z ##[error]No files were found with the provided path: target/continuity-recovery-proof. No artifacts will be uploaded."
+        }
+      ],
+      "prior_successful_steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Handshake and migration lemma names present (hard gate)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        }
+      ],
+      "skipped_work_steps": [
+        {
+          "number": 5,
+          "name": "Verify pinned Tamarin and Maude identities"
+        },
+        {
+          "number": 6,
+          "name": "Machine-check handshake, migration, and countermodels (make prove)"
+        },
+        {
+          "number": 7,
+          "name": "Replay independent-identity recovery and disclosure proofs"
+        },
+        {
+          "number": 8,
+          "name": "Replay key-scoped recovery and identity-sharing witnesses"
+        },
+        {
+          "number": 9,
+          "name": "Replay shared-storage recovery and device-owner witnesses"
+        }
+      ]
+    },
+    {
+      "job_id": 130625399165,
+      "name": "Binary CT [x86_64-portable]",
+      "run_id": 43050342715,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715/job/130625399165",
+      "log": "logs/130625399165.log",
+      "log_integrity": {
+        "job_id": 130625399165,
+        "bytes": 48803,
+        "sha256": "8c31bf5bb5af796cb2a33ae725c7e66ac7296308c4408b1a4f17bed9a85d05b6",
+        "git_blob": "72e3f62960477e16fec34e540ccc3b207559cd10"
+      },
+      "image": [
+        {
+          "line": 17,
+          "text": "2026-11-11T15:56:39.4764453Z Image: ubuntu-26.04"
+        },
+        {
+          "line": 18,
+          "text": "2026-11-11T15:56:39.4765430Z Version: 20261101.186.1"
+        },
+        {
+          "line": 19,
+          "text": "2026-11-11T15:56:39.4767599Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md"
+        }
+      ],
+      "checkout": {
+        "line": 168,
+        "text": "2026-11-11T15:57:32.3446854Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "first_failed_step": {
+        "name": "Install Valgrind (provides valgrind/memcheck.h for the shim)",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 5
+      },
+      "apt_commands": [
+        {
+          "line": 448,
+          "text": "2026-11-11T15:57:44.1359769Z sudo apt-get update && sudo apt-get install -y valgrind"
+        }
+      ],
+      "dns_hosts": [
+        "azure.archive.ubuntu.com",
+        "archive.ubuntu.com",
+        "security.ubuntu.com"
+      ],
+      "dns_line_count": 40,
+      "first_dns_error": {
+        "line": 473,
+        "text": "2026-11-11T16:00:04.4469181Z   Temporary failure resolving 'azure.archive.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 564,
+          "text": "2026-11-11T16:05:48.1337240Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [],
+      "prior_successful_steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Verify the fixed CT architecture identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        }
+      ],
+      "skipped_work_steps": [
+        {
+          "number": 6,
+          "name": "Build the ct_verify harness (real Memcheck client requests)"
+        },
+        {
+          "number": 7,
+          "name": "Memcheck — no secret-dependent control flow (hard gate)"
+        },
+        {
+          "number": 8,
+          "name": "Build the shipped-backend binary CT probes"
+        },
+        {
+          "number": 9,
+          "name": "Memcheck — shipped ML-KEM provider probes (self-validating)"
+        }
+      ]
+    }
+  ]
+}

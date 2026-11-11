@@ -1,0 +1,17 @@
+{
+  "requested_url": "https://status.canonical.com/rss",
+  "response_url": "https://status.canonical.com/rss",
+  "http_status": 200,
+  "headers": {
+    "date": "Wed, 11 Nov 2026 16:09:26 GMT",
+    "content-type": "application/rss+xml;charset=utf-8",
+    "cache-control": "private,no-cache,no-store,max-age=0,must-revalidate",
+    "content-language": "en-US"
+  },
+  "retrieved_started_utc": "2026-11-11T16:09:18.672416+00:00",
+  "retrieved_finished_utc": "2026-11-11T16:09:26.563556+00:00",
+  "bytes": 11040,
+  "sha256": "dc07d6475089af8e8794f9bacd46ab59ca9f25e881b710af92abf21774bd9788",
+  "git_blob": "2646c5374ae204acb4c139319150254beee74db6",
+  "header_scope": "Selected response metadata; cookies and unrelated transport headers omitted. RSS body is complete."
+}

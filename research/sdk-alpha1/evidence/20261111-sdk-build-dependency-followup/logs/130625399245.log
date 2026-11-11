@@ -1,0 +1,638 @@
+﻿2026-11-11T15:38:22.5870085Z Current runner version: '2.338.2'
+2026-11-11T15:38:22.5893826Z ##[group]Runner Image Provisioner
+2026-11-11T15:38:22.5894903Z Hosted Compute Agent
+2026-11-11T15:38:22.5895447Z Version: 20261028.624
+2026-11-11T15:38:22.5896105Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-11T15:38:22.5896862Z Build Date: 2026-10-28T21:51:42Z
+2026-11-11T15:38:22.5897502Z Worker ID: {652380a8-2d84-4900-861b-a16b8e374fe9}
+2026-11-11T15:38:22.5898135Z Region: westus3
+2026-11-11T15:38:22.5898711Z Cloud: Azure
+2026-11-11T15:38:22.5899314Z ##[endgroup]
+2026-11-11T15:38:22.5901267Z ##[group]Operating System
+2026-11-11T15:38:22.5901884Z Ubuntu
+2026-11-11T15:38:22.5902347Z 24.04.5
+2026-11-11T15:38:22.5902859Z LTS
+2026-11-11T15:38:22.5903350Z ##[endgroup]
+2026-11-11T15:38:22.5903855Z ##[group]Runner Image
+2026-11-11T15:38:22.5904403Z Image: ubuntu-24.04
+2026-11-11T15:38:22.5904913Z Version: 20261101.360.1
+2026-11-11T15:38:22.5906113Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-11T15:38:22.5907547Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261101.360
+2026-11-11T15:38:22.5908435Z ##[endgroup]
+2026-11-11T15:38:22.5909693Z ##[group]GITHUB_TOKEN Permissions
+2026-11-11T15:38:22.5912032Z Contents: read
+2026-11-11T15:38:22.5912582Z Metadata: read
+2026-11-11T15:38:22.5913115Z ##[endgroup]
+2026-11-11T15:38:22.5915217Z Secret source: Actions
+2026-11-11T15:38:22.5916203Z Cache mode: write
+2026-11-11T15:38:22.5916868Z Prepare workflow directory
+2026-11-11T15:38:22.6294683Z Prepare all required actions
+2026-11-11T15:38:22.6343473Z Getting action download info
+2026-11-11T15:38:22.9623037Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-11T15:38:23.0700947Z Download action repository 'dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c' (SHA:2c7215f132e9ebf062739d9130488b56d53c060c)
+2026-11-11T15:38:23.4148821Z Complete job name: cross (riscv64gc-unknown-linux-gnu)
+2026-11-11T15:38:23.4845280Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-11T15:38:23.4846509Z with:
+2026-11-11T15:38:23.4847031Z   persist-credentials: false
+2026-11-11T15:38:23.4847606Z   repository: billlza/q-periapt
+2026-11-11T15:38:23.4851441Z   token: ***
+2026-11-11T15:38:23.4851924Z   ssh-strict: true
+2026-11-11T15:38:23.4852483Z   ssh-user: git
+2026-11-11T15:38:23.4852959Z   clean: true
+2026-11-11T15:38:23.4853451Z   sparse-checkout-cone-mode: true
+2026-11-11T15:38:23.4854021Z   fetch-depth: 1
+2026-11-11T15:38:23.4854486Z   fetch-tags: false
+2026-11-11T15:38:23.4854981Z   show-progress: true
+2026-11-11T15:38:23.4855712Z   lfs: false
+2026-11-11T15:38:23.4856166Z   submodules: false
+2026-11-11T15:38:23.4856656Z   set-safe-directory: true
+2026-11-11T15:38:23.4857215Z   allow-unsafe-pr-checkout: false
+2026-11-11T15:38:23.4857980Z env:
+2026-11-11T15:38:23.4858488Z   CARGO_TERM_COLOR: always
+2026-11-11T15:38:23.4859028Z   RUSTFLAGS: -D warnings
+2026-11-11T15:38:23.4859813Z   CARGO_NET_RETRY: 10
+2026-11-11T15:38:23.4860362Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:38:23.4860910Z   GIT_CONFIG_COUNT: 1
+2026-11-11T15:38:23.4861431Z   GIT_CONFIG_KEY_0: init.defaultBranch
+2026-11-11T15:38:23.4862018Z   GIT_CONFIG_VALUE_0: main
+2026-11-11T15:38:23.4862542Z ##[endgroup]
+2026-11-11T15:38:23.7689059Z Syncing repository: billlza/q-periapt
+2026-11-11T15:38:23.7692138Z ##[group]Getting Git version info
+2026-11-11T15:38:23.7693238Z Working directory is '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T15:38:23.7694936Z [command]/usr/bin/git version
+2026-11-11T15:38:23.7759999Z git version 2.56.0
+2026-11-11T15:38:23.7779562Z ##[endgroup]
+2026-11-11T15:38:23.7789524Z Temporarily overriding HOME='/home/runner/work/_temp/f09c62a7-4888-42c2-96cc-132d04eaad82' before making global git config changes
+2026-11-11T15:38:23.7791805Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T15:38:23.7795538Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T15:38:23.7845153Z Deleting the contents of '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T15:38:23.7848075Z ##[group]Determining repository object format
+2026-11-11T15:38:23.7849755Z ##[endgroup]
+2026-11-11T15:38:23.7851042Z ##[group]Initializing the repository
+2026-11-11T15:38:23.7855733Z [command]/usr/bin/git init /home/runner/work/q-periapt/q-periapt
+2026-11-11T15:38:23.7991827Z Initialized empty Git repository in /home/runner/work/q-periapt/q-periapt/.git/
+2026-11-11T15:38:23.7997496Z [command]/usr/bin/git remote add origin https://github.com/billlza/q-periapt
+2026-11-11T15:38:23.8041537Z ##[endgroup]
+2026-11-11T15:38:23.8042808Z ##[group]Disabling automatic garbage collection
+2026-11-11T15:38:23.8044453Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-11T15:38:23.8076442Z ##[endgroup]
+2026-11-11T15:38:23.8077524Z ##[group]Setting up auth
+2026-11-11T15:38:23.8078385Z Removing SSH command configuration
+2026-11-11T15:38:23.8083381Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T15:38:23.8116653Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T15:38:23.8472028Z Removing HTTP extra header
+2026-11-11T15:38:23.8477283Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T15:38:23.8545815Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T15:38:23.8726061Z Removing includeIf entries pointing to credentials config files
+2026-11-11T15:38:23.8731518Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T15:38:23.8763870Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T15:38:23.8946479Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-c3b140f4-7f9d-4744-b6cb-6ba63bc9a04f.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-11T15:38:23.8982236Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path /home/runner/work/_temp/git-credentials-c3b140f4-7f9d-4744-b6cb-6ba63bc9a04f.config
+2026-11-11T15:38:23.9011413Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-c3b140f4-7f9d-4744-b6cb-6ba63bc9a04f.config
+2026-11-11T15:38:23.9043337Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-c3b140f4-7f9d-4744-b6cb-6ba63bc9a04f.config
+2026-11-11T15:38:23.9073911Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-c3b140f4-7f9d-4744-b6cb-6ba63bc9a04f.config
+2026-11-11T15:38:23.9102024Z ##[endgroup]
+2026-11-11T15:38:23.9103374Z ##[group]Fetching the repository
+2026-11-11T15:38:23.9110722Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +b72f7f8e8e6f2526ebab4b825b7d47402ac9835f:refs/remotes/pull/121/merge
+2026-11-11T15:42:12.4173849Z From https://github.com/billlza/q-periapt
+2026-11-11T15:42:12.4174878Z  * [new ref]         b72f7f8e8e6f2526ebab4b825b7d47402ac9835f -> pull/121/merge
+2026-11-11T15:42:12.4176816Z ##[endgroup]
+2026-11-11T15:42:12.4177572Z ##[group]Determining the checkout info
+2026-11-11T15:42:12.4180636Z ##[endgroup]
+2026-11-11T15:42:12.4183883Z [command]/usr/bin/git sparse-checkout disable
+2026-11-11T15:42:12.4236175Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-11T15:42:12.4267489Z ##[group]Checking out the ref
+2026-11-11T15:42:12.4271437Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/121/merge
+2026-11-11T15:42:13.4944026Z Updating files:  70% (5623/7926)
+2026-11-11T15:42:14.1815405Z Updating files:  71% (5628/7926)
+2026-11-11T15:42:14.4434249Z Updating files:  72% (5707/7926)
+2026-11-11T15:42:14.7122124Z Updating files:  72% (5741/7926)
+2026-11-11T15:42:15.1485288Z Updating files:  73% (5786/7926)
+2026-11-11T15:42:15.5280650Z Updating files:  74% (5866/7926)
+2026-11-11T15:42:15.6543584Z Updating files:  74% (5933/7926)
+2026-11-11T15:42:15.7974283Z Updating files:  75% (5945/7926)
+2026-11-11T15:42:16.5824653Z Updating files:  76% (6024/7926)
+2026-11-11T15:42:16.7176724Z Updating files:  76% (6065/7926)
+2026-11-11T15:42:16.9058902Z Updating files:  77% (6104/7926)
+2026-11-11T15:42:17.1387400Z Updating files:  78% (6183/7926)
+2026-11-11T15:42:17.4658418Z Updating files:  79% (6262/7926)
+2026-11-11T15:42:17.5711877Z Updating files:  79% (6331/7926)
+2026-11-11T15:42:18.6112868Z Updating files:  80% (6341/7926)
+2026-11-11T15:42:19.4085614Z Updating files:  80% (6393/7926)
+2026-11-11T15:42:19.4416456Z Updating files:  81% (6421/7926)
+2026-11-11T15:42:20.3410085Z Updating files:  81% (6445/7926)
+2026-11-11T15:42:20.5363508Z Updating files:  82% (6500/7926)
+2026-11-11T15:42:20.9809919Z Updating files:  82% (6501/7926)
+2026-11-11T15:42:21.0347311Z Updating files:  83% (6579/7926)
+2026-11-11T15:42:21.0875567Z Updating files:  84% (6658/7926)
+2026-11-11T15:42:21.4893301Z Updating files:  85% (6738/7926)
+2026-11-11T15:42:21.7789551Z Updating files:  85% (6743/7926)
+2026-11-11T15:42:22.2091567Z Updating files:  86% (6817/7926)
+2026-11-11T15:42:22.4472224Z Updating files:  87% (6896/7926)
+2026-11-11T15:42:23.5624013Z Updating files:  87% (6927/7926)
+2026-11-11T15:42:24.1116437Z Updating files:  87% (6943/7926)
+2026-11-11T15:42:24.4593774Z Updating files:  88% (6975/7926)
+2026-11-11T15:42:25.8655985Z Updating files:  88% (6983/7926)
+2026-11-11T15:42:26.4962549Z Updating files:  88% (7017/7926)
+2026-11-11T15:42:26.7689928Z Updating files:  88% (7035/7926)
+2026-11-11T15:42:27.7104008Z Updating files:  89% (7055/7926)
+2026-11-11T15:42:27.8034093Z Updating files:  89% (7113/7926)
+2026-11-11T15:42:28.5089273Z Updating files:  90% (7134/7926)
+2026-11-11T15:42:28.9492475Z Updating files:  90% (7152/7926)
+2026-11-11T15:42:29.1218929Z Updating files:  91% (7213/7926)
+2026-11-11T15:42:29.1335242Z Updating files:  92% (7292/7926)
+2026-11-11T15:42:29.1396042Z Updating files:  93% (7372/7926)
+2026-11-11T15:42:29.1436961Z Updating files:  94% (7451/7926)
+2026-11-11T15:42:29.1464402Z Updating files:  95% (7530/7926)
+2026-11-11T15:42:29.1893031Z Updating files:  96% (7609/7926)
+2026-11-11T15:42:29.2077139Z Updating files:  97% (7689/7926)
+2026-11-11T15:42:29.2174482Z Updating files:  98% (7768/7926)
+2026-11-11T15:42:29.2250943Z Updating files:  99% (7847/7926)
+2026-11-11T15:42:29.2251747Z Updating files: 100% (7926/7926)
+2026-11-11T15:42:29.2252592Z Updating files: 100% (7926/7926), done.
+2026-11-11T15:42:29.4388098Z Note: switching to 'refs/remotes/pull/121/merge'.
+2026-11-11T15:42:29.4389249Z 
+2026-11-11T15:42:29.4390667Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-11T15:42:29.4391472Z changes and commit them, and you can discard any commits you make in this
+2026-11-11T15:42:29.4392144Z state without impacting any branches by switching back to a branch.
+2026-11-11T15:42:29.4392880Z 
+2026-11-11T15:42:29.4393228Z If you want to create a new branch to retain commits you create, you may
+2026-11-11T15:42:29.4394010Z do so (now or later) by using -c with the switch command. Example:
+2026-11-11T15:42:29.4394379Z 
+2026-11-11T15:42:29.4394730Z   git switch -c <new-branch-name>
+2026-11-11T15:42:29.4395057Z 
+2026-11-11T15:42:29.4395233Z Or undo this operation with:
+2026-11-11T15:42:29.4395588Z 
+2026-11-11T15:42:29.4395757Z   git switch -
+2026-11-11T15:42:29.4396064Z 
+2026-11-11T15:42:29.4396385Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-11T15:42:29.4396879Z 
+2026-11-11T15:42:29.4397829Z HEAD is now at b72f7f8 Merge 75eda8f54a721dbed16a0bed43cdc493c9071485 into 48d0fb9a5651b50494ec33d025dda52bd2ff5eae
+2026-11-11T15:42:29.4902649Z ##[endgroup]
+2026-11-11T15:42:29.4954110Z [command]/usr/bin/git log -1 --format=%H
+2026-11-11T15:42:29.4983022Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f
+2026-11-11T15:42:29.4990146Z ##[group]Removing auth
+2026-11-11T15:42:29.4990820Z Removing SSH command configuration
+2026-11-11T15:42:29.4994324Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T15:42:29.5024569Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T15:42:29.5222327Z Removing HTTP extra header
+2026-11-11T15:42:29.5226181Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T15:42:29.5258761Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T15:42:29.5449618Z Removing includeIf entries pointing to credentials config files
+2026-11-11T15:42:29.5452796Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T15:42:29.5474305Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T15:42:29.5475176Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T15:42:29.5475929Z includeif.gitdir:/github/workspace/.git.path
+2026-11-11T15:42:29.5476516Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T15:42:29.5483012Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T15:42:29.5505210Z /home/runner/work/_temp/git-credentials-c3b140f4-7f9d-4744-b6cb-6ba63bc9a04f.config
+2026-11-11T15:42:29.5514194Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-c3b140f4\-7f9d\-4744\-b6cb\-6ba63bc9a04f\.config
+2026-11-11T15:42:29.5715863Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T15:42:29.5740669Z /home/runner/work/_temp/git-credentials-c3b140f4-7f9d-4744-b6cb-6ba63bc9a04f.config
+2026-11-11T15:42:29.5746979Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-c3b140f4\-7f9d\-4744\-b6cb\-6ba63bc9a04f\.config
+2026-11-11T15:42:29.8185627Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-11T15:42:29.8213257Z /github/runner_temp/git-credentials-c3b140f4-7f9d-4744-b6cb-6ba63bc9a04f.config
+2026-11-11T15:42:29.8220799Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-c3b140f4\-7f9d\-4744\-b6cb\-6ba63bc9a04f\.config
+2026-11-11T15:42:29.8520666Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T15:42:29.8546606Z /github/runner_temp/git-credentials-c3b140f4-7f9d-4744-b6cb-6ba63bc9a04f.config
+2026-11-11T15:42:29.8554267Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-c3b140f4\-7f9d\-4744\-b6cb\-6ba63bc9a04f\.config
+2026-11-11T15:42:29.9217917Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T15:42:29.9427075Z Removing credentials config '/home/runner/work/_temp/git-credentials-c3b140f4-7f9d-4744-b6cb-6ba63bc9a04f.config'
+2026-11-11T15:42:29.9435890Z ##[endgroup]
+2026-11-11T15:42:30.0650369Z ##[group]Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+2026-11-11T15:42:30.0651065Z with:
+2026-11-11T15:42:30.0651351Z   toolchain: 1.98.1
+2026-11-11T15:42:30.0651652Z   targets: riscv64gc-unknown-linux-gnu
+2026-11-11T15:42:30.0652040Z env:
+2026-11-11T15:42:30.0652311Z   CARGO_TERM_COLOR: always
+2026-11-11T15:42:30.0652624Z   RUSTFLAGS: -D warnings
+2026-11-11T15:42:30.0652934Z   CARGO_NET_RETRY: 10
+2026-11-11T15:42:30.0653233Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:42:30.0653589Z ##[endgroup]
+2026-11-11T15:42:30.0728853Z ##[start-action display=Run : parse toolchain version;id=__dtolnay_rust-toolchain.parse]
+2026-11-11T15:42:30.2996888Z ##[group]Run : parse toolchain version
+2026-11-11T15:42:30.2997588Z [36;1m: parse toolchain version[0m
+2026-11-11T15:42:30.2997956Z [36;1mif [[ -z $toolchain ]]; then[0m
+2026-11-11T15:42:30.2998556Z [36;1m  # GitHub does not enforce `required: true` inputs itself. https://github.com/actions/runner/issues/1070[0m
+2026-11-11T15:42:30.2999284Z [36;1m  echo "'toolchain' is a required input" >&2[0m
+2026-11-11T15:42:30.2999989Z [36;1m  exit 1[0m
+2026-11-11T15:42:30.3000419Z [36;1melif [[ $toolchain =~ ^stable' '[0-9]+' '(year|month|week|day)s?' 'ago$ ]]; then[0m
+2026-11-11T15:42:30.3000907Z [36;1m  if [[ Linux == macOS ]]; then[0m
+2026-11-11T15:42:30.3001516Z [36;1m    echo "toolchain=1.$((($(date -v-$(sed 's/stable \([0-9]*\) \(.\).*/\1\2/' <<< $toolchain) +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:42:30.3002062Z [36;1m  else[0m
+2026-11-11T15:42:30.3002547Z [36;1m    echo "toolchain=1.$((($(date --date "${toolchain#stable }" +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:42:30.3003050Z [36;1m  fi[0m
+2026-11-11T15:42:30.3003423Z [36;1melif [[ $toolchain =~ ^stable' 'minus' '[0-9]+' 'releases?$ ]]; then[0m
+2026-11-11T15:42:30.3004045Z [36;1m  echo "toolchain=1.$((($(date +%s)/60/60/24-16569)/7/6-${toolchain//[^0-9]/}))" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:42:30.3004583Z [36;1melif [[ $toolchain =~ ^1\.[0-9]+$ ]]; then[0m
+2026-11-11T15:42:30.3005147Z [36;1m  echo "toolchain=1.$((i=${toolchain#1.}, c=($(date +%s)/60/60/24-16569)/7/6, i+9*i*(10*i<=c)+90*i*(100*i<=c)))" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:42:30.3005708Z [36;1melse[0m
+2026-11-11T15:42:30.3006038Z [36;1m  echo "toolchain=$toolchain" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:42:30.3006631Z [36;1mfi[0m
+2026-11-11T15:42:30.3026164Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:42:30.3026588Z env:
+2026-11-11T15:42:30.3026888Z   CARGO_TERM_COLOR: always
+2026-11-11T15:42:30.3027294Z   RUSTFLAGS: -D warnings
+2026-11-11T15:42:30.3027598Z   CARGO_NET_RETRY: 10
+2026-11-11T15:42:30.3027921Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:42:30.3028253Z   toolchain: 1.98.1
+2026-11-11T15:42:30.3028539Z ##[endgroup]
+2026-11-11T15:42:30.4216400Z ##[end-action id=__dtolnay_rust-toolchain.parse;outcome=success;conclusion=success;duration_ms=348]
+2026-11-11T15:42:30.4241321Z ##[start-action display=Run : construct rustup command line;id=__dtolnay_rust-toolchain.flags]
+2026-11-11T15:42:30.5364331Z ##[group]Run : construct rustup command line
+2026-11-11T15:42:30.5364875Z [36;1m: construct rustup command line[0m
+2026-11-11T15:42:30.5365397Z [36;1mecho "targets=$(for t in ${targets//,/ }; do echo -n ' --target' $t; done)" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:42:30.5366027Z [36;1mecho "components=$(for c in ${components//,/ }; do echo -n ' --component' $c; done)" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:42:30.5366587Z [36;1mecho "downgrade=" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:42:30.5381713Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:42:30.5382119Z env:
+2026-11-11T15:42:30.5382395Z   CARGO_TERM_COLOR: always
+2026-11-11T15:42:30.5382752Z   RUSTFLAGS: -D warnings
+2026-11-11T15:42:30.5383088Z   CARGO_NET_RETRY: 10
+2026-11-11T15:42:30.5383461Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:42:30.5383811Z   targets: riscv64gc-unknown-linux-gnu
+2026-11-11T15:42:30.5384128Z   components: 
+2026-11-11T15:42:30.5384662Z ##[endgroup]
+2026-11-11T15:42:30.6622944Z ##[end-action id=__dtolnay_rust-toolchain.flags;outcome=success;conclusion=success;duration_ms=238]
+2026-11-11T15:42:30.6628617Z ##[start-action display=Run : set $CARGO_HOME;id=__dtolnay_rust-toolchain.__run]
+2026-11-11T15:42:30.7840924Z ##[group]Run : set $CARGO_HOME
+2026-11-11T15:42:30.7841443Z [36;1m: set $CARGO_HOME[0m
+2026-11-11T15:42:30.7842032Z [36;1mecho CARGO_HOME=${CARGO_HOME:-"$HOME/.cargo"} >> $GITHUB_ENV[0m
+2026-11-11T15:42:30.7856614Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:42:30.7857098Z env:
+2026-11-11T15:42:30.7857464Z   CARGO_TERM_COLOR: always
+2026-11-11T15:42:30.7857810Z   RUSTFLAGS: -D warnings
+2026-11-11T15:42:30.7858117Z   CARGO_NET_RETRY: 10
+2026-11-11T15:42:30.7858414Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:42:30.7858764Z ##[endgroup]
+2026-11-11T15:42:30.9068551Z ##[end-action id=__dtolnay_rust-toolchain.__run;outcome=success;conclusion=success;duration_ms=243]
+2026-11-11T15:42:30.9072217Z ##[start-action display=Run : install rustup if needed;id=__dtolnay_rust-toolchain.__run_2]
+2026-11-11T15:42:31.0176715Z ##[group]Run : install rustup if needed
+2026-11-11T15:42:31.0177185Z [36;1m: install rustup if needed[0m
+2026-11-11T15:42:31.0177553Z [36;1mif ! command -v rustup &>/dev/null; then[0m
+2026-11-11T15:42:31.0178340Z [36;1m  curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused --location --silent --show-error --fail https://sh.rustup.rs | sh -s -- --default-toolchain none -y[0m
+2026-11-11T15:42:31.0179124Z [36;1m  echo "$CARGO_HOME/bin" >> $GITHUB_PATH[0m
+2026-11-11T15:42:31.0179643Z [36;1mfi[0m
+2026-11-11T15:42:31.0193614Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:42:31.0194042Z env:
+2026-11-11T15:42:31.0194349Z   CARGO_TERM_COLOR: always
+2026-11-11T15:42:31.0194697Z   RUSTFLAGS: -D warnings
+2026-11-11T15:42:31.0195067Z   CARGO_NET_RETRY: 10
+2026-11-11T15:42:31.0195412Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:42:31.0195795Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:42:31.0196312Z ##[endgroup]
+2026-11-11T15:42:31.1460291Z ##[end-action id=__dtolnay_rust-toolchain.__run_2;outcome=success;conclusion=success;duration_ms=238]
+2026-11-11T15:42:31.1467757Z ##[start-action display=Run : install rustup if needed on windows;id=__dtolnay_rust-toolchain.__run_3]
+2026-11-11T15:42:31.1475440Z ##[end-action id=__dtolnay_rust-toolchain.__run_3;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-11T15:42:31.1480078Z ##[start-action display=rustup toolchain install 1.98.1;id=__dtolnay_rust-toolchain.__run_4]
+2026-11-11T15:42:31.2632509Z ##[group]Run rustup toolchain install 1.98.1 --target riscv64gc-unknown-linux-gnu --profile minimal --no-self-update
+2026-11-11T15:42:31.2633396Z [36;1mrustup toolchain install 1.98.1 --target riscv64gc-unknown-linux-gnu --profile minimal --no-self-update[0m
+2026-11-11T15:42:31.2647746Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:42:31.2648141Z env:
+2026-11-11T15:42:31.2648532Z   CARGO_TERM_COLOR: always
+2026-11-11T15:42:31.2648859Z   RUSTFLAGS: -D warnings
+2026-11-11T15:42:31.2649176Z   CARGO_NET_RETRY: 10
+2026-11-11T15:42:31.2649626Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:42:31.2649980Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:42:31.2650318Z   RUSTUP_PERMIT_COPY_RENAME: 1
+2026-11-11T15:42:31.2650678Z ##[endgroup]
+2026-11-11T15:42:31.5283107Z info: syncing channel updates for 1.98.1-x86_64-unknown-linux-gnu
+2026-11-11T15:42:31.9758757Z info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+2026-11-11T15:42:31.9761783Z info: downloading 4 components
+2026-11-11T15:42:43.5574869Z 
+2026-11-11T15:42:43.5646751Z   1.98.1-x86_64-unknown-linux-gnu installed - rustc 1.98.1 (48a229cea 2026-09-01)
+2026-11-11T15:42:43.5647339Z 
+2026-11-11T15:42:43.5712240Z ##[end-action id=__dtolnay_rust-toolchain.__run_4;outcome=success;conclusion=success;duration_ms=12423]
+2026-11-11T15:42:43.5719282Z ##[start-action display=Run rustup default 1.98.1;id=__dtolnay_rust-toolchain.__run_5]
+2026-11-11T15:42:43.6269145Z ##[group]Run rustup default 1.98.1
+2026-11-11T15:42:43.6270033Z [36;1mrustup default 1.98.1[0m
+2026-11-11T15:42:43.6285073Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:42:43.6285484Z env:
+2026-11-11T15:42:43.6285822Z   CARGO_TERM_COLOR: always
+2026-11-11T15:42:43.6286149Z   RUSTFLAGS: -D warnings
+2026-11-11T15:42:43.6286481Z   CARGO_NET_RETRY: 10
+2026-11-11T15:42:43.6286829Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:42:43.6287220Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:42:43.6287612Z ##[endgroup]
+2026-11-11T15:42:43.6854127Z info: using existing install for 1.98.1-x86_64-unknown-linux-gnu
+2026-11-11T15:42:43.7462208Z 
+2026-11-11T15:42:43.7466031Z info: default toolchain set to 1.98.1-x86_64-unknown-linux-gnu
+2026-11-11T15:42:43.7534964Z   1.98.1-x86_64-unknown-linux-gnu unchanged - rustc 1.98.1 (48a229cea 2026-09-01)
+2026-11-11T15:42:43.7536166Z info: note that the toolchain '1.98.1-x86_64-unknown-linux-gnu' is currently in use (overridden by '/home/runner/work/q-periapt/q-periapt/rust-toolchain.toml')
+2026-11-11T15:42:43.7536846Z 
+2026-11-11T15:42:43.7556543Z ##[end-action id=__dtolnay_rust-toolchain.__run_5;outcome=success;conclusion=success;duration_ms=183]
+2026-11-11T15:42:43.7562810Z ##[start-action display=Run : create cachekey;id=__dtolnay_rust-toolchain.rustc-version]
+2026-11-11T15:42:43.7665910Z ##[group]Run : create cachekey
+2026-11-11T15:42:43.7666320Z [36;1m: create cachekey[0m
+2026-11-11T15:42:43.7666967Z [36;1mDATE=$(rustc +1.98.1 --version --verbose | sed -ne 's/^commit-date: \(20[0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)$/\1\2\3/p')[0m
+2026-11-11T15:42:43.7667640Z [36;1mHASH=$(rustc +1.98.1 --version --verbose | sed -ne 's/^commit-hash: //p')[0m
+2026-11-11T15:42:43.7668159Z [36;1mecho "cachekey=$(echo $DATE$HASH | head -c12)" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:42:43.7682844Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:42:43.7683248Z env:
+2026-11-11T15:42:43.7683597Z   CARGO_TERM_COLOR: always
+2026-11-11T15:42:43.7683965Z   RUSTFLAGS: -D warnings
+2026-11-11T15:42:43.7684306Z   CARGO_NET_RETRY: 10
+2026-11-11T15:42:43.7684656Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:42:43.7685002Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:42:43.7685338Z ##[endgroup]
+2026-11-11T15:42:43.8035491Z ##[end-action id=__dtolnay_rust-toolchain.rustc-version;outcome=success;conclusion=success;duration_ms=47]
+2026-11-11T15:42:43.8038836Z ##[start-action display=Run : disable incremental compilation;id=__dtolnay_rust-toolchain.__run_6]
+2026-11-11T15:42:43.8163861Z ##[group]Run : disable incremental compilation
+2026-11-11T15:42:43.8164337Z [36;1m: disable incremental compilation[0m
+2026-11-11T15:42:43.8164785Z [36;1mif [ -z "${CARGO_INCREMENTAL+set}" ]; then[0m
+2026-11-11T15:42:43.8165190Z [36;1m  echo CARGO_INCREMENTAL=0 >> $GITHUB_ENV[0m
+2026-11-11T15:42:43.8165567Z [36;1mfi[0m
+2026-11-11T15:42:43.8180536Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:42:43.8181024Z env:
+2026-11-11T15:42:43.8181330Z   CARGO_TERM_COLOR: always
+2026-11-11T15:42:43.8181676Z   RUSTFLAGS: -D warnings
+2026-11-11T15:42:43.8181978Z   CARGO_NET_RETRY: 10
+2026-11-11T15:42:43.8182302Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:42:43.8182654Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:42:43.8182952Z ##[endgroup]
+2026-11-11T15:42:43.8281868Z ##[end-action id=__dtolnay_rust-toolchain.__run_6;outcome=success;conclusion=success;duration_ms=24]
+2026-11-11T15:42:43.8284996Z ##[start-action display=Run : enable colors in Cargo output;id=__dtolnay_rust-toolchain.__run_7]
+2026-11-11T15:42:43.8359094Z ##[group]Run : enable colors in Cargo output
+2026-11-11T15:42:43.8359706Z [36;1m: enable colors in Cargo output[0m
+2026-11-11T15:42:43.8360118Z [36;1mif [ -z "${CARGO_TERM_COLOR+set}" ]; then[0m
+2026-11-11T15:42:43.8360545Z [36;1m  echo CARGO_TERM_COLOR=always >> $GITHUB_ENV[0m
+2026-11-11T15:42:43.8360907Z [36;1mfi[0m
+2026-11-11T15:42:43.8375582Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:42:43.8376062Z env:
+2026-11-11T15:42:43.8376437Z   CARGO_TERM_COLOR: always
+2026-11-11T15:42:43.8376794Z   RUSTFLAGS: -D warnings
+2026-11-11T15:42:43.8377089Z   CARGO_NET_RETRY: 10
+2026-11-11T15:42:43.8377422Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:42:43.8377764Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:42:43.8378088Z   CARGO_INCREMENTAL: 0
+2026-11-11T15:42:43.8378388Z ##[endgroup]
+2026-11-11T15:42:43.8480039Z ##[end-action id=__dtolnay_rust-toolchain.__run_7;outcome=success;conclusion=success;duration_ms=19]
+2026-11-11T15:42:43.8486081Z ##[start-action display=Run : enable Cargo sparse registry;id=__dtolnay_rust-toolchain.__run_8]
+2026-11-11T15:42:43.8561699Z ##[group]Run : enable Cargo sparse registry
+2026-11-11T15:42:43.8562172Z [36;1m: enable Cargo sparse registry[0m
+2026-11-11T15:42:43.8562611Z [36;1m# implemented in 1.66, stabilized in 1.68, made default in 1.70[0m
+2026-11-11T15:42:43.8563342Z [36;1mif [ -z "${CARGO_REGISTRIES_CRATES_IO_PROTOCOL+set}" -o -f "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol ]; then[0m
+2026-11-11T15:42:43.8564159Z [36;1m  if rustc +1.98.1 --version --verbose | grep -q '^release: 1\.6[89]\.'; then[0m
+2026-11-11T15:42:43.8564777Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2026-11-11T15:42:43.8565346Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse >> $GITHUB_ENV[0m
+2026-11-11T15:42:43.8565918Z [36;1m  elif rustc +1.98.1 --version --verbose | grep -q '^release: 1\.6[67]\.'; then[0m
+2026-11-11T15:42:43.8566502Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2026-11-11T15:42:43.8567055Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git >> $GITHUB_ENV[0m
+2026-11-11T15:42:43.8567484Z [36;1m  fi[0m
+2026-11-11T15:42:43.8567794Z [36;1mfi[0m
+2026-11-11T15:42:43.8581320Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:42:43.8581820Z env:
+2026-11-11T15:42:43.8582134Z   CARGO_TERM_COLOR: always
+2026-11-11T15:42:43.8582481Z   RUSTFLAGS: -D warnings
+2026-11-11T15:42:43.8582806Z   CARGO_NET_RETRY: 10
+2026-11-11T15:42:43.8583144Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:42:43.8583494Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:42:43.8583817Z   CARGO_INCREMENTAL: 0
+2026-11-11T15:42:43.8584117Z ##[endgroup]
+2026-11-11T15:42:43.8912224Z ##[end-action id=__dtolnay_rust-toolchain.__run_8;outcome=success;conclusion=success;duration_ms=42]
+2026-11-11T15:42:43.8919125Z ##[start-action display=Run : work around spurious network errors in curl 8.0;id=__dtolnay_rust-toolchain.__run_9]
+2026-11-11T15:42:43.8962513Z ##[group]Run : work around spurious network errors in curl 8.0
+2026-11-11T15:42:43.8963221Z [36;1m: work around spurious network errors in curl 8.0[0m
+2026-11-11T15:42:43.8964215Z [36;1m# https://rust-lang.zulipchat.com/#narrow/stream/246057-t-cargo/topic/timeout.20investigation[0m
+2026-11-11T15:42:43.8965215Z [36;1mif rustc +1.98.1 --version --verbose | grep -q '^release: 1\.7[01]\.'; then[0m
+2026-11-11T15:42:43.8965956Z [36;1m  echo CARGO_HTTP_MULTIPLEXING=false >> $GITHUB_ENV[0m
+2026-11-11T15:42:43.8966527Z [36;1mfi[0m
+2026-11-11T15:42:43.8986633Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:42:43.8987229Z env:
+2026-11-11T15:42:43.8987628Z   CARGO_TERM_COLOR: always
+2026-11-11T15:42:43.8988184Z   RUSTFLAGS: -D warnings
+2026-11-11T15:42:43.8988754Z   CARGO_NET_RETRY: 10
+2026-11-11T15:42:43.8989228Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:42:43.8989962Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:42:43.8990394Z   CARGO_INCREMENTAL: 0
+2026-11-11T15:42:43.8990819Z ##[endgroup]
+2026-11-11T15:42:43.9195992Z ##[end-action id=__dtolnay_rust-toolchain.__run_9;outcome=success;conclusion=success;duration_ms=27]
+2026-11-11T15:42:43.9201402Z ##[start-action display=Run rustc +1.98.1 --version --verbose;id=__dtolnay_rust-toolchain.__run_10]
+2026-11-11T15:42:43.9260598Z ##[group]Run rustc +1.98.1 --version --verbose
+2026-11-11T15:42:43.9261036Z [36;1mrustc +1.98.1 --version --verbose[0m
+2026-11-11T15:42:43.9274206Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:42:43.9274596Z env:
+2026-11-11T15:42:43.9274883Z   CARGO_TERM_COLOR: always
+2026-11-11T15:42:43.9275231Z   RUSTFLAGS: -D warnings
+2026-11-11T15:42:43.9275536Z   CARGO_NET_RETRY: 10
+2026-11-11T15:42:43.9275869Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:42:43.9276197Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:42:43.9276498Z   CARGO_INCREMENTAL: 0
+2026-11-11T15:42:43.9276845Z ##[endgroup]
+2026-11-11T15:42:43.9472236Z rustc 1.98.1 (48a229cea 2026-09-01)
+2026-11-11T15:42:43.9472764Z binary: rustc
+2026-11-11T15:42:43.9473420Z commit-hash: 48a229ceaefd4985c50990b14116b6d856af0985
+2026-11-11T15:42:43.9473907Z commit-date: 2026-09-01
+2026-11-11T15:42:43.9474303Z host: x86_64-unknown-linux-gnu
+2026-11-11T15:42:43.9474781Z release: 1.98.1
+2026-11-11T15:42:43.9475254Z LLVM version: 22.1.8
+2026-11-11T15:42:43.9486746Z ##[end-action id=__dtolnay_rust-toolchain.__run_10;outcome=success;conclusion=success;duration_ms=28]
+2026-11-11T15:42:43.9658141Z ##[group]Run sudo apt-get update && sudo apt-get install -y gcc-riscv64-linux-gnu
+2026-11-11T15:42:43.9658749Z [36;1msudo apt-get update && sudo apt-get install -y gcc-riscv64-linux-gnu[0m
+2026-11-11T15:42:43.9675077Z shell: /usr/bin/bash -e {0}
+2026-11-11T15:42:43.9675471Z env:
+2026-11-11T15:42:43.9675766Z   CARGO_TERM_COLOR: always
+2026-11-11T15:42:43.9676083Z   RUSTFLAGS: -D warnings
+2026-11-11T15:42:43.9676569Z   CARGO_NET_RETRY: 10
+2026-11-11T15:42:43.9676904Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:42:43.9677252Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:42:43.9677646Z   CARGO_INCREMENTAL: 0
+2026-11-11T15:42:43.9677936Z ##[endgroup]
+2026-11-11T15:42:44.0652106Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-11-11T15:42:44.0886033Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+2026-11-11T15:42:44.1777614Z Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble/main armhf Packages [12.6 kB]
+2026-11-11T15:42:44.2053100Z Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [760 kB]
+2026-11-11T15:42:44.2282904Z Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [690 kB]
+2026-11-11T15:43:03.9162064Z Ign:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+2026-11-11T15:43:23.9365787Z Ign:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease
+2026-11-11T15:43:43.9651867Z Ign:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease
+2026-11-11T15:44:03.9986209Z Ign:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease
+2026-11-11T15:44:24.0786266Z Ign:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+2026-11-11T15:44:44.1040241Z Ign:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease
+2026-11-11T15:44:44.1042717Z Ign:2 https://archive.ubuntu.com/ubuntu noble InRelease
+2026-11-11T15:45:04.1290581Z Err:2 https://security.ubuntu.com/ubuntu noble InRelease
+2026-11-11T15:45:04.1292433Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:45:04.1322490Z Ign:3 https://archive.ubuntu.com/ubuntu noble-updates InRelease
+2026-11-11T15:45:04.1329755Z Ign:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease
+2026-11-11T15:45:24.1571150Z Err:3 https://security.ubuntu.com/ubuntu noble-updates InRelease
+2026-11-11T15:45:24.1572040Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:45:24.1596902Z Ign:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease
+2026-11-11T15:45:24.1624665Z Ign:4 https://archive.ubuntu.com/ubuntu noble-backports InRelease
+2026-11-11T15:45:44.1891135Z Err:4 https://security.ubuntu.com/ubuntu noble-backports InRelease
+2026-11-11T15:45:44.1891953Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:45:44.2031841Z Ign:5 https://archive.ubuntu.com/ubuntu noble-security InRelease
+2026-11-11T15:46:04.2290297Z Err:5 https://security.ubuntu.com/ubuntu noble-security InRelease
+2026-11-11T15:46:04.2291663Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:46:07.3455606Z Fetched 1467 kB in 3min 20s (7326 B/s)
+2026-11-11T15:46:08.4855073Z Reading package lists...
+2026-11-11T15:46:08.5006448Z W: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/dists/noble/InRelease  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:46:08.5008062Z W: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/dists/noble-updates/InRelease  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:46:08.5009556Z W: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/dists/noble-backports/InRelease  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:46:08.5010923Z W: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/dists/noble-security/InRelease  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:46:08.5011909Z W: Some index files failed to download. They have been ignored, or old ones used instead.
+2026-11-11T15:46:08.5228976Z Reading package lists...
+2026-11-11T15:46:08.7771586Z Building dependency tree...
+2026-11-11T15:46:08.7777747Z Reading state information...
+2026-11-11T15:46:08.9458408Z The following additional packages will be installed:
+2026-11-11T15:46:08.9459792Z   binutils-riscv64-linux-gnu cpp-13-riscv64-linux-gnu cpp-riscv64-linux-gnu
+2026-11-11T15:46:08.9460797Z   gcc-13-cross-base gcc-13-riscv64-linux-gnu gcc-13-riscv64-linux-gnu-base
+2026-11-11T15:46:08.9461875Z   gcc-14-cross-base libasan8-riscv64-cross libatomic1-riscv64-cross
+2026-11-11T15:46:08.9462828Z   libc6-dev-riscv64-cross libc6-riscv64-cross libgcc-13-dev-riscv64-cross
+2026-11-11T15:46:08.9467083Z   libgcc-s1-riscv64-cross libgomp1-riscv64-cross libitm1-riscv64-cross
+2026-11-11T15:46:08.9467928Z   libstdc++6-riscv64-cross libubsan1-riscv64-cross
+2026-11-11T15:46:08.9471410Z   linux-libc-dev-riscv64-cross
+2026-11-11T15:46:08.9478745Z Suggested packages:
+2026-11-11T15:46:08.9479290Z   binutils-doc gcc-13-locales cpp-13-doc cpp-doc gcc-13-doc manpages-dev
+2026-11-11T15:46:08.9480141Z   gdb-riscv64-linux-gnu gcc-doc
+2026-11-11T15:46:08.9693951Z The following NEW packages will be installed:
+2026-11-11T15:46:08.9694712Z   binutils-riscv64-linux-gnu cpp-13-riscv64-linux-gnu cpp-riscv64-linux-gnu
+2026-11-11T15:46:08.9695667Z   gcc-13-cross-base gcc-13-riscv64-linux-gnu gcc-13-riscv64-linux-gnu-base
+2026-11-11T15:46:08.9696379Z   gcc-14-cross-base gcc-riscv64-linux-gnu libasan8-riscv64-cross
+2026-11-11T15:46:08.9697135Z   libatomic1-riscv64-cross libc6-dev-riscv64-cross libc6-riscv64-cross
+2026-11-11T15:46:08.9698083Z   libgcc-13-dev-riscv64-cross libgcc-s1-riscv64-cross libgomp1-riscv64-cross
+2026-11-11T15:46:08.9700877Z   libitm1-riscv64-cross libstdc++6-riscv64-cross libubsan1-riscv64-cross
+2026-11-11T15:46:08.9703577Z   linux-libc-dev-riscv64-cross
+2026-11-11T15:46:08.9888571Z 0 upgraded, 19 newly installed, 0 to remove and 3 not upgraded.
+2026-11-11T15:46:08.9889581Z Need to get 40.4 MB of archives.
+2026-11-11T15:46:08.9890304Z After this operation, 137 MB of additional disk space will be used.
+2026-11-11T15:46:08.9891045Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-11-11T15:46:29.0276113Z Ign:2 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 binutils-riscv64-linux-gnu amd64 2.42-4ubuntu2.10
+2026-11-11T15:46:49.0550392Z Ign:3 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13-riscv64-linux-gnu-base amd64 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:47:09.0875501Z Ign:4 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 cpp-13-riscv64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:47:29.1153763Z Ign:5 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 cpp-riscv64-linux-gnu amd64 4:13.2.0-7ubuntu1
+2026-11-11T15:47:49.1390833Z Ign:6 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13-cross-base all 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:48:09.1729709Z Ign:7 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-14-cross-base all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:48:29.1953990Z Ign:8 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libc6-riscv64-cross all 2.39-0ubuntu8cross1
+2026-11-11T15:48:49.2222824Z Ign:9 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgcc-s1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:49:09.2533752Z Ign:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgomp1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:49:29.2938510Z Ign:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libitm1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:49:49.3190899Z Ign:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libatomic1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:50:09.3507133Z Ign:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libasan8-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:50:29.0434508Z Ign:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libstdc++6-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:50:48.8395162Z Ign:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libubsan1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:51:08.8729740Z Ign:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgcc-13-dev-riscv64-cross all 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:51:28.9014176Z Ign:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13-riscv64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:51:48.9379712Z Ign:18 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 gcc-riscv64-linux-gnu amd64 4:13.2.0-7ubuntu1
+2026-11-11T15:52:08.9622250Z Ign:19 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 linux-libc-dev-riscv64-cross all 6.8.0-25.25cross1
+2026-11-11T15:52:28.9960291Z Ign:20 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libc6-dev-riscv64-cross all 2.39-0ubuntu8cross1
+2026-11-11T15:52:49.0247343Z Ign:2 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 binutils-riscv64-linux-gnu amd64 2.42-4ubuntu2.10
+2026-11-11T15:53:09.0590304Z Ign:3 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13-riscv64-linux-gnu-base amd64 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:53:09.0773575Z Ign:2 https://archive.ubuntu.com/ubuntu noble-updates/main amd64 binutils-riscv64-linux-gnu amd64 2.42-4ubuntu2.10
+2026-11-11T15:53:29.0873149Z Ign:4 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 cpp-13-riscv64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:53:29.1116999Z Ign:3 https://archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13-riscv64-linux-gnu-base amd64 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:53:29.1171644Z Err:2 https://security.ubuntu.com/ubuntu noble-updates/main amd64 binutils-riscv64-linux-gnu amd64 2.42-4ubuntu2.10
+2026-11-11T15:53:29.1173160Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:53:49.1085344Z Ign:5 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 cpp-riscv64-linux-gnu amd64 4:13.2.0-7ubuntu1
+2026-11-11T15:53:49.1405134Z Ign:4 https://archive.ubuntu.com/ubuntu noble-updates/main amd64 cpp-13-riscv64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:53:49.1539303Z Err:3 https://security.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13-riscv64-linux-gnu-base amd64 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:53:49.1540365Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:54:09.1347555Z Ign:6 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13-cross-base all 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:54:09.1769800Z Ign:5 https://archive.ubuntu.com/ubuntu noble/main amd64 cpp-riscv64-linux-gnu amd64 4:13.2.0-7ubuntu1
+2026-11-11T15:54:09.1896959Z Err:4 https://security.ubuntu.com/ubuntu noble-updates/main amd64 cpp-13-riscv64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:54:09.1900419Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:54:29.1566247Z Ign:7 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-14-cross-base all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:54:29.2024689Z Ign:6 https://archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13-cross-base all 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:54:29.2279838Z Err:5 https://security.ubuntu.com/ubuntu noble/main amd64 cpp-riscv64-linux-gnu amd64 4:13.2.0-7ubuntu1
+2026-11-11T15:54:29.2281176Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:54:48.9785791Z Err:6 https://security.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13-cross-base all 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:54:48.9786749Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:54:49.1973019Z Ign:8 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libc6-riscv64-cross all 2.39-0ubuntu8cross1
+2026-11-11T15:54:49.2266179Z Ign:7 https://archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-14-cross-base all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:55:09.2277757Z Ign:9 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgcc-s1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:55:09.2582018Z Ign:8 https://archive.ubuntu.com/ubuntu noble/main amd64 libc6-riscv64-cross all 2.39-0ubuntu8cross1
+2026-11-11T15:55:09.2637993Z Ign:7 https://security.ubuntu.com/ubuntu noble-updates/main amd64 gcc-14-cross-base all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:55:09.2639083Z Err:7 mirror+file:/etc/apt/apt-mirrors.txt noble-updates/main amd64 gcc-14-cross-base all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:55:09.2640308Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:55:29.2538140Z Ign:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgomp1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:55:29.2831707Z Ign:9 https://archive.ubuntu.com/ubuntu noble-updates/main amd64 libgcc-s1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:55:29.2832882Z Err:8 https://security.ubuntu.com/ubuntu noble/main amd64 libc6-riscv64-cross all 2.39-0ubuntu8cross1
+2026-11-11T15:55:29.2833756Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:55:49.2798247Z Ign:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libitm1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:55:49.3139189Z Ign:10 https://archive.ubuntu.com/ubuntu noble-updates/main amd64 libgomp1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:55:49.3152447Z Ign:9 https://security.ubuntu.com/ubuntu noble-updates/main amd64 libgcc-s1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:55:49.3153349Z Err:9 mirror+file:/etc/apt/apt-mirrors.txt noble-updates/main amd64 libgcc-s1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:55:49.3154241Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:56:09.3083708Z Ign:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libatomic1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:56:09.3514034Z Ign:11 https://archive.ubuntu.com/ubuntu noble-updates/main amd64 libitm1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:56:09.3600329Z Ign:10 https://security.ubuntu.com/ubuntu noble-updates/main amd64 libgomp1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:56:09.3603432Z Err:10 mirror+file:/etc/apt/apt-mirrors.txt noble-updates/main amd64 libgomp1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:56:09.3604136Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:56:29.3349028Z Ign:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libasan8-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:56:29.3960964Z Ign:12 https://archive.ubuntu.com/ubuntu noble-updates/main amd64 libatomic1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:56:29.4198434Z Ign:11 https://security.ubuntu.com/ubuntu noble-updates/main amd64 libitm1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:56:29.4199316Z Err:11 mirror+file:/etc/apt/apt-mirrors.txt noble-updates/main amd64 libitm1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:56:29.4200991Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:56:49.3601288Z Ign:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libstdc++6-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:56:49.4295118Z Ign:13 https://archive.ubuntu.com/ubuntu noble-updates/main amd64 libasan8-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:56:49.4447102Z Ign:12 https://security.ubuntu.com/ubuntu noble-updates/main amd64 libatomic1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:56:49.4448579Z Err:12 mirror+file:/etc/apt/apt-mirrors.txt noble-updates/main amd64 libatomic1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:56:49.4449275Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:57:09.3855062Z Ign:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libubsan1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:57:09.4563648Z Ign:14 https://archive.ubuntu.com/ubuntu noble-updates/main amd64 libstdc++6-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:57:09.4805134Z Ign:13 https://security.ubuntu.com/ubuntu noble-updates/main amd64 libasan8-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:57:09.4806135Z Err:13 mirror+file:/etc/apt/apt-mirrors.txt noble-updates/main amd64 libasan8-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:57:09.4807090Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:57:29.4190686Z Ign:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgcc-13-dev-riscv64-cross all 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:57:29.4859112Z Ign:15 https://archive.ubuntu.com/ubuntu noble-updates/main amd64 libubsan1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:57:29.5082900Z Ign:14 https://security.ubuntu.com/ubuntu noble-updates/main amd64 libstdc++6-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:57:29.5084244Z Err:14 mirror+file:/etc/apt/apt-mirrors.txt noble-updates/main amd64 libstdc++6-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:57:29.5084927Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:57:49.4429000Z Ign:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13-riscv64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:57:49.5253266Z Ign:16 https://archive.ubuntu.com/ubuntu noble-updates/main amd64 libgcc-13-dev-riscv64-cross all 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:57:49.5342014Z Ign:15 https://security.ubuntu.com/ubuntu noble-updates/main amd64 libubsan1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:57:49.5343049Z Err:15 mirror+file:/etc/apt/apt-mirrors.txt noble-updates/main amd64 libubsan1-riscv64-cross all 14.2.0-4ubuntu2~24.04.1cross1
+2026-11-11T15:57:49.5344057Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:58:09.4637841Z Ign:18 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 gcc-riscv64-linux-gnu amd64 4:13.2.0-7ubuntu1
+2026-11-11T15:58:09.5569280Z Ign:17 https://archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13-riscv64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:58:09.5620242Z Err:16 https://security.ubuntu.com/ubuntu noble-updates/main amd64 libgcc-13-dev-riscv64-cross all 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:58:09.5621503Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:58:29.4862905Z Ign:19 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 linux-libc-dev-riscv64-cross all 6.8.0-25.25cross1
+2026-11-11T15:58:29.5835644Z Ign:18 https://archive.ubuntu.com/ubuntu noble/main amd64 gcc-riscv64-linux-gnu amd64 4:13.2.0-7ubuntu1
+2026-11-11T15:58:29.5840672Z Err:17 https://security.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13-riscv64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1cross1
+2026-11-11T15:58:29.5841745Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:58:49.5098839Z Ign:20 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libc6-dev-riscv64-cross all 2.39-0ubuntu8cross1
+2026-11-11T15:58:49.6087986Z Err:18 https://security.ubuntu.com/ubuntu noble/main amd64 gcc-riscv64-linux-gnu amd64 4:13.2.0-7ubuntu1
+2026-11-11T15:58:49.6088619Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:58:49.6094865Z Ign:19 https://archive.ubuntu.com/ubuntu noble/main amd64 linux-libc-dev-riscv64-cross all 6.8.0-25.25cross1
+2026-11-11T15:59:09.6381830Z Err:19 https://security.ubuntu.com/ubuntu noble/main amd64 linux-libc-dev-riscv64-cross all 6.8.0-25.25cross1
+2026-11-11T15:59:09.6382419Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:09.6431781Z Ign:20 https://archive.ubuntu.com/ubuntu noble/main amd64 libc6-dev-riscv64-cross all 2.39-0ubuntu8cross1
+2026-11-11T15:59:29.6669129Z Err:20 https://security.ubuntu.com/ubuntu noble/main amd64 libc6-dev-riscv64-cross all 2.39-0ubuntu8cross1
+2026-11-11T15:59:29.6670321Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6717966Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/b/binutils/binutils-riscv64-linux-gnu_2.42-4ubuntu2.10_amd64.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6719867Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/g/gcc-13-cross/gcc-13-riscv64-linux-gnu-base_13.3.0-6ubuntu2%7e24.04.1cross1_amd64.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6721495Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/g/gcc-13-cross/cpp-13-riscv64-linux-gnu_13.3.0-6ubuntu2%7e24.04.1cross1_amd64.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6723163Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/g/gcc-defaults/cpp-riscv64-linux-gnu_13.2.0-7ubuntu1_amd64.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6724767Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/g/gcc-13-cross/gcc-13-cross-base_13.3.0-6ubuntu2%7e24.04.1cross1_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6726338Z E: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/pool/main/g/gcc-14-cross/gcc-14-cross-base_14.2.0-4ubuntu2%7e24.04.1cross1_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6727968Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/c/cross-toolchain-base/libc6-riscv64-cross_2.39-0ubuntu8cross1_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6729246Z E: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/pool/main/g/gcc-14-cross/libgcc-s1-riscv64-cross_14.2.0-4ubuntu2%7e24.04.1cross1_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6730732Z E: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/pool/main/g/gcc-14-cross/libgomp1-riscv64-cross_14.2.0-4ubuntu2%7e24.04.1cross1_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6732284Z E: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/pool/main/g/gcc-14-cross/libitm1-riscv64-cross_14.2.0-4ubuntu2%7e24.04.1cross1_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6734036Z E: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/pool/main/g/gcc-14-cross/libatomic1-riscv64-cross_14.2.0-4ubuntu2%7e24.04.1cross1_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6735585Z E: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/pool/main/g/gcc-14-cross/libasan8-riscv64-cross_14.2.0-4ubuntu2%7e24.04.1cross1_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6736661Z E: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/pool/main/g/gcc-14-cross/libstdc%2b%2b6-riscv64-cross_14.2.0-4ubuntu2%7e24.04.1cross1_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6737856Z E: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/pool/main/g/gcc-14-cross/libubsan1-riscv64-cross_14.2.0-4ubuntu2%7e24.04.1cross1_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6744439Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/g/gcc-13-cross/libgcc-13-dev-riscv64-cross_13.3.0-6ubuntu2%7e24.04.1cross1_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6745834Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/g/gcc-13-cross/gcc-13-riscv64-linux-gnu_13.3.0-6ubuntu2%7e24.04.1cross1_amd64.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6746899Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/g/gcc-defaults/gcc-riscv64-linux-gnu_13.2.0-7ubuntu1_amd64.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6747975Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/c/cross-toolchain-base/linux-libc-dev-riscv64-cross_6.8.0-25.25cross1_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6749188Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/c/cross-toolchain-base/libc6-dev-riscv64-cross_2.39-0ubuntu8cross1_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:29.6750446Z E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?
+2026-11-11T15:59:29.6760855Z ##[error]Process completed with exit code 100.
+2026-11-11T15:59:29.6898864Z Post job cleanup.
+2026-11-11T15:59:29.7715333Z [command]/usr/bin/git version
+2026-11-11T15:59:29.7752579Z git version 2.56.0
+2026-11-11T15:59:29.7791074Z Temporarily overriding HOME='/home/runner/work/_temp/2c846f79-d8c3-4625-93ef-f7b30c417269' before making global git config changes
+2026-11-11T15:59:29.7792144Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T15:59:29.7797253Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T15:59:29.7832450Z Removing SSH command configuration
+2026-11-11T15:59:29.7840918Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T15:59:29.7876514Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T15:59:29.8093784Z Removing HTTP extra header
+2026-11-11T15:59:29.8098569Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T15:59:29.8130108Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T15:59:29.8406961Z Removing includeIf entries pointing to credentials config files
+2026-11-11T15:59:29.8407981Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T15:59:29.8410337Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T15:59:29.8787642Z Cleaning up orphan processes

@@ -1,0 +1,473 @@
+﻿2026-11-11T15:54:53.0290518Z Current runner version: '2.338.2'
+2026-11-11T15:54:53.0312149Z ##[group]Runner Image Provisioner
+2026-11-11T15:54:53.0312944Z Hosted Compute Agent
+2026-11-11T15:54:53.0313423Z Version: 20261028.624
+2026-11-11T15:54:53.0313958Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-11T15:54:53.0314587Z Build Date: 2026-10-28T21:51:42Z
+2026-11-11T15:54:53.0315152Z Worker ID: {c09a24ad-ed33-4813-babd-793ca8c0a62f}
+2026-11-11T15:54:53.0315765Z Region: westus3
+2026-11-11T15:54:53.0316356Z Cloud: Azure
+2026-11-11T15:54:53.0316804Z ##[endgroup]
+2026-11-11T15:54:53.0317981Z ##[group]Operating System
+2026-11-11T15:54:53.0318485Z Ubuntu
+2026-11-11T15:54:53.0318998Z 26.04.1
+2026-11-11T15:54:53.0319422Z LTS
+2026-11-11T15:54:53.0319832Z ##[endgroup]
+2026-11-11T15:54:53.0320366Z ##[group]Runner Image
+2026-11-11T15:54:53.0320867Z Image: ubuntu-26.04
+2026-11-11T15:54:53.0321357Z Version: 20261101.186.1
+2026-11-11T15:54:53.0322383Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-11T15:54:53.0323665Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-11T15:54:53.0324433Z ##[endgroup]
+2026-11-11T15:54:53.0325381Z ##[group]GITHUB_TOKEN Permissions
+2026-11-11T15:54:53.0327156Z Contents: read
+2026-11-11T15:54:53.0327714Z Metadata: read
+2026-11-11T15:54:53.0328217Z ##[endgroup]
+2026-11-11T15:54:53.0329860Z Secret source: Actions
+2026-11-11T15:54:53.0330697Z Cache mode: write
+2026-11-11T15:54:53.0331257Z Prepare workflow directory
+2026-11-11T15:54:53.0651497Z Prepare all required actions
+2026-11-11T15:54:53.0691999Z Getting action download info
+2026-11-11T15:54:53.3785311Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-11T15:54:53.4928233Z Download action repository 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' (SHA:043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
+2026-11-11T15:54:53.8181538Z Complete job name: tamarin-proof
+2026-11-11T15:54:53.8908541Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-11T15:54:53.8909350Z with:
+2026-11-11T15:54:53.8909718Z   persist-credentials: false
+2026-11-11T15:54:53.8910145Z   repository: billlza/q-periapt
+2026-11-11T15:54:53.8913478Z   token: ***
+2026-11-11T15:54:53.8913839Z   ssh-strict: true
+2026-11-11T15:54:53.8914192Z   ssh-user: git
+2026-11-11T15:54:53.8914530Z   clean: true
+2026-11-11T15:54:53.8914886Z   sparse-checkout-cone-mode: true
+2026-11-11T15:54:53.8915303Z   fetch-depth: 1
+2026-11-11T15:54:53.8915650Z   fetch-tags: false
+2026-11-11T15:54:53.8916006Z   show-progress: true
+2026-11-11T15:54:53.8916530Z   lfs: false
+2026-11-11T15:54:53.8916863Z   submodules: false
+2026-11-11T15:54:53.8917223Z   set-safe-directory: true
+2026-11-11T15:54:53.8917630Z   allow-unsafe-pr-checkout: false
+2026-11-11T15:54:53.8918227Z env:
+2026-11-11T15:54:53.8918568Z   CARGO_TERM_COLOR: always
+2026-11-11T15:54:53.8918986Z   RUSTFLAGS: -D warnings
+2026-11-11T15:54:53.8919434Z   CARGO_NET_RETRY: 10
+2026-11-11T15:54:53.8919816Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:54:53.8920221Z   GIT_CONFIG_COUNT: 1
+2026-11-11T15:54:53.8920601Z   GIT_CONFIG_KEY_0: init.defaultBranch
+2026-11-11T15:54:53.8921030Z   GIT_CONFIG_VALUE_0: main
+2026-11-11T15:54:53.8921399Z ##[endgroup]
+2026-11-11T15:54:54.1037314Z Syncing repository: billlza/q-periapt
+2026-11-11T15:54:54.1039027Z ##[group]Getting Git version info
+2026-11-11T15:54:54.1039878Z Working directory is '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T15:54:54.1041186Z [command]/usr/bin/git version
+2026-11-11T15:54:54.1071536Z git version 2.56.0
+2026-11-11T15:54:54.1092901Z ##[endgroup]
+2026-11-11T15:54:54.1103945Z Temporarily overriding HOME='/home/runner/work/_temp/bd6e8039-1da4-40dc-8e93-d003ff133e40' before making global git config changes
+2026-11-11T15:54:54.1105974Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T15:54:54.1108623Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T15:54:54.1166876Z Deleting the contents of '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T15:54:54.1170044Z ##[group]Determining repository object format
+2026-11-11T15:54:54.1171500Z ##[endgroup]
+2026-11-11T15:54:54.1172571Z ##[group]Initializing the repository
+2026-11-11T15:54:54.1175899Z [command]/usr/bin/git init /home/runner/work/q-periapt/q-periapt
+2026-11-11T15:54:54.1266640Z Initialized empty Git repository in /home/runner/work/q-periapt/q-periapt/.git/
+2026-11-11T15:54:54.1284886Z [command]/usr/bin/git remote add origin https://github.com/billlza/q-periapt
+2026-11-11T15:54:54.1325241Z ##[endgroup]
+2026-11-11T15:54:54.1326362Z ##[group]Disabling automatic garbage collection
+2026-11-11T15:54:54.1328707Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-11T15:54:54.1363969Z ##[endgroup]
+2026-11-11T15:54:54.1364852Z ##[group]Setting up auth
+2026-11-11T15:54:54.1365591Z Removing SSH command configuration
+2026-11-11T15:54:54.1370532Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T15:54:54.1403172Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T15:54:54.1801466Z Removing HTTP extra header
+2026-11-11T15:54:54.1807601Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T15:54:54.1845956Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T15:54:54.2087973Z Removing includeIf entries pointing to credentials config files
+2026-11-11T15:54:54.2089106Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T15:54:54.2114748Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T15:54:54.2359381Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-e989878d-c4a4-45ad-bddc-f3256139a206.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-11T15:54:54.2393703Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path /home/runner/work/_temp/git-credentials-e989878d-c4a4-45ad-bddc-f3256139a206.config
+2026-11-11T15:54:54.2422123Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-e989878d-c4a4-45ad-bddc-f3256139a206.config
+2026-11-11T15:54:54.2453718Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-e989878d-c4a4-45ad-bddc-f3256139a206.config
+2026-11-11T15:54:54.2483036Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-e989878d-c4a4-45ad-bddc-f3256139a206.config
+2026-11-11T15:54:54.2527092Z ##[endgroup]
+2026-11-11T15:54:54.2528047Z ##[group]Fetching the repository
+2026-11-11T15:54:54.2534141Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +b72f7f8e8e6f2526ebab4b825b7d47402ac9835f:refs/remotes/pull/121/merge
+2026-11-11T15:55:45.7039839Z From https://github.com/billlza/q-periapt
+2026-11-11T15:55:45.7040833Z  * [new ref]         b72f7f8e8e6f2526ebab4b825b7d47402ac9835f -> pull/121/merge
+2026-11-11T15:55:45.7043496Z ##[endgroup]
+2026-11-11T15:55:45.7044595Z ##[group]Determining the checkout info
+2026-11-11T15:55:45.7045488Z ##[endgroup]
+2026-11-11T15:55:45.7049762Z [command]/usr/bin/git sparse-checkout disable
+2026-11-11T15:55:45.7092758Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-11T15:55:45.7122378Z ##[group]Checking out the ref
+2026-11-11T15:55:45.7124780Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/121/merge
+2026-11-11T15:55:47.2048874Z Updating files:  71% (5641/7926)
+2026-11-11T15:55:47.6296581Z Updating files:  72% (5707/7926)
+2026-11-11T15:55:47.7662067Z Updating files:  73% (5786/7926)
+2026-11-11T15:55:47.9604048Z Updating files:  73% (5814/7926)
+2026-11-11T15:55:48.3034735Z Updating files:  74% (5866/7926)
+2026-11-11T15:55:48.4013499Z Updating files:  75% (5945/7926)
+2026-11-11T15:55:48.7738579Z Updating files:  76% (6024/7926)
+2026-11-11T15:55:49.0301975Z Updating files:  76% (6062/7926)
+2026-11-11T15:55:49.1606438Z Updating files:  77% (6104/7926)
+2026-11-11T15:55:49.3195917Z Updating files:  78% (6183/7926)
+2026-11-11T15:55:49.6774802Z Updating files:  79% (6262/7926)
+2026-11-11T15:55:49.7344241Z Updating files:  80% (6341/7926)
+2026-11-11T15:55:50.7611657Z Updating files:  80% (6343/7926)
+2026-11-11T15:55:50.9667671Z Updating files:  80% (6399/7926)
+2026-11-11T15:55:51.7696963Z Updating files:  81% (6421/7926)
+2026-11-11T15:55:52.7428330Z Updating files:  81% (6475/7926)
+2026-11-11T15:55:52.8633546Z Updating files:  81% (6498/7926)
+2026-11-11T15:55:53.4033119Z Updating files:  82% (6500/7926)
+2026-11-11T15:55:53.4717557Z Updating files:  83% (6579/7926)
+2026-11-11T15:55:53.5343914Z Updating files:  84% (6658/7926)
+2026-11-11T15:55:54.0001949Z Updating files:  85% (6738/7926)
+2026-11-11T15:55:54.5476626Z Updating files:  85% (6743/7926)
+2026-11-11T15:55:54.7742660Z Updating files:  86% (6817/7926)
+2026-11-11T15:55:54.8731343Z Updating files:  86% (6842/7926)
+2026-11-11T15:55:55.8311436Z Updating files:  87% (6896/7926)
+2026-11-11T15:55:56.8649648Z Updating files:  87% (6936/7926)
+2026-11-11T15:55:57.0898215Z Updating files:  87% (6947/7926)
+2026-11-11T15:55:57.8207173Z Updating files:  88% (6975/7926)
+2026-11-11T15:55:58.9153627Z Updating files:  88% (6989/7926)
+2026-11-11T15:55:59.7322480Z Updating files:  88% (7017/7926)
+2026-11-11T15:55:59.8433348Z Updating files:  88% (7039/7926)
+2026-11-11T15:56:00.8045057Z Updating files:  89% (7055/7926)
+2026-11-11T15:56:00.8859404Z Updating files:  89% (7113/7926)
+2026-11-11T15:56:01.9010833Z Updating files:  90% (7134/7926)
+2026-11-11T15:56:02.0339535Z Updating files:  90% (7168/7926)
+2026-11-11T15:56:02.2140876Z Updating files:  91% (7213/7926)
+2026-11-11T15:56:02.2286049Z Updating files:  92% (7292/7926)
+2026-11-11T15:56:02.2342506Z Updating files:  93% (7372/7926)
+2026-11-11T15:56:02.3561120Z Updating files:  94% (7451/7926)
+2026-11-11T15:56:02.4298238Z Updating files:  95% (7530/7926)
+2026-11-11T15:56:02.4581070Z Updating files:  96% (7609/7926)
+2026-11-11T15:56:02.4664550Z Updating files:  97% (7689/7926)
+2026-11-11T15:56:02.4796294Z Updating files:  98% (7768/7926)
+2026-11-11T15:56:02.4866374Z Updating files:  99% (7847/7926)
+2026-11-11T15:56:02.4867402Z Updating files: 100% (7926/7926)
+2026-11-11T15:56:02.4868069Z Updating files: 100% (7926/7926), done.
+2026-11-11T15:56:02.4968857Z Note: switching to 'refs/remotes/pull/121/merge'.
+2026-11-11T15:56:02.4969463Z 
+2026-11-11T15:56:02.4970045Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-11T15:56:02.4970670Z changes and commit them, and you can discard any commits you make in this
+2026-11-11T15:56:02.4971296Z state without impacting any branches by switching back to a branch.
+2026-11-11T15:56:02.4971718Z 
+2026-11-11T15:56:02.4971954Z If you want to create a new branch to retain commits you create, you may
+2026-11-11T15:56:02.4972524Z do so (now or later) by using -c with the switch command. Example:
+2026-11-11T15:56:02.4972895Z 
+2026-11-11T15:56:02.4973050Z   git switch -c <new-branch-name>
+2026-11-11T15:56:02.4973268Z 
+2026-11-11T15:56:02.4973378Z Or undo this operation with:
+2026-11-11T15:56:02.4973575Z 
+2026-11-11T15:56:02.4973682Z   git switch -
+2026-11-11T15:56:02.4973817Z 
+2026-11-11T15:56:02.4974066Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-11T15:56:02.4974424Z 
+2026-11-11T15:56:02.4974857Z HEAD is now at b72f7f8 Merge 75eda8f54a721dbed16a0bed43cdc493c9071485 into 48d0fb9a5651b50494ec33d025dda52bd2ff5eae
+2026-11-11T15:56:02.5682706Z ##[endgroup]
+2026-11-11T15:56:02.5724469Z [command]/usr/bin/git log -1 --format=%H
+2026-11-11T15:56:02.5752577Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f
+2026-11-11T15:56:02.5761643Z ##[group]Removing auth
+2026-11-11T15:56:02.5761995Z Removing SSH command configuration
+2026-11-11T15:56:02.5764835Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T15:56:02.5794413Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T15:56:02.6057065Z Removing HTTP extra header
+2026-11-11T15:56:02.6059868Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T15:56:02.6093938Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T15:56:02.6350096Z Removing includeIf entries pointing to credentials config files
+2026-11-11T15:56:02.6352300Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T15:56:02.6376395Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T15:56:02.6377130Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T15:56:02.6383329Z includeif.gitdir:/github/workspace/.git.path
+2026-11-11T15:56:02.6383994Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T15:56:02.6391650Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T15:56:02.6407828Z /home/runner/work/_temp/git-credentials-e989878d-c4a4-45ad-bddc-f3256139a206.config
+2026-11-11T15:56:02.6416233Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-e989878d\-c4a4\-45ad\-bddc\-f3256139a206\.config
+2026-11-11T15:56:02.6476922Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T15:56:02.6499700Z /home/runner/work/_temp/git-credentials-e989878d-c4a4-45ad-bddc-f3256139a206.config
+2026-11-11T15:56:02.6507110Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-e989878d\-c4a4\-45ad\-bddc\-f3256139a206\.config
+2026-11-11T15:56:02.6909309Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-11T15:56:02.6937367Z /github/runner_temp/git-credentials-e989878d-c4a4-45ad-bddc-f3256139a206.config
+2026-11-11T15:56:02.6944546Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-e989878d\-c4a4\-45ad\-bddc\-f3256139a206\.config
+2026-11-11T15:56:02.7313624Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T15:56:02.7340802Z /github/runner_temp/git-credentials-e989878d-c4a4-45ad-bddc-f3256139a206.config
+2026-11-11T15:56:02.7347901Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-e989878d\-c4a4\-45ad\-bddc\-f3256139a206\.config
+2026-11-11T15:56:02.8900975Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T15:56:02.9151343Z Removing credentials config '/home/runner/work/_temp/git-credentials-e989878d-c4a4-45ad-bddc-f3256139a206.config'
+2026-11-11T15:56:03.0121808Z ##[endgroup]
+2026-11-11T15:56:03.1930203Z ##[group]Run MAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' make -C formal/tamarin check-lemma-names
+2026-11-11T15:56:03.1930808Z [36;1mMAKEFLAGS='' GNUMAKEFLAGS='' MAKEFILES='' make -C formal/tamarin check-lemma-names[0m
+2026-11-11T15:56:03.1978521Z shell: /usr/bin/bash -e {0}
+2026-11-11T15:56:03.1978730Z env:
+2026-11-11T15:56:03.1978900Z   CARGO_TERM_COLOR: always
+2026-11-11T15:56:03.1979100Z   RUSTFLAGS: -D warnings
+2026-11-11T15:56:03.1979293Z   CARGO_NET_RETRY: 10
+2026-11-11T15:56:03.1979480Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:56:03.1979683Z ##[endgroup]
+2026-11-11T15:56:03.2210544Z make: Entering directory '/home/runner/work/q-periapt/q-periapt/formal/tamarin'
+2026-11-11T15:56:03.2464696Z make: Leaving directory '/home/runner/work/q-periapt/q-periapt/formal/tamarin'
+2026-11-11T15:56:03.2511619Z ##[group]Run set -euo pipefail
+2026-11-11T15:56:03.2511933Z [36;1mset -euo pipefail[0m
+2026-11-11T15:56:03.2512117Z [36;1m[0m
+2026-11-11T15:56:03.2512292Z [36;1mcleanup_formal_tool_asset() {[0m
+2026-11-11T15:56:03.2512516Z [36;1m  asset_path=$1[0m
+2026-11-11T15:56:03.2512714Z [36;1m  expected_leaf=$2[0m
+2026-11-11T15:56:03.2512929Z [36;1m  test -n "$asset_path" || return 0[0m
+2026-11-11T15:56:03.2513181Z [36;1m  asset_parent=${asset_path%/*}[0m
+2026-11-11T15:56:03.2513397Z [36;1m  case "$asset_parent" in[0m
+2026-11-11T15:56:03.2513635Z [36;1m    /tmp/qperiapt-formal-tool-asset.?*) ;;[0m
+2026-11-11T15:56:03.2513868Z [36;1m    *)[0m
+2026-11-11T15:56:03.2514146Z [36;1m      printf 'error: refusing to clean unexpected formal-tool asset path: %s\n' \[0m
+2026-11-11T15:56:03.2514459Z [36;1m        "$asset_path" >&2[0m
+2026-11-11T15:56:03.2514653Z [36;1m      return 1[0m
+2026-11-11T15:56:03.2514828Z [36;1m      ;;[0m
+2026-11-11T15:56:03.2515008Z [36;1m  esac[0m
+2026-11-11T15:56:03.2515182Z [36;1m  case "${asset_parent#/tmp/}" in[0m
+2026-11-11T15:56:03.2515390Z [36;1m    */*)[0m
+2026-11-11T15:56:03.2515620Z [36;1m      printf 'error: refusing nested formal-tool asset path: %s\n' \[0m
+2026-11-11T15:56:03.2515902Z [36;1m        "$asset_path" >&2[0m
+2026-11-11T15:56:03.2516347Z [36;1m      return 1[0m
+2026-11-11T15:56:03.2516531Z [36;1m      ;;[0m
+2026-11-11T15:56:03.2516686Z [36;1m  esac[0m
+2026-11-11T15:56:03.2516930Z [36;1m  asset_suffix=${asset_parent#/tmp/qperiapt-formal-tool-asset.}[0m
+2026-11-11T15:56:03.2517242Z [36;1m  case "$asset_suffix" in[0m
+2026-11-11T15:56:03.2517667Z [36;1m    "" | *[!0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._-]*)[0m
+2026-11-11T15:56:03.2518086Z [36;1m      printf 'error: refusing malformed formal-tool asset path: %s\n' \[0m
+2026-11-11T15:56:03.2518383Z [36;1m        "$asset_path" >&2[0m
+2026-11-11T15:56:03.2518572Z [36;1m      return 1[0m
+2026-11-11T15:56:03.2518745Z [36;1m      ;;[0m
+2026-11-11T15:56:03.2518905Z [36;1m  esac[0m
+2026-11-11T15:56:03.2519083Z [36;1m  if [ "${#asset_suffix}" -gt 64 ]; then[0m
+2026-11-11T15:56:03.2519396Z [36;1m    printf 'error: refusing oversized formal-tool asset path: %s\n' \[0m
+2026-11-11T15:56:03.2519688Z [36;1m      "$asset_path" >&2[0m
+2026-11-11T15:56:03.2519881Z [36;1m    return 1[0m
+2026-11-11T15:56:03.2520055Z [36;1m  fi[0m
+2026-11-11T15:56:03.2520274Z [36;1m  if [ -L "$asset_parent" ] || [ ! -d "$asset_parent" ]; then[0m
+2026-11-11T15:56:03.2520613Z [36;1m    printf 'error: refusing invalid formal-tool asset directory: %s\n' \[0m
+2026-11-11T15:56:03.2520931Z [36;1m      "$asset_parent" >&2[0m
+2026-11-11T15:56:03.2521123Z [36;1m    return 1[0m
+2026-11-11T15:56:03.2521284Z [36;1m  fi[0m
+2026-11-11T15:56:03.2521486Z [36;1m  if [ "${asset_path##*/}" != "$expected_leaf" ] || \[0m
+2026-11-11T15:56:03.2521769Z [36;1m    [ -L "$asset_path" ] || [ ! -f "$asset_path" ]; then[0m
+2026-11-11T15:56:03.2522098Z [36;1m    printf 'error: refusing to clean invalid formal-tool asset: %s\n' \[0m
+2026-11-11T15:56:03.2522387Z [36;1m      "$asset_path" >&2[0m
+2026-11-11T15:56:03.2522574Z [36;1m    return 1[0m
+2026-11-11T15:56:03.2522737Z [36;1m  fi[0m
+2026-11-11T15:56:03.2522903Z [36;1m  rm -- "$asset_path"[0m
+2026-11-11T15:56:03.2523134Z [36;1m  rmdir -- "$asset_parent"[0m
+2026-11-11T15:56:03.2523332Z [36;1m}[0m
+2026-11-11T15:56:03.2523665Z [36;1mMAUDE_ARCHIVE=[0m
+2026-11-11T15:56:03.2523847Z [36;1mTAMARIN_ARCHIVE=[0m
+2026-11-11T15:56:03.2524048Z [36;1mcleanup_formal_tool_assets() {[0m
+2026-11-11T15:56:03.2524266Z [36;1m  cleanup_status=0[0m
+2026-11-11T15:56:03.2524490Z [36;1m  if [ -n "$TAMARIN_ARCHIVE" ]; then[0m
+2026-11-11T15:56:03.2524772Z [36;1m    cleanup_formal_tool_asset \[0m
+2026-11-11T15:56:03.2524993Z [36;1m      "$TAMARIN_ARCHIVE" \[0m
+2026-11-11T15:56:03.2525296Z [36;1m      tamarin-prover-1.12.0-linux64-ubuntu.tar.gz || cleanup_status=$?[0m
+2026-11-11T15:56:03.2525583Z [36;1m  fi[0m
+2026-11-11T15:56:03.2525883Z [36;1m  if [ -n "$MAUDE_ARCHIVE" ]; then[0m
+2026-11-11T15:56:03.2526322Z [36;1m    cleanup_formal_tool_asset \[0m
+2026-11-11T15:56:03.2526658Z [36;1m      "$MAUDE_ARCHIVE" \[0m
+2026-11-11T15:56:03.2526977Z [36;1m      Maude-3.5.1-linux-x86_64.zip || cleanup_status=$?[0m
+2026-11-11T15:56:03.2527228Z [36;1m  fi[0m
+2026-11-11T15:56:03.2527394Z [36;1m  return "$cleanup_status"[0m
+2026-11-11T15:56:03.2527601Z [36;1m}[0m
+2026-11-11T15:56:03.2527787Z [36;1mtrap cleanup_formal_tool_assets EXIT[0m
+2026-11-11T15:56:03.2528004Z [36;1m[0m
+2026-11-11T15:56:03.2528166Z [36;1msudo apt-get update[0m
+2026-11-11T15:56:03.2528402Z [36;1msudo apt-get install -y graphviz unzip[0m
+2026-11-11T15:56:03.2528636Z [36;1m[0m
+2026-11-11T15:56:03.2528943Z [36;1mMAUDE_ARCHIVE=$(sh artifact/python-run.sh artifact/formal_tool_asset.py --asset maude-3.5.1)[0m
+2026-11-11T15:56:03.2529315Z [36;1msudo mkdir -p /opt/maude-3.5.1[0m
+2026-11-11T15:56:03.2529582Z [36;1msudo unzip -q "$MAUDE_ARCHIVE" -d /opt/maude-3.5.1[0m
+2026-11-11T15:56:03.2529856Z [36;1msudo chmod 0755 /opt/maude-3.5.1/maude[0m
+2026-11-11T15:56:03.2530127Z [36;1mprintf '%s\n' /opt/maude-3.5.1 >> "$GITHUB_PATH"[0m
+2026-11-11T15:56:03.2530387Z [36;1mexport PATH="/opt/maude-3.5.1:$PATH"[0m
+2026-11-11T15:56:03.2530696Z [36;1mcleanup_formal_tool_asset "$MAUDE_ARCHIVE" Maude-3.5.1-linux-x86_64.zip[0m
+2026-11-11T15:56:03.2530999Z [36;1mMAUDE_ARCHIVE=[0m
+2026-11-11T15:56:03.2531170Z [36;1m[0m
+2026-11-11T15:56:03.2531484Z [36;1mTAMARIN_ARCHIVE=$(sh artifact/python-run.sh artifact/formal_tool_asset.py --asset tamarin-1.12.0)[0m
+2026-11-11T15:56:03.2531855Z [36;1mTAMARIN_DIR=$(mktemp -d)[0m
+2026-11-11T15:56:03.2532121Z [36;1mtar -xzf "$TAMARIN_ARCHIVE" -C "$TAMARIN_DIR" tamarin-prover[0m
+2026-11-11T15:56:03.2532397Z [36;1msudo install -m 0755 \[0m
+2026-11-11T15:56:03.2532609Z [36;1m  "$TAMARIN_DIR/tamarin-prover" \[0m
+2026-11-11T15:56:03.2532841Z [36;1m  /usr/local/bin/tamarin-prover[0m
+2026-11-11T15:56:03.2533068Z [36;1mcleanup_formal_tool_asset \[0m
+2026-11-11T15:56:03.2533280Z [36;1m  "$TAMARIN_ARCHIVE" \[0m
+2026-11-11T15:56:03.2533515Z [36;1m  tamarin-prover-1.12.0-linux64-ubuntu.tar.gz[0m
+2026-11-11T15:56:03.2533770Z [36;1mTAMARIN_ARCHIVE=[0m
+2026-11-11T15:56:03.2533957Z [36;1mrm -rf "$TAMARIN_DIR"[0m
+2026-11-11T15:56:03.2534149Z [36;1mtrap - EXIT[0m
+2026-11-11T15:56:03.2575901Z shell: /usr/bin/bash -e {0}
+2026-11-11T15:56:03.2576268Z env:
+2026-11-11T15:56:03.2576443Z   CARGO_TERM_COLOR: always
+2026-11-11T15:56:03.2576649Z   RUSTFLAGS: -D warnings
+2026-11-11T15:56:03.2576837Z   CARGO_NET_RETRY: 10
+2026-11-11T15:56:03.2577042Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:56:03.2577250Z ##[endgroup]
+2026-11-11T15:56:03.3437212Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-11-11T15:56:03.3730044Z Get:6 https://packages.microsoft.com/ubuntu/26.04/prod resolute InRelease [3964 B]
+2026-11-11T15:56:03.4124726Z Get:7 https://packages.microsoft.com/ubuntu/26.04/prod resolute/main armhf Packages [1077 B]
+2026-11-11T15:56:03.4552125Z Get:8 https://packages.microsoft.com/ubuntu/26.04/prod resolute/main arm64 Packages [141 kB]
+2026-11-11T15:56:03.4620080Z Get:9 https://packages.microsoft.com/ubuntu/26.04/prod resolute/main amd64 Packages [155 kB]
+2026-11-11T15:56:23.3805600Z Ign:2 http://azure.archive.ubuntu.com/ubuntu resolute InRelease
+2026-11-11T15:56:43.3991714Z Ign:3 http://azure.archive.ubuntu.com/ubuntu resolute-updates InRelease
+2026-11-11T15:57:03.4239392Z Ign:4 http://azure.archive.ubuntu.com/ubuntu resolute-backports InRelease
+2026-11-11T15:57:23.4523917Z Ign:5 http://azure.archive.ubuntu.com/ubuntu resolute-security InRelease
+2026-11-11T15:57:43.4743237Z Ign:2 http://azure.archive.ubuntu.com/ubuntu resolute InRelease
+2026-11-11T15:58:03.4998715Z Ign:3 http://azure.archive.ubuntu.com/ubuntu resolute-updates InRelease
+2026-11-11T15:58:03.5007909Z Ign:2 https://archive.ubuntu.com/ubuntu resolute InRelease
+2026-11-11T15:58:23.5245321Z Ign:4 http://azure.archive.ubuntu.com/ubuntu resolute-backports InRelease
+2026-11-11T15:58:23.5320102Z Ign:3 https://archive.ubuntu.com/ubuntu resolute-updates InRelease
+2026-11-11T15:58:23.5389238Z Err:2 https://security.ubuntu.com/ubuntu resolute InRelease
+2026-11-11T15:58:23.5389731Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:58:23.5390030Z   Temporary failure resolving 'archive.ubuntu.com'
+2026-11-11T15:58:23.5390423Z   Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T15:58:43.5563821Z Ign:4 https://archive.ubuntu.com/ubuntu resolute-backports InRelease
+2026-11-11T15:58:43.5653522Z Ign:5 http://azure.archive.ubuntu.com/ubuntu resolute-security InRelease
+2026-11-11T15:58:43.5694144Z Err:3 https://security.ubuntu.com/ubuntu resolute-updates InRelease
+2026-11-11T15:58:43.5694688Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:58:43.5695084Z   Temporary failure resolving 'archive.ubuntu.com'
+2026-11-11T15:58:43.5695450Z   Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T15:59:03.5865511Z Err:4 https://security.ubuntu.com/ubuntu resolute-backports InRelease
+2026-11-11T15:59:03.5865995Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:03.5866542Z   Temporary failure resolving 'archive.ubuntu.com'
+2026-11-11T15:59:03.5866808Z   Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T15:59:03.5923110Z Ign:5 https://archive.ubuntu.com/ubuntu resolute-security InRelease
+2026-11-11T15:59:23.6203309Z Err:5 https://security.ubuntu.com/ubuntu resolute-security InRelease
+2026-11-11T15:59:23.6204737Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:59:26.6986372Z   Temporary failure resolving 'archive.ubuntu.com'
+2026-11-11T15:59:26.6986883Z   Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T15:59:26.6987321Z Fetched 302 kB in 3min 20s (1505 B/s)
+2026-11-11T15:59:27.2533357Z Reading package lists...
+2026-11-11T15:59:27.2634273Z W: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/dists/resolute/InRelease  Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T15:59:27.2635092Z W: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/dists/resolute-updates/InRelease  Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T15:59:27.2635803Z W: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/dists/resolute-backports/InRelease  Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T15:59:27.2636827Z W: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/dists/resolute-security/InRelease  Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T15:59:27.2637488Z W: Some index files failed to download. They have been ignored, or old ones used instead.
+2026-11-11T15:59:27.2819115Z Reading package lists...
+2026-11-11T15:59:27.4346766Z Building dependency tree...
+2026-11-11T15:59:27.4352741Z Reading state information...
+2026-11-11T15:59:27.4664525Z unzip is already the newest version (6.0-29ubuntu1).
+2026-11-11T15:59:27.5224321Z Solving dependencies...
+2026-11-11T15:59:27.6015610Z The following additional packages will be installed:
+2026-11-11T15:59:27.6016540Z   libcdt6 libcgraph8 libgvc7 libgvplugin-gd8 libgvplugin-pango8 libgvpr2
+2026-11-11T15:59:27.6023510Z   libpathplan4 libxdot4
+2026-11-11T15:59:27.6030062Z Suggested packages:
+2026-11-11T15:59:27.6030353Z   gsfonts graphviz-doc
+2026-11-11T15:59:27.6240934Z The following NEW packages will be installed:
+2026-11-11T15:59:27.6241854Z   graphviz libcdt6 libcgraph8 libgvc7 libgvplugin-gd8 libgvplugin-pango8
+2026-11-11T15:59:27.6250749Z   libgvpr2 libpathplan4 libxdot4
+2026-11-11T15:59:27.6454804Z 0 upgraded, 9 newly installed, 0 to remove and 2 not upgraded.
+2026-11-11T15:59:27.6455270Z Need to get 766 kB of archives.
+2026-11-11T15:59:27.6455550Z After this operation, 2239 kB of additional disk space will be used.
+2026-11-11T15:59:27.6455889Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-11-11T15:59:47.6782182Z Ign:2 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libcdt6 amd64 14.1.2-1ubuntu1
+2026-11-11T16:00:07.6996223Z Ign:3 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libcgraph8 amd64 14.1.2-1ubuntu1
+2026-11-11T16:00:27.7247174Z Ign:4 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libpathplan4 amd64 14.1.2-1ubuntu1
+2026-11-11T16:00:47.7429969Z Ign:5 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libxdot4 amd64 14.1.2-1ubuntu1
+2026-11-11T16:01:07.7696858Z Ign:6 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libgvc7 amd64 14.1.2-1ubuntu1
+2026-11-11T16:01:27.7893108Z Ign:7 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libgvpr2 amd64 14.1.2-1ubuntu1
+2026-11-11T16:01:47.8128261Z Ign:8 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libgvplugin-gd8 amd64 14.1.2-1ubuntu1
+2026-11-11T16:02:06.7829531Z Ign:9 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libgvplugin-pango8 amd64 14.1.2-1ubuntu1
+2026-11-11T16:02:26.8009350Z Ign:10 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 graphviz amd64 14.1.2-1ubuntu1
+2026-11-11T16:02:46.8258367Z Ign:2 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libcdt6 amd64 14.1.2-1ubuntu1
+2026-11-11T16:03:06.6647213Z Ign:2 https://archive.ubuntu.com/ubuntu resolute/universe amd64v3 libcdt6 amd64 14.1.2-1ubuntu1
+2026-11-11T16:03:06.8448460Z Ign:3 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libcgraph8 amd64 14.1.2-1ubuntu1
+2026-11-11T16:03:26.6982652Z Err:2 https://security.ubuntu.com/ubuntu resolute/universe amd64v3 libcdt6 amd64 14.1.2-1ubuntu1
+2026-11-11T16:03:26.6983136Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T16:03:26.6983437Z   Temporary failure resolving 'archive.ubuntu.com'
+2026-11-11T16:03:26.6983706Z   Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:03:26.8826343Z Ign:4 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libpathplan4 amd64 14.1.2-1ubuntu1
+2026-11-11T16:03:26.8952074Z Ign:3 https://archive.ubuntu.com/ubuntu resolute/universe amd64v3 libcgraph8 amd64 14.1.2-1ubuntu1
+2026-11-11T16:03:46.9108807Z Err:3 https://security.ubuntu.com/ubuntu resolute/universe amd64v3 libcgraph8 amd64 14.1.2-1ubuntu1
+2026-11-11T16:03:46.9109306Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T16:03:46.9109606Z   Temporary failure resolving 'archive.ubuntu.com'
+2026-11-11T16:03:46.9109890Z   Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:03:46.9136487Z Ign:5 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libxdot4 amd64 14.1.2-1ubuntu1
+2026-11-11T16:03:46.9196341Z Ign:4 https://archive.ubuntu.com/ubuntu resolute/universe amd64v3 libpathplan4 amd64 14.1.2-1ubuntu1
+2026-11-11T16:04:06.9386679Z Ign:6 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libgvc7 amd64 14.1.2-1ubuntu1
+2026-11-11T16:04:06.9460552Z Ign:5 https://archive.ubuntu.com/ubuntu resolute/universe amd64v3 libxdot4 amd64 14.1.2-1ubuntu1
+2026-11-11T16:04:06.9523411Z Err:4 https://security.ubuntu.com/ubuntu resolute/universe amd64v3 libpathplan4 amd64 14.1.2-1ubuntu1
+2026-11-11T16:04:06.9524101Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T16:04:06.9524402Z   Temporary failure resolving 'archive.ubuntu.com'
+2026-11-11T16:04:06.9524750Z   Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:04:26.9650272Z Ign:7 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libgvpr2 amd64 14.1.2-1ubuntu1
+2026-11-11T16:04:26.9685166Z Ign:6 https://archive.ubuntu.com/ubuntu resolute/universe amd64v3 libgvc7 amd64 14.1.2-1ubuntu1
+2026-11-11T16:04:31.9754066Z Err:5 https://security.ubuntu.com/ubuntu resolute/universe amd64v3 libxdot4 amd64 14.1.2-1ubuntu1
+2026-11-11T16:04:31.9754544Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T16:04:31.9754940Z   Temporary failure resolving 'archive.ubuntu.com'
+2026-11-11T16:04:31.9755213Z   Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:04:43.1702977Z Ign:7 https://archive.ubuntu.com/ubuntu resolute/universe amd64v3 libgvpr2 amd64 14.1.2-1ubuntu1
+2026-11-11T16:04:46.9897545Z Ign:8 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libgvplugin-gd8 amd64 14.1.2-1ubuntu1
+2026-11-11T16:04:52.0146968Z Err:6 https://security.ubuntu.com/ubuntu resolute/universe amd64v3 libgvc7 amd64 14.1.2-1ubuntu1
+2026-11-11T16:04:52.0147645Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T16:04:52.0148029Z   Temporary failure resolving 'archive.ubuntu.com'
+2026-11-11T16:04:52.0148449Z   Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:05:07.0034543Z Ign:8 https://archive.ubuntu.com/ubuntu resolute/universe amd64v3 libgvplugin-gd8 amd64 14.1.2-1ubuntu1
+2026-11-11T16:05:07.0129809Z Ign:9 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 libgvplugin-pango8 amd64 14.1.2-1ubuntu1
+2026-11-11T16:05:12.0380472Z Err:7 https://security.ubuntu.com/ubuntu resolute/universe amd64v3 libgvpr2 amd64 14.1.2-1ubuntu1
+2026-11-11T16:05:12.0381157Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T16:05:12.0381630Z   Temporary failure resolving 'archive.ubuntu.com'
+2026-11-11T16:05:12.0382037Z   Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:05:27.0405370Z Ign:9 https://archive.ubuntu.com/ubuntu resolute/universe amd64v3 libgvplugin-pango8 amd64 14.1.2-1ubuntu1
+2026-11-11T16:05:27.0481238Z Ign:10 http://azure.archive.ubuntu.com/ubuntu resolute/universe amd64v3 graphviz amd64 14.1.2-1ubuntu1
+2026-11-11T16:05:32.0682514Z Err:8 https://security.ubuntu.com/ubuntu resolute/universe amd64v3 libgvplugin-gd8 amd64 14.1.2-1ubuntu1
+2026-11-11T16:05:32.0683163Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T16:05:32.0683552Z   Temporary failure resolving 'archive.ubuntu.com'
+2026-11-11T16:05:32.0683894Z   Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:05:47.0746889Z Ign:10 https://archive.ubuntu.com/ubuntu resolute/universe amd64v3 graphviz amd64 14.1.2-1ubuntu1
+2026-11-11T16:05:52.0915975Z Err:9 https://security.ubuntu.com/ubuntu resolute/universe amd64v3 libgvplugin-pango8 amd64 14.1.2-1ubuntu1
+2026-11-11T16:05:52.0916784Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T16:05:52.0917229Z   Temporary failure resolving 'archive.ubuntu.com'
+2026-11-11T16:05:52.0917640Z   Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:06:12.1248297Z Err:10 https://security.ubuntu.com/ubuntu resolute/universe amd64v3 graphviz amd64 14.1.2-1ubuntu1
+2026-11-11T16:06:12.1248802Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T16:06:12.1249135Z   Temporary failure resolving 'archive.ubuntu.com'
+2026-11-11T16:06:12.1249410Z   Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:06:12.1292560Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/universe/g/graphviz/libcdt6_14.1.2-1ubuntu1_amd64v3.deb  Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:06:12.1294018Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/universe/g/graphviz/libcgraph8_14.1.2-1ubuntu1_amd64v3.deb  Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:06:12.1294900Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/universe/g/graphviz/libpathplan4_14.1.2-1ubuntu1_amd64v3.deb  Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:06:12.1295782Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/universe/g/graphviz/libxdot4_14.1.2-1ubuntu1_amd64v3.deb  Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:06:12.1297094Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/universe/g/graphviz/libgvc7_14.1.2-1ubuntu1_amd64v3.deb  Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:06:12.1297919Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/universe/g/graphviz/libgvpr2_14.1.2-1ubuntu1_amd64v3.deb  Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:06:12.1298788Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/universe/g/graphviz/libgvplugin-gd8_14.1.2-1ubuntu1_amd64v3.deb  Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:06:12.1299828Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/universe/g/graphviz/libgvplugin-pango8_14.1.2-1ubuntu1_amd64v3.deb  Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:06:12.1300684Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/universe/g/graphviz/graphviz_14.1.2-1ubuntu1_amd64v3.deb  Temporary failure resolving 'security.ubuntu.com'
+2026-11-11T16:06:12.1301300Z E: Unable to fetch some archives, maybe run apt update or try with --fix-missing?
+2026-11-11T16:06:12.1332087Z ##[error]Process completed with exit code 100.
+2026-11-11T16:06:12.1441674Z ##[group]Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+2026-11-11T16:06:12.1441990Z with:
+2026-11-11T16:06:12.1442177Z   name: continuity-recovery-proof
+2026-11-11T16:06:12.1442404Z   path: target/continuity-recovery-proof
+2026-11-11T16:06:12.1442634Z   if-no-files-found: error
+2026-11-11T16:06:12.1442834Z   compression-level: 6
+2026-11-11T16:06:12.1443009Z   overwrite: false
+2026-11-11T16:06:12.1443184Z   include-hidden-files: false
+2026-11-11T16:06:12.1443383Z   archive: true
+2026-11-11T16:06:12.1443546Z env:
+2026-11-11T16:06:12.1443707Z   CARGO_TERM_COLOR: always
+2026-11-11T16:06:12.1443900Z   RUSTFLAGS: -D warnings
+2026-11-11T16:06:12.1444085Z   CARGO_NET_RETRY: 10
+2026-11-11T16:06:12.1444270Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T16:06:12.1444468Z ##[endgroup]
+2026-11-11T16:06:12.2650050Z ##[error]No files were found with the provided path: target/continuity-recovery-proof. No artifacts will be uploaded.
+2026-11-11T16:06:12.2856250Z Post job cleanup.
+2026-11-11T16:06:12.3644167Z [command]/usr/bin/git version
+2026-11-11T16:06:12.3717813Z git version 2.56.0
+2026-11-11T16:06:12.3747154Z Temporarily overriding HOME='/home/runner/work/_temp/40ec1244-48c8-4d58-80f5-15c12e365f8d' before making global git config changes
+2026-11-11T16:06:12.3748141Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T16:06:12.3751506Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T16:06:12.3781379Z Removing SSH command configuration
+2026-11-11T16:06:12.3786371Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T16:06:12.3819242Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T16:06:12.4117546Z Removing HTTP extra header
+2026-11-11T16:06:12.4118249Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T16:06:12.4155118Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T16:06:12.4431893Z Removing includeIf entries pointing to credentials config files
+2026-11-11T16:06:12.4437332Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T16:06:12.4468250Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T16:06:12.4864597Z Cleaning up orphan processes
