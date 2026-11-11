@@ -13,6 +13,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 import tomllib
 from dataclasses import dataclass
 from typing import Any, NoReturn
@@ -26,6 +27,7 @@ from evidence_io import (
 
 
 SCHEMA_VERSION = 1
+UNION_SCHEMA_VERSION = 2
 KIND = "qperiapt.third_party_rust_licenses"
 ROOT_PACKAGE = "q-periapt-ffi"
 ROOT_PACKAGES = (ROOT_PACKAGE, "q-periapt-sdk-wasm", "q-periapt-continuity-c-consumer", "q-periapt-cli",
@@ -35,6 +37,7 @@ MAX_METADATA_BYTES = 64 * 1024 * 1024
 MAX_LICENSE_BYTES = 4 * 1024 * 1024
 MAX_TOTAL_LICENSE_BYTES = 64 * 1024 * 1024
 MAX_LICENSE_FILES = 1024
+MAX_TARGETS = 16
 PACKAGE_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 VERSION_RE = re.compile(r"^[0-9A-Za-z.+-]+$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -424,6 +427,17 @@ def collect(root: pathlib.Path, package_root: pathlib.Path, target: str, *, root
         "target": target,
         "packages": inventory_packages,
     }
+    return _publish_inventory(output_root, inventory, planned_files,
+                              expected_target=target, root_package=root_package)
+
+
+def _publish_inventory(output_root: pathlib.Path, inventory: dict[str, Any],
+                       planned_files: list[tuple[str, tuple[LicenseFile, ...]]], *,
+                       root_package: str, expected_target: str | None = None,
+                       expected_targets: tuple[str, ...] | None = None) -> dict[str, Any]:
+    rust_root = output_root / "THIRD_PARTY" / "rust"
+    require(not rust_root.exists() and not rust_root.is_symlink(),
+            f"third-party Rust license output already exists: {rust_root}")
     third_party_root = output_root / "THIRD_PARTY"
     if third_party_root.exists() or third_party_root.is_symlink():
         _regular_directory(third_party_root, "binary package third-party root")
@@ -449,7 +463,8 @@ def collect(root: pathlib.Path, package_root: pathlib.Path, target: str, *, root
         os.chmod(staging_inventory, 0o644)
         staging_root.replace(rust_root)
         published = True
-        verify(output_root, expected_target=target, root_package=root_package)
+        verify(output_root, expected_target=expected_target,
+               expected_targets=expected_targets, root_package=root_package)
     except Exception:
         cleanup_root = rust_root if published else staging_root
         if cleanup_root.exists() and not cleanup_root.is_symlink():
@@ -458,7 +473,88 @@ def collect(root: pathlib.Path, package_root: pathlib.Path, target: str, *, root
     return inventory
 
 
-def verify(package_root: pathlib.Path, *, expected_target: str | None = None, root_package: str = ROOT_PACKAGE) -> dict[str, Any]:
+def _canonical_targets(targets: tuple[str, ...]) -> tuple[str, ...]:
+    require(type(targets) is tuple and 2 <= len(targets) <= MAX_TARGETS,
+            "third-party Rust license target count differs")
+    require(all(isinstance(target, str) and TARGET_RE.fullmatch(target) is not None
+                for target in targets), "third-party Rust license target is invalid")
+    require(len(set(targets)) == len(targets), "third-party Rust license targets are duplicate")
+    return tuple(sorted(targets))
+
+
+def collect_union(root: pathlib.Path, package_root: pathlib.Path, targets: tuple[str, ...], *,
+                  root_package: str = ROOT_PACKAGE,
+                  resolved_metadata: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Ship the exact union of independently resolved production target closures."""
+    targets = _canonical_targets(targets)
+    repository = _regular_directory(root, "repository root")
+    output_root = _regular_directory(package_root, "binary package root")
+    require(resolved_metadata is None or (type(resolved_metadata) is dict
+            and set(resolved_metadata) == set(targets)),
+            "resolved metadata target set differs")
+    rust_root = output_root / "THIRD_PARTY" / "rust"
+    require(not rust_root.exists() and not rust_root.is_symlink(),
+            f"third-party Rust license output already exists: {rust_root}")
+    packages: dict[tuple[str, str, str], dict[str, Any]] = {}
+    target_packages: dict[str, list[list[str]]] = {}
+    planned: dict[tuple[str, str, str], tuple[str, tuple[LicenseFile, ...]]] = {}
+    destination_names: set[str] = set()
+    license_file_count = 0
+    total_bytes = 0
+    with tempfile.TemporaryDirectory(prefix="qperiapt-license-targets-") as temporary:
+        for target in targets:
+            selected_root = pathlib.Path(temporary) / target
+            selected_root.mkdir()
+            selected = collect(repository, selected_root, target, root_package=root_package,
+                resolved_metadata=None if resolved_metadata is None else resolved_metadata[target])
+            target_packages[target] = []
+            for package in selected["packages"]:
+                identity = (package["name"], package["version"], package["source"])
+                target_packages[target].append(list(identity))
+                if identity in packages:
+                    require(package == packages[identity],
+                            f"third-party package license evidence differs between targets: {identity}")
+                    continue
+                require(len(packages) < MAX_LICENSE_FILES, "third-party package count exceeds limit")
+                destination = f"{package['name']}-{package['version']}"
+                require(destination.casefold() not in destination_names,
+                        f"dependency output path collision: {destination}")
+                destination_names.add(destination.casefold())
+                files: list[LicenseFile] = []
+                for item in package["license_files"]:
+                    try:
+                        snapshot = read_regular_snapshot(selected_root / item["path"],
+                            maximum=MAX_LICENSE_BYTES, label="target dependency license")
+                    except EvidenceIOError as exc:
+                        fail(str(exc))
+                    require(snapshot.size == item["bytes"] and snapshot.sha256 == item["sha256"],
+                            f"target dependency license bytes differ: {item['path']}")
+                    license_file_count += 1
+                    total_bytes += snapshot.size
+                    require(license_file_count <= MAX_LICENSE_FILES,
+                            "third-party license file count exceeds limit")
+                    require(total_bytes <= MAX_TOTAL_LICENSE_BYTES,
+                            "third-party license text total exceeds limit")
+                    files.append(LicenseFile(snapshot.path, snapshot.path.name,
+                                             snapshot.data, snapshot.sha256))
+                packages[identity] = package
+                planned[identity] = (destination, tuple(files))
+    inventory = {
+        "schema_version": UNION_SCHEMA_VERSION,
+        "kind": KIND,
+        "root_package": root_package,
+        "targets": list(targets),
+        "target_packages": target_packages,
+        "packages": [packages[identity] for identity in sorted(packages)],
+    }
+    return _publish_inventory(output_root, inventory,
+        [planned[identity] for identity in sorted(planned)],
+        expected_targets=targets, root_package=root_package)
+
+
+def verify(package_root: pathlib.Path, *, expected_target: str | None = None,
+           expected_targets: tuple[str, ...] | None = None,
+           root_package: str = ROOT_PACKAGE) -> dict[str, Any]:
     require(root_package in ROOT_PACKAGES, f"unsupported license root package: {root_package}")
     root = _regular_directory(package_root, "binary package root")
     inventory_path = root.joinpath(*INVENTORY_RELATIVE.parts)
@@ -471,19 +567,37 @@ def verify(package_root: pathlib.Path, *, expected_target: str | None = None, ro
     except EvidenceIOError as exc:
         fail(str(exc))
     inventory = snapshot.value
-    require(set(inventory) == {"schema_version", "kind", "root_package", "target", "packages"}, "third-party Rust license inventory fields differ")
-    require(inventory["schema_version"] == SCHEMA_VERSION and inventory["kind"] == KIND, "third-party Rust license inventory schema differs")
+    require(type(inventory.get("schema_version")) is int,
+            "third-party Rust license inventory schema differs")
+    union = inventory.get("schema_version") == UNION_SCHEMA_VERSION
+    target_fields = {"targets", "target_packages"} if union else {"target"}
+    require(set(inventory) == {"schema_version", "kind", "root_package", "packages"} | target_fields,
+            "third-party Rust license inventory fields differ")
+    require(inventory["schema_version"] in {SCHEMA_VERSION, UNION_SCHEMA_VERSION}
+            and inventory["kind"] == KIND, "third-party Rust license inventory schema differs")
     require(inventory["root_package"] == root_package, "third-party Rust license root package differs")
-    target = inventory["target"]
-    require(isinstance(target, str) and TARGET_RE.fullmatch(target) is not None, "third-party Rust license target is invalid")
-    if expected_target is not None:
-        require(target == expected_target, f"third-party Rust license target differs: {target} != {expected_target}")
+    if union:
+        require(expected_target is None, "multi-target inventory requires expected_targets")
+        targets = inventory["targets"]
+        require(isinstance(targets, list), "third-party Rust license targets are malformed")
+        require(tuple(targets) == _canonical_targets(tuple(targets)),
+                "third-party Rust license targets are not canonically sorted")
+        if expected_targets is not None:
+            require(tuple(targets) == _canonical_targets(expected_targets),
+                    "third-party Rust license target set differs")
+    else:
+        require(expected_targets is None, "single-target inventory does not cover multiple targets")
+        target = inventory["target"]
+        require(isinstance(target, str) and TARGET_RE.fullmatch(target) is not None, "third-party Rust license target is invalid")
+        if expected_target is not None:
+            require(target == expected_target, f"third-party Rust license target differs: {target} != {expected_target}")
     packages = inventory["packages"]
     require(isinstance(packages, list) and packages, "third-party Rust license package list is empty")
     require(len(packages) <= MAX_LICENSE_FILES, "third-party package count exceeds limit")
 
     expected_files = {INVENTORY_RELATIVE.as_posix()}
     previous_identity: tuple[str, str, str] | None = None
+    package_identities: set[tuple[str, str, str]] = set()
     license_file_count = 0
     total_bytes = 0
     for package in packages:
@@ -502,6 +616,7 @@ def verify(package_root: pathlib.Path, *, expected_target: str | None = None, ro
         identity = (name, version, source)
         require(previous_identity is None or identity > previous_identity, "third-party packages are duplicate or not canonically sorted")
         previous_identity = identity
+        package_identities.add(identity)
         license_files = package["license_files"]
         require(isinstance(license_files, list) and license_files, f"third-party package has no license files: {name} {version}")
         previous_path: str | None = None
@@ -540,6 +655,30 @@ def verify(package_root: pathlib.Path, *, expected_target: str | None = None, ro
                 fail(str(exc))
             require(file_snapshot.size == size and file_snapshot.sha256 == digest, f"third-party license bytes differ: {relative}")
 
+    if union:
+        target_packages = inventory["target_packages"]
+        require(isinstance(target_packages, dict) and set(target_packages) == set(targets),
+                "third-party Rust license target closure set differs")
+        selected_union: set[tuple[str, str, str]] = set()
+        for target in targets:
+            identities = target_packages[target]
+            require(isinstance(identities, list) and 0 < len(identities) <= MAX_LICENSE_FILES,
+                    f"third-party Rust license target closure is empty or oversized: {target}")
+            previous: tuple[str, str, str] | None = None
+            for raw_identity in identities:
+                require(isinstance(raw_identity, list) and len(raw_identity) == 3
+                        and all(isinstance(value, str) for value in raw_identity),
+                        f"third-party Rust license target package identity is malformed: {target}")
+                identity = tuple(raw_identity)
+                require(previous is None or identity > previous,
+                        f"third-party Rust license target packages are duplicate or unsorted: {target}")
+                previous = identity
+                require(identity in package_identities,
+                        f"third-party Rust license target package is missing from union: {target}: {identity}")
+                selected_union.add(identity)
+        require(selected_union == package_identities,
+                "third-party Rust license union contains an unselected package")
+
     rust_root = root / "THIRD_PARTY" / "rust"
     actual_files: set[str] = set()
     actual_license_file_count = 0
@@ -576,10 +715,10 @@ def build_parser() -> argparse.ArgumentParser:
     create_parser = subparsers.add_parser("create")
     create_parser.add_argument("--root", required=True, type=pathlib.Path)
     create_parser.add_argument("--package-root", required=True, type=pathlib.Path)
-    create_parser.add_argument("--target", required=True)
+    create_parser.add_argument("--target", required=True, action="append")
     verify_parser = subparsers.add_parser("verify")
     verify_parser.add_argument("--package-root", required=True, type=pathlib.Path)
-    verify_parser.add_argument("--expected-target")
+    verify_parser.add_argument("--expected-target", action="append")
     return parser
 
 
@@ -587,10 +726,13 @@ def main(argv: list[str]) -> int:
     args = build_parser().parse_args(argv)
     try:
         if args.command == "create":
-            inventory = collect(args.root, args.package_root, args.target)
+            inventory = (collect(args.root, args.package_root, args.target[0])
+                if len(args.target) == 1 else collect_union(args.root, args.package_root, tuple(args.target)))
             print(f"THIRD_PARTY_RUST_LICENSES_CREATE_PASS packages={len(inventory['packages'])}")
         else:
-            inventory = verify(args.package_root, expected_target=args.expected_target)
+            targets = args.expected_target or []
+            inventory = (verify(args.package_root, expected_target=targets[0] if targets else None)
+                if len(targets) <= 1 else verify(args.package_root, expected_targets=tuple(targets)))
             print(f"THIRD_PARTY_RUST_LICENSES_VERIFY_PASS packages={len(inventory['packages'])}")
     except ThirdPartyLicenseError as exc:
         print(f"error: {exc}", file=sys.stderr)

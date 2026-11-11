@@ -88,9 +88,14 @@ inside a host process. See the [maintenance command](../crates/q-periapt-cli/REA
 
 ## Deliberate version boundaries
 
-- `fips204` 0.4.6 and `fips205` 0.4.1 still use their upstream SHA3 0.10 and
+- `fips204` 0.5.0 and `fips205` 0.4.1 retain their upstream SHA3 0.10 and
   rand_core 0.6 contracts. Their transitive traits cannot be replaced by forcing
-  unrelated major versions. Both are the newest stable releases checked here.
+  unrelated major versions. The ML-DSA adapter computes its 32-byte SHAKE128
+  pre-hash before calling the 0.5 digest/OID interface, preserving the existing
+  message-based API. All three parameter sets pass the retained NIST pure and
+  HashML-DSA vectors and the independent RustCrypto differential tests.
+  The five live lockfiles advance together; archived paper and release sources
+  retain their original dependency identities.
 - The development-only `ml-kem` 0.2.3 oracle compares every expanded secret-key
   byte. Version 0.3.2 does provide deterministic key generation and encapsulation,
   but deprecates the expanded-key export required by that assertion. Keep this

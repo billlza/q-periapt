@@ -21,7 +21,7 @@
 Q-Periapt does **not** implement any cryptographic primitive. ML-KEM, ML-DSA,
 SHA3/SHAKE, X25519, and optional SLH-DSA come from pinned third-party backends
 (target-selected `mlkem-native` v2.0.0 through `q-periapt-mlkem-native-sys`, `fips204`
-0.4.6, `sha3` 0.12.0, `shake` 0.1.0, x25519-dalek 3.0.0, and optional fips205),
+0.5.0, `sha3` 0.12.0, `shake` 0.1.0, x25519-dalek 3.0.0, and optional fips205),
 each with a distinct conformance/audit/constant-time
 boundary. The former timing-leaky, unmaintained PQClean-HQC adapter has been removed
 from the publishable/runtime graph. A RustCrypto HQC-v5/FIPS-207-draft candidate exists only in

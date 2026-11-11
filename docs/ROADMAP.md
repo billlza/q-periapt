@@ -140,7 +140,7 @@ the shipped path:
 
 - **ML-KEM-512/768/1024** through the target-selected
   `q-periapt-mlkem-native-sys` boundary over `mlkem-native` v1.2.0 and
-  **ML-DSA-44/65/87** via `fips204` 0.4.6. Exactly five little-endian targets
+  **ML-DSA-44/65/87** via `fips204` 0.5.0. Exactly five little-endian targets
   (`aarch64-apple-darwin`, `aarch64-apple-ios`, `aarch64-apple-ios-sim`,
   `aarch64-unknown-linux-gnu`, and `aarch64-linux-android`) select upstream
   native arithmetic plus a fixed per-target FIPS 202 assembly profile (Armv8.4-A
