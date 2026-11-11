@@ -1,0 +1,158 @@
+{
+  "queries/diagnostics/AstConsistencyCounts.bqrs": {
+    "bytes": 615,
+    "sha256": "70acf2669cf46d2a6041dbeeabe2d00f910016083d97b20d974f22a448e48ed9"
+  },
+  "queries/diagnostics/CfgConsistencyCounts.bqrs": {
+    "bytes": 787,
+    "sha256": "dfc46df8470b48bd66a18c4df974576fda281329ba3230ea138b6b1082d56899"
+  },
+  "queries/diagnostics/DataFlowConsistencyCounts.bqrs": {
+    "bytes": 1655,
+    "sha256": "da8f73fa4d90ef041cfd3e501fe7d5c8868eb6e8c0507cad737199153f1939e0"
+  },
+  "queries/diagnostics/ExtractedFiles.bqrs": {
+    "bytes": 802,
+    "sha256": "f04c5d9c2ead52f28db425b350e2dc89cf932cd9e413b65caf36c9b5fba7761b"
+  },
+  "queries/diagnostics/ExtractionErrors.bqrs": {
+    "bytes": 339,
+    "sha256": "5a13e542b9cfda288500267c9c47d0ccc5acfde8380680a6322ed2f6a8c734ad"
+  },
+  "queries/diagnostics/ExtractionWarnings.bqrs": {
+    "bytes": 349,
+    "sha256": "111afbf5b71f5d51f9c5b77e41334e813873e6a36fce4bc622917134d11c670e"
+  },
+  "queries/diagnostics/SsaConsistencyCounts.bqrs": {
+    "bytes": 880,
+    "sha256": "fcc4db97200b8179c952e2de42f42fd9733a85f8622150a71a69331632e501f6"
+  },
+  "queries/diagnostics/TypeInferenceConsistencyCounts.bqrs": {
+    "bytes": 591,
+    "sha256": "fe292c6f0135dd62105cd5bcb5ba077a5f666c9f13ce4ef37076befc1bf7cd3c"
+  },
+  "queries/diagnostics/UnextractedElements.bqrs": {
+    "bytes": 361,
+    "sha256": "4c1b6e35662ae2808dd935967d8c223d65914af9a419f6d405b764851a8069a9"
+  },
+  "queries/diagnostics/UnresolvedMacroCalls.bqrs": {
+    "bytes": 338,
+    "sha256": "41050f8e48e003ff844a9b19c2c0b2ac179c9cce838ba68591e61087eb0b37d5"
+  },
+  "queries/security/CWE-020/RegexInjection.bqrs": {
+    "bytes": 857,
+    "sha256": "7e85e3919cc28c2c4482e60f6897387b2db937053f7f267e70de53192d7fe30a"
+  },
+  "queries/security/CWE-022/TaintedPath.bqrs": {
+    "bytes": 753,
+    "sha256": "aa550f59abc63d456552026d10d520cc67c5c02575707bf09be980aceafa91fa"
+  },
+  "queries/security/CWE-078/CommandInjection.bqrs": {
+    "bytes": 712,
+    "sha256": "a3b14cefad24fd83cd9e02ad7190406af606911697264c0626604d7f66bb89e1"
+  },
+  "queries/security/CWE-079/XSS.bqrs": {
+    "bytes": 646,
+    "sha256": "b8b997a11f801f725cc508aa3d251570733cbb15f41780944fd790232c3e0348"
+  },
+  "queries/security/CWE-089/SqlInjection.bqrs": {
+    "bytes": 665,
+    "sha256": "78fcad0d9c171397bb07d3beea2fb8cedecb4fcc3e12874e65f394a4605dc617"
+  },
+  "queries/security/CWE-117/LogInjection.bqrs": {
+    "bytes": 658,
+    "sha256": "99bc4da909f8703f53ee13cd0bf48a132924a6ad6f2b736f5bbc03071b0e4317"
+  },
+  "queries/security/CWE-295/DisabledCertificateCheck.bqrs": {
+    "bytes": 676,
+    "sha256": "f94498aac5abb77872ce31b0b9aa9df9045b3ed147687428ea35de5091998176"
+  },
+  "queries/security/CWE-311/CleartextTransmission.bqrs": {
+    "bytes": 695,
+    "sha256": "8e7a658159a06a62bb5a52db6e6a3b28f7bbe6f1235db87514ff0ec3c85ba9d1"
+  },
+  "queries/security/CWE-312/CleartextLogging.bqrs": {
+    "bytes": 710,
+    "sha256": "a3516651a20a34bba8081002918157f18b80344aeb63ca185c4d9f151e7ec549"
+  },
+  "queries/security/CWE-312/CleartextStorageDatabase.bqrs": {
+    "bytes": 704,
+    "sha256": "ef30f7c805fadb195af97ac9194ba270fe5d21b8c73e874d2012de02c3d73cd0"
+  },
+  "queries/security/CWE-319/UseOfHttp.bqrs": {
+    "bytes": 613,
+    "sha256": "dc5762e5ce56a684975238a8490aed11544d862220b1cbbc8f571b82582aa58c"
+  },
+  "queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs": {
+    "bytes": 524,
+    "sha256": "b47e41be71124cbe8a798953cc386349dfacc2cbfdeeebfeed8f7bdd4b4a670e"
+  },
+  "queries/security/CWE-327/WeakSensitiveDataHashing.bqrs": {
+    "bytes": 738,
+    "sha256": "eebd78f304a8d008c2a10272f9ffe5dc79b924fe52bf3e1c28a110b3473f96d9"
+  },
+  "queries/security/CWE-614/InsecureCookie.bqrs": {
+    "bytes": 769,
+    "sha256": "fdff128fdc0a24cf27a718b34e71bce215cfcb4b28fd8499de12a2d90fdfba66"
+  },
+  "queries/security/CWE-770/UncontrolledAllocationSize.bqrs": {
+    "bytes": 823,
+    "sha256": "5fb8eb95e93c9d9dbee04e84978f8da0c42b5a6dd4a0e0f5c3ed9729fd62aa7a"
+  },
+  "queries/security/CWE-798/HardcodedCryptographicValue.bqrs": {
+    "bytes": 761,
+    "sha256": "2d43d5e20c8909a4ed71d41a1ded14dad9373fddc24d9de8fb5d44219184e776"
+  },
+  "queries/security/CWE-825/AccessAfterLifetime.bqrs": {
+    "bytes": 753,
+    "sha256": "10323a3675f320702fd29d064cff11de019c761426a5c8abee48697941dde520"
+  },
+  "queries/security/CWE-825/AccessInvalidPointer.bqrs": {
+    "bytes": 707,
+    "sha256": "0c765935116e2f22dd4b5944fb3656917992b74bc10cd2dc477941a03fa45f47"
+  },
+  "queries/security/CWE-918/RequestForgery.bqrs": {
+    "bytes": 623,
+    "sha256": "fad024d4e8b47bd00e34cce182db9f9ff27e224e64c38e7906c3538d1e739855"
+  },
+  "queries/summary/LinesOfCode.bqrs": {
+    "bytes": 655,
+    "sha256": "a83baad986fbb9738f881fa1f315f3d27cbca196689a871f3f9854e4a26423cd"
+  },
+  "queries/summary/LinesOfUserCode.bqrs": {
+    "bytes": 501,
+    "sha256": "a938b38b2d504eb709fc3cb8dd1af3a9a794c107f604f43a35a062fbba5faa44"
+  },
+  "queries/summary/NodesWithTypeAtLengthLimit.bqrs": {
+    "bytes": 398,
+    "sha256": "65089b2d2e6ea99a61e10a29066e74358991475e8115a90ae3e61699aa34fef0"
+  },
+  "queries/summary/NumberOfFilesExtractedWithErrors.bqrs": {
+    "bytes": 520,
+    "sha256": "ea7c511c655cd1a7458668266efe2dbc82e9cedf052ebe126b4cd7878e36ee46"
+  },
+  "queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs": {
+    "bytes": 498,
+    "sha256": "bc5a848c5f876fed3579901e0e41654d65fc3c15b354329523d23af950f73ba0"
+  },
+  "queries/summary/QuerySinkCounts.bqrs": {
+    "bytes": 548,
+    "sha256": "227af4f32d81f4f5e6d15cbff9a25a363762a5cf6f5ebd2439412fe2e3af7366"
+  },
+  "queries/summary/SummaryStats.bqrs": {
+    "bytes": 1204,
+    "sha256": "18772fd5cf8cace709c050c17f2b6b0de2bfc2be333f6782663da8cc9135312c"
+  },
+  "queries/summary/SummaryStatsReduced.bqrs": {
+    "bytes": 895,
+    "sha256": "5f412338ea3a1dc5fe49f1c885a8ff9c15add8cf2bfad3ba3185e183bda9ff0f"
+  },
+  "queries/telemetry/DatabaseQualityDiagnostics.bqrs": {
+    "bytes": 351,
+    "sha256": "6c388503639428c16cebccdebe81581e6243d8037a7f5f6ac2cc33b2e88b6302"
+  },
+  "queries/telemetry/ExtractorInformation.bqrs": {
+    "bytes": 1162,
+    "sha256": "9a4e7f4645fc7d8b3b460e13e9a1dcd090d688d9a52cb79e706cf43638aaf6bd"
+  }
+}

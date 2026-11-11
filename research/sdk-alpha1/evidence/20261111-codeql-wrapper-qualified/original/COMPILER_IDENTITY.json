@@ -1,0 +1,10 @@
+{
+  "cargo": {
+    "bytes": 40680304,
+    "sha256": "da77c8b33849312255ccde3179198ada4c8deb370488d050286146b1d1b27e14"
+  },
+  "rustc": {
+    "bytes": 645952,
+    "sha256": "859254978c0a0402c32f949f6de0d99aee73be8d15f45aac00ae1448aac51e74"
+  }
+}

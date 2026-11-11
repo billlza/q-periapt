@@ -1,0 +1,7 @@
+Analysis produced the following metric data:
+
+|                            Metric                            | Value |
++--------------------------------------------------------------+-------+
+| Total number of Rust files that were extracted with errors   |     0 |
+| Total number of Rust files that were extracted without error |     2 |
+
