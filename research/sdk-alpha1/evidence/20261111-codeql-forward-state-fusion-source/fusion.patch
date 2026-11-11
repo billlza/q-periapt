@@ -1,0 +1,153 @@
+--- a/codeql/dataflow/internal/DataFlowImpl.qll
++++ b/codeql/dataflow/internal/DataFlowImpl.qll
+@@ -467,6 +467,9 @@
+ 
+         // Keep the original read relation in stages that do not select this plan.
+         default predicate projectRecursiveReadTargets() { none() }
++
++        // Select only when Typ = Unit: both type columns of fwdFlow1 coincide.
++        default predicate fuseUnitForwardState() { none() }
+       }
+ 
+       module Stage<StageParam Param> implements StageSig {
+@@ -546,23 +549,110 @@
+         additional predicate fwdFlow(
+           Nd node, Cc cc, SummaryCtx summaryCtx, Typ t, Ap ap, TypOption stored
+         ) {
+-          fwdFlow1(node, cc, summaryCtx, _, t, ap, stored)
++          if Param::fuseUnitForwardState()
++          then
++            exists(ApApprox apa |
++              (
++                sourceNode(node) and
++                (if hasSourceCallCtx() then cc = ccSomeCall() else cc = ccNone()) and
++                summaryCtx.isSourceCtx() and
++                t = getNodeTyp(node) and
++                ap instanceof ApNil and
++                apa = getApprox(ap) and
++                stored.isNone()
++                or
++                exists(Nd mid, Typ t0, LocalCc localCc |
++                  fwdFlow(mid, cc, summaryCtx, t0, ap, stored) and
++                  apa = getApprox(ap) and
++                  localCc = getLocalCc(cc)
++                |
++                  localStep(mid, node, true, _, localCc, _) and
++                  t = t0
++                  or
++                  localStep(mid, node, false, t, localCc, _) and
++                  ap instanceof ApNil
++                )
++                or
++                fwdFlowJump(node, t, ap, stored) and
++                apa = getApprox(ap) and
++                cc = ccNone() and
++                summaryCtx = TSummaryCtxNone()
++                or
++                // store
++                exists(Content c, Ap ap0 |
++                  fwdFlowStore(_, _, ap0, _, c, t, stored, node, cc, summaryCtx) and
++                  ap = apCons(c, ap0) and
++                  apa = getApprox(ap) and
++                  getAnApLengthLowerBound(ap0) < accessPathLimit()
++                )
++                or
++                // read
++                (
++                  if Param::projectRecursiveReadTargets()
++                  then fwdFlowReadTarget(node, t, ap, stored, cc, summaryCtx)
++                  else fwdFlowRead(_, _, _, _, _, node, t, ap, stored, cc, summaryCtx)
++                ) and
++                apa = getApprox(ap)
++                or
++                // flow into a callable without summary context
++                fwdFlowInNoFlowThrough(node, cc, summaryCtx, t, ap, stored) and
++                apa = getApprox(ap) and
++                // When the call contexts of source and sink needs to match then there's
++                // never any reason to enter a callable except to find a summary. See also
++                // the comment in `PathNodeMid::isAtSink`.
++                not Config::getAFeature() instanceof FeatureEqualSourceSinkCallContext
++                or
++                // flow into a callable with summary context (non-linear recursion)
++                exists(boolean mustReturn |
++                  fwdFlowInFlowThrough(node, cc, t, ap, stored, mustReturn) and
++                  apa = getApprox(ap) and
++                  summaryCtx = TSummaryCtxSome(node, t, ap, stored, mustReturn)
++                )
++                or
++                // flow out of a callable
++                fwdFlowOut(_, _, node, cc, summaryCtx, t, ap, stored) and
++                apa = getApprox(ap)
++                or
++                // flow through a callable
++                exists(Call call, RetNd ret, boolean allowsFieldFlow |
++                  fwdFlowThrough(call, cc, summaryCtx, t, ap, stored, ret) and
++                  flowThroughOutOfCall(call, ret, node, allowsFieldFlow) and
++                  apa = getApprox(ap) and
++                  if allowsFieldFlow = false then ap instanceof ApNil else any()
++                )
++              ) and
++              PrevStage::revFlow(node, apa) and
++              filter(node, t, ap, t) and
++              (
++                if node instanceof CastingNd
++                then
++                  ap instanceof ApNil or
++                  compatibleContainer(getHeadContent(ap), node.getType()) or
++                  topTypeContent(getHeadContent(ap))
++                else any()
++              )
++            )
++          else fwdFlow1(node, cc, summaryCtx, _, t, ap, stored)
+         }
+ 
+         private predicate fwdFlow1(
+           Nd node, Cc cc, SummaryCtx summaryCtx, Typ t0, Typ t, Ap ap, TypOption stored
+         ) {
+-          exists(ApApprox apa |
+-            fwdFlow0(node, cc, summaryCtx, t0, ap, apa, stored) and
+-            PrevStage::revFlow(node, apa) and
+-            filter(node, t0, ap, t) and
+-            (
+-              if node instanceof CastingNd
+-              then
+-                ap instanceof ApNil or
+-                compatibleContainer(getHeadContent(ap), node.getType()) or
+-                topTypeContent(getHeadContent(ap))
+-              else any()
++          if Param::fuseUnitForwardState()
++          then t0 = t and fwdFlow(node, cc, summaryCtx, t, ap, stored)
++          else (
++            exists(ApApprox apa |
++              fwdFlow0(node, cc, summaryCtx, t0, ap, apa, stored) and
++              PrevStage::revFlow(node, apa) and
++              filter(node, t0, ap, t) and
++              (
++                if node instanceof CastingNd
++                then
++                  ap instanceof ApNil or
++                  compatibleContainer(getHeadContent(ap), node.getType()) or
++                  topTypeContent(getHeadContent(ap))
++                else any()
++              )
+             )
+           )
+         }
+@@ -2882,6 +2972,8 @@
+ 
+       predicate projectRecursiveReadTargets() { any() }
+ 
++      predicate fuseUnitForwardState() { any() }
++
+       class Typ = Unit;
+ 
+       class Ap = ApproxAccessPathFront;
+@@ -2992,6 +3084,8 @@
+       private module PrevStage = Stage3;
+ 
+       predicate projectRecursiveReadTargets() { any() }
++
++      predicate fuseUnitForwardState() { any() }
+ 
+       class Typ = Unit;
+ 

@@ -1,0 +1,1131 @@
+# Excerpts from the full RA pinned in RA_STRUCTURE.json.
+# Original line numbers are retained; trailing display whitespace is removed.
+
+# Full RA lines 171358-171720
+  JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlow/6#b8170bbf`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-
+    SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::TAnyCallContext#e3244ff0`
+    SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`
+    SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage2::revFlow/4#00a69496`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::getNodeTyp/1#bdbb785c`
+    SENTINEL TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxNone#b608e920
+    [[[ BASE CASE ]]]
+    exists(bool apa |
+      `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::TAnyCallContext#e3244ff0`/1
+        on
+        [cc] and
+      `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+        on
+        [ap] and
+      `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2
+        on
+        [ap, apa] and
+      `project#TaintReach::TaintReachFlow::Flow::Stage2::revFlow/4#00a69496`/2
+        on
+        [node, apa] and
+      `TaintReach::TaintReachFlow::Stage1::sourceNode/2#95610752`/2 on [node, _] and
+      (
+        `TaintReach::TaintReachFlow::Stage1::Stage1NoState::notExpectsContent/1#c8704f41`/1
+          on
+          [node]
+        or
+        `TaintReach::TaintReachFlow::Flow::Stage3Param::expectsContentCand/2#12eedd2c`/2
+          on
+          [node, ap]
+      ) and
+      (
+        `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::castingNodeEx/1#f28332fa@staged_ext`/1
+          on
+          [node]
+        or
+        not
+          `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::castingNodeEx/1#f28332fa@staged_ext`/1
+          on
+          [node]
+      ) and
+      `TaintReach::TaintReachFlow::Flow::Stage3::getNodeTyp/1#bdbb785c`/2
+        on
+        [node, t] and
+      TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxNone#b608e920/1
+        on
+        [summaryCtx] and
+      `Option::Option<Unit::Unit>::Option.isNone/0#dispred#87536116`/1
+        on
+        [stored])
+    [[[ SEMINAIVE VARIANT ]]]
+    exists(bool apa |
+      `project#TaintReach::TaintReachFlow::Flow::Stage2::revFlow/4#00a69496`/2
+        on
+        [node, apa] and
+      (
+        (
+          exists(numbered_tuple mid, numbered_tuple t0 |
+            `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2
+              on
+              [ap, apa] and
+            `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlow/6#b8170bbf#prev_delta`/6
+              on
+              [mid, cc, summaryCtx, t0, ap, stored] and
+            (
+              (
+                `project#TaintReach::TaintReachFlow::Flow::Stage3Param::localStep/6#74366f66#cpe#1236#ffbf`/2
+                  on
+                  [mid, node] and
+                `project#TaintReach::TaintReachFlow::Flow::Stage3::fwdFlow/6#b8170bbf#nullary`/0
+                  on
+                  [] and
+                t = t0
+              )
+              or
+              (
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+                  on
+                  [ap] and
+                `project#TaintReach::TaintReachFlow::Flow::Stage3Param::localStep/6#74366f66#cpe#1236#ffbf#2`/2
+                  on
+                  [mid, node] and
+                `TaintReach::TaintReachFlow::Flow::Stage3Param::localStep/6#74366f66#cpe#45`/2
+                  on
+                  [t, t]
+              )
+            ))
+        )
+        or
+        (
+          `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowJump/4#a4bd9696#prev_delta`/4
+            on
+            [node, t, ap, stored] and
+          `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2
+            on
+            [ap, apa] and
+          `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::TAnyCallContext#e3244ff0`/1
+            on
+            [cc] and
+          TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxNone#b608e920/1
+            on
+            [summaryCtx]
+        )
+        or
+        (
+          exists(
+            numbered_tuple c, int length, numbered_tuple ap0, int v1001,
+            int call_result#12
+           |
+            `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowStore/10#064d3538#prev_delta`/10
+              on
+              [_, _, ap0, _, c, t, stored, node, cc, summaryCtx] and
+            `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2
+              on
+              [ap, apa] and
+            `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ApproxAccessPathFront.getAHead/1#dispred#8562832d`/3
+              on
+              [ap, length, c] and
+            (
+              (
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+                  on
+                  [ap0] and
+                length = 1
+              )
+              or
+              (
+                exists(int v1000, int Sub#result |
+                  v1000 = 1 and
+                  primitive Minus on [length, v1000, Sub#result] and
+                  `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontHead#59badfa0@staged_ext`/3
+                    on
+                    [_, Sub#result, ap0])
+              )
+            ) and
+            `TaintReach::TaintReachFlow::Flow::Stage3::getAnApLengthLowerBound/1#266fe85a#prev`/2
+              on
+              [ap0, call_result#12] and
+            v1001 = 5 and
+            primitive LT on [call_result#12, v1001])
+        )
+        or
+        (
+          exists(
+            int v1002, int call_result#12, numbered_tuple c, numbered_tuple ap0,
+            int length
+           |
+            `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowStore/10#064d3538#prev`/10
+              on
+              [_, _, ap0, _, c, t, stored, node, cc, summaryCtx] and
+            `TaintReach::TaintReachFlow::Flow::Stage3::getAnApLengthLowerBound/1#266fe85a#prev_delta`/2
+              on
+              [ap0, call_result#12] and
+            v1002 = 5 and
+            primitive LT on [call_result#12, v1002] and
+            `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2
+              on
+              [ap, apa] and
+            `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ApproxAccessPathFront.getAHead/1#dispred#8562832d`/3
+              on
+              [ap, length, c] and
+            (
+              (
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+                  on
+                  [ap0] and
+                length = 1
+              )
+              or
+              (
+                exists(int v1003, int Sub#result |
+                  v1003 = 1 and
+                  primitive Minus on [length, v1003, Sub#result] and
+                  `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontHead#59badfa0@staged_ext`/3
+                    on
+                    [_, Sub#result, ap0])
+              )
+            ))
+        )
+        or
+        (
+          `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowReadTarget/6#073a1dab#prev_delta`/6
+            on
+            [node, t, ap, stored, cc, summaryCtx] and
+          `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2
+            on
+            [ap, apa]
+        )
+        or
+        (
+          `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowInNoFlowThrough/6#d4538053#prev_delta`/6
+            on
+            [node, cc, summaryCtx, t, ap, stored] and
+          `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2
+            on
+            [ap, apa]
+        )
+        or
+        (
+          exists(bool mustReturn |
+            `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowInFlowThrough/6#4008274f#prev_delta`/6
+              on
+              [node, cc, t, ap, stored, mustReturn] and
+            `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2
+              on
+              [ap, apa] and
+            TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxSome#8afc4e8a#prev/6
+              on
+              [node, t, ap, stored, mustReturn, summaryCtx])
+        )
+        or
+        (
+          exists(bool mustReturn |
+            TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxSome#8afc4e8a#prev_delta/6
+              on
+              [node, t, ap, stored, mustReturn, summaryCtx] and
+            `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2
+              on
+              [ap, apa] and
+            `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowInFlowThrough/6#4008274f#prev`/6
+              on
+              [node, cc, t, ap, stored, mustReturn])
+        )
+        or
+        (
+          exists(
+            numbered_tuple ret, numbered_tuple innercc, bool allowsFieldFlow
+           |
+            TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxNone#b608e920/1
+              on
+              [summaryCtx] and
+            `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2
+              on
+              [ap, apa] and
+            `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowIntoRet/6#e1d4c9c5#prev_delta`/6
+              on
+              [ret, innercc, _, t, ap, stored] and
+            `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowOutValidEdge/7#2bc06105#prev`/7
+              on
+              [_, ret, innercc, _, node, cc, allowsFieldFlow] and
+            (
+              (
+                allowsFieldFlow = false and
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+                  on
+                  [ap]
+              )
+              or
+              not(allowsFieldFlow = false)
+            ))
+        )
+        or
+        (
+          exists(
+            bool allowsFieldFlow, numbered_tuple ret, numbered_tuple innercc
+           |
+            `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowOutValidEdge/7#2bc06105#prev_delta`/7
+              on
+              [_, ret, innercc, _, node, cc, allowsFieldFlow] and
+            `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2
+              on
+              [ap, apa] and
+            (
+              (
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+                  on
+                  [ap] and
+                allowsFieldFlow = false
+              )
+              or
+              not(allowsFieldFlow = false)
+            ) and
+            `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowIntoRet/6#e1d4c9c5#prev`/6
+              on
+              [ret, innercc, _, t, ap, stored] and
+            TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxNone#b608e920/1
+              on
+              [summaryCtx])
+        )
+        or
+        (
+          exists(numbered_tuple call, numbered_tuple ret, bool allowsFieldFlow |
+            `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2
+              on
+              [ap, apa] and
+            `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowThrough/7#42ecc4e6#prev_delta`/7
+              on
+              [call, cc, summaryCtx, t, ap, stored, ret] and
+            `TaintReach::TaintReachFlow::Flow::Stage3::flowThroughOutOfCall/4#374dc871`/4
+              on
+              [call, ret, node, allowsFieldFlow] and
+            (
+              (
+                allowsFieldFlow = false and
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+                  on
+                  [ap]
+              )
+              or
+              not(allowsFieldFlow = false)
+            ))
+        )
+      ) and
+      not
+        `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlow/6#b8170bbf#prev`/6
+        on
+        [node, cc, summaryCtx, t, ap, stored] and
+      (
+        `TaintReach::TaintReachFlow::Stage1::Stage1NoState::notExpectsContent/1#c8704f41`/1
+          on
+          [node]
+        or
+        `TaintReach::TaintReachFlow::Flow::Stage3Param::expectsContentCand/2#12eedd2c`/2
+          on
+          [node, ap]
+      ) and
+      (
+        (
+          `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::castingNodeEx/1#f28332fa@staged_ext`/1
+            on
+            [node] and
+          (
+            `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+              on
+              [ap]
+            or
+            (
+              exists(
+                numbered_tuple this#bound, numbered_tuple call_result,
+                numbered_tuple call_result#21, numbered_tuple call_result#22
+               |
+                `TaintReach::TaintReachFlow::Flow::Stage3Param::getHeadContent/1#2a167731`/2
+                  on
+                  [ap, call_result#21] and
+                primitive directionalBind on [node, this#bound] and
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::NodeEx.getType0/0#dispred#75e7b8d0`/2
+                  on
+                  [this#bound, call_result] and
+                primitive directionalBind on [call_result, call_result#22] and
+                lateInlined(noBindingset on [call_result#21, call_result#22]
+
+                  `TaintReach::TaintReachFlow::Flow::Stage3::compatibleContainer0/2#f6d399e0`/2
+                    on
+                    [call_result#21, call_result#22] ))
+            )
+            or
+            (
+              exists(numbered_tuple call_result#23 |
+                `TaintReach::TaintReachFlow::Flow::Stage3Param::getHeadContent/1#2a167731`/2
+                  on
+                  [ap, call_result#23] and
+                `TaintReach::TaintReachFlow::Flow::Stage3::topTypeContent/1#1e2e4ed8`/1
+                  on
+                  [call_result#23])
+            )
+          )
+        )
+        or
+        not
+          `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::castingNodeEx/1#f28332fa@staged_ext`/1
+          on
+          [node]
+      ))
+
+# Full RA lines 171817-171902
+  JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowReadTarget/6#073a1dab`(numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, numbered_tuple cc, numbered_tuple summaryCtx) :-
+    SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::TAnyCallContext#e3244ff0`
+    SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::getNodeTyp/1#bdbb785c`
+    SENTINEL TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxNone#b608e920
+    SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage2::storeStepCand/5#faa243c7#4`
+    SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ApproxAccessPathFront.getAHead/1#dispred#8562832d`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3Param::getHeadContent/1#2a167731`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::readStepCand/4#a8595e9b`
+    [[[ BASE CASE ]]]
+    false
+    [[[ SEMINAIVE VARIANT ]]]
+    (
+      (
+        exists(numbered_tuple ap1, numbered_tuple c, numbered_tuple stored1 |
+          `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead0/8#166d1b0a#prev_delta`/8
+            on
+            [_, ap1, stored1, c, _, node2, cc, summaryCtx] and
+          `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowConsCand/5#a93e05d0#prev`/5
+            on
+            [_, ap1, c, _, ap2] and
+          (
+            (
+              `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+                on
+                [ap2] and
+              `Option::Option<Unit::Unit>::Option.asSome/0#dispred#2c997bcf`/2
+                on
+                [stored1, t2] and
+              `Option::Option<Unit::Unit>::Option.isNone/0#dispred#87536116`/1
+                on
+                [stored2]
+            )
+            or
+            (
+              not
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+                on
+                [ap2] and
+              stored2 = stored1 and
+              `TaintReach::TaintReachFlow::Flow::Stage3::getNodeTyp/1#bdbb785c`/2
+                on
+                [node2, t2]
+            )
+          ))
+      )
+      or
+      (
+        exists(numbered_tuple ap1, numbered_tuple c, numbered_tuple stored1 |
+          `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowConsCand/5#a93e05d0#prev_delta`/5
+            on
+            [_, ap1, c, _, ap2] and
+          `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead0/8#166d1b0a#prev`/8
+            on
+            [_, ap1, stored1, c, _, node2, cc, summaryCtx] and
+          (
+            (
+              `Option::Option<Unit::Unit>::Option.asSome/0#dispred#2c997bcf`/2
+                on
+                [stored1, t2] and
+              `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+                on
+                [ap2] and
+              `Option::Option<Unit::Unit>::Option.isNone/0#dispred#87536116`/1
+                on
+                [stored2]
+            )
+            or
+            (
+              not
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+                on
+                [ap2] and
+              stored2 = stored1 and
+              `TaintReach::TaintReachFlow::Flow::Stage3::getNodeTyp/1#bdbb785c`/2
+                on
+                [node2, t2]
+            )
+          ))
+      )
+    ) and
+    not
+      `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowReadTarget/6#073a1dab#prev`/6
+      on
+      [node2, t2, ap2, stored2, cc, summaryCtx]
+
+# Full RA lines 172320-172353
+  `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, numbered_tuple cc, numbered_tuple summaryCtx) :-
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowConsCand/5#a93e05d0`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead0/8#166d1b0a`
+    `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowConsCand/5#a93e05d0`/5
+      on
+      [_, ap1, c, _, ap2] and
+    `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead0/8#166d1b0a`/8
+      on
+      [t1, ap1, stored1, c, node1, node2, cc, summaryCtx] and
+    (
+      (
+        `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+          on
+          [ap2] and
+        `Option::Option<Unit::Unit>::Option.asSome/0#dispred#2c997bcf`/2
+          on
+          [stored1, t2] and
+        `Option::Option<Unit::Unit>::Option.isNone/0#dispred#87536116`/1
+          on
+          [stored2]
+      )
+      or
+      (
+        not
+          `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+          on
+          [ap2] and
+        stored2 = stored1 and
+        `TaintReach::TaintReachFlow::Flow::Stage3::getNodeTyp/1#bdbb785c`/2
+          on
+          [node2, t2]
+      )
+    )
+
+
+# Full RA lines 172355-172360
+  `TaintReach::TaintReachFlow::Flow::Stage3::readStepFwd/5#17d0527c`(numbered_tuple n1, numbered_tuple ap1, numbered_tuple c, numbered_tuple n2, numbered_tuple ap2) :-
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`
+    `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`/11
+      on
+      [n1, _, ap1, _, c, n2, _, ap2, _, _, _]
+
+
+# Full RA lines 171040-171064
+  JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::fwdFlow1Param/5#cff8aee9`(numbered_tuple p, numbered_tuple cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-
+    SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::TAnyCallContext#e3244ff0`
+    SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`
+    SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage2::revFlow/4#00a69496`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::getNodeTyp/1#bdbb785c`
+    SENTINEL TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxNone#b608e920
+    SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::CallContextCall#fa712389`
+    SENTINEL `project#DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ParamNodeEx#4ef9090d#2`
+    [[[ BASE CASE ]]]
+    false
+    [[[ SEMINAIVE VARIANT ]]]
+    `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlow/6#b8170bbf#prev_delta`/6
+      on
+      [p, cc, _, t0, ap, stored] and
+    `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::CallContextCall#fa712389`/1
+      on
+      [cc] and
+    not
+      `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::fwdFlow1Param/5#cff8aee9#prev`/5
+      on
+      [p, cc, t0, ap, stored] and
+    `project#DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ParamNodeEx#4ef9090d#2`/1
+      on
+      [p]
+
+# Full RA lines 171065-171084
+  JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::fwdFlow1Out/5#ef7f2b40`(numbered_tuple node, numbered_tuple cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-
+    SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::TAnyCallContext#e3244ff0`
+    SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::getNodeTyp/1#bdbb785c`
+    SENTINEL TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxNone#b608e920
+    SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage2::callEdgeReturn/6#7e197442#4`
+    [[[ BASE CASE ]]]
+    false
+    [[[ SEMINAIVE VARIANT ]]]
+    `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlow/6#b8170bbf#prev_delta`/6
+      on
+      [node, cc, _, t0, ap, stored] and
+    not
+      `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::fwdFlow1Out/5#ef7f2b40#prev`/5
+      on
+      [node, cc, t0, ap, stored] and
+    `project#TaintReach::TaintReachFlow::Flow::Stage2::callEdgeReturn/6#7e197442#4`/1
+      on
+      [node]
+
+# Full RA lines 176588-176992
+  JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow/6#a64bdbdd`(numbered_tuple node, bool cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-
+    SENTINEL TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxNone#74f2e043
+    SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`
+    SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage3::revFlow/4#5631bada`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::getNodeTyp/1#b03aabcc`
+    [[[ BASE CASE ]]]
+    exists(bool v1000, numbered_tuple apa |
+      TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxNone#74f2e043/1
+        on
+        [summaryCtx] and
+      v1000 = false and
+      Boolean::Boolean#5dd548d1/1 on [v1000] and
+      `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+        on
+        [ap] and
+      `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`/2
+        on
+        [ap, apa] and
+      `project#TaintReach::TaintReachFlow::Flow::Stage3::revFlow/4#5631bada`/2
+        on
+        [node, apa] and
+      `TaintReach::TaintReachFlow::Stage1::sourceNode/2#95610752`/2 on [node, _] and
+      not
+        `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+        on
+        [node, ap] and
+      (
+        `TaintReach::TaintReachFlow::Stage1::Stage1NoState::notExpectsContent/1#c8704f41`/1
+          on
+          [node]
+        or
+        `TaintReach::TaintReachFlow::Flow::Stage4Param::expectsContentCand/2#256c7bcf`/2
+          on
+          [node, ap]
+      ) and
+      (
+        `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::castingNodeEx/1#f28332fa@staged_ext`/1
+          on
+          [node]
+        or
+        not
+          `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::castingNodeEx/1#f28332fa@staged_ext`/1
+          on
+          [node]
+      ) and
+      `TaintReach::TaintReachFlow::Flow::Stage4::getNodeTyp/1#b03aabcc`/2
+        on
+        [node, t] and
+      cc = false and
+      `Option::Option<Unit::Unit>::Option.isNone/0#dispred#87536116`/1
+        on
+        [stored])
+    [[[ SEMINAIVE VARIANT ]]]
+    exists(numbered_tuple apa |
+      `project#TaintReach::TaintReachFlow::Flow::Stage3::revFlow/4#5631bada`/2
+        on
+        [node, apa] and
+      (
+        (
+          exists(numbered_tuple mid, numbered_tuple t0 |
+            `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`/2
+              on
+              [ap, apa] and
+            not
+              `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+              on
+              [node, ap] and
+            `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow/6#a64bdbdd#prev_delta`/6
+              on
+              [mid, cc, summaryCtx, t0, ap, stored] and
+            (
+              (
+                `project#TaintReach::TaintReachFlow::Flow::Stage4Param::localStep/6#92364e6d`/2
+                  on
+                  [mid, node] and
+                t = t0
+              )
+              or
+              (
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+                  on
+                  [ap] and
+                `project#TaintReach::TaintReachFlow::Flow::Stage4Param::localStep/6#92364e6d#2`/3
+                  on
+                  [mid, node, t]
+              )
+            ))
+        )
+        or
+        (
+          exists(bool v1000 |
+            `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowJump/4#4f0a9f4a#prev_delta`/4
+              on
+              [node, t, ap, stored] and
+            not
+              `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+              on
+              [node, ap] and
+            `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`/2
+              on
+              [ap, apa] and
+            v1000 = false and
+            Boolean::Boolean#5dd548d1/1 on [v1000] and
+            TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxNone#74f2e043/1
+              on
+              [summaryCtx] and
+            cc = false)
+        )
+        or
+        (
+          exists(
+            numbered_tuple c, int length, numbered_tuple ap0, int v1002,
+            int call_result#12
+           |
+            `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowStore/10#c1938703#prev_delta`/10
+              on
+              [_, _, ap0, _, c, t, stored, node, cc, summaryCtx] and
+            `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::AccessPathFront.getHead/1#dispred#4134b26f`/3
+              on
+              [ap, length, c] and
+            (
+              (
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+                  on
+                  [ap0] and
+                length = 1
+              )
+              or
+              (
+                exists(int v1001, int Sub#result |
+                  v1001 = 1 and
+                  primitive Minus on [length, v1001, Sub#result] and
+                  `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontHead#19f60469@staged_ext`/3
+                    on
+                    [_, Sub#result, ap0])
+              )
+            ) and
+            not
+              `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+              on
+              [node, ap] and
+            `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`/2
+              on
+              [ap, apa] and
+            `TaintReach::TaintReachFlow::Flow::Stage4::getAnApLengthLowerBound/1#1e4e6bb4#prev`/2
+              on
+              [ap0, call_result#12] and
+            v1002 = 5 and
+            primitive LT on [call_result#12, v1002])
+        )
+        or
+        (
+          exists(
+            numbered_tuple c, int length, numbered_tuple ap0, int v1004,
+            int call_result#12
+           |
+            `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`/2
+              on
+              [ap, apa] and
+            not
+              `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+              on
+              [node, ap] and
+            `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::AccessPathFront.getHead/1#dispred#4134b26f`/3
+              on
+              [ap, length, c] and
+            `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowStore/10#c1938703#prev`/10
+              on
+              [_, _, ap0, _, c, t, stored, node, cc, summaryCtx] and
+            (
+              (
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+                  on
+                  [ap0] and
+                length = 1
+              )
+              or
+              (
+                exists(int v1003, int Sub#result |
+                  v1003 = 1 and
+                  primitive Minus on [length, v1003, Sub#result] and
+                  `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontHead#19f60469@staged_ext`/3
+                    on
+                    [_, Sub#result, ap0])
+              )
+            ) and
+            `TaintReach::TaintReachFlow::Flow::Stage4::getAnApLengthLowerBound/1#1e4e6bb4#prev_delta`/2
+              on
+              [ap0, call_result#12] and
+            v1004 = 5 and
+            primitive LT on [call_result#12, v1004])
+        )
+        or
+        (
+          `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac#prev_delta`/6
+            on
+            [node, t, ap, stored, cc, summaryCtx] and
+          not
+            `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+            on
+            [node, ap] and
+          `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`/2
+            on
+            [ap, apa]
+        )
+        or
+        (
+          `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowInNoFlowThrough/6#be7b65f0#prev_delta`/6
+            on
+            [node, cc, summaryCtx, t, ap, stored] and
+          not
+            `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+            on
+            [node, ap] and
+          `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`/2
+            on
+            [ap, apa]
+        )
+        or
+        (
+          exists(bool mustReturn |
+            `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowInFlowThrough/6#f992157f#prev_delta`/6
+              on
+              [node, cc, t, ap, stored, mustReturn] and
+            not
+              `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+              on
+              [node, ap] and
+            `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`/2
+              on
+              [ap, apa] and
+            TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxSome#1a9dd3c5#prev/6
+              on
+              [node, t, ap, stored, mustReturn, summaryCtx])
+        )
+        or
+        (
+          exists(bool mustReturn |
+            TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxSome#1a9dd3c5#prev_delta/6
+              on
+              [node, t, ap, stored, mustReturn, summaryCtx] and
+            not
+              `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+              on
+              [node, ap] and
+            `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`/2
+              on
+              [ap, apa] and
+            `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowInFlowThrough/6#f992157f#prev`/6
+              on
+              [node, cc, t, ap, stored, mustReturn])
+        )
+        or
+        (
+          exists(numbered_tuple ret, bool innercc, bool allowsFieldFlow |
+            `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`/2
+              on
+              [ap, apa] and
+            not
+              `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+              on
+              [node, ap] and
+            `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowIntoRet/6#3c8ca87c#prev_delta`/6
+              on
+              [ret, innercc, _, t, ap, stored] and
+            `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowOutValidEdge/7#07d10267#prev`/7
+              on
+              [_, ret, innercc, _, node, cc, allowsFieldFlow] and
+            (
+              (
+                allowsFieldFlow = false and
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+                  on
+                  [ap]
+              )
+              or
+              not(allowsFieldFlow = false)
+            ) and
+            TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxNone#74f2e043/1
+              on
+              [summaryCtx])
+        )
+        or
+        (
+          exists(numbered_tuple ret, bool innercc, bool allowsFieldFlow |
+            `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowOutValidEdge/7#07d10267#prev_delta`/7
+              on
+              [_, ret, innercc, _, node, cc, allowsFieldFlow] and
+            `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowIntoRet/6#3c8ca87c#prev`/6
+              on
+              [ret, innercc, _, t, ap, stored] and
+            not
+              `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+              on
+              [node, ap] and
+            `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`/2
+              on
+              [ap, apa] and
+            (
+              (
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+                  on
+                  [ap] and
+                allowsFieldFlow = false
+              )
+              or
+              not(allowsFieldFlow = false)
+            ) and
+            TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxNone#74f2e043/1
+              on
+              [summaryCtx])
+        )
+        or
+        (
+          exists(numbered_tuple call, numbered_tuple ret, bool allowsFieldFlow |
+            `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`/2
+              on
+              [ap, apa] and
+            not
+              `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+              on
+              [node, ap] and
+            `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowThrough/7#64f4f391#prev_delta`/7
+              on
+              [call, cc, summaryCtx, t, ap, stored, ret] and
+            `TaintReach::TaintReachFlow::Flow::Stage4::flowThroughOutOfCall/4#0983f9aa`/4
+              on
+              [call, ret, node, allowsFieldFlow] and
+            (
+              (
+                allowsFieldFlow = false and
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+                  on
+                  [ap]
+              )
+              or
+              not(allowsFieldFlow = false)
+            ))
+        )
+      ) and
+      not
+        `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow/6#a64bdbdd#prev`/6
+        on
+        [node, cc, summaryCtx, t, ap, stored] and
+      not
+        `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+        on
+        [node, ap] and
+      (
+        `TaintReach::TaintReachFlow::Stage1::Stage1NoState::notExpectsContent/1#c8704f41`/1
+          on
+          [node]
+        or
+        `TaintReach::TaintReachFlow::Flow::Stage4Param::expectsContentCand/2#256c7bcf`/2
+          on
+          [node, ap]
+      ) and
+      (
+        (
+          `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::castingNodeEx/1#f28332fa@staged_ext`/1
+            on
+            [node] and
+          (
+            `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+              on
+              [ap]
+            or
+            (
+              exists(
+                numbered_tuple this#bound, numbered_tuple call_result,
+                numbered_tuple call_result#21, numbered_tuple call_result#22
+               |
+                `TaintReach::TaintReachFlow::Flow::Stage4Param::getHeadContent/1#ced52de7`/2
+                  on
+                  [ap, call_result#21] and
+                primitive directionalBind on [node, this#bound] and
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::NodeEx.getType0/0#dispred#75e7b8d0`/2
+                  on
+                  [this#bound, call_result] and
+                primitive directionalBind on [call_result, call_result#22] and
+                lateInlined(noBindingset on [call_result#21, call_result#22]
+
+                  `TaintReach::TaintReachFlow::Flow::Stage4::compatibleContainer0/2#871c6f3a`/2
+                    on
+                    [call_result#21, call_result#22] ))
+            )
+            or
+            (
+              exists(numbered_tuple call_result#23 |
+                `TaintReach::TaintReachFlow::Flow::Stage4Param::getHeadContent/1#ced52de7`/2
+                  on
+                  [ap, call_result#23] and
+                `TaintReach::TaintReachFlow::Flow::Stage4::topTypeContent/1#cd19bcb7`/1
+                  on
+                  [call_result#23])
+            )
+          )
+        )
+        or
+        not
+          `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::castingNodeEx/1#f28332fa@staged_ext`/1
+          on
+          [node]
+      ))
+
+# Full RA lines 175262-175345
+  JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac`(numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :-
+    SENTINEL TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxNone#74f2e043
+    SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::getNodeTyp/1#b03aabcc`
+    SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage3::storeStepCand/5#a4aeb032#3`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4Param::getHeadContent/1#ced52de7`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::readStepCand/4#ec3a382a`
+    [[[ BASE CASE ]]]
+    false
+    [[[ SEMINAIVE VARIANT ]]]
+    (
+      (
+        exists(numbered_tuple ap1, numbered_tuple c, numbered_tuple stored1 |
+          `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2#prev_delta`/8
+            on
+            [_, ap1, stored1, c, _, node2, cc, summaryCtx] and
+          `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowConsCand/5#647d45b6#prev`/5
+            on
+            [_, ap1, c, _, ap2] and
+          (
+            (
+              `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+                on
+                [ap2] and
+              `Option::Option<Unit::Unit>::Option.asSome/0#dispred#2c997bcf`/2
+                on
+                [stored1, t2] and
+              `Option::Option<Unit::Unit>::Option.isNone/0#dispred#87536116`/1
+                on
+                [stored2]
+            )
+            or
+            (
+              not
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+                on
+                [ap2] and
+              stored2 = stored1 and
+              `TaintReach::TaintReachFlow::Flow::Stage4::getNodeTyp/1#b03aabcc`/2
+                on
+                [node2, t2]
+            )
+          ))
+      )
+      or
+      (
+        exists(numbered_tuple ap1, numbered_tuple c, numbered_tuple stored1 |
+          `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowConsCand/5#647d45b6#prev_delta`/5
+            on
+            [_, ap1, c, _, ap2] and
+          `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2#prev`/8
+            on
+            [_, ap1, stored1, c, _, node2, cc, summaryCtx] and
+          (
+            (
+              `Option::Option<Unit::Unit>::Option.asSome/0#dispred#2c997bcf`/2
+                on
+                [stored1, t2] and
+              `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+                on
+                [ap2] and
+              `Option::Option<Unit::Unit>::Option.isNone/0#dispred#87536116`/1
+                on
+                [stored2]
+            )
+            or
+            (
+              not
+                `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+                on
+                [ap2] and
+              stored2 = stored1 and
+              `TaintReach::TaintReachFlow::Flow::Stage4::getNodeTyp/1#b03aabcc`/2
+                on
+                [node2, t2]
+            )
+          ))
+      )
+    ) and
+    not
+      `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac#prev`/6
+      on
+      [node2, t2, ap2, stored2, cc, summaryCtx]
+
+# Full RA lines 177311-177344
+  `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :-
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowConsCand/5#647d45b6`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2`
+    `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowConsCand/5#647d45b6`/5
+      on
+      [_, ap1, c, _, ap2] and
+    `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2`/8
+      on
+      [t1, ap1, stored1, c, node1, node2, cc, summaryCtx] and
+    (
+      (
+        `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+          on
+          [ap2] and
+        `Option::Option<Unit::Unit>::Option.asSome/0#dispred#2c997bcf`/2
+          on
+          [stored1, t2] and
+        `Option::Option<Unit::Unit>::Option.isNone/0#dispred#87536116`/1
+          on
+          [stored2]
+      )
+      or
+      (
+        not
+          `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+          on
+          [ap2] and
+        stored2 = stored1 and
+        `TaintReach::TaintReachFlow::Flow::Stage4::getNodeTyp/1#b03aabcc`/2
+          on
+          [node2, t2]
+      )
+    )
+
+
+# Full RA lines 177346-177351
+  `TaintReach::TaintReachFlow::Flow::Stage4::readStepFwd/5#09e21249`(numbered_tuple n1, numbered_tuple ap1, numbered_tuple c, numbered_tuple n2, numbered_tuple ap2) :-
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`
+    `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`/11
+      on
+      [n1, _, ap1, _, c, n2, _, ap2, _, _, _]
+
+
+# Full RA lines 176428-176450
+  JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::fwdFlow1Param/5#cfa8cdd6`(numbered_tuple p, bool cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-
+    SENTINEL TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxNone#74f2e043
+    SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`
+    SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage3::revFlow/4#5631bada`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::getNodeTyp/1#b03aabcc`
+    SENTINEL `project#DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ParamNodeEx#4ef9090d#2`
+    [[[ BASE CASE ]]]
+    false
+    [[[ SEMINAIVE VARIANT ]]]
+    exists(bool v1000 |
+      v1000 = true and
+      `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow/6#a64bdbdd#prev_delta`/6
+        on
+        [p, v1000, _, t0, ap, stored] and
+      `project#DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ParamNodeEx#4ef9090d#2`/1
+        on
+        [p] and
+      cc = true and
+      not
+        `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::fwdFlow1Param/5#cfa8cdd6#prev`/5
+        on
+        [p, cc, t0, ap, stored])
+
+# Full RA lines 176451-176469
+  JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::fwdFlow1Out/5#c9724e4c`(numbered_tuple node, bool cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-
+    SENTINEL TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxNone#74f2e043
+    SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`
+    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::getNodeTyp/1#b03aabcc`
+    SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage3::callEdgeReturn/6#4a057f58#3`
+    [[[ BASE CASE ]]]
+    false
+    [[[ SEMINAIVE VARIANT ]]]
+    `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow/6#a64bdbdd#prev_delta`/6
+      on
+      [node, cc, _, t0, ap, stored] and
+    not
+      `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::fwdFlow1Out/5#c9724e4c#prev`/5
+      on
+      [node, cc, t0, ap, stored] and
+    `project#TaintReach::TaintReachFlow::Flow::Stage3::callEdgeReturn/6#4a057f58#3`/1
+      on
+      [node]

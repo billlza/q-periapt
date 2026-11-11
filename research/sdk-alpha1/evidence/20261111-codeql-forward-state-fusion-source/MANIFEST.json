@@ -1,0 +1,99 @@
+{
+  "files": {
+    "CAPSULE_READBACK.json": {
+      "bytes": 1740,
+      "sha256": "34105377121736ca635bfb619c815ab426dca8b73cecc825a955ed3dc239610a"
+    },
+    "COMPILE_GLOBAL_DEFAULT.json": {
+      "bytes": 732,
+      "sha256": "8ec76e93a279d4467ba89497a75174f61ff3403d45efdc9d158814ead7ba22fa"
+    },
+    "COMPILE_PRIVATE_ALL.json": {
+      "bytes": 1474,
+      "sha256": "f6c2a3a1341d53bc96fecc5e5416c61ec938e2fed449f2030834ba3b2a640073"
+    },
+    "COMPILE_PRIVATE_DEFAULT.json": {
+      "bytes": 1361,
+      "sha256": "f5acdc2d18a9942a51ba1bde790ea875817d29fe8af637bb89b62159ef8d4986"
+    },
+    "FOCUSED_CONTROLS.json": {
+      "bytes": 234,
+      "sha256": "887676bd99e8ac82ce36746aa02c446579e0e46770cf726ef60fd746c9fbd54c"
+    },
+    "GLOBAL_DEFAULT_MEMORY_BEFORE.json": {
+      "bytes": 54,
+      "sha256": "b44690542d30343dde46f34e168367209d715210cf126fe9e3c17a4f0778576c"
+    },
+    "GLOBAL_DEFAULT_SOURCE_PREPARATION.json": {
+      "bytes": 1330,
+      "sha256": "90b647257e76bd7ce1e5b4b868548a9de945786d3b70b0852f4600a207567e57"
+    },
+    "LOCAL_SOURCE_COMMIT.json": {
+      "bytes": 436,
+      "sha256": "2cb3a8477e6ab78d35f2a9553b603849d32d4993664da4f76676b3f9be4fc442"
+    },
+    "POST_INSTALL.json": {
+      "bytes": 633,
+      "sha256": "5508e51c4fd23f4f0de2e6ead618455c800a3ddecd965db55ffdaa21d4aa9c88"
+    },
+    "PRELAUNCH_STATUS.json": {
+      "bytes": 233,
+      "sha256": "a795e0592586f6c4c569e5443d24c431441afe21170b7bd9c1b68961cc584035"
+    },
+    "PRIVATE_DEFAULT_SOURCE_AFTER.json": {
+      "bytes": 10212,
+      "sha256": "6b1f93422d7395f5378afa9dc0e8e65ae58995d2514ea1a7de194d80e6c8285e"
+    },
+    "PRIVATE_DEFAULT_SOURCE_BEFORE.json": {
+      "bytes": 10059,
+      "sha256": "bc3a2455305e30065440f9783b5727d019ae96bf3a5b919a3ad1f39cf1ba49cf"
+    },
+    "RA_EXCERPTS.txt": {
+      "bytes": 49400,
+      "sha256": "df65d702064a2d78f854faca8428c4d7ed7a57a385430cb5a6076ad3953cef5c"
+    },
+    "RA_STRUCTURE.json": {
+      "bytes": 14770,
+      "sha256": "855e70b8ddcb4144c492c3f25f0d62edc27a9c56854720679afe413be6007d4c"
+    },
+    "README.md": {
+      "bytes": 6959,
+      "sha256": "3f5234056dda79cd103245ab450cc3f9dd23fa9cca5998ba2cd80f5136e59d0c"
+    },
+    "SOURCE_AFTER.json": {
+      "bytes": 10212,
+      "sha256": "544a608b0ab3f5af1218c8ba13d3504c07de3ea491f7d4060b94da97ed1f3a25"
+    },
+    "SOURCE_BEFORE.json": {
+      "bytes": 10059,
+      "sha256": "4d5fcf0153be3d6ccb41c8e4dbaf62f13272e9f8550d4bd5f063fa6b00984258"
+    },
+    "SOURCE_CHECKS.json": {
+      "bytes": 344,
+      "sha256": "dda529b99a0c1e8dac6c49155a871d86bf1f6e5e37c162477818cb1ff9c4ecaa"
+    },
+    "compile-global_default.stderr": {
+      "bytes": 341,
+      "sha256": "cd25b0a253118beb75a861b0528ced8e8d54b08d6ae8573ec3e6e6650d915e95"
+    },
+    "compile-private_all.stderr": {
+      "bytes": 361,
+      "sha256": "2ff0e2697a8e332ec6d2444e7fc10a12138ba15d67437539c01f12dbc87b4bba"
+    },
+    "compile-private_default.stderr": {
+      "bytes": 353,
+      "sha256": "cc13b266891fecd9d6bc43a1d167c46a85efcd5e321bf07238ba35c57a1b61db"
+    },
+    "focused-controls.log": {
+      "bytes": 9602,
+      "sha256": "f3b6e535c259c2b998edd9f097b89f8825aa0f3c3d8826437af484f586ae138f"
+    },
+    "fusion.patch": {
+      "bytes": 6244,
+      "sha256": "5ec04e1f1c416caac638e54e24e976b090864f571245a0452d73e2fd2e13ff30"
+    }
+  },
+  "schema": 1,
+  "source_commit": "9e36c141309330df8f75e1284bc2a5b8d6406151",
+  "source_tree": "20929c0d8e9e8ef442dfd005bac277ed696443c4"
+}

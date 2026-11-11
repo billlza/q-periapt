@@ -1,0 +1,9 @@
+{
+  "original_candidate_body_preserved": true,
+  "fused_body_contains_all_original_branches": true,
+  "all_original_filter_guards_preserved": true,
+  "old_fwdFlow1_fallback_preserved": true,
+  "all_three_fwdFlow1_consumers_unchanged": true,
+  "activation_exactly_stage3_stage4_unit": true,
+  "fwdFlow1_restored_by_equal_type_embedding": true
+}

@@ -1,0 +1,15 @@
+{
+  "compiler_inputs_digest": "0ee092250be1b05f03b994a868d639cc",
+  "complete_installer_and_production_identity_passed": true,
+  "elapsed_seconds": 0.6785299769999256,
+  "manifest_sha256": "2b961807f0147058e7c2012586a3f5c67d7b718b7ed86ea92bf6ec25087632c1",
+  "post_install_pack_bytes": 14007445,
+  "post_install_pack_files": 1357,
+  "post_install_pack_inventory_sha256": "85f18ab7b28a87c1e4cad75ebd0001591b172fa9c57e564bbfa249b3414739da",
+  "query_count": 39,
+  "source_identity": {
+    "bytes": 143802,
+    "sha256": "99b4abd6d105ae3b1997312bb360bced64303b10bcde306bf0f675ca7602e67b"
+  },
+  "unchanged_other_compiled_queries": 38
+}

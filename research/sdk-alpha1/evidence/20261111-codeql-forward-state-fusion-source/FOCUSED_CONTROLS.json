@@ -1,0 +1,15 @@
+{
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "test_codeql_summary_projection",
+    "test_codeql_rust_plan"
+  ],
+  "exit_code": 0,
+  "result": "OK",
+  "seconds": 0.8,
+  "tests": 48
+}

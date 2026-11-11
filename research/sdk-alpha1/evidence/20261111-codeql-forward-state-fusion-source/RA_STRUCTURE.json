@@ -1,0 +1,381 @@
+{
+  "compiler_dynamic_join_order_mode": "all",
+  "definition_header_forms": [
+    "relation",
+    "rec relation",
+    "JOIN AST rec relation"
+  ],
+  "full_ra_bytes": 10610414,
+  "full_ra_sha256": "0e0971997d62e3cc45ce3beef78938cd0f92d260b1d6e67d648b1c051a96747b",
+  "old_selected_state_relations_absent": true,
+  "stages": {
+    "Stage2": {
+      "FwdTypeFlowInput::fwdFlow1Out": {
+        "definitions": [
+          {
+            "header": "`TaintReach::TaintReachFlow::Flow::Stage2::FwdTypeFlowInput::fwdFlow1Out/5#3b6a3a60`(numbered_tuple node, numbered_tuple cc, numbered_tuple t0, bool ap, numbered_tuple stored) :-",
+            "line": 167555,
+            "recursive": false
+          }
+        ],
+        "mentions": 3
+      },
+      "FwdTypeFlowInput::fwdFlow1Param": {
+        "definitions": [
+          {
+            "header": "`TaintReach::TaintReachFlow::Flow::Stage2::FwdTypeFlowInput::fwdFlow1Param/5#806a9ea8`(numbered_tuple p, numbered_tuple cc, numbered_tuple t0, bool ap, numbered_tuple stored) :-",
+            "line": 167119,
+            "recursive": false
+          }
+        ],
+        "mentions": 3
+      },
+      "fwdFlow": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage2::fwdFlow/6#2ecb1559`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, bool ap, numbered_tuple stored) :-",
+            "line": 166488,
+            "recursive": true
+          }
+        ],
+        "mentions": 43
+      },
+      "fwdFlow0": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage2::fwdFlow0/7#d7084360`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, bool ap, numbered_tuple apa, numbered_tuple stored) :-",
+            "line": 166786,
+            "recursive": true
+          }
+        ],
+        "mentions": 3
+      },
+      "fwdFlow1": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage2::fwdFlow1/7#3e3e05c7`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t0, numbered_tuple t, bool ap, numbered_tuple stored) :-",
+            "line": 165900,
+            "recursive": true
+          }
+        ],
+        "mentions": 19
+      },
+      "fwdFlowRead": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage2::fwdFlowRead/11#42622112`(numbered_tuple node1, numbered_tuple t1, bool ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, bool ap2, numbered_tuple stored2, numbered_tuple cc, numbered_tuple summaryCtx) :-",
+            "line": 166278,
+            "recursive": true
+          }
+        ],
+        "mentions": 5
+      },
+      "fwdFlowReadTarget": {
+        "definitions": [],
+        "mentions": 0
+      },
+      "readStepFwd": {
+        "definitions": [
+          {
+            "header": "`TaintReach::TaintReachFlow::Flow::Stage2::readStepFwd/5#f3b7e6d1`(numbered_tuple n1, bool ap1, numbered_tuple c, numbered_tuple n2, bool ap2) :-",
+            "line": 167082,
+            "recursive": false
+          }
+        ],
+        "mentions": 17
+      }
+    },
+    "Stage3": {
+      "FwdTypeFlowInput::fwdFlow1Out": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::fwdFlow1Out/5#ef7f2b40`(numbered_tuple node, numbered_tuple cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-",
+            "line": 171065,
+            "recursive": true
+          }
+        ],
+        "mentions": 4
+      },
+      "FwdTypeFlowInput::fwdFlow1Param": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::fwdFlow1Param/5#cff8aee9`(numbered_tuple p, numbered_tuple cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-",
+            "line": 171040,
+            "recursive": true
+          }
+        ],
+        "mentions": 4
+      },
+      "fwdFlow": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlow/6#b8170bbf`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-",
+            "line": 171358,
+            "recursive": true
+          }
+        ],
+        "mentions": 57
+      },
+      "fwdFlow0": {
+        "definitions": [],
+        "mentions": 0
+      },
+      "fwdFlow1": {
+        "definitions": [],
+        "mentions": 0
+      },
+      "fwdFlowRead": {
+        "definitions": [
+          {
+            "header": "`TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, numbered_tuple cc, numbered_tuple summaryCtx) :-",
+            "line": 172320,
+            "recursive": false
+          }
+        ],
+        "mentions": 3
+      },
+      "fwdFlowReadTarget": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowReadTarget/6#073a1dab`(numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, numbered_tuple cc, numbered_tuple summaryCtx) :-",
+            "line": 171817,
+            "recursive": true
+          }
+        ],
+        "mentions": 3
+      },
+      "readStepFwd": {
+        "definitions": [
+          {
+            "header": "`TaintReach::TaintReachFlow::Flow::Stage3::readStepFwd/5#17d0527c`(numbered_tuple n1, numbered_tuple ap1, numbered_tuple c, numbered_tuple n2, numbered_tuple ap2) :-",
+            "line": 172355,
+            "recursive": false
+          }
+        ],
+        "mentions": 17
+      }
+    },
+    "Stage4": {
+      "FwdTypeFlowInput::fwdFlow1Out": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::fwdFlow1Out/5#c9724e4c`(numbered_tuple node, bool cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-",
+            "line": 176451,
+            "recursive": true
+          }
+        ],
+        "mentions": 4
+      },
+      "FwdTypeFlowInput::fwdFlow1Param": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::fwdFlow1Param/5#cfa8cdd6`(numbered_tuple p, bool cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-",
+            "line": 176428,
+            "recursive": true
+          }
+        ],
+        "mentions": 4
+      },
+      "fwdFlow": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlow/6#a64bdbdd`(numbered_tuple node, bool cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-",
+            "line": 176588,
+            "recursive": true
+          }
+        ],
+        "mentions": 55
+      },
+      "fwdFlow0": {
+        "definitions": [],
+        "mentions": 0
+      },
+      "fwdFlow1": {
+        "definitions": [],
+        "mentions": 0
+      },
+      "fwdFlowRead": {
+        "definitions": [
+          {
+            "header": "`TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :-",
+            "line": 177311,
+            "recursive": false
+          }
+        ],
+        "mentions": 3
+      },
+      "fwdFlowReadTarget": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac`(numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :-",
+            "line": 175262,
+            "recursive": true
+          }
+        ],
+        "mentions": 3
+      },
+      "readStepFwd": {
+        "definitions": [
+          {
+            "header": "`TaintReach::TaintReachFlow::Flow::Stage4::readStepFwd/5#09e21249`(numbered_tuple n1, numbered_tuple ap1, numbered_tuple c, numbered_tuple n2, numbered_tuple ap2) :-",
+            "line": 177346,
+            "recursive": false
+          }
+        ],
+        "mentions": 14
+      }
+    },
+    "Stage5": {
+      "FwdTypeFlowInput::fwdFlow1Out": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage5::FwdTypeFlowInput::fwdFlow1Out/5#3f81319a`(numbered_tuple node, numbered_tuple cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-",
+            "line": 182179,
+            "recursive": true
+          }
+        ],
+        "mentions": 4
+      },
+      "FwdTypeFlowInput::fwdFlow1Param": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage5::FwdTypeFlowInput::fwdFlow1Param/5#60552294`(numbered_tuple p, numbered_tuple cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-",
+            "line": 182153,
+            "recursive": true
+          }
+        ],
+        "mentions": 4
+      },
+      "fwdFlow": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage5::fwdFlow/6#3aa35feb`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-",
+            "line": 182577,
+            "recursive": true
+          }
+        ],
+        "mentions": 58
+      },
+      "fwdFlow0": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage5::fwdFlow0/7#b98d1c34`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple apa, numbered_tuple stored) :-",
+            "line": 182866,
+            "recursive": true
+          }
+        ],
+        "mentions": 3
+      },
+      "fwdFlow1": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage5::fwdFlow1/7#a16fac54`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t0, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-",
+            "line": 182749,
+            "recursive": true
+          }
+        ],
+        "mentions": 5
+      },
+      "fwdFlowRead": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage5::fwdFlowRead/11#d14c578c`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, numbered_tuple cc, numbered_tuple summaryCtx) :-",
+            "line": 181201,
+            "recursive": true
+          }
+        ],
+        "mentions": 5
+      },
+      "fwdFlowReadTarget": {
+        "definitions": [],
+        "mentions": 0
+      },
+      "readStepFwd": {
+        "definitions": [
+          {
+            "header": "`TaintReach::TaintReachFlow::Flow::Stage5::readStepFwd/5#21b74e7d`(numbered_tuple n1, numbered_tuple ap1, numbered_tuple c, numbered_tuple n2, numbered_tuple ap2) :-",
+            "line": 183355,
+            "recursive": false
+          }
+        ],
+        "mentions": 14
+      }
+    },
+    "Stage6": {
+      "FwdTypeFlowInput::fwdFlow1Out": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage6::FwdTypeFlowInput::fwdFlow1Out/5#edde9dea`(numbered_tuple node, numbered_tuple cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-",
+            "line": 188492,
+            "recursive": true
+          }
+        ],
+        "mentions": 4
+      },
+      "FwdTypeFlowInput::fwdFlow1Param": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage6::FwdTypeFlowInput::fwdFlow1Param/5#d6cad64d`(numbered_tuple p, numbered_tuple cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-",
+            "line": 188467,
+            "recursive": true
+          }
+        ],
+        "mentions": 4
+      },
+      "fwdFlow": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage6::fwdFlow/6#0c7f0ee4`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-",
+            "line": 188881,
+            "recursive": true
+          }
+        ],
+        "mentions": 54
+      },
+      "fwdFlow0": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage6::fwdFlow0/7#01a49f79`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple apa, numbered_tuple stored) :-",
+            "line": 189166,
+            "recursive": true
+          }
+        ],
+        "mentions": 3
+      },
+      "fwdFlow1": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage6::fwdFlow1/7#2e6e6c90`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t0, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-",
+            "line": 189050,
+            "recursive": true
+          }
+        ],
+        "mentions": 7
+      },
+      "fwdFlowRead": {
+        "definitions": [
+          {
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage6::fwdFlowRead/11#5c9da691`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, numbered_tuple cc, numbered_tuple summaryCtx) :-",
+            "line": 187517,
+            "recursive": true
+          }
+        ],
+        "mentions": 6
+      },
+      "fwdFlowReadTarget": {
+        "definitions": [],
+        "mentions": 0
+      },
+      "readStepFwd": {
+        "definitions": [
+          {
+            "header": "`TaintReach::TaintReachFlow::Flow::Stage6::readStepFwd/5#6813f8b9`(numbered_tuple n1, numbered_tuple ap1, numbered_tuple c, numbered_tuple n2, numbered_tuple ap2) :-",
+            "line": 189677,
+            "recursive": false
+          }
+        ],
+        "mentions": 13
+      }
+    }
+  }
+}

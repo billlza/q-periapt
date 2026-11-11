@@ -1,0 +1,31 @@
+{
+  "command": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "180s",
+    "./codeql/codeql",
+    "query",
+    "compile",
+    "-J-Xmx4096M",
+    "--ram=4096",
+    "--threads=2",
+    "--dump-ra",
+    "--format=text",
+    "--precompile",
+    "--warnings=show",
+    "--",
+    "./codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStats.ql"
+  ],
+  "started_utc": "2026-11-11T17:10:35.876525+00:00",
+  "finished_utc": "2026-11-11T17:11:55.450038+00:00",
+  "wall_seconds": 79.57357767699978,
+  "exit_code": 0,
+  "child_user_cpu_seconds": 179.58386,
+  "child_system_cpu_seconds": 3.621862,
+  "max_child_rss_kib": 2135088,
+  "memory_before_kib": {
+    "MemTotal": 10206472,
+    "MemAvailable": 9298672
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "source_commit": "1519b8900e4a164ae744fde27c22eea179792709",
+  "tree": "85fcc41a318020290955f6862b65b99a96b79691",
+  "public_parent": "7c1c1b6f95747b9ccb877b803bd1ad7cee3cdd9d",
+  "base_tree": "3c8aea118257a0919530c66bdf7b618c0d8dfc21",
+  "files": [
+    {
+      "path": "artifact/codeql-summary-projection-plan.zip",
+      "bytes": 621407,
+      "blob": "97b2a488f20cce6a0e42892c693d1ad603141135",
+      "sha256": "d90df7ba37cc05bfa7f603f74e9758b9dd0d791920b9e67b42d66414196dcbdf"
+    },
+    {
+      "path": "artifact/codeql_rust_plan.py",
+      "bytes": 27476,
+      "blob": "d7c1ccf49f81078a42c57698173bde071a567a34",
+      "sha256": "d8bd1984e56d85b22372f27079e62b8e539d74109b27bc03bb5622aac16afcf4"
+    },
+    {
+      "path": "artifact/codeql_summary_projection.json",
+      "bytes": 6587,
+      "blob": "db4c7f7be36f901cde75222229b9d6fbd2400a61",
+      "sha256": "2b961807f0147058e7c2012586a3f5c67d7b718b7ed86ea92bf6ec25087632c1"
+    },
+    {
+      "path": "artifact/codeql_summary_projection.md",
+      "bytes": 13561,
+      "blob": "56e086e1e70b97284a336cba4cbed3da26c35c11",
+      "sha256": "0d4677170ba6f97d91e461324de10e768ee8911d98fd9a2458067b18dba0cdfc"
+    },
+    {
+      "path": "artifact/codeql_summary_projection.patch",
+      "bytes": 8275,
+      "blob": "e3ec8b7c19d9d95f25cf331a97ea9a2220e34701",
+      "sha256": "737949e5e1c26a7cae8e8049f7f96b8fd0a041c4d3e0b1e1c6c4bdaaf803c75a"
+    },
+    {
+      "path": "artifact/codeql_summary_projection.py",
+      "bytes": 14848,
+      "blob": "4e734452441529efa715bdd24077e7bd7f4c7a59",
+      "sha256": "3880f907a8d4f02bb48b973adf087d87f734d6058aed931a1f35e0421dc07043"
+    },
+    {
+      "path": "artifact/codeql_summary_projection_dependencies.json.gz",
+      "bytes": 117207,
+      "blob": "97fc244c40597a03bf121885dbf91fca31883be5",
+      "sha256": "6b7f599d2a79860605c1ba33497f8479ea03e5b6f91b5b103bfb20da3020a8e0"
+    },
+    {
+      "path": "artifact/test_codeql_rust_plan.py",
+      "bytes": 27938,
+      "blob": "c6737a7c80dde90481bf096e3b1f6a302110b249",
+      "sha256": "6ad5d19fb861068aa152564a2bdae36888bdaa3a1346dc1126e1284f9ff17bd0"
+    },
+    {
+      "path": "artifact/test_codeql_summary_projection.py",
+      "bytes": 32527,
+      "blob": "c60811d14885b8e705ecdcb844d6b0937d3dcb9a",
+      "sha256": "9ca614e8690e24d4de2508628db2574a9e5ffc68c05289ac9dde113eb5f22dae"
+    }
+  ]
+}

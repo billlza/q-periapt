@@ -1,0 +1,5 @@
+{
+  "exit_code": 127,
+  "compiler_started": false,
+  "reason": "The optional /usr/bin/time measurement binary was absent. The three subsequent compiler invocations use Python resource measurements and each completed successfully."
+}
