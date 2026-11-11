@@ -1,4 +1,4 @@
-name: Retained SummaryStats allocation control
+name: Retained SummaryStats Unit-state allocation control
 
 on:
   workflow_dispatch:
@@ -13,10 +13,10 @@ on:
   # entry point while dispatch is unavailable to the publishing client; normal
   # candidate pushes and pull requests never start retained-database experiments.
   push:
-    branches: [diagnostic/codeql-summary-projection]
+    branches: [diagnostic/codeql-summary-unit-state]
 
 env:
-  SUMMARY_PLAN_MODE: ${{ (github.event_name == 'push' && github.ref_name == 'diagnostic/codeql-summary-projection' && 'projection') || inputs.summary_plan_mode }}
+  SUMMARY_PLAN_MODE: ${{ (github.event_name == 'push' && github.ref_name == 'diagnostic/codeql-summary-unit-state' && 'projection') || inputs.summary_plan_mode }}
 
 permissions:
   contents: read
@@ -40,6 +40,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         timeout-minutes: 5
         with:
+          ref: ed38e305552db2825d90622c130973df87e16d50
           persist-credentials: false
           sparse-checkout-cone-mode: false
           sparse-checkout: |
@@ -47,6 +48,7 @@ jobs:
             artifact/codeql_evaluator_logs.py
             artifact/test_codeql_summary_control.py
             artifact/test_codeql_progress.py
+            artifact/codeql-fixtures/rust-analyze-2.27.2.stderr
             artifact/test_codeql_summary_archive_input.py
             artifact/codeql_process_resources.py
             artifact/test_codeql_process_resources.py
@@ -118,6 +120,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
+          ref: ed38e305552db2825d90622c130973df87e16d50
           persist-credentials: false
           sparse-checkout-cone-mode: false
           sparse-checkout: |
