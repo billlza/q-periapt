@@ -547,6 +547,36 @@ class EvaluationEvidenceTests(unittest.TestCase):
             self.assertIn(b"out\n", output)
             self.assertIn(b"err\n", output)
 
+    def test_both_log_streams_are_readable_before_the_child_exits(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            child = """\
+from pathlib import Path
+import sys, time
+expected = (b'live stdout\\n', b'live stderr\\n')
+sys.stdout.buffer.write(expected[0]); sys.stdout.buffer.flush()
+sys.stderr.buffer.write(expected[1]); sys.stderr.buffer.flush()
+logs = [Path(path) for path in sys.argv[1:3]]
+deadline = time.monotonic() + 5
+while time.monotonic() < deadline:
+    if tuple(path.read_bytes() for path in logs) == expected:
+        assert not Path(sys.argv[3]).exists(), 'completion preceded the live read'
+        Path(sys.argv[4]).write_bytes(b'visible before exit\\n')
+        break
+    time.sleep(0.01)
+else:
+    raise SystemExit('small stdout/stderr writes were not visible before child exit')
+"""
+            result = control.run_queries(
+                [sys.executable, "-c", child, str(root / "query.stdout"), str(root / "query.stderr"),
+                 str(root / "query.json"), str(root / "child-observed.txt")],
+                root, dict(os.environ), 10,
+            )
+            self.assertEqual(result["returncode"], 0)
+            self.assertEqual((root / "child-observed.txt").read_bytes(), b"visible before exit\n")
+            self.assertEqual((root / "query.stdout").read_bytes(), b"live stdout\n")
+            self.assertEqual((root / "query.stderr").read_bytes(), b"live stderr\n")
+
     def test_timeout_is_failure_with_partial_output_and_receipt(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

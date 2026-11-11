@@ -485,7 +485,9 @@ def run_queries(command: list[str], evidence: Path, environment: dict, seconds: 
             sampler.start()
         except Exception as error:
             report["resource_observation"] = {"status": "unavailable", "failure_type": type(error).__name__}
-        with (evidence / "query.stdout").open("xb") as stdout, (evidence / "query.stderr").open("xb") as stderr:
+        # Expose each bounded chunk while the evaluator is still running.
+        with (evidence / "query.stdout").open("xb", buffering=0) as stdout, \
+                (evidence / "query.stderr").open("xb", buffering=0) as stderr:
             result = capture_output(command, timeout_seconds=seconds, timeout_policy=TimeoutPolicy.LONG_ANALYSIS,
                                     maximum_stdout_bytes=32 * 1024**2, maximum_stderr_bytes=16 * 1024**2,
                                     stdout_sink=stdout.write, stderr_sink=stderr.write, environment=environment)

@@ -98,9 +98,10 @@ class ProfileRun:
         try:
             # Stream bounded diagnostics into fresh evidence files while the
             # child runs. A timeout still fails, with the emitted query progress
-            # retained alongside the failure receipt.
-            with (self.evidence / (label + ".stdout")).open("xb") as stdout, \
-                    (self.evidence / (label + ".stderr")).open("xb") as stderr, \
+            # retained alongside the failure receipt. Unbuffered files make
+            # even small progress writes readable before command completion.
+            with (self.evidence / (label + ".stdout")).open("xb", buffering=0) as stdout, \
+                    (self.evidence / (label + ".stderr")).open("xb", buffering=0) as stderr, \
                     contextlib.chdir(cwd or self.root):
                 # This receipt precedes the supervisor call, so a killed worker
                 # still records which command was invoked and when. It is not
