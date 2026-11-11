@@ -1,0 +1,38 @@
+{
+  "base_commit": "df766de8eeeb99d55d3a161e1ca57c47a25db604",
+  "codeql_or_jvm_started": false,
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "test_codeql_rust_profile"
+  ],
+  "cwd": "/workspace/scratch/qperiapt-recovery-20261111/archive-fix",
+  "files": {
+    "artifact/CODEQL_RUST_ARCHIVES.md": {
+      "bytes": 12806,
+      "sha256": "c0219658c834c8238702a53586001118379cddac8b085f949a0bfa4ddf7b5f71"
+    },
+    "artifact/codeql_rust_profile.py": {
+      "bytes": 31900,
+      "sha256": "eca7a0a0ebc0aad2c1cc496037af6968c19f7df0573407fe2f56aa25f4ba5bd3"
+    },
+    "artifact/test_codeql_rust_profile.py": {
+      "bytes": 50569,
+      "sha256": "adb9cefb1502d0f0116ea9756ffa7c0000a9b9618d72a70bee0c667efb2905e9"
+    }
+  },
+  "finished_utc": "2026-11-11T13:28:54.764521+00:00",
+  "kind": "qperiapt.archive_vfs_profile_regression",
+  "log": {
+    "bytes": 7652,
+    "path": "profile-tests.log",
+    "sha256": "eff608618c3856533dff617c11d5a254a91bc457ed4f1b628e78e86e2bffbb71"
+  },
+  "returncode": 0,
+  "schema": 1,
+  "seconds": 4.080414366000014,
+  "started_utc": "2026-11-11T13:28:50.684106+00:00"
+}

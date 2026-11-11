@@ -1,0 +1,752 @@
+{
+  "actual_checkout_commit": "0d781a9ddb77bbb5cc9dce5ed1fc82e2a7eeb9f5",
+  "archived_source_files": 68,
+  "artifact_bytes": 447332,
+  "artifact_id": 13846135084,
+  "artifact_name": "codeql-rust-profile-native-1",
+  "artifact_sha256": "abaffd997a607d833ade347c82149ed65ad3fd64262cb06c8755b9637cae482d",
+  "extraction_command": {
+    "argv": [
+      "/opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/codeql",
+      "database",
+      "create",
+      "/home/runner/work/_temp/qperiapt-codeql-database/rust",
+      "--language=rust",
+      "--build-mode=none",
+      "--source-root=/home/runner/work/q-periapt/q-periapt",
+      "--threads=4",
+      "--ram=14000",
+      "--common-caches=/home/runner/work/_temp/qperiapt-codeql-native/cache"
+    ],
+    "cwd": "/home/runner/work/q-periapt/q-periapt",
+    "elapsed_seconds": 340.14125083299996,
+    "maximum_seconds": 900,
+    "returncode": 0
+  },
+  "job_id": 130412772905,
+  "kind": "qperiapt.retained_native_profile_readback",
+  "metrics": {
+    "ast_inconsistencies": 0,
+    "cfg_inconsistencies": 0,
+    "dataflow_inconsistencies": 0,
+    "extracted_files": 1241,
+    "extraction_errors": 0,
+    "extraction_warnings": 68,
+    "path_multiple_canonical_paths": 144,
+    "path_multiple_path_resolutions": 1259,
+    "path_multiple_record_fields": 0,
+    "path_multiple_resolved_targets": 352,
+    "path_multiple_tuple_fields": 0,
+    "path_resolution_inconsistencies": 1755,
+    "source_format_args": 3638,
+    "source_format_args_without_dataflow_node": 0,
+    "source_format_args_without_expr": 0,
+    "source_macro_calls": 44363,
+    "ssa_inconsistencies": 0,
+    "successfully_extracted_files": 1173,
+    "type_ill_formed_mention": 33,
+    "type_inference_inconsistencies": 46,
+    "type_missing_parameter_id": 0,
+    "type_nonfunctional_parameter_id": 0,
+    "type_noninjective_parameter_id": 0,
+    "type_nonunique_certain_information": 13,
+    "unextracted_elements": 0,
+    "unresolved_source_macro_calls": 888
+  },
+  "missing": [
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/acknowledgement.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/closure.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/closure/archive.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/delivery.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/fanout.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/fanout/abandonment.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/fanout/archive.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/fanout/codec.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/progress.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey/driver.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey/request.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey/response.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/resolution.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/retired.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/terminal.rs",
+    "paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+    "paper/continuity/artifacts/bootstrap/entry/source/crates/q-periapt-sdk/src/purpose.rs",
+    "paper/continuity/artifacts/bootstrap/entry/source/research/continuity-identity-candidate/src/bootstrap.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/crates/q-periapt-backends/src/contextbound_key.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/crates/q-periapt-backends/src/lib.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/crates/q-periapt-core/src/lib.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/expert.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/expert/replay.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/lib.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap/response_staged.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap/staged.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/contract.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/crypto.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/initiator.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/messages.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/prekeys.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/responder.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/write_intent.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/manifest.rs",
+    "paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/selection.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/crates/q-periapt-backends/src/contextbound_key.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/crates/q-periapt-backends/src/lib.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/crates/q-periapt-core/src/lib.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/crates/q-periapt-sdk/src/expert.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/crates/q-periapt-sdk/src/expert/replay.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/crates/q-periapt-sdk/src/lib.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap/response_staged.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap/staged.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/contract.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/crypto.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/durable.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/durable/initiator.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/durable/messages.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/durable/prekeys.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/durable/responder.rs",
+    "paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/durable/write_intent.rs",
+    "paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap.rs",
+    "paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap/response_staged.rs",
+    "paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap/staged.rs",
+    "paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/contract.rs",
+    "paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/crypto.rs",
+    "paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/durable/initiator.rs",
+    "paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/durable/messages.rs",
+    "paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+    "paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/durable/responder.rs"
+  ],
+  "missing_archived_count": 68,
+  "missing_count": 68,
+  "run_attempt": 1,
+  "run_head": "1b47a1931cab2a944902316619cdcf479bd64ab0",
+  "run_id": 42982431606,
+  "schema": 1,
+  "scope": "Read-only analysis of the old native preparation artifact; no old database extraction or query execution",
+  "selected_members": {
+    "EXTRACTION_INPUTS.json": {
+      "bytes": 351758,
+      "sha256": "a4d0010eb9c92d3e25fdd2cb426ccf0af9b51ce3f810e3205928afb42363edf4"
+    },
+    "ExtractedPaths.json": {
+      "bytes": 103981,
+      "sha256": "974664a66266bce0d99c234d9e1a57c18379507a70d201ec146469f55cb47c72"
+    },
+    "Metrics.json": {
+      "bytes": 1292,
+      "sha256": "383752c3c81496ff2a15fe4d2fc0c19e7001dcdfc158a38fba534bbc616c4631"
+    },
+    "cargo-metadata.jsonl": {
+      "bytes": 23520,
+      "sha256": "1a400621c247bf4069dbbb64e71e0858da71b00449ccebf4ef20bae617efcd80"
+    },
+    "extract.json": {
+      "bytes": 527,
+      "sha256": "c77717d7b528058ab045e1830c74d395dd504202a08c04eddbd05a5ee017e7c9"
+    },
+    "extract.stderr": {
+      "bytes": 689,
+      "sha256": "6a2a9d7ce902bb0c05ffb15b093178822a19fe6135f0dcce543d06ca388ca339"
+    },
+    "extract.stdout": {
+      "bytes": 51414,
+      "sha256": "56b2ebe6610f0fcff3ffead263627b5f2bf828c79042e3e2ad7d0eb677ee7e1b"
+    }
+  },
+  "source_files": 1241,
+  "stdio_contexts": {
+    "extract.stderr": {
+      "context_capped_at_lines": 160,
+      "contexts": [],
+      "match_counts": {
+        "archived_path": 0,
+        "not_a_module": 0,
+        "not_loaded_from_manifest": 0,
+        "semantics_unavailable": 0
+      },
+      "selected_context_line_count": 0,
+      "total_lines": 11,
+      "warning_error_lines": 0
+    },
+    "extract.stdout": {
+      "context_capped_at_lines": 160,
+      "contexts": [
+        {
+          "line": 53,
+          "text": "[2026-11-11 09:44:53] [build-stdout] [2026-11-11 09:44:53] [build-stdout] \u001b[32m INFO\u001b[0m project Rust toolchain: 1.98.1-x86_64-unknown-linux-gnu (overridden by environment variable RUSTUP_TOOLCHAIN)"
+        },
+        {
+          "line": 54,
+          "text": "[2026-11-11 09:46:55] [build-stdout] [2026-11-11 09:46:55] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-backends/src/concrete_hybrid_kems_04_vector.rs:1:1: semantic analyzer unavailable (not loaded as its own module, probably included by `!include`): macro expansion will be skipped."
+        },
+        {
+          "line": 55,
+          "text": "[2026-11-11 09:46:56] [build-stdout] [2026-11-11 09:46:56] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-backends/src/xwing_vectors.rs:1:1: semantic analyzer unavailable (not loaded as its own module, probably included by `!include`): macro expansion will be skipped."
+        },
+        {
+          "line": 56,
+          "text": "[2026-11-11 09:46:58] [build-stdout] [2026-11-11 09:46:58] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-host-store/src/filesystem/directory_publication/windows_process_tests.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 57,
+          "text": "[2026-11-11 09:46:58] [build-stdout] [2026-11-11 09:46:58] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-host-store/src/filesystem/directory_publication/windows_tests.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 58,
+          "text": "[2026-11-11 09:46:58] [build-stdout] [2026-11-11 09:46:58] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-host-store/src/filesystem/windows.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 59,
+          "text": "[2026-11-11 09:46:58] [build-stdout] [2026-11-11 09:46:58] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-host-store/src/filesystem/windows/configuration_tests.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 60,
+          "text": "[2026-11-11 09:46:58] [build-stdout] [2026-11-11 09:46:58] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-host-store/src/filesystem/windows/tests.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 61,
+          "text": "[2026-11-11 09:46:58] [build-stdout] [2026-11-11 09:46:58] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-host-store/src/filesystem/windows_native.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 62,
+          "text": "[2026-11-11 09:46:58] [build-stdout] [2026-11-11 09:46:58] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-host-store/src/filesystem/windows_publication_ops.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 63,
+          "text": "[2026-11-11 09:46:58] [build-stdout] [2026-11-11 09:46:58] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-host-store/src/macos_acl.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 64,
+          "text": "[2026-11-11 09:46:58] [build-stdout] [2026-11-11 09:46:58] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-host-store/src/windows_acl.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 65,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 66,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/account.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 67,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/account/types.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 68,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/connections.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 69,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/connections/continuation.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 70,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/credential_requests.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 71,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/credentials.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 72,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/credentials/continuation.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 73,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/credentials/types.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 74,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/history.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 75,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/inventory.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 76,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/peers.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 77,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/pending_recovery.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 78,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/policies.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 79,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/policies/types.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 80,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/policy_requests.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 81,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/publication.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 82,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/recovery.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 83,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/recovery/reports.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 84,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/rekey.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 85,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/retirement.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 86,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/retirement/reports.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 87,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/retirement/reports/bootstrap_metadata.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 88,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/retirement/reports/session_metadata.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 89,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/roster.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 90,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/roster/types.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 91,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/status.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 92,
+          "text": "[2026-11-11 09:47:01] [build-stdout] [2026-11-11 09:47:01] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/crates/q-periapt-sdk-wasm/src/continuity/trust.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 93,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 94,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/acknowledgement.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 95,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/closure.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 96,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/closure/archive.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 97,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/delivery.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 98,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/fanout.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 99,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/fanout/abandonment.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 100,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/fanout/archive.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 101,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/fanout/codec.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 102,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/progress.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 103,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 104,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 105,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey/driver.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 106,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey/request.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 107,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/rekey/response.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 108,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/resolution.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 109,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/retired.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 110,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/terminal.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 111,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages/traffic.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 112,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/entry/source/crates/q-periapt-sdk/src/purpose.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 113,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/entry/source/research/continuity-identity-candidate/src/bootstrap.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 114,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/crates/q-periapt-backends/src/contextbound_key.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 115,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/crates/q-periapt-backends/src/lib.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 116,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/crates/q-periapt-core/src/lib.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 117,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/expert.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 118,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/expert/replay.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 119,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/crates/q-periapt-sdk/src/lib.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 120,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 121,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap/response_staged.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 122,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/bootstrap/staged.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 123,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/contract.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 124,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/crypto.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 125,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 126,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/initiator.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 127,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/messages.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 128,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/messages/traffic.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 129,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/prekeys.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 130,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/responder.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 131,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/durable/write_intent.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 132,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/manifest.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 133,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/initial/source/research/continuity-identity-candidate/src/selection.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 134,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/crates/q-periapt-backends/src/contextbound_key.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 135,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/crates/q-periapt-backends/src/lib.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 136,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/crates/q-periapt-core/src/lib.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 137,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/crates/q-periapt-sdk/src/expert.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 138,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/crates/q-periapt-sdk/src/expert/replay.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 139,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/crates/q-periapt-sdk/src/lib.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 140,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 141,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap/response_staged.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 142,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/bootstrap/staged.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 143,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/contract.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 144,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/crypto.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 145,
+          "text": "[2026-11-11 09:47:02] [build-stdout] [2026-11-11 09:47:02] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/durable.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 146,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/durable/initiator.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 147,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/durable/messages.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 148,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/durable/messages/traffic.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 149,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/durable/prekeys.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 150,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/durable/responder.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 151,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/reply/source/research/continuity-identity-candidate/src/durable/write_intent.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 152,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 153,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap/response_staged.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 154,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/bootstrap/staged.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 155,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/contract.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 156,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/crypto.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 157,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/durable/initiator.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 158,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/durable/messages.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 159,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/durable/messages/traffic.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 160,
+          "text": "[2026-11-11 09:47:03] [build-stdout] [2026-11-11 09:47:03] [build-stdout] \u001b[33m WARN\u001b[0m /home/runner/work/q-periapt/q-periapt/paper/continuity/artifacts/bootstrap/terminal/source/research/continuity-identity-candidate/src/durable/responder.rs:1:1: semantic analyzer unavailable (not included in files loaded from manifest): macro expansion will be skipped."
+        },
+        {
+          "line": 161,
+          "text": "[2026-11-11 09:49:12] [build-stdout] [2026-11-11 09:49:12] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/bindings/c/ContinuityPackageConsumer/src/first_install/windows_c_tests.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 162,
+          "text": "[2026-11-11 09:49:12] [build-stdout] [2026-11-11 09:49:12] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/bindings/c/ContinuityPackageConsumer/src/first_install/windows_c_tests/effect.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 163,
+          "text": "[2026-11-11 09:49:12] [build-stdout] [2026-11-11 09:49:12] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/bindings/c/ContinuityPackageConsumer/src/first_install/windows_tests.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 164,
+          "text": "[2026-11-11 09:49:12] [build-stdout] [2026-11-11 09:49:12] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/bindings/c/ContinuityPackageConsumer/src/first_install/windows_tests/fixture.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 165,
+          "text": "[2026-11-11 09:49:12] [build-stdout] [2026-11-11 09:49:12] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/bindings/c/ContinuityPackageConsumer/src/first_install/windows_tests/process.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 166,
+          "text": "[2026-11-11 09:49:33] [build-stdout] [2026-11-11 09:49:33] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/anchor/transport/fetch.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 167,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 168,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/connections.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 169,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/connections/account.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 170,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/connections/receiver.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 171,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/connections/rekey.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 172,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/credential_requests.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 173,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/credentials.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 174,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/credentials/continuation.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 175,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/errors.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 176,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/http.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 177,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/inventory.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 178,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/opening.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 179,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/pending_recovery.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 180,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/policies.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 181,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/policy_requests.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 182,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/publication.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 183,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/recovery.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 184,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/retirement.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 185,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser/roster.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 186,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/browser_enrollment_probe.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 187,
+          "text": "[2026-11-11 09:49:34] [build-stdout] [2026-11-11 09:49:34] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/crypto/persistence/browser_retirement.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 188,
+          "text": "[2026-11-11 09:49:39] [build-stdout] [2026-11-11 09:49:39] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/storage/browser.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 189,
+          "text": "[2026-11-11 09:49:39] [build-stdout] [2026-11-11 09:49:39] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/storage/browser/secrets.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 190,
+          "text": "[2026-11-11 09:49:39] [build-stdout] [2026-11-11 09:49:39] [build-stdout] \u001b[32m INFO\u001b[0m /home/runner/work/q-periapt/q-periapt/research/continuity-identity-candidate/src/windows_key_reopen.rs:1:1: semantic analyzer unavailable (not included as a module): macro expansion will be skipped."
+        },
+        {
+          "line": 191,
+          "text": "[2026-11-11 09:49:40] [build-stdout] [2026-11-11 09:49:40] [build-stdout] \u001b[32m INFO\u001b[0m total duration (LoadSource): 53.976s"
+        }
+      ],
+      "match_counts": {
+        "archived_path": 68,
+        "not_a_module": 67,
+        "not_loaded_from_manifest": 68,
+        "semantics_unavailable": 137
+      },
+      "selected_context_line_count": 139,
+      "total_lines": 199,
+      "warning_error_lines": 68
+    }
+  },
+  "successfully_extracted_paths": 1173,
+  "unexpected": [],
+  "unexpected_count": 0
+}

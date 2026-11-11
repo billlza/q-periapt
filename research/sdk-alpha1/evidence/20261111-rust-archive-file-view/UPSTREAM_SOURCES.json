@@ -1,0 +1,95 @@
+{
+  "commit": "a7057b836bf29767461026718b14d20790b9085f",
+  "git_sources": {
+    "Cargo.lock": {
+      "bytes": 81452,
+      "git_blob": "0de69a005f9142eea0d23d9a8c25af1aa4dcdf35",
+      "role": "The frozen upstream lock binds the resolved rust-analyzer package checksums.",
+      "sha256": "67adbdd37721e2327a21a5bee538a08370d3ba993dd206f383fca290c6f8606f",
+      "url": "https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/Cargo.lock"
+    },
+    "rust/extractor/Cargo.toml": {
+      "bytes": 1207,
+      "git_blob": "a6387ebbcee3799c29dc6471948f9802991ee37d",
+      "role": "The Rust extractor directly selects rust-analyzer package version 0.0.352.",
+      "sha256": "727a1899056840ee1e8854b8b7826977344667c4e538a1e698df70841c9bcd2e",
+      "url": "https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/rust/extractor/Cargo.toml"
+    },
+    "rust/extractor/macros/src/lib.rs": {
+      "bytes": 3882,
+      "git_blob": "5ba496d4661d5f35bff9416896bd19ad92960129",
+      "role": "The configuration macro assigns the vector deserializer to extra_includes.",
+      "sha256": "d086f0ffda55888cf1e1d1e96e1374444c8b92272651afcd29cd64fa52881367",
+      "url": "https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/rust/extractor/macros/src/lib.rs"
+    },
+    "rust/extractor/src/config.rs": {
+      "bytes": 10667,
+      "git_blob": "71d57049b7edbc1bdaac813e928dd7de576096a0",
+      "role": "Config.extra_includes is decoded from the prefixed extractor environment and passed into CargoConfig as absolute paths.",
+      "sha256": "6628504f4f2824d586e017508d9ea0042d138cc3055541ddd4cee08d84a60a16",
+      "url": "https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/rust/extractor/src/config.rs"
+    },
+    "rust/extractor/src/config/deserialize.rs": {
+      "bytes": 3261,
+      "git_blob": "6e1b9b398b639b5f0e0de6e1c08ff13e9788341b",
+      "role": "VectorVisitor accepts a sequence of path strings, preserving commas inside a JSON array element.",
+      "sha256": "f2554ca0e12f70e7bf39c969c505c484ad0dec012f3c6855534695b3ce142136",
+      "url": "https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/rust/extractor/src/config/deserialize.rs"
+    },
+    "rust/extractor/src/main.rs": {
+      "bytes": 11959,
+      "git_blob": "72b6f20c9fb0ccb2d64894f2a54c30e48e1d5bdf",
+      "role": "load_source distinguishes an absent VFS file from a loaded non-module file, preserving source mode and without-semantics extraction.",
+      "sha256": "d82b9405a76b782b70d9b063c02c7b18bab7130e88363bb8155d9498a0cf6684",
+      "url": "https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/rust/extractor/src/main.rs"
+    },
+    "rust/ql/lib/codeql/files/FileSystem.qll": {
+      "bytes": 3885,
+      "git_blob": "883ef83ae546309ed54894687ec9f6246a55e8e4",
+      "role": "SuccessfullyExtractedFile requires extraction without error or warning diagnostics.",
+      "sha256": "6775a8233272228b68a8e68093ab9e20df95e2c44efbecd8f3a08e6f7f77ab6f",
+      "url": "https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/rust/ql/lib/codeql/files/FileSystem.qll"
+    }
+  },
+  "identity_notes": {
+    "crate_sources": "Crate archive SHA-256 values come from the fixed upstream Cargo.lock. Published docs.rs sources were inspected at version 0.0.352; no raw HTML or crate-source byte hash is inferred from that inspection.",
+    "git_sources": "Original file bytes fetched at the fixed Git commit; Git blob identifiers are computed from the blob header and bytes."
+  },
+  "published_source_references": [
+    {
+      "package": "ra_ap_project_model",
+      "role": "Local Cargo package roots include the configured extra directory roots.",
+      "url": "https://docs.rs/ra_ap_project_model/0.0.352/src/ra_ap_project_model/workspace.rs.html#833-880"
+    },
+    {
+      "package": "ra_ap_load-cargo",
+      "role": "Package roots feed the VFS directory loader after the crate graph is constructed; loading completes before analysis.",
+      "url": "https://docs.rs/ra_ap_load-cargo/0.0.352/src/ra_ap_load_cargo/lib.rs.html#183-197"
+    },
+    {
+      "package": "ra_ap_vfs-notify",
+      "role": "The loader traverses the included directories and reads matching source-file bytes.",
+      "url": "https://docs.rs/ra_ap_vfs-notify/0.0.352/src/ra_ap_vfs_notify/lib.rs.html#280-345"
+    }
+  ],
+  "release_tag": "codeql-cli/v2.27.2",
+  "repository": "github/codeql",
+  "rust_analyzer_packages": {
+    "ra_ap_load-cargo": {
+      "crate_sha256": "714cbf4632c3722c144dae74c8c454497b902d9fd2e25328163c509fbc3d8c47",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.0.352"
+    },
+    "ra_ap_project_model": {
+      "crate_sha256": "660a998bb108bb7a8a561eabd43f23879c7d9959e4cae3318635f754e47bed22",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.0.352"
+    },
+    "ra_ap_vfs-notify": {
+      "crate_sha256": "dc737c1fc099fb5e6c1dd79d6aa32b97df6fa801355e79238a6805b484888b42",
+      "registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.0.352"
+    }
+  },
+  "schema": 1
+}

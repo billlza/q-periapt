@@ -1,0 +1,17 @@
+test_framework_probe_admits_one_exact_pid_on_legacy_android (test_android_bounded_command.AndroidBoundedCommandTests.test_framework_probe_admits_one_exact_pid_on_legacy_android) ... FAIL
+
+======================================================================
+FAIL: test_framework_probe_admits_one_exact_pid_on_legacy_android (test_android_bounded_command.AndroidBoundedCommandTests.test_framework_probe_admits_one_exact_pid_on_legacy_android)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/qperiapt-recovery-20261111/android-fix/artifact/test_android_bounded_command.py", line 4625, in test_framework_probe_admits_one_exact_pid_on_legacy_android
+    result = self._framework_guest_sample(legacy_pidof=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/qperiapt-recovery-20261111/android-fix/artifact/test_android_bounded_command.py", line 4578, in _framework_guest_sample
+    self.assertEqual(raw.returncode, 0, raw.stderr)
+AssertionError: 65 != 0 : b''
+
+----------------------------------------------------------------------
+Ran 1 test in 0.025s
+
+FAILED (failures=1)

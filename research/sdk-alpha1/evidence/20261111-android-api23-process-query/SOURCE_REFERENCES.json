@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "retrieval": "Official Gitiles format=TEXT, strict Base64 decode; hash the decoded source bytes. Android 6.0.0 tag matches the recorded platform release, not a claim that this is a binary attestation of image build 6695544.",
+  "files": [
+    {
+      "file": "android-6.0.0_r1-Android.mk",
+      "url": "https://android.googlesource.com/platform/external/toybox/+/android-6.0.0_r1/Android.mk",
+      "bytes": 7499,
+      "sha256": "242b64eb605283c45c6a0a6fcd7194732a9b14bfd58f631dc8dba704d353303e",
+      "git_blob_sha1": "645da6daaf25ccca600c75ffd598d8adeeb63b53"
+    },
+    {
+      "file": "android-6.0.0_r1-config.h",
+      "url": "https://android.googlesource.com/platform/external/toybox/+/android-6.0.0_r1/generated/config.h",
+      "bytes": 14520,
+      "sha256": "6d11d02b9c5a5c995f00e4f50c82e743028267664e4b600e89b4f3701f0f6977",
+      "git_blob_sha1": "cc1ac50e573123f79debfbb330705eac6b54fedc"
+    },
+    {
+      "file": "android-6.0.0_r1-pgrep.c",
+      "url": "https://android.googlesource.com/platform/external/toybox/+/android-6.0.0_r1/toys/pending/pgrep.c",
+      "bytes": 4818,
+      "sha256": "4d0a7c13c52248fd9f9e953ad5b746e79d2cc0f5b33e682fa9806a49dcce232d",
+      "git_blob_sha1": "59767b9f218f740d000a0d87ac508efed3c53ad2"
+    },
+    {
+      "file": "android-6.0.0_r1-lib.c",
+      "url": "https://android.googlesource.com/platform/external/toybox/+/android-6.0.0_r1/lib/lib.c",
+      "bytes": 19784,
+      "sha256": "59f0ca137020b2e55b975a0eaf1d8c6e34caeee94ca0ca7d84e7eee0ce8f8cc0",
+      "git_blob_sha1": "ea65f77ad0a1d0dead95d5fec0a1c7a0ec7deb82"
+    },
+    {
+      "file": "android-6.0.0_r1-libgen.cpp",
+      "url": "https://android.googlesource.com/platform/bionic/+/android-6.0.0_r1/libc/bionic/libgen.cpp",
+      "bytes": 4096,
+      "sha256": "d56d18645e687e231eeed7b3a032d74e56ec40c3c18507d4df2b7567829a8ce8",
+      "git_blob_sha1": "2f29d7b633e6f30db102dab0840c33f4471639d2"
+    },
+    {
+      "file": "android-6.0.1_r1-pidof.c",
+      "url": "https://android.googlesource.com/platform/external/toybox/+/android-6.0.1_r1/toys/lsb/pidof.c",
+      "bytes": 1146,
+      "sha256": "d12f46152cb1db5925493a8e73e3d77870809fd79924b0eb061af99bf264a927",
+      "git_blob_sha1": "a8fc8ef9681d0a73a987b1f9e745e9d1a7fa47be"
+    },
+    {
+      "file": "android-6.0.1_r1-portability.h",
+      "url": "https://android.googlesource.com/platform/external/toybox/+/android-6.0.1_r1/lib/portability.h",
+      "bytes": 7471,
+      "sha256": "141efe625856d7f7823d60e464aacf17126868eda01b60905b5281052453efd2",
+      "git_blob_sha1": "aa1ee48833faf8116c6b7ab133072e937c5d8a23"
+    },
+    {
+      "file": "android-6.0.1_r1-libgen.h",
+      "url": "https://android.googlesource.com/platform/bionic/+/android-6.0.1_r1/libc/include/libgen.h",
+      "bytes": 2307,
+      "sha256": "e859fde6caab701e802e3d9a9995e46aaac56fe048c5f2cbd600a6559b2b41de",
+      "git_blob_sha1": "e89328e9f67b5bf0435c9bd81bf83d88f29685eb"
+    }
+  ],
+  "independent_platform_confirmation": "https://android.googlesource.com/platform/frameworks/support/+/63934a58a3c919d55f85f0869fd58cd7e9644dc5%5E2..63934a58a3c919d55f85f0869fd58cd7e9644dc5/"
+}

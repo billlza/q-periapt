@@ -1,0 +1,15 @@
+test_boot_query_waits_for_full_framework_using_real_native_property_program (test_android_bounded_command.AndroidBoundedCommandTests.test_boot_query_waits_for_full_framework_using_real_native_property_program) ... ok
+test_framework_probe_admits_one_exact_pid_on_legacy_android (test_android_bounded_command.AndroidBoundedCommandTests.test_framework_probe_admits_one_exact_pid_on_legacy_android) ... ok
+test_framework_probe_preserves_process_query_failure (test_android_bounded_command.AndroidBoundedCommandTests.test_framework_probe_preserves_process_query_failure) ... ok
+test_framework_probe_rejects_ambiguous_and_malformed_pid_output (test_android_bounded_command.AndroidBoundedCommandTests.test_framework_probe_rejects_ambiguous_and_malformed_pid_output) ... ok
+test_framework_probe_requires_services_and_a_live_process_incarnation (test_android_bounded_command.AndroidBoundedCommandTests.test_framework_probe_requires_services_and_a_live_process_incarnation) ... ok
+test_framework_wait_charges_queries_and_owner_guards_to_one_deadline (test_android_bounded_command.AndroidBoundedCommandTests.test_framework_wait_charges_queries_and_owner_guards_to_one_deadline) ... ok
+test_framework_wait_preserves_query_timeout_and_identity_postcheck_failure (test_android_bounded_command.AndroidBoundedCommandTests.test_framework_wait_preserves_query_timeout_and_identity_postcheck_failure) ... ok
+test_framework_wait_refuses_physical_and_missing_owned_runtime (test_android_bounded_command.AndroidBoundedCommandTests.test_framework_wait_refuses_physical_and_missing_owned_runtime) ... ok
+test_framework_wait_replays_sticky_boot_crash_and_provider_exception (test_android_bounded_command.AndroidBoundedCommandTests.test_framework_wait_replays_sticky_boot_crash_and_provider_exception) ... ok
+test_framework_wait_resets_the_window_for_pid_reuse_and_guest_reboot (test_android_bounded_command.AndroidBoundedCommandTests.test_framework_wait_resets_the_window_for_pid_reuse_and_guest_reboot) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 2.587s
+
+OK

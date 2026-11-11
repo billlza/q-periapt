@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "original_root": "/workspace/scratch/qperiapt-recovery-20261111/android-diagnostics/review",
+  "members": [
+    {
+      "path": "FRAMEWORK_TESTS.json",
+      "bytes": 682,
+      "sha256": "82e24df9edad5d694fcd91f8098375c4bd17a6107d6cc933cb7c1135f6e2170d"
+    },
+    {
+      "path": "LEGACY_PIDOF_RED.json",
+      "bytes": 819,
+      "sha256": "7b3fcbc4b0cef568e86df5887d4faf6560471c2cfb44f962b7151c9003a716c8"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3964,
+      "sha256": "50a4300c8c9e864bcdb0d9dab2dc4e9f2aff85ebac5c1e1e5f2fd487a5ae0e11"
+    },
+    {
+      "path": "ROOT_CAUSE.json",
+      "bytes": 7447,
+      "sha256": "5cffd3512cc315542c5714323da4523dc3016cdfae3dad92e524d3064160588f"
+    },
+    {
+      "path": "SOURCE_REFERENCES.json",
+      "bytes": 3153,
+      "sha256": "a1cc69f894cbb831115a93122767fa24d588affba0d3a5d7e385827d3eaed4bd"
+    },
+    {
+      "path": "android-api23-process-query.patch",
+      "bytes": 6787,
+      "sha256": "309e60b3bb1878bdb90cf5425c6d2858e258d71bdcd790340c2a84d2c5fbe601"
+    },
+    {
+      "path": "framework-tests.log",
+      "bytes": 2085,
+      "sha256": "5e724845d81e0325e4d6f1ed40df7c614892e83a8147256ff6f03d96f5aa1c89"
+    },
+    {
+      "path": "legacy-pidof-red.log",
+      "bytes": 1197,
+      "sha256": "b9a3debe1b13d6b4abd6978c6592634ba627db22cfa34af1ee5645c976ea8191"
+    }
+  ]
+}

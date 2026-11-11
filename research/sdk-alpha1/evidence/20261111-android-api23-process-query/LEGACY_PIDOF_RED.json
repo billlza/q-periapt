@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-m",
+    "unittest",
+    "-v",
+    "test_android_bounded_command.AndroidBoundedCommandTests.test_framework_probe_admits_one_exact_pid_on_legacy_android"
+  ],
+  "cwd": "/workspace/scratch/qperiapt-recovery-20261111/android-fix/artifact",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "exit_code": 1,
+  "expected_outcome": "assertion failure on original pidof implementation",
+  "duration_seconds": 0.5176584720611572,
+  "production_source_sha256": "40ad61791a674ae6d91a34c24fe0483d13a5129714c29529e46f767294977d22",
+  "test_source_sha256": "585c9e0131cf717843aa964640c94f16ef1768977155dd2fb58055ab0dd60bd8",
+  "log_sha256": "b9a3debe1b13d6b4abd6978c6592634ba627db22cfa34af1ee5645c976ea8191"
+}

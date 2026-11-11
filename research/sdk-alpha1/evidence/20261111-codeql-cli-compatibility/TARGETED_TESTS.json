@@ -1,0 +1,25 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+    "-m",
+    "unittest",
+    "-v",
+    "test_codeql_rust_plan",
+    "test_codeql_rust_profile"
+  ],
+  "cwd": "/workspace/scratch/qperiapt-recovery-20261111/cli-fix/artifact",
+  "started_utc": "2026-11-11T13:29:48.861162+00:00",
+  "finished_utc": "2026-11-11T13:29:51.756523+00:00",
+  "seconds": 2.8953938659999494,
+  "returncode": 0,
+  "input_sha256": {
+    "artifact/codeql_rust_plan.py": "b548c4fcffe9956ad92937b1412940ad3804d7d52823682b5380cbaea42b9842",
+    "artifact/codeql_rust_profile.py": "ed9798917c8ae4493d67f85c73e80dbc672a93a3fbb752415770881a63512e51",
+    "artifact/test_codeql_rust_plan.py": "d01844f82c542b98d6f92da1665e077ae47c1792adb1ab6a0e7fd22c67f9f8c1",
+    "artifact/test_codeql_rust_profile.py": "61326ef4456e2b41fb010186e3f5a9f27019975f81322c3ab093423ddc06b6b3",
+    "artifact/codeql_wrapper_fixture.py": "9e2864cae9ff5dcc5dd6052ddf1d7e4d31c56b9c35b3065e3cba6394f001e3d6"
+  },
+  "wrapper_ast_parse": "passed",
+  "queries_run": 0,
+  "extractions_run": 0
+}

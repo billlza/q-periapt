@@ -1,0 +1,188 @@
+{
+  "schema_version": 1,
+  "failure_source": {
+    "repository": "billlza/q-periapt",
+    "source_commit": "faabcff16fc49e1a99388c68f0991a2bfd64d509",
+    "workflow_run": 43010024394,
+    "job": 130507717890,
+    "job_name": "bindings-android-runtime-minimum",
+    "api": 23,
+    "abi": "x86_64",
+    "page_size_bytes": 4096,
+    "image_fingerprint": "Android/sdk_google_phone_x86_64/generic_x86_64:6.0/MASTER/6695544:userdebug/test-keys",
+    "artifact_id": 13857122005,
+    "artifact_bytes": 182335,
+    "artifact_sha256": "14e0532aa10e451fbf0b3ae71396e0f51791b3e5885fa8699585e9f34133f50f"
+  },
+  "observed": {
+    "raw_files": [
+      {
+        "archive_member": "7e369ba4f016d8c95f3d1f009af81da7/proof/adb-framework-readiness.log",
+        "bytes": 83001,
+        "sha256": "22b53bb5e5d6b6b5e028d6bcb682adc6cbf1551e077f0e0acd24d5b12c1feb12"
+      },
+      {
+        "archive_member": "7e369ba4f016d8c95f3d1f009af81da7/proof/emulator-state-before.txt",
+        "bytes": 16741,
+        "sha256": "95da5b95320fddaac6bc02a6958120232f9685dd7004850ed9a363288de0e997"
+      },
+      {
+        "archive_member": "7e369ba4f016d8c95f3d1f009af81da7/proof/emulator-state-failure.txt",
+        "bytes": 16301,
+        "sha256": "496260c822d705d88c78dc7f63b90d50b5c4a742c6a1a1a4b215ca8220a5f102"
+      },
+      {
+        "archive_member": "7e369ba4f016d8c95f3d1f009af81da7/proof/emulator-guest-logcat.txt",
+        "bytes": 1425463,
+        "sha256": "1c0d42f65d93c20043c180ee75e86008e1d7e04a738984d812068435f1de71d1"
+      }
+    ],
+    "framework_sample_count": 67,
+    "framework_observation_count": 66,
+    "host_returncode_counts": {
+      "0": 67
+    },
+    "probe_status_counts": {
+      "identity-before": {
+        "65": 67
+      },
+      "boot-before": {
+        "0": 67
+      },
+      "decrypt-before": {
+        "0": 67
+      },
+      "settings-provider": {
+        "0": 67
+      },
+      "package-manager": {
+        "0": 67
+      },
+      "package-absence": {
+        "0": 67
+      },
+      "identity-after": {
+        "65": 67
+      },
+      "boot-after": {
+        "0": 67
+      },
+      "decrypt-after": {
+        "0": 67
+      }
+    },
+    "probe_output_counts": {
+      "identity-before": {
+        "": 67
+      },
+      "boot-before": {
+        "1\n": 67
+      },
+      "decrypt-before": {
+        "trigger_restart_framework\n": 67
+      },
+      "settings-provider": {
+        "1\n": 67
+      },
+      "package-manager": {
+        "package:/system/framework/framework-res.apk\n": 67
+      },
+      "package-absence": {
+        "": 67
+      },
+      "identity-after": {
+        "": 67
+      },
+      "boot-after": {
+        "1\n": 67
+      },
+      "decrypt-after": {
+        "trigger_restart_framework\n": 67
+      }
+    },
+    "observation_reason_counts": {
+      "guest-query-nonzero": 66
+    },
+    "terminal_error": "error: Android bounded command: owned adb server validation deadline expired",
+    "process_snapshots": "One live system_server row, PID 1932, appears in both before and failure ps snapshots. This alone is not an incarnation proof."
+  },
+  "cause": {
+    "actual_failure": "The identity probe rejects the process-selector result before emitting PID, boot UUID or stat; all provider/package/boot probes succeed throughout. The existing frame preserves guest status 65 despite legacy adb host exit 0.",
+    "platform_source_mechanism": "Android 6 Toybox names_to_pid compares two Bionic POSIX basename results in one strcmp; both point to the same thread-local output buffer. Matching a nonabsolute name therefore admits unrelated readable processes. pidof emits their space-separated PIDs and the single-PID guard rejects that output.",
+    "bounded_inference": "The original probe did not retain raw pidof output, and this review did not execute or attest the failed image binary. The fixed official release source and independent AndroidX API23 note explain the exact repeated failure phenotype.",
+    "rejected_initial_hypothesis": "Whitespace alone was not assumed as the cause; the reviewed pidof formatter separates multiple PIDs and adds only a final newline. No timeout increase was made."
+  },
+  "fix": {
+    "commit": "b5ebe15063e2dc2c55f84c6cf6dd53d77fe2fceb",
+    "tree": "6f61d301ec0b20e42ab5b537a6ad324a8877149d",
+    "parent": "df766de8eeeb99d55d3a161e1ca57c47a25db604",
+    "files": [
+      "artifact/android_bounded_command.py",
+      "artifact/test_android_bounded_command.py"
+    ],
+    "process_selector": "pgrep '^system_server$'",
+    "compatibility": "Android 6.0.0 Android.mk builds and installs pgrep, generated config enables CFG_PGREP. Anchors use regex success only; -x is avoided because the old source reads match offsets after REG_NOSUB compilation.",
+    "preserved": [
+      "single canonical numeric PID admission",
+      "pid-to-stat equality, process comm and stat shape",
+      "boot UUID and process starttime comparison before/after service probes",
+      "live process state requirement",
+      "provider, package manager, boot and decrypt checks",
+      "three consecutive samples and five-second stable interval",
+      "same 120-second total budget and per-query ownership/deadline guards"
+    ],
+    "remote_ref_changed": false,
+    "device_ci_started": false
+  },
+  "verification": {
+    "red": {
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-m",
+        "unittest",
+        "-v",
+        "test_android_bounded_command.AndroidBoundedCommandTests.test_framework_probe_admits_one_exact_pid_on_legacy_android"
+      ],
+      "cwd": "/workspace/scratch/qperiapt-recovery-20261111/android-fix/artifact",
+      "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+      "exit_code": 1,
+      "expected_outcome": "assertion failure on original pidof implementation",
+      "duration_seconds": 0.5176584720611572,
+      "production_source_sha256": "40ad61791a674ae6d91a34c24fe0483d13a5129714c29529e46f767294977d22",
+      "test_source_sha256": "585c9e0131cf717843aa964640c94f16ef1768977155dd2fb58055ab0dd60bd8",
+      "log_sha256": "b9a3debe1b13d6b4abd6978c6592634ba627db22cfa34af1ee5645c976ea8191"
+    },
+    "green": {
+      "command": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+        "-m",
+        "unittest",
+        "-v",
+        "test_android_bounded_command",
+        "-k",
+        "framework"
+      ],
+      "cwd": "/workspace/scratch/qperiapt-recovery-20261111/android-fix/artifact",
+      "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+      "exit_code": 0,
+      "duration_seconds": 3.278008460998535,
+      "production_source_sha256": "fecaf9e3f7a59152da226eb5e9d242485c137c5c3e1fd47d889e49ec08f8578a",
+      "test_source_sha256": "45940933039a530d7c1a099ddbf80169bcdf74581eadc924ab61fb55b32a23f9",
+      "log_sha256": "5e724845d81e0325e4d6f1ed40df7c614892e83a8147256ff6f03d96f5aa1c89"
+    },
+    "green_summary": {
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "unittest_seconds": 2.587
+    },
+    "red_summary": {
+      "tests": 1,
+      "failures": 1,
+      "unittest_seconds": 0.025,
+      "observed_guest_exit": 65
+    },
+    "scope": "Real host sh programs with fixed command fixtures exercise the actual production-generated guest program. No emulator or Android binary was launched. Existing framework service/incarnation/ownership/deadline tests ran in the same set."
+  }
+}

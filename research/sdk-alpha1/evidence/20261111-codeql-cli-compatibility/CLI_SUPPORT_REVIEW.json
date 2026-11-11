@@ -1,0 +1,555 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.codeql_2272_cli_support_review",
+  "recorded_utc": "2026-11-11T13:33:52.014906+00:00",
+  "repository": "billlza/q-periapt",
+  "source_base": "cd84d3cb051651c0edc634705d086a0824837725",
+  "fixed_tool": {
+    "codeql_version": "2.27.2",
+    "archive_url": "https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.2/codeql-bundle-rust-linux64.tar.zst",
+    "archive_bytes": 98247028,
+    "archive_sha256": "acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea",
+    "jar_bytes": 31624470,
+    "jar_sha256": "7af8d9c682a7fa9ec825951b516fe857529e16d077f9d9e13cf6fdb9ad7a8b56"
+  },
+  "static_method": "Constant-pool and Picocli Option/Mixin/ArgGroup annotations, recursively including superclass and mixin/arg-group declarations. Class bytes came from the fixed authenticated archive.",
+  "option_support": [
+    {
+      "command": "version",
+      "qlconfig_file_supported": false,
+      "command_class": "com/semmle/cli2/VersionCommand",
+      "command_class_sha256": "2f5d7bfe490ed8c8fb972aa5f5aa2812486fc1d36c1eb12dd5bdb673eea0c366",
+      "closed_parent_mixin_classes": [
+        {
+          "class": "com/semmle/cli2/CommonOptions",
+          "sha256": "19215e7c891739792cc23dc835c2c47c1da934ddcb8b249a906ee978c2a3333f"
+        },
+        {
+          "class": "com/semmle/cli2/CommonText",
+          "sha256": "a09e490cda999eee04fce2abd91c8e412b249ab75843793b8018ac67e0a8d4f9"
+        },
+        {
+          "class": "com/semmle/cli2/VersionCommand",
+          "sha256": "2f5d7bfe490ed8c8fb972aa5f5aa2812486fc1d36c1eb12dd5bdb673eea0c366"
+        },
+        {
+          "class": "com/semmle/cli2/picocli/SimpleJsonSubcommand",
+          "sha256": "707914660ecc27cd5075fcc174093219e4a4cb6f2a1ff69ed09fd6130f05b100"
+        },
+        {
+          "class": "com/semmle/cli2/picocli/SubcommandCommon",
+          "sha256": "4b41a6930c24f881d8cee938a97ad4a2b5062e86387c34586ea2d752be27c486"
+        }
+      ],
+      "declarations": []
+    },
+    {
+      "command": "resolve ram",
+      "qlconfig_file_supported": false,
+      "command_class": "com/semmle/cli2/resolve/ResolveRamCommand",
+      "command_class_sha256": "10cb6197caf5adebe4d913e9a97b23f3f0ade7fe0f6ebe9c8e14c42adb3e46ed",
+      "closed_parent_mixin_classes": [
+        {
+          "class": "com/semmle/cli2/CommonOptions",
+          "sha256": "19215e7c891739792cc23dc835c2c47c1da934ddcb8b249a906ee978c2a3333f"
+        },
+        {
+          "class": "com/semmle/cli2/CommonText",
+          "sha256": "a09e490cda999eee04fce2abd91c8e412b249ab75843793b8018ac67e0a8d4f9"
+        },
+        {
+          "class": "com/semmle/cli2/MeasureRamOption",
+          "sha256": "7760398689fc103d2708ebc37d54ba968de6fe215d87be5fc5c0cc2a3f18e177"
+        },
+        {
+          "class": "com/semmle/cli2/RamOptions",
+          "sha256": "974411412ade8ab97a52c4a877559013af89ad77663f4cdcab9d013bbae3d959"
+        },
+        {
+          "class": "com/semmle/cli2/picocli/ReserialisableOptions",
+          "sha256": "b818e5eea91c86572e879bfd547273f30ed2c28a4ed6050dc9c9d5fbf176db1c"
+        },
+        {
+          "class": "com/semmle/cli2/picocli/SimpleJsonSubcommand",
+          "sha256": "707914660ecc27cd5075fcc174093219e4a4cb6f2a1ff69ed09fd6130f05b100"
+        },
+        {
+          "class": "com/semmle/cli2/picocli/SubcommandCommon",
+          "sha256": "4b41a6930c24f881d8cee938a97ad4a2b5062e86387c34586ea2d752be27c486"
+        },
+        {
+          "class": "com/semmle/cli2/resolve/ResolveRamCommand",
+          "sha256": "10cb6197caf5adebe4d913e9a97b23f3f0ade7fe0f6ebe9c8e14c42adb3e46ed"
+        },
+        {
+          "class": "com/semmle/cli2/resolve/ResolveRamCommand$OptionsWithDataset",
+          "sha256": "836c5eec7774dca6e402a69b57af6ac7d6c69efeac76110ee8c1cabb869a9558"
+        }
+      ],
+      "declarations": []
+    },
+    {
+      "command": "test extract",
+      "qlconfig_file_supported": false,
+      "command_class": "com/semmle/cli2/test/ExtractCommand",
+      "command_class_sha256": "8b9d2d56bee898157e2738968308987641503565145f92f01c6b85d6b0a15dcb",
+      "closed_parent_mixin_classes": [
+        {
+          "class": "com/semmle/cli2/CommonOptions",
+          "sha256": "19215e7c891739792cc23dc835c2c47c1da934ddcb8b249a906ee978c2a3333f"
+        },
+        {
+          "class": "com/semmle/cli2/CommonText",
+          "sha256": "a09e490cda999eee04fce2abd91c8e412b249ab75843793b8018ac67e0a8d4f9"
+        },
+        {
+          "class": "com/semmle/cli2/ExtensionalCompressionOption",
+          "sha256": "b7c80d5a8c5bcc44ac88df109567191e6c65ec74e12df685605bc5dfd869ad2d"
+        },
+        {
+          "class": "com/semmle/cli2/ExtractorSearchPathOptions",
+          "sha256": "77205ecb32c24c61e3ec742031babb8177fbf9aa9571171ef3a7a534824a4b1b"
+        },
+        {
+          "class": "com/semmle/cli2/LinkageAwareImportOption",
+          "sha256": "9d71d0d049d24026b36fb0b64d6e1309c9a7d79cada10d7c859ae427c52f2e79"
+        },
+        {
+          "class": "com/semmle/cli2/PrivateImportOptions",
+          "sha256": "092ac088657f6a477e949ab30ec2e9e9e7bdb95a648e70d3502b2824893ad89b"
+        },
+        {
+          "class": "com/semmle/cli2/picocli/ReserialisableOptions",
+          "sha256": "b818e5eea91c86572e879bfd547273f30ed2c28a4ed6050dc9c9d5fbf176db1c"
+        },
+        {
+          "class": "com/semmle/cli2/picocli/SimpleJsonSubcommand",
+          "sha256": "707914660ecc27cd5075fcc174093219e4a4cb6f2a1ff69ed09fd6130f05b100"
+        },
+        {
+          "class": "com/semmle/cli2/picocli/SubcommandCommon",
+          "sha256": "4b41a6930c24f881d8cee938a97ad4a2b5062e86387c34586ea2d752be27c486"
+        },
+        {
+          "class": "com/semmle/cli2/test/ExtractCommand",
+          "sha256": "8b9d2d56bee898157e2738968308987641503565145f92f01c6b85d6b0a15dcb"
+        },
+        {
+          "class": "com/semmle/cli2/test/TestExtractOptions",
+          "sha256": "75c9779918dc0074aad9fc42f08549ccc3f27f947853cb607be45a47da273368"
+        }
+      ],
+      "declarations": []
+    },
+    {
+      "command": "bqrs decode",
+      "qlconfig_file_supported": false,
+      "command_class": "com/semmle/cli2/bqrs/DecodeCommand",
+      "command_class_sha256": "5e90dfa65d09d08f5be5fdf549b7a106b98163432796c660d7906835ce2e9d00",
+      "closed_parent_mixin_classes": [
+        {
+          "class": "com/semmle/cli2/CommonOptions",
+          "sha256": "19215e7c891739792cc23dc835c2c47c1da934ddcb8b249a906ee978c2a3333f"
+        },
+        {
+          "class": "com/semmle/cli2/CommonText",
+          "sha256": "a09e490cda999eee04fce2abd91c8e412b249ab75843793b8018ac67e0a8d4f9"
+        },
+        {
+          "class": "com/semmle/cli2/bqrs/DecodeCommand",
+          "sha256": "5e90dfa65d09d08f5be5fdf549b7a106b98163432796c660d7906835ce2e9d00"
+        },
+        {
+          "class": "com/semmle/cli2/bqrs/DecodeCommand$FormatOptions",
+          "sha256": "d2b86dac6d7ebbd653a6023f7836792a7b77a4d53b1833cde93354263356b54b"
+        },
+        {
+          "class": "com/semmle/cli2/bqrs/DecodeCommand$PaginationOptions",
+          "sha256": "8d322951f65355271bddca6bf87cf2fce35c61f8d04e31883dc2ba8cf136a223"
+        },
+        {
+          "class": "com/semmle/cli2/picocli/SubcommandCommon",
+          "sha256": "4b41a6930c24f881d8cee938a97ad4a2b5062e86387c34586ea2d752be27c486"
+        }
+      ],
+      "declarations": []
+    },
+    {
+      "command": "database analyze",
+      "qlconfig_file_supported": true,
+      "command_class": "com/semmle/cli2/database/AnalyzeCommand",
+      "command_class_sha256": "f5c3c61a60e0b20510a2bd9f0ddcf6098771013b1c04be7205e9132616d9c638",
+      "closed_parent_mixin_classes": [
+        {
+          "class": "com/semmle/cli2/BasicEvaluatorOptions",
+          "sha256": "eb6c1265a89d1be229758af21bb2eaffdbf74039b65ef446137fd85cc9e39995"
+        },
+        {
+          "class": "com/semmle/cli2/CacheSizeOptions",
+          "sha256": "d1f42146a3384c1cd867cacfe1788fd87a98780bbce713215bd2f4626751aec5"
+        },
+        {
+          "class": "com/semmle/cli2/CliStructuredLoggingOptions",
+          "sha256": "e2d08c5a7bed0302fb5ab318753704021b17065add3f52dffa19db46969793ea"
+        },
+        {
+          "class": "com/semmle/cli2/CommonOptions",
+          "sha256": "19215e7c891739792cc23dc835c2c47c1da934ddcb8b249a906ee978c2a3333f"
+        },
+        {
+          "class": "com/semmle/cli2/CommonText",
+          "sha256": "a09e490cda999eee04fce2abd91c8e412b249ab75843793b8018ac67e0a8d4f9"
+        },
+        {
+          "class": "com/semmle/cli2/CompilationOptions",
+          "sha256": "18a2c7a93a43a081fd0fa094d9e4b2f6ce21370fd1f208e591e6d0d7a03df2b7"
+        },
+        {
+          "class": "com/semmle/cli2/CompilationOptions$ReleaseCompatibilityOptions",
+          "sha256": "20e62549b17c12683452d1ae8655d5a0d214ce82393da6639605d7dff46f5578"
+        },
+        {
+          "class": "com/semmle/cli2/CoreCompilationOptions",
+          "sha256": "2fb01618bb37e3f27d1dc58d8aaeb5b559206f6e7d33609a8f4914c9b9095e2f"
+        },
+        {
+          "class": "com/semmle/cli2/DynamicJoinOptions",
+          "sha256": "29beb059dd6e833bd6a2d389ff8596b9634f47dbb8209d0cde81db4ce26fd173"
+        },
+        {
+          "class": "com/semmle/cli2/EvaluatorOptions",
+          "sha256": "078d3af5623f6c9a47ffa38d7516f1b61575a09d752bf8797480aa04ff7be500"
+        },
+        {
+          "class": "com/semmle/cli2/ExtensionPackOptions",
+          "sha256": "2f9333451008dec6b74f9b1bf0b2fa80bf4be36ce9f65d14a22bebe941f96fa9"
+        },
+        {
+          "class": "com/semmle/cli2/InterpretationOptions",
+          "sha256": "a3d006b17ace08ad97d53038884ac89cc5e527b45106708f3f8f52f9979d454b"
+        },
+        {
+          "class": "com/semmle/cli2/LibraryPathOptions",
+          "sha256": "3f40339d0cac6b4243ce0262804cf1fd08220153305c8cf5a76c322dcef6a9e7"
+        },
+        {
+          "class": "com/semmle/cli2/MeasureRamOption",
+          "sha256": "7760398689fc103d2708ebc37d54ba968de6fe215d87be5fc5c0cc2a3f18e177"
+        },
+        {
+          "class": "com/semmle/cli2/NewAnalysisSummaryOption",
+          "sha256": "5c277b1a07bf6c4d1d43cee5386b7fd89f965f073e6138adcc9dbab3a0381497"
+        },
+        {
+          "class": "com/semmle/cli2/QLPackPathOptions",
+          "sha256": "271c71fe51014577837287030e032f9e2f50dbc841482aaa5f6ff24a066153a5"
+        },
+        {
+          "class": "com/semmle/cli2/QueriesSpecifier1",
+          "sha256": "ebc6cdad7bb47c8ebc59fb4f9971446b4e252d3b2003426686a679e8094f5602"
+        },
+        {
+          "class": "com/semmle/cli2/QueriesSpecifier1$WithDatabase",
+          "sha256": "b0dd3cbbd0cf67a63cb10325f09f336ef28be923f2982c2332b15d50ddbcd033"
+        },
+        {
+          "class": "com/semmle/cli2/RamOptions",
+          "sha256": "974411412ade8ab97a52c4a877559013af89ad77663f4cdcab9d013bbae3d959"
+        },
+        {
+          "class": "com/semmle/cli2/SarifCategoryOption",
+          "sha256": "ff1fa9c2cdc962e8af6a93de93261e1d0c0d7b01ca36689340b1ab4564b04808"
+        },
+        {
+          "class": "com/semmle/cli2/SarifIncludeDiagnosticsOption",
+          "sha256": "984a90468ee7e161f232082f4bb4933043aced702a01b664a63135d3a3870f24"
+        },
+        {
+          "class": "com/semmle/cli2/StopAfterStartupOption",
+          "sha256": "d2cec8a2d4e9feeefbeeae0161a6030c7922c97ed2a5c701b1935846b9105e3e"
+        },
+        {
+          "class": "com/semmle/cli2/SublanguageFileCoverageOption",
+          "sha256": "e733593bd31d61c39ba86d0237e850c862346a799f7a1368ecec3fce21303758"
+        },
+        {
+          "class": "com/semmle/cli2/ThreatModelOptions",
+          "sha256": "35e9faf7620a97d337ed7e9897ebb1c6b48dc2d3ce38c0a9424ea7cb9a69507e"
+        },
+        {
+          "class": "com/semmle/cli2/UserConfigInterpretationOption",
+          "sha256": "5172a6dcc7c2fd24045af646fe9684a4472c50854c4bef6eda29fc943b8dfbeb"
+        },
+        {
+          "class": "com/semmle/cli2/database/AnalyzeCommand",
+          "sha256": "f5c3c61a60e0b20510a2bd9f0ddcf6098771013b1c04be7205e9132616d9c638"
+        },
+        {
+          "class": "com/semmle/cli2/pack/PackManagerOptions",
+          "sha256": "bb05750bcba0103dd975888b43e50238d2d9ddf4ed29b9fb49abbc6e52441a4e"
+        },
+        {
+          "class": "com/semmle/cli2/pack/PackManagerOptions$WithToken",
+          "sha256": "513524b684bdd413b60cbc743efea24c8763f200a81e3f22ba9e93d8003918d3"
+        },
+        {
+          "class": "com/semmle/cli2/picocli/ReserialisableOptions",
+          "sha256": "b818e5eea91c86572e879bfd547273f30ed2c28a4ed6050dc9c9d5fbf176db1c"
+        },
+        {
+          "class": "com/semmle/cli2/picocli/SubcommandCommon",
+          "sha256": "4b41a6930c24f881d8cee938a97ad4a2b5062e86387c34586ea2d752be27c486"
+        },
+        {
+          "class": "com/semmle/cli2/resolve/ResolveMlModelsOptions",
+          "sha256": "840118bdf7430c156761e4f1ab36dc60f613f3040dea1a208260108b87ad073c"
+        }
+      ],
+      "declarations": [
+        {
+          "class": "com/semmle/cli2/pack/PackManagerOptions",
+          "member": "configFile",
+          "class_sha256": "bb05750bcba0103dd975888b43e50238d2d9ddf4ed29b9fb49abbc6e52441a4e"
+        }
+      ]
+    },
+    {
+      "command": "resolve queries",
+      "qlconfig_file_supported": true,
+      "command_class": "com/semmle/cli2/resolve/ResolveQueriesCommand",
+      "command_class_sha256": "4ce66aee1aafc78b4e67906ec0f122b688569226c9a2ed65107e698bc213773e",
+      "closed_parent_mixin_classes": [
+        {
+          "class": "com/semmle/cli2/CommonOptions",
+          "sha256": "19215e7c891739792cc23dc835c2c47c1da934ddcb8b249a906ee978c2a3333f"
+        },
+        {
+          "class": "com/semmle/cli2/CommonText",
+          "sha256": "a09e490cda999eee04fce2abd91c8e412b249ab75843793b8018ac67e0a8d4f9"
+        },
+        {
+          "class": "com/semmle/cli2/QLPackPathOptions",
+          "sha256": "271c71fe51014577837287030e032f9e2f50dbc841482aaa5f6ff24a066153a5"
+        },
+        {
+          "class": "com/semmle/cli2/QueriesSpecifier1",
+          "sha256": "ebc6cdad7bb47c8ebc59fb4f9971446b4e252d3b2003426686a679e8094f5602"
+        },
+        {
+          "class": "com/semmle/cli2/QueriesSpecifier1$QueriesSpecifier",
+          "sha256": "1a31be18b4aea2491a034c48dcdcd1b807f09b88c88027bbdca7cc4d72cf6378"
+        },
+        {
+          "class": "com/semmle/cli2/pack/PackManagerOptions",
+          "sha256": "bb05750bcba0103dd975888b43e50238d2d9ddf4ed29b9fb49abbc6e52441a4e"
+        },
+        {
+          "class": "com/semmle/cli2/pack/PackManagerOptions$WithToken",
+          "sha256": "513524b684bdd413b60cbc743efea24c8763f200a81e3f22ba9e93d8003918d3"
+        },
+        {
+          "class": "com/semmle/cli2/picocli/ReserialisableOptions",
+          "sha256": "b818e5eea91c86572e879bfd547273f30ed2c28a4ed6050dc9c9d5fbf176db1c"
+        },
+        {
+          "class": "com/semmle/cli2/picocli/SimpleJsonSubcommand",
+          "sha256": "707914660ecc27cd5075fcc174093219e4a4cb6f2a1ff69ed09fd6130f05b100"
+        },
+        {
+          "class": "com/semmle/cli2/picocli/SubcommandCommon",
+          "sha256": "4b41a6930c24f881d8cee938a97ad4a2b5062e86387c34586ea2d752be27c486"
+        },
+        {
+          "class": "com/semmle/cli2/resolve/ResolveQueriesCommand",
+          "sha256": "4ce66aee1aafc78b4e67906ec0f122b688569226c9a2ed65107e698bc213773e"
+        }
+      ],
+      "declarations": [
+        {
+          "class": "com/semmle/cli2/pack/PackManagerOptions",
+          "member": "configFile",
+          "class_sha256": "bb05750bcba0103dd975888b43e50238d2d9ddf4ed29b9fb49abbc6e52441a4e"
+        }
+      ]
+    }
+  ],
+  "parser_rejections": [
+    {
+      "label": "version-invalid-qlconfig",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "version",
+        "--format=terse",
+        "--qlconfig-file=/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/qlconfig.yml"
+      ],
+      "returncode": 2,
+      "stdout": {
+        "path": "version-invalid-qlconfig.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "version-invalid-qlconfig.stderr",
+        "bytes": 177,
+        "sha256": "519000653cea23f20453a3ba4ec6d2a2a065682ac50917bc6871e0ab330ce89d"
+      }
+    },
+    {
+      "label": "test-extract-rejects-qlconfig",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "test",
+        "extract",
+        "--qlconfig-file=/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/qlconfig.yml",
+        "--",
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/input-must-not-exist"
+      ],
+      "returncode": 2,
+      "stdout": {
+        "path": "test-extract-rejects-qlconfig.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "test-extract-rejects-qlconfig.stderr",
+        "bytes": 182,
+        "sha256": "c813c4eb50ce8bf7fbcd6577e04c6a8d2d120ac48c5479b88f86a364b348cb6f"
+      }
+    },
+    {
+      "label": "resolve-ram-rejects-qlconfig",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "resolve",
+        "ram",
+        "--ram=14000",
+        "--off-heap-ram=9329",
+        "--format=json",
+        "--qlconfig-file=/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/qlconfig.yml"
+      ],
+      "returncode": 2,
+      "stdout": {
+        "path": "resolve-ram-rejects-qlconfig.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "resolve-ram-rejects-qlconfig.stderr",
+        "bytes": 181,
+        "sha256": "ad2665dec69b1e3206bb096c26294ca432a7ac24ad6042cf33161cfb744c15e0"
+      }
+    },
+    {
+      "label": "bqrs-decode-rejects-qlconfig",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "bqrs",
+        "decode",
+        "--format=json",
+        "--qlconfig-file=/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/qlconfig.yml",
+        "--",
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/input-must-not-exist.bqrs"
+      ],
+      "returncode": 2,
+      "stdout": {
+        "path": "bqrs-decode-rejects-qlconfig.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "bqrs-decode-rejects-qlconfig.stderr",
+        "bytes": 181,
+        "sha256": "bb92055f718412c6e6796e1476f1dd736f08dceee29059596e1a2c1fa2a173bf"
+      }
+    }
+  ],
+  "help_control_correction": "The initial diagnostic combined --help with unsupported flags. This CLI exits for help before rejecting unknown options, so those exit-0 records do not establish acceptance. The diagnostic assertion failed after writing the records. Subsequent negative controls omit --help; all four reject --qlconfig-file with exit 2. Original records are retained.",
+  "hosted_failure": {
+    "run_id": 43027793640,
+    "job_id": 130546797767,
+    "source_commit": "cd84d3cb051651c0edc634705d086a0824837725",
+    "step": "fixture test extract",
+    "returncode": 2,
+    "seconds": 0.266631261,
+    "reason": "Unsupported --qlconfig-file argument; extraction and queries had not started",
+    "stderr": {
+      "path": "extract.stderr",
+      "bytes": 161,
+      "sha256": "987eac7e6248920e6dfd093ec56aa5bc414236973fdabda16b627a67928bf432"
+    },
+    "receipt": {
+      "path": "extract.json",
+      "bytes": 1347,
+      "sha256": "1df38f493446a50ab355f14a212dcd6e8b7574d06a30777859f64bae84c89ce4"
+    }
+  },
+  "changes": {
+    "production": "Remove unsupported pack-manager flag from version and resolve ram, remove the unused memory helper parameter, retain private configuration on resolve queries and database analyze. Tighten the production command controls accordingly.",
+    "fixture": "Remove unsupported pack-manager flag from test extract and bqrs decode; remove the unused extraction config file and associated claim; adapt the memory helper call. Preserve authenticated runtime, controlled environment and all result gates."
+  },
+  "regression": {
+    "old_source_negative_control": "The tightened existing full-success test failed on the original production version argv (extra --qlconfig-file), as observed in the tool result before the production edit. No separate raw negative-control file was retained.",
+    "new_source": {
+      "path": "TARGETED_TESTS.json",
+      "bytes": 1077,
+      "sha256": "fe484c1b8912bc38722c7c8381f1feb84d316805d1c4679eabf51f58f1547358"
+    },
+    "raw_log": {
+      "path": "targeted-python-tests.log",
+      "bytes": 11423,
+      "sha256": "0c91e159f4042ac1e5f7e6acbbea9cb7a32f6d579af28d96b8bbe59ac5844185"
+    },
+    "tests": 58,
+    "unittest_seconds": 2.401,
+    "returncode": 0,
+    "wrapper_ast_parse": "passed",
+    "hosted_workflow_contracts": {
+      "tests": 9,
+      "returncode": 0,
+      "source_commit": "cd84d3cb051651c0edc634705d086a0824837725",
+      "job_id": 130546797767,
+      "scope": "Pre-fix activation/workflow contracts, separate from the 58 production CLI regression controls."
+    }
+  },
+  "raw_evidence": [
+    {
+      "path": "CLI_OPTION_DECLARATIONS.json",
+      "bytes": 266446,
+      "sha256": "536c300fddb80a107608eed8fd511d779233d200028cb10730cf692b3a986624"
+    },
+    {
+      "path": "CLI_OPTION_DECLARATIONS.log",
+      "bytes": 22792,
+      "sha256": "b2c69d999ea0f1838d2e9981361ea3da2fcece0de1323135ed6f955e49845c0c"
+    },
+    {
+      "path": "inspect_cli_options.py",
+      "bytes": 4923,
+      "sha256": "f51284f727a75694c896c0bde62906690f028e0028c981ffc35e146f8fa2c03a"
+    },
+    {
+      "path": "cli-option-validation/RESULT.json",
+      "bytes": 8484,
+      "sha256": "633cfd85c9bf391a7e5c5ea5f5ed975686e8059abb7203724a6b2de507318613"
+    },
+    {
+      "path": "cli-option-validation/PARSER_REJECTIONS.json",
+      "bytes": 3030,
+      "sha256": "e8e86639e961e09c2c324ec8cd141c43810d8ea1bdb4220e0783d11541da44b6"
+    },
+    {
+      "path": "production-cli.patch",
+      "bytes": 4820,
+      "sha256": "11de48448e4e63f42b75f83b23c89ed1064daf09bed150b13febd9f9d0d446ff"
+    },
+    {
+      "path": "fixture-cli.patch",
+      "bytes": 3992,
+      "sha256": "686ec63fcbca00d0be5d4492763e0bf80ed1d0631b2e5e8c3d05dbf05973021f"
+    }
+  ],
+  "queries_run": 0,
+  "extractions_run": 0,
+  "compilations_run": 0,
+  "next_execution": "The corrected real fixture extraction and full 39-query wrapper remain for the single hosted qualification run. This local check ran only serial bounded help, version and parser rejection commands, plus the 58 Python controls."
+}

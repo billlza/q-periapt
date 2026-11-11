@@ -1,0 +1,57 @@
+diff --git a/artifact/codeql_wrapper_fixture.py b/artifact/codeql_wrapper_fixture.py
+index beff34c..09f5e73 100644
+--- a/artifact/codeql_wrapper_fixture.py
++++ b/artifact/codeql_wrapper_fixture.py
+@@ -166,7 +166,7 @@ def main():
+             "sysroot_source": {
+                 "original": "/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/toolchain-source/unpack/rust-src-1.98.1/rust-src/lib/rustlib/src/rust/library",
+                 "current": str(output / "rust-source/rust-src/lib/rustlib/src/rust/library")}},
+-        "extraction_qlconfig": "Private empty mapping; ambient QL configuration is not discovered",
++        "extraction_configuration": "Authenticated extractor runtime and controlled environment; test extract has no pack-manager configuration option",
+         "database_scope": "New extraction on Ubuntu 24.04; source bytes fixed, new database byte identity recorded",
+         "local_1024_4096_allocation_used": False,
+         "hosted_profile_receipt_created": False, "sarif_upload_requested": False,
+@@ -280,8 +280,6 @@ def main():
+         official_archive = Path(downloads["codeql"]["path"])
+         extraction_tool = plan.extract_runtime(official_archive, output / "extraction-tool", run.command)
+         extraction_runtime = plan.runtime_inventory(extraction_tool)
+-        qlconfig = output / "extraction-qlconfig.yml"
+-        qlconfig.write_bytes(plan.QLCONFIG)
+         extracted = output / "database-extracted"
+         fixture_root = reproduction / "fixture/env"
+         extraction_environment = {**run.environment,
+@@ -292,7 +290,7 @@ def main():
+         command = [str(extraction_tool / "codeql"), "test", "extract", "-J-Xmx1536M",
+             "--database=" + str(extracted), "--common-caches=" + str(output / "extract-cache"),
+             "--logdir=" + str(output / "extract-logs"), "--show-extractor-output", "--format=json",
+-            "--qlconfig-file=" + str(qlconfig), "--", str(fixture_root)]
++            "--", str(fixture_root)]
+         extraction_record = {"command": command, "cwd": str(output), "maximum_seconds": 300,
+             "environment_inputs": {key: extraction_environment[key] for key in
+                 ("PATH", "CARGO_NET_OFFLINE", "CODEQL_EXTRACTOR_RUST_SYSROOT",
+@@ -318,7 +316,6 @@ def main():
+         require(extraction_record.get("returncode") == 0, "fixture extraction failed")
+         require(plan.runtime_inventory(extraction_tool) == extraction_runtime,
+                 "original extraction runtime changed")
+-        require(qlconfig.read_bytes() == plan.QLCONFIG, "private extraction QL configuration changed")
+         for name, expected in fixture_members.items():
+             require(identity(reproduction / name) == expected, "fixture source changed: " + name)
+         initial = inventory(extracted)
+@@ -350,7 +347,7 @@ def main():
+         save(evidence / "PACK_BEFORE.json", before)
+         sampler = ProcessResourceSampler(evidence)
+         with plan.guard(run, context):
+-            memory_arguments = profile.analysis_memory_arguments(run, "native", qlconfig=context.root / "qlconfig.yml")
++            memory_arguments = profile.analysis_memory_arguments(run, "native")
+             memory = read_json((evidence / "QUERY_MEMORY.json").read_bytes())
+             profile.validate_linux_query_memory(memory, "native")
+             analysis_command = plan.analysis_command(context, run.configuration.database, evidence,
+@@ -382,7 +379,7 @@ def main():
+             sarif_path = evidence / "results.sarif"
+             profile.validate_sarif(read_json(sarif_path.read_bytes()), "native")
+             decoded = run.command("decode-summary", [str(context.codeql), "bqrs", "decode",
+-                "--format=json", "-J-Xmx512M", "--qlconfig-file=" + str(context.root / "qlconfig.yml"),
++                "--format=json", "-J-Xmx512M",
+                 str(results_root / Path(SUMMARY).with_suffix(".bqrs"))],
+                 seconds=120)
+             summary = read_json(decoded)

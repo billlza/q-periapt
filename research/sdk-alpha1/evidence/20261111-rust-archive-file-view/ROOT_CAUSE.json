@@ -1,0 +1,53 @@
+{
+  "archived_source_files": 68,
+  "diagnostic": "not included in files loaded from manifest",
+  "extracted_files": 1241,
+  "extraction_errors": 0,
+  "extraction_warnings": 68,
+  "implementation": {
+    "commit": "92866a994a0c063689b2ffc250b3f062f6591236",
+    "effect": "Load the already authenticated source snapshots into the VFS while retaining their non-module classification.",
+    "environment_key": "CODEQL_EXTRACTOR_RUST_OPTION_EXTRA_INCLUDES",
+    "parent": "df766de8eeeb99d55d3a161e1ca57c47a25db604",
+    "source_and_quality_contract": "The 68 original source bytes and manifests, current compiler roots, complete tracked-source equality, error/warning checks and profile/publication rules remain enforced.",
+    "tree": "67668a82109364dfe3227428b37955500281e9b8",
+    "value": "JSON array containing the original absolute paper/continuity/artifacts/bootstrap directory"
+  },
+  "kind": "qperiapt.rust_archive_file_view_root_cause",
+  "mechanism": "The extractor scanned all tracked sources. The 68 pinned partial source snapshots were absent from the Cargo file view and acquired warning diagnostics, excluding them from SuccessfullyExtractedFile.",
+  "observed_native_run": {
+    "actual_checkout_commit": "0d781a9ddb77bbb5cc9dce5ed1fc82e2a7eeb9f5",
+    "artifact_bytes": 447332,
+    "artifact_id": 13846135084,
+    "artifact_name": "codeql-rust-profile-native-1",
+    "artifact_sha256": "abaffd997a607d833ade347c82149ed65ad3fd64262cb06c8755b9637cae482d",
+    "job_id": 130412772905,
+    "run_attempt": 1,
+    "run_head": "1b47a1931cab2a944902316619cdcf479bd64ab0",
+    "run_id": 42982431606
+  },
+  "readback_run_id": 43027793640,
+  "readback_source_commit": "cd84d3cb051651c0edc634705d086a0824837725",
+  "schema": 1,
+  "source_files": 1241,
+  "source_receipt": {
+    "bytes": 66500,
+    "git_blob": "ba5922b8d7913ce1cfc6dcb4b4816cf2662cb07c",
+    "path": "NATIVE_READBACK.json",
+    "sha256": "c2d7a24f2142c2a498cc3c5b3d186a18eca70c377b6087c72174a70f2683c2b6"
+  },
+  "successfully_extracted_files": 1173,
+  "unexpected_paths": 0,
+  "unextracted_elements": 0,
+  "verification": {
+    "command_receipt": "PROFILE_TESTS.json",
+    "log": "profile-tests.log",
+    "official_extractor_execution_in_this_packet": false,
+    "profile_test_seconds": 1.868,
+    "profile_tests": 38,
+    "returncode": 0
+  },
+  "warning_path_set_equals_missing_archive_path_set": true,
+  "warning_path_set_hash_encoding": "UTF-8 JSON array of lexically sorted relative paths, with compact separators",
+  "warning_path_set_sha256": "96a7ce177a4ec675f8a00cc0e8183ae42890845efd06a0f2d76dce915d30e287"
+}

@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.codeql_2272_cli_parser_rejections",
+  "note": "--help exits before rejecting unknown options; negative controls omit --help. Absent test/BQRS paths prevent an extraction or decode even if parsing changes.",
+  "queries_run": 0,
+  "extractions_run": 0,
+  "compilations_run": 0,
+  "records": [
+    {
+      "label": "test-extract-rejects-qlconfig",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "test",
+        "extract",
+        "--qlconfig-file=/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/qlconfig.yml",
+        "--",
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/input-must-not-exist"
+      ],
+      "returncode": 2,
+      "seconds": 1.3865650220000134,
+      "stdout": {
+        "path": "test-extract-rejects-qlconfig.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "test-extract-rejects-qlconfig.stderr",
+        "bytes": 182,
+        "sha256": "c813c4eb50ce8bf7fbcd6577e04c6a8d2d120ac48c5479b88f86a364b348cb6f"
+      }
+    },
+    {
+      "label": "resolve-ram-rejects-qlconfig",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "resolve",
+        "ram",
+        "--ram=14000",
+        "--off-heap-ram=9329",
+        "--format=json",
+        "--qlconfig-file=/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/qlconfig.yml"
+      ],
+      "returncode": 2,
+      "seconds": 1.1527722999999241,
+      "stdout": {
+        "path": "resolve-ram-rejects-qlconfig.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "resolve-ram-rejects-qlconfig.stderr",
+        "bytes": 181,
+        "sha256": "ad2665dec69b1e3206bb096c26294ca432a7ac24ad6042cf33161cfb744c15e0"
+      }
+    },
+    {
+      "label": "bqrs-decode-rejects-qlconfig",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "bqrs",
+        "decode",
+        "--format=json",
+        "--qlconfig-file=/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/qlconfig.yml",
+        "--",
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/input-must-not-exist.bqrs"
+      ],
+      "returncode": 2,
+      "seconds": 1.2752328389999548,
+      "stdout": {
+        "path": "bqrs-decode-rejects-qlconfig.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "bqrs-decode-rejects-qlconfig.stderr",
+        "bytes": 181,
+        "sha256": "bb92055f718412c6e6796e1476f1dd736f08dceee29059596e1a2c1fa2a173bf"
+      }
+    }
+  ]
+}

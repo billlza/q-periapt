@@ -1,0 +1,18 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-m",
+    "unittest",
+    "-v",
+    "test_android_bounded_command",
+    "-k",
+    "framework"
+  ],
+  "cwd": "/workspace/scratch/qperiapt-recovery-20261111/android-fix/artifact",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "exit_code": 0,
+  "duration_seconds": 3.278008460998535,
+  "production_source_sha256": "fecaf9e3f7a59152da226eb5e9d242485c137c5c3e1fd47d889e49ec08f8578a",
+  "test_source_sha256": "45940933039a530d7c1a099ddbf80169bcdf74581eadc924ab61fb55b32a23f9",
+  "log_sha256": "5e724845d81e0325e4d6f1ed40df7c614892e83a8147256ff6f03d96f5aa1c89"
+}

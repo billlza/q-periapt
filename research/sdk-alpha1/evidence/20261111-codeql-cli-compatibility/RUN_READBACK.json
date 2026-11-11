@@ -1,0 +1,239 @@
+{
+  "schema_version": 1,
+  "kind": "qperiapt.codeql_cli_compatibility_readback",
+  "repository": "billlza/q-periapt",
+  "source_commit": "cd84d3cb051651c0edc634705d086a0824837725",
+  "run_id": 43027793640,
+  "job_id": 130546797767,
+  "run_url": "https://github.com/billlza/q-periapt/actions/runs/43027793640",
+  "artifact": {
+    "id": 13858241410,
+    "name": "codeql-wrapper-fixture-43027793640-1",
+    "stored_path": "original-artifact.zip",
+    "original_download_filename": "codeql-wrapper-fixture-43027793640-1.zip",
+    "bytes": 1111042,
+    "sha256": "9ebece8ac152f57aca7590f1cc19cac982099a4fcb155086ea4eb2ba4d25c6bf",
+    "api_readback": "ARTIFACT_API_READBACK.json",
+    "member_inventory": "ARTIFACT_MEMBERS.json"
+  },
+  "job_log": {
+    "path": "workflow-job-130546797767.log",
+    "bytes": 318039,
+    "sha256": "76f5347f976ff684426330091643ec564eade35ab699933f8cc6823db0ad2cc7",
+    "git_blob": "e09273bf7abb6ea53e864e79b7a782c3a23b3de2",
+    "scope": "Complete decoded original job log, unchanged; original Git blob reused."
+  },
+  "original_artifact_extracted_files_verified": {
+    "extract.json": "qperiapt-codeql-wrapper-fixture/evidence/extract.json",
+    "extract.started.json": "qperiapt-codeql-wrapper-fixture/evidence/extract.started.json",
+    "extract.stderr": "qperiapt-codeql-wrapper-fixture/evidence/extract.stderr",
+    "extract.stdout": "qperiapt-codeql-wrapper-fixture/evidence/extract.stdout",
+    "FIXTURE_FAILURE.json": "qperiapt-codeql-wrapper-fixture/evidence/FIXTURE_FAILURE.json"
+  },
+  "completed_before_failure": {
+    "workflow_contract_tests": 9,
+    "workflow_contract_unittest_seconds": 0.003,
+    "workflow_contract_result": "success",
+    "historical_artifact_readbacks": 2,
+    "historical_artifact_readback_result": "success",
+    "readback_inputs": [
+      {
+        "topic": "native Rust source quality",
+        "original_run": 42982431606,
+        "original_artifact_id": 13846135084
+      },
+      {
+        "topic": "Android API23 readiness",
+        "original_run": 43010024394,
+        "original_artifact_id": 13857122005
+      }
+    ],
+    "fixed_source_input_pins": 12,
+    "tool_archives_and_toolchain_setup": "completed before test extract"
+  },
+  "stopped_operation": {
+    "command": "codeql test extract",
+    "returncode": 2,
+    "seconds": 0.266631261,
+    "reason": "Unknown --qlconfig-file option",
+    "extraction_started": false,
+    "query_evaluation_started": false,
+    "compilations_performed": 0
+  },
+  "subsequent_local_regression": {
+    "tests": 58,
+    "unittest_seconds": 2.401,
+    "returncode": 0,
+    "receipt": "TARGETED_TESTS.json",
+    "log": "targeted-python-tests.log",
+    "scope": "Pure Python producer/plan controls and wrapper AST parse. Separate from hosted workflow contracts and query execution."
+  },
+  "parser_diagnostics": {
+    "path": "parser-controls.zip",
+    "container_origin": "New deterministic ZIP containing unchanged existing local CLI parser/help records. It is not the original hosted artifact.",
+    "members": [
+      {
+        "path": "PARSER_REJECTIONS.json",
+        "bytes": 3030,
+        "sha256": "e8e86639e961e09c2c324ec8cd141c43810d8ea1bdb4220e0783d11541da44b6"
+      },
+      {
+        "path": "RESULT.json",
+        "bytes": 8484,
+        "sha256": "633cfd85c9bf391a7e5c5ea5f5ed975686e8059abb7203724a6b2de507318613"
+      },
+      {
+        "path": "analyze-valid-qlconfig-help.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "analyze-valid-qlconfig-help.stdout",
+        "bytes": 20700,
+        "sha256": "7c0c41d5ec821ff49c6484e088abab04f63463692539e244c4554a190fb58c8c"
+      },
+      {
+        "path": "bqrs-decode-help.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "bqrs-decode-help.stdout",
+        "bytes": 2183,
+        "sha256": "dc13d92053557db4fc30a66681d30d23f2d01a86598f47cf2aa8f579bbc80632"
+      },
+      {
+        "path": "bqrs-decode-invalid-qlconfig.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "bqrs-decode-invalid-qlconfig.stdout",
+        "bytes": 2183,
+        "sha256": "dc13d92053557db4fc30a66681d30d23f2d01a86598f47cf2aa8f579bbc80632"
+      },
+      {
+        "path": "bqrs-decode-rejects-qlconfig.stderr",
+        "bytes": 181,
+        "sha256": "bb92055f718412c6e6796e1476f1dd736f08dceee29059596e1a2c1fa2a173bf"
+      },
+      {
+        "path": "bqrs-decode-rejects-qlconfig.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "qlconfig.yml",
+        "bytes": 3,
+        "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+      },
+      {
+        "path": "resolve-queries-valid-qlconfig-help.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "resolve-queries-valid-qlconfig-help.stdout",
+        "bytes": 7590,
+        "sha256": "68d8b164301f626c8c6432f38b507d4e73a3ff5056cb6804f01aa07a09148cec"
+      },
+      {
+        "path": "resolve-ram-help.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "resolve-ram-help.stdout",
+        "bytes": 1752,
+        "sha256": "a9cc1dc67e1e0f3cf911fede4a8e8af5ca6324b75b1fb77f709e408b2fc001f4"
+      },
+      {
+        "path": "resolve-ram-invalid-qlconfig.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "resolve-ram-invalid-qlconfig.stdout",
+        "bytes": 1752,
+        "sha256": "a9cc1dc67e1e0f3cf911fede4a8e8af5ca6324b75b1fb77f709e408b2fc001f4"
+      },
+      {
+        "path": "resolve-ram-rejects-qlconfig.stderr",
+        "bytes": 181,
+        "sha256": "ad2665dec69b1e3206bb096c26294ca432a7ac24ad6042cf33161cfb744c15e0"
+      },
+      {
+        "path": "resolve-ram-rejects-qlconfig.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "test-extract-help.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "test-extract-help.stdout",
+        "bytes": 2424,
+        "sha256": "b3af487aca65e20183c7404b7d07aa560f66e3e0d673c9266cf0f68c08a5b688"
+      },
+      {
+        "path": "test-extract-invalid-qlconfig.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "test-extract-invalid-qlconfig.stdout",
+        "bytes": 2424,
+        "sha256": "b3af487aca65e20183c7404b7d07aa560f66e3e0d673c9266cf0f68c08a5b688"
+      },
+      {
+        "path": "test-extract-rejects-qlconfig.stderr",
+        "bytes": 182,
+        "sha256": "c813c4eb50ce8bf7fbcd6577e04c6a8d2d120ac48c5479b88f86a364b348cb6f"
+      },
+      {
+        "path": "test-extract-rejects-qlconfig.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "version-help.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "version-help.stdout",
+        "bytes": 592,
+        "sha256": "f4f7d91ab6dc6d4841b8ad73042bacce12c6132605a5134952987a8146cb5a74"
+      },
+      {
+        "path": "version-invalid-qlconfig.stderr",
+        "bytes": 177,
+        "sha256": "519000653cea23f20453a3ba4ec6d2a2a065682ac50917bc6871e0ab330ce89d"
+      },
+      {
+        "path": "version-invalid-qlconfig.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "version.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "version.stdout",
+        "bytes": 7,
+        "sha256": "76aea453698ecab1f061990a3b977d5e6f28fde9ede6ee73d8e8321d1e725426"
+      }
+    ],
+    "interpretation": "Four unsupported command options were confirmed by exit-2 controls without --help. Earlier combinations with --help returned help before option validation and are preserved as inconclusive controls."
+  },
+  "fix_commits": {
+    "production": "bacd692a15d3a9d29cbb39324396f04311cea40d",
+    "fixture": "10729f12f62029901ec700266e0f5dd400c0011e"
+  },
+  "excluded_material": "Official runtime archive, JAR, raw class bytes and bulk declaration dumps. CLI_SUPPORT_REVIEW preserves fixed JAR identity, per-class hashes and superclass/mixin/arg-group closure. No later wrapper run or second-wrapper workflow/display change is included.",
+  "archive_operation": "Copy and hash verification only; no CLI, JVM, extraction, query or test was executed while assembling this packet."
+}

@@ -1,0 +1,39 @@
+{
+  "files": [
+    {
+      "bytes": 66500,
+      "path": "NATIVE_READBACK.json",
+      "sha256": "c2d7a24f2142c2a498cc3c5b3d186a18eca70c377b6087c72174a70f2683c2b6"
+    },
+    {
+      "bytes": 1152,
+      "path": "PROFILE_TESTS.json",
+      "sha256": "c94482d94862f546ffad576aa170f01cc061296f9d3905f3fcba4adc7797fbd1"
+    },
+    {
+      "bytes": 4146,
+      "path": "README.md",
+      "sha256": "4568a959e67e48cf41895383cb222195d392b6ad03d7898d12b39f6c96fb5a7a"
+    },
+    {
+      "bytes": 2586,
+      "path": "ROOT_CAUSE.json",
+      "sha256": "588d5ca33231fd348f40da9fdee22be9dbb80d124fe62aded918ba603e3732ca"
+    },
+    {
+      "bytes": 5251,
+      "path": "UPSTREAM_SOURCES.json",
+      "sha256": "45a4414238c84f2cc6af31986a160371577371982be6cb058ad16548b6a1dabb"
+    },
+    {
+      "bytes": 7652,
+      "path": "profile-tests.log",
+      "sha256": "eff608618c3856533dff617c11d5a254a91bc457ed4f1b628e78e86e2bffbb71"
+    }
+  ],
+  "kind": "qperiapt.rust_archive_file_view_evidence",
+  "manifest_scope": "The manifest binds all payload files and excludes itself.",
+  "payload_bytes": 87287,
+  "payload_files": 6,
+  "schema": 1
+}

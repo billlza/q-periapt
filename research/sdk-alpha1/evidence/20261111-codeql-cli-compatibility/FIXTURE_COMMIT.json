@@ -1,0 +1,9 @@
+{
+  "commit": "10729f12f62029901ec700266e0f5dd400c0011e",
+  "tree": "5386a5b9a2bc93074ca06d6e847ad9c8ebaa1dcd",
+  "parent": "bacd692a15d3a9d29cbb39324396f04311cea40d",
+  "files": [
+    "artifact/codeql_wrapper_fixture.py"
+  ],
+  "identity": "月溅星河 <149552943+billlza@users.noreply.github.com>\n月溅星河 <149552943+billlza@users.noreply.github.com>"
+}

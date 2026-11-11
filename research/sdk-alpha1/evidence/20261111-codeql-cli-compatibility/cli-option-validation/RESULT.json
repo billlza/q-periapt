@@ -1,0 +1,256 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.codeql_2272_cli_option_validation",
+  "archive_sha256": "acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea",
+  "jar_sha256": "7af8d9c682a7fa9ec825951b516fe857529e16d077f9d9e13cf6fdb9ad7a8b56",
+  "queries_run": 0,
+  "extractions_run": 0,
+  "compilations_run": 0,
+  "records": [
+    {
+      "label": "version",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "version",
+        "--format=terse"
+      ],
+      "maximum_seconds": 30,
+      "returncode": 0,
+      "seconds": 1.266403984000135,
+      "stdout": {
+        "path": "version.stdout",
+        "bytes": 7,
+        "sha256": "76aea453698ecab1f061990a3b977d5e6f28fde9ede6ee73d8e8321d1e725426"
+      },
+      "stderr": {
+        "path": "version.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "label": "test-extract-help",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "test",
+        "extract",
+        "--help"
+      ],
+      "maximum_seconds": 30,
+      "returncode": 0,
+      "seconds": 0.7961344319999171,
+      "stdout": {
+        "path": "test-extract-help.stdout",
+        "bytes": 2424,
+        "sha256": "b3af487aca65e20183c7404b7d07aa560f66e3e0d673c9266cf0f68c08a5b688"
+      },
+      "stderr": {
+        "path": "test-extract-help.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "label": "version-help",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "version",
+        "--help"
+      ],
+      "maximum_seconds": 30,
+      "returncode": 0,
+      "seconds": 0.6434422449999602,
+      "stdout": {
+        "path": "version-help.stdout",
+        "bytes": 592,
+        "sha256": "f4f7d91ab6dc6d4841b8ad73042bacce12c6132605a5134952987a8146cb5a74"
+      },
+      "stderr": {
+        "path": "version-help.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "label": "resolve-ram-help",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "resolve",
+        "ram",
+        "--help"
+      ],
+      "maximum_seconds": 30,
+      "returncode": 0,
+      "seconds": 0.6161672910000107,
+      "stdout": {
+        "path": "resolve-ram-help.stdout",
+        "bytes": 1752,
+        "sha256": "a9cc1dc67e1e0f3cf911fede4a8e8af5ca6324b75b1fb77f709e408b2fc001f4"
+      },
+      "stderr": {
+        "path": "resolve-ram-help.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "label": "bqrs-decode-help",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "bqrs",
+        "decode",
+        "--help"
+      ],
+      "maximum_seconds": 30,
+      "returncode": 0,
+      "seconds": 0.7572632100000192,
+      "stdout": {
+        "path": "bqrs-decode-help.stdout",
+        "bytes": 2183,
+        "sha256": "dc13d92053557db4fc30a66681d30d23f2d01a86598f47cf2aa8f579bbc80632"
+      },
+      "stderr": {
+        "path": "bqrs-decode-help.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "label": "test-extract-invalid-qlconfig",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "test",
+        "extract",
+        "--qlconfig-file=/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/qlconfig.yml",
+        "--help"
+      ],
+      "maximum_seconds": 30,
+      "returncode": 0,
+      "seconds": 0.7805334219999622,
+      "stdout": {
+        "path": "test-extract-invalid-qlconfig.stdout",
+        "bytes": 2424,
+        "sha256": "b3af487aca65e20183c7404b7d07aa560f66e3e0d673c9266cf0f68c08a5b688"
+      },
+      "stderr": {
+        "path": "test-extract-invalid-qlconfig.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "label": "version-invalid-qlconfig",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "version",
+        "--format=terse",
+        "--qlconfig-file=/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/qlconfig.yml"
+      ],
+      "maximum_seconds": 30,
+      "returncode": 2,
+      "seconds": 0.6631312759998309,
+      "stdout": {
+        "path": "version-invalid-qlconfig.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "path": "version-invalid-qlconfig.stderr",
+        "bytes": 177,
+        "sha256": "519000653cea23f20453a3ba4ec6d2a2a065682ac50917bc6871e0ab330ce89d"
+      }
+    },
+    {
+      "label": "resolve-ram-invalid-qlconfig",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "resolve",
+        "ram",
+        "--qlconfig-file=/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/qlconfig.yml",
+        "--help"
+      ],
+      "maximum_seconds": 30,
+      "returncode": 0,
+      "seconds": 0.7663804050000635,
+      "stdout": {
+        "path": "resolve-ram-invalid-qlconfig.stdout",
+        "bytes": 1752,
+        "sha256": "a9cc1dc67e1e0f3cf911fede4a8e8af5ca6324b75b1fb77f709e408b2fc001f4"
+      },
+      "stderr": {
+        "path": "resolve-ram-invalid-qlconfig.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "label": "bqrs-decode-invalid-qlconfig",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "bqrs",
+        "decode",
+        "--qlconfig-file=/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/qlconfig.yml",
+        "--help"
+      ],
+      "maximum_seconds": 30,
+      "returncode": 0,
+      "seconds": 0.6240528910000194,
+      "stdout": {
+        "path": "bqrs-decode-invalid-qlconfig.stdout",
+        "bytes": 2183,
+        "sha256": "dc13d92053557db4fc30a66681d30d23f2d01a86598f47cf2aa8f579bbc80632"
+      },
+      "stderr": {
+        "path": "bqrs-decode-invalid-qlconfig.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "label": "analyze-valid-qlconfig-help",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "database",
+        "analyze",
+        "--qlconfig-file=/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/qlconfig.yml",
+        "--help"
+      ],
+      "maximum_seconds": 30,
+      "returncode": 0,
+      "seconds": 0.9682871139998497,
+      "stdout": {
+        "path": "analyze-valid-qlconfig-help.stdout",
+        "bytes": 20700,
+        "sha256": "7c0c41d5ec821ff49c6484e088abab04f63463692539e244c4554a190fb58c8c"
+      },
+      "stderr": {
+        "path": "analyze-valid-qlconfig-help.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "label": "resolve-queries-valid-qlconfig-help",
+      "argv": [
+        "/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/codeql/codeql",
+        "resolve",
+        "queries",
+        "--qlconfig-file=/workspace/scratch/qperiapt-recovery-20261111/wrapper-diagnostics/cli-option-validation/qlconfig.yml",
+        "--help"
+      ],
+      "maximum_seconds": 30,
+      "returncode": 0,
+      "seconds": 0.8328874250000808,
+      "stdout": {
+        "path": "resolve-queries-valid-qlconfig-help.stdout",
+        "bytes": 7590,
+        "sha256": "68d8b164301f626c8c6432f38b507d4e73a3ff5056cb6804f01aa07a09148cec"
+      },
+      "stderr": {
+        "path": "resolve-queries-valid-qlconfig-help.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ]
+}
