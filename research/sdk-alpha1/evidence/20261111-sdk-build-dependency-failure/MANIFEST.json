@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "directory": "research/sdk-alpha1/evidence/20261111-sdk-build-dependency-failure",
+  "parent_commit": "239f2684e9baba5915c5a5f5f48b1749ec872683",
+  "source_commit": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+  "files": [
+    {
+      "path": "FAILURE_ANALYSIS.json",
+      "bytes": 19971,
+      "sha256": "f9f5374129504c90e4f048987100ef773801d6f8653baedf30925093bb32deff",
+      "git_blob": "d2f8ef63218bebc8ed5101342a385a45b9bbdc20"
+    },
+    {
+      "path": "JOBS_SNAPSHOT.json",
+      "bytes": 36619,
+      "sha256": "4ec79ac0c3221d1156a0d9a371e8c9c56668f5d1cc2405aeba433d1b768a295b",
+      "git_blob": "9f16f5a3a2c5f1ed9f608b5a1e97ad285b1d96a4"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2741,
+      "sha256": "7d8256a93d181d82d2378f80e12b4dba59c0780b3f679594e2891c68f44b6b13",
+      "git_blob": "12708a1fd5494d09dbaeec76877617cc983c2ccf"
+    },
+    {
+      "path": "logs/130625388353.log",
+      "bytes": 49371,
+      "sha256": "458d667cf8f4e949ad75edb4f77795875e472c7a6a2ecc64848cee94785f3f20",
+      "git_blob": "18c5b464d019ec1e10d93bff6bc4565e80171474"
+    },
+    {
+      "path": "logs/130625388744.log",
+      "bytes": 49103,
+      "sha256": "9c7380a181fd299ca34b3f103f76a6536ffe0e07390793859ff60436e4cd0f74",
+      "git_blob": "b645cd7e44282f2fa39c4f95c69baf015bddb93a"
+    },
+    {
+      "path": "logs/130625389933.log",
+      "bytes": 51504,
+      "sha256": "842955fb91dc24e9427fd1f141b5eaddc875b576b37b2c40509c005e461dea9e",
+      "git_blob": "1eeb2bafd5a3b587e8aad7d67f4643795ef4fe3d"
+    },
+    {
+      "path": "logs/130625390075.log",
+      "bytes": 51455,
+      "sha256": "4f05f952ce0c35f9b18f97392f4bf9dbcd7b24b9f1df57707abc674fd912e236",
+      "git_blob": "60b5f22b315c4209f432f520ab12a11803291e20"
+    },
+    {
+      "path": "logs/130625398754.log",
+      "bytes": 74207,
+      "sha256": "a7c41de10a4b393bcae1fa1f6124bbac8e4bd9444e99626e9cc0fd2f481ecfa1",
+      "git_blob": "9ef4d37fa1f0e57801a5f87abf9981282bb8ae78"
+    },
+    {
+      "path": "logs/130625398832.log",
+      "bytes": 51119,
+      "sha256": "382582d9e047e736770637f6025651156560b69906cd0fde36f43d5b44c9a49d",
+      "git_blob": "1ed23d63dde8c0d603732fe2abc3de0007e8850f"
+    },
+    {
+      "path": "logs/130625398884.log",
+      "bytes": 72766,
+      "sha256": "211b27fa7cfcaf996e362ed98d7adb8ee453d7d95cf0dd65ef747386afe170a4",
+      "git_blob": "f7d221bf7165bdbb4a9a581441be242851555031"
+    }
+  ]
+}

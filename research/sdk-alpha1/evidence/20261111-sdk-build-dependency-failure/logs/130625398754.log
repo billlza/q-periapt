@@ -1,0 +1,787 @@
+﻿2026-11-11T15:38:22.8152425Z Current runner version: '2.338.2'
+2026-11-11T15:38:22.8173604Z ##[group]Runner Image Provisioner
+2026-11-11T15:38:22.8174403Z Hosted Compute Agent
+2026-11-11T15:38:22.8174937Z Version: 20261028.624
+2026-11-11T15:38:22.8175475Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-11T15:38:22.8176164Z Build Date: 2026-10-28T21:51:42Z
+2026-11-11T15:38:22.8176769Z Worker ID: {92aec75a-1500-4030-a9ea-8353ebff79e2}
+2026-11-11T15:38:22.8177540Z Region: westus2
+2026-11-11T15:38:22.8178099Z Cloud: Azure
+2026-11-11T15:38:22.8178551Z ##[endgroup]
+2026-11-11T15:38:22.8179758Z ##[group]Operating System
+2026-11-11T15:38:22.8180312Z Ubuntu
+2026-11-11T15:38:22.8180820Z 22.04.5
+2026-11-11T15:38:22.8181304Z LTS
+2026-11-11T15:38:22.8181756Z ##[endgroup]
+2026-11-11T15:38:22.8182300Z ##[group]Runner Image
+2026-11-11T15:38:22.8182812Z Image: ubuntu-22.04
+2026-11-11T15:38:22.8183285Z Version: 20261101.347.1
+2026-11-11T15:38:22.8184447Z Included Software: https://github.com/actions/runner-images/blob/ubuntu22/20261101.347/images/ubuntu/Ubuntu2204-Readme.md
+2026-11-11T15:38:22.8185771Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu22%2F20261101.347
+2026-11-11T15:38:22.8186584Z ##[endgroup]
+2026-11-11T15:38:22.8187728Z ##[group]GITHUB_TOKEN Permissions
+2026-11-11T15:38:22.8189424Z Contents: read
+2026-11-11T15:38:22.8190037Z Metadata: read
+2026-11-11T15:38:22.8190560Z ##[endgroup]
+2026-11-11T15:38:22.8192266Z Secret source: Actions
+2026-11-11T15:38:22.8193133Z Cache mode: write
+2026-11-11T15:38:22.8193930Z Prepare workflow directory
+2026-11-11T15:38:22.8504730Z Prepare all required actions
+2026-11-11T15:38:22.8546359Z Getting action download info
+2026-11-11T15:38:23.2044351Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-11T15:38:23.4459296Z Download action repository 'actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1' (SHA:ece7cb06caefa5fff74198d8649806c4678c61a1)
+2026-11-11T15:38:23.6151559Z Download action repository 'dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c' (SHA:2c7215f132e9ebf062739d9130488b56d53c060c)
+2026-11-11T15:38:23.7660815Z Download action repository 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' (SHA:043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
+2026-11-11T15:38:24.1680006Z Complete job name: abi2-linux-package (ubuntu-22.04, x86_64-unknown-linux-gnu)
+2026-11-11T15:38:24.2433437Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-11T15:38:24.2434362Z with:
+2026-11-11T15:38:24.2434745Z   persist-credentials: false
+2026-11-11T15:38:24.2435199Z   fetch-depth: 0
+2026-11-11T15:38:24.2435601Z   repository: billlza/q-periapt
+2026-11-11T15:38:24.2439020Z   token: ***
+2026-11-11T15:38:24.2439415Z   ssh-strict: true
+2026-11-11T15:38:24.2439803Z   ssh-user: git
+2026-11-11T15:38:24.2440176Z   clean: true
+2026-11-11T15:38:24.2440552Z   sparse-checkout-cone-mode: true
+2026-11-11T15:38:24.2441001Z   fetch-tags: false
+2026-11-11T15:38:24.2441421Z   show-progress: true
+2026-11-11T15:38:24.2441799Z   lfs: false
+2026-11-11T15:38:24.2442173Z   submodules: false
+2026-11-11T15:38:24.2442568Z   set-safe-directory: true
+2026-11-11T15:38:24.2443002Z   allow-unsafe-pr-checkout: false
+2026-11-11T15:38:24.2443620Z env:
+2026-11-11T15:38:24.2443976Z   CARGO_TERM_COLOR: always
+2026-11-11T15:38:24.2444416Z   RUSTFLAGS: -D warnings
+2026-11-11T15:38:24.2444876Z   CARGO_NET_RETRY: 10
+2026-11-11T15:38:24.2445292Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:38:24.2445743Z   GIT_CONFIG_COUNT: 1
+2026-11-11T15:38:24.2446149Z   GIT_CONFIG_KEY_0: init.defaultBranch
+2026-11-11T15:38:24.2446611Z   GIT_CONFIG_VALUE_0: main
+2026-11-11T15:38:24.2447105Z ##[endgroup]
+2026-11-11T15:38:24.4893355Z Syncing repository: billlza/q-periapt
+2026-11-11T15:38:24.4895694Z ##[group]Getting Git version info
+2026-11-11T15:38:24.4896708Z Working directory is '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T15:38:24.4898458Z [command]/usr/bin/git version
+2026-11-11T15:38:24.5227713Z git version 2.56.0
+2026-11-11T15:38:24.5249914Z ##[endgroup]
+2026-11-11T15:38:24.5257722Z Temporarily overriding HOME='/home/runner/work/_temp/68c62bf0-c23e-4ca4-a6f3-5953aed64569' before making global git config changes
+2026-11-11T15:38:24.5259697Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T15:38:24.5262305Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T15:38:24.5307487Z Deleting the contents of '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T15:38:24.5310938Z ##[group]Determining repository object format
+2026-11-11T15:38:24.5312668Z ##[endgroup]
+2026-11-11T15:38:24.5313747Z ##[group]Initializing the repository
+2026-11-11T15:38:24.5317480Z [command]/usr/bin/git init /home/runner/work/q-periapt/q-periapt
+2026-11-11T15:38:24.5413718Z Initialized empty Git repository in /home/runner/work/q-periapt/q-periapt/.git/
+2026-11-11T15:38:24.5427474Z [command]/usr/bin/git remote add origin https://github.com/billlza/q-periapt
+2026-11-11T15:38:24.5473761Z ##[endgroup]
+2026-11-11T15:38:24.5474842Z ##[group]Disabling automatic garbage collection
+2026-11-11T15:38:24.5476710Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-11T15:38:24.5515552Z ##[endgroup]
+2026-11-11T15:38:24.5516469Z ##[group]Setting up auth
+2026-11-11T15:38:24.5517351Z Removing SSH command configuration
+2026-11-11T15:38:24.5521640Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T15:38:24.5556585Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T15:38:24.5866200Z Removing HTTP extra header
+2026-11-11T15:38:24.5871337Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T15:38:24.5915785Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T15:38:24.6135712Z Removing includeIf entries pointing to credentials config files
+2026-11-11T15:38:24.6141174Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T15:38:24.6178142Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T15:38:24.6401778Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-b9a735fe-8c94-4192-b95f-287bdaac1fdd.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-11T15:38:24.6441716Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path /home/runner/work/_temp/git-credentials-b9a735fe-8c94-4192-b95f-287bdaac1fdd.config
+2026-11-11T15:38:24.6477938Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-b9a735fe-8c94-4192-b95f-287bdaac1fdd.config
+2026-11-11T15:38:24.6514981Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-b9a735fe-8c94-4192-b95f-287bdaac1fdd.config
+2026-11-11T15:38:24.6552496Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-b9a735fe-8c94-4192-b95f-287bdaac1fdd.config
+2026-11-11T15:38:24.6586719Z ##[endgroup]
+2026-11-11T15:38:24.6587808Z ##[group]Fetching the repository
+2026-11-11T15:38:24.6594902Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/* +b72f7f8e8e6f2526ebab4b825b7d47402ac9835f:refs/remotes/pull/121/merge
+2026-11-11T15:40:59.5390792Z From https://github.com/billlza/q-periapt
+2026-11-11T15:40:59.5392367Z  * [new branch]        audit/text-integrity                     -> origin/audit/text-integrity
+2026-11-11T15:40:59.5393797Z  * [new branch]        build/current-continuity-android         -> origin/build/current-continuity-android
+2026-11-11T15:40:59.5394700Z  * [new branch]        build/linux-native-companion             -> origin/build/linux-native-companion
+2026-11-11T15:40:59.5395585Z  * [new branch]        chore/dependency-refresh-0.1.5           -> origin/chore/dependency-refresh-0.1.5
+2026-11-11T15:40:59.5396600Z  * [new branch]        ci/retain-pr-checks-without-duplicate-push -> origin/ci/retain-pr-checks-without-duplicate-push
+2026-11-11T15:40:59.5397727Z  * [new branch]        dependabot/cargo/cc-1.4.4                -> origin/dependabot/cargo/cc-1.4.4
+2026-11-11T15:40:59.5398604Z  * [new branch]        dependabot/cargo/fuzz/arbitrary-1.5.0    -> origin/dependabot/cargo/fuzz/arbitrary-1.5.0
+2026-11-11T15:40:59.5399471Z  * [new branch]        dependabot/cargo/redb-4.2.0              -> origin/dependabot/cargo/redb-4.2.0
+2026-11-11T15:40:59.5400587Z  * [new branch]        dependabot/docker/formal/ocaml/opam-debian-12-ocaml-5.6 -> origin/dependabot/docker/formal/ocaml/opam-debian-12-ocaml-5.6
+2026-11-11T15:40:59.5401808Z  * [new branch]        dependabot/github_actions/actions/attest-4.2.0 -> origin/dependabot/github_actions/actions/attest-4.2.0
+2026-11-11T15:40:59.5402909Z  * [new branch]        dependabot/github_actions/actions/setup-node-7.0.0 -> origin/dependabot/github_actions/actions/setup-node-7.0.0
+2026-11-11T15:40:59.5404170Z  * [new branch]        dependabot/github_actions/github/codeql-action/analyze-4.37.3 -> origin/dependabot/github_actions/github/codeql-action/analyze-4.37.3
+2026-11-11T15:40:59.5405364Z  * [new branch]        dependabot/gradle/bindings/kotlin/jvm-2.4.21 -> origin/dependabot/gradle/bindings/kotlin/jvm-2.4.21
+2026-11-11T15:40:59.5406395Z  * [new branch]        diagnostic/codeql-process-resources      -> origin/diagnostic/codeql-process-resources
+2026-11-11T15:40:59.5407481Z  * [new branch]        diagnostic/codeql-summary-cache          -> origin/diagnostic/codeql-summary-cache
+2026-11-11T15:40:59.5408346Z  * [new branch]        diagnostic/codeql-summary-joins          -> origin/diagnostic/codeql-summary-joins
+2026-11-11T15:40:59.5409251Z  * [new branch]        diagnostic/codeql-summary-projection     -> origin/diagnostic/codeql-summary-projection
+2026-11-11T15:40:59.5410407Z  * [new branch]        diagnostic/codeql-wrapper-fixture        -> origin/diagnostic/codeql-wrapper-fixture
+2026-11-11T15:40:59.5411298Z  * [new branch]        diagnostic/wasm-summary-memory           -> origin/diagnostic/wasm-summary-memory
+2026-11-11T15:40:59.5412169Z  * [new branch]        docs/policy-update-authority-rfc         -> origin/docs/policy-update-authority-rfc
+2026-11-11T15:40:59.5413083Z  * [new branch]        feat/accountable-prekey-directory        -> origin/feat/accountable-prekey-directory
+2026-11-11T15:40:59.5414054Z  * [new branch]        feat/continuity-android-distribution     -> origin/feat/continuity-android-distribution
+2026-11-11T15:40:59.5415102Z  * [new branch]        feat/continuity-publication-verification -> origin/feat/continuity-publication-verification
+2026-11-11T15:40:59.5416072Z  * [new branch]        feat/crates-io-uploader-generator        -> origin/feat/crates-io-uploader-generator
+2026-11-11T15:40:59.5416871Z  * [new branch]        fix/abi2-release-evidence                -> origin/fix/abi2-release-evidence
+2026-11-11T15:40:59.5418061Z  * [new branch]        fix/abi2-release-risk-closure            -> origin/fix/abi2-release-risk-closure
+2026-11-11T15:40:59.5418639Z  * [new branch]        fix/adjudicated-code-scanning-gate       -> origin/fix/adjudicated-code-scanning-gate
+2026-11-11T15:40:59.5419191Z  * [new branch]        fix/android-abi-license-union            -> origin/fix/android-abi-license-union
+2026-11-11T15:40:59.5419755Z  * [new branch]        fix/android-command-text                 -> origin/fix/android-command-text
+2026-11-11T15:40:59.5420357Z  * [new branch]        fix/android-framework-readiness-20261110 -> origin/fix/android-framework-readiness-20261110
+2026-11-11T15:40:59.5421124Z  * [new branch]        fix/apple-sim-fixed-fips202-profile      -> origin/fix/apple-sim-fixed-fips202-profile
+2026-11-11T15:40:59.5421659Z  * [new branch]        fix/archive-snapshot-ownership           -> origin/fix/archive-snapshot-ownership
+2026-11-11T15:40:59.5422203Z  * [new branch]        fix/authority-confirmation-closure       -> origin/fix/authority-confirmation-closure
+2026-11-11T15:40:59.5422818Z  * [new branch]        fix/browser-phase-evidence-integrity     -> origin/fix/browser-phase-evidence-integrity
+2026-11-11T15:40:59.5423336Z  * [new branch]        fix/ci-evidence-and-cleanup              -> origin/fix/ci-evidence-and-cleanup
+2026-11-11T15:40:59.5423808Z  * [new branch]        fix/codeql-analysis-queue                -> origin/fix/codeql-analysis-queue
+2026-11-11T15:40:59.5424318Z  * [new branch]        fix/codeql-analysis-snapshots            -> origin/fix/codeql-analysis-snapshots
+2026-11-11T15:40:59.5424877Z  * [new branch]        fix/codeql-bootstrap-archive-inventory   -> origin/fix/codeql-bootstrap-archive-inventory
+2026-11-11T15:40:59.5425438Z  * [new branch]        fix/codeql-completion-cost               -> origin/fix/codeql-completion-cost
+2026-11-11T15:40:59.5425957Z  * [new branch]        fix/codeql-macos-receipt-paths           -> origin/fix/codeql-macos-receipt-paths
+2026-11-11T15:40:59.5426515Z  * [new branch]        fix/codeql-partial-query-evidence        -> origin/fix/codeql-partial-query-evidence
+2026-11-11T15:40:59.5427255Z  * [new branch]        fix/codeql-production-validation         -> origin/fix/codeql-production-validation
+2026-11-11T15:40:59.5428125Z  * [new branch]        fix/codeql-sampler-stop                  -> origin/fix/codeql-sampler-stop
+2026-11-11T15:40:59.5428766Z  * [new branch]        fix/codeql-stage34-progress              -> origin/fix/codeql-stage34-progress
+2026-11-11T15:40:59.5429295Z  * [new branch]        fix/continuity-spec-lock-rebuild         -> origin/fix/continuity-spec-lock-rebuild
+2026-11-11T15:40:59.5429837Z  * [new branch]        fix/device-evidence-isolation            -> origin/fix/device-evidence-isolation
+2026-11-11T15:40:59.5430339Z  * [new branch]        fix/diagnostic-tooling-ci                -> origin/fix/diagnostic-tooling-ci
+2026-11-11T15:40:59.5430884Z  * [new branch]        fix/dual-state-performance-claims        -> origin/fix/dual-state-performance-claims
+2026-11-11T15:40:59.5431641Z  * [new branch]        fix/finished-authentication              -> origin/fix/finished-authentication
+2026-11-11T15:40:59.5432209Z  * [new branch]        fix/finished-authentication-v2           -> origin/fix/finished-authentication-v2
+2026-11-11T15:40:59.5432759Z  * [new branch]        fix/formal-asset-retry-budget            -> origin/fix/formal-asset-retry-budget
+2026-11-11T15:40:59.5433343Z  * [new branch]        fix/installed-counterpart-and-ci-inputs  -> origin/fix/installed-counterpart-and-ci-inputs
+2026-11-11T15:40:59.5433945Z  * [new branch]        fix/installed-state-test-suite           -> origin/fix/installed-state-test-suite
+2026-11-11T15:40:59.5434479Z  * [new branch]        fix/lease-receipt-durability             -> origin/fix/lease-receipt-durability
+2026-11-11T15:40:59.5434974Z  * [new branch]        fix/macos-query-worker                   -> origin/fix/macos-query-worker
+2026-11-11T15:40:59.5435465Z  * [new branch]        fix/main-android-16k-memory              -> origin/fix/main-android-16k-memory
+2026-11-11T15:40:59.5435960Z  * [new branch]        fix/main-ci-platform-audit               -> origin/fix/main-ci-platform-audit
+2026-11-11T15:40:59.5436476Z  * [new branch]        fix/peer-configuration-lifetime          -> origin/fix/peer-configuration-lifetime
+2026-11-11T15:40:59.5436980Z  * [new branch]        fix/peer-lifetime-compiler               -> origin/fix/peer-lifetime-compiler
+2026-11-11T15:40:59.5437729Z  * [new branch]        fix/physical-release-bundle-manifest     -> origin/fix/physical-release-bundle-manifest
+2026-11-11T15:40:59.5438362Z  * [new branch]        fix/physical-release-profile-verification -> origin/fix/physical-release-profile-verification
+2026-11-11T15:40:59.5439051Z  * [new branch]        fix/policy-agent-robustness              -> origin/fix/policy-agent-robustness
+2026-11-11T15:40:59.5439538Z  * [new branch]        fix/policy-agent-round3                  -> origin/fix/policy-agent-round3
+2026-11-11T15:40:59.5440028Z  * [new branch]        fix/policy-agent-round4                  -> origin/fix/policy-agent-round4
+2026-11-11T15:40:59.5440507Z  * [new branch]        fix/rc-0-1-5-audit-closeout              -> origin/fix/rc-0-1-5-audit-closeout
+2026-11-11T15:40:59.5441030Z  * [new branch]        fix/release-transaction-hardening        -> origin/fix/release-transaction-hardening
+2026-11-11T15:40:59.5441621Z  * [new branch]        fix/stable-release-identity-expectations -> origin/fix/stable-release-identity-expectations
+2026-11-11T15:40:59.5442268Z  * [new branch]        fix/state-independent-proof-input-fixtures -> origin/fix/state-independent-proof-input-fixtures
+2026-11-11T15:40:59.5442815Z  * [new branch]        fix/wasm-query-memory                    -> origin/fix/wasm-query-memory
+2026-11-11T15:40:59.5443342Z  * [new branch]        fix/witness-client-absolute-deadline     -> origin/fix/witness-client-absolute-deadline
+2026-11-11T15:40:59.5443903Z  * [new branch]        fix/xcode27-swift-verification           -> origin/fix/xcode27-swift-verification
+2026-11-11T15:40:59.5444438Z  * [new branch]        integration/ci-completion-20261111       -> origin/integration/ci-completion-20261111
+2026-11-11T15:40:59.5445002Z  * [new branch]        integration/paper-submission-review      -> origin/integration/paper-submission-review
+2026-11-11T15:40:59.5445496Z  * [new branch]        integration/sdk-020                      -> origin/integration/sdk-020
+2026-11-11T15:40:59.5445997Z  * [new branch]        lza/android-aar-consumer-contract        -> origin/lza/android-aar-consumer-contract
+2026-11-11T15:40:59.5446554Z  * [new branch]        lza/android-apk-transport-probe          -> origin/lza/android-apk-transport-probe
+2026-11-11T15:40:59.5447298Z  * [new branch]        lza/android-runtime-permissions          -> origin/lza/android-runtime-permissions
+2026-11-11T15:40:59.5448257Z  * [new branch]        lza/codeql-quality-resource-control      -> origin/lza/codeql-quality-resource-control
+2026-11-11T15:40:59.5449364Z  * [new branch]        lza/codeql-query-resource-control        -> origin/lza/codeql-query-resource-control
+2026-11-11T15:40:59.5449924Z  * [new branch]        lza/development-after-0.1.5              -> origin/lza/development-after-0.1.5
+2026-11-11T15:40:59.5450423Z  * [new branch]        lza/fuzz-execution-control               -> origin/lza/fuzz-execution-control
+2026-11-11T15:40:59.5450911Z  * [new branch]        lza/github-local-transport               -> origin/lza/github-local-transport
+2026-11-11T15:40:59.5451590Z  * [new branch]        lza/platform-maintenance-evidence        -> origin/lza/platform-maintenance-evidence
+2026-11-11T15:40:59.5452368Z  * [new branch]        lza/platform-maintenance-release         -> origin/lza/platform-maintenance-release
+2026-11-11T15:40:59.5453190Z  * [new branch]        lza/platform-publication-context         -> origin/lza/platform-publication-context
+2026-11-11T15:40:59.5453748Z  * [new branch]        lza/platform-revision-results-jdk25      -> origin/lza/platform-revision-results-jdk25
+2026-11-11T15:40:59.5454299Z  * [new branch]        lza/platform-runtime-evidence            -> origin/lza/platform-runtime-evidence
+2026-11-11T15:40:59.5454824Z  * [new branch]        lza/registry-publication-recovery        -> origin/lza/registry-publication-recovery
+2026-11-11T15:40:59.5455319Z  * [new branch]        lza/release-0.1.5-cohort                 -> origin/lza/release-0.1.5-cohort
+2026-11-11T15:40:59.5455784Z  * [new branch]        lza/release-015-final-audit              -> origin/lza/release-015-final-audit
+2026-11-11T15:40:59.5456292Z  * [new branch]        lza/release-015-r4-source-results        -> origin/lza/release-015-r4-source-results
+2026-11-11T15:40:59.5456939Z  * [new branch]        lza/release-015-sdk-revision             -> origin/lza/release-015-sdk-revision
+2026-11-11T15:40:59.5457622Z  * [new branch]        lza/release-015-sdk-source-results       -> origin/lza/release-015-sdk-source-results
+2026-11-11T15:40:59.5458174Z  * [new branch]        lza/release-runtime-maintenance          -> origin/lza/release-runtime-maintenance
+2026-11-11T15:40:59.5458700Z  * [new branch]        lza/release-tooling-integration          -> origin/lza/release-tooling-integration
+2026-11-11T15:40:59.5459221Z  * [new branch]        lza/remote-consumer-operations           -> origin/lza/remote-consumer-operations
+2026-11-11T15:40:59.5459705Z  * [new branch]        lza/sdk-020-alpha1                       -> origin/lza/sdk-020-alpha1
+2026-11-11T15:40:59.5460184Z  * [new branch]        lza/test-repository-lifecycle            -> origin/lza/test-repository-lifecycle
+2026-11-11T15:40:59.5460701Z  * [new branch]        lza/windows-key-reopen-control           -> origin/lza/windows-key-reopen-control
+2026-11-11T15:40:59.5461230Z  * [new branch]        lza/windows-private-scratch-probe        -> origin/lza/windows-private-scratch-probe
+2026-11-11T15:40:59.5461764Z  * [new branch]        lza/windows-private-storage-probe        -> origin/lza/windows-private-storage-probe
+2026-11-11T15:40:59.5462272Z  * [new branch]        lza/windows-private-store                -> origin/lza/windows-private-store
+2026-11-11T15:40:59.5462775Z  * [new branch]        lza/witness-admission-validation         -> origin/lza/witness-admission-validation
+2026-11-11T15:40:59.5463312Z  * [new branch]        lza/witness-dispatch-boundary            -> origin/lza/witness-dispatch-boundary
+2026-11-11T15:40:59.5463826Z  * [new branch]        lza/witness-relay-diagnostics            -> origin/lza/witness-relay-diagnostics
+2026-11-11T15:40:59.5464245Z  * [new branch]        main                                     -> origin/main
+2026-11-11T15:40:59.5464694Z  * [new branch]        maintenance/linux-toolchain-cache        -> origin/maintenance/linux-toolchain-cache
+2026-11-11T15:40:59.5465238Z  * [new branch]        maintenance/repository-bundle-v2         -> origin/maintenance/repository-bundle-v2
+2026-11-11T15:40:59.5465799Z  * [new branch]        maintenance/security-closure-transfer    -> origin/maintenance/security-closure-transfer
+2026-11-11T15:40:59.5466505Z  * [new branch]        maintenance/security-closure-transfer-v2 -> origin/maintenance/security-closure-transfer-v2
+2026-11-11T15:40:59.5467232Z  * [new branch]        maintenance/source-snapshot              -> origin/maintenance/source-snapshot
+2026-11-11T15:40:59.5467755Z  * [new branch]        maintenance/upload-probe                 -> origin/maintenance/upload-probe
+2026-11-11T15:40:59.5468252Z  * [new branch]        paper/initial-source-sdk-sync            -> origin/paper/initial-source-sdk-sync
+2026-11-11T15:40:59.5468799Z  * [new branch]        paper/integrated-source-consistency      -> origin/paper/integrated-source-consistency
+2026-11-11T15:40:59.5469341Z  * [new branch]        paper/joc-persistent-recovery            -> origin/paper/joc-persistent-recovery
+2026-11-11T15:40:59.5469937Z  * [new branch]        paper/joc-submission-review              -> origin/paper/joc-submission-review
+2026-11-11T15:40:59.5470451Z  * [new branch]        paper/main-result-integration            -> origin/paper/main-result-integration
+2026-11-11T15:40:59.5470955Z  * [new branch]        paper/sdk-020-kem-connection             -> origin/paper/sdk-020-kem-connection
+2026-11-11T15:40:59.5471475Z  * [new branch]        perf/aarch64-v84a-fips202-profile        -> origin/perf/aarch64-v84a-fips202-profile
+2026-11-11T15:40:59.5471984Z  * [new branch]        perf/contextbound-staging                -> origin/perf/contextbound-staging
+2026-11-11T15:40:59.5472454Z  * [new branch]        perf/wasm-prepared-key                   -> origin/perf/wasm-prepared-key
+2026-11-11T15:40:59.5472985Z  * [new branch]        proof/bootstrap-reply-source-adapter     -> origin/proof/bootstrap-reply-source-adapter
+2026-11-11T15:40:59.5473696Z  * [new branch]        proof/bootstrap-terminal-schedule        -> origin/proof/bootstrap-terminal-schedule
+2026-11-11T15:40:59.5474251Z  * [new branch]        recover/codeql-production-20261111       -> origin/recover/codeql-production-20261111
+2026-11-11T15:40:59.5474820Z  * [new branch]        recover/codeql-wrapper-method-20261111   -> origin/recover/codeql-wrapper-method-20261111
+2026-11-11T15:40:59.5475358Z  * [new branch]        release/0.1.3-gate-calibration           -> origin/release/0.1.3-gate-calibration
+2026-11-11T15:40:59.5475867Z  * [new branch]        release/0.1.3-publication-pending        -> origin/release/0.1.3-publication-pending
+2026-11-11T15:40:59.5476341Z  * [new branch]        release/0.1.3-results                    -> origin/release/0.1.3-results
+2026-11-11T15:40:59.5476803Z  * [new branch]        release/0.1.5-pending-cohort             -> origin/release/0.1.5-pending-cohort
+2026-11-11T15:40:59.5477384Z  * [new branch]        release/abi2                             -> origin/release/abi2
+2026-11-11T15:40:59.5477840Z  * [new branch]        release/abi2-0-1-5-results-r3            -> origin/release/abi2-0-1-5-results-r3
+2026-11-11T15:40:59.5478307Z  * [new branch]        release/abi2-0.1.5-results               -> origin/release/abi2-0.1.5-results
+2026-11-11T15:40:59.5478772Z  * [new branch]        release/abi2-0.1.5-results-r2            -> origin/release/abi2-0.1.5-results-r2
+2026-11-11T15:40:59.5479231Z  * [new branch]        release/abi2-platforms                   -> origin/release/abi2-platforms
+2026-11-11T15:40:59.5479693Z  * [new branch]        release/abi2-platforms-r2                -> origin/release/abi2-platforms-r2
+2026-11-11T15:40:59.5480209Z  * [new branch]        release/abi2-publication-evidence        -> origin/release/abi2-publication-evidence
+2026-11-11T15:40:59.5480783Z  * [new branch]        release/continuity-admission-decisions   -> origin/release/continuity-admission-decisions
+2026-11-11T15:40:59.5481510Z  * [new branch]        release/continuity-package-identity      -> origin/release/continuity-package-identity
+2026-11-11T15:40:59.5482072Z  * [new branch]        release/continuity-services-package      -> origin/release/continuity-services-package
+2026-11-11T15:40:59.5482754Z  * [new branch]        release/install-results-successor        -> origin/release/install-results-successor
+2026-11-11T15:40:59.5483326Z  * [new branch]        release/install-results-successor-s4     -> origin/release/install-results-successor-s4
+2026-11-11T15:40:59.5483888Z  * [new branch]        release/install-results-successor-s5     -> origin/release/install-results-successor-s5
+2026-11-11T15:40:59.5484443Z  * [new branch]        release/install-results-successor-s6     -> origin/release/install-results-successor-s6
+2026-11-11T15:40:59.5485094Z  * [new branch]        release/open-0-1-5                       -> origin/release/open-0-1-5
+2026-11-11T15:40:59.5485920Z  * [new branch]        research/bootstrap-initial-source        -> origin/research/bootstrap-initial-source
+2026-11-11T15:40:59.5486471Z  * [new branch]        research/bootstrap-joint-entry           -> origin/research/bootstrap-joint-entry
+2026-11-11T15:40:59.5487163Z  * [new branch]        research/bootstrap-terminal-agreement    -> origin/research/bootstrap-terminal-agreement
+2026-11-11T15:40:59.5487862Z  * [new branch]        research/matched-directed-opportunities  -> origin/research/matched-directed-opportunities
+2026-11-11T15:40:59.5488403Z  * [new branch]        research/retry-readiness                 -> origin/research/retry-readiness
+2026-11-11T15:40:59.5488959Z  * [new branch]        review/command-inputs-20261111           -> origin/review/command-inputs-20261111
+2026-11-11T15:40:59.5489733Z  * [new tag]           abi2-platforms-v0.1.0                    -> abi2-platforms-v0.1.0
+2026-11-11T15:40:59.5490340Z  * [new tag]           abi2-platforms-v0.1.0-alpha.2-r1         -> abi2-platforms-v0.1.0-alpha.2-r1
+2026-11-11T15:40:59.5490942Z  * [new tag]           abi2-platforms-v0.1.0-alpha.2-r2         -> abi2-platforms-v0.1.0-alpha.2-r2
+2026-11-11T15:40:59.5491374Z  * [new tag]           abi2-platforms-v0.1.1                    -> abi2-platforms-v0.1.1
+2026-11-11T15:40:59.5491771Z  * [new tag]           abi2-platforms-v0.1.2                    -> abi2-platforms-v0.1.2
+2026-11-11T15:40:59.5492171Z  * [new tag]           abi2-platforms-v0.1.3                    -> abi2-platforms-v0.1.3
+2026-11-11T15:40:59.5492573Z  * [new tag]           abi2-platforms-v0.1.4                    -> abi2-platforms-v0.1.4
+2026-11-11T15:40:59.5492967Z  * [new tag]           abi2-platforms-v0.1.5                    -> abi2-platforms-v0.1.5
+2026-11-11T15:40:59.5493383Z  * [new tag]           abi2-platforms-v0.1.5-r2                 -> abi2-platforms-v0.1.5-r2
+2026-11-11T15:40:59.5493836Z  * [new tag]           abi2-platforms-v0.1.5-r2-verified        -> abi2-platforms-v0.1.5-r2-verified
+2026-11-11T15:40:59.5494283Z  * [new tag]           abi2-platforms-v0.1.5-r3                 -> abi2-platforms-v0.1.5-r3
+2026-11-11T15:40:59.5494693Z  * [new tag]           abi2-platforms-v0.1.5-r4                 -> abi2-platforms-v0.1.5-r4
+2026-11-11T15:40:59.5495133Z  * [new tag]           abi2-platforms-v0.1.5-r4-verified        -> abi2-platforms-v0.1.5-r4-verified
+2026-11-11T15:40:59.5495519Z  * [new tag]           v0.1.0                                   -> v0.1.0
+2026-11-11T15:40:59.5495852Z  * [new tag]           v0.1.0-alpha.1                           -> v0.1.0-alpha.1
+2026-11-11T15:40:59.5496189Z  * [new tag]           v0.1.0-alpha.2                           -> v0.1.0-alpha.2
+2026-11-11T15:40:59.5496525Z  * [new tag]           v0.1.0-alpha.2-r1                        -> v0.1.0-alpha.2-r1
+2026-11-11T15:40:59.5496854Z  * [new tag]           v0.1.1                                   -> v0.1.1
+2026-11-11T15:40:59.5497318Z  * [new tag]           v0.1.2                                   -> v0.1.2
+2026-11-11T15:40:59.5497625Z  * [new tag]           v0.1.3                                   -> v0.1.3
+2026-11-11T15:40:59.5497923Z  * [new tag]           v0.1.4                                   -> v0.1.4
+2026-11-11T15:40:59.5498269Z  * [new tag]           v0.1.4-verified-cohort                   -> v0.1.4-verified-cohort
+2026-11-11T15:40:59.5498618Z  * [new tag]           v0.1.5                                   -> v0.1.5
+2026-11-11T15:40:59.5499073Z  * [new tag]           v0.1.5-verified-cohort                   -> v0.1.5-verified-cohort
+2026-11-11T15:40:59.5499475Z  * [new ref]           b72f7f8e8e6f2526ebab4b825b7d47402ac9835f -> pull/121/merge
+2026-11-11T15:40:59.5500723Z ##[endgroup]
+2026-11-11T15:40:59.5501032Z ##[group]Determining the checkout info
+2026-11-11T15:40:59.5501382Z ##[endgroup]
+2026-11-11T15:40:59.5501581Z [command]/usr/bin/git sparse-checkout disable
+2026-11-11T15:40:59.5502157Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-11T15:40:59.5502826Z ##[group]Checking out the ref
+2026-11-11T15:40:59.5503133Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/121/merge
+2026-11-11T15:41:00.5868876Z Updating files:  70% (5625/7926)
+2026-11-11T15:41:01.3268428Z Updating files:  71% (5628/7926)
+2026-11-11T15:41:01.5800319Z Updating files:  72% (5707/7926)
+2026-11-11T15:41:01.8311279Z Updating files:  72% (5741/7926)
+2026-11-11T15:41:02.2319004Z Updating files:  73% (5786/7926)
+2026-11-11T15:41:02.5651519Z Updating files:  74% (5866/7926)
+2026-11-11T15:41:02.6107237Z Updating files:  74% (5939/7926)
+2026-11-11T15:41:02.7183398Z Updating files:  75% (5945/7926)
+2026-11-11T15:41:03.4070483Z Updating files:  76% (6024/7926)
+2026-11-11T15:41:03.5519036Z Updating files:  77% (6104/7926)
+2026-11-11T15:41:03.5608702Z Updating files:  78% (6183/7926)
+2026-11-11T15:41:03.7252170Z Updating files:  78% (6202/7926)
+2026-11-11T15:41:04.1627716Z Updating files:  79% (6262/7926)
+2026-11-11T15:41:04.6045267Z Updating files:  80% (6341/7926)
+2026-11-11T15:41:05.5663997Z Updating files:  80% (6384/7926)
+2026-11-11T15:41:05.6113823Z Updating files:  80% (6409/7926)
+2026-11-11T15:41:06.6476764Z Updating files:  81% (6421/7926)
+2026-11-11T15:41:07.0158468Z Updating files:  81% (6487/7926)
+2026-11-11T15:41:07.5775203Z Updating files:  82% (6500/7926)
+2026-11-11T15:41:07.6008543Z Updating files:  82% (6540/7926)
+2026-11-11T15:41:07.6544911Z Updating files:  83% (6579/7926)
+2026-11-11T15:41:07.7201295Z Updating files:  84% (6658/7926)
+2026-11-11T15:41:08.4480525Z Updating files:  85% (6738/7926)
+2026-11-11T15:41:08.6095683Z Updating files:  86% (6817/7926)
+2026-11-11T15:41:08.9628334Z Updating files:  86% (6836/7926)
+2026-11-11T15:41:09.6427358Z Updating files:  87% (6896/7926)
+2026-11-11T15:41:10.6747505Z Updating files:  87% (6935/7926)
+2026-11-11T15:41:10.8786612Z Updating files:  87% (6947/7926)
+2026-11-11T15:41:11.6334054Z Updating files:  88% (6975/7926)
+2026-11-11T15:41:12.7404141Z Updating files:  88% (6989/7926)
+2026-11-11T15:41:13.5671985Z Updating files:  88% (7017/7926)
+2026-11-11T15:41:13.6715051Z Updating files:  88% (7039/7926)
+2026-11-11T15:41:14.5838712Z Updating files:  89% (7055/7926)
+2026-11-11T15:41:14.6585062Z Updating files:  89% (7113/7926)
+2026-11-11T15:41:15.6600185Z Updating files:  90% (7134/7926)
+2026-11-11T15:41:15.7705777Z Updating files:  90% (7168/7926)
+2026-11-11T15:41:15.9354320Z Updating files:  91% (7213/7926)
+2026-11-11T15:41:15.9408077Z Updating files:  92% (7292/7926)
+2026-11-11T15:41:15.9472614Z Updating files:  93% (7372/7926)
+2026-11-11T15:41:15.9582529Z Updating files:  94% (7451/7926)
+2026-11-11T15:41:15.9619615Z Updating files:  95% (7530/7926)
+2026-11-11T15:41:15.9945015Z Updating files:  96% (7609/7926)
+2026-11-11T15:41:16.0114369Z Updating files:  97% (7689/7926)
+2026-11-11T15:41:16.0197850Z Updating files:  98% (7768/7926)
+2026-11-11T15:41:16.0280248Z Updating files:  99% (7847/7926)
+2026-11-11T15:41:16.0280855Z Updating files: 100% (7926/7926)
+2026-11-11T15:41:16.0281534Z Updating files: 100% (7926/7926), done.
+2026-11-11T15:41:16.3994121Z Note: switching to 'refs/remotes/pull/121/merge'.
+2026-11-11T15:41:16.3994388Z 
+2026-11-11T15:41:16.3994568Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-11T15:41:16.3994945Z changes and commit them, and you can discard any commits you make in this
+2026-11-11T15:41:16.3995311Z state without impacting any branches by switching back to a branch.
+2026-11-11T15:41:16.3995522Z 
+2026-11-11T15:41:16.3995956Z If you want to create a new branch to retain commits you create, you may
+2026-11-11T15:41:16.3996306Z do so (now or later) by using -c with the switch command. Example:
+2026-11-11T15:41:16.3996508Z 
+2026-11-11T15:41:16.3996615Z   git switch -c <new-branch-name>
+2026-11-11T15:41:16.3996760Z 
+2026-11-11T15:41:16.3996848Z Or undo this operation with:
+2026-11-11T15:41:16.3996971Z 
+2026-11-11T15:41:16.3997266Z   git switch -
+2026-11-11T15:41:16.3997415Z 
+2026-11-11T15:41:16.3997589Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-11T15:41:16.3997818Z 
+2026-11-11T15:41:16.3998098Z HEAD is now at b72f7f8e Merge 75eda8f54a721dbed16a0bed43cdc493c9071485 into 48d0fb9a5651b50494ec33d025dda52bd2ff5eae
+2026-11-11T15:41:16.5260792Z ##[endgroup]
+2026-11-11T15:41:16.5309804Z [command]/usr/bin/git log -1 --format=%H
+2026-11-11T15:41:16.5340923Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f
+2026-11-11T15:41:16.5350290Z ##[group]Removing auth
+2026-11-11T15:41:16.5350517Z Removing SSH command configuration
+2026-11-11T15:41:16.5354768Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T15:41:16.5388622Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T15:41:16.5624626Z Removing HTTP extra header
+2026-11-11T15:41:16.5629380Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T15:41:16.5678306Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T15:41:16.5919306Z Removing includeIf entries pointing to credentials config files
+2026-11-11T15:41:16.5922538Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T15:41:16.5950190Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T15:41:16.5950875Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T15:41:16.5951296Z includeif.gitdir:/github/workspace/.git.path
+2026-11-11T15:41:16.5951571Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T15:41:16.5964658Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T15:41:16.5993378Z /home/runner/work/_temp/git-credentials-b9a735fe-8c94-4192-b95f-287bdaac1fdd.config
+2026-11-11T15:41:16.6002693Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-b9a735fe\-8c94\-4192\-b95f\-287bdaac1fdd\.config
+2026-11-11T15:41:16.6396887Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T15:41:16.6477971Z /home/runner/work/_temp/git-credentials-b9a735fe-8c94-4192-b95f-287bdaac1fdd.config
+2026-11-11T15:41:16.6493870Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-b9a735fe\-8c94\-4192\-b95f\-287bdaac1fdd\.config
+2026-11-11T15:41:16.7651107Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-11T15:41:16.7684600Z /github/runner_temp/git-credentials-b9a735fe-8c94-4192-b95f-287bdaac1fdd.config
+2026-11-11T15:41:16.7692564Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-b9a735fe\-8c94\-4192\-b95f\-287bdaac1fdd\.config
+2026-11-11T15:41:16.9788730Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T15:41:16.9814479Z /github/runner_temp/git-credentials-b9a735fe-8c94-4192-b95f-287bdaac1fdd.config
+2026-11-11T15:41:16.9829066Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-b9a735fe\-8c94\-4192\-b95f\-287bdaac1fdd\.config
+2026-11-11T15:41:17.1818801Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T15:41:17.2050494Z Removing credentials config '/home/runner/work/_temp/git-credentials-b9a735fe-8c94-4192-b95f-287bdaac1fdd.config'
+2026-11-11T15:41:17.2079948Z ##[endgroup]
+2026-11-11T15:41:17.3003250Z ##[group]Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+2026-11-11T15:41:17.3003580Z with:
+2026-11-11T15:41:17.3003775Z   python-version: 3.14.7
+2026-11-11T15:41:17.3003972Z   check-latest: false
+2026-11-11T15:41:17.3004164Z   update-environment: false
+2026-11-11T15:41:17.3006218Z   token: ***
+2026-11-11T15:41:17.3006398Z   allow-prereleases: false
+2026-11-11T15:41:17.3006602Z   freethreaded: false
+2026-11-11T15:41:17.3006773Z env:
+2026-11-11T15:41:17.3006934Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:17.3007354Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:17.3007589Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:17.3007770Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:17.3007971Z ##[endgroup]
+2026-11-11T15:41:17.4146366Z ##[group]Installed versions
+2026-11-11T15:41:17.4163619Z Version 3.14.7 was not found in the local cache
+2026-11-11T15:41:18.3403112Z Version 3.14.7 is available for downloading
+2026-11-11T15:41:18.3404036Z Download from "https://github.com/actions/python-versions/releases/download/3.14.7-31064857500/python-3.14.7-linux-22.04-x64.tar.gz"
+2026-11-11T15:41:18.9363196Z Extract downloaded archive
+2026-11-11T15:41:18.9462794Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/eaf4efd5-378c-40e0-8af7-0f171181620c -f /home/runner/work/_temp/a1d1f16d-a764-45e6-8091-b563cfb704f7
+2026-11-11T15:41:20.9235048Z Execute installation script
+2026-11-11T15:41:20.9322162Z Check if Python hostedtoolcache folder exist...
+2026-11-11T15:41:20.9323785Z Create Python 3.14.7 folder
+2026-11-11T15:41:20.9340778Z Copy Python binaries to hostedtoolcache folder
+2026-11-11T15:41:21.4434401Z Create additional symlinks (Required for the UsePythonVersion Azure Pipelines task and the setup-python GitHub Action)
+2026-11-11T15:41:21.4474069Z Upgrading pip...
+2026-11-11T15:41:26.8323922Z Collecting pip
+2026-11-11T15:41:26.8777178Z Downloading pip-26.3-py3-none-any.whl.metadata (4.6 kB)
+2026-11-11T15:41:26.8899929Z Downloading pip-26.3-py3-none-any.whl (2.0 MB)
+2026-11-11T15:41:26.9990690Z ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 20.2 MB/s  0:00:00
+2026-11-11T15:41:26.9991017Z 
+2026-11-11T15:41:27.1015075Z Installing collected packages: pip
+2026-11-11T15:41:27.1015523Z Attempting uninstall: pip
+2026-11-11T15:41:27.1035361Z Found existing installation: pip 26.2.1
+2026-11-11T15:41:27.1310385Z Uninstalling pip-26.2.1:
+2026-11-11T15:41:27.1362419Z Successfully uninstalled pip-26.2.1
+2026-11-11T15:41:28.3636985Z Successfully installed pip-26.3
+2026-11-11T15:41:28.4367707Z Create complete file
+2026-11-11T15:41:28.4395039Z Successfully set up CPython (3.14.7)
+2026-11-11T15:41:28.4396210Z ##[endgroup]
+2026-11-11T15:41:28.4559890Z ##[group]Run case "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac
+2026-11-11T15:41:28.4560628Z [36;1mcase "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac[0m
+2026-11-11T15:41:28.4561326Z [36;1m"$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 14, 7) else 2)'[0m
+2026-11-11T15:41:28.4633551Z shell: /usr/bin/bash -e {0}
+2026-11-11T15:41:28.4633776Z env:
+2026-11-11T15:41:28.4633952Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:28.4634156Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:28.4634347Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:28.4634542Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:28.4634827Z   QPERIAPT_PYTHON: /opt/hostedtoolcache/Python/3.14.7/x64/bin/python
+2026-11-11T15:41:28.4635114Z ##[endgroup]
+2026-11-11T15:41:28.4953492Z ##[group]Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+2026-11-11T15:41:28.4953825Z with:
+2026-11-11T15:41:28.4954012Z   toolchain: 1.98.1
+2026-11-11T15:41:28.4954193Z   components: llvm-tools
+2026-11-11T15:41:28.4954381Z env:
+2026-11-11T15:41:28.4954539Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:28.4954733Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:28.4954908Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:28.4955089Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:28.4955287Z ##[endgroup]
+2026-11-11T15:41:28.5029966Z ##[start-action display=Run : parse toolchain version;id=__dtolnay_rust-toolchain.parse]
+2026-11-11T15:41:28.5054885Z ##[group]Run : parse toolchain version
+2026-11-11T15:41:28.5055175Z [36;1m: parse toolchain version[0m
+2026-11-11T15:41:28.5055395Z [36;1mif [[ -z $toolchain ]]; then[0m
+2026-11-11T15:41:28.5055800Z [36;1m  # GitHub does not enforce `required: true` inputs itself. https://github.com/actions/runner/issues/1070[0m
+2026-11-11T15:41:28.5056287Z [36;1m  echo "'toolchain' is a required input" >&2[0m
+2026-11-11T15:41:28.5056531Z [36;1m  exit 1[0m
+2026-11-11T15:41:28.5056799Z [36;1melif [[ $toolchain =~ ^stable' '[0-9]+' '(year|month|week|day)s?' 'ago$ ]]; then[0m
+2026-11-11T15:41:28.5057250Z [36;1m  if [[ Linux == macOS ]]; then[0m
+2026-11-11T15:41:28.5057669Z [36;1m    echo "toolchain=1.$((($(date -v-$(sed 's/stable \([0-9]*\) \(.\).*/\1\2/' <<< $toolchain) +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:41:28.5058076Z [36;1m  else[0m
+2026-11-11T15:41:28.5058570Z [36;1m    echo "toolchain=1.$((($(date --date "${toolchain#stable }" +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:41:28.5058926Z [36;1m  fi[0m
+2026-11-11T15:41:28.5059168Z [36;1melif [[ $toolchain =~ ^stable' 'minus' '[0-9]+' 'releases?$ ]]; then[0m
+2026-11-11T15:41:28.5059575Z [36;1m  echo "toolchain=1.$((($(date +%s)/60/60/24-16569)/7/6-${toolchain//[^0-9]/}))" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:41:28.5059932Z [36;1melif [[ $toolchain =~ ^1\.[0-9]+$ ]]; then[0m
+2026-11-11T15:41:28.5060340Z [36;1m  echo "toolchain=1.$((i=${toolchain#1.}, c=($(date +%s)/60/60/24-16569)/7/6, i+9*i*(10*i<=c)+90*i*(100*i<=c)))" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:41:28.5060720Z [36;1melse[0m
+2026-11-11T15:41:28.5060920Z [36;1m  echo "toolchain=$toolchain" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:41:28.5061155Z [36;1mfi[0m
+2026-11-11T15:41:28.5118119Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:41:28.5118402Z env:
+2026-11-11T15:41:28.5118571Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:28.5118774Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:28.5118966Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:28.5119157Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:28.5119357Z   toolchain: 1.98.1
+2026-11-11T15:41:28.5119523Z ##[endgroup]
+2026-11-11T15:41:28.5205776Z ##[end-action id=__dtolnay_rust-toolchain.parse;outcome=success;conclusion=success;duration_ms=17]
+2026-11-11T15:41:28.5211434Z ##[start-action display=Run : construct rustup command line;id=__dtolnay_rust-toolchain.flags]
+2026-11-11T15:41:28.5229829Z ##[group]Run : construct rustup command line
+2026-11-11T15:41:28.5230125Z [36;1m: construct rustup command line[0m
+2026-11-11T15:41:28.5230481Z [36;1mecho "targets=$(for t in ${targets//,/ }; do echo -n ' --target' $t; done)" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:41:28.5230959Z [36;1mecho "components=$(for c in ${components//,/ }; do echo -n ' --component' $c; done)" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:41:28.5231341Z [36;1mecho "downgrade=" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:41:28.5287968Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:41:28.5288244Z env:
+2026-11-11T15:41:28.5288414Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:28.5288608Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:28.5288794Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:28.5288989Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:28.5289189Z   targets: 
+2026-11-11T15:41:28.5289352Z   components: llvm-tools
+2026-11-11T15:41:28.5289747Z ##[endgroup]
+2026-11-11T15:41:28.5378126Z ##[end-action id=__dtolnay_rust-toolchain.flags;outcome=success;conclusion=success;duration_ms=16]
+2026-11-11T15:41:28.5381508Z ##[start-action display=Run : set $CARGO_HOME;id=__dtolnay_rust-toolchain.__run]
+2026-11-11T15:41:28.5399098Z ##[group]Run : set $CARGO_HOME
+2026-11-11T15:41:28.5399324Z [36;1m: set $CARGO_HOME[0m
+2026-11-11T15:41:28.5399583Z [36;1mecho CARGO_HOME=${CARGO_HOME:-"$HOME/.cargo"} >> $GITHUB_ENV[0m
+2026-11-11T15:41:28.5455101Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:41:28.5455397Z env:
+2026-11-11T15:41:28.5455571Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:28.5455765Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:28.5455953Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:28.5456143Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:28.5456341Z ##[endgroup]
+2026-11-11T15:41:28.5542830Z ##[end-action id=__dtolnay_rust-toolchain.__run;outcome=success;conclusion=success;duration_ms=16]
+2026-11-11T15:41:28.5545134Z ##[start-action display=Run : install rustup if needed;id=__dtolnay_rust-toolchain.__run_2]
+2026-11-11T15:41:28.5567432Z ##[group]Run : install rustup if needed
+2026-11-11T15:41:28.5567691Z [36;1m: install rustup if needed[0m
+2026-11-11T15:41:28.5567930Z [36;1mif ! command -v rustup &>/dev/null; then[0m
+2026-11-11T15:41:28.5568523Z [36;1m  curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused --location --silent --show-error --fail https://sh.rustup.rs | sh -s -- --default-toolchain none -y[0m
+2026-11-11T15:41:28.5569093Z [36;1m  echo "$CARGO_HOME/bin" >> $GITHUB_PATH[0m
+2026-11-11T15:41:28.5569506Z [36;1mfi[0m
+2026-11-11T15:41:28.5624586Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:41:28.5624873Z env:
+2026-11-11T15:41:28.5625039Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:28.5625234Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:28.5625418Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:28.5625607Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:28.5625831Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:41:28.5626038Z ##[endgroup]
+2026-11-11T15:41:28.5704714Z ##[end-action id=__dtolnay_rust-toolchain.__run_2;outcome=success;conclusion=success;duration_ms=15]
+2026-11-11T15:41:28.5708723Z ##[start-action display=Run : install rustup if needed on windows;id=__dtolnay_rust-toolchain.__run_3]
+2026-11-11T15:41:28.5715683Z ##[end-action id=__dtolnay_rust-toolchain.__run_3;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-11-11T15:41:28.5719590Z ##[start-action display=rustup toolchain install 1.98.1;id=__dtolnay_rust-toolchain.__run_4]
+2026-11-11T15:41:28.5754431Z ##[group]Run rustup toolchain install 1.98.1 --component llvm-tools --profile minimal --no-self-update
+2026-11-11T15:41:28.5754961Z [36;1mrustup toolchain install 1.98.1 --component llvm-tools --profile minimal --no-self-update[0m
+2026-11-11T15:41:28.5811103Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:41:28.5811373Z env:
+2026-11-11T15:41:28.5811547Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:28.5811758Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:28.5811948Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:28.5812141Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:28.5812353Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:41:28.5812562Z   RUSTUP_PERMIT_COPY_RENAME: 1
+2026-11-11T15:41:28.5812754Z ##[endgroup]
+2026-11-11T15:41:28.5938533Z info: syncing channel updates for 1.98.1-x86_64-unknown-linux-gnu
+2026-11-11T15:41:28.7289216Z info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+2026-11-11T15:41:28.7289604Z info: downloading 4 components
+2026-11-11T15:41:38.4210202Z 
+2026-11-11T15:41:38.4298172Z   1.98.1-x86_64-unknown-linux-gnu installed - rustc 1.98.1 (48a229cea 2026-09-01)
+2026-11-11T15:41:38.4298586Z 
+2026-11-11T15:41:38.4490560Z ##[end-action id=__dtolnay_rust-toolchain.__run_4;outcome=success;conclusion=success;duration_ms=9877]
+2026-11-11T15:41:38.4495420Z ##[start-action display=Run rustup default 1.98.1;id=__dtolnay_rust-toolchain.__run_5]
+2026-11-11T15:41:38.4517194Z ##[group]Run rustup default 1.98.1
+2026-11-11T15:41:38.4517461Z [36;1mrustup default 1.98.1[0m
+2026-11-11T15:41:38.4571056Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:41:38.4571341Z env:
+2026-11-11T15:41:38.4571516Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:38.4571714Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:38.4571899Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:38.4572091Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:38.4572307Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:41:38.4572510Z ##[endgroup]
+2026-11-11T15:41:38.4682677Z info: using existing install for 1.98.1-x86_64-unknown-linux-gnu
+2026-11-11T15:41:38.4689711Z info: default toolchain set to 1.98.1-x86_64-unknown-linux-gnu
+2026-11-11T15:41:38.4689944Z 
+2026-11-11T15:41:38.4774091Z   1.98.1-x86_64-unknown-linux-gnu unchanged - rustc 1.98.1 (48a229cea 2026-09-01)
+2026-11-11T15:41:38.4774445Z 
+2026-11-11T15:41:38.4774915Z info: note that the toolchain '1.98.1-x86_64-unknown-linux-gnu' is currently in use (overridden by '/home/runner/work/q-periapt/q-periapt/rust-toolchain.toml')
+2026-11-11T15:41:38.4789066Z ##[end-action id=__dtolnay_rust-toolchain.__run_5;outcome=success;conclusion=success;duration_ms=29]
+2026-11-11T15:41:38.4792741Z ##[start-action display=Run : create cachekey;id=__dtolnay_rust-toolchain.rustc-version]
+2026-11-11T15:41:38.4810188Z ##[group]Run : create cachekey
+2026-11-11T15:41:38.4810429Z [36;1m: create cachekey[0m
+2026-11-11T15:41:38.4810816Z [36;1mDATE=$(rustc +1.98.1 --version --verbose | sed -ne 's/^commit-date: \(20[0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)$/\1\2\3/p')[0m
+2026-11-11T15:41:38.4811493Z [36;1mHASH=$(rustc +1.98.1 --version --verbose | sed -ne 's/^commit-hash: //p')[0m
+2026-11-11T15:41:38.4811888Z [36;1mecho "cachekey=$(echo $DATE$HASH | head -c12)" >> $GITHUB_OUTPUT[0m
+2026-11-11T15:41:38.4861704Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:41:38.4861978Z env:
+2026-11-11T15:41:38.4862142Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:38.4862344Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:38.4862604Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:38.4862884Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:38.4863224Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:41:38.4863532Z ##[endgroup]
+2026-11-11T15:41:38.5217423Z ##[end-action id=__dtolnay_rust-toolchain.rustc-version;outcome=success;conclusion=success;duration_ms=42]
+2026-11-11T15:41:38.5219659Z ##[start-action display=Run : disable incremental compilation;id=__dtolnay_rust-toolchain.__run_6]
+2026-11-11T15:41:38.5236806Z ##[group]Run : disable incremental compilation
+2026-11-11T15:41:38.5237477Z [36;1m: disable incremental compilation[0m
+2026-11-11T15:41:38.5237767Z [36;1mif [ -z "${CARGO_INCREMENTAL+set}" ]; then[0m
+2026-11-11T15:41:38.5238044Z [36;1m  echo CARGO_INCREMENTAL=0 >> $GITHUB_ENV[0m
+2026-11-11T15:41:38.5238272Z [36;1mfi[0m
+2026-11-11T15:41:38.5290489Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:41:38.5290767Z env:
+2026-11-11T15:41:38.5290949Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:38.5291152Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:38.5291338Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:38.5291524Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:38.5291733Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:41:38.5291928Z ##[endgroup]
+2026-11-11T15:41:38.5362339Z ##[end-action id=__dtolnay_rust-toolchain.__run_6;outcome=success;conclusion=success;duration_ms=14]
+2026-11-11T15:41:38.5364047Z ##[start-action display=Run : enable colors in Cargo output;id=__dtolnay_rust-toolchain.__run_7]
+2026-11-11T15:41:38.5379914Z ##[group]Run : enable colors in Cargo output
+2026-11-11T15:41:38.5380177Z [36;1m: enable colors in Cargo output[0m
+2026-11-11T15:41:38.5380426Z [36;1mif [ -z "${CARGO_TERM_COLOR+set}" ]; then[0m
+2026-11-11T15:41:38.5380704Z [36;1m  echo CARGO_TERM_COLOR=always >> $GITHUB_ENV[0m
+2026-11-11T15:41:38.5380936Z [36;1mfi[0m
+2026-11-11T15:41:38.5427383Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:41:38.5427660Z env:
+2026-11-11T15:41:38.5428012Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:38.5428211Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:38.5428395Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:38.5428583Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:38.5428793Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:41:38.5428994Z   CARGO_INCREMENTAL: 0
+2026-11-11T15:41:38.5429173Z ##[endgroup]
+2026-11-11T15:41:38.5497433Z ##[end-action id=__dtolnay_rust-toolchain.__run_7;outcome=success;conclusion=success;duration_ms=13]
+2026-11-11T15:41:38.5501104Z ##[start-action display=Run : enable Cargo sparse registry;id=__dtolnay_rust-toolchain.__run_8]
+2026-11-11T15:41:38.5518047Z ##[group]Run : enable Cargo sparse registry
+2026-11-11T15:41:38.5518314Z [36;1m: enable Cargo sparse registry[0m
+2026-11-11T15:41:38.5518607Z [36;1m# implemented in 1.66, stabilized in 1.68, made default in 1.70[0m
+2026-11-11T15:41:38.5519173Z [36;1mif [ -z "${CARGO_REGISTRIES_CRATES_IO_PROTOCOL+set}" -o -f "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol ]; then[0m
+2026-11-11T15:41:38.5519732Z [36;1m  if rustc +1.98.1 --version --verbose | grep -q '^release: 1\.6[89]\.'; then[0m
+2026-11-11T15:41:38.5520171Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2026-11-11T15:41:38.5520591Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse >> $GITHUB_ENV[0m
+2026-11-11T15:41:38.5520970Z [36;1m  elif rustc +1.98.1 --version --verbose | grep -q '^release: 1\.6[67]\.'; then[0m
+2026-11-11T15:41:38.5521392Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2026-11-11T15:41:38.5521966Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git >> $GITHUB_ENV[0m
+2026-11-11T15:41:38.5522252Z [36;1m  fi[0m
+2026-11-11T15:41:38.5522416Z [36;1mfi[0m
+2026-11-11T15:41:38.5568529Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:41:38.5568795Z env:
+2026-11-11T15:41:38.5568963Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:38.5569162Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:38.5569349Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:38.5569539Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:38.5569746Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:41:38.5569942Z   CARGO_INCREMENTAL: 0
+2026-11-11T15:41:38.5570112Z ##[endgroup]
+2026-11-11T15:41:38.5904216Z ##[end-action id=__dtolnay_rust-toolchain.__run_8;outcome=success;conclusion=success;duration_ms=40]
+2026-11-11T15:41:38.5908739Z ##[start-action display=Run : work around spurious network errors in curl 8.0;id=__dtolnay_rust-toolchain.__run_9]
+2026-11-11T15:41:38.5926373Z ##[group]Run : work around spurious network errors in curl 8.0
+2026-11-11T15:41:38.5926721Z [36;1m: work around spurious network errors in curl 8.0[0m
+2026-11-11T15:41:38.5927578Z [36;1m# https://rust-lang.zulipchat.com/#narrow/stream/246057-t-cargo/topic/timeout.20investigation[0m
+2026-11-11T15:41:38.5928076Z [36;1mif rustc +1.98.1 --version --verbose | grep -q '^release: 1\.7[01]\.'; then[0m
+2026-11-11T15:41:38.5928455Z [36;1m  echo CARGO_HTTP_MULTIPLEXING=false >> $GITHUB_ENV[0m
+2026-11-11T15:41:38.5928710Z [36;1mfi[0m
+2026-11-11T15:41:38.5981517Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:41:38.5981801Z env:
+2026-11-11T15:41:38.5981967Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:38.5982163Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:38.5982345Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:38.5982527Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:38.5982749Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:41:38.5982968Z   CARGO_INCREMENTAL: 0
+2026-11-11T15:41:38.5983140Z ##[endgroup]
+2026-11-11T15:41:38.6186770Z ##[end-action id=__dtolnay_rust-toolchain.__run_9;outcome=success;conclusion=success;duration_ms=27]
+2026-11-11T15:41:38.6190210Z ##[start-action display=Run rustc +1.98.1 --version --verbose;id=__dtolnay_rust-toolchain.__run_10]
+2026-11-11T15:41:38.6224572Z ##[group]Run rustc +1.98.1 --version --verbose
+2026-11-11T15:41:38.6225050Z [36;1mrustc +1.98.1 --version --verbose[0m
+2026-11-11T15:41:38.6274084Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-11T15:41:38.6274356Z env:
+2026-11-11T15:41:38.6274521Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:38.6274714Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:38.6274902Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:38.6275088Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:38.6275304Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:41:38.6275505Z   CARGO_INCREMENTAL: 0
+2026-11-11T15:41:38.6275677Z ##[endgroup]
+2026-11-11T15:41:38.6454214Z rustc 1.98.1 (48a229cea 2026-09-01)
+2026-11-11T15:41:38.6454605Z binary: rustc
+2026-11-11T15:41:38.6454935Z commit-hash: 48a229ceaefd4985c50990b14116b6d856af0985
+2026-11-11T15:41:38.6455329Z commit-date: 2026-09-01
+2026-11-11T15:41:38.6455621Z host: x86_64-unknown-linux-gnu
+2026-11-11T15:41:38.6455956Z release: 1.98.1
+2026-11-11T15:41:38.6456205Z LLVM version: 22.1.8
+2026-11-11T15:41:38.6477905Z ##[end-action id=__dtolnay_rust-toolchain.__run_10;outcome=success;conclusion=success;duration_ms=28]
+2026-11-11T15:41:38.6532360Z ##[group]Run test "$(git rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_COMMIT"
+2026-11-11T15:41:38.6532807Z [36;1mtest "$(git rev-parse --verify 'HEAD^{commit}')" = "$EXPECTED_COMMIT"[0m
+2026-11-11T15:41:38.6533173Z [36;1mtest "$(rustc -vV | sed -n 's/^host: //p')" = "$EXPECTED_TARGET"[0m
+2026-11-11T15:41:38.6533515Z [36;1mtest "$(rustc --version)" = "rustc 1.98.1 (48a229cea 2026-09-01)"[0m
+2026-11-11T15:41:38.6533843Z [36;1mtest "$(cargo --version)" = "cargo 1.98.1 (797e8a9bc 2026-08-05)"[0m
+2026-11-11T15:41:38.6584184Z shell: /usr/bin/bash -e {0}
+2026-11-11T15:41:38.6584397Z env:
+2026-11-11T15:41:38.6584558Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:38.6584759Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:38.6584949Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:38.6585135Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:38.6585346Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:41:38.6585544Z   CARGO_INCREMENTAL: 0
+2026-11-11T15:41:38.6585819Z   EXPECTED_COMMIT: b72f7f8e8e6f2526ebab4b825b7d47402ac9835f
+2026-11-11T15:41:38.6586101Z   EXPECTED_TARGET: x86_64-unknown-linux-gnu
+2026-11-11T15:41:38.6586325Z ##[endgroup]
+2026-11-11T15:41:38.7209076Z info: syncing channel updates for 1.98.1-x86_64-unknown-linux-gnu
+2026-11-11T15:41:38.8249691Z info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+2026-11-11T15:41:38.8375355Z info: downloading 2 components
+2026-11-11T15:41:39.5867747Z ##[group]Run sudo apt-get update && sudo apt-get install -y cmake pkg-config
+2026-11-11T15:41:39.5868228Z [36;1msudo apt-get update && sudo apt-get install -y cmake pkg-config[0m
+2026-11-11T15:41:39.5921757Z shell: /usr/bin/bash -e {0}
+2026-11-11T15:41:39.5921965Z env:
+2026-11-11T15:41:39.5922137Z   CARGO_TERM_COLOR: always
+2026-11-11T15:41:39.5922331Z   RUSTFLAGS: -D warnings
+2026-11-11T15:41:39.5922515Z   CARGO_NET_RETRY: 10
+2026-11-11T15:41:39.5922696Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T15:41:39.5922915Z   CARGO_HOME: /home/runner/.cargo
+2026-11-11T15:41:39.5923133Z   CARGO_INCREMENTAL: 0
+2026-11-11T15:41:39.5923315Z ##[endgroup]
+2026-11-11T15:41:39.7652268Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-11-11T15:41:39.7769109Z Get:6 https://packages.microsoft.com/ubuntu/22.04/prod jammy InRelease [3632 B]
+2026-11-11T15:41:39.8719284Z Get:7 https://packages.microsoft.com/ubuntu/22.04/prod jammy/main armhf Packages [23.6 kB]
+2026-11-11T15:41:39.8890164Z Get:8 https://packages.microsoft.com/ubuntu/22.04/prod jammy/main arm64 Packages [780 kB]
+2026-11-11T15:41:39.8992123Z Get:9 https://packages.microsoft.com/ubuntu/22.04/prod jammy/main amd64 Packages [1055 kB]
+2026-11-11T15:41:59.8052572Z Ign:2 http://azure.archive.ubuntu.com/ubuntu jammy InRelease
+2026-11-11T15:42:19.8284365Z Ign:3 http://azure.archive.ubuntu.com/ubuntu jammy-updates InRelease
+2026-11-11T15:42:39.8540645Z Ign:4 http://azure.archive.ubuntu.com/ubuntu jammy-backports InRelease
+2026-11-11T15:42:59.8928458Z Ign:5 http://azure.archive.ubuntu.com/ubuntu jammy-security InRelease
+2026-11-11T15:43:19.9192082Z Ign:2 http://azure.archive.ubuntu.com/ubuntu jammy InRelease
+2026-11-11T15:43:39.9435652Z Ign:3 http://azure.archive.ubuntu.com/ubuntu jammy-updates InRelease
+2026-11-11T15:43:39.9465439Z Ign:2 https://archive.ubuntu.com/ubuntu jammy InRelease
+2026-11-11T15:43:59.9784890Z Err:2 https://security.ubuntu.com/ubuntu jammy InRelease
+2026-11-11T15:43:59.9785417Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:43:59.9803811Z Ign:4 http://azure.archive.ubuntu.com/ubuntu jammy-backports InRelease
+2026-11-11T15:43:59.9879314Z Ign:3 https://archive.ubuntu.com/ubuntu jammy-updates InRelease
+2026-11-11T15:44:20.0055027Z Ign:5 http://azure.archive.ubuntu.com/ubuntu jammy-security InRelease
+2026-11-11T15:44:20.0100598Z Err:3 https://security.ubuntu.com/ubuntu jammy-updates InRelease
+2026-11-11T15:44:20.0100980Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:44:20.0173712Z Ign:4 https://archive.ubuntu.com/ubuntu jammy-backports InRelease
+2026-11-11T15:44:40.0389124Z Err:4 https://security.ubuntu.com/ubuntu jammy-backports InRelease
+2026-11-11T15:44:40.0389661Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:44:40.0423160Z Ign:5 https://archive.ubuntu.com/ubuntu jammy-security InRelease
+2026-11-11T15:45:00.0691498Z Err:5 https://security.ubuntu.com/ubuntu jammy-security InRelease
+2026-11-11T15:45:00.0692169Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:45:08.6162453Z Fetched 1862 kB in 3min 20s (9295 B/s)
+2026-11-11T15:45:09.9067773Z Reading package lists...
+2026-11-11T15:45:09.9198169Z W: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/dists/jammy/InRelease  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:45:09.9199327Z W: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/dists/jammy-updates/InRelease  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:45:09.9200553Z W: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/dists/jammy-backports/InRelease  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:45:09.9650748Z W: Failed to fetch mirror+file:/etc/apt/apt-mirrors.txt/dists/jammy-security/InRelease  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:45:09.9651801Z W: Some index files failed to download. They have been ignored, or old ones used instead.
+2026-11-11T15:45:09.9652369Z Reading package lists...
+2026-11-11T15:45:10.2341776Z Building dependency tree...
+2026-11-11T15:45:10.2350878Z Reading state information...
+2026-11-11T15:45:10.3927362Z The following additional packages will be installed:
+2026-11-11T15:45:10.3937848Z   cmake-data dh-elpa-helper libjsoncpp25 librhash0
+2026-11-11T15:45:10.3944348Z Suggested packages:
+2026-11-11T15:45:10.3944608Z   cmake-doc ninja-build cmake-format
+2026-11-11T15:45:10.4344017Z The following packages will be REMOVED:
+2026-11-11T15:45:10.4345352Z   pkgconf r-base-dev
+2026-11-11T15:45:10.4345625Z The following NEW packages will be installed:
+2026-11-11T15:45:10.4352024Z   cmake cmake-data dh-elpa-helper libjsoncpp25 librhash0 pkg-config
+2026-11-11T15:45:10.4504277Z 0 upgraded, 6 newly installed, 2 to remove and 5 not upgraded.
+2026-11-11T15:45:10.4504623Z Need to get 7183 kB of archives.
+2026-11-11T15:45:10.4504908Z After this operation, 31.8 MB of additional disk space will be used.
+2026-11-11T15:45:10.4505232Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2026-11-11T15:45:30.4973587Z Ign:2 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 pkg-config amd64 0.29.2-1ubuntu3
+2026-11-11T15:45:50.5242715Z Ign:3 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libjsoncpp25 amd64 1.9.5-3
+2026-11-11T15:46:10.5580428Z Ign:4 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 librhash0 amd64 1.4.2-1ubuntu1
+2026-11-11T15:46:30.5834031Z Ign:5 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 dh-elpa-helper all 2.0.9ubuntu1
+2026-11-11T15:46:50.6091480Z Ign:6 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 cmake-data all 3.22.1-1ubuntu1.22.04.2
+2026-11-11T15:47:10.6389245Z Ign:7 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 cmake amd64 3.22.1-1ubuntu1.22.04.2
+2026-11-11T15:47:30.6807463Z Ign:2 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 pkg-config amd64 0.29.2-1ubuntu3
+2026-11-11T15:47:50.7078787Z Ign:3 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libjsoncpp25 amd64 1.9.5-3
+2026-11-11T15:47:50.7140971Z Ign:2 https://archive.ubuntu.com/ubuntu jammy/main amd64 pkg-config amd64 0.29.2-1ubuntu3
+2026-11-11T15:48:10.7343630Z Ign:4 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 librhash0 amd64 1.4.2-1ubuntu1
+2026-11-11T15:48:10.7406200Z Ign:3 https://archive.ubuntu.com/ubuntu jammy/main amd64 libjsoncpp25 amd64 1.9.5-3
+2026-11-11T15:48:10.7457283Z Err:2 https://security.ubuntu.com/ubuntu jammy/main amd64 pkg-config amd64 0.29.2-1ubuntu3
+2026-11-11T15:48:10.7457737Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:48:30.7611161Z Ign:5 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 dh-elpa-helper all 2.0.9ubuntu1
+2026-11-11T15:48:30.7721558Z Ign:4 https://archive.ubuntu.com/ubuntu jammy/main amd64 librhash0 amd64 1.4.2-1ubuntu1
+2026-11-11T15:48:30.7735351Z Err:3 https://security.ubuntu.com/ubuntu jammy/main amd64 libjsoncpp25 amd64 1.9.5-3
+2026-11-11T15:48:30.7736021Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:48:50.7851606Z Ign:6 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 cmake-data all 3.22.1-1ubuntu1.22.04.2
+2026-11-11T15:48:50.7984179Z Ign:5 https://archive.ubuntu.com/ubuntu jammy/main amd64 dh-elpa-helper all 2.0.9ubuntu1
+2026-11-11T15:48:50.7986581Z Err:4 https://security.ubuntu.com/ubuntu jammy/main amd64 librhash0 amd64 1.4.2-1ubuntu1
+2026-11-11T15:48:50.7987392Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:49:10.8158674Z Ign:7 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 cmake amd64 3.22.1-1ubuntu1.22.04.2
+2026-11-11T15:49:10.8194025Z Err:5 https://security.ubuntu.com/ubuntu jammy/main amd64 dh-elpa-helper all 2.0.9ubuntu1
+2026-11-11T15:49:10.8194467Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:49:10.8211790Z Ign:6 https://archive.ubuntu.com/ubuntu jammy-updates/main amd64 cmake-data all 3.22.1-1ubuntu1.22.04.2
+2026-11-11T15:49:30.8399013Z Ign:7 https://archive.ubuntu.com/ubuntu jammy-updates/main amd64 cmake amd64 3.22.1-1ubuntu1.22.04.2
+2026-11-11T15:49:30.8483577Z Err:6 https://security.ubuntu.com/ubuntu jammy-updates/main amd64 cmake-data all 3.22.1-1ubuntu1.22.04.2
+2026-11-11T15:49:30.8484283Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:49:50.8847527Z Err:7 https://security.ubuntu.com/ubuntu jammy-updates/main amd64 cmake amd64 3.22.1-1ubuntu1.22.04.2
+2026-11-11T15:49:50.8848131Z   Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:49:50.8913994Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/p/pkg-config/pkg-config_0.29.2-1ubuntu3_amd64.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:49:50.8915451Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/libj/libjsoncpp/libjsoncpp25_1.9.5-3_amd64.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:49:50.8916901Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/r/rhash/librhash0_1.4.2-1ubuntu1_amd64.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:49:50.8918489Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/d/dh-elpa/dh-elpa-helper_2.0.9ubuntu1_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:49:50.8919853Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/c/cmake/cmake-data_3.22.1-1ubuntu1.22.04.2_all.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:49:50.8921288Z E: Failed to fetch https://security.ubuntu.com/ubuntu/pool/main/c/cmake/cmake_3.22.1-1ubuntu1.22.04.2_amd64.deb  Temporary failure resolving 'azure.archive.ubuntu.com'
+2026-11-11T15:49:50.8922329Z E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?
+2026-11-11T15:49:50.8949189Z ##[error]Process completed with exit code 100.
+2026-11-11T15:49:50.9055619Z Post job cleanup.
+2026-11-11T15:49:50.9803674Z [command]/usr/bin/git version
+2026-11-11T15:49:50.9840676Z git version 2.56.0
+2026-11-11T15:49:50.9872836Z Temporarily overriding HOME='/home/runner/work/_temp/01bb1c3f-32bb-4cdf-8213-365c1d5a20b9' before making global git config changes
+2026-11-11T15:49:50.9873634Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T15:49:50.9877906Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T15:49:50.9909628Z Removing SSH command configuration
+2026-11-11T15:49:50.9915531Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T15:49:50.9947966Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T15:49:51.0192127Z Removing HTTP extra header
+2026-11-11T15:49:51.0205192Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T15:49:51.0231061Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T15:49:51.0493404Z Removing includeIf entries pointing to credentials config files
+2026-11-11T15:49:51.0500816Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T15:49:51.0541083Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T15:49:51.0920001Z Cleaning up orphan processes

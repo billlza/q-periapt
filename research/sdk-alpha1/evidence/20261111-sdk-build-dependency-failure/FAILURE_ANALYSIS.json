@@ -1,0 +1,573 @@
+{
+  "schema": 1,
+  "interpretation": "Seven dependency installation steps failed with exit code 100 after Ubuntu mirror hostname resolution errors. The shared observed boundary is APT dependency preparation. The logs do not identify the upstream cause of name resolution failure.",
+  "codeql_execution_boundary": "In both Rust CodeQL jobs, rejection-case checks, CodeQL setup, extraction, projection download, and the full-query execution step were skipped. Missing profile/query-log upload errors followed the dependency failure.",
+  "jobs": [
+    {
+      "run_id": 43050342662,
+      "job_id": 130625388353,
+      "name": "native-and-reference-matched",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342662/job/130625388353",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "checked_out_commit": "b72f7f8e8e6f2526ebab4b825b7d47402ac9835f",
+      "log": "logs/130625388353.log",
+      "log_integrity": {
+        "job": 130625388353,
+        "bytes": 49371,
+        "sha256": "458d667cf8f4e949ad75edb4f77795875e472c7a6a2ecc64848cee94785f3f20",
+        "git_blob": "18c5b464d019ec1e10d93bff6bc4565e80171474"
+      },
+      "first_failed_step": {
+        "name": "Install existing native and AEAD audit dependencies",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 6,
+        "started_at": "2026-11-11T15:41:46Z",
+        "completed_at": "2026-11-11T15:48:31Z"
+      },
+      "dependency_step_seconds": 405,
+      "commands": [
+        {
+          "line": 433,
+          "text": "2026-11-11T15:41:46.8041430Z sudo apt-get update"
+        },
+        {
+          "line": 434,
+          "text": "2026-11-11T15:41:46.8041758Z sudo apt-get install -y protobuf-compiler libssl-dev pkg-config"
+        }
+      ],
+      "dns_hosts": [
+        "azure.archive.ubuntu.com"
+      ],
+      "dns_error_line_count": 16,
+      "first_dns_error": {
+        "line": 462,
+        "text": "2026-11-11T15:44:05.8283880Z   Temporary failure resolving 'azure.archive.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 525,
+          "text": "2026-11-11T15:48:31.0813906Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [
+        {
+          "line": 555,
+          "text": "2026-11-11T15:48:31.2077188Z ##[error]No files were found with the provided path: target/continuity-matched-controls"
+        }
+      ],
+      "checkout_log_line": {
+        "line": 179,
+        "text": "2026-11-11T15:41:25.2679327Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "skipped_work_steps": [
+        {
+          "number": 7,
+          "name": "Check schedule and altered-trace controls",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 8,
+          "name": "Compile and execute native and matched references",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "run_id": 43050342680,
+      "job_id": 130625388744,
+      "name": "native-retry-readiness",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342680/job/130625388744",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "checked_out_commit": "b72f7f8e8e6f2526ebab4b825b7d47402ac9835f",
+      "log": "logs/130625388744.log",
+      "log_integrity": {
+        "job": 130625388744,
+        "bytes": 49103,
+        "sha256": "9c7380a181fd299ca34b3f103f76a6536ffe0e07390793859ff60436e4cd0f74",
+        "git_blob": "b645cd7e44282f2fa39c4f95c69baf015bddb93a"
+      },
+      "first_failed_step": {
+        "name": "Install native build dependencies",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 6,
+        "started_at": "2026-11-11T15:41:49Z",
+        "completed_at": "2026-11-11T15:48:34Z"
+      },
+      "dependency_step_seconds": 405,
+      "commands": [
+        {
+          "line": 432,
+          "text": "2026-11-11T15:41:49.2723538Z sudo apt-get update"
+        },
+        {
+          "line": 433,
+          "text": "2026-11-11T15:41:49.2723813Z sudo apt-get install -y protobuf-compiler libssl-dev pkg-config"
+        }
+      ],
+      "dns_hosts": [
+        "azure.archive.ubuntu.com"
+      ],
+      "dns_error_line_count": 16,
+      "first_dns_error": {
+        "line": 461,
+        "text": "2026-11-11T15:44:09.5954137Z   Temporary failure resolving 'azure.archive.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 522,
+          "text": "2026-11-11T15:48:34.7354965Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [
+        {
+          "line": 553,
+          "text": "2026-11-11T15:48:34.8781644Z ##[error]No files were found with the provided path: target/continuity-retry-age-controls"
+        }
+      ],
+      "checkout_log_line": {
+        "line": 178,
+        "text": "2026-11-11T15:41:28.5641350Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "skipped_work_steps": [
+        {
+          "number": 7,
+          "name": "Check source and retry-age controls",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 8,
+          "name": "Compile and execute both native policies",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "run_id": 43050342715,
+      "job_id": 130625398754,
+      "name": "abi2-linux-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715/job/130625398754",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "checked_out_commit": "b72f7f8e8e6f2526ebab4b825b7d47402ac9835f",
+      "log": "logs/130625398754.log",
+      "log_integrity": {
+        "job": 130625398754,
+        "bytes": 74207,
+        "sha256": "a7c41de10a4b393bcae1fa1f6124bbac8e4bd9444e99626e9cc0fd2f481ecfa1",
+        "git_blob": "9ef4d37fa1f0e57801a5f87abf9981282bb8ae78"
+      },
+      "first_failed_step": {
+        "name": "Run sudo apt-get update && sudo apt-get install -y cmake pkg-config",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 7,
+        "started_at": "2026-11-11T15:41:39Z",
+        "completed_at": "2026-11-11T15:49:50Z"
+      },
+      "dependency_step_seconds": 491,
+      "commands": [
+        {
+          "line": 677,
+          "text": "2026-11-11T15:41:39.5868228Z sudo apt-get update && sudo apt-get install -y cmake pkg-config"
+        }
+      ],
+      "dns_hosts": [
+        "azure.archive.ubuntu.com"
+      ],
+      "dns_error_line_count": 20,
+      "first_dns_error": {
+        "line": 700,
+        "text": "2026-11-11T15:43:59.9785417Z   Temporary failure resolving 'azure.archive.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 771,
+          "text": "2026-11-11T15:49:50.8949189Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [],
+      "checkout_log_line": {
+        "line": 349,
+        "text": "2026-11-11T15:41:16.5340923Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "skipped_work_steps": [
+        {
+          "number": 8,
+          "name": "Run cargo +1.98.1 install cbindgen --version 0.29.4 --locked",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 9,
+          "name": "Build, archive, extract, and consume the native Linux ABI2 SDK",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 10,
+          "name": "Verify the archive through the isolated public-consumer path",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 11,
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "run_id": 43050342715,
+      "job_id": 130625398832,
+      "name": "continuity-spqr-reference (ubuntu-24.04)",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715/job/130625398832",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "checked_out_commit": "b72f7f8e8e6f2526ebab4b825b7d47402ac9835f",
+      "log": "logs/130625398832.log",
+      "log_integrity": {
+        "job": 130625398832,
+        "bytes": 51119,
+        "sha256": "382582d9e047e736770637f6025651156560b69906cd0fde36f43d5b44c9a49d",
+        "git_blob": "1ed23d63dde8c0d603732fe2abc3de0007e8850f"
+      },
+      "first_failed_step": {
+        "name": "Install reference protobuf compiler on Linux runner",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 5,
+        "started_at": "2026-11-11T15:42:46Z",
+        "completed_at": "2026-11-11T15:49:30Z"
+      },
+      "dependency_step_seconds": 404,
+      "commands": [
+        {
+          "line": 488,
+          "text": "2026-11-11T15:42:46.5357516Z sudo apt-get update"
+        },
+        {
+          "line": 489,
+          "text": "2026-11-11T15:42:46.5357810Z sudo apt-get install -y protobuf-compiler"
+        }
+      ],
+      "dns_hosts": [
+        "azure.archive.ubuntu.com"
+      ],
+      "dns_error_line_count": 16,
+      "first_dns_error": {
+        "line": 514,
+        "text": "2026-11-11T15:45:06.8276342Z   Temporary failure resolving 'azure.archive.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 574,
+          "text": "2026-11-11T15:49:30.4106255Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [
+        {
+          "line": 593,
+          "text": "2026-11-11T15:49:30.5177498Z ##[error]No files were found with the provided path: target/continuity-spqr-evidence. No artifacts will be uploaded."
+        }
+      ],
+      "checkout_log_line": {
+        "line": 174,
+        "text": "2026-11-11T15:42:26.2301019Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "skipped_work_steps": [
+        {
+          "number": 6,
+          "name": "Select reference protobuf compiler on macOS runner",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 7,
+          "name": "Check and replay pinned reference corpus",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 8,
+          "name": "Compare isolated 64-byte experiment",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 9,
+          "name": "Replay authenticated whole-KEM periodic controls",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "run_id": 43050342715,
+      "job_id": 130625398884,
+      "name": "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715/job/130625398884",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "checked_out_commit": "b72f7f8e8e6f2526ebab4b825b7d47402ac9835f",
+      "log": "logs/130625398884.log",
+      "log_integrity": {
+        "job": 130625398884,
+        "bytes": 72766,
+        "sha256": "211b27fa7cfcaf996e362ed98d7adb8ee453d7d95cf0dd65ef747386afe170a4",
+        "git_blob": "f7d221bf7165bdbb4a9a581441be242851555031"
+      },
+      "first_failed_step": {
+        "name": "Run sudo apt-get update && sudo apt-get install -y cmake pkg-config",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 7,
+        "started_at": "2026-11-11T15:39:47Z",
+        "completed_at": "2026-11-11T15:51:57Z"
+      },
+      "dependency_step_seconds": 730,
+      "commands": [
+        {
+          "line": 671,
+          "text": "2026-11-11T15:39:47.7204026Z sudo apt-get update && sudo apt-get install -y cmake pkg-config"
+        }
+      ],
+      "dns_hosts": [
+        "ports.ubuntu.com"
+      ],
+      "dns_error_line_count": 18,
+      "first_dns_error": {
+        "line": 698,
+        "text": "2026-11-11T15:44:04.3196342Z   Temporary failure resolving 'ports.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 756,
+          "text": "2026-11-11T15:51:57.6162560Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [],
+      "checkout_log_line": {
+        "line": 343,
+        "text": "2026-11-11T15:39:29.8996390Z b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "skipped_work_steps": [
+        {
+          "number": 8,
+          "name": "Run cargo +1.98.1 install cbindgen --version 0.29.4 --locked",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 9,
+          "name": "Build, archive, extract, and consume the native Linux ABI2 SDK",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 10,
+          "name": "Verify the archive through the isolated public-consumer path",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 11,
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "run_id": 43050342732,
+      "job_id": 130625389933,
+      "name": "Analyze Rust (wasm)",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342732/job/130625389933",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "checked_out_commit": "b72f7f8e8e6f2526ebab4b825b7d47402ac9835f",
+      "log": "logs/130625389933.log",
+      "log_integrity": {
+        "job": 130625389933,
+        "bytes": 51504,
+        "sha256": "842955fb91dc24e9427fd1f141b5eaddc875b576b37b2c40509c005e461dea9e",
+        "git_blob": "1eeb2bafd5a3b587e8aad7d67f4643795ef4fe3d"
+      },
+      "first_failed_step": {
+        "name": "Install analysis build dependencies",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 4,
+        "started_at": "2026-11-11T15:41:39Z",
+        "completed_at": "2026-11-11T15:48:23Z"
+      },
+      "dependency_step_seconds": 404,
+      "commands": [
+        {
+          "line": 415,
+          "text": "2026-11-11T15:41:39.0050559Z sudo apt-get update"
+        },
+        {
+          "line": 416,
+          "text": "2026-11-11T15:41:39.0050974Z sudo apt-get install -y --no-install-recommends protobuf-compiler clang"
+        }
+      ],
+      "dns_hosts": [
+        "azure.archive.ubuntu.com"
+      ],
+      "dns_error_line_count": 16,
+      "first_dns_error": {
+        "line": 439,
+        "text": "2026-11-11T15:43:59.2732537Z   Temporary failure resolving 'azure.archive.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 500,
+          "text": "2026-11-11T15:48:23.4926027Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [
+        {
+          "line": 518,
+          "text": "2026-11-11T15:48:23.6610250Z ##[error]No files were found with the provided path: /home/runner/work/_temp/qperiapt-codeql-wasm/evidence/*. No artifacts will be uploaded."
+        },
+        {
+          "line": 541,
+          "text": "2026-11-11T15:48:23.8551319Z ##[error]No files were found with the provided path: /home/runner/work/_temp/qperiapt-codeql-database/rust/log/**"
+        }
+      ],
+      "checkout_log_line": {
+        "line": 55,
+        "text": "2026-11-11T15:38:23.2213286Z   CODEQL_EXPECTED_COMMIT: b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "skipped_work_steps": [
+        {
+          "number": 5,
+          "name": "Check target coverage and publication rejection cases",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 6,
+          "name": "Run github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 7,
+          "name": "Compile and extract the actual target",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 8,
+          "name": "Download the authenticated projection runtime",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 9,
+          "name": "Run every security-extended query",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    {
+      "run_id": 43050342732,
+      "job_id": 130625390075,
+      "name": "Analyze Rust (native)",
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/43050342732/job/130625390075",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "checked_out_commit": "b72f7f8e8e6f2526ebab4b825b7d47402ac9835f",
+      "log": "logs/130625390075.log",
+      "log_integrity": {
+        "job": 130625390075,
+        "bytes": 51455,
+        "sha256": "4f05f952ce0c35f9b18f97392f4bf9dbcd7b24b9f1df57707abc674fd912e236",
+        "git_blob": "60b5f22b315c4209f432f520ab12a11803291e20"
+      },
+      "first_failed_step": {
+        "name": "Install analysis build dependencies",
+        "status": "completed",
+        "conclusion": "failure",
+        "number": 4,
+        "started_at": "2026-11-11T15:41:48Z",
+        "completed_at": "2026-11-11T15:48:33Z"
+      },
+      "dependency_step_seconds": 405,
+      "commands": [
+        {
+          "line": 413,
+          "text": "2026-11-11T15:41:48.5915556Z sudo apt-get update"
+        },
+        {
+          "line": 414,
+          "text": "2026-11-11T15:41:48.5916250Z sudo apt-get install -y --no-install-recommends protobuf-compiler clang"
+        }
+      ],
+      "dns_hosts": [
+        "azure.archive.ubuntu.com"
+      ],
+      "dns_error_line_count": 16,
+      "first_dns_error": {
+        "line": 437,
+        "text": "2026-11-11T15:44:08.8670399Z   Temporary failure resolving 'azure.archive.ubuntu.com'"
+      },
+      "exit_errors": [
+        {
+          "line": 498,
+          "text": "2026-11-11T15:48:33.2510957Z ##[error]Process completed with exit code 100."
+        }
+      ],
+      "secondary_upload_errors": [
+        {
+          "line": 516,
+          "text": "2026-11-11T15:48:33.4007705Z ##[error]No files were found with the provided path: /home/runner/work/_temp/qperiapt-codeql-native/evidence/*. No artifacts will be uploaded."
+        },
+        {
+          "line": 539,
+          "text": "2026-11-11T15:48:33.5727971Z ##[error]No files were found with the provided path: /home/runner/work/_temp/qperiapt-codeql-database/rust/log/**"
+        }
+      ],
+      "checkout_log_line": {
+        "line": 55,
+        "text": "2026-11-11T15:38:24.0595430Z   CODEQL_EXPECTED_COMMIT: b72f7f8e8e6f2526ebab4b825b7d47402ac9835f"
+      },
+      "skipped_work_steps": [
+        {
+          "number": 5,
+          "name": "Check target coverage and publication rejection cases",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 6,
+          "name": "Run github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 7,
+          "name": "Compile and extract the actual target",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 8,
+          "name": "Download the authenticated projection runtime",
+          "status": "completed",
+          "conclusion": "skipped"
+        },
+        {
+          "number": 9,
+          "name": "Run every security-extended query",
+          "status": "completed",
+          "conclusion": "skipped"
+        }
+      ]
+    }
+  ]
+}

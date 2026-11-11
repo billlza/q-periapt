@@ -1,0 +1,1029 @@
+{
+  "schema": 1,
+  "repository": "billlza/q-periapt",
+  "snapshot_started_utc": "2026-11-11 15:53:52 UTC",
+  "snapshot_finished_utc": "2026-11-11 15:53:53 UTC",
+  "sdk_head": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+  "scope": "One read of the latest-attempt jobs endpoint for each of the four listed runs; all seven jobs whose conclusion was failure at that snapshot are retained. No subsequent polling or rerun.",
+  "runs": [
+    {
+      "run_id": 43050342662,
+      "source": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43050342662/jobs?filter=latest&per_page=100",
+      "total_count": 1,
+      "returned_jobs": 1,
+      "complete_single_page": true,
+      "status_counts": {
+        "completed/failure": 1
+      },
+      "selected_failure_ids": [
+        130625388353
+      ]
+    },
+    {
+      "run_id": 43050342680,
+      "source": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43050342680/jobs?filter=latest&per_page=100",
+      "total_count": 1,
+      "returned_jobs": 1,
+      "complete_single_page": true,
+      "status_counts": {
+        "completed/failure": 1
+      },
+      "selected_failure_ids": [
+        130625388744
+      ]
+    },
+    {
+      "run_id": 43050342715,
+      "source": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43050342715/jobs?filter=latest&per_page=100",
+      "total_count": 56,
+      "returned_jobs": 56,
+      "complete_single_page": true,
+      "status_counts": {
+        "in_progress/null": 23,
+        "completed/success": 7,
+        "completed/failure": 3,
+        "queued/null": 23
+      },
+      "selected_failure_ids": [
+        130625398754,
+        130625398832,
+        130625398884
+      ]
+    },
+    {
+      "run_id": 43050342732,
+      "source": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43050342732/jobs?filter=latest&per_page=100",
+      "total_count": 8,
+      "returned_jobs": 8,
+      "complete_single_page": true,
+      "status_counts": {
+        "queued/null": 2,
+        "completed/failure": 2,
+        "completed/success": 2,
+        "in_progress/null": 2
+      },
+      "selected_failure_ids": [
+        130625389933,
+        130625390075
+      ]
+    }
+  ],
+  "jobs": [
+    {
+      "id": 130625388353,
+      "run_id": 43050342662,
+      "workflow_name": "Continuity matched directed opportunities",
+      "head_branch": "integration/sdk-020",
+      "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43050342662",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTD-aVc8AAAAeaeE_QQ",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130625388353",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342662/job/130625388353",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-11-11T15:38:16Z",
+      "started_at": "2026-11-11T15:38:19Z",
+      "completed_at": "2026-11-11T15:48:33Z",
+      "name": "native-and-reference-matched",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-11T15:38:20Z",
+          "completed_at": "2026-11-11T15:38:21Z"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-11T15:38:21Z",
+          "completed_at": "2026-11-11T15:41:25Z"
+        },
+        {
+          "name": "Make the explicit experiment base available",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-11T15:41:25Z",
+          "completed_at": "2026-11-11T15:41:27Z"
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-11T15:41:27Z",
+          "completed_at": "2026-11-11T15:41:37Z"
+        },
+        {
+          "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-11T15:41:37Z",
+          "completed_at": "2026-11-11T15:41:46Z"
+        },
+        {
+          "name": "Install existing native and AEAD audit dependencies",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 6,
+          "started_at": "2026-11-11T15:41:46Z",
+          "completed_at": "2026-11-11T15:48:31Z"
+        },
+        {
+          "name": "Check schedule and altered-trace controls",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 7,
+          "started_at": "2026-11-11T15:48:31Z",
+          "completed_at": "2026-11-11T15:48:31Z"
+        },
+        {
+          "name": "Compile and execute native and matched references",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8,
+          "started_at": "2026-11-11T15:48:31Z",
+          "completed_at": "2026-11-11T15:48:31Z"
+        },
+        {
+          "name": "Retain public execution evidence",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 9,
+          "started_at": "2026-11-11T15:48:31Z",
+          "completed_at": "2026-11-11T15:48:31Z"
+        },
+        {
+          "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 17,
+          "started_at": "2026-11-11T15:48:31Z",
+          "completed_at": "2026-11-11T15:48:31Z"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-11-11T15:48:31Z",
+          "completed_at": "2026-11-11T15:48:31Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-11-11T15:48:31Z",
+          "completed_at": "2026-11-11T15:48:31Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130625388353",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1000089174,
+      "runner_name": "GitHub Actions 1000089174",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 130625388744,
+      "run_id": 43050342680,
+      "workflow_name": "Continuity native retry readiness",
+      "head_branch": "integration/sdk-020",
+      "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43050342680",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTD-aVc8AAAAeaeFAyA",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130625388744",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342680/job/130625388744",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-11-11T15:38:16Z",
+      "started_at": "2026-11-11T15:38:21Z",
+      "completed_at": "2026-11-11T15:48:37Z",
+      "name": "native-retry-readiness",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-11T15:38:21Z",
+          "completed_at": "2026-11-11T15:38:22Z"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-11T15:38:22Z",
+          "completed_at": "2026-11-11T15:41:29Z"
+        },
+        {
+          "name": "Fetch the fixed protocol source",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-11T15:41:29Z",
+          "completed_at": "2026-11-11T15:41:30Z"
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-11T15:41:30Z",
+          "completed_at": "2026-11-11T15:41:42Z"
+        },
+        {
+          "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-11T15:41:42Z",
+          "completed_at": "2026-11-11T15:41:49Z"
+        },
+        {
+          "name": "Install native build dependencies",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 6,
+          "started_at": "2026-11-11T15:41:49Z",
+          "completed_at": "2026-11-11T15:48:34Z"
+        },
+        {
+          "name": "Check source and retry-age controls",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 7,
+          "started_at": "2026-11-11T15:48:34Z",
+          "completed_at": "2026-11-11T15:48:34Z"
+        },
+        {
+          "name": "Compile and execute both native policies",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8,
+          "started_at": "2026-11-11T15:48:34Z",
+          "completed_at": "2026-11-11T15:48:34Z"
+        },
+        {
+          "name": "Retain public execution evidence",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 9,
+          "started_at": "2026-11-11T15:48:34Z",
+          "completed_at": "2026-11-11T15:48:34Z"
+        },
+        {
+          "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 17,
+          "started_at": "2026-11-11T15:48:34Z",
+          "completed_at": "2026-11-11T15:48:34Z"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-11-11T15:48:34Z",
+          "completed_at": "2026-11-11T15:48:35Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-11-11T15:48:35Z",
+          "completed_at": "2026-11-11T15:48:35Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130625388744",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1000089178,
+      "runner_name": "GitHub Actions 1000089178",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 130625398754,
+      "run_id": 43050342715,
+      "workflow_name": "ci",
+      "head_branch": "integration/sdk-020",
+      "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43050342715",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTD-aVc8AAAAeaeFn4g",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130625398754",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715/job/130625398754",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-11-11T15:38:17Z",
+      "started_at": "2026-11-11T15:38:21Z",
+      "completed_at": "2026-11-11T15:49:54Z",
+      "name": "abi2-linux-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-11T15:38:22Z",
+          "completed_at": "2026-11-11T15:38:24Z"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-11T15:38:24Z",
+          "completed_at": "2026-11-11T15:41:17Z"
+        },
+        {
+          "name": "Provision hardened proof Python",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-11T15:41:17Z",
+          "completed_at": "2026-11-11T15:41:28Z"
+        },
+        {
+          "name": "Verify hardened proof Python",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-11T15:41:28Z",
+          "completed_at": "2026-11-11T15:41:28Z"
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-11T15:41:28Z",
+          "completed_at": "2026-11-11T15:41:38Z"
+        },
+        {
+          "name": "Verify native runner and checkout provenance",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-11T15:41:38Z",
+          "completed_at": "2026-11-11T15:41:39Z"
+        },
+        {
+          "name": "Run sudo apt-get update && sudo apt-get install -y cmake pkg-config",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 7,
+          "started_at": "2026-11-11T15:41:39Z",
+          "completed_at": "2026-11-11T15:49:50Z"
+        },
+        {
+          "name": "Run cargo +1.98.1 install cbindgen --version 0.29.4 --locked",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8,
+          "started_at": "2026-11-11T15:49:50Z",
+          "completed_at": "2026-11-11T15:49:50Z"
+        },
+        {
+          "name": "Build, archive, extract, and consume the native Linux ABI2 SDK",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 9,
+          "started_at": "2026-11-11T15:49:50Z",
+          "completed_at": "2026-11-11T15:49:50Z"
+        },
+        {
+          "name": "Verify the archive through the isolated public-consumer path",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 10,
+          "started_at": "2026-11-11T15:49:50Z",
+          "completed_at": "2026-11-11T15:49:50Z"
+        },
+        {
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 11,
+          "started_at": "2026-11-11T15:49:50Z",
+          "completed_at": "2026-11-11T15:49:50Z"
+        },
+        {
+          "name": "Post Provision hardened proof Python",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 21,
+          "started_at": "2026-11-11T15:49:50Z",
+          "completed_at": "2026-11-11T15:49:50Z"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 22,
+          "started_at": "2026-11-11T15:49:50Z",
+          "completed_at": "2026-11-11T15:49:51Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23,
+          "started_at": "2026-11-11T15:49:51Z",
+          "completed_at": "2026-11-11T15:49:51Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130625398754",
+      "labels": [
+        "ubuntu-22.04"
+      ],
+      "runner_id": 1000089205,
+      "runner_name": "GitHub Actions 1000089205",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 130625398832,
+      "run_id": 43050342715,
+      "workflow_name": "ci",
+      "head_branch": "integration/sdk-020",
+      "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43050342715",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTD-aVc8AAAAeaeFoMA",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130625398832",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715/job/130625398832",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-11-11T15:38:17Z",
+      "started_at": "2026-11-11T15:38:21Z",
+      "completed_at": "2026-11-11T15:49:33Z",
+      "name": "continuity-spqr-reference (ubuntu-24.04)",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-11T15:38:22Z",
+          "completed_at": "2026-11-11T15:38:23Z"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-11T15:38:23Z",
+          "completed_at": "2026-11-11T15:42:26Z"
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-11T15:42:26Z",
+          "completed_at": "2026-11-11T15:42:37Z"
+        },
+        {
+          "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-11T15:42:37Z",
+          "completed_at": "2026-11-11T15:42:46Z"
+        },
+        {
+          "name": "Install reference protobuf compiler on Linux runner",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 5,
+          "started_at": "2026-11-11T15:42:46Z",
+          "completed_at": "2026-11-11T15:49:30Z"
+        },
+        {
+          "name": "Select reference protobuf compiler on macOS runner",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 6,
+          "started_at": "2026-11-11T15:49:30Z",
+          "completed_at": "2026-11-11T15:49:30Z"
+        },
+        {
+          "name": "Check and replay pinned reference corpus",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 7,
+          "started_at": "2026-11-11T15:49:30Z",
+          "completed_at": "2026-11-11T15:49:30Z"
+        },
+        {
+          "name": "Compare isolated 64-byte experiment",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8,
+          "started_at": "2026-11-11T15:49:30Z",
+          "completed_at": "2026-11-11T15:49:30Z"
+        },
+        {
+          "name": "Replay authenticated whole-KEM periodic controls",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 9,
+          "started_at": "2026-11-11T15:49:30Z",
+          "completed_at": "2026-11-11T15:49:30Z"
+        },
+        {
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 10,
+          "started_at": "2026-11-11T15:49:30Z",
+          "completed_at": "2026-11-11T15:49:30Z"
+        },
+        {
+          "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 19,
+          "started_at": "2026-11-11T15:49:30Z",
+          "completed_at": "2026-11-11T15:49:30Z"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20,
+          "started_at": "2026-11-11T15:49:30Z",
+          "completed_at": "2026-11-11T15:49:30Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 21,
+          "started_at": "2026-11-11T15:49:30Z",
+          "completed_at": "2026-11-11T15:49:30Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130625398832",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1000089179,
+      "runner_name": "GitHub Actions 1000089179",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 130625398884,
+      "run_id": 43050342715,
+      "workflow_name": "ci",
+      "head_branch": "integration/sdk-020",
+      "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43050342715",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTD-aVc8AAAAeaeFoZA",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130625398884",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715/job/130625398884",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-11-11T15:38:17Z",
+      "started_at": "2026-11-11T15:38:35Z",
+      "completed_at": "2026-11-11T15:51:59Z",
+      "name": "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-11T15:38:36Z",
+          "completed_at": "2026-11-11T15:38:37Z"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-11T15:38:37Z",
+          "completed_at": "2026-11-11T15:39:30Z"
+        },
+        {
+          "name": "Provision hardened proof Python",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-11T15:39:30Z",
+          "completed_at": "2026-11-11T15:39:40Z"
+        },
+        {
+          "name": "Verify hardened proof Python",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-11-11T15:39:40Z",
+          "completed_at": "2026-11-11T15:39:40Z"
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-11-11T15:39:40Z",
+          "completed_at": "2026-11-11T15:39:47Z"
+        },
+        {
+          "name": "Verify native runner and checkout provenance",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-11-11T15:39:47Z",
+          "completed_at": "2026-11-11T15:39:47Z"
+        },
+        {
+          "name": "Run sudo apt-get update && sudo apt-get install -y cmake pkg-config",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 7,
+          "started_at": "2026-11-11T15:39:47Z",
+          "completed_at": "2026-11-11T15:51:57Z"
+        },
+        {
+          "name": "Run cargo +1.98.1 install cbindgen --version 0.29.4 --locked",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8,
+          "started_at": "2026-11-11T15:51:57Z",
+          "completed_at": "2026-11-11T15:51:57Z"
+        },
+        {
+          "name": "Build, archive, extract, and consume the native Linux ABI2 SDK",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 9,
+          "started_at": "2026-11-11T15:51:57Z",
+          "completed_at": "2026-11-11T15:51:57Z"
+        },
+        {
+          "name": "Verify the archive through the isolated public-consumer path",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 10,
+          "started_at": "2026-11-11T15:51:57Z",
+          "completed_at": "2026-11-11T15:51:57Z"
+        },
+        {
+          "name": "Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 11,
+          "started_at": "2026-11-11T15:51:57Z",
+          "completed_at": "2026-11-11T15:51:57Z"
+        },
+        {
+          "name": "Post Provision hardened proof Python",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 21,
+          "started_at": "2026-11-11T15:51:57Z",
+          "completed_at": "2026-11-11T15:51:57Z"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 22,
+          "started_at": "2026-11-11T15:51:57Z",
+          "completed_at": "2026-11-11T15:51:57Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23,
+          "started_at": "2026-11-11T15:51:57Z",
+          "completed_at": "2026-11-11T15:51:57Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130625398884",
+      "labels": [
+        "ubuntu-22.04-arm"
+      ],
+      "runner_id": 1000089206,
+      "runner_name": "GitHub Actions 1000089206",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 130625389933,
+      "run_id": 43050342732,
+      "workflow_name": "CodeQL",
+      "head_branch": "integration/sdk-020",
+      "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43050342732",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTD-aVc8AAAAeaeFFbQ",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130625389933",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342732/job/130625389933",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-11-11T15:38:16Z",
+      "started_at": "2026-11-11T15:38:21Z",
+      "completed_at": "2026-11-11T15:48:25Z",
+      "name": "Analyze Rust (wasm)",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-11T15:38:22Z",
+          "completed_at": "2026-11-11T15:38:23Z"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-11T15:38:23Z",
+          "completed_at": "2026-11-11T15:41:27Z"
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-11T15:41:27Z",
+          "completed_at": "2026-11-11T15:41:39Z"
+        },
+        {
+          "name": "Install analysis build dependencies",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 4,
+          "started_at": "2026-11-11T15:41:39Z",
+          "completed_at": "2026-11-11T15:48:23Z"
+        },
+        {
+          "name": "Check target coverage and publication rejection cases",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 5,
+          "started_at": "2026-11-11T15:48:23Z",
+          "completed_at": "2026-11-11T15:48:23Z"
+        },
+        {
+          "name": "Run github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 6,
+          "started_at": "2026-11-11T15:48:23Z",
+          "completed_at": "2026-11-11T15:48:23Z"
+        },
+        {
+          "name": "Compile and extract the actual target",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 7,
+          "started_at": "2026-11-11T15:48:23Z",
+          "completed_at": "2026-11-11T15:48:23Z"
+        },
+        {
+          "name": "Download the authenticated projection runtime",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8,
+          "started_at": "2026-11-11T15:48:23Z",
+          "completed_at": "2026-11-11T15:48:23Z"
+        },
+        {
+          "name": "Run every security-extended query",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 9,
+          "started_at": "2026-11-11T15:48:23Z",
+          "completed_at": "2026-11-11T15:48:23Z"
+        },
+        {
+          "name": "Retain profile evidence before bundling diagnostics",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 10,
+          "started_at": "2026-11-11T15:48:23Z",
+          "completed_at": "2026-11-11T15:48:23Z"
+        },
+        {
+          "name": "Retain Rust query logs independently of the database archive",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 11,
+          "started_at": "2026-11-11T15:48:23Z",
+          "completed_at": "2026-11-11T15:48:23Z"
+        },
+        {
+          "name": "Bundle the completed or partial database",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-11-11T15:48:23Z",
+          "completed_at": "2026-11-11T15:48:23Z"
+        },
+        {
+          "name": "Retain Rust database and consumer diagnostics",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-11-11T15:48:23Z",
+          "completed_at": "2026-11-11T15:48:24Z"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 26,
+          "started_at": "2026-11-11T15:48:24Z",
+          "completed_at": "2026-11-11T15:48:24Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 27,
+          "started_at": "2026-11-11T15:48:24Z",
+          "completed_at": "2026-11-11T15:48:25Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130625389933",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1000089198,
+      "runner_name": "GitHub Actions 1000089198",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 130625390075,
+      "run_id": 43050342732,
+      "workflow_name": "CodeQL",
+      "head_branch": "integration/sdk-020",
+      "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43050342732",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTD-aVc8AAAAeaeFF-w",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130625390075",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342732/job/130625390075",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-11-11T15:38:16Z",
+      "started_at": "2026-11-11T15:38:21Z",
+      "completed_at": "2026-11-11T15:48:38Z",
+      "name": "Analyze Rust (native)",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-11-11T15:38:22Z",
+          "completed_at": "2026-11-11T15:38:24Z"
+        },
+        {
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-11-11T15:38:24Z",
+          "completed_at": "2026-11-11T15:41:35Z"
+        },
+        {
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-11-11T15:41:35Z",
+          "completed_at": "2026-11-11T15:41:48Z"
+        },
+        {
+          "name": "Install analysis build dependencies",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 4,
+          "started_at": "2026-11-11T15:41:48Z",
+          "completed_at": "2026-11-11T15:48:33Z"
+        },
+        {
+          "name": "Check target coverage and publication rejection cases",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 5,
+          "started_at": "2026-11-11T15:48:33Z",
+          "completed_at": "2026-11-11T15:48:33Z"
+        },
+        {
+          "name": "Run github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 6,
+          "started_at": "2026-11-11T15:48:33Z",
+          "completed_at": "2026-11-11T15:48:33Z"
+        },
+        {
+          "name": "Compile and extract the actual target",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 7,
+          "started_at": "2026-11-11T15:48:33Z",
+          "completed_at": "2026-11-11T15:48:33Z"
+        },
+        {
+          "name": "Download the authenticated projection runtime",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8,
+          "started_at": "2026-11-11T15:48:33Z",
+          "completed_at": "2026-11-11T15:48:33Z"
+        },
+        {
+          "name": "Run every security-extended query",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 9,
+          "started_at": "2026-11-11T15:48:33Z",
+          "completed_at": "2026-11-11T15:48:33Z"
+        },
+        {
+          "name": "Retain profile evidence before bundling diagnostics",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 10,
+          "started_at": "2026-11-11T15:48:33Z",
+          "completed_at": "2026-11-11T15:48:33Z"
+        },
+        {
+          "name": "Retain Rust query logs independently of the database archive",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 11,
+          "started_at": "2026-11-11T15:48:33Z",
+          "completed_at": "2026-11-11T15:48:33Z"
+        },
+        {
+          "name": "Bundle the completed or partial database",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-11-11T15:48:33Z",
+          "completed_at": "2026-11-11T15:48:33Z"
+        },
+        {
+          "name": "Retain Rust database and consumer diagnostics",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-11-11T15:48:33Z",
+          "completed_at": "2026-11-11T15:48:35Z"
+        },
+        {
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 26,
+          "started_at": "2026-11-11T15:48:35Z",
+          "completed_at": "2026-11-11T15:48:35Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 27,
+          "started_at": "2026-11-11T15:48:35Z",
+          "completed_at": "2026-11-11T15:48:35Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130625390075",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1000089199,
+      "runner_name": "GitHub Actions 1000089199",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]
+}
