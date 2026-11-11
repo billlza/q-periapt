@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "/usr/bin/git",
+    "-C",
+    "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-validation/cold",
+    "rev-list",
+    "--objects",
+    "--all",
+    "--missing=print"
+  ],
+  "elapsed_seconds": 0.06362183200326399,
+  "maximum_seconds": 180,
+  "returncode": 0,
+  "started_utc": "2026-11-11T19:18:03.681166+00:00"
+}

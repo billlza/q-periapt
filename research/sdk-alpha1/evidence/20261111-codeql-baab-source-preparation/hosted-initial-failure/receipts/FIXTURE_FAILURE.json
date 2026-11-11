@@ -1,0 +1,6 @@
+{
+  "message": "command timed out after 180 seconds",
+  "notes": [],
+  "recorded_utc": "2026-11-11T19:11:05.440433+00:00",
+  "type": "BoundedProcessError"
+}

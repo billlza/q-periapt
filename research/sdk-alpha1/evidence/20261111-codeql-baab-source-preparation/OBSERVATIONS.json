@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "prepared_at_utc": "2026-11-11T19:32:25.308910+00:00",
+  "repository_directory": "research/sdk-alpha1/evidence/20261111-codeql-baab-source-preparation",
+  "fixed_diagnostic_commit": "95ba31c114fd9b0c3bc014ed9e37d416a577715f",
+  "fixed_diagnostic_tree": "b97bd462405228631f9d830dac290a8f87d4f0ef",
+  "fixed_diagnostic_parent": "5e4819004450a43423c19818c65fe89779899eb6",
+  "changed_public_paths": [
+    "artifact/codeql_fixture_baab.py"
+  ],
+  "public_helper": {
+    "git_blob": "82699d8b906390a49c3c87674bdd288ef972641d",
+    "bytes": 18737,
+    "sha256": "c1efbcc72f75fddc60422841d049c312c7575ff7257767060d9f5df397fc1b24"
+  },
+  "source_snapshots": {
+    "A": "b5185165283880527a54289b47397fde78ddf553",
+    "B": "ed38e305552db2825d90622c130973df87e16d50"
+  },
+  "hosted_initial_failure": {
+    "run_id": 43081947833,
+    "job_id": 130736488898,
+    "artifact_id": 13886850219,
+    "workflow_source": "5e4819004450a43423c19818c65fe89779899eb6",
+    "artifact": {
+      "bytes": 678971,
+      "sha256": "e27d75b7e78ded924475e42a387377e5b225d192f24758f71a99515efba8f28b"
+    },
+    "all_148_member_hashes_match_original_manifest": true,
+    "analysis_invocations": 0,
+    "bqrs_members": 0,
+    "extraction_seconds": 29.060392852,
+    "source_archive_seconds": 180.002059876,
+    "source_archive_limit_seconds": 180,
+    "cleanup_ambiguous": false,
+    "initial_database_files": 6651
+  },
+  "local_full_commit_failure": {
+    "error": "BoundedProcessError",
+    "message": "command timed out after 180 seconds",
+    "archive_receipt": {
+      "argv": [
+        "/usr/bin/git",
+        "-C",
+        "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-validation/cold",
+        "archive",
+        "--format=tar",
+        "--output=/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-validation/A.tar",
+        "b5185165283880527a54289b47397fde78ddf553",
+        "artifact"
+      ],
+      "cleanup_ambiguous": false,
+      "elapsed_seconds": 180.0034077220007,
+      "error": "BoundedProcessError",
+      "maximum_seconds": 180,
+      "message": "command timed out after 180 seconds",
+      "started_utc": "2026-11-11T19:18:09.138640+00:00"
+    },
+    "retained": true,
+    "first_missing_count_scope": "The original --all enumeration covers initially referenced history; complete A/B cold counts are taken from the successful explicit-revision reproduction."
+  },
+  "local_subtree_success": {
+    "status": "passed_cold_public_bulk_prefetch_complete_subtree_snapshots",
+    "helper_sha256": "198dacfc1e5507b43ed29ab41f97e92e64d4e0ab8fe1da0a77a2309ff62cd439",
+    "blob_oids": 610,
+    "attributes": [
+      "7b9efe5fdc35711ae68f7dd34af3ab37b91116f3"
+    ],
+    "required_missing_before": 610,
+    "required_missing_after": 0,
+    "inventories": {
+      "A": {
+        "archive_bytes": 17008640,
+        "archive_lazy_fetches": [],
+        "archive_sha256": "0a9ecf71723130874663d2b624d589019166e9dac0b80762b20ddb29bcb6ac4a",
+        "bytes": 16532600,
+        "files": 597,
+        "inventory_sha256": "3e816a42292d275b6059c08b64d1636e766f9ddfe190fc651be796b4822775de"
+      },
+      "B": {
+        "archive_bytes": 17039360,
+        "archive_lazy_fetches": [],
+        "archive_sha256": "12987f894ac1dd8f9f5de51915c3b29ffa58fec6b47098767b928de624e9661f",
+        "bytes": 16559281,
+        "files": 600,
+        "inventory_sha256": "ac3335a92bd7b9080b41dd86340d5b7be0e1d97fb540232d8596b8c452dfee1d"
+      }
+    },
+    "codeql_or_ci_executed": false
+  },
+  "prefetch_seconds": 5.845420053999987,
+  "archive_seconds": {
+    "A": 0.07937362499797018,
+    "B": 0.12927192899951478
+  },
+  "independent_readback": "independent-review/READBACK.json",
+  "comment_only_binding": "source/COMMENT_ONLY_BINDING.json",
+  "hosted_paired_query_results": "Retained separately by the final BAAB run readback."
+}

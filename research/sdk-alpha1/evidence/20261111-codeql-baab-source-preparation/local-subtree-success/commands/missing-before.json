@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/usr/bin/git",
+    "-C",
+    "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/cold",
+    "rev-list",
+    "--objects",
+    "--missing=print",
+    "b5185165283880527a54289b47397fde78ddf553",
+    "ed38e305552db2825d90622c130973df87e16d50"
+  ],
+  "elapsed_seconds": 0.0681469470000593,
+  "maximum_seconds": 180,
+  "returncode": 0,
+  "started_utc": "2026-11-11T19:23:41.575433+00:00"
+}

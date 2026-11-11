@@ -1,0 +1,7 @@
+{
+  "cold_executed_helper_sha256": "198dacfc1e5507b43ed29ab41f97e92e64d4e0ab8fe1da0a77a2309ff62cd439",
+  "publication_helper_sha256": "c1efbcc72f75fddc60422841d049c312c7575ff7257767060d9f5df397fc1b24",
+  "entire_executable_AST_identical": true,
+  "all_commands_and_timeouts_unchanged": true,
+  "change": "Comment wording corrected to the observed full-index/subtree mechanism; no additional test was run."
+}

@@ -1,0 +1,28 @@
+{
+  "reviewed_at_utc": "2026-11-11T19:25:00.951871+00:00",
+  "baseline": {
+    "path": "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-readback/source/codeql_fixture_baab.py",
+    "bytes": 17619,
+    "sha256": "0f51bfcc59f312958531527de665e8dbb0b959e9e9a460f7a692825f4de3f255"
+  },
+  "candidate": {
+    "path": "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-fix/artifact/codeql_fixture_baab.py",
+    "bytes": 18737,
+    "sha256": "198dacfc1e5507b43ed29ab41f97e92e64d4e0ab8fe1da0a77a2309ff62cd439"
+  },
+  "only_changed_function": [
+    "prepare_sources"
+  ],
+  "all_other_source_bytes_identical": true,
+  "complete_artifact_snapshot_domain_retained": true,
+  "archive_uses_exact_commit_artifact_tree_and_restores_artifact_prefix": true,
+  "archive_and_prefetch_maximum_seconds": 180,
+  "single_analysis_seconds_unchanged": 600,
+  "worker_term_grace_outer_seconds_unchanged": [
+    850,
+    15,
+    900
+  ],
+  "source_imports_guards_sampler_result_census_and_comparison_unchanged": true,
+  "source_review_passed": true
+}

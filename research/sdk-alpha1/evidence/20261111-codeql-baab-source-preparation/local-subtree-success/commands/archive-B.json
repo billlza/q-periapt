@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/usr/bin/git",
+    "-C",
+    "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/cold",
+    "archive",
+    "--format=tar",
+    "--prefix=artifact/",
+    "--output=/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/B.tar",
+    "ed38e305552db2825d90622c130973df87e16d50:artifact"
+  ],
+  "elapsed_seconds": 0.12927192899951478,
+  "maximum_seconds": 180,
+  "returncode": 0,
+  "started_utc": "2026-11-11T19:23:47.861422+00:00"
+}

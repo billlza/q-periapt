@@ -1,0 +1,24 @@
+{
+  "argv": [
+    "/usr/bin/git",
+    "-C",
+    "/home/runner/work/q-periapt/q-periapt",
+    "archive",
+    "--format=tar",
+    "--output=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/comparison/sources/A.tar",
+    "b5185165283880527a54289b47397fde78ddf553",
+    "artifact"
+  ],
+  "boundary": "timeout",
+  "cleanup_ambiguous": false,
+  "completed": false,
+  "cwd": "/home/runner/work/q-periapt/q-periapt",
+  "elapsed_seconds": 180.002059876,
+  "finished_at_utc": "2026-11-11T19:11:05.440+00:00",
+  "invoked_at_utc": "2026-11-11T19:08:05.438+00:00",
+  "maximum_seconds": 180,
+  "reason": "command timed out after 180 seconds",
+  "run_attempt": "1",
+  "run_id": "43081947833",
+  "source_commit": "5e4819004450a43423c19818c65fe89779899eb6"
+}

@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "/usr/bin/git",
+    "-C",
+    "/home/runner/work/q-periapt/q-periapt",
+    "fetch",
+    "--no-tags",
+    "--depth=1",
+    "origin",
+    "b5185165283880527a54289b47397fde78ddf553",
+    "ed38e305552db2825d90622c130973df87e16d50"
+  ],
+  "cwd": "/home/runner/work/q-periapt/q-periapt",
+  "elapsed_seconds": 0.2824354400000004,
+  "finished_at_utc": "2026-11-11T19:08:05.437+00:00",
+  "invoked_at_utc": "2026-11-11T19:08:05.155+00:00",
+  "maximum_seconds": 180,
+  "returncode": 0,
+  "run_attempt": "1",
+  "run_id": "43081947833",
+  "source_commit": "5e4819004450a43423c19818c65fe89779899eb6"
+}

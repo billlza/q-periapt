@@ -1,0 +1,92 @@
+{
+  "analysis_invocations": 0,
+  "artifact": {
+    "bytes": 678971,
+    "sha256": "e27d75b7e78ded924475e42a387377e5b225d192f24758f71a99515efba8f28b"
+  },
+  "artifact_id": 13886850219,
+  "diagnosis": "The full artifact-directory git archive exceeded its fixed 180-second preparation deadline. The retained log has no stderr diagnostic identifying an underlying missing object or remote failure; the separate cold-Git trace is recorded independently.",
+  "extraction": {
+    "command": [
+      "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extraction-tool/codeql/codeql",
+      "test",
+      "extract",
+      "-J-Xmx1536M",
+      "--database=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/database-extracted",
+      "--common-caches=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-cache",
+      "--logdir=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/extract-logs",
+      "--show-extractor-output",
+      "--format=json",
+      "--",
+      "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/reproduction/fixture/env"
+    ],
+    "cwd": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture",
+    "environment_inputs": {
+      "CARGO_NET_OFFLINE": "true",
+      "CODEQL_EXTRACTOR_RUST_SYSROOT": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust",
+      "CODEQL_EXTRACTOR_RUST_SYSROOT_SRC": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust-source/rust-src/lib/rustlib/src/rust/library",
+      "PATH": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/rust/bin:/usr/bin:/bin"
+    },
+    "finished_utc": "2026-11-11T19:08:02.727374+00:00",
+    "maximum_seconds": 300,
+    "returncode": 0,
+    "seconds": 29.060392852,
+    "started_utc": "2026-11-11T19:07:33.666856+00:00"
+  },
+  "fresh_bqrs": 0,
+  "initial_database_files": 6651,
+  "initial_database_inventory_sha256": "f7118bdcee5c48007f041e0f1bbe83dcdbbc42505bf4c8ed3d1fed0e24c00175",
+  "job_id": 130736488898,
+  "members": 148,
+  "performance_comparison_generated": false,
+  "run_id": 43081947833,
+  "source_archive_failure": {
+    "argv": [
+      "/usr/bin/git",
+      "-C",
+      "/home/runner/work/q-periapt/q-periapt",
+      "archive",
+      "--format=tar",
+      "--output=/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/comparison/sources/A.tar",
+      "b5185165283880527a54289b47397fde78ddf553",
+      "artifact"
+    ],
+    "boundary": "timeout",
+    "cleanup_ambiguous": false,
+    "completed": false,
+    "cwd": "/home/runner/work/q-periapt/q-periapt",
+    "elapsed_seconds": 180.002059876,
+    "finished_at_utc": "2026-11-11T19:11:05.440+00:00",
+    "invoked_at_utc": "2026-11-11T19:08:05.438+00:00",
+    "maximum_seconds": 180,
+    "reason": "command timed out after 180 seconds",
+    "run_attempt": "1",
+    "run_id": "43081947833",
+    "source_commit": "5e4819004450a43423c19818c65fe89779899eb6"
+  },
+  "source_fetch": {
+    "argv": [
+      "/usr/bin/git",
+      "-C",
+      "/home/runner/work/q-periapt/q-periapt",
+      "fetch",
+      "--no-tags",
+      "--depth=1",
+      "origin",
+      "b5185165283880527a54289b47397fde78ddf553",
+      "ed38e305552db2825d90622c130973df87e16d50"
+    ],
+    "cwd": "/home/runner/work/q-periapt/q-periapt",
+    "elapsed_seconds": 0.2824354400000004,
+    "finished_at_utc": "2026-11-11T19:08:05.437+00:00",
+    "invoked_at_utc": "2026-11-11T19:08:05.155+00:00",
+    "maximum_seconds": 180,
+    "returncode": 0,
+    "run_attempt": "1",
+    "run_id": "43081947833",
+    "source_commit": "5e4819004450a43423c19818c65fe89779899eb6"
+  },
+  "status": "source_archive_preparation_timeout_before_any_analysis",
+  "workflow_commit": "5e4819004450a43423c19818c65fe89779899eb6",
+  "workflow_tree": "21962a42bdf66775698cb91c6b129222ef2351e2"
+}

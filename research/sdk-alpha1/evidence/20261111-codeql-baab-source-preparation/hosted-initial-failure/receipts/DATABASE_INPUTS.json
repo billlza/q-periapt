@@ -1,0 +1,6 @@
+{
+  "files": 6651,
+  "inventory_sha256": "f7118bdcee5c48007f041e0f1bbe83dcdbbc42505bf4c8ed3d1fed0e24c00175",
+  "relation_to_retained_database": "same frozen fixture and official tools; newly extracted path-specific database",
+  "source_root": "/home/runner/work/_temp/qperiapt-codeql-wrapper-fixture/reproduction/fixture/env"
+}

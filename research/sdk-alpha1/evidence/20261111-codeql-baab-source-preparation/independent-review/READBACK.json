@@ -1,0 +1,166 @@
+{
+  "reviewed_at_utc": "2026-11-11T19:25:00.952328+00:00",
+  "method": "Independent static source comparison and complete archived-file readback; no CodeQL or Git execution",
+  "candidate_helper": {
+    "bytes": 18737,
+    "sha256": "198dacfc1e5507b43ed29ab41f97e92e64d4e0ab8fe1da0a77a2309ff62cd439"
+  },
+  "validation_script": {
+    "bytes": 6527,
+    "sha256": "7a5e901c19d775a7a4b678ab94d54746ad0f9b7cf2fc52faaaa3326ee8334a7d"
+  },
+  "owner_result": {
+    "bytes": 38893,
+    "sha256": "56d776e3e947659c7af35a1c421bab9f86fad866166c5cfc167946686517098c"
+  },
+  "cold_clone_actual_head": "5e4819004450a43423c19818c65fe89779899eb6",
+  "required_blob_oids": 610,
+  "required_missing_before": 610,
+  "required_missing_after": 0,
+  "prefetch_seconds": 5.845420053999987,
+  "commands": {
+    "archive-A": {
+      "maximum_seconds": 180,
+      "elapsed_seconds": 0.07937362499797018,
+      "receipt": {
+        "bytes": 497,
+        "sha256": "e5b011bd1bfa457ba5785c10fb31433238c5240c4d62c21e1d932a1cf9bc26c4"
+      }
+    },
+    "archive-B": {
+      "maximum_seconds": 180,
+      "elapsed_seconds": 0.12927192899951478,
+      "receipt": {
+        "bytes": 497,
+        "sha256": "2f9529f6935bd6347ed2169e7b2cbd2b1b09284fc17f69159f88b4cd6d9f0a81"
+      }
+    },
+    "clone": {
+      "maximum_seconds": 180,
+      "elapsed_seconds": 6.185250123002334,
+      "receipt": {
+        "bytes": 515,
+        "sha256": "7d2858bc3050b62b3b4b926310295bbeb2fcd05765310cdffcfacf63aea9cd72"
+      }
+    },
+    "fetch-sources": {
+      "maximum_seconds": 180,
+      "elapsed_seconds": 4.517558565999934,
+      "receipt": {
+        "bytes": 460,
+        "sha256": "5fde96d2eb7693f57111faf87d8a0d50308850e8cf84afeca74a747a9076cbec"
+      }
+    },
+    "missing-after": {
+      "maximum_seconds": 180,
+      "elapsed_seconds": 0.07182607800132246,
+      "receipt": {
+        "bytes": 431,
+        "sha256": "564539610384011416ea9e3afa0faf12513381f5e6be36be2cdfe8ead84518e3"
+      }
+    },
+    "missing-before": {
+      "maximum_seconds": 180,
+      "elapsed_seconds": 0.0681469470000593,
+      "receipt": {
+        "bytes": 430,
+        "sha256": "7f812672ce7392c9deaa6fd5d763f4d75088c36673f9dfa7a873761a363c9585"
+      }
+    },
+    "prefetch": {
+      "maximum_seconds": 180,
+      "elapsed_seconds": 5.845420053999987,
+      "receipt": {
+        "bytes": 29736,
+        "sha256": "ebbb8d0ea3a8bee4abdadd49a4b64c7c43eb30587170a42952fb78425ad10095"
+      }
+    },
+    "tree-A": {
+      "maximum_seconds": 180,
+      "elapsed_seconds": 0.00880942900039372,
+      "receipt": {
+        "bytes": 391,
+        "sha256": "52b7ccb0e9b5b9afa1155f7f10469ed21f8e9cc691d2295a488e52504ee81d78"
+      }
+    },
+    "tree-B": {
+      "maximum_seconds": 180,
+      "elapsed_seconds": 0.003221939001377905,
+      "receipt": {
+        "bytes": 392,
+        "sha256": "9033a27b7d683d04ff9c80dc42f9180e5ec3c2e38068d30085cd5df4ab2c3492"
+      }
+    },
+    "unpack-A": {
+      "maximum_seconds": 180,
+      "elapsed_seconds": 0.07471733200145536,
+      "receipt": {
+        "bytes": 416,
+        "sha256": "e98096fe96853bb8c2ebdb901dc2d195e02e2bf76a70b673dcf804793900f5a8"
+      }
+    },
+    "unpack-B": {
+      "maximum_seconds": 180,
+      "elapsed_seconds": 0.06606893700154615,
+      "receipt": {
+        "bytes": 416,
+        "sha256": "97523462f4236a8b05ed33d275264af622ff0ad7c06975559efcc9dc5871ec78"
+      }
+    },
+    "version": {
+      "maximum_seconds": 180,
+      "elapsed_seconds": 0.0034995370006072335,
+      "receipt": {
+        "bytes": 198,
+        "sha256": "1dc659344be0fe3320e132bd225b36539c164361801753837e8e93d181e12856"
+      }
+    }
+  },
+  "snapshots": {
+    "A": {
+      "files": 597,
+      "bytes": 16532600,
+      "inventory_sha256": "3e816a42292d275b6059c08b64d1636e766f9ddfe190fc651be796b4822775de",
+      "archive_bytes": 17008640,
+      "archive_sha256": "0a9ecf71723130874663d2b624d589019166e9dac0b80762b20ddb29bcb6ac4a",
+      "archive_lazy_fetches": [],
+      "commit": "b5185165283880527a54289b47397fde78ddf553",
+      "manifest_sha256": "2cb1739ba0f0aeeb00e8a017b7cd0218a0a7519771a58dd47cb7f89a8813ca91",
+      "all_git_blob_oids_verified": true,
+      "all_executable_bits_verified": true,
+      "archive_trace": {
+        "bytes": 244,
+        "sha256": "06bcbf6665f7ae59ea8315d33bb027b476670949ec8d4b05c4e8eef1458e634c"
+      },
+      "archive_seconds": 0.07937362499797018
+    },
+    "B": {
+      "files": 600,
+      "bytes": 16559281,
+      "inventory_sha256": "ac3335a92bd7b9080b41dd86340d5b7be0e1d97fb540232d8596b8c452dfee1d",
+      "archive_bytes": 17039360,
+      "archive_sha256": "12987f894ac1dd8f9f5de51915c3b29ffa58fec6b47098767b928de624e9661f",
+      "archive_lazy_fetches": [],
+      "commit": "ed38e305552db2825d90622c130973df87e16d50",
+      "manifest_sha256": "efd65ee72a4f966620a3d9bd6ac97b0a6d8ef5567017f3c342f654c4e1f55873",
+      "all_git_blob_oids_verified": true,
+      "all_executable_bits_verified": true,
+      "archive_trace": {
+        "bytes": 244,
+        "sha256": "5d5cb63c13b274e2cc8a54e38b0229f7c6f99213aa2030a22260ba27ddb6bb5e"
+      },
+      "archive_seconds": 0.12927192899951478
+    }
+  },
+  "first_attempt_retained": {
+    "path": "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-validation",
+    "failure_identity": {
+      "bytes": 36235,
+      "sha256": "32d952aae8d19678705a87662869cfd1b3f04fadf3b2cfb4c6d83dfa9f82685a"
+    },
+    "error": "BoundedProcessError",
+    "full_commit_archive_started_extra_lazy_fetch": true
+  },
+  "independent_readback_passed": true,
+  "reviewer_started_tests_ci_queries_or_ref_updates": false
+}

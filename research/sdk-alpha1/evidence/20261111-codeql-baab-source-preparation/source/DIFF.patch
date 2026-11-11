@@ -1,0 +1,55 @@
+--- a/artifact/codeql_fixture_baab.py
++++ b/artifact/codeql_fixture_baab.py
+@@ -49,24 +49,42 @@
+     run.command("pair-fetch", ["/usr/bin/git", "-C", str(DIAGNOSTIC), "fetch",
+                 "--no-tags", "--depth=1", "origin", *[item[0] for item in SOURCES.values()]],
+                 seconds=180)
+-    records = {}
+-    for side, (commit, manifest, _) in SOURCES.items():
+-        destination = root / "sources" / side
+-        destination.mkdir()
+-        archive = root / "sources" / (side + ".tar")
+-        run.command("pair-archive-" + side, ["/usr/bin/git", "-C", str(DIAGNOSTIC),
+-                    "archive", "--format=tar", "--output=" + str(archive), commit, "artifact"])
++    trees, attribute_blobs = {}, set()
++    for side, (commit, _, _) in SOURCES.items():
+         listing = run.command("pair-tree-" + side, ["/usr/bin/git", "-C", str(DIAGNOSTIC),
+-                              "ls-tree", "-rz", commit, "artifact"])
++                              "ls-tree", "-rz", commit, "artifact", ".gitattributes"])
+         entries = {}
+         for item in listing.rstrip(b"\0").split(b"\0"):
+             header, path = item.split(b"\t", 1)
+             mode, kind, digest = header.decode().split()
+             name = path.decode()
+             require(mode in ("100644", "100755") and kind == "blob"
+-                    and name.startswith("artifact/") and name not in entries,
+-                    "source snapshot contains a nonregular or duplicate member")
++                    and len(digest) == 40 and set(digest) <= set("0123456789abcdef")
++                    and name not in entries, "source snapshot contains an unadmitted member")
++            if name == ".gitattributes":
++                attribute_blobs.add(digest)
++                continue
++            require(name.startswith("artifact/") and ".." not in Path(name).parts
++                    and Path(name).as_posix() == name, "source snapshot path differs")
+             entries[name] = {"mode": mode, "git_blob": digest}
++        trees[side] = entries
++    # Prefetch every source blob. Archiving the fixed subtree limits Git's
++    # temporary index to it, avoiding dependencies on other repository objects.
++    blob_oids = sorted(attribute_blobs | {item["git_blob"] for entries in trees.values()
++                                        for item in entries.values()})
++    run.command("pair-prefetch", ["/usr/bin/git", "-C", str(DIAGNOSTIC),
++                "-c", "fetch.negotiationAlgorithm=noop", "fetch", "--no-tags",
++                "--no-write-fetch-head", "--recurse-submodules=no", "--filter=blob:none",
++                "origin", *blob_oids], seconds=180)
++    records = {}
++    for side, (commit, manifest, _) in SOURCES.items():
++        entries = trees[side]
++        destination = root / "sources" / side
++        destination.mkdir()
++        archive = root / "sources" / (side + ".tar")
++        run.command("pair-archive-" + side, ["/usr/bin/git", "-C", str(DIAGNOSTIC),
++                    "archive", "--format=tar", "--prefix=artifact/",
++                    "--output=" + str(archive), commit + ":artifact"])
+         run.command("pair-unpack-" + side, ["/usr/bin/tar", "--extract", "--file=" + str(archive),
+                     "--no-same-owner", "--directory=" + str(destination)])
+         files = inventory(destination)

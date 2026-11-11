@@ -1,0 +1,9 @@
+04:18:09.140831 git.c:479               trace: built-in: git archive --format=tar --output=/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-validation/A.tar b5185165283880527a54289b47397fde78ddf553 artifact
+04:18:09.153956 run-command.c:666       trace: run_command: git -c fetch.negotiationAlgorithm=noop fetch origin --no-tags --no-write-fetch-head --recurse-submodules=no --filter=blob:none --stdin
+04:18:09.153989 run-command.c:758       trace: start_command: /usr/lib/git-core/git -c fetch.negotiationAlgorithm=noop fetch origin --no-tags --no-write-fetch-head --recurse-submodules=no --filter=blob:none --stdin
+04:18:09.156117 git.c:479               trace: built-in: git fetch origin --no-tags --no-write-fetch-head --recurse-submodules=no --filter=blob:none --stdin
+04:18:09.156637 run-command.c:666       trace: run_command: GIT_DIR=.git git remote-https origin https://github.com/billlza/q-periapt.git
+04:18:09.156648 run-command.c:758       trace: start_command: /usr/lib/git-core/git remote-https origin https://github.com/billlza/q-periapt.git
+04:18:09.157898 git.c:781               trace: exec: git-remote-https origin https://github.com/billlza/q-periapt.git
+04:18:09.157935 run-command.c:666       trace: run_command: git-remote-https origin https://github.com/billlza/q-periapt.git
+04:18:09.157945 run-command.c:758       trace: start_command: /usr/lib/git-core/git-remote-https origin https://github.com/billlza/q-periapt.git

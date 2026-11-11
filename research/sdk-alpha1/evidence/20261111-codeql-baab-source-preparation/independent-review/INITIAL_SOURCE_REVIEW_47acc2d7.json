@@ -1,0 +1,46 @@
+{
+  "reviewed_at_utc": "2026-11-11T19:18:10.593468+00:00",
+  "method": "Read-only source/AST comparison; no helper imports or execution",
+  "baseline": {
+    "path": "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-readback/source/codeql_fixture_baab.py",
+    "bytes": 17619,
+    "sha256": "0f51bfcc59f312958531527de665e8dbb0b959e9e9a460f7a692825f4de3f255"
+  },
+  "candidate": {
+    "path": "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-fix/artifact/codeql_fixture_baab.py",
+    "bytes": 18693,
+    "sha256": "47acc2d719c4ce5bf8335378d057d99ccec005e8fd0c154f2e6c9fc2b5968f7f"
+  },
+  "prefix_identical": true,
+  "suffix_identical": true,
+  "changed_ast_nodes": [
+    "prepare_sources"
+  ],
+  "preserved_functions": [
+    "workflow_identity",
+    "run_remaining",
+    "source_run",
+    "analyze",
+    "compare",
+    "main"
+  ],
+  "fixed_sources": {
+    "A": "b5185165283880527a54289b47397fde78ddf553",
+    "B": "ed38e305552db2825d90622c130973df87e16d50"
+  },
+  "findings": [
+    "List both complete artifact trees before archive, retaining all regular-file members.",
+    "Prefetch the sorted union of artifact blob IDs plus root attributes in one explicit Git fetch.",
+    "Validate regular Git modes, blob kind, full lowercase SHA-1 IDs and normalized relative artifact paths.",
+    "Use fixed origin with no tags, no ref destinations, no submodules, no FETCH_HEAD write, blob:none and noop negotiation.",
+    "Keep the 180-second archive and new prefetch command limits, original full census, per-file Git blob verification and plan SHA-256 check.",
+    "All analysis, import isolation, sampling, guards, deadline, process cleanup, result census and semantic comparison code is byte-identical."
+  ],
+  "source_review_passed": true,
+  "actual_cold_fetch_readback": "pending owner execution",
+  "reviewer_started_tests_ci_queries_or_ref_updates": false,
+  "primary_git_documentation": [
+    "https://git-scm.com/docs/partial-clone",
+    "https://git-scm.com/docs/git-fetch"
+  ]
+}

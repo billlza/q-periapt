@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "/usr/bin/git",
+    "--version"
+  ],
+  "elapsed_seconds": 0.003588055002182955,
+  "maximum_seconds": 180,
+  "returncode": 0,
+  "started_utc": "2026-11-11T19:17:52.573110+00:00"
+}

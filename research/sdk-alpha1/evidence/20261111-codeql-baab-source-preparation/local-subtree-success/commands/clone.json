@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "/usr/bin/git",
+    "-c",
+    "credential.interactive=false",
+    "clone",
+    "--filter=blob:none",
+    "--no-checkout",
+    "--depth=1",
+    "--single-branch",
+    "--branch",
+    "diagnostic/codeql-fixture-baab",
+    "https://github.com/billlza/q-periapt.git",
+    "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/cold"
+  ],
+  "elapsed_seconds": 6.185250123002334,
+  "maximum_seconds": 180,
+  "returncode": 0,
+  "started_utc": "2026-11-11T19:23:30.856713+00:00"
+}

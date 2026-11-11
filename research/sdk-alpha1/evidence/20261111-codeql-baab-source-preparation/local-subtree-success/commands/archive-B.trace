@@ -1,0 +1,1 @@
+04:23:47.863812 git.c:479               trace: built-in: git archive --format=tar --prefix=artifact/ --output=/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/B.tar ed38e305552db2825d90622c130973df87e16d50:artifact

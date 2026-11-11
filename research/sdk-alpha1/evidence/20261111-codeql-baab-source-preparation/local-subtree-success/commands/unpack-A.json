@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/usr/bin/tar",
+    "--extract",
+    "--file=/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/A.tar",
+    "--no-same-owner",
+    "--directory=/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/A"
+  ],
+  "elapsed_seconds": 0.07471733200145536,
+  "maximum_seconds": 180,
+  "returncode": 0,
+  "started_utc": "2026-11-11T19:23:47.655853+00:00"
+}

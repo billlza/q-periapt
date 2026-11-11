@@ -1,0 +1,82 @@
+{
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-validation/commands/clone.stderr": {
+    "bytes": 102,
+    "sha256": "bf5b8004b342defff06167b22cd2ef48cab518cb5e93971086bd7b65d2b77f5d",
+    "reason": "Raw auxiliary command output retained locally; exact command receipts and source member inventories are in this packet."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-validation/commands/explicit-revisions-missing.stdout": {
+    "bytes": 468326,
+    "sha256": "52f98477e1c1caa9922c72df11b1cff46a197ef33245299af379475bf998d22d",
+    "reason": "Raw auxiliary command output retained locally; exact command receipts and source member inventories are in this packet."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-validation/commands/fetch-sources.stderr": {
+    "bytes": 194,
+    "sha256": "e18afbb7986b572950c26a4ae856312d68fa039051fc7007dd7d695484cc0221",
+    "reason": "Raw auxiliary command output retained locally; exact command receipts and source member inventories are in this packet."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-validation/commands/missing-after.stdout": {
+    "bytes": 467098,
+    "sha256": "48d6e199f3f52aeb988191c0b8b34a3c0475d6fbe3ecb8eb182a79f3b733f3fb",
+    "reason": "Raw auxiliary command output retained locally; exact command receipts and source member inventories are in this packet."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-validation/commands/missing-before.stdout": {
+    "bytes": 443515,
+    "sha256": "10681b4bfc7331c65010b0425b0013d2e6b3d46798a79091079294a15cd7c362",
+    "reason": "Raw auxiliary command output retained locally; exact command receipts and source member inventories are in this packet."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-validation/commands/tree-A.stdout": {
+    "bytes": 55857,
+    "sha256": "56690427a8cc3bfe93f9b01b76b19317395e5a0d8d5b88e5b2c5b813d4dab51d",
+    "reason": "Raw auxiliary command output retained locally; exact command receipts and source member inventories are in this packet."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-validation/commands/tree-B.stdout": {
+    "bytes": 56084,
+    "sha256": "8f913ac0d3f9e69ee91b34765e72a0a3065681a2e8610c05b053a37c4294de42",
+    "reason": "Raw auxiliary command output retained locally; exact command receipts and source member inventories are in this packet."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-prefetch-validation/A.tar": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "reason": "Incomplete failed archive retained locally."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/commands/clone.stderr": {
+    "bytes": 101,
+    "sha256": "6cade0ba3155700e43b2eb951bb3f722545f3296c6fb3abfc593c5540e567941",
+    "reason": "Raw auxiliary command output retained locally; exact command receipts and source member inventories are in this packet."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/commands/fetch-sources.stderr": {
+    "bytes": 194,
+    "sha256": "e18afbb7986b572950c26a4ae856312d68fa039051fc7007dd7d695484cc0221",
+    "reason": "Raw auxiliary command output retained locally; exact command receipts and source member inventories are in this packet."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/commands/missing-after.stdout": {
+    "bytes": 468326,
+    "sha256": "52f98477e1c1caa9922c72df11b1cff46a197ef33245299af379475bf998d22d",
+    "reason": "Raw auxiliary command output retained locally; exact command receipts and source member inventories are in this packet."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/commands/missing-before.stdout": {
+    "bytes": 444348,
+    "sha256": "d38f553cce9c2486ff74b8ec684d376a080ef13830225a0ada1aea5fbdadebae",
+    "reason": "Raw auxiliary command output retained locally; exact command receipts and source member inventories are in this packet."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/commands/tree-A.stdout": {
+    "bytes": 55857,
+    "sha256": "56690427a8cc3bfe93f9b01b76b19317395e5a0d8d5b88e5b2c5b813d4dab51d",
+    "reason": "Raw auxiliary command output retained locally; exact command receipts and source member inventories are in this packet."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/commands/tree-B.stdout": {
+    "bytes": 56084,
+    "sha256": "8f913ac0d3f9e69ee91b34765e72a0a3065681a2e8610c05b053a37c4294de42",
+    "reason": "Raw auxiliary command output retained locally; exact command receipts and source member inventories are in this packet."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/A.tar": {
+    "bytes": 17008640,
+    "sha256": "0a9ecf71723130874663d2b624d589019166e9dac0b80762b20ddb29bcb6ac4a",
+    "reason": "Complete original TAR independently read back; every member is represented in the retained source inventory."
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/fixture-baab-subtree-validation/B.tar": {
+    "bytes": 17039360,
+    "sha256": "12987f894ac1dd8f9f5de51915c3b29ffa58fec6b47098767b928de624e9661f",
+    "reason": "Complete original TAR independently read back; every member is represented in the retained source inventory."
+  }
+}
