@@ -60,7 +60,12 @@ jobs:
         with:
           toolchain: 1.98.1
           components: rustfmt, clippy, llvm-tools
-      - run: sudo apt-get update && sudo apt-get install -y cmake pkg-config
+      - name: Verify native package build tools
+        shell: bash
+        run: |
+          command -v cmake pkg-config
+          cmake --version
+          pkg-config --version
       - run: cargo +1.98.1 install cbindgen --version 0.29.4 --locked
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -493,7 +498,12 @@ jobs:
           test "$(rustc -vV | sed -n 's/^host: //p')" = "$EXPECTED_TARGET"
           test "$(rustc --version)" = "rustc 1.98.1 (48a229cea 2026-09-01)"
           test "$(cargo --version)" = "cargo 1.98.1 (797e8a9bc 2026-08-05)"
-      - run: sudo apt-get update && sudo apt-get install -y cmake pkg-config
+      - name: Verify native package build tools
+        shell: bash
+        run: |
+          command -v cmake pkg-config
+          cmake --version
+          pkg-config --version
       - run: cargo +1.98.1 install cbindgen --version 0.29.4 --locked
       - name: Build, archive, extract, and consume the native Linux ABI2 SDK
         env:
@@ -586,15 +596,13 @@ jobs:
           targets: ${{ matrix.target }}
       - name: Install AArch64 C cross-toolchain
         if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+        run: bash artifact/ci_apt.sh gcc-aarch64-linux-gnu
       - name: Install RISC-V C cross-toolchain
         if: matrix.target == 'riscv64gc-unknown-linux-gnu'
-        run: sudo apt-get update && sudo apt-get install -y gcc-riscv64-linux-gnu
-      - name: Install and verify the pinned WebAssembly C compiler
+        run: bash artifact/ci_apt.sh gcc-riscv64-linux-gnu
+      - name: Verify the pinned runner WebAssembly C compiler
         if: matrix.target == 'wasm32-unknown-unknown'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-18
           test -x /usr/bin/clang-18
           /usr/bin/clang-18 --version
           /usr/bin/clang-18 --print-targets | grep -Eq '^[[:space:]]*wasm32[[:space:]]+-'
@@ -621,8 +629,7 @@ jobs:
           targets: riscv64gc-unknown-linux-gnu
       - name: Install the RISC-V user-mode emulator and cross compiler
         run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-user gcc-riscv64-linux-gnu
+          bash artifact/ci_apt.sh qemu-user gcc-riscv64-linux-gnu
           qemu-riscv64 --version
           riscv64-linux-gnu-gcc --version
       - name: Run the byte-identity KATs on riscv64 under qemu-user
@@ -739,7 +746,7 @@ jobs:
           test "$(rustc -vV | sed -n 's/^host: //p')" = "$EXPECTED_RUST_HOST"
           test "$(uname -m)" = "$EXPECTED_UNAME_MACHINE"
       - name: Install Valgrind (provides valgrind/memcheck.h for the shim)
-        run: sudo apt-get update && sudo apt-get install -y valgrind
+        run: bash artifact/ci_apt.sh valgrind
       - name: Build the ct_verify harness (real Memcheck client requests)
         run: cargo build --locked --release -p q-periapt-ctstats --bin ct_verify --features valgrind
       - name: Memcheck — no secret-dependent control flow (hard gate)
@@ -816,7 +823,7 @@ jobs:
             --features q-periapt-ffi/linux-x86_64-avx2
       - name: Install Memcheck and build the candidate binary probes
         run: |
-          sudo apt-get update && sudo apt-get install -y valgrind
+          bash artifact/ci_apt.sh valgrind
           cargo build --locked --release -p q-periapt-ctstats --bin ct_decaps_gap --features valgrind,linux-x86_64-avx2
       - name: Require actual AVX2 under Memcheck and preserve controls
         run: sh artifact/x86-avx2-ct.sh
@@ -910,10 +917,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "26.10.0"
-      - name: Install and verify the pinned WebAssembly C compiler
+      - name: Verify the pinned runner WebAssembly C compiler
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-18
           test -x /usr/bin/clang-18
           /usr/bin/clang-18 --version
           /usr/bin/clang-18 --print-targets | grep -Eq '^[[:space:]]*wasm32[[:space:]]+-'
@@ -1958,7 +1963,9 @@ jobs:
           if-no-files-found: error
       - name: Native SDK CBOM producer and distinct closed package profile
         run: |
-          sudo apt-get update && sudo apt-get install -y cmake pkg-config
+          command -v cmake pkg-config
+          cmake --version
+          pkg-config --version
           cargo test --locked -p q-periapt-cli --features sdk-cbom
           mkdir -p target/sdk-bom-profile/share/q-periapt/bom
           cargo run --locked -p q-periapt-cli --features sdk-cbom -- cbom --native-sdk \
@@ -2055,11 +2062,10 @@ jobs:
           python-version: "3.14.7"
           check-latest: false
           update-environment: false
-      - name: Install reference protobuf compiler on Linux runner
+      - name: Prepare fixed reference protobuf compiler on Linux runner
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y protobuf-compiler
+        timeout-minutes: 3
+        run: sh artifact/python-run.sh artifact/ci_protoc.py
       - name: Select reference protobuf compiler on macOS runner
         if: runner.os == 'macOS'
         run: |
@@ -2818,10 +2824,8 @@ jobs:
         with:
           toolchain: 1.98.1
           targets: wasm32-unknown-unknown,thumbv7em-none-eabihf
-      - name: Install and verify the pinned WebAssembly C compiler
+      - name: Verify the pinned runner WebAssembly C compiler
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-18
           test -x /usr/bin/clang-18
           /usr/bin/clang-18 --version
           /usr/bin/clang-18 --print-targets | grep -Eq '^[[:space:]]*wasm32[[:space:]]+-'
@@ -2979,8 +2983,7 @@ jobs:
           }
           trap cleanup_formal_tool_assets EXIT
 
-          sudo apt-get update
-          sudo apt-get install -y graphviz unzip
+          bash artifact/ci_apt.sh graphviz unzip
 
           MAUDE_ARCHIVE=$(sh artifact/python-run.sh artifact/formal_tool_asset.py --asset maude-3.5.1)
           sudo mkdir -p /opt/maude-3.5.1
@@ -3109,8 +3112,7 @@ jobs:
           }
           trap cleanup_opam_asset EXIT
 
-          sudo apt-get update
-          sudo apt-get install -y libgtk2.0-dev ocaml pkg-config
+          bash artifact/ci_apt.sh libgtk2.0-dev ocaml pkg-config
           OPAM_BIN=$(sh artifact/python-run.sh artifact/formal_tool_asset.py --asset opam-2.5.2)
           sudo install -m 0755 "$OPAM_BIN" /usr/local/bin/opam
           cleanup_opam_asset

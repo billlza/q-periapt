@@ -199,11 +199,18 @@ jobs:
           toolchain: 1.98.1
           components: rust-src
           targets: wasm32-unknown-unknown
-      - name: Install analysis build dependencies
-        if: runner.os == 'Linux'
+      - name: Prepare fixed native protobuf compiler
+        if: matrix.profile == 'native'
+        timeout-minutes: 3
+        run: sh artifact/python-run.sh artifact/ci_protoc.py
+      - name: Check runner WASM C compiler
+        if: matrix.profile == 'wasm'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends protobuf-compiler clang
+          set -eu
+          command -v clang
+          clang --version
+          printf 'int qperiapt_compiler_check(void) { return 0; }\n' | \
+            clang --target=wasm32-unknown-unknown -x c -c - -o "$RUNNER_TEMP/qperiapt-clang-wasm.o"
       - name: Check target coverage and publication rejection cases
         run: |
           sh artifact/python-run.sh -m unittest -v \
