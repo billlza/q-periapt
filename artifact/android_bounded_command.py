@@ -654,9 +654,12 @@ def _framework_readiness_argv(
     # A sticky boot-completed property survives a system_server crash. Read
     # actual provider/package services between two process identities. PID
     # alone cannot distinguish reuse, and a zombie retains its old PID.
+    # Android 6 pidof compares aliases of Bionic's basename buffer and can
+    # return every process. Use pgrep's anchored regex path, available on API
+    # 23; do not use its old -x path, which reads offsets under REG_NOSUB.
     prelude = (
         "qperiapt_framework_identity() { "
-        "qperiapt_system_pid=$(pidof system_server); qperiapt_pid_status=$?; "
+        "qperiapt_system_pid=$(pgrep '^system_server$'); qperiapt_pid_status=$?; "
         '[ "$qperiapt_pid_status" -eq 0 ] || return "$qperiapt_pid_status"; '
         'case "$qperiapt_system_pid" in ""|*[!0-9]*) return 65;; esac; '
         "printf 'pid=%s\\n' \"$qperiapt_system_pid\"; "

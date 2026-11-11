@@ -8,6 +8,34 @@ The raw macro census retains every snapshot entity and its unresolved state. Pai
 
 For each table, the retained path is `paper/continuity/artifacts/bootstrap/<packet>/source/` followed by the original path in its first column. The source commit is the historical identity from that packet, not the current build commit.
 
+## File loading for the pinned Rust extractor
+
+The Rust 2.27.2 extractor uses rust-analyzer 0.0.352 to load Cargo package file
+roots. The producer explicitly includes this reviewed bootstrap archive directory
+through `CODEQL_EXTRACTOR_RUST_OPTION_EXTRA_INCLUDES`. The value is a JSON array
+containing the original absolute archive path. The existing source-pin check
+authenticates all 68 file paths and bytes before the extraction command.
+
+This inclusion loads the snapshot bytes into the file view. Their existing
+non-module status remains visible in the extractor diagnostics and raw macro
+census. Cargo compilation roots, module declarations and the target coverage
+rules retain their existing roles.
+
+The native attempt in
+[run 42982431606](https://github.com/billlza/q-periapt/actions/runs/42982431606/job/130412772905)
+extracted all 1,241 tracked files, with zero extraction errors and zero
+unextracted elements. Its 68 warnings came from exactly the 68 snapshots that
+were absent from the loaded Cargo file view; consequently, the successful-file
+census contained 1,173 paths. The explicit file-view input addresses that
+observed omission. The complete 1,241-path equality and zero-warning checks
+continue to govern preparation.
+
+The input follows the fixed upstream
+[extractor configuration](https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/rust/extractor/src/config.rs),
+[file-loading diagnostics](https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/rust/extractor/src/main.rs),
+and published
+[rust-analyzer package-root loader](https://docs.rs/ra_ap_project_model/0.0.352/src/ra_ap_project_model/workspace.rs.html#833-880).
+
 ## ack: 19 Rust snapshots
 
 ACK source census and durable message transition inputs.

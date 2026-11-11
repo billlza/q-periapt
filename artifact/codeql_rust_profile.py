@@ -250,6 +250,11 @@ def extract_database(run: ProfileRun, database: Path) -> None:
     # setup-codeql installs the CLI but does not create init's database parent.
     # Require a fresh owned parent; existing analysis state must not be reused.
     database.parent.mkdir(mode=0o700)
+    # The pinned partial source packets have no Cargo manifests. Load their
+    # bytes into rust-analyzer's file view while retaining their non-module
+    # status; the complete source census and diagnostic gates still apply.
+    run.environment["CODEQL_EXTRACTOR_RUST_OPTION_EXTRA_INCLUDES"] = json.dumps(
+        [str(run.root / quality.ARCHIVE_ROOT)])
     run.command("extract", [str(run.codeql), "database", "create", str(database),
                             "--language=rust", "--build-mode=none", "--source-root=" + str(run.root),
                             f"--threads={run.configuration.threads}", f"--ram={run.configuration.ram_mb}",
@@ -357,7 +362,7 @@ def validate_linux_query_memory(record: object, profile: str) -> None:
                 "Linux evaluator memory record differs from its resolved allocation")
 
 
-def analysis_memory_arguments(run: ProfileRun, profile: str, *, qlconfig: Path | None = None) -> list[str]:
+def analysis_memory_arguments(run: ProfileRun, profile: str) -> list[str]:
     sdk.require(analysis_host(profile) == run.configuration.platform,
                 "analysis memory profile belongs to a different host")
     arguments = [f"--ram={run.configuration.ram_mb}"]
@@ -367,8 +372,7 @@ def analysis_memory_arguments(run: ProfileRun, profile: str, *, qlconfig: Path |
         arguments.append(f"--off-heap-ram={LINUX_OFF_HEAP_RAM_MB}")
         resolved = parse_strict_json_bytes(run.command("resolve-analysis-ram", [
             str(run.codeql), "resolve", "ram", "--dataset=" + str(run.configuration.database / "db-rust"),
-            *arguments, "--format=json",
-            *(["--qlconfig-file=" + str(qlconfig)] if qlconfig is not None else [])]),
+            *arguments, "--format=json"]),
             label="Linux evaluator memory resolution")
         sdk.write_json(run.evidence / "QUERY_MEMORY.json", linux_query_memory(resolved, profile))
     return arguments
@@ -423,8 +427,7 @@ def analyze(run: ProfileRun, query_pack: Path, *, summary_plan_mode: str = "none
     validate_query_inventory(inventory, expected)
     sdk.write_json(run.evidence / "QUERY_INVENTORY.json", inventory)
     sarif = run.evidence / "results.sarif"
-    memory_arguments = analysis_memory_arguments(
-        run, profile["profile"], qlconfig=context.root / "qlconfig.yml" if context is not None else None)
+    memory_arguments = analysis_memory_arguments(run, profile["profile"])
     command = ([str(run.codeql), "database", "analyze", str(run.configuration.database), str(suite),
                              "--format=sarif-latest", "--output=" + str(sarif),
                              f"--threads={run.configuration.threads}", *memory_arguments,

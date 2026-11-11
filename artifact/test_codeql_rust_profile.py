@@ -730,6 +730,30 @@ else:
                 extract_database(run, database)
             command.assert_called_once()
 
+    @unittest.skipUnless(os.name == "posix", "executable input probe requires POSIX")
+    def test_extraction_child_receives_the_exact_archival_file_view(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve() / "checkout, retained sources"
+            root.mkdir()
+            launcher = root / "codeql-input-probe"
+            launcher.write_text(
+                "#!" + sys.executable + "\n"
+                "import json, os\n"
+                "print(json.dumps(json.loads(os.environ['CODEQL_EXTRACTOR_RUST_OPTION_EXTRA_INCLUDES'])))\n"
+            )
+            launcher.chmod(0o700)
+            environment = dict(os.environ)
+            environment["CODEQL_EXTRACTOR_RUST_OPTION_EXTRA_INCLUDES"] = '["/unreviewed"]'
+            run = ProfileRun(root, root / "run", launcher, environment)
+            database = root / "database-cluster" / "rust"
+            extract_database(run, database)
+            observed = json.loads((run.evidence / "extract.stdout").read_text())
+            self.assertEqual(observed, [str(root / profile_module.quality.ARCHIVE_ROOT)])
+            command = json.loads((run.evidence / "extract.json").read_text())
+            self.assertEqual(command["returncode"], 0)
+            self.assertIn("--source-root=" + str(root), command["argv"])
+            self.assertIn("--build-mode=none", command["argv"])
+
     def test_database_parent_is_not_reused_or_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

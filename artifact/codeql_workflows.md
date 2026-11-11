@@ -19,6 +19,14 @@ Removing that push subscription preserves every job and required context,
 the PR merge checkout, and independent checks of the eventual `main` commit.
 Production CodeQL already used the separate PR/main trigger policy.
 
+Production jobs now queue independently by language or Rust target. The key
+contains the workflow and PR/main ref, plus the job and its matrix dimension.
+Each group retains its running analysis and the newest pending revision with
+`cancel-in-progress: false`. An old Swift or macOS wait therefore does not hold
+the Linux language and target queues. The publication dependency still joins
+only the three target results from its own workflow and source revision. See
+[job concurrency](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
+
 Updating `diagnostic/codeql-summary-projection` is an explicit request to run
 the retained projection experiment. It is a launch ref, not a development or
 candidate branch. The older cache/joins diagnostic refs no longer start
@@ -42,10 +50,12 @@ from an ordinary SDK or PR branch name.
 | Component | Responsibility |
 | --- | --- |
 | `codeql_rust_profile.py` | Compile and extract each current Rust target, validate active source and macro coverage, resolve the pinned suite, execute all 39 queries, and bind the complete results to source, target, tool, memory policy, and workflow identity. |
+| `codeql_rust_plan.py` | Restore the authenticated private runtime, install the fixed projection, assemble the full analysis command and bind before/after plan, runtime, database and evaluator identities into production receipts. |
+| `codeql_evaluator_logs.py` | Read bounded evaluator logs for production and diagnostic callers, and display distinct admitted query completions while preserving the original stderr bytes. |
 | `codeql_rust_transfer.py` | Seal the native macOS extraction for its Linux query worker, verify the archive and source identities, and exclude previous query results from that transfer. |
 | `codeql_rust_publication.py` | Validate all three profile receipts, paired target coverage, complete query inventories, and SARIF identities before publishing the established Rust categories. |
 | `codeql_summary_control.py` | Restore the exact retained database and verified cache, run fresh results in both allocation arms, and compare complete semantic results under an explicitly selected plan mode. |
-| `codeql_summary_plan.py` / `codeql_summary_projection.py` | Admit their fixed experimental capsules and verify the effective plan and source/dependency identities. The controller owns execution and comparison. |
+| `codeql_summary_plan.py` / `codeql_summary_projection.py` | Admit the fixed capsules and verify the effective plan and source/dependency identities. Production and diagnostic callers retain their own execution and result contracts. |
 
 Production publication depends on successful native, WASM, macOS extraction,
 and macOS analysis jobs. GitHub's [`needs` semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idneeds)
@@ -72,11 +82,19 @@ records the chosen transport and admitted input identity; it does not change
 the allocation budget or qualify an analysis as complete.
 
 A successful allocation comparison certifies complete equivalent results for
-that fixed database and selected plan. Production continues to run its pinned
-upstream suite on the current target extractions. Moving an experimental plan
-into that flow requires binding its effective source/plan identity and complete
-results into the current profile and publication receipts; an old result or
-warm cache is not a substitute for current-source analysis.
+that fixed database and selected plan. Production selects the fixed Stage3 and
+Stage4 projection on the current target extractions, using the same 39 root
+queries and explicit plan mode at analysis and publication. The effective
+source, complete runtime, actual evaluator command and memory allocation are
+bound to the current profile and publication receipts. Details of the
+transformation and production admission are in
+[the projection record](codeql_summary_projection.md).
+
+The normal extractor also loads the 68 authenticated partial Rust snapshots
+into its file view while retaining their non-module status. This repairs the
+recorded manifest-loading warnings without changing the complete source or
+diagnostic checks; [the archive record](CODEQL_RUST_ARCHIVES.md) explains the
+input identity and fixed-version extractor behavior.
 
 ## Reading long-running command evidence
 

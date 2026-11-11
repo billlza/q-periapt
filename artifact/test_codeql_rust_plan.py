@@ -131,15 +131,21 @@ class ProductionProjectionTests(unittest.TestCase):
                 write((self.pack / name).with_suffix(".qlx"), b"fixed compiled fixture")
             return b""
         if label == "plan-version":
-            self.assertIn("--qlconfig-file=" + str(self.private_root / "qlconfig.yml"), argv)
+            # CodeQL 2.27.2 version/RAM commands do not accept pack-manager
+            # options. The private configuration belongs to query resolution
+            # and analysis, whose checks below must keep it attached.
+            self.assertEqual(argv, [str(self.private_root / "tool/codeql/codeql"),
+                                    "version", "--format=terse"])
             return b"2.27.2\n"
         if label == "resolve-suite":
+            self.assertIn("--qlconfig-file=" + str(self.private_root / "qlconfig.yml"), argv)
             return json.dumps([str(self.pack / name) for name in self.queries]).encode()
         if label == "resolve-analysis-ram":
-            self.assertIn("--qlconfig-file=" + str(self.private_root / "qlconfig.yml"), argv)
+            self.assertFalse(any(argument.startswith("--qlconfig-file") for argument in argv))
             return b'["-J-Xmx3356M", "--off-heap-ram=9329"]'
         self.assertEqual(label, "analyze")
         self.assertEqual(argv[1:3], ["database", "analyze"])
+        self.assertIn("--qlconfig-file=" + str(self.private_root / "qlconfig.yml"), argv)
         self.assertEqual(kwargs["seconds"], 18000)
         for option in ("--threads=4", "--ram=14000", "--off-heap-ram=9329"):
             self.assertIn(option, argv)
