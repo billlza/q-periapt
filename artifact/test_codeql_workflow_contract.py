@@ -4,6 +4,8 @@ from __future__ import annotations
 from pathlib import Path
 import json
 import re
+import subprocess
+import tempfile
 import unittest
 
 
@@ -55,6 +57,68 @@ class CodeQLWorkflowContractTests(unittest.TestCase):
             block = mapping(triggers, event, 2)
             self.assertEqual(keys(block, 4), {"branches"})
             self.assertIn("branches: [main]", block)
+
+    def test_non_rust_checkout_keeps_sources_and_omits_only_historical_zip_files(self) -> None:
+        workflow = self.read("codeql.yml")
+        analysis = mapping(workflow, "analyze", 2)
+        self.assertIn("          filter: blob:none\n", analysis)
+        self.assertIn("          sparse-checkout-cone-mode: false\n", analysis)
+        sparse = re.search(r"^          sparse-checkout: \|\n((?:^            .+\n)+)",
+                           analysis, re.MULTILINE)
+        self.assertIsNotNone(sparse)
+        patterns = [line.strip() for line in sparse[1].splitlines()]
+        self.assertEqual(patterns, ["/*", "!/research/sdk-alpha1/evidence/**/*.zip",
+                                    "/research/sdk-alpha1/evidence/**/"])
+        # Rust's producer/importer/publisher check every tracked byte and reject
+        # skip-worktree. Keep their full checkout and provenance contract intact.
+        for name in ("rust", "rust-macos-prepare", "rust-macos-analyze", "rust-publication"):
+            job = mapping(workflow, name, 2)
+            self.assertNotIn("sparse-checkout:", job)
+            self.assertNotIn("filter:", job)
+
+        kept = {
+            "Cargo.toml", "Cargo.lock", ".github/workflows/codeql.yml",
+            "crates/core/src/lib.rs", "bindings/swift/Package.swift",
+            "artifact/codeql-summary-projection-plan.zip",
+            "artifact/codeql-summary-dynamic-plan.zip",
+            "paper/continuity/artifacts/record/source.rs",
+            "paper/continuity/artifacts/record/SOURCE_PINS.json",
+            "research/sdk-alpha1/evidence/old/consumer-Cargo.lock",
+            "research/sdk-alpha1/evidence/old/source.rs",
+            "research/sdk-alpha1/evidence/old/run.log",
+            "research/sdk-alpha1/evidence/archive.zip/source.rs",
+            "research/sdk-alpha1/evidence/archive.zip/nested/.source.py",
+            "research/sdk-alpha1/evidence/old/case.ZIP",
+            "research/sdk-alpha1/evidence/old/run.zip.sha256",
+            "research/sdk-alpha1/evidence-prefix/retained.zip",
+            "research/other/retained.zip",
+        }
+        omitted = {"research/sdk-alpha1/evidence/top.zip",
+                   "research/sdk-alpha1/evidence/old/run.zip",
+                   "research/sdk-alpha1/evidence/archive.zip/nested/run.zip"}
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(["git", "-C", str(root), *arguments], check=True,
+                                      capture_output=True, text=True, timeout=10).stdout
+
+            git("init", "-q")
+            for relative in kept | omitted:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("fixture\n", encoding="utf-8")
+            git("add", "--all")
+            tree = git("write-tree").strip()
+            git("config", "core.sparseCheckout", "true")
+            git("config", "core.sparseCheckoutCone", "false")
+            (root / ".git/info/sparse-checkout").write_text("\n".join(patterns) + "\n")
+            git("read-tree", "-mu", tree)
+            self.assertEqual({path for path in kept | omitted if (root / path).is_file()}, kept)
+            self.assertEqual(set(git("ls-files").splitlines()), kept | omitted)
+            skipped = {record[2:] for record in git("ls-files", "-t").splitlines()
+                       if record.startswith("S ")}
+            self.assertEqual(skipped, omitted)
 
     def test_retained_auxiliary_diagnostics_require_an_explicit_dispatch(self) -> None:
         for filename in ("codeql-memory-control.yml", "codeql-log-recovery.yml"):
