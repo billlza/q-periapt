@@ -1,0 +1,117 @@
+{
+  "repository": "billlza/q-periapt",
+  "workflow_run_id": 42507570881,
+  "workflow_run_attempt": 1,
+  "workflow_url": "https://github.com/billlza/q-periapt/actions/runs/42507570881",
+  "workflow_head": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+  "checked_out_merge": "f99a1100a74a10cb649a6f2a5fc61430f1174436",
+  "codeql_version": "2.27.1",
+  "artifacts": [
+    {
+      "id": 13628179075,
+      "name": "codeql-results-python-42507570881-1",
+      "size_in_bytes": 280890,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13628179075",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13628179075/zip",
+      "expired": false,
+      "created_at": "2026-11-08T18:14:34Z",
+      "expires_at": "2026-11-22T18:14:34Z",
+      "updated_at": "2026-11-08T18:14:34Z",
+      "digest": "sha256:9c50eceab63339a6d58e69453ce2d3be511c91ad3d25eb8e3506a8abcd2ccb0b",
+      "workflow_run": {
+        "id": 42507570881,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "integration/sdk-020",
+        "head_sha": "358b921ab3469ce49f166633fc9a762ff6ed7e3d"
+      }
+    },
+    {
+      "id": 13627814136,
+      "name": "codeql-results-c-cpp-42507570881-1",
+      "size_in_bytes": 68285,
+      "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13627814136",
+      "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13627814136/zip",
+      "expired": false,
+      "created_at": "2026-11-08T18:13:18Z",
+      "expires_at": "2026-11-22T18:13:17Z",
+      "updated_at": "2026-11-08T18:13:18Z",
+      "digest": "sha256:f08880f291618b1ce487781d489ed5f57f1805fb10f4424505377d02ebf9f563",
+      "workflow_run": {
+        "id": 42507570881,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "integration/sdk-020",
+        "head_sha": "358b921ab3469ce49f166633fc9a762ff6ed7e3d"
+      }
+    }
+  ],
+  "job_checkout_evidence": [
+    {
+      "workflow_run_id": 42507570881,
+      "job_id": 128813667975,
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/42507570881/job/128813667975",
+      "head_commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+      "checked_out_commit": "f99a1100a74a10cb649a6f2a5fc61430f1174436",
+      "log_characters": 360305,
+      "evidence": [
+        {
+          "line": 98,
+          "text": "2026-11-08T18:09:03.3812096Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +f99a1100a74a10cb649a6f2a5fc61430f1174436:refs/remotes/pull/121/merge"
+        },
+        {
+          "line": 100,
+          "text": "2026-11-08T18:10:22.6201219Z  * [new ref]         f99a1100a74a10cb649a6f2a5fc61430f1174436 -> pull/121/merge"
+        },
+        {
+          "line": 162,
+          "text": "2026-11-08T18:10:33.8067809Z HEAD is now at f99a110 Merge 358b921ab3469ce49f166633fc9a762ff6ed7e3d into c74b1c7ad2173353a297f965ad735639dbd3958b"
+        },
+        {
+          "line": 165,
+          "text": "2026-11-08T18:10:33.8989156Z f99a1100a74a10cb649a6f2a5fc61430f1174436"
+        }
+      ],
+      "retrieved_at": "2026-11-09T02:37:26.639Z"
+    },
+    {
+      "workflow_run_id": 42507570881,
+      "job_id": 128813668033,
+      "job_url": "https://github.com/billlza/q-periapt/actions/runs/42507570881/job/128813668033",
+      "head_commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+      "checked_out_commit": "f99a1100a74a10cb649a6f2a5fc61430f1174436",
+      "log_characters": 205536,
+      "evidence": [
+        {
+          "line": 98,
+          "text": "2026-11-08T18:11:03.1910178Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +f99a1100a74a10cb649a6f2a5fc61430f1174436:refs/remotes/pull/121/merge"
+        },
+        {
+          "line": 100,
+          "text": "2026-11-08T18:11:46.6129463Z  * [new ref]         f99a1100a74a10cb649a6f2a5fc61430f1174436 -> pull/121/merge"
+        },
+        {
+          "line": 167,
+          "text": "2026-11-08T18:12:03.2586106Z HEAD is now at f99a110 Merge 358b921ab3469ce49f166633fc9a762ff6ed7e3d into c74b1c7ad2173353a297f965ad735639dbd3958b"
+        },
+        {
+          "line": 170,
+          "text": "2026-11-08T18:12:03.3355337Z f99a1100a74a10cb649a6f2a5fc61430f1174436"
+        }
+      ],
+      "retrieved_at": "2026-11-09T02:37:26.641Z"
+    }
+  ],
+  "raw_sarif": [
+    {
+      "language": "python",
+      "sha256": "a6905b88136c1368a3a8e1a97d0a1669a555a369b367640d74b87ee8fb86596a"
+    },
+    {
+      "language": "cpp",
+      "sha256": "ba78ce13d96496ced1b96908b943b5fc8e1189b9591dcbb189cc6f4a3da43382"
+    }
+  ],
+  "input_chain_key": "SHA-256 of UTF-8 canonical JSON with sort_keys=True and separators=(',', ':'): {rule, sink, chain}, where sink and each chain point contain {path, region} from the SARIF physicalLocation. Full keys preserve region columns and chain order. Exact duplicate keys are collapsed within each result; original thread-flow counts are retained.",
+  "source_identity_method": "Every reviewed source file was checked against the Git blob entry in the exact checked-out merge tree; SHA-256 also recorded. The source comparison at integration 93a8ce2 found 72 unchanged files and the reviewed PR 128 change only."
+}

@@ -1,0 +1,5 @@
+2026-11-07T18:59:08.5772202Z test purpose::tests::hkdf_matches_rfc5869_appendix_a1_first_block ... ok
+2026-11-07T18:59:08.5775415Z test purpose::tests::directions_labels_context_policy_and_root_are_distinct_domains ... ok
+2026-11-07T18:59:08.7758133Z test tests::purpose_derivation_agrees_across_peers_and_revokes_with_its_runtime ... ok
+2026-11-07T18:59:08.7908104Z test tests::purpose_derivation_rejects_invalid_shapes_and_respects_the_operation_budget ... ok
+2026-11-07T18:59:08.8648479Z test tests::same_document_signed_by_another_root_does_not_share_application_keys ... ok

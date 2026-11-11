@@ -1,0 +1,12 @@
+{
+  "baseline_passed": true,
+  "mutation_controls": {
+    "process-count": "rejected",
+    "root-retained": "rejected",
+    "root-complete-report": "rejected",
+    "root-original-effect-after": "rejected",
+    "root-activation-unknown": "rejected",
+    "inputs/root-original-target-account": "rejected"
+  },
+  "scope": "Public linkage reader, not signature or MAC authentication."
+}

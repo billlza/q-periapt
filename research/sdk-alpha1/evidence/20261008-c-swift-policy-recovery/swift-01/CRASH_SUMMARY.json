@@ -1,0 +1,250 @@
+{
+  "report": "/Users/bill/Library/Logs/DiagnosticReports/xctest-2026-10-08-011612.ips",
+  "sha256": "a120c509939d4e883d87975d0601a2468ae357313cdabdcbf43349e6ecb30d89",
+  "timestamp": "2026-10-08 01:15:56.3873 +0100",
+  "exception": {
+    "codes": "0x0000000000000002, 0x000000016d743390",
+    "message": "Could not determine thread index for stack guard region",
+    "rawCodes": [
+      2,
+      6131299216
+    ],
+    "type": "EXC_BAD_ACCESS",
+    "signal": "SIGBUS",
+    "subtype": "KERN_PROTECTION_FAILURE at 0x000000016d743390"
+  },
+  "termination": {
+    "flags": 0,
+    "code": 10,
+    "namespace": "SIGNAL",
+    "indicator": "Bus error: 10",
+    "byProc": "exc handler",
+    "byPid": 95546
+  },
+  "vm_region_info": "0x16d743390 is in 0x16d740000-0x16d744000;  bytes after start: 13200  bytes before end: 3183\n      REGION TYPE                    START - END         [ VSIZE] PRT/MAX SHRMOD  REGION DETAIL\n      Stack                       16d6b8000-16d740000    [  544K] rw-/rwx SM=COW  thread 2\n--->  Stack Guard                 16d740000-16d744000    [   16K] ---/rwx SM=PRV  \n      Stack                       16d744000-16d7cc000    [  544K] rw-/rwx SM=COW  ",
+  "faulting_thread": 3,
+  "frames": [
+    {
+      "symbol": "_RINvNtCs8Mbv00yxnRz_4core5array18try_from_fn_erasedINtNtNtB4_3ops9try_trait17NeverShortCircuitANtNtCsj44lLxOD6HM_7fips2045types1Tj5_ENCINvMBQ_BN_10wrap_mut_1jNCINvNtB1z_7hashing8expand_aKb0_Kj6_KB23_E0E0EB1z_",
+      "imageIndex": 28,
+      "imageOffset": 5499628,
+      "symbolLocation": 20
+    },
+    {
+      "symbol": "_RINvNtCs8Mbv00yxnRz_4core5array11try_from_fnINtNtNtB4_3ops9try_trait17NeverShortCircuitANtNtCsj44lLxOD6HM_7fips2045types1Tj5_EKj6_NCINvMBJ_BG_10wrap_mut_1jNCINvNtB1s_7hashing8expand_aKb0_KB21_KB1W_E0E0EB1s_",
+      "imageIndex": 28,
+      "imageOffset": 5496380,
+      "symbolLocation": 72
+    },
+    {
+      "symbol": "_RINvNtCs8Mbv00yxnRz_4core5array7from_fnANtNtCsj44lLxOD6HM_7fips2045types1Tj5_Kj6_NCINvNtBG_7hashing8expand_aKb0_KB1e_KB1a_E0EBG_",
+      "imageIndex": 28,
+      "imageOffset": 5508964,
+      "symbolLocation": 64
+    },
+    {
+      "symbol": "_RINvNtCsj44lLxOD6HM_7fips2047hashing8expand_aKb0_Kj6_Kj5_EB4_",
+      "imageIndex": 28,
+      "imageOffset": 5550312,
+      "symbolLocation": 24
+    },
+    {
+      "symbol": "_RINvNtCsj44lLxOD6HM_7fips2046ml_dsa15verify_internalKb0_Kj6_Kj5_Kj30_Kj7a0_Kjced_Kj300_EB4_",
+      "imageIndex": 28,
+      "imageOffset": 5522728,
+      "symbolLocation": 1248
+    },
+    {
+      "symbol": "_RNvXs0_NtCsj44lLxOD6HM_7fips2049ml_dsa_65INtNtB7_5types9PublicKeyKj6_Kj5_ENtNtB7_6traits8Verifier6verify",
+      "imageIndex": 28,
+      "imageOffset": 5567888,
+      "symbolLocation": 152
+    },
+    {
+      "symbol": "_RNvMNtCshm0T5Pt34Zu_18q_periapt_backends5mldsaNtB2_7MlDsa6510verify_ctx",
+      "imageIndex": 28,
+      "imageOffset": 5474404,
+      "symbolLocation": 788
+    },
+    {
+      "symbol": "_RNvXs0_NtCshm0T5Pt34Zu_18q_periapt_backends5mldsaNtB5_7MlDsa65NtCsl5PTN0w17bZ_13q_periapt_sig8Verifier6verify",
+      "imageIndex": 28,
+      "imageOffset": 5474676,
+      "symbolLocation": 84
+    },
+    {
+      "symbol": "_RNvNtNtCs40poRWaCeeG_20q_periapt_host_store6policy8recovery6verify",
+      "imageIndex": 28,
+      "imageOffset": 508460,
+      "symbolLocation": 112
+    },
+    {
+      "symbol": "_RNvMs1_NtNtCs40poRWaCeeG_20q_periapt_host_store6policy8recoveryNtB5_13RecoveryImage7initial",
+      "imageIndex": 28,
+      "imageOffset": 503692,
+      "symbolLocation": 180
+    },
+    {
+      "symbol": "_RNvMs2_NtNtCs40poRWaCeeG_20q_periapt_host_store6policy8recoveryNtB7_11PolicyStore21provision_recoverable",
+      "imageIndex": 28,
+      "imageOffset": 569864,
+      "symbolLocation": 212
+    },
+    {
+      "symbol": "_RNvNtNtNtNtCslEY1ZnHbZjS_18q_periapt_ffi_abi23sdk10persistent9supported8recovery9construct",
+      "imageIndex": 28,
+      "imageOffset": 346832,
+      "symbolLocation": 288
+    },
+    {
+      "symbol": "_RNCNvNtNtNtCslEY1ZnHbZjS_18q_periapt_ffi_abi23sdk10persistent8recovery21construct_recoverable0B9_",
+      "imageIndex": 28,
+      "imageOffset": 144064,
+      "symbolLocation": 1808
+    },
+    {
+      "symbol": "_RNCINvNtCslEY1ZnHbZjS_18q_periapt_ffi_abi23sdk22execute_with_admissionKj9_Kj2_NCNvNtNtB4_10persistent8recovery21construct_recoverable0Es1_0B6_",
+      "imageIndex": 28,
+      "imageOffset": 292764,
+      "symbolLocation": 116
+    },
+    {
+      "symbol": "_RNvXsn_NtNtCs8Mbv00yxnRz_4core5panic11unwind_safeINtB5_16AssertUnwindSafeNCINvNtCslEY1ZnHbZjS_18q_periapt_ffi_abi23sdk22execute_with_admissionKj9_Kj2_NCNvNtNtB1e_10persistent8recovery21construct_recoverable0Es1_0EINtNtNtB9_3ops8function6FnOnceuE9call_onceB1g_",
+      "imageIndex": 28,
+      "imageOffset": 352544,
+      "symbolLocation": 44
+    },
+    {
+      "symbol": "_RINvNvNtCs82bWklYMk3w_3std9panicking12catch_unwind7do_callINtNtNtCs8Mbv00yxnRz_4core5panic11unwind_safe16AssertUnwindSafeNCINvNtCslEY1ZnHbZjS_18q_periapt_ffi_abi23sdk22execute_with_admissionKj9_Kj2_NCNvNtNtB20_10persistent8recovery21construct_recoverable0Es1_0EINtNtB11_6result6ResultulEEB22_",
+      "imageIndex": 28,
+      "imageOffset": 167844,
+      "symbolLocation": 56
+    },
+    {
+      "symbol": "__rust_try",
+      "imageIndex": 28,
+      "imageOffset": 205672,
+      "symbolLocation": 32
+    },
+    {
+      "symbol": "_RINvNtCs82bWklYMk3w_3std9panicking12catch_unwindINtNtCs8Mbv00yxnRz_4core6result6ResultulEINtNtNtBP_5panic11unwind_safe16AssertUnwindSafeNCINvNtCslEY1ZnHbZjS_18q_periapt_ffi_abi23sdk22execute_with_admissionKj9_Kj2_NCNvNtNtB2f_10persistent8recovery21construct_recoverable0Es1_0EEB2h_",
+      "imageIndex": 28,
+      "imageOffset": 204152,
+      "symbolLocation": 68
+    },
+    {
+      "symbol": "_RINvNtCs82bWklYMk3w_3std5panic12catch_unwindINtNtNtCs8Mbv00yxnRz_4core5panic11unwind_safe16AssertUnwindSafeNCINvNtCslEY1ZnHbZjS_18q_periapt_ffi_abi23sdk22execute_with_admissionKj9_Kj2_NCNvNtNtB1M_10persistent8recovery21construct_recoverable0Es1_0EINtNtBN_6result6ResultulEEB1O_",
+      "imageIndex": 28,
+      "imageOffset": 204152,
+      "symbolLocation": 112
+    },
+    {
+      "symbol": "_RINvNtCslEY1ZnHbZjS_18q_periapt_ffi_abi23sdk22execute_with_admissionKj9_Kj2_NCNvNtNtB2_10persistent8recovery21construct_recoverable0EB4_",
+      "imageIndex": 28,
+      "imageOffset": 273936,
+      "symbolLocation": 740
+    },
+    {
+      "symbol": "_RINvNtCslEY1ZnHbZjS_18q_periapt_ffi_abi23sdk7executeKj9_Kj2_NCNvNtNtB2_10persistent8recovery21construct_recoverable0EB4_",
+      "imageIndex": 28,
+      "imageOffset": 277904,
+      "symbolLocation": 128
+    },
+    {
+      "symbol": "_RNvNtNtNtCslEY1ZnHbZjS_18q_periapt_ffi_abi23sdk10persistent8recovery21construct_recoverable",
+      "imageIndex": 28,
+      "imageOffset": 103236,
+      "symbolLocation": 1060
+    },
+    {
+      "symbol": "q_periapt_sdk_runtime_provision_recoverable_store",
+      "imageIndex": 28,
+      "imageOffset": 104580,
+      "symbolLocation": 68
+    },
+    {
+      "symbol": "closure #1 in closure #1 in closure #1 in closure #1 in closure #1 in closure #1 in closure #1 in closure #1 in static QPeriaptPersistentRuntime.constructRecoverable(at:policy:signature:trust:enrollment:authorization:mode:maxLiveKeys:maxInFlight:)",
+      "imageIndex": 27,
+      "imageOffset": 395428,
+      "symbolLocation": 752
+    },
+    {
+      "symbol": "partial apply for closure #1 in closure #1 in closure #1 in closure #1 in closure #1 in closure #1 in closure #1 in closure #1 in static QPeriaptPersistentRuntime.constructRecoverable(at:policy:signature:trust:enrollment:authorization:mode:maxLiveKeys:maxInFlight:)",
+      "imageIndex": 27,
+      "imageOffset": 395896,
+      "symbolLocation": 320
+    },
+    {
+      "symbol": "closure #1 in Array<A>.withInput<A>(_:)",
+      "imageIndex": 27,
+      "imageOffset": 400316,
+      "symbolLocation": 364
+    },
+    {
+      "symbol": "partial apply for closure #1 in Array<A>.withInput<A>(_:)",
+      "imageIndex": 27,
+      "imageOffset": 424448,
+      "symbolLocation": 44
+    },
+    {
+      "symbol": "_ArrayBuffer.withUnsafeBufferPointer<A, B>(_:)",
+      "imageIndex": 27,
+      "imageOffset": 272556,
+      "symbolLocation": 484
+    },
+    {
+      "symbol": "Array.withUnsafeBufferPointer<A, B>(_:)",
+      "imageIndex": 27,
+      "imageOffset": 265260,
+      "symbolLocation": 112
+    },
+    {
+      "symbol": "Array<A>.withInput<A>(_:)",
+      "imageIndex": 27,
+      "imageOffset": 399900,
+      "symbolLocation": 168
+    },
+    {
+      "symbol": "closure #1 in closure #1 in closure #1 in closure #1 in closure #1 in closure #1 in closure #1 in static QPeriaptPersistentRuntime.constructRecoverable(at:policy:signature:trust:enrollment:authorization:mode:maxLiveKeys:maxInFlight:)",
+      "imageIndex": 27,
+      "imageOffset": 394304,
+      "symbolLocation": 492
+    },
+    {
+      "symbol": "partial apply for closure #1 in closure #1 in closure #1 in closure #1 in closure #1 in closure #1 in closure #1 in static QPeriaptPersistentRuntime.constructRecoverable(at:policy:signature:trust:enrollment:authorization:mode:maxLiveKeys:maxInFlight:)",
+      "imageIndex": 27,
+      "imageOffset": 394648,
+      "symbolLocation": 296
+    },
+    {
+      "symbol": "closure #1 in Array<A>.withInput<A>(_:)",
+      "imageIndex": 27,
+      "imageOffset": 400316,
+      "symbolLocation": 364
+    },
+    {
+      "symbol": "partial apply for closure #1 in Array<A>.withInput<A>(_:)",
+      "imageIndex": 27,
+      "imageOffset": 424448,
+      "symbolLocation": 44
+    },
+    {
+      "symbol": "_ArrayBuffer.withUnsafeBufferPointer<A, B>(_:)",
+      "imageIndex": 27,
+      "imageOffset": 272556,
+      "symbolLocation": 484
+    }
+  ],
+  "native_images": [
+    {
+      "name": "QPeriaptSDKTests",
+      "path": "/Users/USER/Documents/*/QPeriaptSDKTests",
+      "uuid": "5412645c-1653-31b1-8de7-9e10b0f25014"
+    },
+    {
+      "name": "libq_periapt_ffi_abi2.dylib",
+      "path": "/Users/USER/Documents/*/libq_periapt_ffi_abi2.dylib",
+      "uuid": "cd2abea5-a1ae-3d66-b5c2-a9a9a0bdab49"
+    }
+  ]
+}

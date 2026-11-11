@@ -1,0 +1,26 @@
+{
+  "actual_observer_binaries": {
+    "fanout": {
+      "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-throughput-resources-tupsw93l/build/release/deps/journal_fanout-8ae9f62330a7257d",
+      "sha256": "88089417df9049cee2b169a59efe6f5abbb814a7625a2b315f8cec6e1aa35d39"
+    },
+    "lifecycle": {
+      "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-throughput-resources-tupsw93l/build/release/deps/journal_lifecycle-fa804ed4cbf8bd87",
+      "sha256": "bd813f5ff80aacb26314e44f4e56374176d8db6d37f8afac3db152ffc4b57941"
+    }
+  },
+  "all_cohort_operation_spans": 1950,
+  "all_cohort_phase_intervals": 60,
+  "all_members_reread": true,
+  "business_effect_files": 750,
+  "bytes": 17351456,
+  "members": 1199,
+  "new_timing_controls": 500,
+  "performance_qualified": false,
+  "pilot_cohorts": 4,
+  "private_runtime_included": false,
+  "release_claim_eligible": false,
+  "repeated_cohorts": 16,
+  "sha256": "febe57f043c78f09a77ec36a2694cdb156b3e184e287ff62871712f54b1ebdde",
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8"
+}

@@ -1,0 +1,199 @@
+{
+  "browser": {
+    "bidirectional_consumption": true,
+    "cases": 10,
+    "foreign_getters_invoked": 0,
+    "owned_invalid_inputs": 4,
+    "rekey_epochs": [
+      1,
+      2,
+      3
+    ],
+    "roundtrip_assertions": {
+      "window": 243,
+      "worker": 236
+    },
+    "version": "155.0.8059.40"
+  },
+  "capture": {
+    "bytes": 390494,
+    "file": "CAPTURE.zip",
+    "manifest_sha256": "6c5d2832a5671e5bc65ab65e5311b12a9c6978214d949ec5e8d9612aedcd7f05",
+    "members": 396,
+    "sha256": "8051084cc2b2a6df035844f3037431b3c93e9b59a31a6c76d946b0a00d317af2"
+  },
+  "cause": "Uncaught foreign length/getter/copy exceptions skipped wasm-bindgen Rust owner-borrow guard destruction. Genuine typed-array internal slots plus catch imports now avoid caller hooks and return copy exceptions through Rust cleanup; failed temporary copies are wipeable.",
+  "completed": true,
+  "corrected_probe": [
+    {
+      "closed": true,
+      "enabled": true,
+      "freed": true,
+      "inputGetterReads": 0,
+      "kind": "plain",
+      "operation": "Error: policy denied",
+      "originalCause": false
+    },
+    {
+      "closed": true,
+      "enabled": true,
+      "freed": true,
+      "inputGetterReads": 0,
+      "kind": "proxy",
+      "operation": "Error: expected Uint8Array",
+      "originalCause": false
+    },
+    {
+      "closed": true,
+      "enabled": true,
+      "freed": true,
+      "inputGetterReads": 0,
+      "kind": "own-length-getter",
+      "operation": "Error: policy denied",
+      "originalCause": false
+    },
+    {
+      "closed": true,
+      "enabled": true,
+      "freed": true,
+      "inputGetterReads": 0,
+      "kind": "false-length",
+      "operation": "Error: policy denied",
+      "originalCause": false
+    }
+  ],
+  "minimum_node": {
+    "expected_node_version": "v24.0.0",
+    "npm_version": "11.3.0",
+    "runtime": {
+      "arch": "arm64",
+      "execPath": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-wasm-input/node24-tools/node-v24.0.0-darwin-arm64/bin/node",
+      "platform": "darwin",
+      "version": "v24.0.0",
+      "versions": {
+        "acorn": "8.14.1",
+        "ada": "3.2.3",
+        "amaro": "0.5.2",
+        "ares": "1.34.5",
+        "brotli": "1.1.0",
+        "cjs_module_lexer": "2.1.0",
+        "cldr": "47.0",
+        "icu": "77.1",
+        "llhttp": "9.2.1",
+        "modules": "137",
+        "napi": "10",
+        "nbytes": "0.1.1",
+        "ncrypto": "0.0.1",
+        "nghttp2": "1.64.0",
+        "node": "24.0.0",
+        "openssl": "3.0.16",
+        "simdjson": "3.12.2",
+        "simdutf": "6.4.0",
+        "sqlite": "3.49.1",
+        "tz": "2025b",
+        "undici": "7.8.0",
+        "unicode": "16.0",
+        "uv": "1.50.0",
+        "uvwasi": "0.0.21",
+        "v8": "13.6.233.8-node.10",
+        "zlib": "1.3.0.1-motley-780819f",
+        "zstd": "1.5.7"
+      }
+    },
+    "runtime_inputs": {
+      "node": {
+        "path": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-wasm-input/node24-tools/node-v24.0.0-darwin-arm64/bin/node",
+        "sha256": "f28f6fdb2b24cdfc3785f4f8b46fa7b392b0ec5892b075b434049c7d05cfc956"
+      },
+      "npm_cli": {
+        "path": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-wasm-input/node24-tools/node-v24.0.0-darwin-arm64/lib/node_modules/npm/bin/npm-cli.js",
+        "sha256": "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7"
+      }
+    },
+    "typescript": "7.0.2 strict NodeNext passed"
+  },
+  "non_admitted_attempts": [
+    "Regression harness first had a relative import path error; retained and corrected before red/green.",
+    "Package01 encountered an invalid control-character protocol label in the new test; replaced with the existing valid input/v1 label, no SDK validation change.",
+    "Base01 completed its new window checks but failed the old178-count sentinel. Raised exact required totals to243window/236worker and reran all10scenarios on package03.",
+    "First Node24 consumer selected producer npm12.1.0, which emits an unsupported-engine warning. Final consumer uses Node24.0.0 bundled npm11.3.0; no warning/error diagnostics remain."
+  ],
+  "old_package_sha256": "881c180bc56e57d60c762e2b41208a893d32ad834d142fd03801b792bfa051f1",
+  "original_probe": [
+    {
+      "closed": true,
+      "enabled": true,
+      "freed": true,
+      "inputGetterReads": 0,
+      "kind": "plain",
+      "operation": "Error: policy denied",
+      "originalCause": false
+    },
+    {
+      "closed": true,
+      "enabled": true,
+      "freed": "Error: attempted to take ownership of Rust value while it was borrowed",
+      "inputGetterReads": 0,
+      "kind": "proxy",
+      "operation": "TypeError: Method get TypedArray.prototype.length called on incompatible receiver [object Uint8Array]",
+      "originalCause": false
+    },
+    {
+      "closed": true,
+      "enabled": true,
+      "freed": "Error: attempted to take ownership of Rust value while it was borrowed",
+      "inputGetterReads": 1,
+      "kind": "own-length-getter",
+      "operation": "Error: input getter failure",
+      "originalCause": true
+    },
+    {
+      "closed": true,
+      "enabled": true,
+      "freed": "Error: attempted to take ownership of Rust value while it was borrowed",
+      "inputGetterReads": 0,
+      "kind": "false-length",
+      "operation": "RangeError: offset is out of bounds",
+      "originalCause": false
+    }
+  ],
+  "package": {
+    "manifest_sha256": "8a104e6511527363614346ac2ebb763cd5d63dc9fbd56aec81074d6c7eb849a5",
+    "sha256": "9c1be915de5cec5e15a7e7f67871e386311cdf6a0637c47dd2cb0c2d09e8ae85",
+    "source_bound": true,
+    "sources_unchanged": true,
+    "typescript": "7.0.2 strict NodeNext passed"
+  },
+  "red_green": {
+    "new_checks": 58,
+    "new_exit": 0,
+    "old_exit": 1,
+    "same_regression_source": "bbe96e82df026e7f33560849eb20a1ef25577493065752feb5cf6b059ce013a5"
+  },
+  "release_claim_eligible": false,
+  "scope": "Real installed SDK packages on Node26/Node24.0.0 and Chrome window/Worker; fresh browser Continuity owner with required witness. Same-realm JS is not an isolation/security boundary; no release, memory-inspection or wider browser/device claim.",
+  "source": {
+    "base_commit": "c0fd4c80976785b16a62d9cdf6e58ef60cd6864e",
+    "overlay": {
+      "artifact/test_wasm_sdk_package.py": "0b7e2d76a4ccf69d023cbe03ecc711dcaea8a4e24012a976242befd5cb982c96",
+      "artifact/wasm_sdk_package.py": "ec1a2105507ac998ce2c4ab29b03052dfc4bf2693feeff64242d533a80de8f77",
+      "crates/q-periapt-sdk-wasm/PackageREADME.md": "1ad2cb5fe79906f186d56d5420322f2256fc49920e6e6bea7680b59ab36b4bfb",
+      "crates/q-periapt-sdk-wasm/README.md": "898cfbbe1ce58ccf90465dfc6c4bfbea9c122e31545da5d15afd0baf48e96640",
+      "crates/q-periapt-sdk-wasm/src/input.mjs": "9c50fe62d1edc247af7222d103f0ab6cd361d43d835e77ffe451e6a634614219",
+      "crates/q-periapt-sdk-wasm/src/lib.rs": "7161b99b172a9e0205f8981dfab02e0963b1e2e0efbb564d272ce6d783cf3403",
+      "crates/q-periapt-sdk-wasm/tests/browser-acceptance.js": "89e9d9a950f7d93751403eba7147f8ed9b329837c541117749c6854956e3dcee",
+      "crates/q-periapt-sdk-wasm/tests/browser-suite.mjs": "9cbfd1111151f5cefc1f48dcb81f0e6a668d2d39de1945c4ab46d83f5dec40b5",
+      "crates/q-periapt-sdk-wasm/tests/input-acceptance.mjs": "bbe96e82df026e7f33560849eb20a1ef25577493065752feb5cf6b059ce013a5",
+      "crates/q-periapt-sdk-wasm/tests/installed.mjs": "9f805cf4bb8c4b983095839f8e81b5e0717dbc8d8c4905436055a757e89e7ddb",
+      "crates/q-periapt-sdk-wasm/tests/serve.cjs": "4bc1bf950daa6d5940aa67544121f8fbe992996c9ce52c99184381ab60eae9c4"
+    },
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source"
+  },
+  "validation": {
+    "artifact_controls": 53,
+    "format": "passed",
+    "native_clippy": "all targets -D warnings passed",
+    "wasm_clippy": "-D warnings passed",
+    "wasm_msrv": "Rust1.90.0 passed"
+  }
+}

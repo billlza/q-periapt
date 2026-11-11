@@ -1,0 +1,188 @@
+{
+  "schema": "qperiapt/ci-result-readback-evidence/v1",
+  "integration_commit": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+  "main_commit": "48d0fb9a5651b50494ec33d025dda52bd2ff5eae",
+  "paper_commit": "11e113f27d7708474cd55713d4a22cc028f80944",
+  "files": [
+    {
+      "path": "readback.json",
+      "bytes": 33707,
+      "sha256": "7535dfc7cca2f16b77f478f8ba087f526bb1478842e835e5664a935cbc5aa5be"
+    },
+    {
+      "path": "android-readiness-comparison.json",
+      "bytes": 3633,
+      "sha256": "34b5e19149eb103675c1aaf955099cca7722c489d775502acd7a92fc4f2c5756"
+    },
+    {
+      "path": "current-android-readiness-focused.log",
+      "bytes": 984,
+      "sha256": "5329ae75e690dd9b6b005de8de1ac84f7d835b52bf27c9a76ac95e6aae22f5fc"
+    },
+    {
+      "path": "dependency-closeout.json",
+      "bytes": 2570,
+      "sha256": "ec097976eb3813c0c5799ff9c538180db2b39cf31e90c24471432b2ce8bf6234"
+    },
+    {
+      "path": "logs/job-129217346267.log.gz",
+      "bytes": 167965,
+      "sha256": "b50521f2cabd49cfb0435c778840c8ec8be964cb85c73c9b07ae23f1c0bf463a",
+      "uncompressed_bytes": 1004205,
+      "uncompressed_sha256": "68c3af1eb27c8fcad2fcbdac6d074c15522fdc2017a6e028b94b671fb5525a9e"
+    },
+    {
+      "path": "logs/job-129217536539.log.gz",
+      "bytes": 168713,
+      "sha256": "ad665b7af7c46be032563c133edf411e355d6f9721ef1fd6dfa4fe7247552c7d",
+      "uncompressed_bytes": 1006425,
+      "uncompressed_sha256": "daab2367af1115395f162ada6fede054c69ed2f58243aabe1144ab490ddc0705"
+    },
+    {
+      "path": "logs/job-129220215787.log.gz",
+      "bytes": 171208,
+      "sha256": "3a8b922152c51382683f580d6317713fd42cddc5519df65dea5bfd5b5a419ec7",
+      "uncompressed_bytes": 1023634,
+      "uncompressed_sha256": "2b499f7e62d033fedbc7d6f9f4889deaf2494725fa9ca8be4d5ce497cdcfc032"
+    },
+    {
+      "path": "logs/job-129222043769.log.gz",
+      "bytes": 171368,
+      "sha256": "6b3852f0a7f20278498af31a25c7507e127ec1052093fe8e2596c8b0c9ea5295",
+      "uncompressed_bytes": 1023634,
+      "uncompressed_sha256": "f3f9c08af4f1496574e550fbe9051d87166c8bf1f0441d0c3c8494b736931304"
+    },
+    {
+      "path": "logs/job-129241323885.log.gz",
+      "bytes": 172045,
+      "sha256": "2469a7e63f92eb7d3b938da5f15cab778e4bbd36b90029bc2c2c48a334f78836",
+      "uncompressed_bytes": 1021474,
+      "uncompressed_sha256": "ae6e2e49360eb2a81f824c55b265a29619b8e8eb233921857106df02957e234f"
+    },
+    {
+      "path": "logs/job-129241356187.log.gz",
+      "bytes": 172332,
+      "sha256": "6d05ab0fa4d08337a592f73bc7eae8239bacc5a14c7e9f7cff954c516c65ed7b",
+      "uncompressed_bytes": 1023951,
+      "uncompressed_sha256": "08fafa1abbb12215687e1b1139318a0a6ec99e54f2fc77b7683d596f2dab78f6"
+    },
+    {
+      "path": "logs/job-129624662319.log.gz",
+      "bytes": 106940,
+      "sha256": "9baa2cf8a641b6505de1fc02f0811315c46b604c73c09ff7745b82d42760f190",
+      "uncompressed_bytes": 641598,
+      "uncompressed_sha256": "0f1821a4cc51a022014459a0c5e74a16f7b1130d52142a4e27401ec5dfff0195"
+    },
+    {
+      "path": "logs/job-129779610363.log.gz",
+      "bytes": 43627,
+      "sha256": "69d4dd1d4ec6ffa9f273d762cf266de4cc88bfe2efe9836ca25fc634003812f5",
+      "uncompressed_bytes": 260593,
+      "uncompressed_sha256": "ace0abbc50e4d3dc41fea1af6984362ac8ec1506af97570f309eba2e620acfb7"
+    },
+    {
+      "path": "logs/job-130089193552.log.gz",
+      "bytes": 6545,
+      "sha256": "64bfc113fd6dfd99bdd34ef7b2a918246d2985efe71c5980450fd539463abe09",
+      "uncompressed_bytes": 26498,
+      "uncompressed_sha256": "7e21f0ca1fecc2f7276a90ca4d570b3ee2ff92c2f14abd378c3724b03415a648"
+    },
+    {
+      "path": "logs/job-130092507075.log.gz",
+      "bytes": 6266,
+      "sha256": "b6e5d8241ab890bede095b16f5f00f05eb40e1d6f8c45c3ba5b693581d4d687a",
+      "uncompressed_bytes": 26076,
+      "uncompressed_sha256": "79bacc04e13653f7727d52254fcd71c8eb40cee70c29d3d0ad0be1d9af3eeac4"
+    },
+    {
+      "path": "logs/job-130093775352.log.gz",
+      "bytes": 5724,
+      "sha256": "0730d9ce8c46ddf291c2fa1a1508c462a79dc372b54639901d6998bf321831b2",
+      "uncompressed_bytes": 24879,
+      "uncompressed_sha256": "ba862f1a6fe1905d2345bd19b3900f813e705d278cd8a5bf721f3aa96e7dce25"
+    },
+    {
+      "path": "logs/job-130096623316.log.gz",
+      "bytes": 6566,
+      "sha256": "e790938baebea8ec80bc42a3562a9c04264a8b2370ad6519d288a46914acc476",
+      "uncompressed_bytes": 26430,
+      "uncompressed_sha256": "79ee5218b6460f82284576c5e1c03f3e3edf637a296460ab3059e838a26775e7"
+    },
+    {
+      "path": "logs/job-130111632080.log.gz",
+      "bytes": 6047,
+      "sha256": "ffb0351afa6e572bcdc7cfe591c1a18d3d5337b2a98552165a482fe520649776",
+      "uncompressed_bytes": 25325,
+      "uncompressed_sha256": "21858397847e041e4f6c5e333d8df3cc23b4cdba96065227b7ff3e30e963dc29"
+    },
+    {
+      "path": "logs/job-130158286346.log.gz",
+      "bytes": 6606,
+      "sha256": "a6b3b67401113d750f6db55347162fbf623fc4dd8af070fafb52dc8f14b67108",
+      "uncompressed_bytes": 26741,
+      "uncompressed_sha256": "367d2fde95ee284ad1360a276e4d3ddef159e33bc9564e289d77ea5c7268f2cc"
+    },
+    {
+      "path": "dependency-pr-diff-review.json",
+      "bytes": 26958,
+      "sha256": "307b80ac15f3d4182da35a64d77d862d4ce02c0fc6115095e045cc359b630357"
+    },
+    {
+      "path": "integration-check-inventory.json",
+      "bytes": 127910,
+      "sha256": "66e9b3f9c6dad6dcc624c2aae0def2fca60ab3142c75f99fc4bff9960800d191"
+    },
+    {
+      "path": "android-bee17822-diagnostics.zip",
+      "bytes": 15118,
+      "sha256": "eafcaa406999dbf7a5b2b94e9f96ae565706480b7621e6e282dfc149e6550aec"
+    },
+    {
+      "path": "canonical-paper-codeql-quality.log",
+      "bytes": 8049,
+      "sha256": "6c0c55fe42fc3602c8f141e5cb75024f6892be7104ac85c4ebb3c8a69da0581b"
+    },
+    {
+      "path": "current-counterpart-regressions.log",
+      "bytes": 498,
+      "sha256": "501b44edec1952bfcc0a1206558504eb17eb6d58438c3ba6ad34b52a59a6fb5c"
+    },
+    {
+      "path": "paper-codeql-11e113f.log.gz",
+      "bytes": 43647,
+      "sha256": "de3ff7c1c6291b9c23aba8b7e1e0ca3e243865b79e8598b7ef3139657f8f787b",
+      "uncompressed_bytes": 342085,
+      "uncompressed_sha256": "86f3cda7b103a0bae40f30a9ceaa4fb6c25ce938a768ff16f48a3ff9a18c41b0"
+    },
+    {
+      "path": "additional-closeout.json",
+      "bytes": 2367,
+      "sha256": "612cac273b5ac0e3692ee170a33bd3416819a2662a7b28aa6874415fe79579d8"
+    },
+    {
+      "path": "additional-apple-recovery-before-fix.log",
+      "bytes": 2590,
+      "sha256": "6d49b7645c6c368ec4369cad7faa428a4e44781902d787390e6dd610bc094ed8"
+    },
+    {
+      "path": "additional-apple-recovery-regressions.log",
+      "bytes": 10634,
+      "sha256": "41c45b9097df504147ca95ffee1412a0dedf2147f1a42c551e3ef1b27563c8e8"
+    },
+    {
+      "path": "additional-apple-recovery-minimal.patch",
+      "bytes": 3754,
+      "sha256": "7f2615bbe7138615e9db9f77ae7c3564ee1123576684437b6f5259bbe65d5880"
+    },
+    {
+      "path": "additional-pr40-source-comparison.json",
+      "bytes": 26910,
+      "sha256": "0d4f762f5dd5692260feedc51c8dba2b0a0f5ef538fce4450025688b220cc9cc"
+    },
+    {
+      "path": "paper-check-inventory.json",
+      "bytes": 210996,
+      "sha256": "574f1d1921141a5f7aeeaba7ca641e7fca2bdeb2860cc03c4b2f601c00ad29b9"
+    }
+  ]
+}

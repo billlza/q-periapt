@@ -1,0 +1,31 @@
+{
+  "schema": "qperiapt/joc-visual-review/v1",
+  "status": "passed",
+  "reviewed_at_utc": "2026-11-11T03:23:38.132271+00:00",
+  "pdf": "continuity.pdf",
+  "pdf_sha256": "6a240b596b6e69e6caf0a91651da9024febd651f388349e4dc3483537abecb9b",
+  "pages": 119,
+  "inspected_pages": [
+    1,
+    2,
+    99,
+    119
+  ],
+  "method": "Page images rendered at 110 dpi and directly inspected at readable resolution. Complete layout text for pages 2-119 also compared with the preceding reading copy.",
+  "findings": {
+    "front_page": "Title, sole author, affiliation, corresponding email, the 234-word abstract and seven keywords fit page 1; the expanded term is legible.",
+    "introduction": "Page 2 retains the introduction and the connected original-source motivation with normal paragraph and page transitions.",
+    "declarations_and_bibliography": "Page 99 retains the existing data/code and preparation disclosures and the start of the alphabetical numbered bibliography without overlap or clipping.",
+    "last_page": "Page 119 retains the complete final centered-score composition statement, equations and proof with the page number clear."
+  },
+  "pages_2_through_119_layout_text_identical_to_baseline": true,
+  "baseline_pages_2_through_119_layout_text_sha256": "0580250fdd135c91c98755f177fa04ace96ff6ba3b234935bc4cba013d90bf3c",
+  "current_pages_2_through_119_layout_text_sha256": "0580250fdd135c91c98755f177fa04ace96ff6ba3b234935bc4cba013d90bf3c",
+  "document_checks": {
+    "undefined_references_or_citations": 0,
+    "overfull_boxes": 0,
+    "all_fonts_embedded": true,
+    "font_count": 48
+  },
+  "scope": "Visual layout of the inspected pages and complete unchanged-body layout text; claim correspondence and source preservation are recorded separately."
+}

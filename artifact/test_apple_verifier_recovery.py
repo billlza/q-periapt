@@ -34,7 +34,9 @@ class AppleVerifierRecoveryLineageTests(unittest.TestCase):
             "artifact/apple_verifier_recovery.py": "# original lineage gate\n",
             "artifact/results.json": '{"state":"source"}\n',
             "artifact/stable-release-notes.md": "release notes\n",
-            "artifact/swift-xcframework-remote-consumer.sh": "# original gate\n",
+            "artifact/swift-xcframework-consumer-check.sh": "# original structural consumer gate\n",
+            "artifact/swift-xcframework-remote-consumer.sh": "# original remote gate\n",
+            "artifact/swift-xcframework.sh": "# original producer\n",
             "artifact/test_apple_stable_publication.py": "# original tests\n",
             "crates/product.txt": "product bytes\n",
             "docs/EMBEDDING_READINESS.md": "readiness\n",
@@ -84,6 +86,10 @@ class AppleVerifierRecoveryLineageTests(unittest.TestCase):
             "# stream-bounded gate helper\n",
         )
         self._write(
+            "artifact/swift-xcframework-consumer-check.sh",
+            "# Xcode 27 structural consumer gate\n",
+        )
+        self._write(
             "artifact/swift-xcframework-remote-consumer.sh",
             "# stream-bounded remote gate\n",
         )
@@ -131,10 +137,18 @@ class AppleVerifierRecoveryLineageTests(unittest.TestCase):
         self.assertEqual(self.pending_commit, lineage.pending_commit)
         self.assertEqual(self.pending_sha256, lineage.pending_results_sha256)
         self.assertIn(
+            "artifact/swift-xcframework-consumer-check.sh",
+            lineage.changed_paths,
+        )
+        self.assertIn(
             "artifact/swift-xcframework-remote-consumer.sh",
             lineage.changed_paths,
         )
         self.assertIn("README.md", lineage.changed_paths)
+        self.assertNotIn(
+            "artifact/swift-xcframework.sh",
+            recovery.APPLE_VERIFIER_RECOVERY_ALLOWED_PATHS,
+        )
 
     def test_pending_source_identity_runs_full_publication_contract(self) -> None:
         pending = pending_manifest_fixture()
@@ -158,6 +172,20 @@ class AppleVerifierRecoveryLineageTests(unittest.TestCase):
         with self.assertRaisesRegex(
             recovery.AppleVerifierRecoveryError,
             "changed forbidden paths",
+        ):
+            self._validate(verifier_commit)
+
+    def test_rejects_swift_xcframework_producer_change(self) -> None:
+        self._verifier_commit()
+        self._write(
+            "artifact/swift-xcframework.sh",
+            "# changed post-publication producer\n",
+        )
+        verifier_commit = self._commit_all("change forbidden Apple producer")
+
+        with self.assertRaisesRegex(
+            recovery.AppleVerifierRecoveryError,
+            "changed forbidden paths: artifact/swift-xcframework.sh",
         ):
             self._validate(verifier_commit)
 

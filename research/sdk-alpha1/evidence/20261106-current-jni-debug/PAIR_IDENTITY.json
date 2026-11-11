@@ -1,0 +1,44 @@
+{
+  "art_executed": false,
+  "completed_local_host_jni_partitions": [
+    "debug",
+    "release"
+  ],
+  "full_foreign_profile_join": false,
+  "partitions": {
+    "debug": {
+      "all_seven_native_binary_bytes_verified": true,
+      "candidate_archive_sha256": "0730aa20794527b3947dc4734bf82d48516294c42018dc8dfd23ebc5f42fc2a6",
+      "capsule_sha256": "34d8bd3844f51a3a6b748be5911d7dd7d9e7d8a5986371ae298ff63ef39f1cf1",
+      "final_report_sha256": "aeccc60fb7fcc97218809d956a726d256e90517b5db01fb0acbe508abaa1c847",
+      "jar_classes": 131,
+      "jar_sha256": "4d4c77e63975a693155e3693e6c76349e8df54c930af3a807b31529800126d0a",
+      "jni_harness_tests_passed": 67,
+      "jni_report_sha256": "c16b10f2bc18a8f5597c3077e57698cd38e3be52a7ae6da7e3280021853ed897",
+      "jni_source_files": 146,
+      "sdk_report_sha256": "1e40fc2ae0c7c113509ae2a5c5a858cbd73a8a6fd7f63e66203316c4c61e228d",
+      "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+      "source_input_files": 1401
+    },
+    "release": {
+      "all_seven_native_binary_bytes_verified": true,
+      "candidate_archive_sha256": "0730aa20794527b3947dc4734bf82d48516294c42018dc8dfd23ebc5f42fc2a6",
+      "capsule_sha256": "925e2b530291cb1eddb89b32fb7f466d1896a6a3796b2b904cd09644e47bfae2",
+      "final_report_sha256": "bc76af0dcba94be8c86e903b3d40ab49e3da1fa52f5264fba26a62a5fbcec3ac",
+      "jar_classes": 131,
+      "jar_sha256": "4d4c77e63975a693155e3693e6c76349e8df54c930af3a807b31529800126d0a",
+      "jni_harness_tests_passed": 67,
+      "jni_report_sha256": "d174e4b41fe20babd1a0fa9a1771560fe1d7ea431e55988371a3f092e13c06e4",
+      "jni_source_files": 146,
+      "sdk_report_sha256": "1e40fc2ae0c7c113509ae2a5c5a858cbd73a8a6fd7f63e66203316c4c61e228d",
+      "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+      "source_input_files": 1401
+    }
+  },
+  "physical_device_executed": false,
+  "release_claim_eligible": false,
+  "same_jni_adapter_sources": true,
+  "same_sdk_candidate_and_jar": true,
+  "scope": "Byte-bound pair relationship between completed original Debug and Release host JNI partitions; does not replace the original six-partition foreign-profile join or final hosted candidate verification.",
+  "shared_source_inputs_verified": true
+}

@@ -1,0 +1,344 @@
+# Native device enrollment and publication
+
+`q-periapt-native-device` is a reference consumer of the public native enrollment
+owner. It uses current OS time and the SDK's controlled signer, journal and
+recoverable publication operations. It contains no issuer, test authority or
+clock override. Account authentication and device approval belong to the host;
+the optional Passkey host is one source of these inputs.
+
+The first-use host supplies an independently approved `Invitation`, a current
+`RootInfo`, and separate `qperiapt-policy-pins/1` and
+`qperiapt-policy-materials/1` documents. These are the existing reference-host
+and policy-publisher formats. A received certificate or publication cannot choose
+the trust inputs. Keep the selected invitation: the SDK binds its root, device,
+generation, family and validity to the original storage. Application correlation
+and reapproval records remain in the host. An explicit same-intent reapproval
+may select its separately approved host operation without replacing the device.
+
+Use canonical absolute paths beneath existing private directories. The tool
+does not create directories or repair their permissions. Provision the wrapping
+key once, retain it separately from journal backups, and reuse that exact file.
+A missing key, busy owner or damaged database is an error; `open` never becomes
+first use.
+
+```sh
+q-periapt-native-device provision-key "$wrapping_file"
+q-periapt-native-device begin "$device_dir" "$wrapping_file" "$invitation"
+q-periapt-native-device request "$device_dir" "$wrapping_file" "$invitation" "$request_output"
+```
+
+Submit that request through the host's authenticated approval flow. The request
+proves possession of the newly controlled device key, not account membership.
+After issuance, supply its result and independently current membership:
+
+```sh
+q-periapt-native-device accept "$device_dir" "$wrapping_file" "$invitation" \
+  "$issued" "$current_root" "$policy_pins" "$policy_materials"
+q-periapt-native-device prepare "$device_dir" "$wrapping_file" "$invitation" \
+  "$current_root" "$policy_pins" "$policy_materials"
+q-periapt-native-device activate "$device_dir" "$wrapping_file" "$invitation" \
+  "$current_root" "$policy_pins" "$policy_materials" none
+```
+
+`none` is accepted only for a signed local-only policy. A required witness returns
+its original subject and image commitment from `prepare`. Obtain independent
+witness enrollment, then pass the explicit witness address to `activate`. The
+witness key must match the independently supplied policy pin; omission does not
+enable local operation. The reference TCP witness carrier authenticates messages
+but does not encrypt their metadata.
+
+`status` reopens the original enrollment and reports persisted progress, signing
+identity and journal identity. Its `Active` phase is historical metadata, not a
+current permission receipt. No request output is overwritten. If output writing
+fails after a request commit, retry `request` to a fresh private destination to
+retrieve the same bytes.
+
+Before installation selection, `extend` consumes an independently approved
+`CredentialExtensionRequest`, its exact issued response, current membership and
+live policy. It preserves the original invitation/key/journal and delegates to
+the SDK's same-key extension transaction. A new expiry is a new host authorization.
+The CLI does not issue it or infer it from a server response.
+
+```sh
+q-periapt-native-device extend "$device_dir" "$wrapping_file" "$invitation" \
+  "$approved_extension" "$issued_extension" "$current_root" "$policy_pins" "$policy_materials"
+```
+
+`prepare`, `activate`, and `refresh-roster` check the retained certificate against
+the supplied current signed roster. A newer roster uses the original CAS
+coordinator. Positively tracked Unprepared records can advance without creating
+children or changing policy. A selected but not activated installation cannot be
+retargeted through that transition. Legacy Untracked records require explicit
+history reconciliation; missing files never establish first use. Retained
+witnessed roster changes need their existing explicit witness coordination, which
+this CLI does not submit automatically.
+
+## Recoverable public advertisement
+
+After preparation, `publication-next` observes the original journal's next
+publication ID. Retain it independently, then submit that same ID and plan for
+every retry. It does not reserve a different ID after an error.
+
+```sh
+q-periapt-native-device publication-next "$device_dir" "$wrapping_file" "$invitation" \
+  "$current_root" "$policy_pins" "$policy_materials" none
+q-periapt-native-device publish "$device_dir" "$wrapping_file" "$invitation" \
+  "$current_root" "$policy_pins" "$policy_materials" none \
+  "$publication_id_base64url" "$plan" "$empty_private_export_dir"
+```
+
+The plan is a strict JSON object with `schema` equal to
+`qperiapt-native-publication-plan/1`, an independently selected nonzero 32-byte
+`directory` array, and explicit Unix-second `valid_from` / `valid_until` values.
+The schema selects reusable classical and PQ members. The signed policy must
+permit that profile. Static inputs and the output directory are checked before
+device activation; the SDK samples current time again at publication boundaries.
+
+The single durable `publication.json` output has schema
+`qperiapt-native-publication/1`, original journal and publication identities, the
+unchanged `QPPUBA01` artifact, retained certificate/roster bytes and their checkpoint.
+Binary fields are canonical base64url without padding. These bytes are public
+distribution, not trust pins or proof of remote directory publication. Consumers
+must verify signatures, exact expected identity/directory, membership and current
+policy/time before constructing a connection.
+
+A partial or failed export does not undo a committed publication. Keep the
+original ID and plan, reopen the same device, and retry to another empty export
+directory. The prepared artifact and inventory identities are reused; the tool
+does not export private keys.
+
+This entry point covers native first use, preinstallation extension, supported
+same-credential roster refresh and local public advertisement. The
+[session exchange CLI](NATIVE_SESSION.md) adds owned responder operations and a
+durable reference inbox. A bidirectional network service, later lifecycle coordination and legacy
+Accepted migration remain separate work. CLI tests use real subprocesses and OS
+time with explicitly generated test authority. The real user account and its
+device grants are not modified by those tests.
+
+## Inspect an original retained-state renewal request
+
+Once an installation is active, extending a certificate alone cannot authorize
+its retained keys, publications or sessions. The SDK's separate root-signed G
+grant binds the original storage owner, policy and exact previous credential and
+roster. Obtain its public issuer inputs from the original owner:
+
+```sh
+q-periapt-native-device renewal-request "$device_dir" "$wrapping_file" "$invitation" \
+  "$retained_renewal_id" "$original_policy_pins" "$original_policy_materials" \
+  none "$new_request_output"
+```
+
+Choose and retain a nonzero 32-byte base64url renewal ID before the call. The
+output uses `qperiapt-retained-credential-request/1` and contains public original
+and previous certificate/roster bytes, journal and owner identities, policy
+checkpoints and the previous checkpoint actually observed in the journal. It
+does not contain private keys. A required-witness installation needs its explicit
+witness address instead of `none`, with the pinned witness key from the original
+policy inputs. There is no automatic local fallback.
+
+The command verifies exact signed historical policy and SDK bindings without
+backdating or returning a live policy owner. It can inspect an expired original
+credential; the local profile does not require its private signing file. Pending
+maintenance, a different original policy, unprepared installation or inconsistent
+history still fails. The SDK may reconcile retained completion receipts while
+opening the matched history; this is not a generic raw database reader.
+
+Request inspection does not reserve the observed predecessor or grant permission.
+Keep the exact exported request and operation before submission. Output files
+are exclusive; retry to a fresh filename if an export outcome is unknown. If
+another operation changed the observed history, do not silently submit a changed
+request under the old approval. The account issuer must authenticate the user,
+check its own membership/issuance records and serialize and retain the exact G
+decision. The [host G issuance transaction](RETAINED_GRANTS.md) now retains that
+decision separately from certificate extension. Its browser controls retain and
+review that exact decision; this export alone cannot restore an expired endpoint.
+
+## Recover the original installation
+
+Retain the complete host-approved grant request and its issued response. Supply
+the current root/roster and policy pins through the host's trusted configuration,
+separately from the response. Keep the same device directory, wrapping key and
+selected invitation used by the original installation.
+
+```sh
+q-periapt-native-device renewal-stage "$device_dir" "$wrapping_key" "$invitation" \
+  "$approved_grant_request" "$issued_grant" "$current_root" \
+  "$original_policy_pins" "$original_policy_materials" \
+  "$current_policy_pins" "$current_policy_materials" none
+
+q-periapt-native-device renewal-status "$device_dir" "$wrapping_key" "$invitation"
+
+q-periapt-native-device renewal-activate "$device_dir" "$wrapping_key" "$invitation" \
+  "$approved_grant_request" "$issued_grant" "$current_root" \
+  "$original_policy_pins" "$original_policy_materials" \
+  "$current_policy_pins" "$current_policy_materials" none
+```
+
+Staging retains an exact SDK intent and returns Pending or a historical Committed
+result. It returns no runtime owner. `renewal-status` needs no live policy and
+reports the original retained operation; Committed is not current permission.
+`renewal-activate` can stage and recover the same request directly, so a separate
+stage command is optional for a local profile. Changed journal, operation,
+statement, root, target or original policy is refused. The selected current
+roster must be the exact grant target. A newly selected target is a separate
+decision, never a replacement input for an unresolved operation.
+
+The host's `suspended` flag fences new issuer signatures; it is not a signed
+device revocation. A previously issued G remains subject to the actual current
+roster, root, policy and time checks. Pausing issuance alone does not invalidate
+that operation or replace those checks.
+
+Activation uses the SDK's original cross-store coordinator before reading public
+admission. The active owner and later publications therefore use the recovered
+certificate and roster, retaining the original signer and journal. Current
+membership and policy time are rechecked before release. Successful CLI output
+follows owner closure. If writing stdout fails, the operation may already be
+Committed; query and retry that exact request. A broken output pipe returns an
+error, not a rollback or a fresh enrollment.
+
+For a required witness, replace `none` with its independently configured numeric
+`IP:port` endpoint. First run `renewal-witness-prepare` with the same inputs and
+one final new proposal-output filename. It exports
+`qperiapt-credential-witness-proposal/1`, including the canonical SDK proposal
+bytes, and reports RequiresWitnessApproval. Retain those bytes and obtain the
+witness operator's independent approval for this exact proposal, grant and
+policy. Then run `renewal-activate` with the same inputs and endpoint. This may
+send Commit for the prepared proposal; it cannot authorize it at the witness.
+Missing or mismatched witness configuration never falls back to local storage.
+
+When the selected account roster also changes other devices' credentials, append
+`--companion-grants "$companion_file"` to `renewal-stage`, `renewal-activate`, and
+`renewal-witness-prepare` (after the proposal-output filename for preparation).
+The private JSON object must have exactly two fields: `schema` set to
+`qperiapt-account-credential-grants/1`, and `grants`, an array of complete
+`IssuedCredentialGrant` responses in their original
+JSON encoding: identifiers are byte arrays, `checkpoint` is the version/digest
+object, and `grant` is the base64url wire value. Include 1–31 companion responses,
+exclude this installation's own grant, and include every other same-generation
+credential change. This input is bounded to 3 MiB. All signed grants must name
+the same account predecessor, target and original policy; response metadata
+alone supplies no authority. The current trust inputs and this installation's
+approved request remain independent.
+
+Supply the same complete collection on every retry. Its order may change, but
+omitting the flag, omitting a changed device, or replacing a companion decision
+cannot replace an original Pending or Committed operation. Status and outcome
+observation use retained state and need no companion file. The SDK preserves the
+first saved collection and sealed target through lost replies and process
+reopening. A required witness still separately approves that exact target.
+This updates one original installation; each other installation must recover
+through its own local grant. It is not an atomic update across devices.
+
+After an unknown witness result, observe the exact retained operation and
+transaction statement with the original independently authenticated policy:
+
+```sh
+q-periapt-native-device renewal-witness-observe "$device_dir" "$wrapping_key" "$invitation" \
+  "$original_operation_base64url" "$original_statement_base64url" \
+  "$original_policy_pins" "$original_policy_materials" "$witness_address"
+```
+
+Keep the operation and statement from the original retained progress. In a joint
+policy transaction, its statement is not interchangeable with the credential
+grant's digest. Observation sends no Commit or Close and does not independently
+approve a witness target. It can recover existing local preparation, persist an
+authenticated terminal result, and acknowledge that durable result to the witness.
+Unavailable or Prepared remains Pending; neither establishes non-commit.
+Committed and Closed remain historical outcomes even after policy and credential
+expiry. This requires the original signer and exact pinned witness; it returns no
+runtime owner and cannot fall back to local recovery when the witness is offline.
+
+For an unresolved local-only G under an unchanged, still-live original policy:
+
+```sh
+q-periapt-native-device renewal-reconcile-expired "$device_dir" "$wrapping_key" "$invitation" \
+  "$issued_grant" "$original_policy_pins" "$original_policy_materials"
+```
+
+The issued response selects the original operation and statement; it supplies no
+new permission. The SDK checks its retained signed grant and exact journal history.
+An existing commit remains Committed. Only an expired target and unchanged
+predecessor history permit ExpiredUncommitted, with a durable observation time.
+A still-live unresolved target, unknown operation or inconsistent history fails.
+Repeated calls return the same retained outcome, without staging or activating a
+new operation. The original signer is still required on this unchanged-policy
+path. A new grant needs a new explicitly authorized request; retain old outcomes.
+
+The positive witness test exercises the native API over real TCP. Real-account
+browser/native recovery, the separate witness-operator product interface,
+historical or changed-policy local CLI reconciliation, changed-policy witness CLI
+cohorts and established-session traffic recovery remain separate integration work.
+`renewal-status` alone does not prove that an uncertain target never committed;
+required witness outcomes cannot fall back to local expiry reconciliation.
+
+## Independent policy-only renewal
+
+Use the [policy-only consumer workflow](POLICY_RENEWAL.md) for a same-profile
+validity extension with separate account and original-policy approvals. It keeps
+credentials and roster unchanged and does not grant fresh-bootstrap permission.
+
+## Remote peer roster
+
+An existing remote account can advance to an independently selected signed roster:
+
+```sh
+q-periapt-native-device admit-peer-roster "$device_dir" "$wrapping_key" "$invitation" \
+  "$current_local_root" "$policy_pins" "$policy_materials" "$witness_endpoint_or_none" \
+  "$selected_remote_root_and_roster"
+```
+
+The target uses the account host's `RootInfo` JSON with an explicit roster. The
+original device owner checks the retained remote root and family, monotonic
+checkpoint, current local authority and witness. This cannot introduce an unknown
+account or refresh the local account's own enrollment. It does not grant traffic
+permission by itself. Do not derive the selected target from an untrusted incoming
+bundle.
+
+Success reports `{"peer_roster": <checkpoint>}`. On an error, the owner is closed
+and the durable commit may be unknown. Keep the exact target and original device
+files, reopen and retry it; an exact successful retry reports the installed target.
+A lower checkpoint fails. Never reset the journal to recover this operation.
+
+
+## Verify an independently received publication
+
+The host may select the existing reusable plan or
+`qperiapt-native-one-time-publication-plan/1`.
+The latter has the same directory and validity fields and exactly the ordered
+roles [1, 2, 3, 4]: signed classical, one-time classical, last-resort PQ, one-time
+PQ. Its signed protocol policy must explicitly permit `one_time_both`.
+The publisher accepts that bootstrap mode and retains it in the original
+policy request/history. A disabled SDK policy cannot authorize either nonempty
+bootstrap mode. The output schema is
+`qperiapt-native-one-time-publication/1`; the previous [1, 3] plan and
+`qperiapt-native-publication/1` output remain supported.
+
+Directory admission is a separate read-only command:
+
+```sh
+q-periapt-native-device verify-publication \
+  "$independent_trust" "$policy_pins" "$policy_materials" "$retained_plan" \
+  "$received_publication"
+```
+
+The separately provisioned trust document has schema
+`qperiapt-native-publication-trust/1` and these fields:
+
+- `current`: the independently authenticated host's current `RootInfo`, including its signed roster;
+- `device` (16-byte array) and `generation`: the expected device;
+- `journal` and `publication` (32-byte arrays): the independently retained original identities.
+
+Do not construct these expectations, policy pins or the retained plan by copying
+fields from the received publication. A suspended host root is refused. The
+command verifies the current policy and SDK binding, current credential and roster,
+exact original journal/publication/plan, complete signed manifest and Merkle tree,
+artifact commitments and permitted prekey quality. It requires the publication's
+roster/checkpoint to equal the selected current snapshot; an old advertisement
+cannot supply its own current membership.
+
+All five inputs use the existing bounded private-file reader. The command opens
+no device, enrollment, key, journal or publication registry and writes no files.
+Success prints `{"verified":true,"quality":"one_time_both"}` or the corresponding
+`reusable_both` result to stdout. It grants no lease or consumption receipt.
+The existing peer bootstrap interface still selects reusable-both; this command
+does not add an independent enrollment consumer or a one-time session exchange.

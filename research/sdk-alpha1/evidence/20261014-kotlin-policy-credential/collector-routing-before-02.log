@@ -1,0 +1,26 @@
+F
+======================================================================
+FAIL: test_canonical_foreign_collector_calls_use_disjoint_labels (artifact.test_continuity_configuration_policy_credential_kotlin.KotlinCollectorRoutingTests.test_canonical_foreign_collector_calls_use_disjoint_labels)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/test_continuity_configuration_policy_credential_kotlin.py", line 79, in test_canonical_foreign_collector_calls_use_disjoint_labels
+    configuration.qualify_foreign(outside, output, 'debug', {'TEST_COLLECTOR': collector}, native,
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        run, client, language='Kotlin', collector=collector)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/continuity_first_configuration.py", line 237, in qualify_foreign
+    checked["managed_policy_credential_renewal"] = policy_credential.qualify(
+                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        outside, output, profile, runtime, Path(helper["path"]), client, Path(receiver["path"]), run, language=language)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/continuity_configuration_policy_credential.py", line 126, in qualify
+    stdout = run([str(helper), "--exact", test, "--nocapture"], name, runtime=env)
+  File "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/artifact/test_continuity_configuration_policy_credential_kotlin.py", line 71, in run
+    self.assertNotIn(label, labels, 'second collector reuses the first collector output prefix')
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'policy-credential-kotlin-debug-signed-fixed' unexpectedly found in {'policy-credential-kotlin-debug-signed-fixed', 'policy-credential-kotlin-debug-tls-fixed', 'policy-credential-kotlin-debug-tls-recoverable', 'policy-credential-kotlin-debug-signed-recoverable'} : second collector reuses the first collector output prefix
+
+----------------------------------------------------------------------
+Ran 1 test in 0.075s
+
+FAILED (failures=1)

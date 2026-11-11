@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>Q-Periapt browser storage acceptance</title>
+<link rel="icon" href="data:,">
+<h1>Browser policy storage acceptance</h1><p>Controlled test origin. No user account or production storage.</p>
+<script type="module">
+if (new URL(location.href).searchParams.get('realm') === 'worker') {
+  const worker = new Worker('./storage-worker.mjs', { type: 'module' }), pending = new Map();
+  let sequence = 0;
+  worker.onmessage = ({ data }) => {
+    if (data.cut) { globalThis.cutEvent = data.cut; return; }
+    const resolve = pending.get(data.id); pending.delete(data.id); resolve(data.result);
+  };
+  worker.onerror = event => { globalThis.workerFailure = event.message; };
+  globalThis.storage = {
+    run(...args) { return new Promise(resolve => { const id = ++sequence; pending.set(id, resolve); worker.postMessage({ id, args }); }); },
+    terminate() { worker.terminate(); for (const resolve of pending.values()) resolve({ ok: false, code: 'WorkerTerminated' }); pending.clear(); }
+  };
+} else {
+  globalThis.storage = await import('./storage-suite.mjs');
+}
+</script>

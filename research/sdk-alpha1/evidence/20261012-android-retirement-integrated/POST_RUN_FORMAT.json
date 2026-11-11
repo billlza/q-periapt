@@ -1,0 +1,7 @@
+{
+  "file": "artifact/continuity_android_retirement.py",
+  "qualified_sha256": "674c9884f5dad5d66eb4729045638bda8c70bea385e123900dfa058490f720ea",
+  "current_sha256": "07438fbdfd792af6500aa4d0ba70285b017d7e06cf7eeb4dbfc8ef674ddb9aa0",
+  "change": "Remove one redundant blank line at EOF found by staged diff check.",
+  "Python_AST_identical": true
+}

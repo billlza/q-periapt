@@ -1,0 +1,63 @@
+{
+  "binary_sha256": "cfcf093448102c7da199c4ef457599142e12297e83e87655d122f49f5fb2e2d1",
+  "business_effects_checked": 260,
+  "cases": [
+    {
+      "after_drain_journal_bytes": 626688,
+      "at_capacity_journal_bytes": 12455936,
+      "at_capacity_max_rss_bytes": 50872320,
+      "case": "pilot-max",
+      "effects": 65,
+      "first_eight_commit_median_ms": 45.76075,
+      "last_eight_fill_commit_median_ms": 91.65825,
+      "payload_bytes": 16384,
+      "profile": "local",
+      "retained_payload_bytes_at_capacity": 1048576,
+      "whole_process_max_rss_bytes": 56279040
+    },
+    {
+      "after_drain_journal_bytes": 380928,
+      "at_capacity_journal_bytes": 393216,
+      "at_capacity_max_rss_bytes": 13467648,
+      "case": "pilot-empty",
+      "effects": 65,
+      "first_eight_commit_median_ms": 52.296354,
+      "last_eight_fill_commit_median_ms": 51.2684165,
+      "payload_bytes": 0,
+      "profile": "local",
+      "retained_payload_bytes_at_capacity": 0,
+      "whole_process_max_rss_bytes": 14254080
+    },
+    {
+      "after_drain_journal_bytes": 626688,
+      "at_capacity_journal_bytes": 12455936,
+      "at_capacity_max_rss_bytes": 55345152,
+      "case": "witness-max",
+      "effects": 65,
+      "first_eight_commit_median_ms": 108.9616045,
+      "last_eight_fill_commit_median_ms": 135.382021,
+      "payload_bytes": 16384,
+      "profile": "witness",
+      "retained_payload_bytes_at_capacity": 1048576,
+      "whole_process_max_rss_bytes": 62078976
+    },
+    {
+      "after_drain_journal_bytes": 380928,
+      "at_capacity_journal_bytes": 393216,
+      "at_capacity_max_rss_bytes": 14286848,
+      "case": "witness-empty",
+      "effects": 65,
+      "first_eight_commit_median_ms": 70.3997915,
+      "last_eight_fill_commit_median_ms": 73.9211245,
+      "payload_bytes": 0,
+      "profile": "witness",
+      "retained_payload_bytes_at_capacity": 0,
+      "whole_process_max_rss_bytes": 19103744
+    }
+  ],
+  "completed": true,
+  "negative_controls_rejected": 272,
+  "release_claim_eligible": false,
+  "scope": "Four native source-bound single-session/epoch capacity observations. No tail, isolated SDK memory, energy, multi-session journal maximum, device or release-performance qualification.",
+  "source_commit": "3df45b849012334190f764aecc73ac558b3eb712"
+}

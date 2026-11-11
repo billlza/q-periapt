@@ -1,0 +1,82 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/gradle-9.8.0/bin/gradle",
+    "--no-daemon",
+    "--offline",
+    "--warning-mode",
+    "fail",
+    "--dependency-verification",
+    "strict",
+    "--max-workers",
+    "2",
+    "-Dorg.gradle.java.installations.auto-download=false",
+    "-Pkotlin.compiler.execution.strategy=in-process",
+    "-Dorg.gradle.java.home=/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home",
+    "--project-dir",
+    "/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/kotlin-source/bindings/kotlin/ContinuityPackageConsumer",
+    "test",
+    "publishContinuityPublicationToCandidateRepository",
+    "-Pqperiapt.continuity.lib=/Users/bill/Documents/Codex/credential-lifecycle-packages-20261004/c-installed-debug/libq_periapt_continuity_c_consumer.dylib"
+  ],
+  "exit": 0,
+  "seconds": 17.398164665908553,
+  "source": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-lifecycle-integration/bindings/kotlin/ContinuityPackageConsumer",
+  "source_hashes": {
+    "README.md": "b0de84c66427195e91e95897120a3c6feee6b94f99852294a826f7b8ed1bf159",
+    ".gitignore": "8c52614a6393b6b7820cdde0027edb883ac1c2b204d35a088b623ccc4e6157cd",
+    "build.gradle.kts": "b7269a4eea7458f6340a2329b1c35685237a50af2e88d07d69549e1e99b9a9b4",
+    "settings.gradle.kts": "7631f4aedfae8f369d4c4ab84784d0bf270922eb889c5e4b2a6e345021adf4db",
+    "gradle/verification-metadata.xml": "543f58282de0ecd79210ccaefd89694b6a1ff641233e9d8b33f43c72eb746141",
+    "consumer/build.gradle.kts": "ef2dacab85dfc07242cc70770e8bcc47593006e01676f898771055b02bf98a0e",
+    "consumer/settings.gradle.kts": "8c27443b5efa745b4a26014fb1968e3c20ecedde4689b30fc5cc3475038265cf",
+    "src/main/kotlin/dev/qperiapt/continuity/Enrollment.kt": "9610039523a06b6c00fc19e7cb8818e77b2f2586eafc6946dad2c9adbee371ac",
+    "src/main/kotlin/dev/qperiapt/continuity/CredentialRenewal.kt": "fd8b096fabc41479c66ee19cda1fcb6bd29e25d41c424e83667939e4f12f0cec",
+    "src/main/kotlin/dev/qperiapt/continuity/Setup.kt": "ef1ca38072af695de9af31d11e3606c734d46bcda797f2990c248d5291b04903",
+    "src/main/kotlin/dev/qperiapt/continuity/Native.kt": "a335c89ad35d21b7942835f40bc7094a4003999dd4ef7f661187534fd132890c",
+    "src/main/kotlin/dev/qperiapt/continuity/Types.kt": "a1b6db95bd63ebe261ac29b3ef04d69e3371d7fc1aff7723ec6170b0e384cb1b",
+    "src/main/kotlin/dev/qperiapt/continuity/AccountRecovery.kt": "1b8cfb798f1c23fb45dd0a07914b2c9a5e285ea19a518da886538e454c938a54",
+    "src/main/kotlin/dev/qperiapt/continuity/Device.kt": "4aff0807089117e1b3fc40517db199e7b21ea67c3e80129f02b9f2891116c903",
+    "src/main/kotlin/dev/qperiapt/continuity/Owners.kt": "0f9eae902854bb16d06e716620e421752c26e72349ed8f49e47c24b3489dc8ca",
+    "src/main/kotlin/dev/qperiapt/continuity/OwnerTransfer.kt": "d80387a661b8d2f0a233feaff50db5e5fcbef38b26a60a180254d0f725b4451e",
+    "src/test/kotlin/dev/qperiapt/continuity/CredentialRenewalTests.kt": "5c91465383ee0f1962e56af3029ee8d7d91950cb32ad5d5276fed5086c28eead",
+    "src/test/kotlin/dev/qperiapt/continuity/OwnerTests.kt": "f3565de486d38f344908ef1fd913db01bdfa36875bfd2c2158cd07f66921db55",
+    "consumer/negative/RawOwnerProbe.java.txt": "f37ad780c20b150ab6ea9bd295f9038fb9d900d53c8c4c62a9897b40aa6f49ec",
+    "consumer/negative/RawNativeOwnerProbe.java.txt": "4dab404941da020ad3a3e32f1691732ac2bb1965f270f764b5c7898f18c9e416",
+    "consumer/negative/RawDeviceProbe.java.txt": "209289e9d8a7e3c2d4522ca26d56963bc367c9b925eeba70834fa907ca62a578",
+    "consumer/negative/RawEnrollmentProbe.java.txt": "4323cc3b06efa7afbd62a6ecbdf70b8fa04e0a1f7b5d5729571894ec4df64218",
+    "consumer/negative/RawSetupProbe.java.txt": "f9c76479a530f87798c47167cee002eb71c8ce8d59db64df5eaeca5e08853faf",
+    "consumer/src/main/kotlin/consumer/NativeKindProbe.kt": "8a583a9b26c4919d02b420b0acd490c672f293ea569163b8ce834afe1bfa6da9",
+    "consumer/src/main/kotlin/consumer/Enrollment.kt": "c87e57d166f5cb53bb7088ab9262e9933b710c111808923a8e268d00dbda10cb",
+    "consumer/src/main/kotlin/consumer/CredentialRenewal.kt": "80225f127a16c55ba6b374f617068298811857ceb6bcb1b2e3d35deecf8afccf",
+    "consumer/src/main/kotlin/consumer/Collection.kt": "b0f38b0edd44e9c06561b7347f27560900c6de17153944d01e2c4a568582477d",
+    "consumer/src/main/kotlin/consumer/SetupIO.kt": "051c652c3a0ea408005bb521978e4c25fe52cd911718229062947205120af800",
+    "consumer/src/main/kotlin/consumer/Application.kt": "bddf8d091334127979485999569606b7d38d9cd5100451f5007131d97f79cbf6",
+    "consumer/src/main/kotlin/consumer/Setup.kt": "c0b87829bbcbfb8c69d9fc2cf10a68fa62ad373fc06f34ff273a646393ecc859",
+    "consumer/src/main/kotlin/consumer/Account.kt": "269dd6dbdfa0924c425b71bc0971149382f7e578e44121819ee53a657db63334",
+    "consumer/src/main/kotlin/consumer/FixtureRecords.kt": "4645946fcd903fd7bc7605cd1170f9c8364209e2a6f644e97ff78a072eab5ddb",
+    "consumer/src/main/kotlin/consumer/ContinuityClient.kt": "44f0d1b0464f9a6a22e8f2ac81f3814fe4c277b1a018afd7c6349f505e28a935",
+    "consumer/src/main/kotlin/consumer/InFlightCollection.kt": "288fd7deed41b961748a03f7ae39ae629a44d046392d1f131cb779b0311fd977",
+    "consumer/src/main/kotlin/consumer/Recovery.kt": "e86fe1ad4fede21f283e8d442db66d5cef039df3ee8ef9b14d64b2aa2273aa50",
+    "consumer/src/main/kotlin/consumer/Cancellation.kt": "da81c759905b4741763e3530661fcebe7e189362d08744fffac0b7dbea55c6fc",
+    "consumer/src/main/kotlin/consumer/AccountRecovery.kt": "885dfbc1b7882cbef3a33d2e949cb03ba96a71fa171162258cb99d481f67d4e0",
+    "consumer/src/main/kotlin/consumer/Opening.kt": "4bf693263c8836035083b1fc3b526d8b4e8f53d445f2654849f24648f5f2b909",
+    "consumer/src/main/java/consumer/LoaderProbe.java": "c24ad3e8b0186ef0edafcf29b6c88c919e9932b268f90773c3164851d89f743d"
+  },
+  "library_sha256": "9a3d08d8d79c71d42ded2bac67f2c17c2b2d255c732aab098a8a70f5c211ea3d",
+  "gradle_cache": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/enrollment-kotlin-20261004/gradle-home",
+  "completed": true,
+  "release_claim_eligible": false,
+  "owner_tests": {
+    "tests": 23,
+    "suites": {
+      "OwnerTests": {
+        "tests": 19,
+        "report_sha256": "8f543f0435b4045b2be67fd8702aaaeed6f8c8492ca8b6c3faebb2c509a18ffc"
+      },
+      "CredentialRenewalTests": {
+        "tests": 4,
+        "report_sha256": "384781d50cf49e0ef73774517448939c0baed2c5bc426b143fbf131591c785f9"
+      }
+    }
+  }
+}

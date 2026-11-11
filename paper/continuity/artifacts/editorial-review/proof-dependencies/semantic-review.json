@@ -1,0 +1,153 @@
+{
+  "baseline": {
+    "paper_commit": "de4fbce0a116157083320937db0606f44fd67345",
+    "paper_tree": "6c8a3477db13720718938f91a3f6f08da2cbf476"
+  },
+  "checks": [
+    {
+      "finding": "Eligibility, accepted-send provenance, acquisition history and terminal events are recomputed in each compared world; no cross-world transcript-event identity is asserted.",
+      "status": "passed",
+      "topic": "own-world execution"
+    },
+    {
+      "finding": "Signed-score output-bit gaps contribute twice their value before final one-half; component costs are a_plus+a_minus+2delta. Boolean costs are epsilon_rec+a_auth_or_msg+delta. Matches the retained native equations.",
+      "status": "passed",
+      "topic": "score and event coefficients"
+    },
+    {
+      "finding": "Final cut selection remains adaptive, while tuple/traffic/message designations respect their respective first-private-allocation boundaries across aliases. Original-game attribution is localized once.",
+      "status": "passed",
+      "topic": "adaptive designation and attribution"
+    },
+    {
+      "finding": "Earlier message-key disclosure, selected successor seed, real suffix work, retries and failed receive-side advances retain their declared interfaces and finite whole-execution budgets.",
+      "status": "passed",
+      "topic": "finite continuation"
+    },
+    {
+      "finding": "Guarded normalization relates original sources and acquired versions; complete-image acquisition stops remain distinct from individually declared key observations.",
+      "status": "passed",
+      "topic": "record exposure"
+    },
+    {
+      "finding": "Introduction explicitly limits the next-rekey confidentiality statement to a fresh marked first message, with the later online-chain theorem providing the extension.",
+      "status": "passed",
+      "topic": "first-message scope"
+    },
+    {
+      "finding": "Discussion expresses the native reservation-interface bound through ordinary hedged ML-DSA unforgeability and explicit losses, consistently with p_res <= p_EUF + coupling/query terms.",
+      "status": "passed",
+      "topic": "signature assumption"
+    },
+    {
+      "finding": "The joint purpose-key table permits derived exports; the separate marked private-entry application experiment retains its key-use and alias interface.",
+      "status": "passed",
+      "topic": "SDK table and application use"
+    }
+  ],
+  "formal_proof_modules_modified": false,
+  "kind": "qperiapt.manuscript_editorial_semantic_review",
+  "new_native_execution_claim": false,
+  "open_semantic_findings": [],
+  "reviewed_sources": [
+    {
+      "bytes": 9961,
+      "path": "introduction.tex",
+      "sha256": "5eb3cc1042d0b005d6f1c56e79986cf7db15e8a689987342d181c80427e5aeb8"
+    },
+    {
+      "bytes": 5858,
+      "path": "computational-roadmap.tex",
+      "sha256": "7c5083d07bc26f12565498043d973d5972868973ce509d823aea57e8088a7efd"
+    },
+    {
+      "bytes": 6130,
+      "path": "discussion.tex",
+      "sha256": "e8d694ff894e31364c1845742a09332f7452104644281c1e77de91b29c75334f"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "Editorial contribution/dependency/consequence consolidation against retained formal source; no new theorem or native execution claim.",
+  "semantic_corrections_resolved": 2,
+  "status": "passed",
+  "unchanged_proof_sources": [
+    {
+      "baseline_sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "byte_unchanged": true,
+      "path": "candidate-local-accounting.tex",
+      "sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad"
+    },
+    {
+      "baseline_sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+      "byte_unchanged": true,
+      "path": "native-authentication.tex",
+      "sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170"
+    },
+    {
+      "baseline_sha256": "e4fda73318c6f16a672f7efde4f0c3659587f23f1a082e20e52e5d149007c04e",
+      "byte_unchanged": true,
+      "path": "native-chain-composition.tex",
+      "sha256": "e4fda73318c6f16a672f7efde4f0c3659587f23f1a082e20e52e5d149007c04e"
+    },
+    {
+      "baseline_sha256": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+      "byte_unchanged": true,
+      "path": "sdk-purpose-connection.tex",
+      "sha256": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc"
+    },
+    {
+      "baseline_sha256": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+      "byte_unchanged": true,
+      "path": "guarded-provenance.tex",
+      "sha256": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136"
+    },
+    {
+      "baseline_sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+      "byte_unchanged": true,
+      "path": "opaque-rendering.tex",
+      "sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298"
+    },
+    {
+      "baseline_sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+      "byte_unchanged": true,
+      "path": "contextbound-connection.tex",
+      "sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235"
+    },
+    {
+      "baseline_sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+      "byte_unchanged": true,
+      "path": "reservation-signature-bridge.tex",
+      "sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c"
+    },
+    {
+      "baseline_sha256": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+      "byte_unchanged": true,
+      "path": "live-core-instantiation.tex",
+      "sha256": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805"
+    },
+    {
+      "baseline_sha256": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
+      "byte_unchanged": true,
+      "path": "chain-prefix-continuation.tex",
+      "sha256": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31"
+    },
+    {
+      "baseline_sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+      "byte_unchanged": true,
+      "path": "joint-continuation.tex",
+      "sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab"
+    },
+    {
+      "baseline_sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+      "byte_unchanged": true,
+      "path": "multiple-root-entry.tex",
+      "sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34"
+    },
+    {
+      "baseline_sha256": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
+      "byte_unchanged": true,
+      "path": "source-attribution.tex",
+      "sha256": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e"
+    }
+  ]
+}

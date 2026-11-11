@@ -1,0 +1,264 @@
+{
+  "schema_version": 1,
+  "kind": "stored-offer-response-complete-tree-replay",
+  "archive_sha256": "d9c06b80f8414d240d92db174c6273945848554a38bc17b91e7a2913e479df85",
+  "archive_bytes": 177584,
+  "members": {
+    "frontiers/FRONTIER_INVENTORY.json": {
+      "bytes": 130793,
+      "sha256": "58323e8cacbe5f1844985de62699e33276d66dbaf615ff7fa2917bb533b98af2"
+    },
+    "frontiers/PREPARATION.json": {
+      "bytes": 1517,
+      "sha256": "7818d3f06e97a3f545d548738d81684c12dc1e801cfdde4f89446758188bbc2e"
+    },
+    "frontiers/RESTORE_PREPARATION_FAILURE_01.json": {
+      "bytes": 806,
+      "sha256": "33610462fffe2a276b275ee1d4f8c0c832d43afb1b2d59d35b1292fd60af09a8"
+    },
+    "frontiers/initial-send-oracle-frames/0000.json": {
+      "bytes": 377,
+      "sha256": "4ebcf13163b304cc1773c48cb104038e322fca59e9f3a05297cf3c5a38cd67e9"
+    },
+    "frontiers/initial-send-oracle-frames/0000.txt": {
+      "bytes": 2495,
+      "sha256": "75b0b0db6fdbd1ade3c220a71b85f9ce5a113a1ec8044e60b68c96a10a028c81"
+    },
+    "frontiers/initial-send-oracle-frames/0001.json": {
+      "bytes": 417,
+      "sha256": "16d567eace3a24ddc5184e695e60122634f4b6a82f337377c26a886450b3a9a2"
+    },
+    "frontiers/initial-send-oracle-frames/0001.txt": {
+      "bytes": 2644,
+      "sha256": "f281c1eeb8371084fa998fdb473afa17cb197deeea436564b9c03295e968cc6b"
+    },
+    "frontiers/initial-send-oracle-frames/0002.json": {
+      "bytes": 329,
+      "sha256": "3ff45c7f631c35b510b0c06b715e5bbee1ab9328ddc879b710c62311a768c05f"
+    },
+    "frontiers/initial-send-oracle-frames/0002.txt": {
+      "bytes": 2504,
+      "sha256": "2e1925382c6b6b020fee0a79aed7bbf4cbf5c795f8e182c8842c978149269358"
+    },
+    "frontiers/initial-send-oracle-frames/0003.json": {
+      "bytes": 329,
+      "sha256": "133a8d0fc89e9579a6975d06d838606bd49bccf8d410e07defcf829e64083bcc"
+    },
+    "frontiers/initial-send-oracle-frames/0003.txt": {
+      "bytes": 2504,
+      "sha256": "2e1925382c6b6b020fee0a79aed7bbf4cbf5c795f8e182c8842c978149269358"
+    },
+    "frontiers/initial-send-oracle-frames/0004.json": {
+      "bytes": 369,
+      "sha256": "3acbafd443315208d63f49d05a37441a63bd09507c3ba6953c05b1d674119898"
+    },
+    "frontiers/initial-send-oracle-frames/0004.txt": {
+      "bytes": 2060,
+      "sha256": "44613c89a41436c872b2ac17006e08770447317bd299935fdd95a6ac995f43a7"
+    },
+    "frontiers/initial-send-oracle-frames/0005.json": {
+      "bytes": 377,
+      "sha256": "710646efa15483b1511fd288bedbfce2d3ef59447f26ce08eb4622e71ba5e604"
+    },
+    "frontiers/initial-send-oracle-frames/0005.txt": {
+      "bytes": 2537,
+      "sha256": "f3701a12af87c5c4dd61dfcc4e751611690e47262eb517ebb3013a9bdd3294e6"
+    },
+    "frontiers/initial-send-oracle-frames/0006.json": {
+      "bytes": 409,
+      "sha256": "95d4e9471e275bf6e908bae5cf2a95fd7fdc05bb051905753e566f83dbd475eb"
+    },
+    "frontiers/initial-send-oracle-frames/0006.txt": {
+      "bytes": 2362,
+      "sha256": "43f1d3bda31bbb6f0e624bf2b81de9d6e3316df5ed672a88e6dddbe9eeb1f7ba"
+    },
+    "frontiers/initial-send-oracle-frames/0007.json": {
+      "bytes": 442,
+      "sha256": "23c52e4823d6b81dc36abb5c8282d37f64ddcb765420d863a199bd2839cb4789"
+    },
+    "frontiers/initial-send-oracle-frames/0007.txt": {
+      "bytes": 51846,
+      "sha256": "2e5e457faf725104aecb1665a7f0faa66536ec40a762ca16fa9ef80317d38112"
+    },
+    "frontiers/initial-send-oracle-frames/0008.json": {
+      "bytes": 418,
+      "sha256": "325af00d9238294853148a2bb18b0d3076698832887aaae7150060785c8c9aed"
+    },
+    "frontiers/initial-send-oracle-frames/0008.txt": {
+      "bytes": 14347,
+      "sha256": "62933939026818813ecfc5c9058e801b38e7aabbb17d91d1333ff8fa8051dff7"
+    },
+    "frontiers/initial-send-oracle-frames/0009.json": {
+      "bytes": 369,
+      "sha256": "1b7035378a75c079b1ed764e22c7aa4a97777f06b54bd4e29dd266b58445d5f0"
+    },
+    "frontiers/initial-send-oracle-frames/0009.txt": {
+      "bytes": 9611,
+      "sha256": "8efee2873eecd9120ae2db89c265a44c11e9cc80e414d900edf71f2928d8f127"
+    },
+    "frontiers/initial-send-oracle-frames/0010.json": {
+      "bytes": 369,
+      "sha256": "f2b6967ad9decdfdd2b55aa1ff51406639e06fdfd56ee0f4ad13ce8d9258c900"
+    },
+    "frontiers/initial-send-oracle-frames/0010.txt": {
+      "bytes": 9611,
+      "sha256": "d6aee32ab1422a66d05dbd6647b57b0fa74c4114c606a29c4eaaf374d71d3c89"
+    },
+    "frontiers/initial-send-oracle-frames/0011.json": {
+      "bytes": 369,
+      "sha256": "e3e8e78ca53614fb560eb7b70aa19d69a7aa5284292e3a39af2051246052d6ce"
+    },
+    "frontiers/initial-send-oracle-frames/0011.txt": {
+      "bytes": 7824,
+      "sha256": "f68983a9fcf3588e323f037aedf195c40520610b03ca83c160a9edf3166ec1cd"
+    },
+    "frontiers/initial-send-oracle-frames/0012.json": {
+      "bytes": 329,
+      "sha256": "48afd27e5b7252b286b1f7bdfd08a046b793a382b52544c3efa08175a1cf0df5"
+    },
+    "frontiers/initial-send-oracle-frames/0012.txt": {
+      "bytes": 4276,
+      "sha256": "29d01e62cbd309636724445cd4d045bc8d725d7a181049f31fb7362bb1eaecca"
+    },
+    "frontiers/initial-send-oracle-frames/0013.json": {
+      "bytes": 361,
+      "sha256": "57046695215b209ba937ff1040b0f6d648ca4a2f5f3346660a5751b3718bf3c6"
+    },
+    "frontiers/initial-send-oracle-frames/0013.txt": {
+      "bytes": 2502,
+      "sha256": "932f4a02a8dd8e79610becc2a330fa36a416aed7cfb8ae28c124003a62e66380"
+    },
+    "frontiers/initial-send-oracle-frames/0014.json": {
+      "bytes": 353,
+      "sha256": "57069039388d2c559d0d66ea628f143153af4141010b8c239831383fe80fbd83"
+    },
+    "frontiers/initial-send-oracle-frames/0014.txt": {
+      "bytes": 2470,
+      "sha256": "b6b61c7745a9a870708486489fc0c0d5a60dda5551e7cb61456f70d16a832457"
+    },
+    "frontiers/initial-send-oracle-frames/0015.json": {
+      "bytes": 315,
+      "sha256": "b28da264c31874b13e739db48048bc12e1f38881ef7b598423775c8a9504c386"
+    },
+    "frontiers/initial-send-oracle-frames/0015.txt": {
+      "bytes": 1256,
+      "sha256": "d0099ae3d0ca7696f85fc48e1db66af252a12da93455f19e4e375e50c3e8a962"
+    },
+    "frontiers/initial-send-oracle-frames/0016.json": {
+      "bytes": 315,
+      "sha256": "8efe2f4e042fa8b85e036cbb8d544e36b1203cb86d6d39e2db9e015fa2b32087"
+    },
+    "frontiers/initial-send-oracle-frames/0016.txt": {
+      "bytes": 1256,
+      "sha256": "d0099ae3d0ca7696f85fc48e1db66af252a12da93455f19e4e375e50c3e8a962"
+    },
+    "frontiers/initial-send-oracle.py": {
+      "bytes": 2318,
+      "sha256": "a2c40cb451ad0e8f52f650ef4ceed6f0a2a6f654dd7b583f5fd8b7bf2c860101"
+    },
+    "frontiers/initial-send-oracle.sh": {
+      "bytes": 328,
+      "sha256": "0ba4e3632f4612641f938ce6a004fd58c17434d60ae14353843d3d136e08700f"
+    },
+    "frontiers/model.spthy": {
+      "bytes": 409601,
+      "sha256": "7e2717a283970159c7fdc4a0512b4610cf5f565e91de4701b75ce913ac01e87e"
+    },
+    "frontiers/offer-response-frontiers-STARTED.json": {
+      "bytes": 1915,
+      "sha256": "5e31314755c0cb9ffccf085341f770503daf74ee8b03958edddc980a4631b9e4"
+    },
+    "frontiers/offer-response-frontiers-TERMINAL.json": {
+      "bytes": 6280,
+      "sha256": "4939300137c8f21064c1b70cadc2c1de4d395b75617ca759fbbf1ab31e4c17ca"
+    },
+    "frontiers/offer-response-frontiers-proof.spthy": {
+      "bytes": 410258,
+      "sha256": "0f6e9ff8537fec727c185279a54f9f122e7559cae40dcb7568f17026c3828df9"
+    },
+    "frontiers/offer-response-frontiers.stderr": {
+      "bytes": 125723,
+      "sha256": "7709063e95de88f678f805ea0d40775a7216dcd21bb2200bb798827013606c7f"
+    },
+    "frontiers/offer-response-frontiers.stdout": {
+      "bytes": 3088,
+      "sha256": "87e5726e73b70294a8cf64e976ada71bfd7d25585a92421c874d4c63c76bfb49"
+    },
+    "frontiers/retained-full-siblings.json": {
+      "bytes": 10433,
+      "sha256": "e4bb422148ca5dc607e3c66017257073899cee02bcf260f45ade12a2383f6539"
+    },
+    "frontiers/run.py": {
+      "bytes": 5792,
+      "sha256": "70b9ea7f4ceffc50caa30e33759db1b1f91b57a0eaccd52756b9671119d8058c"
+    },
+    "full/PREPARATION.json": {
+      "bytes": 4197,
+      "sha256": "1b2a82ffd7fe85be84f51170600531b7e6e675f8fc7389dd9350d758f1b88565"
+    },
+    "full/READBACK.json": {
+      "bytes": 2157,
+      "sha256": "bf7604d45db6a2b473be3af9f21d418f943ec1677803ee006e9b4e22daf26e91"
+    },
+    "full/model.spthy": {
+      "bytes": 420135,
+      "sha256": "e26fe0650afe0e858bd0df6abf96de142532c0928d6854115e85769e5cd1d878"
+    },
+    "full/offer-response-full-STARTED.json": {
+      "bytes": 1634,
+      "sha256": "7c338cc29d6ab4b8c9e0ee626f76d01e89ffaea0b16f1f2a0c8b5709ffb6ccbf"
+    },
+    "full/offer-response-full-TERMINAL.json": {
+      "bytes": 5999,
+      "sha256": "45d14cd7bbd4c15e429eaddc7fdf85db3ba45645e0dbdcbc991d1ea50de7203d"
+    },
+    "full/offer-response-full-proof.spthy": {
+      "bytes": 422387,
+      "sha256": "8dfd3d7f906a562d642bdbe0d1510ba03df53d9310baafb43dab9c7e44a66069"
+    },
+    "full/offer-response-full.stderr": {
+      "bytes": 1595,
+      "sha256": "51af5e03b38d040911239f6ffb220816ab6cad2537f490a59d0c8e6b8b7161a8"
+    },
+    "full/offer-response-full.stdout": {
+      "bytes": 3087,
+      "sha256": "76b2c1aa6bef50939676b44d038f6c2836d883330dc32e43ca6678a9bc34952c"
+    },
+    "full/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "parent/snapshot-producers-replay-proof.spthy": {
+      "bytes": 419305,
+      "sha256": "b0cffe0a3c3568d39dce0a4418fe9f251dbc146dad164870c70ac24fa6c17085"
+    },
+    "producer/prepare-offer-response-full-replay-718.py": {
+      "bytes": 5083,
+      "sha256": "c19f97a4bd4289691a9d9ac2bc27b4a623356a74d9550dc85dfccef78ae9d298"
+    },
+    "toolchain/P0_PINNED_PROVER_IDENTITY_01.json": {
+      "bytes": 974,
+      "sha256": "f6e18705fdaf213d556237ca67fcab123e1b6f3ee4eca05aa69c5e70e7329459"
+    }
+  },
+  "entry": "full/offer-response-full-proof.spthy",
+  "entry_sha256": "8dfd3d7f906a562d642bdbe0d1510ba03df53d9310baafb43dab9c7e44a66069",
+  "origin_status": "analysis incomplete",
+  "origin_steps": 382,
+  "open_leaves": 42,
+  "additional_stored_producers_closed": 0,
+  "all_five_siblings_restored_and_rechecked": true,
+  "query_count": 29,
+  "resource_limits": {
+    "provers": 1,
+    "seconds": 900,
+    "heap_gib": 12,
+    "threads": 1,
+    "derivation_seconds": 60,
+    "total_depth": 16,
+    "callbacks": 32
+  },
+  "next": "Do not count expansion as completion or repeat the same unfolding. Inspect a shared phase-payload shape invariant for Offer2, Response4 and Response5; establish its full-model proof before introducing any reuse assumption.",
+  "full_multi_epoch_secrecy_reachability_and_implementation_correspondence": "open",
+  "release_claim_eligible": false
+}

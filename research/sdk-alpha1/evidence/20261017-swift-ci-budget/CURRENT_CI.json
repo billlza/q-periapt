@@ -1,0 +1,67 @@
+{
+  "observed_at": "2026-10-17T13:46:21.784302+00:00",
+  "source_head": "68e05c56a195bee0a2f964e20738cbfde8446d13",
+  "runs": [
+    {
+      "run_id": 39034904255,
+      "event": "pull_request",
+      "status": "queued",
+      "selected_jobs": [
+        {
+          "id": 117402643827,
+          "name": "windows",
+          "status": "completed",
+          "conclusion": "success",
+          "completed_at": "2026-10-17T13:25:30Z"
+        },
+        {
+          "id": 117402643837,
+          "name": "check",
+          "status": "completed",
+          "conclusion": "success",
+          "completed_at": "2026-10-17T13:18:56Z"
+        },
+        {
+          "id": 117402643942,
+          "name": "audit",
+          "status": "completed",
+          "conclusion": "success",
+          "completed_at": "2026-10-17T13:16:59Z"
+        }
+      ],
+      "success_count": 40,
+      "failures": []
+    },
+    {
+      "run_id": 39034893061,
+      "event": "push",
+      "status": "queued",
+      "selected_jobs": [
+        {
+          "id": 117402612731,
+          "name": "audit",
+          "status": "completed",
+          "conclusion": "success",
+          "completed_at": "2026-10-17T13:07:59Z"
+        },
+        {
+          "id": 117402612798,
+          "name": "check",
+          "status": "completed",
+          "conclusion": "success",
+          "completed_at": "2026-10-17T13:21:36Z"
+        },
+        {
+          "id": 117402612804,
+          "name": "windows",
+          "status": "completed",
+          "conclusion": "success",
+          "completed_at": "2026-10-17T13:24:34Z"
+        }
+      ],
+      "success_count": 40,
+      "failures": []
+    }
+  ],
+  "release_claim_eligible": false
+}

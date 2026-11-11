@@ -1,0 +1,103 @@
+{
+  "art_processes": 30,
+  "artifacts": {
+    "ART_CAPTURE.zip": "cec6d7424dee7a05e14d8d1185235b3e481a9237a57458b07b9f5ef9d0935ac3",
+    "HOST_CAPTURE.zip": "a9a3c8f7fb992bde3808dc9d5421c23ff473c9e23ffe2d0195485ce57309b002"
+  },
+  "base_commit": "56b54981621e3bf079c01114fd1d75b891bdb075",
+  "code_sha256": {
+    "artifact/continuity_android_jni.py": "1e3e2a72299b0142329a59fd7b60ae536168a461598a4ccea1521ae50a382c28",
+    "artifact/continuity_android_witness.py": "006d94e0537882a3f74a01a8457b1c3692d7ab0d071fc038ffad01cd49a594c9",
+    "bindings/android/ContinuityPackageConsumer/README.md": "d7430a1da83efc43ff112fa7f2e93f75810ebabbdd30cc7dd036ca2c39d42828",
+    "bindings/android/ContinuityPackageConsumer/consumer-rules.pro": "aabc5708b0f53cf9779172200915b66fe54243c9c80a72a2bbe4e6c7f5f33efe",
+    "bindings/android/ContinuityPackageConsumer/jni/bridge.h": "8e2d0d91935f0e21a32dd8ca698c47e544afb5b1f44c91b202bbaff6abc8d861",
+    "bindings/android/ContinuityPackageConsumer/jni/continuity_jni.c": "1c9407e1b69b81201916dfa4627d0ee3834e642f3fab30e436b3af2ffe2a1492",
+    "bindings/android/ContinuityPackageConsumer/jni/enrollment.c": "f91b09dbe63f63c04c79f138e0a6dc3a08a2b5017a0162e3300e689a0061c26e",
+    "bindings/android/ContinuityPackageConsumer/jni/inputs.c": "384205052e866b14d5a4746e30754a3145d495185e26096871b00aa684c09a03",
+    "bindings/android/ContinuityPackageConsumer/jni/peer_configuration.c": "2e8d9c007bb407554973f0d709b031cb651914e5fb8ba602a3618f5f04e95260",
+    "bindings/android/ContinuityPackageConsumer/jni/peer_server.c": "39344d40e31eab4f42f74929949d110e0f32b34e4ccf4c23936116daba257086",
+    "bindings/android/ContinuityPackageConsumer/jni/peer_transport.c": "158559374451057bbc5b14777bf4703fb4f429c3f2f0e191435d02171be7f6a7",
+    "bindings/android/ContinuityPackageConsumer/src/androidTest/java/dev/qperiapt/continuity/android/tests/ConfigurationInstrumentation.java": "fe512d1a43f7942045181d5d47b9bcc4808f8a040a9adfe35f08c7016a0ccf21",
+    "bindings/android/ContinuityPackageConsumer/src/androidTest/java/dev/qperiapt/continuity/android/tests/PeerInputs.java": "ac7283007a8151c4f39fd0025343d0f1095f9a2729e2185d28782c07a1cacc61",
+    "bindings/android/ContinuityPackageConsumer/src/androidTest/java/dev/qperiapt/continuity/android/tests/WitnessInputs.java": "4522f268a75053af445e6c0c3481ff6f45f5d44f2db07850d058e6ec8e107bd2",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/AccountPin.java": "7cb2b231e5a29f2c9eb4654e9bec85c499757b94e1487a4222c541a15faeffb2",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ApplicationCommit.java": "1d8fde4e2da1c0c7c8171e45ec662c93268816b32f9fa980264f8492f0615c40",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ConfigurationInputs.java": "af7b8a889a23b7cd1e3c49a5bef4d819b8048bcca574d1a5f142952a398c4b9c",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ConfigurationWitness.java": "588ce517161a71267f07a63fc2f560aa2804f90a4da5524f05300a5fb3c5e7fd",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ContinuityConfiguration.java": "bd5c68f68bb3cc993a0faa1d0e24f15c2e7bde2063f21312789a6f2505b7d0c2",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ContinuityDevice.java": "c442580e9c852be246a82af217eba7942afb840e491bda8af22c898bc897c9dd",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ContinuityEnrollment.java": "43d895538aae8b2e47ac64483495bbdd1cb44c0d2bbf9b3a81850fa07f247cf0",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ContinuityFailure.java": "26ee4f46418434363e6998e9c931cd63076d6e1dc9059ecb1d6f613ac82383ff",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ContinuityPeer.java": "41ffa40c15f4a0167875639d4aa84764914bf5d30a5d129a698088de4750f3e0",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/Counter64.java": "a047f2a02cb439af1900c017b423d916a4ea72acdd9c9770f9546541afd27167",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/EnrollmentIntent.java": "39a84c62635ca09d08f6db9d042d7e90bbe16bcb1713e1143829ce96ef5a90b2",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/EnrollmentStatus.java": "944ab224c5a7de588a96675cfe89633415869cc273cb92f1b90dd037e22c841a",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/Ids.java": "8e2af94a725a99d4fd2acb7a799a048422458f9e114f445d977d345755e69e5f",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/Native.java": "c5a6d9cc422fc68e37c2ff141f6a0302355d8dd5c1d0a06f886152d752be3b1b",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/Owner.java": "65bc28446296c1d3466906d079595e3b320c220a3e6ffa306f05ceadca3e5bb5",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/PeerConfiguration.java": "b7c7bee67c75f8e1067f746086577a321a558818554abe2703392544c1378588",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/Served.java": "2697a0a51d9f94d4c26e4678bffdc40e5207ccf2b061802900f4a5bcfc93d370",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/StoragePreparation.java": "304a2da4249dda10cd1e17325a44da41d09bea4478cf6b0dc4b181ad2c42355d",
+    "bindings/android/ContinuityPackageConsumer/src/test/java/BridgeProbe.java": "668a9e9cb740cb3d1e9f8ce109279234ff738aed4d61a72fe0b6ce3e01c8178d",
+    "bindings/android/ContinuityPackageConsumer/src/test/java/CancellationProbe.java": "a9020d54c7f14a205070e5fc1a19e42d7437710c49954089ea9b2664836913eb",
+    "bindings/android/ContinuityPackageConsumer/src/test/java/ConfigurationProbe.java": "a79b9bc2afc3c94091d4043e262a55c3683db301b3564eb906f189caf7d2068a",
+    "bindings/android/ContinuityPackageConsumer/src/test/java/EnrollmentProbe.java": "c68efa8c46bb3b7066fdd09d23ff1110a82e498e928a741a6240eb8797edba68",
+    "bindings/android/ContinuityPackageConsumer/src/test/java/PeerProbe.java": "3bb27b5dcdb6770ed8ea305f33f5f650003b00734d18c16080d19f7511dadb81",
+    "bindings/android/ContinuityPackageConsumer/src/test/java/WitnessProbe.java": "35f5ea982f5139cd41a9ed8f91d99faa8e30c16e1531467b739714fe290c7b6c",
+    "bindings/c/ContinuityPackageConsumer/tests/android.rs": "f9d11ad2ccedb77ef0f923f4288ef3ecca0093ad37f63cd9e6a6a0fada327d7b",
+    "bindings/c/ContinuityPackageConsumer/tests/common/android_witness.rs": "d90789f8c19ef48760869c6589d9a846e7a86e5e0f3ded5537b28e05164144d0"
+  },
+  "completed": true,
+  "device_scope": {
+    "abi": "arm64-v8a",
+    "accepted": true,
+    "additional_api36_hardware_required": false,
+    "api": 37,
+    "device_count": 1
+  },
+  "host_jni": {
+    "completed": true,
+    "jni_boundary_processes": 2,
+    "local_lifecycle_processes": 48,
+    "profiles": [
+      "debug",
+      "release"
+    ],
+    "required_witness_processes": 60,
+    "scope": "Android adapter host JNI, packaged Java classes, installed C engine; same-host endpoints; physical ART/AAR acceptance is separate; no independent protocol implementation"
+  },
+  "kind": "qperiapt.android_required_witness_qualification",
+  "profiles": {
+    "signed-fixed": {
+      "aar_sha256": "424b71cd113eab73ab2c7221976045053b2a7937fc0045c6b04674a77b1449c3",
+      "apk_sha256": "7ce257bf009f13a407d737f92ffed5031e4cd349c3442289f08182a501ce6a78",
+      "installation_retired": true,
+      "owned_reverse_maps_absent": true,
+      "processes": 8
+    },
+    "signed-recoverable": {
+      "aar_sha256": "424b71cd113eab73ab2c7221976045053b2a7937fc0045c6b04674a77b1449c3",
+      "apk_sha256": "dd8113d0afed34aba3bc0ee521951f87139f85c0eca671ea6c0d2c6b469ea395",
+      "installation_retired": true,
+      "owned_reverse_maps_absent": true,
+      "processes": 8
+    },
+    "tls-fixed": {
+      "aar_sha256": "424b71cd113eab73ab2c7221976045053b2a7937fc0045c6b04674a77b1449c3",
+      "apk_sha256": "149c9ff77274fa279915a198b7694c0f79279f8dd14dfa8e55448ad8e5e75900",
+      "installation_retired": true,
+      "owned_reverse_maps_absent": true,
+      "processes": 7
+    },
+    "tls-recoverable": {
+      "aar_sha256": "424b71cd113eab73ab2c7221976045053b2a7937fc0045c6b04674a77b1449c3",
+      "apk_sha256": "1927e1c231030b61cd2861f08910ebbad243df10db8dc49ab8759bb71ab73cfa",
+      "installation_retired": true,
+      "owned_reverse_maps_absent": true,
+      "processes": 7
+    }
+  },
+  "release_claim_eligible": false,
+  "schema_version": 1,
+  "scope": "Independent witness operator authorizes public genesis; actual AAR/R8 ART signed-TCP and mutual-TLS registration, missing/wrong witness and corrupted signed receipt refusals, activation and original-request reopen. Shared protocol engine."
+}

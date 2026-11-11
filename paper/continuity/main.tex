@@ -1,0 +1,89 @@
+% Journal of Cryptology working manuscript.
+% Official Springer Nature authoring class, package v3.1 (December 2024).
+% JoC-specific numerical citations follow an alphabetically sorted bibliography.
+\documentclass[pdflatex]{sn-jnl}
+\usepackage[numbers,sort&compress]{natbib}
+\bibliographystyle{joc-basic}
+\setlength{\bibsep}{1em}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs,array,tabularx,longtable}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{microtype}
+\usepackage{xurl}
+\usepackage[capitalize,noabbrev]{cleveref}
+\pdfgentounicode=1
+\hypersetup{hidelinks,pdftitle={Exposure and Recovery with Persistent Randomness Reservations},pdfauthor={Ziang Li}}
+\theoremstyle{thmstyleone}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{thmstylethree}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{thmstyletwo}
+\newtheorem{remark}[theorem]{Remark}
+\setlist{topsep=4pt,itemsep=3pt,parsep=0pt}
+\setlength{\emergencystretch}{1.5em}
+\newcommand{\artifact}[1]{\texttt{\small\detokenize{#1}}}
+\newcommand{\qperiapt}{Q-Periapt Continuity}
+\newcommand{\sourcecommit}{\texttt{228c944f}}
+\raggedbottom
+
+\begin{document}
+\title[Persistent randomness: exposure and recovery]{Exposure and Recovery with Persistent Randomness Reservations}
+% Author and corresponding address confirmed by the author on 7 November 2026.
+% The alternative address is retained in author-metadata.json.
+\author*[1]{\fnm{Ziang} \sur{Li}}\email{2403871950@qq.com}
+\affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
+\abstract{Cryptographic operations that retain randomness across crashes can complete
+after compromise while depending on a previously exposed secret source. We
+develop an original-source exposure condition for recovery and connect it to
+computational security in persistent messaging. The model assigns immutable origins to reservations and tracks
+acquisition of encrypted records together with later key disclosures. Alias
+normalization preserves those origins through copying and resealing; a
+guarded-path characterization captures how records and keys jointly reveal
+them. The main computational construction simulates retained private records
+and causally dependent authentication reports when a reduction holds public
+operation outputs without the original random tape. Candidate-local accounting
+then preserves the native experiment's adaptively selected compromise cut.
+Applied to Q-Periapt Continuity, the construction establishes confidentiality
+and selected-message integrity after the next rekey of an established session,
+including online selection of an uncomputed message step after earlier-key
+disclosure. Component bridges connect the
+operational interfaces to ordinary key encapsulation and hedged-signature security, while
+joint key-entry comparisons retain the complete confirmation and traffic
+schedule in the stated quantum random-oracle models. Complementary bootstrap
+instances protect either original contribution and preserve historical
+activation of the complete signed transcript. A mechanized symbolic theorem
+establishes multi-epoch secrecy under the provenance condition. Native
+executions demonstrate traffic reconstruction from pre-restart reservations,
+aggregate copies and delayed receipts. Independent finite checks and 49 matched
+native/reference executions validate the exposure semantics and quantify
+reconstructed message sets alongside admitted service, communication and
+persistence work.}
+\keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
+\maketitle
+
+\input{introduction}
+\input{related-work}
+\input{construction}
+\input{security-model}
+\input{computational-roadmap}
+\input{established-results}
+\input{evaluation}
+\input{discussion}
+\input{declarations}
+
+\bibliography{references}
+\appendix
+\input{artifact-map}
+\input{primitive-inputs}
+\input{joint-primitive-bounds}
+\input{bootstrap-entry}
+\input{common-virtual-accounting}
+\end{document}

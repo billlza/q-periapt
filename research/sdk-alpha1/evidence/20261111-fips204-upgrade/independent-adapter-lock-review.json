@@ -1,0 +1,330 @@
+{
+  "result": "PASS",
+  "scope": "Independent read-only adapter/API/lock graph review; existing actual 73 Rust tests and four scope tests read from raw logs, not rerun here.",
+  "crate_sha256": "a823e139c2d539b1b735d31cdce8b0b356671585eac3d54dec79d1d15052093b",
+  "adapter_findings": [
+    "0.4.6 SHAKE128 path uses 32-byte output and DER OID 060960864801650304020b.",
+    "0.5.0 pre_hash::SHAKE_128 and exact digest-length validation match the adapter output.",
+    "Sign and verify each hash the original message once, retaining explicit context and caller randomness.",
+    "Existing validation ordering and output atomicity preserved.",
+    "shake 0.1.0 has enabled zeroize feature; state and XOF-reader Drop wipe state/cursor, and output uses ZeroizingBytes<32>."
+  ],
+  "locks": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "aefb38390eeafa449743c7dfcc1f287fec1ff18bb480996c70c123b336483a69",
+      "packages_before": 290,
+      "packages_after": 290,
+      "added": [
+        [
+          "fips204",
+          "0.5.0",
+          "registry+https://github.com/rust-lang/crates.io-index"
+        ]
+      ],
+      "removed": [
+        [
+          "fips204",
+          "0.4.6",
+          "registry+https://github.com/rust-lang/crates.io-index"
+        ]
+      ],
+      "unrelated_package_metadata_changes": [],
+      "retained_package_dependency_edge_changes": [
+        {
+          "package": [
+            "q-periapt-backends",
+            "0.2.0",
+            ""
+          ],
+          "added": [
+            [
+              "fips204",
+              "0.5.0",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ],
+          "removed": [
+            [
+              "fips204",
+              "0.4.6",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ]
+        },
+        {
+          "package": [
+            "sha3",
+            "0.10.9",
+            "registry+https://github.com/rust-lang/crates.io-index"
+          ],
+          "added": [
+            [
+              "zeroize",
+              "1.9.0",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ],
+          "removed": []
+        }
+      ]
+    },
+    {
+      "path": "fuzz/Cargo.lock",
+      "sha256": "df76eacd16b1ca75fe405fc662ffcc20dee454dde6c2f9e00789e2c62d4bf1f5",
+      "packages_before": 52,
+      "packages_after": 51,
+      "added": [
+        [
+          "fips204",
+          "0.5.0",
+          "registry+https://github.com/rust-lang/crates.io-index"
+        ]
+      ],
+      "removed": [
+        [
+          "fips204",
+          "0.4.6",
+          "registry+https://github.com/rust-lang/crates.io-index"
+        ],
+        [
+          "sha2",
+          "0.10.9",
+          "registry+https://github.com/rust-lang/crates.io-index"
+        ]
+      ],
+      "unrelated_package_metadata_changes": [],
+      "retained_package_dependency_edge_changes": [
+        {
+          "package": [
+            "q-periapt-backends",
+            "0.2.0",
+            ""
+          ],
+          "added": [
+            [
+              "fips204",
+              "0.5.0",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ],
+          "removed": [
+            [
+              "fips204",
+              "0.4.6",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ]
+        },
+        {
+          "package": [
+            "sha3",
+            "0.10.9",
+            "registry+https://github.com/rust-lang/crates.io-index"
+          ],
+          "added": [
+            [
+              "zeroize",
+              "1.9.0",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ],
+          "removed": []
+        }
+      ]
+    },
+    {
+      "path": "research/continuity-identity-candidate/Cargo.lock",
+      "sha256": "1b1a7e51252045b904fe7dd60b1eb2ce662cf05b5c40e12d504ae626c9007952",
+      "packages_before": 182,
+      "packages_after": 181,
+      "added": [
+        [
+          "fips204",
+          "0.5.0",
+          "registry+https://github.com/rust-lang/crates.io-index"
+        ]
+      ],
+      "removed": [
+        [
+          "fips204",
+          "0.4.6",
+          "registry+https://github.com/rust-lang/crates.io-index"
+        ],
+        [
+          "sha2",
+          "0.10.9",
+          "registry+https://github.com/rust-lang/crates.io-index"
+        ]
+      ],
+      "unrelated_package_metadata_changes": [],
+      "retained_package_dependency_edge_changes": [
+        {
+          "package": [
+            "q-periapt-backends",
+            "0.2.0",
+            ""
+          ],
+          "added": [
+            [
+              "fips204",
+              "0.5.0",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ],
+          "removed": [
+            [
+              "fips204",
+              "0.4.6",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ]
+        },
+        {
+          "package": [
+            "sha3",
+            "0.10.9",
+            "registry+https://github.com/rust-lang/crates.io-index"
+          ],
+          "added": [
+            [
+              "zeroize",
+              "1.9.0",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ],
+          "removed": []
+        }
+      ]
+    },
+    {
+      "path": "research/continuity-openssl-peer/native/Cargo.lock",
+      "sha256": "4ee16e580473a95129501c31ab0c162b9a04153d7049d2d60c1eb217cc7cbb36",
+      "packages_before": 128,
+      "packages_after": 127,
+      "added": [
+        [
+          "fips204",
+          "0.5.0",
+          "registry+https://github.com/rust-lang/crates.io-index"
+        ]
+      ],
+      "removed": [
+        [
+          "fips204",
+          "0.4.6",
+          "registry+https://github.com/rust-lang/crates.io-index"
+        ],
+        [
+          "sha2",
+          "0.10.9",
+          "registry+https://github.com/rust-lang/crates.io-index"
+        ]
+      ],
+      "unrelated_package_metadata_changes": [],
+      "retained_package_dependency_edge_changes": [
+        {
+          "package": [
+            "q-periapt-backends",
+            "0.2.0",
+            ""
+          ],
+          "added": [
+            [
+              "fips204",
+              "0.5.0",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ],
+          "removed": [
+            [
+              "fips204",
+              "0.4.6",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ]
+        },
+        {
+          "package": [
+            "sha3",
+            "0.10.9",
+            "registry+https://github.com/rust-lang/crates.io-index"
+          ],
+          "added": [
+            [
+              "zeroize",
+              "1.9.0",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ],
+          "removed": []
+        }
+      ]
+    },
+    {
+      "path": "research/continuity-reference-app/Cargo.lock",
+      "sha256": "aa2ed0c5fbb90e745f40238110da071861f094e04074369bb8210b6e28514411",
+      "packages_before": 270,
+      "packages_after": 269,
+      "added": [
+        [
+          "fips204",
+          "0.5.0",
+          "registry+https://github.com/rust-lang/crates.io-index"
+        ]
+      ],
+      "removed": [
+        [
+          "fips204",
+          "0.4.6",
+          "registry+https://github.com/rust-lang/crates.io-index"
+        ],
+        [
+          "sha2",
+          "0.10.9",
+          "registry+https://github.com/rust-lang/crates.io-index"
+        ]
+      ],
+      "unrelated_package_metadata_changes": [],
+      "retained_package_dependency_edge_changes": [
+        {
+          "package": [
+            "q-periapt-backends",
+            "0.2.0",
+            ""
+          ],
+          "added": [
+            [
+              "fips204",
+              "0.5.0",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ],
+          "removed": [
+            [
+              "fips204",
+              "0.4.6",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ]
+        },
+        {
+          "package": [
+            "sha3",
+            "0.10.9",
+            "registry+https://github.com/rust-lang/crates.io-index"
+          ],
+          "added": [
+            [
+              "zeroize",
+              "1.9.1",
+              "registry+https://github.com/rust-lang/crates.io-index"
+            ]
+          ],
+          "removed": []
+        }
+      ]
+    }
+  ],
+  "comment_review": "Root accepted wording referring specifically to the SHAKE128 HashML-DSA variant."
+}

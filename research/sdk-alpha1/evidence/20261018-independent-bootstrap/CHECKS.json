@@ -1,0 +1,44 @@
+{
+  "parent_head": "a489e59df838603a99423f4db8ac535ea1a020fb",
+  "three_flight_mutual_confirmation": true,
+  "canonical_context_and_selection_equal": true,
+  "native_commands": 10,
+  "python_refusals": 35,
+  "registry_dependencies_unchanged": 116,
+  "source_inventory_tests": 46,
+  "tracked_Rust_after_commit": 720,
+  "scope": "Independent volatile initiator and real Rust responder; no durable admission, traffic, rekey, witness, installed package or release claim",
+  "provider": {
+    "cryptography": "48.0.1",
+    "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+  },
+  "earlier_provider": "First source-install runs used OpenSSL 3.6.4; hash-pinned PyPI wheel runs use OpenSSL 4.0.1. Both observed; no version equivalence claim.",
+  "failed_attempt": "First generate-lockfile reselected eight registry versions. Build intentionally terminated (143); rejected lock retained. Restored candidate lock, then metadata retained all 116 registry versions and checksums. Dependency pruning/disambiguation changes are retained.",
+  "native_binary_sha256": "8a3b5b5d0a2a76b5f98a246313277c9778a3eebe956937985acf2f0d5c1f0628",
+  "peer_sources": {
+    "peer/__init__.py": "9d7337e6f4f439c45ab9dc47bfdbff1335ec366df00229f36a31ae65f489bf9c",
+    "peer/authority.py": "8087383b4fd48b1e8d7cdbbb1221ba682330e7e9d01e4251a3d887705649426e",
+    "peer/bootstrap.py": "3495acffd2af5dfc2c98330c9971a6ccbd9dd81c1c96e54cc13ebbddfe8bfbd9",
+    "peer/kem.py": "4a850dd70be6a02d6be233f8d65216de75760eb9b12e2b426637d9225abcdde3",
+    "peer/wire.py": "76a64c94f876038a7f072d668307813d4b7b89a34bc760ad54adf18ac7b035af",
+    "run.py": "370c8c3c120d37dd9ad2acfd00688deba3c688765bb55931a21425fa8b0973a6",
+    "native/src/main.rs": "5ace5a4a292ab5a41ddd30359c4b8359b1f5367a433dd956d75597edca99c762",
+    "native/Cargo.toml": "368099572cd98dc015a83a38c50f0c0fdc2dd2524d32a72baab9bac3fcec10d5",
+    "native/Cargo.lock": "a197b8fa263e03bcc1c5eaeb5c15cfd6be87573bc90d061e7fde0b4cbcf4d1a9",
+    "requirements.txt": "484c3518a9e325f0ba45613d08e2a1a96113d5f8d265b6bc70855c87a0d15dd0"
+  },
+  "checks": [
+    "cargo build --release --offline --locked",
+    "cargo clippy --release --offline --locked -- -D warnings",
+    "cargo fmt -- --check",
+    "actionlint .github/workflows/independent-continuity.yml",
+    "46 source-inventory quality tests in actual 720-source snapshot",
+    "isolated hash-pinned provider real exchange with public control readback"
+  ],
+  "CI": "Workflow prepared; not yet run for this source. No full independent lifecycle or release admission.",
+  "capture": {
+    "bytes": 972205,
+    "sha256": "abf563c759bd91b3447cf678359ee689cdcf63f46568208724a81b4b244d9ceb",
+    "members": 162
+  }
+}

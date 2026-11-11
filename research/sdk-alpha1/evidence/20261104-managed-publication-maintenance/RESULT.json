@@ -1,0 +1,159 @@
+{
+  "schema": "qperiapt.managed-publication-maintenance/2",
+  "implementation_commit": "f560d803c43a24fff222daa5e5e5bd623bfdf874",
+  "documentation_builder_commit": "7429f655bd48c1fb3997fc866d6ef048d7e758cf",
+  "host": {
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.7.2\nBuildVersion:\t\t25G332",
+    "kernel": "Darwin DA-CJX6Y3VDH3 25.6.0 Darwin Kernel Version 25.6.0: Mon Oct 12 00:39:48 PDT 2026; root:xnu-12377.161.15.701.48~2/RELEASE_ARM64_T6041 arm64",
+    "hardware": "Mac16,5\n51539607552\nApple M4 Max",
+    "source_commit": "f560d803c43a24fff222daa5e5e5bd623bfdf874"
+  },
+  "source_validation": {
+    "host_store_debug_cases": 73,
+    "host_store_release_cases": 73,
+    "host_store_clippy": true,
+    "candidate_focused_cases": 88,
+    "candidate_all_target_clippy": true,
+    "cli_publication_test": true,
+    "cli_all_target_clippy": true,
+    "cli_default_build": true,
+    "python_quality_cases": 67
+  },
+  "full_candidate_aggregates": {
+    "debug_build_and_test_600_seconds": "timed_out_partial_log_not_retained",
+    "release_build_and_test_600_seconds": "timed_out_streams_retained",
+    "release_runtime_only_600_seconds": "timed_out_streams_retained",
+    "completed": false,
+    "runtime_timeout_not_explained_by_compilation_alone": true
+  },
+  "sdk_archives": {
+    "count": 12,
+    "report_sha256": "93fbef9dace1af6550a85095f6d2392285197a8fe589838f4d6f8447ba03c4f8",
+    "installed_consumer": {
+      "audit": {
+        "advisory_db_commit": "965bf9ad083b58e6340d65829d85217b18be9290",
+        "lockfile_sha256": "d2c086cf66d30e5efb54a1880d1355651d99512b2b7cd0c3f3cf078608a8be64",
+        "packages": 112,
+        "vulnerabilities": 0,
+        "warnings": 0
+      },
+      "dependency_source": "nine exact archive-derived path patches outside checkout; not a public registry installation",
+      "external_packages": 102,
+      "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-rust-sdk-consumer-9pdgfnnq",
+      "tests": 4
+    },
+    "source_inputs_unchanged": true
+  },
+  "native_maintenance_package": {
+    "archive": "q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin.tar.gz",
+    "archive_sha256": "46010c2cc29eeee237fb7ced18717443bfc02ccd4c60e1ab5e8660ce36c76e0c",
+    "binary_sha256": "805920c70fd7d4ecd2603cb71a1b2634f4698bd39bcf71529e3abb6a8ea42133",
+    "builder_commit": "7429f655bd48c1fb3997fc866d6ef048d7e758cf",
+    "completed": true,
+    "installed": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-policy-maintenance-wldo819m/installed/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin",
+    "kind": "qperiapt.policy_maintenance_package",
+    "license_packages": 90,
+    "manifest_sha256": "f0b4822b018f63ccf3cdbd7dc34893b3b4d8c28461d07f2980d6fd7222631c17",
+    "publication_performed": false,
+    "release_claim_eligible": false,
+    "runtime": {
+      "declared_macos_deployment_target": "13.0",
+      "minimum_os_execution_qualified": false,
+      "tested_machine": "arm64",
+      "tested_release": "25.6.0",
+      "tested_system": "Darwin"
+    },
+    "schema_version": 1,
+    "source_commit": "f560d803c43a24fff222daa5e5e5bd623bfdf874",
+    "sources_unchanged": true,
+    "target": "aarch64-apple-darwin"
+  },
+  "original_public_capture": {
+    "completed": true,
+    "source_commit": "f560d803c43a24fff222daa5e5e5bd623bfdf874",
+    "builder_commit": "7429f655bd48c1fb3997fc866d6ef048d7e758cf",
+    "consumer": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-publication-capture-jeejm31_",
+    "binary_sha256": "805920c70fd7d4ecd2603cb71a1b2634f4698bd39bcf71529e3abb6a8ea42133",
+    "application_sha256": "4a7064f5efd17d82ea17f3fcc0564d908db839dd73bfb09d59c5e9ac99d241c8",
+    "command_count": 5,
+    "original_result": {
+      "attempt": ".private-attempt-v2-53cdfda23681320bb3c425a2354db88f",
+      "bytes": 26,
+      "entries": 2,
+      "operation": "private-publication-reclaim/v2",
+      "outcome": "reclaimed",
+      "schema_version": 1
+    },
+    "record_sha256": "0db1fbb56bb170b337cc07d47a3242d7a6266887d1627b5d905c39d83a421730",
+    "intent_sha256": "9cef3a4203a3d17acc879a725727f9eabd123a299b35d145b1933623c0151256",
+    "receipt_sha256": "de9e6216cb06188ba863d9967822889a9f06b3dfafb8faf86b7af7285c8fc264",
+    "exact_result_replayed": true,
+    "archive_packages_unchanged": true,
+    "publication_performed": false
+  },
+  "windows": {
+    "gnu_check_and_clippy": true,
+    "host_store_sources_rechecked": 29,
+    "msvc_check": "blocked_at_real_C_string_h_before_host_store",
+    "runtime_or_ntfs_execution": false
+  },
+  "ci": {
+    "observed_utc": {
+      "current_time": "2026-11-04 18:30:11 UTC"
+    },
+    "counts": {
+      "success": 280,
+      "queued": 41,
+      "failure": 7,
+      "skipped": 2,
+      "in_progress": 2
+    },
+    "prs": [
+      {
+        "pr": 117,
+        "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+        "base_sha": "ed257e10c75af6798838ee6a95e0ccc6930cf388",
+        "merge_commit_sha": "9aa535b48b464ec4d4a8b5a4b20221049a6067b9",
+        "draft": true,
+        "state": "open"
+      },
+      {
+        "pr": 118,
+        "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+        "base_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+        "merge_commit_sha": "59bde0fd1a268de4d0e183c33bf3fc5e09c9be97",
+        "draft": true,
+        "state": "open"
+      }
+    ],
+    "remote_mutations": false
+  },
+  "archive": {
+    "file": "EVIDENCE.zip",
+    "sha256": "ad7ff0991b46ead8c33e0c8dbb1ea30c9b681ab82d0d3d8675f5b441af7fe123",
+    "members": 565,
+    "uncompressed_bytes": 8813595
+  },
+  "not_closed": [
+    "full candidate aggregate execution",
+    "Linux and actual Windows maintenance qualification",
+    "new Continuity installed-peer lifecycle with this SDK cohort",
+    "legacy or incomplete publication-control disposition",
+    "formal ABI and contract admission",
+    "final CI and supported platform gates",
+    "remaining Continuity proof and resource-budget admission obligations",
+    "external security review",
+    "explicit final release authorization"
+  ],
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "final_source_validation": {
+    "file": "FINAL_SOURCE_VALIDATION.json",
+    "sha256": "d9dde584c71430a83867b2d60341486a0045e9b11c690c597be0b130da067a4e",
+    "bytes": 29873,
+    "source_files": 28,
+    "debug_cases": 73,
+    "release_cases": 73,
+    "all_target_clippy": true
+  }
+}

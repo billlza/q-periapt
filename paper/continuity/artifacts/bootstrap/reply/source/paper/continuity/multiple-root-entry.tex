@@ -1,0 +1,152 @@
+% Finite multiple-root entry. Uses the existing joint-primitive bounds.
+\subsection{Several root entries from one recovered contribution}
+\label{sec:multiple-root-entry}
+
+One recovered contribution can feed several available old roots and complete
+root-information strings. The comparison below retains these uses jointly.
+Let $S$ be uniform on 256 bits, initially independent of the public compression
+oracle $h$ and auxiliary state, and retain $F$ and $\Gamma$ from
+Section~\ref{sec:joint-continuation}. Each root request supplies a 32-byte
+salt $r$ and a complete native 97-byte information string $I$. Its real value is
+\[
+ P_r=F(r,S),\qquad R_{r,I}=F(P_r,I\Vert\mathtt{01}).
+\]
+The parent contribution is used through these Extract calls; each resulting
+PRK is used through its root-Expand interface. The controller retains the
+original source ledger and any established local stops.
+
+\paragraph{Descriptors and available data.}
+The root-use descriptor is
+$e(r,I)=(\Gamma(r),I)$, with exact byte equality. Equal descriptors retrieve
+the same root entry across callers and resumptions. Indeed,
+\eqref{eq:appendix-column-compression} shows that equal $\Gamma$ values give
+equal Extract values for every $S$, and equal complete information strings
+then give equal Expand values. Assign each newly encountered $\Gamma$ class
+its next lifetime index $i$, preserving this index after a restart.
+Numerical output coincidences between distinct classes keep their ordinary
+shared-oracle distribution.
+
+The controller computes salts, information strings and its selection from
+its available state: executed preparation, independent coins, public-oracle
+responses, unmarked roots, and the declared outputs of the marked schedule.
+At most one fresh descriptor is marked before its first root evaluation.
+Its root is installed in one retained schedule handle; every descriptor alias
+retrieves that handle. All its uses belong to the same interface of
+Section~\ref{sec:joint-continuation}, including its session salt, confirmation
+and successor calls, complete traffic-information table and budgets. Other
+root entries may be disclosed and used in later available computations,
+including as salts. The retained handle supplies exactly that schedule's
+operations. This is a rule about available computation; a locally known salt
+can numerically coincide with a protected value.
+
+Fix finite bounds $D,C,N_1,\ldots,N_C$ before execution: at most $D$ distinct
+salt strings, at most $C\le D$ classes, and at most $N_i$ distinct complete
+information strings in the $i$th class. These bounds hold in every comparison
+experiment. All oracle-dependent preparation is executed and counted. Exact
+repeats are cached. Write $q_S$ for the complete ordinary compression-query
+budget in the column reduction, and $q_i$ for that in the $i$th row reduction.
+These budgets include the whole controller, all other real primitives,
+continuation and terminal test. An additional independent whole-hash oracle
+may remain available throughout.
+
+\begin{theorem}[Finite multiple-root entry]
+\label{thm:multiple-root-entry}
+Replace the real root interface by a private table
+$\mathcal W(\Gamma(r),I)$ of independent uniform 32-byte entries, preserving
+all descriptor aliases and the controller above. Every efficient available
+output-bit test changes by at most
+\begin{equation}
+ \Delta_{\rm mr}=\min\!\left\{1,
+ \varepsilon_{\rm Hjoint}(C,0,q_S,32)
+ +\sum_{i=1}^{C}\varepsilon_{\rm Hrow}(N_i,q_i,98)\right\}.
+ \label{eq:multiple-root-error}
+\end{equation}
+In the table experiment, an online marked fresh descriptor supplies the
+independent uniform root required by
+Theorem~\ref{thm:joint-message-leaf}, together with the complete interactive
+controller. The marked descriptor may belong to a previously used class.
+\end{theorem}
+\begin{proof}
+Compute $\Gamma(r)$ from available salt bytes and retain its class index.
+Use one column call for the first salt in each new class; reuse its reply for
+later equal classes. The descriptor identity makes this an exact rendering
+of the real Extract interface. Lemma~\ref{lem:appendix-joint-hmac} replaces
+these calls by $P_i=V(\Gamma(r))$ at the first cost in
+\eqref{eq:multiple-root-error}. The remaining root computation consists of
+HMAC rows under the independent private keys $P_i$.
+
+Replace these rows in first-class-allocation order. At step $i$, presample
+the hidden uniform row-challenge key and assign it to the $i$th new class
+when that class is first encountered. Before that event the key has no use.
+Classes already replaced use their private tables; later classes have locally
+sampled independent keys and are evaluated with the same $h$. The controller
+accesses the selected PRK through its row alone. Thus the real row branch
+matches the preceding hybrid and the ideal row branch matches the next one.
+Lemma~\ref{lem:appendix-hmac-instances} bounds this step by
+$\varepsilon_{\rm Hrow}(N_i,q_i,98)$. If the class is never allocated, the
+hybrids agree. Summing over the fixed class budget establishes the bound.
+
+Distinct classes remain distinct reduction slots even when their sampled
+PRK bytes coincide. In a real row branch, local evaluation under another
+class's key uses the same $h$ and automatically preserves any resulting
+coincidence; these ordinary queries are included in $q_i$. Thus the argument
+uses the full independent-key distribution.
+
+For each ideal row, $I\mapsto I\Vert\mathtt{01}$ is injective. Its root
+interface is therefore exactly the table $\mathcal W(\Gamma(r),I)$.
+At a fresh descriptor, its value is independent of all previously used table
+entries and the oracle. Presample the designated uniform root, withhold it
+during the executed prefix, and assign it when the controller marks that
+fresh descriptor. All other entries retain their independent sampling and
+all aliases retrieve the retained handle. The selection uses the available
+prefix, so this deferred assignment has exactly the table distribution.
+It embeds the whole controller in the existing root experiment. The row
+hybrids already covered every class, so target selection adds no class guess.
+\end{proof}
+
+\paragraph{Explicit query accounting.}
+Let $B$ bound all ordinary compression work outside this entry service,
+including its entire downstream schedule and test. Cache the two public
+$\Gamma$ computations per distinct salt. With
+$N=\sum_{k=1}^{C}N_k$, valid conservative choices are
+\begin{equation}
+ q_S=B+2D+5N,\qquad
+ q_i=B+2D+5\sum_{k=i+1}^{C}N_k.
+ \label{eq:multiple-root-budgets}
+\end{equation}
+A 98-byte HMAC evaluation uses five compression calls, including its two key
+pads. In the column comparison every root row is real; at row step $i$, the
+later rows are real and the earlier rows are tables. External class scheduling
+accounts for $2D$, including new salts that share an existing class. The
+column primitive's own public pad work remains included in its established
+bound. $B$ is a uniform bound over these complete derived experiments.
+
+\begin{corollary}[First message after a marked root entry]
+\label{cor:multiple-root-message}
+For the available controller above and its marked schedule, use the
+first-message interface and available qualification predicate of Corollary~\ref{cor:joint-first-message}. If $Z$
+is its qualified signed message score, with zero on runs having no marked
+challenge, then
+\begin{equation}
+ |\mathbb E Z|\le
+ \min\{1,\,2\Delta_{\rm mr}+2\Delta_{\rm sched}
+                      +2\varepsilon_{\rm AEAD}\}.
+ \label{eq:multiple-root-message}
+\end{equation}
+The schedule and AEAD reductions include the complete entry controller and
+its shared-oracle work. If the contribution itself comes from the protected
+ContextBound table of Lemma~\ref{lem:cb-hidden-component}, its additional
+signed-score cost is $2\Phi_{256}(d,Q_H)$. For a candidate whose stopped execution realizes this entry controller,
+it replaces the single-entry $2\Delta_{\rm init}$ term by
+$2\Delta_{\rm mr}$ in the corresponding continuation bound; the original accounting terms keep their
+established definitions.
+\end{corollary}
+\begin{proof}
+Fix each application challenge bit for the entry comparison and average
+afterwards, as in the retained continuation. The randomized output test
+with success probability $(Z+1)/2$ converts
+Theorem~\ref{thm:multiple-root-entry}'s bit gap into a score gap of at most
+$2\Delta_{\rm mr}$. Its ideal marked root initializes the entire controller
+of Corollary~\ref{cor:joint-first-message}, which supplies the remaining two
+terms. Apply the same conversion to the ContextBound comparison when present.
+\end{proof}

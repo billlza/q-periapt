@@ -1,0 +1,19 @@
+Original test source: b524f06866ce6e85d8018368547090732bc7075b
+.github/workflows/ci.yml : 2 unchanged license invocations
+.github/workflows/abi2-platform-candidate.yml : 1 unchanged license invocations
+.github/workflows/continuity-android-installed.yml : 1 unchanged license invocations
+test_every_android_sdk_license_input_is_finite_and_fail_closed (baseline_android_license_guard.BoundVerifierWiringTests.test_every_android_sdk_license_input_is_finite_and_fail_closed) ... FAIL
+
+======================================================================
+FAIL: test_every_android_sdk_license_input_is_finite_and_fail_closed (baseline_android_license_guard.BoundVerifierWiringTests.test_every_android_sdk_license_input_is_finite_and_fail_closed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/android-license-guard-b524-test-source.py", line 2467, in test_every_android_sdk_license_input_is_finite_and_fail_closed
+    self.assertEqual(combined.count("sdkmanager --licenses"), 3)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 4 != 3
+
+----------------------------------------------------------------------
+Ran 1 test in 0.063s
+
+FAILED (failures=1)

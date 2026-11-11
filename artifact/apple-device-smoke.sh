@@ -14,14 +14,28 @@ ROOT=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd) || exit 2
 cd "$ROOT" || exit 2
 . "$ROOT/artifact/python-env.sh"
 
-FIXED_DEVELOPER_DIR=/Applications/Xcode-27.0.app/Contents/Developer
+CAPTURE_PROFILE=${QPERIAPT_APPLE_CAPTURE_PROFILE:-legacy}
+case "$CAPTURE_PROFILE" in
+	legacy)
+		FIXED_DEVELOPER_DIR=/Applications/Xcode-27.0.app/Contents/Developer
+		DEVICE_SCHEME=QPeriaptDeviceRunner
+		;;
+	sdk-020)
+		FIXED_DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+		DEVICE_SCHEME=QPeriaptSDKDeviceRunner
+		;;
+	*)
+		printf 'error: QPERIAPT_APPLE_CAPTURE_PROFILE must be legacy or sdk-020\n' >&2
+		exit 2
+		;;
+esac
 SELECTED_DEVELOPER_DIR=${QPERIAPT_DEVELOPER_DIR:-${DEVELOPER_DIR:-}}
 if [ -z "$SELECTED_DEVELOPER_DIR" ]; then
 	printf 'error: QPERIAPT_DEVELOPER_DIR is required for source-bound Apple toolchain verification\n' >&2
 	exit 2
 fi
 if [ "$SELECTED_DEVELOPER_DIR" != "$FIXED_DEVELOPER_DIR" ]; then
-	printf 'error: Apple device proof requires the fixed Xcode 27 release toolchain\n' >&2
+	printf 'error: Apple device proof requires the fixed toolchain for its capture profile\n' >&2
 	exit 2
 fi
 DEVELOPER_DIR=$FIXED_DEVELOPER_DIR
@@ -102,6 +116,7 @@ need() {
 
 assert_device_route() {
 	python3 artifact/apple_device_proof.py inspect-device \
+		--capture-profile "$CAPTURE_PROFILE" \
 		--device-id "$DEVICE_ID" \
 		--expected-device-type "$EXPECTED_DEVICE_TYPE" \
 		--expected-transport "$EXPECTED_DEVICE_TRANSPORT" >/dev/null
@@ -109,6 +124,7 @@ assert_device_route() {
 
 inspect_device_app() {
 	python3 artifact/apple_device_proof.py inspect-app \
+		--capture-profile "$CAPTURE_PROFILE" \
 		--device-id "$DEVICE_ID" \
 		--bundle-id "$BUNDLE_ID" "$@"
 }
@@ -191,6 +207,12 @@ fi
 
 RUN_ID=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
 BUNDLE_ID="dev.qperiapt.DeviceRunner.run$RUN_ID"
+if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
+	DERIVED_DATA=${QPERIAPT_DERIVED_DATA:-"$ROOT/target/apple-sdk-device-$RUN_ID"}
+	RESULT_DIR=${QPERIAPT_DEVICE_RESULT_DIR:-"$ROOT/artifact/device-runs/apple-sdk-device-$RUN_ID"}
+	APP="$DERIVED_DATA/Build/Products/Debug-iphoneos/QPeriaptDeviceRunner.app"
+	PROJECT="$DERIVED_DATA/project/QPeriaptAppleDevice.xcodeproj"
+fi
 if [ -z "$DEVICE_ID" ]; then
 	printf 'error: QPERIAPT_IOS_DEVICE_ID is required for the physical Apple-device proof lane\n' >&2
 	exit 2
@@ -303,7 +325,19 @@ print(hashlib.sha256(sys.argv[1].encode("utf-8")).hexdigest()[:12])
 PY
 )
 
-mkdir -p "$RESULT_DIR"
+if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
+	# Fresh attempt directories preserve every failure; never clear a prior run.
+	for attempt_path in "$DERIVED_DATA" "$RESULT_DIR"; do
+		if [ -e "$attempt_path" ] || [ -L "$attempt_path" ]; then
+			printf 'error: SDK device capture requires a fresh directory: %s\n' "$attempt_path" >&2
+			exit 2
+		fi
+	done
+	mkdir -p "$(dirname "$DERIVED_DATA")" "$(dirname "$RESULT_DIR")"
+	mkdir "$DERIVED_DATA" "$RESULT_DIR"
+else
+	mkdir -p "$RESULT_DIR"
+fi
 chmod 700 "$RESULT_DIR"
 XCODE_TOOLCHAIN_RECEIPT="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-xcode-toolchain.json"
 if [ -e "$XCODE_TOOLCHAIN_RECEIPT" ] || [ -L "$XCODE_TOOLCHAIN_RECEIPT" ]; then
@@ -311,6 +345,7 @@ if [ -e "$XCODE_TOOLCHAIN_RECEIPT" ] || [ -L "$XCODE_TOOLCHAIN_RECEIPT" ]; then
 	exit 2
 fi
 python3 artifact/apple_toolchain.py capture \
+	--capture-profile "$CAPTURE_PROFILE" \
 	--output "$XCODE_TOOLCHAIN_RECEIPT"
 CLEANUP_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-device-cleanup.log"
 if ! rm -f -- "$CLEANUP_LOG"; then
@@ -338,24 +373,37 @@ printf 'run-id  : %s\n' "$RUN_ID"
 printf 'profile : min %s valid days remaining\n' "$MIN_PROFILE_VALID_DAYS"
 
 printf '\n=== macOS native Swift binding ===\n'
-cargo build -p q-periapt-ffi --release
+cargo build -p q-periapt-ffi --release --locked --target-dir "$ROOT/target"
 xcrun swift test --package-path bindings/swift -Xlinker "-L$ROOT/target/release"
 
 printf '\n=== iOS Rust staticlib ===\n'
-cargo build -p q-periapt-ffi --release --target aarch64-apple-ios
+if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
+	# Match the shipped SDK floor in both rustc and cc-rs native dependencies.
+	IPHONEOS_DEPLOYMENT_TARGET=16.0 cargo build -p q-periapt-ffi --release --locked --target-dir "$ROOT/target" --target aarch64-apple-ios
+else
+	cargo build -p q-periapt-ffi --release --locked --target-dir "$ROOT/target" --target aarch64-apple-ios
+fi
 test -f "$ROOT/target/aarch64-apple-ios/release/libq_periapt_ffi_abi2.a" || {
 	printf 'error: missing iOS staticlib\n' >&2
 	exit 1
 }
 
 printf '\n=== Generate Apple device project ===\n'
-(cd "$PROJECT_DIR" && xcodegen generate)
+if [ "$CAPTURE_PROFILE" = "sdk-020" ]; then
+	mkdir "$DERIVED_DATA/project"
+	xcodegen generate --spec "$PROJECT_DIR/project.yml" \
+		--project-root "$PROJECT_DIR" --project "$DERIVED_DATA/project"
+else
+	(cd "$PROJECT_DIR" && xcodegen generate)
+fi
 
 printf '\n=== Build device runner for physical device ===\n'
 BUILD_LOG="$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-build.log"
-rm -rf "$DERIVED_DATA"
-rm -rf "$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-build.xcresult"
-rm -f "$BUILD_LOG"
+if [ "$CAPTURE_PROFILE" = "legacy" ]; then
+	rm -rf "$DERIVED_DATA"
+	rm -rf "$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-build.xcresult"
+	rm -f "$BUILD_LOG"
+fi
 set +e
 set -- xcodebuild build
 if [ "$ALLOW_PROVISIONING_UPDATES" = "1" ]; then
@@ -366,10 +414,11 @@ if [ "$ALLOW_PROVISIONING_UPDATES" = "1" ]; then
 fi
 set -- "$@" \
 	-project "$PROJECT" \
-	-scheme QPeriaptDeviceRunner \
+	-scheme "$DEVICE_SCHEME" \
 	-destination "platform=iOS,id=$DEVICE_ID" \
 	-derivedDataPath "$DERIVED_DATA" \
 	-resultBundlePath "$RESULT_DIR/$DEVICE_ARTIFACT_PREFIX-build.xcresult" \
+	QPERIAPT_SOURCE_ROOT="$ROOT" \
 	PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
 	CODE_SIGN_STYLE="$CODE_SIGN_STYLE_VALUE"
 if [ "${DEVELOPMENT_TEAM+x}" = x ]; then
@@ -522,25 +571,10 @@ if grep -q 'QPERIAPT_DEVICE_FAIL' "$DEVICE_RESULT"; then
 	printf 'error: device result marker is failure; see %s\n' "$DEVICE_RESULT" >&2
 	exit 1
 fi
-if PASS_COUNT=$(grep -cx "QPERIAPT_DEVICE_PASS run-id=$RUN_ID" "$DEVICE_RESULT"); then
-	:
-else
-	grep_status=$?
-	if [ "$grep_status" -eq 1 ]; then
-		PASS_COUNT=0
-	else
-		printf 'error: could not count device pass markers (grep exit %s)\n' "$grep_status" >&2
-		exit 1
-	fi
-fi
-if [ "$PASS_COUNT" -ne 1 ]; then
-	printf 'error: device result did not contain exactly one run-bound QPERIAPT_DEVICE_PASS; see %s\n' "$DEVICE_RESULT" >&2
-	exit 1
-fi
-if grep -cx 'QPERIAPT_DEVICE_PASS' "$DEVICE_RESULT" >/dev/null 2>&1; then
-	printf 'error: device result contains legacy bare QPERIAPT_DEVICE_PASS; see %s\n' "$DEVICE_RESULT" >&2
-	exit 1
-fi
+python3 artifact/apple_device_proof.py verify-marker \
+	--capture-profile "$CAPTURE_PROFILE" --run-id "$RUN_ID" --path "$DEVICE_RESULT"
+python3 artifact/apple_device_proof.py verify-marker \
+	--capture-profile "$CAPTURE_PROFILE" --run-id "$RUN_ID" --path "$LOG"
 printf 'QPERIAPT_DEVICE_RESULT_VERIFIED run-id=%s\n' "$RUN_ID"
 
 if ! cleanup_device_app; then
@@ -557,6 +591,7 @@ fi
 
 printf '\n=== Validate device proof metadata ===\n'
 python3 artifact/apple_device_proof.py emit \
+		--capture-profile "$CAPTURE_PROFILE" \
 	--root "$ROOT" \
 	--app "$APP" \
 	--bundle-id "$BUNDLE_ID" \
@@ -582,6 +617,7 @@ python3 artifact/apple_device_proof.py emit \
 	--expected-staticlib-sha256 "$FROZEN_STATICLIB_SHA256"
 if [ "$ALLOW_DIRTY_APPLE_DEVICE" = "1" ]; then
 	python3 artifact/apple_device_proof.py verify \
+		--capture-profile "$CAPTURE_PROFILE" \
 		--root "$ROOT" \
 		--proof "$PROOF_JSON" \
 		--build-log "$BUILD_LOG" \
@@ -593,6 +629,7 @@ if [ "$ALLOW_DIRTY_APPLE_DEVICE" = "1" ]; then
 		--allow-dirty-proof
 else
 	python3 artifact/apple_device_proof.py verify \
+		--capture-profile "$CAPTURE_PROFILE" \
 		--root "$ROOT" \
 		--proof "$PROOF_JSON" \
 		--build-log "$BUILD_LOG" \
@@ -603,4 +640,4 @@ else
 		--max-age-seconds "$DEVICE_PROOF_MAX_AGE_SECONDS"
 fi
 
-printf '\nALL PASS: macOS native + physical iOS/iPadOS device smoke\n'
+printf '\nALL PASS: macOS native + physical iOS/iPadOS device smoke profile=%s\n' "$CAPTURE_PROFILE"

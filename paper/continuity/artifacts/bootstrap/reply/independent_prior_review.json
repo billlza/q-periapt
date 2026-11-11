@@ -1,0 +1,368 @@
+{
+  "schema": "q-periapt/independent-mathematical-review/v1",
+  "created_at_utc": "2026-11-09T23:08:03.389920+00:00",
+  "reviewer": "independent child agent /root/android_build_connection",
+  "subject": "Original bootstrap reply-source adapter, fixed publication packet",
+  "base_commit": "68549dbc3ae4491d8b5edaa708548dc60743eab7",
+  "base_tree": "9796ba8df6d9de000d403e21b392b06c7f159146",
+  "publication_manifest": {
+    "path": "/workspace/scratch/e41ac2378a11/bootstrap-source-adapter/PUBLICATION_MANIFEST.json",
+    "bytes": 3109,
+    "sha256": "1a2b36683193873ce4b1475dab40226967f194a9f941d7defce6649d4dc9c9e5",
+    "git_blob": "37b83548d71ee559a7fa31810b1516a1b831946e"
+  },
+  "publication_files_verified": [
+    {
+      "path": "docs/continuity/BOOTSTRAP_REPLY_SOURCE_ADAPTER_V1.md",
+      "bytes": 33208,
+      "sha256": "87acf83c1014005d6d3dfb9d1147229d81dd193d259dc0199bd8fedf06a2dde3",
+      "git_blob": "75429338065bc7754386b1d565bb539f2560054d"
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261109-bootstrap-reply-source-adapter/README.md",
+      "bytes": 5383,
+      "sha256": "dfc1d1484109d1da02029df8cc54d92caa6676a97cb690848166b67f73a86f53",
+      "git_blob": "ae65df0b8c9ad84589a236a261caaa4177c1a37c"
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261109-bootstrap-reply-source-adapter/RESULT.json",
+      "bytes": 4567,
+      "sha256": "ead62bb6fdaa6fd655e7bb7b923334c914a699e3784ef478abf6033f347dae8f",
+      "git_blob": "e59245959aaea2166363fffbab9b6cb1309b0c0e"
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261109-bootstrap-reply-source-adapter/SOURCE_PINS.json",
+      "bytes": 8069,
+      "sha256": "ac548057d4cf4ad06620117a4e5bed966727b941e08c10c90717a2d4d614f6ae",
+      "git_blob": "7d216ae1bd8d60801fae638e4a49fcd1722bd85a"
+    },
+    {
+      "path": "research/sdk-alpha1/evidence/20261109-bootstrap-reply-source-adapter/check_source_adapter.py",
+      "bytes": 22166,
+      "sha256": "4e0d47fe2e6f50450007304b07cf28afbbed2c2a5d874bab2101ea274431f9a1",
+      "git_blob": "95982ac2a0cc3673da7a9424059cfd0acd18208e"
+    }
+  ],
+  "source_inputs": {
+    "source_pins_sha256": "ac548057d4cf4ad06620117a4e5bed966727b941e08c10c90717a2d4d614f6ae",
+    "verified_count": 32,
+    "files": [
+      {
+        "path": "research/continuity-identity-candidate/src/bootstrap.rs",
+        "bytes": 74151,
+        "git_blob": "9eeaa880493e338dcc2276d92e23b297aaaf64fd",
+        "sha256": "f72bce264806a900affe2cac33beb449e77aeaa45e6e264549eaa0f2ece7a286"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/bootstrap/staged.rs",
+        "bytes": 8236,
+        "git_blob": "8d43d7f7bc01eb5dce8e63c994aa47c1b4d061e1",
+        "sha256": "f633fc0ff32c44156e194ebb6ca6c037a6df09d117d4daf8a69a861cf7d7bafc"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/bootstrap/response_staged.rs",
+        "bytes": 7967,
+        "git_blob": "a87a43fa91e9c530e36d616e2c4a34d3046ae2c0",
+        "sha256": "3a892deab3d2a209345436ca6d3ddd08f39c549bc98a3d5e7c6026dfaeacff0a"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/crypto.rs",
+        "bytes": 18994,
+        "git_blob": "10e7693adbdb00aba318e7fe54ca73143d3335df",
+        "sha256": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/contract.rs",
+        "bytes": 4170,
+        "git_blob": "210902bb3b39fc54a9ede786b7475487c7303bb7",
+        "sha256": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/durable.rs",
+        "bytes": 54134,
+        "git_blob": "9ba992940feff538465c82755791992807d1a069",
+        "sha256": "664bc3bfad790cc4639168b54bea30fdcdb80520310454cddd80ac66a5b37c42"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/durable/initiator.rs",
+        "bytes": 21061,
+        "git_blob": "553a1813b8455c9bc1016b7171bb66307d911342",
+        "sha256": "eacfbb8195b357ecdfda7a63cfd1871ba846f23a3e427d29f422d2246063f67c"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/durable/responder.rs",
+        "bytes": 11098,
+        "git_blob": "bf022f4cd2ebefcc685ab76b8b2f850e5f006eb8",
+        "sha256": "9e3dcaf9180435e1b439889a9608f4ae40ca87b1d8d4c6b025c329e730e4f30c"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/durable/prekeys.rs",
+        "bytes": 37208,
+        "git_blob": "54cabf42e751363656d4fca6134b3f2d8647a21c",
+        "sha256": "1a0ad3a9be71e6b39c44cd24a7478a6280a822a6653b1d504677c9669c5b6c4b"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/durable/write_intent.rs",
+        "bytes": 43319,
+        "git_blob": "0e4c351c9f99b080f950e4bbdba496819efa1e9c",
+        "sha256": "502bbd9de26958575704edbd0207c6579c4a07e3b9ed4a57650f407f3fdb312d"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/durable/messages.rs",
+        "bytes": 42215,
+        "git_blob": "ba2229b17b2c7dd42e5d3d580501f1e00ac5a9ad",
+        "sha256": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82"
+      },
+      {
+        "path": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+        "bytes": 21147,
+        "git_blob": "0696a481910b6ca7c5781548edd67d814119431e",
+        "sha256": "5e19c0a6719895888a7018db2583c89da50c1de029d443834c357bce342cb6e2"
+      },
+      {
+        "path": "crates/q-periapt-sdk/src/lib.rs",
+        "bytes": 20167,
+        "git_blob": "a4c659dfb546c18c82aa7ef122dbe5eae13e3948",
+        "sha256": "38e9c524a60e6019c8a5304cd1d587006ab467ab1718a1fd8899f97823e98be6"
+      },
+      {
+        "path": "crates/q-periapt-sdk/src/expert.rs",
+        "bytes": 8430,
+        "git_blob": "5c8b8231cdebeed6f33659e1cd431f2f78a3b88a",
+        "sha256": "4a3f2922090b2ef9d20abfcdfdde98c5edd76ee12d2df9ae2608071ea1c84323"
+      },
+      {
+        "path": "crates/q-periapt-sdk/src/expert/replay.rs",
+        "bytes": 9863,
+        "git_blob": "3f793136fd8c508d1e1ace4a3386581e393ea023",
+        "sha256": "cc95985cd212a2c2f224dcce22bc7fba5f4f331dc190e263085a0261dd0a3713"
+      },
+      {
+        "path": "crates/q-periapt-backends/src/lib.rs",
+        "bytes": 67287,
+        "git_blob": "fdbdc4e99b626f1e87747bce43460ac7b5c00582",
+        "sha256": "d73b6b3a789c27779108dbd5c378f553cd6c3108b8d90ea9f101730d2a237313"
+      },
+      {
+        "path": "crates/q-periapt-backends/src/contextbound_key.rs",
+        "bytes": 7945,
+        "git_blob": "a6e441e7b2ee0987886a233ca2985ab5fc43f48b",
+        "sha256": "4ba0073adb2f4b03c6183aa46d3bffa139edc40476873cba103adecbbc1b153b"
+      },
+      {
+        "path": "crates/q-periapt-core/src/lib.rs",
+        "bytes": 45762,
+        "git_blob": "1cb074ff3d66c5d3c61dc0593f11495d4fa36ca7",
+        "sha256": "b2879b876e37f6f9a98f065c55502a1ed90f5d248fd029fef8eaad59bf5ec390"
+      },
+      {
+        "path": "paper/continuity/contextbound-connection.tex",
+        "bytes": 16401,
+        "git_blob": "602813f56a05915381430fed457df4bdd6b1007d",
+        "sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235"
+      },
+      {
+        "path": "paper/continuity/source-attribution.tex",
+        "bytes": 12838,
+        "git_blob": "46e83b19ada210e2f8a5dd3a5f373e388a6953c2",
+        "sha256": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e"
+      },
+      {
+        "path": "paper/continuity/reservation-signature-bridge.tex",
+        "bytes": 11624,
+        "git_blob": "a78454db982b35557bb78d673049caf449b4ba2e",
+        "sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c"
+      },
+      {
+        "path": "paper/continuity/opaque-rendering.tex",
+        "bytes": 11335,
+        "git_blob": "efceef9c75cca293f0b79cf9b51225c57f0e0f0e",
+        "sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298"
+      },
+      {
+        "path": "paper/continuity/primitive-inputs.tex",
+        "bytes": 4315,
+        "git_blob": "109abe4ac79fea97b0277ed1664e163e559032f3",
+        "sha256": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa"
+      },
+      {
+        "path": "paper/continuity/candidate-local-accounting.tex",
+        "bytes": 8953,
+        "git_blob": "0452a9b36bca27a885f70aa0823ba8e1d84f5e67",
+        "sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad"
+      },
+      {
+        "path": "paper/continuity/guarded-provenance.tex",
+        "bytes": 8980,
+        "git_blob": "5b88805dcbc686130ef58675fd2c01562fbd9117",
+        "sha256": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136"
+      },
+      {
+        "path": "paper/continuity/joint-primitive-bounds.tex",
+        "bytes": 10663,
+        "git_blob": "41f3bf38fdf26607751827ca3251459c79872ff1",
+        "sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb"
+      },
+      {
+        "path": "paper/continuity/sdk-purpose-connection.tex",
+        "bytes": 9312,
+        "git_blob": "389c0d99f41ae9f34577010f0eab4c0cdd873af6",
+        "sha256": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc"
+      },
+      {
+        "path": "paper/continuity/multiple-root-entry.tex",
+        "bytes": 8584,
+        "git_blob": "5b630e3b6195a826f7e8b6f30854adb3ab8552bf",
+        "sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34"
+      },
+      {
+        "path": "docs/continuity/BOOTSTRAP_JOINT_ENTRY_V1.md",
+        "bytes": 17964,
+        "git_blob": "11efd9317315c4adb59d5a5e507b09cc863524dd",
+        "sha256": "02adbe2d702246545b048a9d5ac01f058a35523924d3042106ecbd4092752ed0"
+      },
+      {
+        "path": "docs/continuity/BOOTSTRAP_TERMINAL_AGREEMENT_V1.md",
+        "bytes": 16583,
+        "git_blob": "5e328f1e2bd96acb873fca12d5fa4cdcadaf3ca6",
+        "sha256": "36258bc3583790202b8750e73ae12d4c146707751a392cb02bcd5d636eea1ea8"
+      },
+      {
+        "path": "docs/continuity/BOOTSTRAP_TERMINAL_SCHEDULE_CONNECTION_V1.md",
+        "bytes": 24467,
+        "git_blob": "60a8a4d4ba4ce182322264ea8498f641d4d85289",
+        "sha256": "656ce52d8b77b206ed6aef3b6c457a3d196028da2933075104bd10a6075524d3"
+      },
+      {
+        "path": "docs/continuity/HKDF_EXPAND_TABLE_V1.md",
+        "bytes": 7939,
+        "git_blob": "054f1c6034e70edb47cfd490c738cf3d797f512e",
+        "sha256": "ebddea59df4e82c48744a52088c3f2bf49b5386ab993f6200bce8bfef8ae2d71"
+      }
+    ]
+  },
+  "analytical_conclusions": [
+    {
+      "topic": "Event-local decomposition and opening stops",
+      "result": "pass",
+      "reason": "Adjacent ACK hybrids are identical before the r-th registration; absent-registration terms therefore cancel. The remaining event is partitioned by fixed original pairs within each actual endpoint. A parent-source opening before registration permanently excludes that pair because S0 and all traditional scalars are actually disclosed in this profile. An opening after registration uses the original U1 pre-return stop and retains the stopped prefix and latched event. Candidate-local zero assignments are not promoted to a whole-view identity."
+    },
+    {
+      "topic": "Original computation and source association",
+      "result": "pass",
+      "reason": "Durable first retention precedes selected generation/encapsulation. Retried or restored operations preserve the original token and saved body. Challenge origins are fixed at the original generation/first encapsulation, and the immutable complete source tuple is fixed before its first CB use. Registration follows Reply verification/signing and precedes ACK use. The early fresh-body signature monitor and explicit initial/reply correctness costs support the same-family endpoint invariant. Same-body outer-signature aliases preserve the upstream tuple and PRK while retaining separate full-wire root descriptors."
+    },
+    {
+      "topic": "Component routing, fresh ciphertext collisions and import validation",
+      "result": "pass",
+      "reason": "The postchallenge selected-owner c* route uses the cached challenge key and never sends c* to the postchallenge CCA oracle. All other honest same-PQ-key encapsulations and expanded-owner validations are cached and monitored, including those before challenge creation. Equality with c* on the K-PKE-correctness good event implies equality of the original 32-byte inputs. Counting fixed original fresh-input slots, including discarded and selectively executed reservations, gives v/2^256 plus the explicit joint correctness event. The selected original retry is not a new slot. These stops supply the claimed single selected CB-tuple interface."
+    },
+    {
+      "topic": "Opaque record closure and hybrid order",
+      "result": "pass",
+      "reason": "The raw acquisition monitor covers the union of unknown-value dependencies through generation/encapsulation tapes, expanded owner, CB/PRK/seed, retained roots and activation records. Raw ciphertext acquisition is counted even without a matching decryption key. The proof first compares constructible real records with commitment/structural tables and only then installs unknown component tapes. The one record cost per local endpoint is sufficient because both final endpoint experiments retain the same table renderer."
+    },
+    {
+      "topic": "Two-endpoint acquisition residual and complete budget",
+      "result": "pass",
+      "reason": "eta_cap,r sums the selected-pair capture event in both adjacent endpoint distributions; it is not silently evaluated only in H_0. Pair-event disjointness is used only inside each endpoint. The R telescoping ranks, G times A ex ante original pairs, and two real-to-common-table endpoints yield the explicit 2 R G A coefficient. All primitive and monitor budgets cover the complete derived execution and final candidate bit. The final full-table coupling preserves candidate attribution, registration flags, all allowed outputs and the same latched test."
+    }
+  ],
+  "identified_issues_resolved_in_this_packet": [
+    {
+      "issue": "Registration of an unverified Reply could leave an existing r-th registration with no source pair.",
+      "resolution": "The profile fixes registration after Reply signature/context/confirmation checks or original responder signing, before ACK computation."
+    },
+    {
+      "issue": "A fresh valid responder signature with an invalid confirmation tag can reach decapsulation/CB before full Reply acceptance.",
+      "resolution": "Attr monitors fresh purpose-6 signature verification immediately, before decapsulation/CB, using the existing Bad_sig^0 definition."
+    },
+    {
+      "issue": "Reply-pair correctness alone does not establish equal first contribution S0.",
+      "resolution": "delta_j explicitly includes the original Initial contribution, selected reply pair and required generated/imported-owner consistency failures."
+    },
+    {
+      "issue": "A different honest encapsulation or consistency validation may produce c*; original-slot inequality does not imply ciphertext inequality.",
+      "resolution": "The monitor covers previous cached and later fresh same-PQ-key ciphertexts, stopping before an excluded oracle query or inconsistent known-key comparison."
+    },
+    {
+      "issue": "A successful-execution-only collision budget omits selection among opened or discarded original random draws.",
+      "resolution": "v_j counts original fresh-m sampling slots, including unused and failed-retention reservations; the finite 7/16 countermodel rejects the incorrect 1/4 bound."
+    }
+  ],
+  "independent_execution": {
+    "cwd": "/workspace/scratch/e41ac2378a11",
+    "argv": [
+      "python",
+      "-I",
+      "-X",
+      "utf8",
+      "bootstrap-source-adapter/candidate/research/sdk-alpha1/evidence/20261109-bootstrap-reply-source-adapter/check_source_adapter.py",
+      "--source-root",
+      "/workspace/scratch/e41ac2378a11/bootstrap-composition/base",
+      "--output",
+      "/workspace/scratch/e41ac2378a11/independent-math-review/BOOTSTRAP_REPLY_SOURCE_ADAPTER_CONTROL_RERUN.json"
+    ],
+    "resolved_interpreter": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "python_version": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "exit_code": 0,
+    "result": {
+      "path": "/workspace/scratch/e41ac2378a11/independent-math-review/BOOTSTRAP_REPLY_SOURCE_ADAPTER_CONTROL_RERUN.json",
+      "bytes": 4567,
+      "sha256": "ead62bb6fdaa6fd655e7bb7b923334c914a699e3784ef478abf6033f347dae8f",
+      "git_blob": "e59245959aaea2166363fffbab9b6cb1309b0c0e"
+    },
+    "byte_identical_to_retained_result": true,
+    "source_identity_checks": 32,
+    "source_order_and_layout_checks": 14,
+    "adjacent_hybrid_finite_executions": 8192,
+    "collision_fixture_executions": 64,
+    "native_KEM_execution": false,
+    "scope": "Executed source-identity, ordering/layout and finite accounting/routing controls; the analytical review supplies the mathematical argument."
+  },
+  "primary_reference_verified": {
+    "publication": "NIST FIPS 203, 13 August 2024",
+    "url": "https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf",
+    "locations": [
+      "Algorithms 14 and 15 (K-PKE)",
+      "Algorithm 17 (ML-KEM.Encaps_internal)",
+      "Algorithm 18 (ML-KEM.Decaps_internal)",
+      "Section 7.1 pair-wise consistency check"
+    ],
+    "verified_content": "Encaps_internal derives K and encryption coins from m and the public-key hash, and encrypts the same 32-byte m. K-PKE decryption is deterministic. The native expanded-owner consistency check follows the fresh encapsulation, decapsulation and key-comparison structure. The proof retains the joint correctness event explicitly rather than assigning a failure probability not supplied by this review.",
+    "verification_method": "Read the official primary specification and compared the selected SDK/backend source."
+  },
+  "conclusion": {
+    "status": "pass_for_declared_profile_and_acquisition_partition",
+    "publication_ready_from_this_independent_review": true,
+    "outstanding_logical_findings": [],
+    "text": "The fixed packet supplies a coherent original reply-source/component/tape connection to the completed conditional schedule theorem. The exact raw-acquisition residual is retained for the full capture interface and is zero only when that acquisition interface excludes the marked raw returns. This scope is stated consistently in the proof and evidence."
+  },
+  "reviewed_publication_files_modified_by_reviewer": false,
+  "integration_navigation_review": {
+    "manifest": {
+      "path": "/workspace/scratch/e41ac2378a11/bootstrap-source-adapter/PUBLICATION_MANIFEST.integrated.json",
+      "bytes": 4323,
+      "sha256": "0a1a5f8bfb98b6f7b5c88f8f01f02aedd27099b4c5f15bf31aa0cbd32c3b088f",
+      "git_blob": "603cdac7088dcbfc2d968018beeccf7a92d85f66"
+    },
+    "reviewed_additional_files": [
+      {
+        "path": "docs/continuity/BOOTSTRAP_JOINT_SCHEDULE_REVIEW_V1.md",
+        "bytes": 38390,
+        "sha256": "fb2df0ec7f1d38bc75d5024854441e7bd6b4da3d1a0d8ad4fed8ec3e861882e8",
+        "git_blob": "e448050470fd5a6a7bf6ecdf0fa9cbdb92b00d5d"
+      },
+      {
+        "path": "docs/continuity/RELEASE_0_2_ADMISSION_PLAN.md",
+        "bytes": 16395,
+        "sha256": "ad3a5545b4cfa39a7ee454045cdb7b62529161ed1b3836f24370d0a4082d6ac2",
+        "git_blob": "b61dd7e1b732c51fd71fcda2bb979203b21f8b5a"
+      }
+    ],
+    "method": "Read the complete two-file diff against the PR146 candidate documents.",
+    "status": "pass",
+    "reason": "Both status updates identify the completed reply-surviving profile, retain the exact two-endpoint raw-acquisition residual, and name captured-byte and initial-source constructions as the next source tasks. They do not promote the acquisition-free renderer into a captured-ciphertext guarantee.",
+    "fixed_proof_identity_unchanged": true
+  }
+}

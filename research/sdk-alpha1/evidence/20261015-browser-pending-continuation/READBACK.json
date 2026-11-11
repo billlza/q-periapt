@@ -1,0 +1,24 @@
+{
+  "archive_sha256": "b43c84652f0ddce36a48a4d26b43fb164d62a60e787ce70cfe1fb3d0c961a295",
+  "case_census": {
+    "applied": {
+      "epoch": 1,
+      "independent_completion": false,
+      "native_effects": 2,
+      "query_cancellations": 1,
+      "worker_calls": 40,
+      "worker_terminations": 2
+    },
+    "unapplied": {
+      "epoch": 1,
+      "independent_completion": true,
+      "native_effects": 2,
+      "query_cancellations": 1,
+      "worker_calls": 41,
+      "worker_terminations": 2
+    }
+  },
+  "completed": true,
+  "members": 4919,
+  "private_keys_excluded": true
+}

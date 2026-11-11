@@ -1,0 +1,2226 @@
+{
+  "aar/ANDROID_AAR_PACKAGE.json": {
+    "bytes": 132872,
+    "sha256": "615b73ccfc30ef96c1386cfa62b4652f6f54f4ddaaa574a0aa6c7885f7ff9105"
+  },
+  "aar/CAPTURE.json": {
+    "bytes": 1385,
+    "sha256": "2b281a72538b34549f087b35457e1a512e9dd18c8f0e4af7faeaf4c2643750e1"
+  },
+  "aar/STATIC_READBACK.json": {
+    "bytes": 1729,
+    "sha256": "1dc411a145d979f5d49dd56c6a99da5b78c0ec737160939607c157ccdbd11198"
+  },
+  "aar/q-periapt-continuity-android-0.0.0.aar": {
+    "bytes": 10697112,
+    "sha256": "a21d016d0cbe69dc7bb363c488ce9d984017625ea811c17218dea4e60ab66c7e"
+  },
+  "build-01/APK_BUILD.json": {
+    "bytes": 16469,
+    "sha256": "3e705f5f8fff6d2a8f754d6cd3b94d82c665b87810da45a1b176845ab9dd78ad"
+  },
+  "build-01/DIAGNOSIS.json": {
+    "bytes": 692,
+    "sha256": "1f42d0282de16fa8aed24f4c25f08fd9a96f76e00e28917e30101ffe16f7076f"
+  },
+  "build-01/LOCATION.json": {
+    "bytes": 234,
+    "sha256": "94eed747f41cb5e29510d80ea15251707fa7745b943b19b46c7a1f72be7c458e"
+  },
+  "build-01/PROJECT_INPUTS.json": {
+    "bytes": 8566,
+    "sha256": "e6b85c0aaf05509eacbb61fc386cceaeef281d0748a0714ea3813e1208335a71"
+  },
+  "build-01/SOURCE_FILES.json": {
+    "bytes": 14923,
+    "sha256": "0a7e491de3d9eadbaa6b12377efcc1aa76e95f081e786dd32d92290a76efe1a6"
+  },
+  "build-01/assemble.json": {
+    "bytes": 711,
+    "sha256": "0f5378512c9e327f5a3c033937b8338694bc3ee7b16dd3ad92d2a4da0a377d0b"
+  },
+  "build-01/assemble.stderr": {
+    "bytes": 686,
+    "sha256": "92935a1c6a68732447c63ec03d3c8a240e54b71ad0a5a136ba338370095f4e0e"
+  },
+  "build-01/assemble.stdout": {
+    "bytes": 1560,
+    "sha256": "93fa3bd80013aeec621aa6ee110dc623f80908f8d97e0aab541a792db4011269"
+  },
+  "build-01/project-inputs/app/build.gradle.kts": {
+    "bytes": 2063,
+    "sha256": "31ec1b5c9fb97ae029b473580517dba5804c9daeecf3949b8a75bdacf3d0be68"
+  },
+  "build-01/project-inputs/app/src/main/AndroidManifest.xml": {
+    "bytes": 395,
+    "sha256": "63433ebb928450d35ec9c9feffaed5fbd4f48432132827c16d7a7da3f7515874"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/AccountBridgeProbe.java": {
+    "bytes": 6161,
+    "sha256": "381250d8debef1d525555f0ca5f1cc8e01205b7db7c2fc0c8bc9d3ed01b579c9"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/BridgeProbe.java": {
+    "bytes": 7577,
+    "sha256": "a030e2b8a047a060b30468aca4ae3523ef3d2b638326bab566836be321362c9f"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/CredentialBridgeProbe.java": {
+    "bytes": 7363,
+    "sha256": "742642bfc5137c479eb8447ed35072010aa3b14d14fac6be55193998647a4397"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/JointPolicyBridgeProbe.java": {
+    "bytes": 4217,
+    "sha256": "076ad3c7fdcba27ee860f981f07ebe8c06d7f975357f68a790a122032e65ddc0"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/PendingWriteBridgeProbe.java": {
+    "bytes": 3144,
+    "sha256": "c6992cc92b601dee615d6094940e4b6e3e30bdc85dedccb332654b1577a7437d"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/PolicyBridgeProbe.java": {
+    "bytes": 9068,
+    "sha256": "926386a04131b7009a0edd7ce32a599feae41c815d7fb27b07d58b12ee2219b0"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/RecoveryBridgeProbe.java": {
+    "bytes": 5261,
+    "sha256": "bab27e56aa943747c6ad95db8a3d695198932f92ecb890d31e2ba17cad888a1d"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/RetiredBridgeProbe.java": {
+    "bytes": 5392,
+    "sha256": "a76cab3533fbd00f509f614f8674e3fb7520520628c2919f183e41fa65819ae1"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/RootBridgeProbe.java": {
+    "bytes": 5076,
+    "sha256": "05cf4359c4802a4e8d9b13e08ee0a2799fc314786e8b7a51bec0f21a7034d067"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/RosterBridgeProbe.java": {
+    "bytes": 6802,
+    "sha256": "a3669727d40ff663fd107d266f874b6a692afe7892b3000dc2b30dd542235fe2"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/AccountConcurrentProbe.java": {
+    "bytes": 2979,
+    "sha256": "8ace189bcf9bdaa15cd0b78729e43de5911a0e1eb22fbb35feed8e47bb345a04"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/AccountProbe.java": {
+    "bytes": 6334,
+    "sha256": "95fe345074fbb196f912e7fceb048f3c2da1352db0625fe50a8483cb23ff4d06"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/AuthorityProbe.java": {
+    "bytes": 6401,
+    "sha256": "0f365d0fb3782098be07b69de3d64a8fac2fef7743eb855d9cd4c8fdf626f5b7"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CancellationProbe.java": {
+    "bytes": 5791,
+    "sha256": "a9020d54c7f14a205070e5fc1a19e42d7437710c49954089ea9b2664836913eb"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/ConfigurationInstrumentation.java": {
+    "bytes": 15281,
+    "sha256": "b39b9ae5c0488debf940d6006c8329a80b694f9e4e2bb7cae2e1c55f5b1c8760"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/ConfigurationProbe.java": {
+    "bytes": 7920,
+    "sha256": "a79b9bc2afc3c94091d4043e262a55c3683db301b3564eb906f189caf7d2068a"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CredentialLocalProbe.java": {
+    "bytes": 5753,
+    "sha256": "1aac867548e229dfed2471a05ec850e089454db265797221123f89f75d52e140"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CredentialPolicyExpiryProbe.java": {
+    "bytes": 4883,
+    "sha256": "159212b2bce7883ed7c7505efdd9e298ddfb77a71ef18bfd6a7e9008fbda2cd8"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CredentialProbe.java": {
+    "bytes": 7729,
+    "sha256": "5a6508659ff88d78eeb5e9ba66cd96a6b922f9986aa2f5b6d8bf5bd318a4fe63"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CredentialTerminalProbe.java": {
+    "bytes": 6408,
+    "sha256": "18131f7020db8d13c069b60aa125931084222d3ca3f06474315c6a37c8c27d7d"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/EnrollmentProbe.java": {
+    "bytes": 7645,
+    "sha256": "c68efa8c46bb3b7066fdd09d23ff1110a82e498e928a741a6240eb8797edba68"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/FirstUseRecoveryProbe.java": {
+    "bytes": 5271,
+    "sha256": "04118bfbb2f6ef330daca9fe70395f05fa9223682f7fbf7da24126c160c1eaa6"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/JointPolicyProbe.java": {
+    "bytes": 6297,
+    "sha256": "05a1942b15b6374371b674998577545051b8ff23976e2b4ba1e4eef692b6d303"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/JointWitnessProbe.java": {
+    "bytes": 4192,
+    "sha256": "018a227bd3dad773d3828eff2a15b740cace280e85255f22c76be82c27e229bd"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PeerInputs.java": {
+    "bytes": 4028,
+    "sha256": "d62604b08df455fbb12a720707c28f14208f809ead682b3fdb7efe2ceee838af"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PeerProbe.java": {
+    "bytes": 13019,
+    "sha256": "069f22aa9eef74d97c95732c210cab55504f0f6b3487f104732f40dba8d86e5e"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PeerRenewalProbe.java": {
+    "bytes": 7215,
+    "sha256": "48943a4b800ebd734ae657e566812809786d1450d975eda0b8bbcfb95b26d1bf"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PendingWriteCancellation.java": {
+    "bytes": 5378,
+    "sha256": "7dcb45e9b7f675810a6fc7c2aefc5a7d46ae70dda50ea7489f05a064df9a8eb4"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PendingWriteInputs.java": {
+    "bytes": 2002,
+    "sha256": "849a7bc57c792b19aff6bb842f4d0cd8ae2f97b8cf014956422a1ef94c80d5eb"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PendingWriteProbe.java": {
+    "bytes": 5854,
+    "sha256": "42fd1b56b17a143d37c4a7f801f00c6a399335d193bc3d4c77549a82ea27f165"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PendingWriteProcessCut.java": {
+    "bytes": 2310,
+    "sha256": "df27101647408157a437a6b8239c4a383b3d77dfba86670a6020cf58169c8fbc"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyCredentialProbe.java": {
+    "bytes": 6053,
+    "sha256": "f0e10538f958edf43abe628eea74c6558a01bddd992de6394088f63467ce0ca1"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyGenerationInputs.java": {
+    "bytes": 2498,
+    "sha256": "5ad968af8fa237cd25347686f467b857d0ea8fa6a0e4537c6dc241837ddf0ae9"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyInputs.java": {
+    "bytes": 8192,
+    "sha256": "823f6881cbb2669a4bdcfe64a2bc93e9d32d9794029a13f9c21b6615356619d8"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyProbe.java": {
+    "bytes": 13159,
+    "sha256": "b660c6af1ec43650993c0ecfef6cc5d828a22ed382e1cbf293db7ae12e429541"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyProbeRecords.java": {
+    "bytes": 4800,
+    "sha256": "bd5cd5595df976c8832638590af061ce617ed7903299541374c938c95b6bae66"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RecoveryProbe.java": {
+    "bytes": 11179,
+    "sha256": "93fef5c01a2791f117bbaf7a8c75f3d862b17f95ca92fe961d270cb36615ad33"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RecoveryProbeFiles.java": {
+    "bytes": 3599,
+    "sha256": "de89b45714c76cb103ca9e6f1dfb1d040b686b3fa07832ec6183b3ec6bc3aa9f"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RecoveryProbeFilesChecks.java": {
+    "bytes": 3132,
+    "sha256": "17010b25c86bda5a12e00886c17f2a1a77b6f3b8c9d209d754b867b58c3b8959"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RecoveryProbeReports.java": {
+    "bytes": 7515,
+    "sha256": "2d3fc757c3f74ce024c91e74bbf0f8a8e3a3c5e359433b71902a962cc8312947"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RetiredOwnedProbe.java": {
+    "bytes": 9233,
+    "sha256": "db575ad3ca1761db0466add737f8eb30582bbb27f9f63e27bd839c2f42ae1b7b"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RetirementInputs.java": {
+    "bytes": 1803,
+    "sha256": "c503a8144640d5d61c0f60ae4f69cc2da3609c337e588e296b5fdddc7a552b6f"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RootControls.java": {
+    "bytes": 3222,
+    "sha256": "3d5aa34a8287488b0074b4bb6c1497145106d2a7f19a25b6da2d9202ab27465c"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RootInputs.java": {
+    "bytes": 2568,
+    "sha256": "848d18fb97ce6cf11d4bbc2a9e8bc3a87d5b6a0b4d9e729e93f5ce847930f765"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RootOwnedProbe.java": {
+    "bytes": 15295,
+    "sha256": "05f15ab6ca791127bfa83fe2128a86963762a1fdffd7ac82e5c0847e5a09fc05"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RootRecovery.java": {
+    "bytes": 3200,
+    "sha256": "8eb6b2abff85e527d6ffaa7868ef4a66108f5dd9ac90d17e99425b814cefe7e5"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterInputs.java": {
+    "bytes": 3006,
+    "sha256": "cfedbf6c896a812db30c20b6774b8c4918c3bfc52782b78802ab2d403e1a1b12"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterPeerProbe.java": {
+    "bytes": 4168,
+    "sha256": "761be20e82bf6e943450b035305689aeb59b4dfaad4497cd26ae4b9574b7e55b"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterProbe.java": {
+    "bytes": 6164,
+    "sha256": "0f74ea68363e5aca0347d5e717f686a8563ca5aec9f445974f53426172130bd9"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterProbeRecords.java": {
+    "bytes": 1288,
+    "sha256": "0c712a16d0d905bbbc83a38cf466d45cd81ab2dc5bd4df2cf8eee7d75fb007b1"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterWitnessProbe.java": {
+    "bytes": 7975,
+    "sha256": "0efddf55874e977e3e55af12a4b2b73aea80d54ecf52eb35dfcf3992f9b74b06"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/WitnessInputs.java": {
+    "bytes": 6631,
+    "sha256": "60aebcbce1a2b419685477c011a2eef425fb8905f772af15e60fe4223ea59008"
+  },
+  "build-01/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/WitnessProbe.java": {
+    "bytes": 8911,
+    "sha256": "6f930bb6d5159cc30b247f9da52c56e6c1c272599633ac8a26ecf56ba40e133f"
+  },
+  "build-01/project-inputs/build.gradle.kts": {
+    "bytes": 74,
+    "sha256": "eafc4af9ce6b7190e01563d9243b4bbcead454bc910c33d1e91baeb5284e83dc"
+  },
+  "build-01/project-inputs/gradle.properties": {
+    "bytes": 79,
+    "sha256": "f69ae0b311bc37000451c73a698f1dccd6d5dca410360183c37acee77ff1d4ab"
+  },
+  "build-01/project-inputs/settings.gradle.kts": {
+    "bytes": 615,
+    "sha256": "110dab99b97cab17321dbdf0549362b17d8c4ba7e18a31ab517a959a26d51494"
+  },
+  "build-01/version.json": {
+    "bytes": 700,
+    "sha256": "ec2cfb2b00ef61ba27ce7aaa2e755ed1f209182fa40bdff376f629cefae4d446"
+  },
+  "build-01/version.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "build-01/version.stdout": {
+    "bytes": 914,
+    "sha256": "b48c8065ce67732304fd221a00a53b48885228946cde3ad2c8a9742da8c9fc84"
+  },
+  "build-02/APK_BUILD.json": {
+    "bytes": 16469,
+    "sha256": "2668dab2b2ae2a092fbc26423dda0c3ce0f41e58f18ff01adc4ab65ca6ab3918"
+  },
+  "build-02/DIAGNOSIS.json": {
+    "bytes": 848,
+    "sha256": "55c745a69132f3f13cabd499a4071d684ec93368b4874711ae3cf60bf03860f0"
+  },
+  "build-02/LOCATION.json": {
+    "bytes": 234,
+    "sha256": "8a0ab9772695c37a108f8f9966b2f000b9f11a8dda80f6200dd6c45fe1e5d29c"
+  },
+  "build-02/PROJECT_INPUTS.json": {
+    "bytes": 8566,
+    "sha256": "7d1950be815890deab803a7cef5b5febc28e53516449cf246fd2dd3aded87ac9"
+  },
+  "build-02/SOURCE_FILES.json": {
+    "bytes": 14923,
+    "sha256": "0a7e491de3d9eadbaa6b12377efcc1aa76e95f081e786dd32d92290a76efe1a6"
+  },
+  "build-02/assemble.json": {
+    "bytes": 711,
+    "sha256": "dbf9c033ebed07f1276dce8c2c4620334f2e580e7432652736acfc83d7001968"
+  },
+  "build-02/assemble.stderr": {
+    "bytes": 1303,
+    "sha256": "82a4312b92414c5c92d727314a84c8c28ffc3b1f443944d11d3f4a9ca9853ca8"
+  },
+  "build-02/assemble.stdout": {
+    "bytes": 1179,
+    "sha256": "076db1094bd0a85cccfc89e46b561583a34ade94a1f570e0f86454ee77223eec"
+  },
+  "build-02/problems-report.html": {
+    "bytes": 150366,
+    "sha256": "f461aa990f7cc616959b0bf6671ae97b7cda3185f52019090c8df75e41463c10"
+  },
+  "build-02/project-inputs/app/build.gradle.kts": {
+    "bytes": 2979,
+    "sha256": "72bbd85ed38301079f2e7572bb46265067cf017af626671ae4c6dc4d3724d658"
+  },
+  "build-02/project-inputs/app/src/main/AndroidManifest.xml": {
+    "bytes": 395,
+    "sha256": "63433ebb928450d35ec9c9feffaed5fbd4f48432132827c16d7a7da3f7515874"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/AccountBridgeProbe.java": {
+    "bytes": 6161,
+    "sha256": "381250d8debef1d525555f0ca5f1cc8e01205b7db7c2fc0c8bc9d3ed01b579c9"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/BridgeProbe.java": {
+    "bytes": 7577,
+    "sha256": "a030e2b8a047a060b30468aca4ae3523ef3d2b638326bab566836be321362c9f"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/CredentialBridgeProbe.java": {
+    "bytes": 7363,
+    "sha256": "742642bfc5137c479eb8447ed35072010aa3b14d14fac6be55193998647a4397"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/JointPolicyBridgeProbe.java": {
+    "bytes": 4217,
+    "sha256": "076ad3c7fdcba27ee860f981f07ebe8c06d7f975357f68a790a122032e65ddc0"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/PendingWriteBridgeProbe.java": {
+    "bytes": 3144,
+    "sha256": "c6992cc92b601dee615d6094940e4b6e3e30bdc85dedccb332654b1577a7437d"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/PolicyBridgeProbe.java": {
+    "bytes": 9068,
+    "sha256": "926386a04131b7009a0edd7ce32a599feae41c815d7fb27b07d58b12ee2219b0"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/RecoveryBridgeProbe.java": {
+    "bytes": 5261,
+    "sha256": "bab27e56aa943747c6ad95db8a3d695198932f92ecb890d31e2ba17cad888a1d"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/RetiredBridgeProbe.java": {
+    "bytes": 5392,
+    "sha256": "a76cab3533fbd00f509f614f8674e3fb7520520628c2919f183e41fa65819ae1"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/RootBridgeProbe.java": {
+    "bytes": 5076,
+    "sha256": "05cf4359c4802a4e8d9b13e08ee0a2799fc314786e8b7a51bec0f21a7034d067"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/RosterBridgeProbe.java": {
+    "bytes": 6802,
+    "sha256": "a3669727d40ff663fd107d266f874b6a692afe7892b3000dc2b30dd542235fe2"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/AccountConcurrentProbe.java": {
+    "bytes": 2979,
+    "sha256": "8ace189bcf9bdaa15cd0b78729e43de5911a0e1eb22fbb35feed8e47bb345a04"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/AccountProbe.java": {
+    "bytes": 6334,
+    "sha256": "95fe345074fbb196f912e7fceb048f3c2da1352db0625fe50a8483cb23ff4d06"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/AuthorityProbe.java": {
+    "bytes": 6401,
+    "sha256": "0f365d0fb3782098be07b69de3d64a8fac2fef7743eb855d9cd4c8fdf626f5b7"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CancellationProbe.java": {
+    "bytes": 5791,
+    "sha256": "a9020d54c7f14a205070e5fc1a19e42d7437710c49954089ea9b2664836913eb"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/ConfigurationInstrumentation.java": {
+    "bytes": 15281,
+    "sha256": "b39b9ae5c0488debf940d6006c8329a80b694f9e4e2bb7cae2e1c55f5b1c8760"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/ConfigurationProbe.java": {
+    "bytes": 7920,
+    "sha256": "a79b9bc2afc3c94091d4043e262a55c3683db301b3564eb906f189caf7d2068a"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CredentialLocalProbe.java": {
+    "bytes": 5753,
+    "sha256": "1aac867548e229dfed2471a05ec850e089454db265797221123f89f75d52e140"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CredentialPolicyExpiryProbe.java": {
+    "bytes": 4883,
+    "sha256": "159212b2bce7883ed7c7505efdd9e298ddfb77a71ef18bfd6a7e9008fbda2cd8"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CredentialProbe.java": {
+    "bytes": 7729,
+    "sha256": "5a6508659ff88d78eeb5e9ba66cd96a6b922f9986aa2f5b6d8bf5bd318a4fe63"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CredentialTerminalProbe.java": {
+    "bytes": 6408,
+    "sha256": "18131f7020db8d13c069b60aa125931084222d3ca3f06474315c6a37c8c27d7d"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/EnrollmentProbe.java": {
+    "bytes": 7645,
+    "sha256": "c68efa8c46bb3b7066fdd09d23ff1110a82e498e928a741a6240eb8797edba68"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/FirstUseRecoveryProbe.java": {
+    "bytes": 5271,
+    "sha256": "04118bfbb2f6ef330daca9fe70395f05fa9223682f7fbf7da24126c160c1eaa6"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/JointPolicyProbe.java": {
+    "bytes": 6297,
+    "sha256": "05a1942b15b6374371b674998577545051b8ff23976e2b4ba1e4eef692b6d303"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/JointWitnessProbe.java": {
+    "bytes": 4192,
+    "sha256": "018a227bd3dad773d3828eff2a15b740cace280e85255f22c76be82c27e229bd"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PeerInputs.java": {
+    "bytes": 4028,
+    "sha256": "d62604b08df455fbb12a720707c28f14208f809ead682b3fdb7efe2ceee838af"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PeerProbe.java": {
+    "bytes": 13019,
+    "sha256": "069f22aa9eef74d97c95732c210cab55504f0f6b3487f104732f40dba8d86e5e"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PeerRenewalProbe.java": {
+    "bytes": 7215,
+    "sha256": "48943a4b800ebd734ae657e566812809786d1450d975eda0b8bbcfb95b26d1bf"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PendingWriteCancellation.java": {
+    "bytes": 5378,
+    "sha256": "7dcb45e9b7f675810a6fc7c2aefc5a7d46ae70dda50ea7489f05a064df9a8eb4"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PendingWriteInputs.java": {
+    "bytes": 2002,
+    "sha256": "849a7bc57c792b19aff6bb842f4d0cd8ae2f97b8cf014956422a1ef94c80d5eb"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PendingWriteProbe.java": {
+    "bytes": 5854,
+    "sha256": "42fd1b56b17a143d37c4a7f801f00c6a399335d193bc3d4c77549a82ea27f165"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PendingWriteProcessCut.java": {
+    "bytes": 2310,
+    "sha256": "df27101647408157a437a6b8239c4a383b3d77dfba86670a6020cf58169c8fbc"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyCredentialProbe.java": {
+    "bytes": 6053,
+    "sha256": "f0e10538f958edf43abe628eea74c6558a01bddd992de6394088f63467ce0ca1"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyGenerationInputs.java": {
+    "bytes": 2498,
+    "sha256": "5ad968af8fa237cd25347686f467b857d0ea8fa6a0e4537c6dc241837ddf0ae9"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyInputs.java": {
+    "bytes": 8192,
+    "sha256": "823f6881cbb2669a4bdcfe64a2bc93e9d32d9794029a13f9c21b6615356619d8"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyProbe.java": {
+    "bytes": 13159,
+    "sha256": "b660c6af1ec43650993c0ecfef6cc5d828a22ed382e1cbf293db7ae12e429541"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyProbeRecords.java": {
+    "bytes": 4800,
+    "sha256": "bd5cd5595df976c8832638590af061ce617ed7903299541374c938c95b6bae66"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RecoveryProbe.java": {
+    "bytes": 11179,
+    "sha256": "93fef5c01a2791f117bbaf7a8c75f3d862b17f95ca92fe961d270cb36615ad33"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RecoveryProbeFiles.java": {
+    "bytes": 3599,
+    "sha256": "de89b45714c76cb103ca9e6f1dfb1d040b686b3fa07832ec6183b3ec6bc3aa9f"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RecoveryProbeFilesChecks.java": {
+    "bytes": 3132,
+    "sha256": "17010b25c86bda5a12e00886c17f2a1a77b6f3b8c9d209d754b867b58c3b8959"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RecoveryProbeReports.java": {
+    "bytes": 7515,
+    "sha256": "2d3fc757c3f74ce024c91e74bbf0f8a8e3a3c5e359433b71902a962cc8312947"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RetiredOwnedProbe.java": {
+    "bytes": 9233,
+    "sha256": "db575ad3ca1761db0466add737f8eb30582bbb27f9f63e27bd839c2f42ae1b7b"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RetirementInputs.java": {
+    "bytes": 1803,
+    "sha256": "c503a8144640d5d61c0f60ae4f69cc2da3609c337e588e296b5fdddc7a552b6f"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RootControls.java": {
+    "bytes": 3222,
+    "sha256": "3d5aa34a8287488b0074b4bb6c1497145106d2a7f19a25b6da2d9202ab27465c"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RootInputs.java": {
+    "bytes": 2568,
+    "sha256": "848d18fb97ce6cf11d4bbc2a9e8bc3a87d5b6a0b4d9e729e93f5ce847930f765"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RootOwnedProbe.java": {
+    "bytes": 15295,
+    "sha256": "05f15ab6ca791127bfa83fe2128a86963762a1fdffd7ac82e5c0847e5a09fc05"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RootRecovery.java": {
+    "bytes": 3200,
+    "sha256": "8eb6b2abff85e527d6ffaa7868ef4a66108f5dd9ac90d17e99425b814cefe7e5"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterInputs.java": {
+    "bytes": 3006,
+    "sha256": "cfedbf6c896a812db30c20b6774b8c4918c3bfc52782b78802ab2d403e1a1b12"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterPeerProbe.java": {
+    "bytes": 4168,
+    "sha256": "761be20e82bf6e943450b035305689aeb59b4dfaad4497cd26ae4b9574b7e55b"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterProbe.java": {
+    "bytes": 6164,
+    "sha256": "0f74ea68363e5aca0347d5e717f686a8563ca5aec9f445974f53426172130bd9"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterProbeRecords.java": {
+    "bytes": 1288,
+    "sha256": "0c712a16d0d905bbbc83a38cf466d45cd81ab2dc5bd4df2cf8eee7d75fb007b1"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterWitnessProbe.java": {
+    "bytes": 7975,
+    "sha256": "0efddf55874e977e3e55af12a4b2b73aea80d54ecf52eb35dfcf3992f9b74b06"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/WitnessInputs.java": {
+    "bytes": 6631,
+    "sha256": "60aebcbce1a2b419685477c011a2eef425fb8905f772af15e60fe4223ea59008"
+  },
+  "build-02/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/WitnessProbe.java": {
+    "bytes": 8911,
+    "sha256": "6f930bb6d5159cc30b247f9da52c56e6c1c272599633ac8a26ecf56ba40e133f"
+  },
+  "build-02/project-inputs/build.gradle.kts": {
+    "bytes": 74,
+    "sha256": "eafc4af9ce6b7190e01563d9243b4bbcead454bc910c33d1e91baeb5284e83dc"
+  },
+  "build-02/project-inputs/gradle.properties": {
+    "bytes": 79,
+    "sha256": "f69ae0b311bc37000451c73a698f1dccd6d5dca410360183c37acee77ff1d4ab"
+  },
+  "build-02/project-inputs/settings.gradle.kts": {
+    "bytes": 615,
+    "sha256": "110dab99b97cab17321dbdf0549362b17d8c4ba7e18a31ab517a959a26d51494"
+  },
+  "build-02/version.json": {
+    "bytes": 700,
+    "sha256": "2990682ba5b8dc560098216cd113cd21217c05fe0153b4fba1c83dd2cb15e79e"
+  },
+  "build-02/version.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "build-02/version.stdout": {
+    "bytes": 594,
+    "sha256": "b5b21211e71d67454582cad26f52b6065e647ab83f25d51164c115b158b51df3"
+  },
+  "build-03/APK_BUILD.json": {
+    "bytes": 13834,
+    "sha256": "4bae9cfe1c1f63cdd99262df6420a12eaa68296d6b885a4689333170b5f279b6"
+  },
+  "build-03/GRADLE_MODULES.json": {
+    "bytes": 82067,
+    "sha256": "af3324f1233bf80ab3c39802685b44465b91a5c7fcfda5a02a3217b45627d0b1"
+  },
+  "build-03/HOST_BOUNDARY_SOURCES.json": {
+    "bytes": 2392,
+    "sha256": "cb72746316158c07a61c3e196394d1fa4b59ab2aeecefeb925a6876cb1f89aec"
+  },
+  "build-03/LOCATION.json": {
+    "bytes": 234,
+    "sha256": "736de6c228e3b3e035b8cd9c5827a5637404458080d30e86ce9ee8971eb4cc3f"
+  },
+  "build-03/PROJECT_INPUTS.json": {
+    "bytes": 7095,
+    "sha256": "ebfdb87d886691f5ac1921185f78143c71b7ce93303033008f626260e8d43f3f"
+  },
+  "build-03/SOURCE_FILES.json": {
+    "bytes": 12211,
+    "sha256": "7804921b53f3a200b2aee513d7f36b13b33f86c18985f7d6ef2c62b11daee614"
+  },
+  "build-03/assemble.json": {
+    "bytes": 711,
+    "sha256": "6aa7eb93ba1bc3c5ed0b827a28dc56c94b912670ebba8012024af3bd34fb725a"
+  },
+  "build-03/assemble.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "build-03/assemble.stdout": {
+    "bytes": 2268,
+    "sha256": "4f0ff40acd333b08d7b79ab125225eb0eb723f44f06d352d42df096172e53807"
+  },
+  "build-03/compile-classpath.json": {
+    "bytes": 1981,
+    "sha256": "498724f6b87e0fe1ed0903d7c2dbc2918cfa4797ff4be0b76052753af684d77c"
+  },
+  "build-03/compile-inputs.json": {
+    "bytes": 11214,
+    "sha256": "c7029712a39e96343a409a1c00325ebab0684e3fca792c112d540d9238a329a4"
+  },
+  "build-03/compiler-identity.json": {
+    "bytes": 291,
+    "sha256": "8c75c3f231300c3104671c3eb152d3210a0797f367eada324d46b2fa1b76bdc2"
+  },
+  "build-03/configanalyzer.html": {
+    "bytes": 220159,
+    "sha256": "bd009228c6b98385797af5e059080ff859475c226df2ac41afa5899456bac84d"
+  },
+  "build-03/configanalyzer.pb": {
+    "bytes": 9834,
+    "sha256": "c8691fc84caa193582b06e163c6fe77aa8e627944d671c65334bed664ca353dd"
+  },
+  "build-03/configuration.txt": {
+    "bytes": 5101,
+    "sha256": "360bc3881c26af83e2c3062f00200f1372a3563729642fac01d8ebc1c47df593"
+  },
+  "build-03/consumer-unsigned.apk": {
+    "bytes": 7874919,
+    "sha256": "d94654dbd7879ddd321f706e5bbf54bbc789d5ff30a038a41e62f68da7b028f3"
+  },
+  "build-03/mapping.prt": {
+    "bytes": 129727,
+    "sha256": "e5385fc690cb0059ea0d7713d8b94f1b74f22a8077ac5dd7b68084f6651aa4c9"
+  },
+  "build-03/mapping.txt": {
+    "bytes": 1310949,
+    "sha256": "79e1f910797dad558b534095f15ec16ac4511bbd22ce53a023086b4b4d43c915"
+  },
+  "build-03/project-inputs/app/build.gradle.kts": {
+    "bytes": 2979,
+    "sha256": "72bbd85ed38301079f2e7572bb46265067cf017af626671ae4c6dc4d3724d658"
+  },
+  "build-03/project-inputs/app/src/main/AndroidManifest.xml": {
+    "bytes": 395,
+    "sha256": "63433ebb928450d35ec9c9feffaed5fbd4f48432132827c16d7a7da3f7515874"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/AccountConcurrentProbe.java": {
+    "bytes": 2979,
+    "sha256": "8ace189bcf9bdaa15cd0b78729e43de5911a0e1eb22fbb35feed8e47bb345a04"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/AccountProbe.java": {
+    "bytes": 6334,
+    "sha256": "95fe345074fbb196f912e7fceb048f3c2da1352db0625fe50a8483cb23ff4d06"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/AuthorityProbe.java": {
+    "bytes": 6401,
+    "sha256": "0f365d0fb3782098be07b69de3d64a8fac2fef7743eb855d9cd4c8fdf626f5b7"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CancellationProbe.java": {
+    "bytes": 5791,
+    "sha256": "a9020d54c7f14a205070e5fc1a19e42d7437710c49954089ea9b2664836913eb"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/ConfigurationInstrumentation.java": {
+    "bytes": 15281,
+    "sha256": "b39b9ae5c0488debf940d6006c8329a80b694f9e4e2bb7cae2e1c55f5b1c8760"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/ConfigurationProbe.java": {
+    "bytes": 7920,
+    "sha256": "a79b9bc2afc3c94091d4043e262a55c3683db301b3564eb906f189caf7d2068a"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CredentialLocalProbe.java": {
+    "bytes": 5753,
+    "sha256": "1aac867548e229dfed2471a05ec850e089454db265797221123f89f75d52e140"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CredentialPolicyExpiryProbe.java": {
+    "bytes": 4883,
+    "sha256": "159212b2bce7883ed7c7505efdd9e298ddfb77a71ef18bfd6a7e9008fbda2cd8"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CredentialProbe.java": {
+    "bytes": 7729,
+    "sha256": "5a6508659ff88d78eeb5e9ba66cd96a6b922f9986aa2f5b6d8bf5bd318a4fe63"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/CredentialTerminalProbe.java": {
+    "bytes": 6408,
+    "sha256": "18131f7020db8d13c069b60aa125931084222d3ca3f06474315c6a37c8c27d7d"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/EnrollmentProbe.java": {
+    "bytes": 7645,
+    "sha256": "c68efa8c46bb3b7066fdd09d23ff1110a82e498e928a741a6240eb8797edba68"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/FirstUseRecoveryProbe.java": {
+    "bytes": 5271,
+    "sha256": "04118bfbb2f6ef330daca9fe70395f05fa9223682f7fbf7da24126c160c1eaa6"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/JointPolicyProbe.java": {
+    "bytes": 6297,
+    "sha256": "05a1942b15b6374371b674998577545051b8ff23976e2b4ba1e4eef692b6d303"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/JointWitnessProbe.java": {
+    "bytes": 4192,
+    "sha256": "018a227bd3dad773d3828eff2a15b740cace280e85255f22c76be82c27e229bd"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PeerInputs.java": {
+    "bytes": 4028,
+    "sha256": "d62604b08df455fbb12a720707c28f14208f809ead682b3fdb7efe2ceee838af"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PeerProbe.java": {
+    "bytes": 13019,
+    "sha256": "069f22aa9eef74d97c95732c210cab55504f0f6b3487f104732f40dba8d86e5e"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PeerRenewalProbe.java": {
+    "bytes": 7215,
+    "sha256": "48943a4b800ebd734ae657e566812809786d1450d975eda0b8bbcfb95b26d1bf"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PendingWriteCancellation.java": {
+    "bytes": 5378,
+    "sha256": "7dcb45e9b7f675810a6fc7c2aefc5a7d46ae70dda50ea7489f05a064df9a8eb4"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PendingWriteInputs.java": {
+    "bytes": 2002,
+    "sha256": "849a7bc57c792b19aff6bb842f4d0cd8ae2f97b8cf014956422a1ef94c80d5eb"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PendingWriteProbe.java": {
+    "bytes": 5854,
+    "sha256": "42fd1b56b17a143d37c4a7f801f00c6a399335d193bc3d4c77549a82ea27f165"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PendingWriteProcessCut.java": {
+    "bytes": 2310,
+    "sha256": "df27101647408157a437a6b8239c4a383b3d77dfba86670a6020cf58169c8fbc"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyCredentialProbe.java": {
+    "bytes": 6053,
+    "sha256": "f0e10538f958edf43abe628eea74c6558a01bddd992de6394088f63467ce0ca1"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyGenerationInputs.java": {
+    "bytes": 2498,
+    "sha256": "5ad968af8fa237cd25347686f467b857d0ea8fa6a0e4537c6dc241837ddf0ae9"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyInputs.java": {
+    "bytes": 8192,
+    "sha256": "823f6881cbb2669a4bdcfe64a2bc93e9d32d9794029a13f9c21b6615356619d8"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyProbe.java": {
+    "bytes": 13159,
+    "sha256": "b660c6af1ec43650993c0ecfef6cc5d828a22ed382e1cbf293db7ae12e429541"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/PolicyProbeRecords.java": {
+    "bytes": 4800,
+    "sha256": "bd5cd5595df976c8832638590af061ce617ed7903299541374c938c95b6bae66"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RecoveryProbe.java": {
+    "bytes": 11179,
+    "sha256": "93fef5c01a2791f117bbaf7a8c75f3d862b17f95ca92fe961d270cb36615ad33"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RecoveryProbeFiles.java": {
+    "bytes": 3599,
+    "sha256": "de89b45714c76cb103ca9e6f1dfb1d040b686b3fa07832ec6183b3ec6bc3aa9f"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RecoveryProbeFilesChecks.java": {
+    "bytes": 3132,
+    "sha256": "17010b25c86bda5a12e00886c17f2a1a77b6f3b8c9d209d754b867b58c3b8959"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RecoveryProbeReports.java": {
+    "bytes": 7515,
+    "sha256": "2d3fc757c3f74ce024c91e74bbf0f8a8e3a3c5e359433b71902a962cc8312947"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RetiredOwnedProbe.java": {
+    "bytes": 9233,
+    "sha256": "db575ad3ca1761db0466add737f8eb30582bbb27f9f63e27bd839c2f42ae1b7b"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RetirementInputs.java": {
+    "bytes": 1803,
+    "sha256": "c503a8144640d5d61c0f60ae4f69cc2da3609c337e588e296b5fdddc7a552b6f"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RootControls.java": {
+    "bytes": 3222,
+    "sha256": "3d5aa34a8287488b0074b4bb6c1497145106d2a7f19a25b6da2d9202ab27465c"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RootInputs.java": {
+    "bytes": 2568,
+    "sha256": "848d18fb97ce6cf11d4bbc2a9e8bc3a87d5b6a0b4d9e729e93f5ce847930f765"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RootOwnedProbe.java": {
+    "bytes": 15295,
+    "sha256": "05f15ab6ca791127bfa83fe2128a86963762a1fdffd7ac82e5c0847e5a09fc05"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RootRecovery.java": {
+    "bytes": 3200,
+    "sha256": "8eb6b2abff85e527d6ffaa7868ef4a66108f5dd9ac90d17e99425b814cefe7e5"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterInputs.java": {
+    "bytes": 3006,
+    "sha256": "cfedbf6c896a812db30c20b6774b8c4918c3bfc52782b78802ab2d403e1a1b12"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterPeerProbe.java": {
+    "bytes": 4168,
+    "sha256": "761be20e82bf6e943450b035305689aeb59b4dfaad4497cd26ae4b9574b7e55b"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterProbe.java": {
+    "bytes": 6164,
+    "sha256": "0f74ea68363e5aca0347d5e717f686a8563ca5aec9f445974f53426172130bd9"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterProbeRecords.java": {
+    "bytes": 1288,
+    "sha256": "0c712a16d0d905bbbc83a38cf466d45cd81ab2dc5bd4df2cf8eee7d75fb007b1"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/RosterWitnessProbe.java": {
+    "bytes": 7975,
+    "sha256": "0efddf55874e977e3e55af12a4b2b73aea80d54ecf52eb35dfcf3992f9b74b06"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/WitnessInputs.java": {
+    "bytes": 6631,
+    "sha256": "60aebcbce1a2b419685477c011a2eef425fb8905f772af15e60fe4223ea59008"
+  },
+  "build-03/project-inputs/app/src/main/java/dev/qperiapt/continuity/android/tests/WitnessProbe.java": {
+    "bytes": 8911,
+    "sha256": "6f930bb6d5159cc30b247f9da52c56e6c1c272599633ac8a26ecf56ba40e133f"
+  },
+  "build-03/project-inputs/build.gradle.kts": {
+    "bytes": 74,
+    "sha256": "eafc4af9ce6b7190e01563d9243b4bbcead454bc910c33d1e91baeb5284e83dc"
+  },
+  "build-03/project-inputs/gradle.properties": {
+    "bytes": 79,
+    "sha256": "f69ae0b311bc37000451c73a698f1dccd6d5dca410360183c37acee77ff1d4ab"
+  },
+  "build-03/project-inputs/settings.gradle.kts": {
+    "bytes": 615,
+    "sha256": "110dab99b97cab17321dbdf0549362b17d8c4ba7e18a31ab517a959a26d51494"
+  },
+  "build-03/seeds.txt": {
+    "bytes": 10684,
+    "sha256": "47b2e1bcb8ff53bed0fd83ea7614511785f2b4123285b7dace7f95360c5bd7bc"
+  },
+  "build-03/usage.txt": {
+    "bytes": 69159,
+    "sha256": "2858dd2790625f4a354a182ca009ea932313ae82c24be87bdc7bba8ed38c9525"
+  },
+  "build-03/version.json": {
+    "bytes": 700,
+    "sha256": "826a9bb186b15150a3b47e4c8694cf9fc98675c480d81a08aa8052238e5ca0c9"
+  },
+  "build-03/version.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "build-03/version.stdout": {
+    "bytes": 594,
+    "sha256": "b5b21211e71d67454582cad26f52b6065e647ab83f25d51164c115b158b51df3"
+  },
+  "classpath/0-core-lambda-stubs.jar": {
+    "bytes": 17103,
+    "sha256": "2feb8df434cae3218ed9ffe9bae01ddec101d1dc5e12824c4209f61e283e0d3d"
+  },
+  "classpath/1-android.jar": {
+    "bytes": 27768026,
+    "sha256": "d9eb9da824d9e247a352f570f01e1169e725b2954bca9e283a71786c59b59f9a"
+  },
+  "classpath/2-continuity-api.jar": {
+    "bytes": 310802,
+    "sha256": "3fba69670d4e2dc0d5a1f0dab9e4d450b74b680ce27d441a022f45404d0287b9"
+  },
+  "classpath/3-kotlin-stdlib-2.2.10.jar": {
+    "bytes": 1750374,
+    "sha256": "9c67cc79efd6b9215b49d2a4308f5f3433537376c7c88e89bdd6729bd096e61a"
+  },
+  "classpath/4-annotations-13.0.jar": {
+    "bytes": 17536,
+    "sha256": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478"
+  },
+  "classpath/6-R.jar": {
+    "bytes": 342,
+    "sha256": "0c588f363d5129b7db0c409064dbb52d1457a409af438035d9f093799385ee1a"
+  },
+  "controller/android-apk-build.stderr": {
+    "bytes": 991,
+    "sha256": "86068e30b0551c068e740b4d8fa060c34b98ae6e8a527eed5cc9a93005e16c5f"
+  },
+  "controller/android-apk-build.stdout": {
+    "bytes": 17,
+    "sha256": "ecff2f25fbe236df49483ebbc1fc71c88707e2bb133cd2c7a1a7ae9c19470c10"
+  },
+  "controller/android-apk-build02.stderr": {
+    "bytes": 993,
+    "sha256": "9a2503d355410ac1d1e207b87e83b0096599c80dc6a8730851bbf66654fd27e7"
+  },
+  "controller/android-apk-build02.stdout": {
+    "bytes": 17,
+    "sha256": "ecff2f25fbe236df49483ebbc1fc71c88707e2bb133cd2c7a1a7ae9c19470c10"
+  },
+  "controller/android-apk-build03.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "controller/android-apk-build03.stdout": {
+    "bytes": 208,
+    "sha256": "b566983a748b5348b5383c8d8cc4c56b97438fd0f1b86fa8dd19109e5450c653"
+  },
+  "controller/android-apk-inspect.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "controller/android-apk-inspect.stdout": {
+    "bytes": 82,
+    "sha256": "aca6b8d71f462b41d759b8216c3ec962c0687e25e79a29732540f230312defe7"
+  },
+  "controller/android-apk-readback.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "controller/android-apk-readback.stdout": {
+    "bytes": 1679,
+    "sha256": "7bca0d59d53145354de81a98020529f0bea79885e92bac1c18525493e9ded034"
+  },
+  "controller/build-android-apk.py": {
+    "bytes": 10111,
+    "sha256": "f5b3175b257c76fcd56ffb35fec501830300e26e7dc1c5fec5fbd219434c438c"
+  },
+  "controller/build-android-apk02.py": {
+    "bytes": 11379,
+    "sha256": "36dd5570300ac2b3669e536f02eff8428eb9ccf366b2226b9c0c3625f798feaf"
+  },
+  "controller/build-android-apk03.py": {
+    "bytes": 12616,
+    "sha256": "5f04a485cc4837b170e28adcdae2848d0777e8a969b12b78617f5f4c4d5354cb"
+  },
+  "controller/capture.py": {
+    "bytes": 7049,
+    "sha256": "b6ce2c7b4bf722430c56b464611d95a403563b55da2caf8a1fd43c789e7c26eb"
+  },
+  "controller/inspect-android-apk.py": {
+    "bytes": 2660,
+    "sha256": "12e5ebf1b025695c0456758fe55f1b9d043ea338cecc4972ee5a8eb6291b111e"
+  },
+  "controller/readback-android-apk.py": {
+    "bytes": 9073,
+    "sha256": "bc29cf1a787168eae0478252442b5715746f1569610800b6e735ac238b3cdcb8"
+  },
+  "inspection-01/READBACK.json": {
+    "bytes": 1835,
+    "sha256": "97a6bf01cadbdcf3967dcca48f98223a676e6df79a2d75e26f86f06c0f1380cf"
+  },
+  "inspection-01/TOOLS.json": {
+    "bytes": 371,
+    "sha256": "b4bfe864dce4b32ff4871c320378316569907bbea5bd35ee19fd9f3cbd8c4adc"
+  },
+  "inspection-01/classes.dex": {
+    "bytes": 172656,
+    "sha256": "40af615f6e67797b77240799206eeff6a8d80565220f322c11743fe7b2d0e367"
+  },
+  "inspection-01/dexdump.json": {
+    "bytes": 392,
+    "sha256": "b0e15b3c2888c125270f853fd24154160c6642a990a7f330dcd917ca8b6f1bde"
+  },
+  "inspection-01/dexdump.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inspection-01/dexdump.stdout": {
+    "bytes": 1214451,
+    "sha256": "7b68cb894ae83ea2fbfabc8f8c022316ab9c35cc56a617cabde84555518ab35f"
+  },
+  "inspection-01/manifest.json": {
+    "bytes": 463,
+    "sha256": "b9bb3b3d58541f7b778c59a032e54d54cb5352ae89cb303cce93d9585221ea2f"
+  },
+  "inspection-01/manifest.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inspection-01/manifest.stdout": {
+    "bytes": 1792,
+    "sha256": "eb448551777c0828295f934d5408dfcad1ef93a537637e30bf46f697e31c7430"
+  },
+  "inspection-01/tool-architecture.json": {
+    "bytes": 559,
+    "sha256": "fda2f6ca75ded520b7fe97df218bf5c8975e81d049ae142527b1fad77d1f1d14"
+  },
+  "inspection-01/tool-architecture.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inspection-01/tool-architecture.stdout": {
+    "bytes": 1811,
+    "sha256": "7e49d0276fedec1627117dec739fc63602d9da1c6ef93115252a3922de15f09c"
+  },
+  "inspection-01/zipalign.json": {
+    "bytes": 447,
+    "sha256": "b11810dda457f6a7a379c4ff10a61c4a7cfa0c5b9732b851ba852602e807630e"
+  },
+  "inspection-01/zipalign.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "inspection-01/zipalign.stdout": {
+    "bytes": 1034,
+    "sha256": "d1b072b2b15c9212a3ee143cb7ba03a300e7ec3393086eba2b99825e4d11e508"
+  },
+  "shrink-inputs/aapt_rules.txt": {
+    "bytes": 93,
+    "sha256": "7cbe2a67232467108f70a407457143dce70cace511d6a1930cc66978281caa31"
+  },
+  "shrink-inputs/proguard-android-optimize.txt-9.4.1": {
+    "bytes": 3201,
+    "sha256": "0c2037f6eca949ee82dad4ade741ad1e3fcb7a5d98e4b31d08be89b26cf0d7d0"
+  },
+  "source/artifact/android_agp_consumer.py": {
+    "bytes": 56942,
+    "sha256": "0c68ca38ffc02b41cc995cadb51238c42178ddca29e5cc2f8793c66c44413a1c"
+  },
+  "source/artifact/android_agp_consumer_contract.py": {
+    "bytes": 10898,
+    "sha256": "42f9fd582ad8e233f8d82d006c8ec35cd9df35a93e99b28dff3d64ee269e44cf"
+  },
+  "source/artifact/android_device_proof.py": {
+    "bytes": 160771,
+    "sha256": "a5d794c038351a67a99680c620ffe12ee8d2ed4d4ef8aaa4e07d2871ca9f54ff"
+  },
+  "source/artifact/android_elf.py": {
+    "bytes": 72921,
+    "sha256": "8f97f498cefe1b6fc9ec6ca67604f80f7fea643664b8b28ce17570809ed0196e"
+  },
+  "source/artifact/android_emulator_control.py": {
+    "bytes": 32151,
+    "sha256": "a769a1672732ffc9ed76241137d535a60e79d29f74cc1bb666ee064479e11107"
+  },
+  "source/artifact/android_runtime_profile.py": {
+    "bytes": 3255,
+    "sha256": "26d3ccbb4cc8d62ac1f720ecded81771ccb099acbbac2b681291e57b9a37f771"
+  },
+  "source/artifact/android_runtime_state.py": {
+    "bytes": 154622,
+    "sha256": "b7cd2b7ab06a1de719de94a34693454bf91fa0f9430cae8552e128c79c38848d"
+  },
+  "source/artifact/apple_distribution.py": {
+    "bytes": 98857,
+    "sha256": "cc86f0cd5c4fd29828d5ff919becf7b0b18fe9bfe31d69e1e19b194a0162eac5"
+  },
+  "source/artifact/apple_proof_contract.py": {
+    "bytes": 211,
+    "sha256": "b6d3f08ce995897d6dcde9eb90ee6aa69789be820ad649208ff4df73f06b4a40"
+  },
+  "source/artifact/apple_publication_contract.py": {
+    "bytes": 39638,
+    "sha256": "19deb08195b0b247d8777693a27399f05cea6cf6b489a51c8a3c399440948a44"
+  },
+  "source/artifact/apple_sdk_profile.py": {
+    "bytes": 27209,
+    "sha256": "f85c2a8f3ae7b530410c2602b906fb508da9855e276b8e131ffaf2852d8170cf"
+  },
+  "source/artifact/bounded_process.py": {
+    "bytes": 51311,
+    "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45"
+  },
+  "source/artifact/c_abi_contract.py": {
+    "bytes": 56926,
+    "sha256": "39f86831d743df8594b03c8505324ebcdb57023166cccc66fb036ad9fb2434bd"
+  },
+  "source/artifact/c_package_manifest.py": {
+    "bytes": 33751,
+    "sha256": "30274edd771c6c3200685f5595ca972478d0c5d099821018cf383fb4e833aa97"
+  },
+  "source/artifact/claim_ledger.py": {
+    "bytes": 8327,
+    "sha256": "4ed8f09c4ac682cecd1b4a1b6f116c23f72c62e891e1c5bddb545582e43c06eb"
+  },
+  "source/artifact/continuity_android_account.py": {
+    "bytes": 5318,
+    "sha256": "ea3b8d8c7438d1bd2f67b5dcd1cc8bb7eb1d2edcfcea21f375478ced2090577f"
+  },
+  "source/artifact/continuity_android_continuation.py": {
+    "bytes": 6517,
+    "sha256": "fb7352e6e09023443cac72aeb335bc558f67d34bb88799db3760d58280ba2e74"
+  },
+  "source/artifact/continuity_android_contract.py": {
+    "bytes": 5430,
+    "sha256": "88255d82594daa070d9001c406698585d0d4e58c069260d789fe3951eda0aea0"
+  },
+  "source/artifact/continuity_android_credential.py": {
+    "bytes": 8710,
+    "sha256": "ebd7d3f02054ddf88467f3632a5a8334b2e6c8a5c21d57eadac505433fa3ec89"
+  },
+  "source/artifact/continuity_android_credential_terminal.py": {
+    "bytes": 6949,
+    "sha256": "a3144dc46c605df053c56c3b7e960a9806275cb691039e72b139cf7b40324997"
+  },
+  "source/artifact/continuity_android_jni.py": {
+    "bytes": 26315,
+    "sha256": "296c8659d91d5846c9829cc8cd124d9a3733aa6a252cdd7e74e10f713b59a554"
+  },
+  "source/artifact/continuity_android_joint_cycle.py": {
+    "bytes": 14315,
+    "sha256": "ad817bca652d2107c6e1b0df48035f1aa1288e66ea5c435622291629c436cbb4"
+  },
+  "source/artifact/continuity_android_joint_policy.py": {
+    "bytes": 10305,
+    "sha256": "67b3b05ea5215344c3505edb452b5dd5800a7a208b4218c33f1397e7296d84bb"
+  },
+  "source/artifact/continuity_android_local_credential.py": {
+    "bytes": 6196,
+    "sha256": "87aac80a8f0b959fb8cba008a6dcc5bad65953fc73c133ec5ebc599e578cfe6b"
+  },
+  "source/artifact/continuity_android_pending.py": {
+    "bytes": 14396,
+    "sha256": "a5db8c722e3cfdd04db652900ad5236f14e2f171ae220629f5d0d9d6ab17cc0f"
+  },
+  "source/artifact/continuity_android_policy_credential.py": {
+    "bytes": 9062,
+    "sha256": "c81cc2ad713805e4edf1dcdb6023a09d938148fc90f2ff271c0009c6dbe25cd3"
+  },
+  "source/artifact/continuity_android_policy_expiry.py": {
+    "bytes": 6747,
+    "sha256": "659d0dd2728c0b52987d3185b49ae66190e01240e48220eed63d7d67211a110c"
+  },
+  "source/artifact/continuity_android_policy_renewal.py": {
+    "bytes": 12845,
+    "sha256": "60fec857ecbb8f0efcb22540dcbd9ba27c5a273e11802a3f318e8c80432a9d0c"
+  },
+  "source/artifact/continuity_android_policy_roster.py": {
+    "bytes": 4762,
+    "sha256": "ea682947af7584563e472a482a0b3243644b13f54afd91ca0d17a095d9cde04d"
+  },
+  "source/artifact/continuity_android_recovery.py": {
+    "bytes": 8379,
+    "sha256": "43817d553c6df3021d0af9c11b75845b3bf229efe7fba236d9243f37c595f657"
+  },
+  "source/artifact/continuity_android_recovery_records.py": {
+    "bytes": 10018,
+    "sha256": "f43638aabbb949147ec9aa9cb0d0272400b468706753c7f7ae728fed2c4769e0"
+  },
+  "source/artifact/continuity_android_remote_credential.py": {
+    "bytes": 5097,
+    "sha256": "f98543922f4167013c6a0e00ae2b91dceca28a8191c5d43a6bbcee91db7f5526"
+  },
+  "source/artifact/continuity_android_retirement.py": {
+    "bytes": 11123,
+    "sha256": "4ba976cf2f092fefc9f536055b39cb4a5e749c3992424238b61184328c557a5f"
+  },
+  "source/artifact/continuity_android_root.py": {
+    "bytes": 11045,
+    "sha256": "bb06cbe501ff48915940d79a8b4e9780a4494d8686eacf55df29cfa2b04a084f"
+  },
+  "source/artifact/continuity_android_roster.py": {
+    "bytes": 7746,
+    "sha256": "de76d3ba8173cfaeb2293322d4ebd53af463f67b33963827421cae3bfb21ddc7"
+  },
+  "source/artifact/continuity_android_roster_qualification.py": {
+    "bytes": 2810,
+    "sha256": "06480ddf4f5d0501e153cbd9b0e8b01b207b3e1bd0a229d757eb22bcf0a3e9ff"
+  },
+  "source/artifact/continuity_android_roster_witness.py": {
+    "bytes": 7827,
+    "sha256": "8c6a67eddadf57a439df736c96f81e5fe5ae862d0331bc5521ffe3c5b928ccab"
+  },
+  "source/artifact/continuity_android_witness.py": {
+    "bytes": 7088,
+    "sha256": "5b8de7cd2f75af685641e82bbc06ea43fb33f08ab3b4710876a89d433ff77557"
+  },
+  "source/artifact/continuity_android_witness_joint.py": {
+    "bytes": 16464,
+    "sha256": "ca92df29ba20fa682f3e36abd87a3bd9eaace0aab0724e3c6258b360af212272"
+  },
+  "source/artifact/continuity_apple_consumer.py": {
+    "bytes": 6073,
+    "sha256": "463f116a8ab583adbfbbe34f90e7c89c9146c62fab76e80b45f33b2215591d30"
+  },
+  "source/artifact/continuity_apple_package.py": {
+    "bytes": 16799,
+    "sha256": "f78a425b00520e348e96be34299896229c75ad7bc1cd7d08f20765cfc2b57836"
+  },
+  "source/artifact/continuity_c_abi.py": {
+    "bytes": 17406,
+    "sha256": "3146c8ed7bc1619ccad33d9122155e5e52b62bbe0f8afcef12193789bc33c11c"
+  },
+  "source/artifact/continuity_c_account.py": {
+    "bytes": 6839,
+    "sha256": "2aa2536e0ab850d3f032328149a8c062484213e3734c68e8eac32ed09b7442dd"
+  },
+  "source/artifact/continuity_c_account_cleanup.py": {
+    "bytes": 17635,
+    "sha256": "b71c5e6fd324ec41ffff860d89cec8f688b44de9789ad3a8a449830f10de3484"
+  },
+  "source/artifact/continuity_c_account_delivery.py": {
+    "bytes": 10201,
+    "sha256": "4b8edca498f7fbf2ac38b1244073a0b2fc1e64de6ea7e7d0191bd6c39fc1a74b"
+  },
+  "source/artifact/continuity_c_account_tls.py": {
+    "bytes": 8033,
+    "sha256": "4c74eca181ac14b1d81984fdfac2b85e8af0fef2b365f0aa8262c0bcfffcd65e"
+  },
+  "source/artifact/continuity_c_account_tls_loss.py": {
+    "bytes": 9824,
+    "sha256": "99664fda977ceb9e5995a4e1f25c898527962c25a2bec6adc3f5d7f28ff8cdf0"
+  },
+  "source/artifact/continuity_c_account_witness.py": {
+    "bytes": 14886,
+    "sha256": "8a1a7ea8bc176e8a2af086d252233e9610cd58b238854e2326a1894a0cf8ee28"
+  },
+  "source/artifact/continuity_c_authority.py": {
+    "bytes": 3510,
+    "sha256": "12d0096420d556a80db4255b7a5b1339b1a6ed0e9e2a50d408bd0a4bffa19123"
+  },
+  "source/artifact/continuity_c_consumer.py": {
+    "bytes": 71634,
+    "sha256": "c8638ea7cffd34b9aeb38e3c31dd36313ca6868ed26a013d39d6798e73c9ab34"
+  },
+  "source/artifact/continuity_c_device.py": {
+    "bytes": 6775,
+    "sha256": "50ad05e7d499103070e6e3841f243ccaea1049b65207690d3a50e74959a5e480"
+  },
+  "source/artifact/continuity_c_enrollment.py": {
+    "bytes": 51783,
+    "sha256": "3b34e3f65eef6229ba35505f2ec2486762b37eff5537f15f2971c767e3441475"
+  },
+  "source/artifact/continuity_c_faults.py": {
+    "bytes": 30247,
+    "sha256": "e892a369fda9d4d432b5e63ce0566af7a9603050e48fec437e8588600aa680b8"
+  },
+  "source/artifact/continuity_c_independent_policy.py": {
+    "bytes": 7023,
+    "sha256": "6973727f807244329c9a7beea0e309e0dfcb840af890ffda8d18f9962629edbd"
+  },
+  "source/artifact/continuity_c_managed.py": {
+    "bytes": 7495,
+    "sha256": "7b06053ac03e5ebb95c3d3484549ca95983f24fddada46a79b65bf3337ac69d0"
+  },
+  "source/artifact/continuity_c_opening.py": {
+    "bytes": 10543,
+    "sha256": "c036073c0efa539261d2d2994f9ba5145d529a2e08e1d76b4f4fbd76f72b4274"
+  },
+  "source/artifact/continuity_c_recovery.py": {
+    "bytes": 6692,
+    "sha256": "c75043fd71ee3075617aac2ff92bd6460cbe148386a8c1c5464b2b77e7748423"
+  },
+  "source/artifact/continuity_c_root.py": {
+    "bytes": 12468,
+    "sha256": "e765d786d93889f0e6182a9a53dc10d502903b552c13a0124247343e219ebb76"
+  },
+  "source/artifact/continuity_c_root_alternatives.py": {
+    "bytes": 3171,
+    "sha256": "1beb5df732c75a212147962cef09e0ebb8c21e4646e938cab5c72ea7b7814013"
+  },
+  "source/artifact/continuity_c_root_contract.py": {
+    "bytes": 2360,
+    "sha256": "3bcc8bebd3a447e553936cb811e7037cef48df97125a39def2b68465a00cdd2c"
+  },
+  "source/artifact/continuity_c_root_reverse.py": {
+    "bytes": 3539,
+    "sha256": "d6527e0a8dac4c269c4311a6bfb51be2be10def6b2f64288a9a4df2b11c48c1e"
+  },
+  "source/artifact/continuity_c_root_traffic.py": {
+    "bytes": 6470,
+    "sha256": "b695a5fbaecd3e0a582572ce120926be1ab480f976b89813a00d00e1394488e8"
+  },
+  "source/artifact/continuity_c_setup.py": {
+    "bytes": 9896,
+    "sha256": "2fcee1fccab3d499da755f3ffc034bb6ee376e35331d7c26afa566d5b33ab70b"
+  },
+  "source/artifact/continuity_c_witness.py": {
+    "bytes": 17272,
+    "sha256": "230a4ff8dc8f463a9424c506846f358f70ac1abd7e8a933fe59cad3467a8ba02"
+  },
+  "source/artifact/continuity_c_witness_openssl.py": {
+    "bytes": 11120,
+    "sha256": "e0559080bd06535294d0629c7773f87060be3a0f2e587c748cc9855c2181e6ae"
+  },
+  "source/artifact/continuity_c_witness_tls.py": {
+    "bytes": 7029,
+    "sha256": "3e376a97df20a0a37763f1c76b17e93d06424afec2a43435b4aee470c8191f58"
+  },
+  "source/artifact/continuity_configuration_credential.py": {
+    "bytes": 9378,
+    "sha256": "3673843c8bce6496b335babef8672c775aef6dabca11d907110c2989d4d48f3f"
+  },
+  "source/artifact/continuity_configuration_policy.py": {
+    "bytes": 11696,
+    "sha256": "d4053f7d0f3b291f144dc5348e9c468f690903780386649c4c0335a66bdb6d20"
+  },
+  "source/artifact/continuity_configuration_policy_credential.py": {
+    "bytes": 12418,
+    "sha256": "e756c4269d3130b18bacdfc1b074a9d70eb0d54481ec197611439ebc27e4c7e5"
+  },
+  "source/artifact/continuity_device_replacement.py": {
+    "bytes": 7182,
+    "sha256": "0214b6fca3721f72b71609d708394a1c4bd32482c77b5cfe2afa629d1f4f1434"
+  },
+  "source/artifact/continuity_device_retirement.py": {
+    "bytes": 16446,
+    "sha256": "c5f8cf4f85539298b348b25c55ae84f4a63d40d4ad9177eb3f98ffcfb7eb4270"
+  },
+  "source/artifact/continuity_enrollment.py": {
+    "bytes": 13846,
+    "sha256": "989d9e004cb0f4e375fb60b334d7d129fc370f3309f05acd948e6015defdad32"
+  },
+  "source/artifact/continuity_first_account.py": {
+    "bytes": 9059,
+    "sha256": "1267106fb520d6c0cb0f576d8d96b0945c6e2965cd3597b0056dbb913ae35637"
+  },
+  "source/artifact/continuity_first_configuration.py": {
+    "bytes": 17288,
+    "sha256": "e44e53e8086ac34ac025fbacea40d70af304529833d62f85fcd92ae3b7be0524"
+  },
+  "source/artifact/continuity_foreign_account_results.py": {
+    "bytes": 13989,
+    "sha256": "6429dd82ebabae5d35af63a9737e23a8873f4696d15ec9630d9a31211c1b83a1"
+  },
+  "source/artifact/continuity_foreign_policy.py": {
+    "bytes": 7803,
+    "sha256": "471569b3d368720629e862dde0cc00b9dae6a143ab0c240e9337119f1ec702cd"
+  },
+  "source/artifact/continuity_foreign_roster.py": {
+    "bytes": 5485,
+    "sha256": "f195c891579bdc918cb0ac02af8122bef0a21a53ad932d7dfe88181d94878b33"
+  },
+  "source/artifact/continuity_kotlin_consumer.py": {
+    "bytes": 62692,
+    "sha256": "4922d514617e79cad0330854c8ba1b2360a9f323782a87515c431c253eed3b1a"
+  },
+  "source/artifact/continuity_kotlin_root.py": {
+    "bytes": 4636,
+    "sha256": "d5fd40dc520a9f240dc3415dfb3ba9ba6fe522dcf0399b6cea35d812c7af59c0"
+  },
+  "source/artifact/continuity_package.py": {
+    "bytes": 42789,
+    "sha256": "1bc9a45a7c9ce009da2f8361302a2755ba466c667cf41628257808ee391298fc"
+  },
+  "source/artifact/continuity_package_archive.py": {
+    "bytes": 4375,
+    "sha256": "c1060f41594542ad8ea5ce9532542499c718e27c90c6750291addc178cd998ee"
+  },
+  "source/artifact/continuity_peer_configuration.py": {
+    "bytes": 5357,
+    "sha256": "24955f3465a7787e597c444107ad8b7ce744ed9b6af8abd9598029f2365b06be"
+  },
+  "source/artifact/continuity_peer_tls_preprocessing.py": {
+    "bytes": 7897,
+    "sha256": "e5af00513917b448ea46a3a8af239443441d183a7b7709fe7ea0eff08cc3edcf"
+  },
+  "source/artifact/continuity_process_crash.py": {
+    "bytes": 6486,
+    "sha256": "036d299600c6f5c8a89308696a39361f498496a8ca0b26652f7ee90879bd117d"
+  },
+  "source/artifact/continuity_process_failure.py": {
+    "bytes": 8942,
+    "sha256": "6a0e39512702fd2a00d93427d9ab26158a7bd029b0623c4f19b40255915b5be2"
+  },
+  "source/artifact/continuity_profiles.py": {
+    "bytes": 8352,
+    "sha256": "2e3571ff63cbf6c4b69c8c328275448aee54d0132b2c2a0300a2455c6992eccf"
+  },
+  "source/artifact/continuity_roster_renewal.py": {
+    "bytes": 11722,
+    "sha256": "56c4aba84a58fd136a88606482c6c651cfa018a3c671b51d63dcbeb0ef3e2f13"
+  },
+  "source/artifact/continuity_setup_faults.py": {
+    "bytes": 21609,
+    "sha256": "bee75187549ac4c1b064650a1c24c328e0384c2553e126efe65fd131f173c180"
+  },
+  "source/artifact/continuity_setup_io.py": {
+    "bytes": 20740,
+    "sha256": "da690e02cdeac2fc7b4f59c1bd94a0fe34774fd5c0c2cecceadf918903e2d95b"
+  },
+  "source/artifact/continuity_setup_witness_faults.py": {
+    "bytes": 29636,
+    "sha256": "8712d16417e2f5c075710ea55d37d8367cc3c1e291a3e696dac62fedef0a2add"
+  },
+  "source/artifact/continuity_swift_consumer.py": {
+    "bytes": 31845,
+    "sha256": "1da737b486f55612c9220e5786f31fc8411e9dbb0313cecb954a05bd6187b34b"
+  },
+  "source/artifact/continuity_swift_root.py": {
+    "bytes": 4307,
+    "sha256": "29049773bf9253e12594ced5110a77fd870ecd56eabeaeb752b0b7a2797e462f"
+  },
+  "source/artifact/continuity_swift_root_msrv.py": {
+    "bytes": 10401,
+    "sha256": "24332375e0897b982b8da383ef78e4dc56f0fce28f750e1474927f9f8b046cb6"
+  },
+  "source/artifact/continuity_witnessed_cancellation.py": {
+    "bytes": 14501,
+    "sha256": "ba043d906a3842849863c1735865054bf94dc728f75723fe54a9a9128a59bba0"
+  },
+  "source/artifact/continuity_witnessed_commit_error.py": {
+    "bytes": 13172,
+    "sha256": "67848bd5f1b5592705fd0e8c5226567fd523decabad6efe747e778c62b4797d8"
+  },
+  "source/artifact/continuity_witnessed_policy_expiry.py": {
+    "bytes": 18771,
+    "sha256": "8e954e9ff983cee037a3e1eab4503b46309a392e74c1503d12e54b0d43be6f21"
+  },
+  "source/artifact/continuity_witnessed_renewal.py": {
+    "bytes": 26294,
+    "sha256": "3fc169b1961819652dde8abd623d8c1f13b25bc9330ffbd4184a7480a2122238"
+  },
+  "source/artifact/crates_io_publication_contract.py": {
+    "bytes": 30382,
+    "sha256": "24e2be22f81e0cef0783382f40661f0772ce4bb794d93bf37552443d049bebf2"
+  },
+  "source/artifact/crates_io_registry_metadata.py": {
+    "bytes": 11653,
+    "sha256": "f4a16e59e4218c4339a38abcb0542a9616e1735bf8d743b5c24e54c5216aa777"
+  },
+  "source/artifact/deterministic_archive.py": {
+    "bytes": 62237,
+    "sha256": "9a92506818d7fc145cac8d57ab10f48ac24fc75def24a0eebf0341df9fe37844"
+  },
+  "source/artifact/evidence_io.py": {
+    "bytes": 44308,
+    "sha256": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d"
+  },
+  "source/artifact/git_provenance.py": {
+    "bytes": 22349,
+    "sha256": "8bb64d7f43d1ffa00a39b31a174e8667d4d2cfb1f8c42a019a32627f6a065f3f"
+  },
+  "source/artifact/installed_rust_graph.py": {
+    "bytes": 2392,
+    "sha256": "0150573580c4acab5b0e542b28e31278a8eeeeff65594bef322001801ee6b42c"
+  },
+  "source/artifact/jvm_sdk_package.py": {
+    "bytes": 30318,
+    "sha256": "39c666c8a78b2c62d820f5bc526a4200de3f5a8fc28f0d9ee720731b26c4359c"
+  },
+  "source/artifact/package_bom.py": {
+    "bytes": 14571,
+    "sha256": "cec214359e543cdac4156acf46a90e5243359c249ed579f9e45a063a633977c6"
+  },
+  "source/artifact/platform_distribution_contract.py": {
+    "bytes": 32401,
+    "sha256": "eb6f5de34341a8c3574a4cc196961a5641c0126093228302f2ceeeb1c5c74d67"
+  },
+  "source/artifact/platform_maintenance_contract.py": {
+    "bytes": 11175,
+    "sha256": "d71690210d8c254312ad06a4bd146f4e1da9bfeee287290a9f3d2609cec37d2f"
+  },
+  "source/artifact/platform_publication_contract.py": {
+    "bytes": 43042,
+    "sha256": "8c4ba097fca7fd51c97067e29ac6ee0288c70ebabe210da7e645df5eb834e4cd"
+  },
+  "source/artifact/platform_release_contract.py": {
+    "bytes": 18092,
+    "sha256": "e9d279d68d7219551ebb50afd511270526f4eea2d2233851292dce8dd520f662"
+  },
+  "source/artifact/platform_stable_publication_contract.py": {
+    "bytes": 33355,
+    "sha256": "c05752d4ca60cb210be31975021276b3c50b51ccd79466bb996ec2a8f558387c"
+  },
+  "source/artifact/process_identity.py": {
+    "bytes": 18926,
+    "sha256": "798dfea27cd52a74b0330252746f66cb07c1cd6bb6e3d61eeee8d8865684a0de"
+  },
+  "source/artifact/proof_manifest.py": {
+    "bytes": 49195,
+    "sha256": "702d829b75edbd7f58e9140d8a18df08503dfd9c6635f174393fa76f3dcc132e"
+  },
+  "source/artifact/publication_receipt_io.py": {
+    "bytes": 144156,
+    "sha256": "3430d9596e4ce5d9e875e724e0c3366734c1760099c4250e1fbcc23f560922e1"
+  },
+  "source/artifact/python-env.sh": {
+    "bytes": 3181,
+    "sha256": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49"
+  },
+  "source/artifact/python-run.sh": {
+    "bytes": 228,
+    "sha256": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255"
+  },
+  "source/artifact/python_bootstrap.py": {
+    "bytes": 3068,
+    "sha256": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe"
+  },
+  "source/artifact/release_binary_scan.py": {
+    "bytes": 23991,
+    "sha256": "4d14fc9adc6508733a9b9c511935883292f6b2acf87a13ab92aa11bdb3152fd2"
+  },
+  "source/artifact/release_publication_contract.py": {
+    "bytes": 33383,
+    "sha256": "8efdd6eddaacdaa0425740a81c88ae24e770165df6c871d64d28358edd123009"
+  },
+  "source/artifact/rust_package_handoff.py": {
+    "bytes": 15720,
+    "sha256": "a38b74b0a086a03d5086c58d61d4a568228934f42a681fc3863bf18039462e0a"
+  },
+  "source/artifact/rust_publish_contract.py": {
+    "bytes": 139039,
+    "sha256": "674a16c33700794a2434dd22d4e14129ceb7340670a29d0ebf161215b92f5491"
+  },
+  "source/artifact/rust_sdk_msrv.py": {
+    "bytes": 7867,
+    "sha256": "3180cde3c6f5e507859935615c96bcd378d1b98c09d1a38fb50c893e4c2efb62"
+  },
+  "source/artifact/rust_sdk_profile.py": {
+    "bytes": 27975,
+    "sha256": "3aac9df3243c30cece301717164bb2a210b62b61a953f0796b6fce24dc712af5"
+  },
+  "source/artifact/sdk_abi2_spec.py": {
+    "bytes": 12101,
+    "sha256": "16a3828eaefed3892a0b7e03c2009032a3d58c106ac44334476b96a93cb2214e"
+  },
+  "source/artifact/third_party_licenses.py": {
+    "bytes": 26550,
+    "sha256": "5735d298ff1263dfa4c66631534661cb2e08a451fdd234c37e203d9b8bd6d0e5"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/README.md": {
+    "bytes": 31988,
+    "sha256": "a4539e5fee5957f404ab03e9b4548964ca617c7155060e47948327f4f294cd5e"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/consumer-rules.pro": {
+    "bytes": 135,
+    "sha256": "aabc5708b0f53cf9779172200915b66fe54243c9c80a72a2bbe4e6c7f5f33efe"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/account_authority.c": {
+    "bytes": 5795,
+    "sha256": "47b2c122bf73762c21cc43d37776d8aae56fd12d03e4f378eb21ba1debb6fc09"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/account_delivery.c": {
+    "bytes": 3562,
+    "sha256": "dfa1fecda685c6df9cb7f4e3527c30a145f7e0b1bcdcdd28e5fc2c1860057325"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/bridge.h": {
+    "bytes": 2773,
+    "sha256": "eb73a41425252758e04f19e2b37dfab356f6ad2cb55e778675bc64cd0fe1828c"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/continuity_jni.c": {
+    "bytes": 10412,
+    "sha256": "13ae1da7a492b1a2c151e85755ac35d6702ab6c683644abe5524e5d73805b707"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/credential_codec.c": {
+    "bytes": 1457,
+    "sha256": "0b757e5280b8a52a31bfed875318f9f857c61ca3a00e7c66200616ae9e946962"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/credential_codec.h": {
+    "bytes": 697,
+    "sha256": "4b1848ab268e041c52a54e38c7f76f642214e4e2e2e13dfa30ba2857158ab7c1"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/credential_renewal.c": {
+    "bytes": 9274,
+    "sha256": "44e8e8c51388ddaacf4f87374f8f488b66ab57b78f4615fa37ee3a726f4ac984"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/enrollment.c": {
+    "bytes": 7637,
+    "sha256": "f91b09dbe63f63c04c79f138e0a6dc3a08a2b5017a0162e3300e689a0061c26e"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/inputs.c": {
+    "bytes": 2058,
+    "sha256": "cf98f441d737d446f665066973d8a731bf47093b694b70b87e9052be7f5b4ae7"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/peer_configuration.c": {
+    "bytes": 2813,
+    "sha256": "2e8d9c007bb407554973f0d709b031cb651914e5fb8ba602a3618f5f04e95260"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/peer_server.c": {
+    "bytes": 4632,
+    "sha256": "39344d40e31eab4f42f74929949d110e0f32b34e4ccf4c23936116daba257086"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/peer_transport.c": {
+    "bytes": 3138,
+    "sha256": "158559374451057bbc5b14777bf4703fb4f429c3f2f0e191435d02171be7f6a7"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/pending_recovery.c": {
+    "bytes": 3887,
+    "sha256": "4ae046d055dd26091b796e1a8a9cc319ea53ae600988e231aabb1e2974f240ca"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/policy_codec.c": {
+    "bytes": 4690,
+    "sha256": "0c124c9531e633209a66d55bcee5a4a00bc2590128bdab6f09e4060fd7ffccc0"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/policy_codec.h": {
+    "bytes": 866,
+    "sha256": "c858c1e8be1a3ec0bb094365d72384f55dda34f615ec104f7663bc6966d953d7"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/policy_renewal.c": {
+    "bytes": 9904,
+    "sha256": "dba07cab38f05056f3632aad326060d9c80e1b0f5c33be66499963748125993e"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/recovery.c": {
+    "bytes": 3696,
+    "sha256": "d6fb42c498ca2e3513d7d2561ac76fe303cdf4d528ed844693f3c55ddd407a85"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/recovery_account.c": {
+    "bytes": 2980,
+    "sha256": "76795746536790694f9ddf8a369a69fc737052a2522c503a73637704f8bcbba9"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/recovery_session.c": {
+    "bytes": 2523,
+    "sha256": "765c041e796275f7852534e0a95e31080813dbd3811fe7923d070c7431d1a5ab"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/recovery_wire.h": {
+    "bytes": 1708,
+    "sha256": "6fea2bcedfa8ad0e145605e0acf3b1500bd30ed18ae667859e04725f77a2481f"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/retired_enrollment.c": {
+    "bytes": 9124,
+    "sha256": "31b17f59b30b27d465f25ca6126eb768a52036bb50be8acc65f455ebb0c8b1fa"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/root_replacement.c": {
+    "bytes": 8381,
+    "sha256": "63600bf7c3dfd2c7e71833fa3768e573b4ec3d2a912cb0c344289798a9577f5d"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/jni/roster_refresh.c": {
+    "bytes": 9614,
+    "sha256": "07c2e1de824e898f3269ef159c5d14bc41774ad7b26b72f0d581353bc89e2140"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/androidTest/java/dev/qperiapt/continuity/android/tests/ConfigurationInstrumentation.java": {
+    "bytes": 15281,
+    "sha256": "b39b9ae5c0488debf940d6006c8329a80b694f9e4e2bb7cae2e1c55f5b1c8760"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/androidTest/java/dev/qperiapt/continuity/android/tests/PeerInputs.java": {
+    "bytes": 4028,
+    "sha256": "d62604b08df455fbb12a720707c28f14208f809ead682b3fdb7efe2ceee838af"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/androidTest/java/dev/qperiapt/continuity/android/tests/PendingWriteInputs.java": {
+    "bytes": 2002,
+    "sha256": "849a7bc57c792b19aff6bb842f4d0cd8ae2f97b8cf014956422a1ef94c80d5eb"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/androidTest/java/dev/qperiapt/continuity/android/tests/PolicyGenerationInputs.java": {
+    "bytes": 2498,
+    "sha256": "5ad968af8fa237cd25347686f467b857d0ea8fa6a0e4537c6dc241837ddf0ae9"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/androidTest/java/dev/qperiapt/continuity/android/tests/PolicyInputs.java": {
+    "bytes": 8192,
+    "sha256": "823f6881cbb2669a4bdcfe64a2bc93e9d32d9794029a13f9c21b6615356619d8"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/androidTest/java/dev/qperiapt/continuity/android/tests/RetirementInputs.java": {
+    "bytes": 1803,
+    "sha256": "c503a8144640d5d61c0f60ae4f69cc2da3609c337e588e296b5fdddc7a552b6f"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/androidTest/java/dev/qperiapt/continuity/android/tests/RootInputs.java": {
+    "bytes": 2568,
+    "sha256": "848d18fb97ce6cf11d4bbc2a9e8bc3a87d5b6a0b4d9e729e93f5ce847930f765"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/androidTest/java/dev/qperiapt/continuity/android/tests/RosterInputs.java": {
+    "bytes": 3006,
+    "sha256": "cfedbf6c896a812db30c20b6774b8c4918c3bfc52782b78802ab2d403e1a1b12"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/androidTest/java/dev/qperiapt/continuity/android/tests/WitnessInputs.java": {
+    "bytes": 6631,
+    "sha256": "60aebcbce1a2b419685477c011a2eef425fb8905f772af15e60fe4223ea59008"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/AccountAuthorityCheckpoint.java": {
+    "bytes": 2356,
+    "sha256": "dc3fd815695c887cb04f65df53f6e5e6184b7d1b1e246073e263faecc8f2855f"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/AccountAuthorityTrust.java": {
+    "bytes": 1099,
+    "sha256": "115c9c6febe4d98dcbee1e14a76be3c6a98fea2916b5d8b6d7403ea62bf83e06"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/AccountDelivery.java": {
+    "bytes": 1957,
+    "sha256": "8d1efff415903b23126abf41fc938ad5449ce3682de36d1f3daf47a7e7a5e639"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/AccountPin.java": {
+    "bytes": 1214,
+    "sha256": "7cb2b231e5a29f2c9eb4654e9bec85c499757b94e1487a4222c541a15faeffb2"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/AccountRecoveryRecords.java": {
+    "bytes": 4872,
+    "sha256": "a4f598903585ba11313110e7361c59da949804f4310b52e304121bb082ab26d8"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/AccountStatus.java": {
+    "bytes": 1118,
+    "sha256": "ca2ecdde1285a57c7e0029c2f966ba8fa7b1998592e70763aef1f3974d105531"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/AccountTarget.java": {
+    "bytes": 764,
+    "sha256": "4146b6a4ab73781bf5053be9a53486bf1cf70b794f84975e9ba108b8ef901e19"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ApplicationCommit.java": {
+    "bytes": 710,
+    "sha256": "1d8fde4e2da1c0c7c8171e45ec662c93268816b32f9fa980264f8492f0615c40"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/CleanupReports.java": {
+    "bytes": 4293,
+    "sha256": "1d454c30d033e88572fed8282006b602ea8e4da49e1a841fcb366ee3e4260fc3"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ClosureRecords.java": {
+    "bytes": 6024,
+    "sha256": "1ae7235c7bc78dce060d43cc9de9a5c91888b3a260c80850a8b924011c027b90"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ConfigurationInputs.java": {
+    "bytes": 5046,
+    "sha256": "af7b8a889a23b7cd1e3c49a5bef4d819b8048bcca574d1a5f142952a398c4b9c"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ConfigurationWitness.java": {
+    "bytes": 2491,
+    "sha256": "588ce517161a71267f07a63fc2f560aa2804f90a4da5524f05300a5fb3c5e7fd"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ContinuityAccountAuthority.java": {
+    "bytes": 7935,
+    "sha256": "5ca116137e0b12b4ef9a059c7b7672be8eb841e144f59bf2e1e5b82e9225a464"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ContinuityConfiguration.java": {
+    "bytes": 4828,
+    "sha256": "d6609bb7daeb8391383b943338a718ee6903cb54342e9005947a13cf005cc22f"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ContinuityDevice.java": {
+    "bytes": 7102,
+    "sha256": "6ac0387e4e6c417dee3761eccf83a503468d5d1e86f1660020625f516945a5e4"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ContinuityEnrollment.java": {
+    "bytes": 25521,
+    "sha256": "830ed6ef94ca82dd60f320fa99bfa3070aaa7c0b25b302a761c51e0e9e5806db"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ContinuityFailure.java": {
+    "bytes": 754,
+    "sha256": "26ee4f46418434363e6998e9c931cd63076d6e1dc9059ecb1d6f613ac82383ff"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ContinuityPeer.java": {
+    "bytes": 7103,
+    "sha256": "dca1788772b21f4b9fd39a515232b1cafa2fddf3d53ce70a34e099e3bb8bf5ee"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ContinuityRecovery.java": {
+    "bytes": 7507,
+    "sha256": "790385f612297ebeaaf140d9e8e6813c32ab1c730cf76a35e0769b48165ffbee"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ContinuityRetiredEnrollment.java": {
+    "bytes": 3230,
+    "sha256": "3ddfecf2a5e66eaa961257bc35385821b7a01ecd24b0b613f9b94a838fee2284"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/Counter64.java": {
+    "bytes": 1442,
+    "sha256": "a047f2a02cb439af1900c017b423d916a4ea72acdd9c9770f9546541afd27167"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/CredentialMetadata.java": {
+    "bytes": 3197,
+    "sha256": "cb7d35e0b5febd54542a4615d0f04aab97a8b93b234507c3422a64f036673e12"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/CredentialRenewalCancellation.java": {
+    "bytes": 618,
+    "sha256": "1adfb1560720c79bbbc2f61e5dbae7e0fec8133d23a8cfe07dde8c73e86f3a10"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/CredentialRenewalProposal.java": {
+    "bytes": 606,
+    "sha256": "9af06bceab8385d11d78a251040f5b5797d76bbea0789b0cc46913dcb1eab745"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/CredentialRenewalRequest.java": {
+    "bytes": 4671,
+    "sha256": "daff554233bfbcf921dcd62d2d2da4aa3f90cac01bee65ea6d2ba1e346221ae0"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/CredentialRenewalStatus.java": {
+    "bytes": 2651,
+    "sha256": "71e6b6ef04428baa55c0484112aa28e0fc6e9f4173710d0861bfd1c8f405e149"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/EnrollmentIntent.java": {
+    "bytes": 1401,
+    "sha256": "39a84c62635ca09d08f6db9d042d7e90bbe16bcb1713e1143829ce96ef5a90b2"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/EnrollmentStatus.java": {
+    "bytes": 2390,
+    "sha256": "944ab224c5a7de588a96675cfe89633415869cc273cb92f1b90dd037e22c841a"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/Ids.java": {
+    "bytes": 3365,
+    "sha256": "0f6451db358c22ceeede60fa0801f951fddbbb5cad055c376886974e3ac6baa9"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/IndependentPolicyProgress.java": {
+    "bytes": 2185,
+    "sha256": "5f4287038a4d015bf750416876614773aeff3f7ce58a8536d33f34b3d7c0acdc"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/IndependentPolicyProposal.java": {
+    "bytes": 2516,
+    "sha256": "495589f2339fa6bd4aeaa88167bbf5b4efaf7207526ac0156f1ebf90d6c8b787"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/IndependentPolicyState.java": {
+    "bytes": 621,
+    "sha256": "92417cc4c3f4ddc1c1878675b9f2e2cb357b353e20d60410686bcd7004d19c62"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/Native.java": {
+    "bytes": 6941,
+    "sha256": "27f18d05f49fad0e84dbda62eb085f481a5520480ffbe0a26a2a7bd3de057451"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/Owner.java": {
+    "bytes": 2160,
+    "sha256": "65bc28446296c1d3466906d079595e3b320c220a3e6ffa306f05ceadca3e5bb5"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/PeerConfiguration.java": {
+    "bytes": 2708,
+    "sha256": "b7c7bee67c75f8e1067f746086577a321a558818554abe2703392544c1378588"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/PendingWriteRecoveryRequest.java": {
+    "bytes": 2462,
+    "sha256": "b3e1614e1486180e360a9960c1650039d2dfe44d17decd34f1dd871109d298a4"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/PolicyCheckpoint.java": {
+    "bytes": 1667,
+    "sha256": "ff86911dbfa264d35527da7b88157c803cb10f92e30fd2e19e2f2950d4692107"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/PolicyCodec.java": {
+    "bytes": 2774,
+    "sha256": "16566f6271a4f132815e607a86c7b55695f6160a964d9875c37da913180143e5"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/PolicyRenewalCancellation.java": {
+    "bytes": 1199,
+    "sha256": "5966b7520125da37cea71113ef0b065fa8f4b3fa48222ffc3849cc6bf09eee55"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/PolicyRenewalProposal.java": {
+    "bytes": 1247,
+    "sha256": "9d57d94964e2de3f5398a93f3ce8b6e726631703aa9b43af5ac9cf0326723421"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/PolicyRenewalRequest.java": {
+    "bytes": 3400,
+    "sha256": "b6201ec600f9d612947706240969918059e293e0c99c10daa6951d08054f8d0e"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/PolicyRenewalScope.java": {
+    "bytes": 4207,
+    "sha256": "44bd84186dc64d4ec104d403b24037be344194abac890ab88798543fb45e4166"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/PolicyRenewalStatus.java": {
+    "bytes": 3096,
+    "sha256": "5438b069ae8efc750e4b28fe589498d6b9e9a0b07bf3bb9654b13e21c8b4268f"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RecoveryWire.java": {
+    "bytes": 1211,
+    "sha256": "d966bc83bb4e348483106c4b6dc55b4fd35ad9dc817d183fc30b39cd1373a91f"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RecoveryWitness.java": {
+    "bytes": 1155,
+    "sha256": "36e6b94b31cc5bdffd9635e985e0faf7d3d1ab4a8251f49471e69b6efdcb1678"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RetiredDeviceReport.java": {
+    "bytes": 1566,
+    "sha256": "f3ae188f47cee49dfda42926a3e0bb70257765bed79d2dd4086ae4d3f31b336f"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RetiredEnrollmentAuthority.java": {
+    "bytes": 1135,
+    "sha256": "48bb64c9082d05934f14c91f0f8526daae77bc800714d281d3d2bb675dec8b38"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RetiredErasureState.java": {
+    "bytes": 572,
+    "sha256": "e1656b6d1e2ba0716464421fdef468b5f4c291ff26eb510a47ffe11012dd5eff"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RetiredInventory.java": {
+    "bytes": 524,
+    "sha256": "797d3b58ee94070f0ea2faf5da7cb1060183f98753db22d7b1564c4fb8b3752d"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RetiredOperations.java": {
+    "bytes": 3453,
+    "sha256": "b372f1a48aea1b628b8bab6ba560873dc97cd6a4825cb10e93eeb360fffa968b"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RetiredReportProposal.java": {
+    "bytes": 1728,
+    "sha256": "9cc98e0857caa3683b93ef99ced7b81d2c00bdf3330e72146b4ba44bc234481c"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RootOperations.java": {
+    "bytes": 1962,
+    "sha256": "14cad8fe832df0cdd9747677313918af2763c4b832a8dc2e89c1ffdb7e1c6bef"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RootReplacementAdoption.java": {
+    "bytes": 1103,
+    "sha256": "c5c80f6453ec653a8f7c8ff20282c8fff13993983ca94991e879c1ea8b643b36"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RootReplacementPlan.java": {
+    "bytes": 554,
+    "sha256": "11dcf11b7d866646aae7bd80293a742ed00d62073f3ffc32aa341ff05ca46aed"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RootReplacementProposal.java": {
+    "bytes": 1411,
+    "sha256": "7da5341ee9a9f1950ae5d0df84c11510cd6a2f7aa4c91abd105fe3ddc9baad6a"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RootReplacementScope.java": {
+    "bytes": 1160,
+    "sha256": "e2fb15c1a4ad43f9477733aadd3b9baad62030ac0bae52504331a7473b41a9bc"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RootReplacementState.java": {
+    "bytes": 622,
+    "sha256": "59e53e9fa37bedabd400148f462b60c5b10a4831d071e3bc5010c4809a43f62f"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RootReplacementTransition.java": {
+    "bytes": 1027,
+    "sha256": "962124bf91d7320e08f3a7269bb8802aa88f064a1246e1edbb4f7b248786edc3"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RosterCheckpoint.java": {
+    "bytes": 1667,
+    "sha256": "a8f77006e2151d1dd6b6e3199ff0d28cf72bfc867b107eb0d358705875dcd731"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RosterPolicySource.java": {
+    "bytes": 321,
+    "sha256": "c0b756d349037713c031cba95b6e0c18e03a149960273259d114e8b9350634b1"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RosterRefreshProgress.java": {
+    "bytes": 2396,
+    "sha256": "3a5c0f8c96ae10b8108a1abe542a12706100513f4d8dabe2ee55fabdb9a800eb"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RosterRefreshProposal.java": {
+    "bytes": 3061,
+    "sha256": "a20efedb7d652546936cababf1791aa1ecad48200ef58c989b5b1ae3cee604cf"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RosterRefreshResolution.java": {
+    "bytes": 2376,
+    "sha256": "37f275ca8b6df0f070231e7dfffe63cee7be52c3589842645a00b2f920504e73"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RosterRefreshScope.java": {
+    "bytes": 2820,
+    "sha256": "94115d315f36c61d1d55d72563ae4907e827a24a7ab5ec3c7ac4125f6305b2d7"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/RosterRefreshState.java": {
+    "bytes": 600,
+    "sha256": "51973951abae4568503d724e69062a7ef847eaf57b9f9abaa945180d60561965"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/Served.java": {
+    "bytes": 1431,
+    "sha256": "2697a0a51d9f94d4c26e4678bffdc40e5207ccf2b061802900f4a5bcfc93d370"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/StoragePreparation.java": {
+    "bytes": 1687,
+    "sha256": "304a2da4249dda10cd1e17325a44da41d09bea4478cf6b0dc4b181ad2c42355d"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/WireHeader.java": {
+    "bytes": 473,
+    "sha256": "665f1096d18f8966a67ac2b08738cac0b1ab718f9c9a92b9529bf7b894de95b5"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/AccountBridgeProbe.java": {
+    "bytes": 6161,
+    "sha256": "381250d8debef1d525555f0ca5f1cc8e01205b7db7c2fc0c8bc9d3ed01b579c9"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/AccountConcurrentProbe.java": {
+    "bytes": 2979,
+    "sha256": "8ace189bcf9bdaa15cd0b78729e43de5911a0e1eb22fbb35feed8e47bb345a04"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/AccountProbe.java": {
+    "bytes": 6334,
+    "sha256": "95fe345074fbb196f912e7fceb048f3c2da1352db0625fe50a8483cb23ff4d06"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/AuthorityProbe.java": {
+    "bytes": 6401,
+    "sha256": "0f365d0fb3782098be07b69de3d64a8fac2fef7743eb855d9cd4c8fdf626f5b7"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/BridgeProbe.java": {
+    "bytes": 7577,
+    "sha256": "a030e2b8a047a060b30468aca4ae3523ef3d2b638326bab566836be321362c9f"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/CancellationProbe.java": {
+    "bytes": 5791,
+    "sha256": "a9020d54c7f14a205070e5fc1a19e42d7437710c49954089ea9b2664836913eb"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/ConfigurationProbe.java": {
+    "bytes": 7920,
+    "sha256": "a79b9bc2afc3c94091d4043e262a55c3683db301b3564eb906f189caf7d2068a"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/CredentialBridgeProbe.java": {
+    "bytes": 7363,
+    "sha256": "742642bfc5137c479eb8447ed35072010aa3b14d14fac6be55193998647a4397"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/CredentialLocalProbe.java": {
+    "bytes": 5753,
+    "sha256": "1aac867548e229dfed2471a05ec850e089454db265797221123f89f75d52e140"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/CredentialPolicyExpiryProbe.java": {
+    "bytes": 4883,
+    "sha256": "159212b2bce7883ed7c7505efdd9e298ddfb77a71ef18bfd6a7e9008fbda2cd8"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/CredentialProbe.java": {
+    "bytes": 7729,
+    "sha256": "5a6508659ff88d78eeb5e9ba66cd96a6b922f9986aa2f5b6d8bf5bd318a4fe63"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/CredentialTerminalProbe.java": {
+    "bytes": 6408,
+    "sha256": "18131f7020db8d13c069b60aa125931084222d3ca3f06474315c6a37c8c27d7d"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/EnrollmentProbe.java": {
+    "bytes": 7645,
+    "sha256": "c68efa8c46bb3b7066fdd09d23ff1110a82e498e928a741a6240eb8797edba68"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/FirstUseRecoveryProbe.java": {
+    "bytes": 5271,
+    "sha256": "04118bfbb2f6ef330daca9fe70395f05fa9223682f7fbf7da24126c160c1eaa6"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/JointPolicyBridgeProbe.java": {
+    "bytes": 4217,
+    "sha256": "076ad3c7fdcba27ee860f981f07ebe8c06d7f975357f68a790a122032e65ddc0"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/JointPolicyProbe.java": {
+    "bytes": 6297,
+    "sha256": "05a1942b15b6374371b674998577545051b8ff23976e2b4ba1e4eef692b6d303"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/JointWitnessProbe.java": {
+    "bytes": 4192,
+    "sha256": "018a227bd3dad773d3828eff2a15b740cace280e85255f22c76be82c27e229bd"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/PeerProbe.java": {
+    "bytes": 13019,
+    "sha256": "069f22aa9eef74d97c95732c210cab55504f0f6b3487f104732f40dba8d86e5e"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/PeerRenewalProbe.java": {
+    "bytes": 7215,
+    "sha256": "48943a4b800ebd734ae657e566812809786d1450d975eda0b8bbcfb95b26d1bf"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/PendingWriteBridgeProbe.java": {
+    "bytes": 3144,
+    "sha256": "c6992cc92b601dee615d6094940e4b6e3e30bdc85dedccb332654b1577a7437d"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/PendingWriteCancellation.java": {
+    "bytes": 5378,
+    "sha256": "7dcb45e9b7f675810a6fc7c2aefc5a7d46ae70dda50ea7489f05a064df9a8eb4"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/PendingWriteProbe.java": {
+    "bytes": 5854,
+    "sha256": "42fd1b56b17a143d37c4a7f801f00c6a399335d193bc3d4c77549a82ea27f165"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/PendingWriteProcessCut.java": {
+    "bytes": 2310,
+    "sha256": "df27101647408157a437a6b8239c4a383b3d77dfba86670a6020cf58169c8fbc"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/PolicyBridgeProbe.java": {
+    "bytes": 9068,
+    "sha256": "926386a04131b7009a0edd7ce32a599feae41c815d7fb27b07d58b12ee2219b0"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/PolicyCredentialProbe.java": {
+    "bytes": 6053,
+    "sha256": "f0e10538f958edf43abe628eea74c6558a01bddd992de6394088f63467ce0ca1"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/PolicyProbe.java": {
+    "bytes": 13159,
+    "sha256": "b660c6af1ec43650993c0ecfef6cc5d828a22ed382e1cbf293db7ae12e429541"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/PolicyProbeRecords.java": {
+    "bytes": 4800,
+    "sha256": "bd5cd5595df976c8832638590af061ce617ed7903299541374c938c95b6bae66"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RecoveryBridgeProbe.java": {
+    "bytes": 5261,
+    "sha256": "bab27e56aa943747c6ad95db8a3d695198932f92ecb890d31e2ba17cad888a1d"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RecoveryProbe.java": {
+    "bytes": 11179,
+    "sha256": "93fef5c01a2791f117bbaf7a8c75f3d862b17f95ca92fe961d270cb36615ad33"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RecoveryProbeFiles.java": {
+    "bytes": 3599,
+    "sha256": "de89b45714c76cb103ca9e6f1dfb1d040b686b3fa07832ec6183b3ec6bc3aa9f"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RecoveryProbeFilesChecks.java": {
+    "bytes": 3132,
+    "sha256": "17010b25c86bda5a12e00886c17f2a1a77b6f3b8c9d209d754b867b58c3b8959"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RecoveryProbeReports.java": {
+    "bytes": 7515,
+    "sha256": "2d3fc757c3f74ce024c91e74bbf0f8a8e3a3c5e359433b71902a962cc8312947"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RetiredBridgeProbe.java": {
+    "bytes": 5392,
+    "sha256": "a76cab3533fbd00f509f614f8674e3fb7520520628c2919f183e41fa65819ae1"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RetiredOwnedProbe.java": {
+    "bytes": 9233,
+    "sha256": "db575ad3ca1761db0466add737f8eb30582bbb27f9f63e27bd839c2f42ae1b7b"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RootBridgeProbe.java": {
+    "bytes": 5076,
+    "sha256": "05cf4359c4802a4e8d9b13e08ee0a2799fc314786e8b7a51bec0f21a7034d067"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RootControls.java": {
+    "bytes": 3222,
+    "sha256": "3d5aa34a8287488b0074b4bb6c1497145106d2a7f19a25b6da2d9202ab27465c"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RootOwnedProbe.java": {
+    "bytes": 15295,
+    "sha256": "05f15ab6ca791127bfa83fe2128a86963762a1fdffd7ac82e5c0847e5a09fc05"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RootRecovery.java": {
+    "bytes": 3200,
+    "sha256": "8eb6b2abff85e527d6ffaa7868ef4a66108f5dd9ac90d17e99425b814cefe7e5"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RosterBridgeProbe.java": {
+    "bytes": 6802,
+    "sha256": "a3669727d40ff663fd107d266f874b6a692afe7892b3000dc2b30dd542235fe2"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RosterPeerProbe.java": {
+    "bytes": 4168,
+    "sha256": "761be20e82bf6e943450b035305689aeb59b4dfaad4497cd26ae4b9574b7e55b"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RosterProbe.java": {
+    "bytes": 6164,
+    "sha256": "0f74ea68363e5aca0347d5e717f686a8563ca5aec9f445974f53426172130bd9"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RosterProbeRecords.java": {
+    "bytes": 1288,
+    "sha256": "0c712a16d0d905bbbc83a38cf466d45cd81ab2dc5bd4df2cf8eee7d75fb007b1"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/RosterWitnessProbe.java": {
+    "bytes": 7975,
+    "sha256": "0efddf55874e977e3e55af12a4b2b73aea80d54ecf52eb35dfcf3992f9b74b06"
+  },
+  "source/bindings/android/ContinuityPackageConsumer/src/test/java/WitnessProbe.java": {
+    "bytes": 8911,
+    "sha256": "6f930bb6d5159cc30b247f9da52c56e6c1c272599633ac8a26ecf56ba40e133f"
+  },
+  "tool-preparation/PLAN.json": {
+    "bytes": 962,
+    "sha256": "2470e85c980f7a879c9dc3f0344e25984bda56c12b5780050d1dd2338a1282dc"
+  },
+  "tool-preparation/PLATFORM_TOOLS.json": {
+    "bytes": 1130,
+    "sha256": "7c07272025ce5468db8e4da5053a2c1c984b95cc8bd9b0c91e115baa8e352383"
+  },
+  "tool-preparation/PLATFORM_TOOLS_PLAN.json": {
+    "bytes": 407,
+    "sha256": "e1e6ce009b871d3cdfc45368e5ff0c182caa91853816290dbf01e4bdf34f2dda"
+  },
+  "tool-preparation/TOOLS.json": {
+    "bytes": 2765,
+    "sha256": "1b8a682fa1b648418f52f0acd2dcd05b72e03d3c67ee25538ac733f74d27adc8"
+  },
+  "tool-preparation/build-tools/36.0.0/NOTICE.txt": {
+    "bytes": 1054682,
+    "sha256": "9387f47fb60a6ce126f45ec6030950bc205b0fedf86dc7b82cb4349ac15be3b6"
+  },
+  "tool-preparation/build-tools/36.0.0/package.xml": {
+    "bytes": 1641,
+    "sha256": "073b7312fd615e18e2b3d5bc426dad482ca5fc3f04e901c8494becc5ce5e5092"
+  },
+  "tool-preparation/build-tools/36.0.0/source.properties": {
+    "bytes": 62,
+    "sha256": "7dee6632e9ad6cb111da2bb99d747211e27927061b1276d040bb1d71fded5ebb"
+  },
+  "tool-preparation/build-tools_r36_macosx.zip.FILES.json": {
+    "bytes": 28325,
+    "sha256": "149d2c2613f9a1e1eb302bf290bf15ceb76b587a08e9ae13c878a029ed870ced"
+  },
+  "tool-preparation/build-tools_r36_macosx.zip.RESULT.json": {
+    "bytes": 784,
+    "sha256": "a473ac652d86114c9a21b6cb57225ab95bcd8a6c48cefa29a95727b2040aacd0"
+  },
+  "tool-preparation/build-tools_r36_macosx.zip.stderr": {
+    "bytes": 554,
+    "sha256": "c68e884ed5bf9c1a8e7097dc858d78ac487c1677f59b45377820eca260c9280e"
+  },
+  "tool-preparation/build-tools_r36_macosx.zip.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "tool-preparation/gradle-9.7.1-bin.zip.FILES.json": {
+    "bytes": 120227,
+    "sha256": "96d6aee75a6ca04750ee7e9b47f2421965560364914e15c31e317a1ee51b90e0"
+  },
+  "tool-preparation/gradle-9.7.1-bin.zip.RESULT.json": {
+    "bytes": 743,
+    "sha256": "67534f3bc762a8dfcdc52698448c3eb289b3eaf549776a2ae6bcccd460d3a77f"
+  },
+  "tool-preparation/gradle-9.7.1-bin.zip.stderr": {
+    "bytes": 714,
+    "sha256": "96ce51f8c5c08231722bb807a644f647c74eb9a8170f3dae5da300fe5242d230"
+  },
+  "tool-preparation/gradle-9.7.1-bin.zip.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "tool-preparation/platform-36_r02.zip.FILES.json": {
+    "bytes": 2028703,
+    "sha256": "1f418bdbb2eb45b13c3c8ee7d3d3ce83ec9ae59e751997724e2cbefd7b180989"
+  },
+  "tool-preparation/platform-36_r02.zip.RESULT.json": {
+    "bytes": 776,
+    "sha256": "7fe5cb1212d611ce23fd0a617f1afa0d5fcfbb3392b0693437b912176d172421"
+  },
+  "tool-preparation/platform-36_r02.zip.stderr": {
+    "bytes": 396,
+    "sha256": "97c4d1fe1d7f14ae469bf6fb5fa57ca9be6a19a5831728490a54c5663f3fb583"
+  },
+  "tool-preparation/platform-36_r02.zip.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "tool-preparation/platform-tools.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "tool-preparation/platform-tools.stdout": {
+    "bytes": 52,
+    "sha256": "6a71a25d8fa18935c3765e46f55a3bca3094b81f460268407b4acd1e9a260826"
+  },
+  "tool-preparation/platform-tools_r37.0.1-darwin.zip.FILES.json": {
+    "bytes": 1713,
+    "sha256": "55f588b8e8211ea4e292aad73db52c6bf73c120d196d085f6c737e09afd4077d"
+  },
+  "tool-preparation/platform-tools_r37.0.1-darwin.zip.RESULT.json": {
+    "bytes": 836,
+    "sha256": "d7f92cff8391847644302e3ee57bf7f7191d688fa28564099190cd3079dd68cb"
+  },
+  "tool-preparation/platform-tools_r37.0.1-darwin.zip.stderr": {
+    "bytes": 396,
+    "sha256": "b118006c641aca5b0fc2810483017a88e02f3bf1ed3320b66c311ee2c44c661b"
+  },
+  "tool-preparation/platform-tools_r37.0.1-darwin.zip.stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "tool-preparation/platforms/android-36/package.xml": {
+    "bytes": 1864,
+    "sha256": "8c457bf04d450cc63a83d29ba58cf7d5d6949a0572a44dc8d02e046cd6e3ab25"
+  },
+  "tool-preparation/platforms/android-36/source.properties": {
+    "bytes": 257,
+    "sha256": "72291ff6611dbfc46fdfb6de2821c4a62c87befa5200713847eda426e3a501c2"
+  },
+  "tool-preparation/prepare-platform-tools.py": {
+    "bytes": 5929,
+    "sha256": "d3a6c0264611e7456dd6c5cd3c19d629f230b9dfc48fdd9e96a8b1cf7c1e2060"
+  },
+  "tool-preparation/prepare.py": {
+    "bytes": 6344,
+    "sha256": "b2692a41a23b1c8b3aabbedc2d93f7900acddaa2ac6ae73b05bdaa4695ad1cff"
+  },
+  "tool-preparation/prepare.stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "tool-preparation/prepare.stdout": {
+    "bytes": 165,
+    "sha256": "8fd8577cd60eb99111f36e9a92a9c5635f400778d08feea4e9e189c92a4d0017"
+  },
+  "tool-preparation/repository2-3.xml": {
+    "bytes": 430605,
+    "sha256": "fe899e662573cc77c76d1234628d0d61330112ef81aa190b9ba85b31562036cb"
+  },
+  "tools/agp/gradle-9.4.1.jar": {
+    "bytes": 12136935,
+    "sha256": "4021fa6ea76b6fac076dd0bdacbb3e1b76c31f33b6c392e1a49a2e42072196bf"
+  }
+}

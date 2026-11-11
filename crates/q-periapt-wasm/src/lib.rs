@@ -285,12 +285,12 @@ impl EncapResult {
 /// Deterministically derive an ML-KEM-768 key pair from a 64-byte seed.
 #[wasm_bindgen]
 pub fn mlkem768_keypair(seed: &[u8]) -> Result<KeyPair, JsError> {
-    let s = <[u8; ML_KEM_768_KEYGEN_SEED_LEN]>::try_from(seed)
+    let s = <&[u8; ML_KEM_768_KEYGEN_SEED_LEN]>::try_from(seed)
         .map_err(|_| JsError::new("seed must be 64 bytes"))?;
-    let (sk, pk) =
-        MlKem768::generate(s).map_err(|_| JsError::new("ML-KEM key generation failed"))?;
+    let (sk, pk) = MlKem768::generate_zeroizing(s)
+        .map_err(|_| JsError::new("ML-KEM key generation failed"))?;
     Ok(KeyPair {
-        sk: sk.to_vec(),
+        sk: sk.as_bytes().to_vec(),
         pk: pk.to_vec(),
     })
 }

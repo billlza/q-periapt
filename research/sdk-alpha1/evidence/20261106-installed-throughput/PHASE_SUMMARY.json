@@ -1,0 +1,3326 @@
+[
+  {
+    "all_phase_samples": [
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 179022,
+        "cpu_user_us": 748745,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 3999611833,
+        "end_ns": 6808352916,
+        "epoch": 0,
+        "first_span": 4,
+        "label": "measurement-lifecycle-local-02",
+        "measured_operation_wall_ns": 3952646919,
+        "outside_operation_spans_ns": 46964914,
+        "past_last_span": 52,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 3999611833,
+            "numerator": 24000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 571373119,
+            "numerator": 19968000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 1,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 2808741083,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 176687,
+        "cpu_user_us": 747343,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 3764158875,
+        "end_ns": 6548910458,
+        "epoch": 0,
+        "first_span": 4,
+        "label": "measurement-lifecycle-local-03",
+        "measured_operation_wall_ns": 3717975957,
+        "outside_operation_spans_ns": 46182918,
+        "past_last_span": 52,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 10037757,
+            "numerator": 64000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 10037757,
+            "numerator": 372736000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 2,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 2784751583,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 171294,
+        "cpu_user_us": 704069,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 3991949042,
+        "end_ns": 6729588625,
+        "epoch": 0,
+        "first_span": 4,
+        "label": "measurement-lifecycle-local-04",
+        "measured_operation_wall_ns": 3948082336,
+        "outside_operation_spans_ns": 43866706,
+        "past_last_span": 52,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 1995974521,
+            "numerator": 12000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 1995974521,
+            "numerator": 69888000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 3,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 2737639583,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 168592,
+        "cpu_user_us": 689633,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 3882006667,
+        "end_ns": 6599543125,
+        "epoch": 0,
+        "first_span": 4,
+        "label": "measurement-lifecycle-local-05",
+        "measured_operation_wall_ns": 3839614997,
+        "outside_operation_spans_ns": 42391670,
+        "past_last_span": 52,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 3882006667,
+            "numerator": 24000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 554572381,
+            "numerator": 19968000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 4,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 2717536458,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      }
+    ],
+    "confirmed_deliveries": 96,
+    "control_updates": 0,
+    "delivered_plaintext_bytes": 559104,
+    "elapsed_ns": {
+      "maximum": 3999611833,
+      "median": 3936977854.5,
+      "minimum": 3764158875
+    },
+    "epoch": 0,
+    "kind": "lifecycle",
+    "measured_operation_wall_ns": 15458320209,
+    "omitted_denominator_fraction": {
+      "denominator": 15637726417,
+      "numerator": 179406208
+    },
+    "outside_operation_spans_ns": 179406208,
+    "per_run_delivery_rate": {
+      "maximum": {
+        "denominator": 10037757,
+        "numerator": 64000000
+      },
+      "median": {
+        "denominator": 7748386397684131507,
+        "numerator": 47243734254000000000
+      },
+      "minimum": {
+        "denominator": 3999611833,
+        "numerator": 24000000000
+      }
+    },
+    "per_run_plaintext_rate": {
+      "maximum": {
+        "denominator": 10037757,
+        "numerator": 372736000000
+      },
+      "median": {
+        "denominator": 1106912342526304501,
+        "numerator": 39306786899328000000000
+      },
+      "minimum": {
+        "denominator": 571373119,
+        "numerator": 19968000000000
+      }
+    },
+    "phase": "epoch",
+    "pooled_rates": {
+      "confirmed_deliveries_per_second": {
+        "denominator": 15637726417,
+        "numerator": 96000000000
+      },
+      "delivered_plaintext_bytes_per_second": {
+        "denominator": 15637726417,
+        "numerator": 559104000000000
+      }
+    },
+    "process_cpu_system_us": 695595,
+    "process_cpu_user_us": 2889790,
+    "profile": "local",
+    "repetitions": 4,
+    "retired_aggregates": 0,
+    "sum_only_rate_overstatement_fraction": {
+      "denominator": 15458320209,
+      "numerator": 179406208
+    },
+    "total_elapsed_ns": 15637726417,
+    "witness_exchanges": 0,
+    "witness_exchanges_outside_operation_spans": 0
+  },
+  {
+    "all_phase_samples": [
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 166283,
+        "cpu_user_us": 774779,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 4042638958,
+        "end_ns": 11110493958,
+        "epoch": 1,
+        "first_span": 53,
+        "label": "measurement-lifecycle-local-02",
+        "measured_operation_wall_ns": 3996276581,
+        "outside_operation_spans_ns": 46362377,
+        "past_last_span": 101,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 2021319479,
+            "numerator": 12000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 2021319479,
+            "numerator": 69888000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 1,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 7067855000,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 177058,
+        "cpu_user_us": 821162,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 4013189958,
+        "end_ns": 10846526875,
+        "epoch": 1,
+        "first_span": 53,
+        "label": "measurement-lifecycle-local-03",
+        "measured_operation_wall_ns": 3963720164,
+        "outside_operation_spans_ns": 49469794,
+        "past_last_span": 101,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 668864993,
+            "numerator": 4000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 668864993,
+            "numerator": 23296000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 2,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 6833336917,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 176876,
+        "cpu_user_us": 821764,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 4079364250,
+        "end_ns": 11071165666,
+        "epoch": 1,
+        "first_span": 53,
+        "label": "measurement-lifecycle-local-04",
+        "measured_operation_wall_ns": 4030227502,
+        "outside_operation_spans_ns": 49136748,
+        "past_last_span": 101,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 16317457,
+            "numerator": 96000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 1255189,
+            "numerator": 43008000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 3,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 6991801416,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 178501,
+        "cpu_user_us": 837113,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 4193833334,
+        "end_ns": 11034590667,
+        "epoch": 1,
+        "first_span": 53,
+        "label": "measurement-lifecycle-local-05",
+        "measured_operation_wall_ns": 4144470046,
+        "outside_operation_spans_ns": 49363288,
+        "past_last_span": 101,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 2096916667,
+            "numerator": 12000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 2096916667,
+            "numerator": 69888000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 4,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 6840757333,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      }
+    ],
+    "confirmed_deliveries": 96,
+    "control_updates": 0,
+    "delivered_plaintext_bytes": 559104,
+    "elapsed_ns": {
+      "maximum": 4193833334,
+      "median": 4061001604.0,
+      "minimum": 4013189958
+    },
+    "epoch": 1,
+    "kind": "lifecycle",
+    "measured_operation_wall_ns": 16134694293,
+    "omitted_denominator_fraction": {
+      "denominator": 16329026500,
+      "numerator": 194332207
+    },
+    "outside_operation_spans_ns": 194332207,
+    "per_run_delivery_rate": {
+      "maximum": {
+        "denominator": 668864993,
+        "numerator": 4000000000
+      },
+      "median": {
+        "denominator": 32982793681844903,
+        "numerator": 194928076992000000
+      },
+      "minimum": {
+        "denominator": 2096916667,
+        "numerator": 12000000000
+      }
+    },
+    "per_run_plaintext_rate": {
+      "maximum": {
+        "denominator": 668864993,
+        "numerator": 23296000000000
+      },
+      "median": {
+        "denominator": 2537137975526531,
+        "numerator": 87327778492416000000
+      },
+      "minimum": {
+        "denominator": 2096916667,
+        "numerator": 69888000000000
+      }
+    },
+    "phase": "epoch",
+    "pooled_rates": {
+      "confirmed_deliveries_per_second": {
+        "denominator": 32658053,
+        "numerator": 192000000
+      },
+      "delivered_plaintext_bytes_per_second": {
+        "denominator": 32658053,
+        "numerator": 1118208000000
+      }
+    },
+    "process_cpu_system_us": 698718,
+    "process_cpu_user_us": 3254818,
+    "profile": "local",
+    "repetitions": 4,
+    "retired_aggregates": 0,
+    "sum_only_rate_overstatement_fraction": {
+      "denominator": 16134694293,
+      "numerator": 194332207
+    },
+    "total_elapsed_ns": 16329026500,
+    "witness_exchanges": 0,
+    "witness_exchanges_outside_operation_spans": 0
+  },
+  {
+    "all_phase_samples": [
+      {
+        "confirmed_deliveries": 48,
+        "control_updates": 1,
+        "cpu_system_us": 350362,
+        "cpu_user_us": 1591083,
+        "delivered_associated_data_bytes": 16896,
+        "delivered_plaintext_bytes": 279552,
+        "elapsed_ns": 8301945791,
+        "end_ns": 11110686291,
+        "epoch": null,
+        "first_span": 4,
+        "label": "measurement-lifecycle-local-02",
+        "measured_operation_wall_ns": 8208261791,
+        "outside_operation_spans_ns": 93684000,
+        "past_last_span": 101,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 8301945791,
+            "numerator": 48000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 8301945791,
+            "numerator": 279552000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 1,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 2808740500,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 48,
+        "control_updates": 1,
+        "cpu_system_us": 359554,
+        "cpu_user_us": 1643079,
+        "delivered_associated_data_bytes": 16896,
+        "delivered_plaintext_bytes": 279552,
+        "elapsed_ns": 8061930791,
+        "end_ns": 10846681833,
+        "epoch": null,
+        "first_span": 4,
+        "label": "measurement-lifecycle-local-03",
+        "measured_operation_wall_ns": 7965882413,
+        "outside_operation_spans_ns": 96048378,
+        "past_last_span": 101,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 8061930791,
+            "numerator": 48000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 8061930791,
+            "numerator": 279552000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 2,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 2784751042,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 48,
+        "control_updates": 1,
+        "cpu_system_us": 353469,
+        "cpu_user_us": 1591486,
+        "delivered_associated_data_bytes": 16896,
+        "delivered_plaintext_bytes": 279552,
+        "elapsed_ns": 8333735250,
+        "end_ns": 11071374250,
+        "epoch": null,
+        "first_span": 4,
+        "label": "measurement-lifecycle-local-04",
+        "measured_operation_wall_ns": 8240330629,
+        "outside_operation_spans_ns": 93404621,
+        "past_last_span": 101,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 11111647,
+            "numerator": 64000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 11111647,
+            "numerator": 372736000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 3,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 2737639000,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 48,
+        "control_updates": 1,
+        "cpu_system_us": 351608,
+        "cpu_user_us": 1580453,
+        "delivered_associated_data_bytes": 16896,
+        "delivered_plaintext_bytes": 279552,
+        "elapsed_ns": 8317250666,
+        "end_ns": 11034786458,
+        "epoch": null,
+        "first_span": 4,
+        "label": "measurement-lifecycle-local-05",
+        "measured_operation_wall_ns": 8225130002,
+        "outside_operation_spans_ns": 92120664,
+        "past_last_span": 101,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 4158625333,
+            "numerator": 24000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 4158625333,
+            "numerator": 139776000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 4,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 2717535792,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      }
+    ],
+    "confirmed_deliveries": 192,
+    "control_updates": 4,
+    "delivered_plaintext_bytes": 1118208,
+    "elapsed_ns": {
+      "maximum": 8333735250,
+      "median": 8309598228.5,
+      "minimum": 8061930791
+    },
+    "epoch": null,
+    "kind": "lifecycle",
+    "measured_operation_wall_ns": 32639604835,
+    "omitted_denominator_fraction": {
+      "denominator": 33014862498,
+      "numerator": 375257663
+    },
+    "outside_operation_spans_ns": 375257663,
+    "per_run_delivery_rate": {
+      "maximum": {
+        "denominator": 8061930791,
+        "numerator": 48000000000
+      },
+      "median": {
+        "denominator": 34524682079645323403,
+        "numerator": 199430357484000000000
+      },
+      "minimum": {
+        "denominator": 11111647,
+        "numerator": 64000000
+      }
+    },
+    "per_run_plaintext_rate": {
+      "maximum": {
+        "denominator": 8061930791,
+        "numerator": 279552000000000
+      },
+      "median": {
+        "denominator": 34524682079645323403,
+        "numerator": 1161482401986816000000000
+      },
+      "minimum": {
+        "denominator": 11111647,
+        "numerator": 372736000000
+      }
+    },
+    "phase": "ordinary-workload",
+    "pooled_rates": {
+      "confirmed_deliveries_per_second": {
+        "denominator": 5502477083,
+        "numerator": 32000000000
+      },
+      "delivered_plaintext_bytes_per_second": {
+        "denominator": 5502477083,
+        "numerator": 186368000000000
+      }
+    },
+    "process_cpu_system_us": 1414993,
+    "process_cpu_user_us": 6406101,
+    "profile": "local",
+    "repetitions": 4,
+    "retired_aggregates": 0,
+    "sum_only_rate_overstatement_fraction": {
+      "denominator": 32639604835,
+      "numerator": 375257663
+    },
+    "total_elapsed_ns": 33014862498,
+    "witness_exchanges": 0,
+    "witness_exchanges_outside_operation_spans": 0
+  },
+  {
+    "all_phase_samples": [
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 316582,
+        "cpu_user_us": 2395605,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 6928699292,
+        "end_ns": 10493572417,
+        "epoch": 0,
+        "first_span": 4,
+        "label": "measurement-lifecycle-witness-02",
+        "measured_operation_wall_ns": 6809053079,
+        "outside_operation_spans_ns": 119646213,
+        "past_last_span": 52,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 1732174823,
+            "numerator": 6000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 1732174823,
+            "numerator": 34944000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 1,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3564873125,
+        "witness_after": {
+          "framed_bytes": 5241474,
+          "handle_ns": 2397781695,
+          "read_ns": 58322652,
+          "requests": 714,
+          "write_ns": 18543249
+        },
+        "witness_before": {
+          "framed_bytes": 836874,
+          "handle_ns": 410569578,
+          "read_ns": 9604248,
+          "requests": 114,
+          "write_ns": 3299753
+        },
+        "witness_exchanges": 600,
+        "witness_exchanges_outside_operation_spans": 24,
+        "witness_framed_bytes": 4404600
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 324764,
+        "cpu_user_us": 2437642,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 6990885292,
+        "end_ns": 10606564500,
+        "epoch": 0,
+        "first_span": 4,
+        "label": "measurement-lifecycle-witness-03",
+        "measured_operation_wall_ns": 6865392250,
+        "outside_operation_spans_ns": 125493042,
+        "past_last_span": 52,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 1747721323,
+            "numerator": 6000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 1747721323,
+            "numerator": 34944000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 2,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3615679208,
+        "witness_after": {
+          "framed_bytes": 5241474,
+          "handle_ns": 2440580538,
+          "read_ns": 60202896,
+          "requests": 714,
+          "write_ns": 18720506
+        },
+        "witness_before": {
+          "framed_bytes": 836874,
+          "handle_ns": 416810744,
+          "read_ns": 8872128,
+          "requests": 114,
+          "write_ns": 3462335
+        },
+        "witness_exchanges": 600,
+        "witness_exchanges_outside_operation_spans": 24,
+        "witness_framed_bytes": 4404600
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 289651,
+        "cpu_user_us": 2346879,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 6822995958,
+        "end_ns": 10360239583,
+        "epoch": 0,
+        "first_span": 4,
+        "label": "measurement-lifecycle-witness-04",
+        "measured_operation_wall_ns": 6705966461,
+        "outside_operation_spans_ns": 117029497,
+        "past_last_span": 52,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 1137165993,
+            "numerator": 4000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 1137165993,
+            "numerator": 23296000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 3,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3537243625,
+        "witness_after": {
+          "framed_bytes": 5241474,
+          "handle_ns": 2401823242,
+          "read_ns": 54994537,
+          "requests": 714,
+          "write_ns": 17696965
+        },
+        "witness_before": {
+          "framed_bytes": 836874,
+          "handle_ns": 407659712,
+          "read_ns": 9155210,
+          "requests": 114,
+          "write_ns": 3270297
+        },
+        "witness_exchanges": 600,
+        "witness_exchanges_outside_operation_spans": 24,
+        "witness_framed_bytes": 4404600
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 333051,
+        "cpu_user_us": 2441670,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 7162262542,
+        "end_ns": 10758312083,
+        "epoch": 0,
+        "first_span": 4,
+        "label": "measurement-lifecycle-witness-05",
+        "measured_operation_wall_ns": 7043824170,
+        "outside_operation_spans_ns": 118438372,
+        "past_last_span": 52,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 3581131271,
+            "numerator": 12000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 3581131271,
+            "numerator": 69888000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 4,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3596049541,
+        "witness_after": {
+          "framed_bytes": 5241474,
+          "handle_ns": 2482637931,
+          "read_ns": 60507005,
+          "requests": 714,
+          "write_ns": 18985423
+        },
+        "witness_before": {
+          "framed_bytes": 836874,
+          "handle_ns": 411632666,
+          "read_ns": 10155955,
+          "requests": 114,
+          "write_ns": 3207919
+        },
+        "witness_exchanges": 600,
+        "witness_exchanges_outside_operation_spans": 24,
+        "witness_framed_bytes": 4404600
+      }
+    ],
+    "confirmed_deliveries": 96,
+    "control_updates": 0,
+    "delivered_plaintext_bytes": 559104,
+    "elapsed_ns": {
+      "maximum": 7162262542,
+      "median": 6959792292.0,
+      "minimum": 6822995958
+    },
+    "epoch": 0,
+    "kind": "lifecycle",
+    "measured_operation_wall_ns": 27424235960,
+    "omitted_denominator_fraction": {
+      "denominator": 6976210771,
+      "numerator": 120151781
+    },
+    "outside_operation_spans_ns": 480607124,
+    "per_run_delivery_rate": {
+      "maximum": {
+        "denominator": 1137165993,
+        "numerator": 4000000000
+      },
+      "median": {
+        "denominator": 3027358873320850829,
+        "numerator": 10439688438000000000
+      },
+      "minimum": {
+        "denominator": 3581131271,
+        "numerator": 12000000000
+      }
+    },
+    "per_run_plaintext_rate": {
+      "maximum": {
+        "denominator": 1137165993,
+        "numerator": 23296000000000
+      },
+      "median": {
+        "denominator": 3027358873320850829,
+        "numerator": 60800745462912000000000
+      },
+      "minimum": {
+        "denominator": 3581131271,
+        "numerator": 69888000000000
+      }
+    },
+    "phase": "epoch",
+    "pooled_rates": {
+      "confirmed_deliveries_per_second": {
+        "denominator": 6976210771,
+        "numerator": 24000000000
+      },
+      "delivered_plaintext_bytes_per_second": {
+        "denominator": 6976210771,
+        "numerator": 139776000000000
+      }
+    },
+    "process_cpu_system_us": 1264048,
+    "process_cpu_user_us": 9621796,
+    "profile": "witness",
+    "repetitions": 4,
+    "retired_aggregates": 0,
+    "sum_only_rate_overstatement_fraction": {
+      "denominator": 6856058990,
+      "numerator": 120151781
+    },
+    "total_elapsed_ns": 27904843084,
+    "witness_exchanges": 2400,
+    "witness_exchanges_outside_operation_spans": 96
+  },
+  {
+    "all_phase_samples": [
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 320228,
+        "cpu_user_us": 2476153,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 6990108584,
+        "end_ns": 17960593292,
+        "epoch": 1,
+        "first_span": 53,
+        "label": "measurement-lifecycle-witness-02",
+        "measured_operation_wall_ns": 6869515584,
+        "outside_operation_spans_ns": 120593000,
+        "past_last_span": 101,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 873763573,
+            "numerator": 3000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 873763573,
+            "numerator": 17472000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 1,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 10970484708,
+        "witness_after": {
+          "framed_bytes": 9961737,
+          "handle_ns": 4567691810,
+          "read_ns": 111787332,
+          "requests": 1357,
+          "write_ns": 34868905
+        },
+        "witness_before": {
+          "framed_bytes": 5557137,
+          "handle_ns": 2555259487,
+          "read_ns": 61887905,
+          "requests": 757,
+          "write_ns": 19674504
+        },
+        "witness_exchanges": 600,
+        "witness_exchanges_outside_operation_spans": 24,
+        "witness_framed_bytes": 4404600
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 306164,
+        "cpu_user_us": 2419368,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 6858833625,
+        "end_ns": 17946755291,
+        "epoch": 1,
+        "first_span": 53,
+        "label": "measurement-lifecycle-witness-03",
+        "measured_operation_wall_ns": 6734577164,
+        "outside_operation_spans_ns": 124256461,
+        "past_last_span": 101,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 18290223,
+            "numerator": 64000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 2612889,
+            "numerator": 53248000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 2,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 11087921666,
+        "witness_after": {
+          "framed_bytes": 9961737,
+          "handle_ns": 4567735966,
+          "read_ns": 112330437,
+          "requests": 1357,
+          "write_ns": 34357386
+        },
+        "witness_before": {
+          "framed_bytes": 5557137,
+          "handle_ns": 2597491999,
+          "read_ns": 63601312,
+          "requests": 757,
+          "write_ns": 19848253
+        },
+        "witness_exchanges": 600,
+        "witness_exchanges_outside_operation_spans": 24,
+        "witness_framed_bytes": 4404600
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 332493,
+        "cpu_user_us": 2527397,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 7274410709,
+        "end_ns": 18156730250,
+        "epoch": 1,
+        "first_span": 53,
+        "label": "measurement-lifecycle-witness-04",
+        "measured_operation_wall_ns": 7150977543,
+        "outside_operation_spans_ns": 123433166,
+        "past_last_span": 101,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 7274410709,
+            "numerator": 24000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 7274410709,
+            "numerator": 139776000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 3,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 10882319541,
+        "witness_after": {
+          "framed_bytes": 9961737,
+          "handle_ns": 4660101580,
+          "read_ns": 108710633,
+          "requests": 1357,
+          "write_ns": 34624079
+        },
+        "witness_before": {
+          "framed_bytes": 5557137,
+          "handle_ns": 2575598741,
+          "read_ns": 58576456,
+          "requests": 757,
+          "write_ns": 18851467
+        },
+        "witness_exchanges": 600,
+        "witness_exchanges_outside_operation_spans": 24,
+        "witness_framed_bytes": 4404600
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 0,
+        "cpu_system_us": 319039,
+        "cpu_user_us": 2430971,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 6953126416,
+        "end_ns": 18222420291,
+        "epoch": 1,
+        "first_span": 53,
+        "label": "measurement-lifecycle-witness-05",
+        "measured_operation_wall_ns": 6833748463,
+        "outside_operation_spans_ns": 119377953,
+        "past_last_span": 101,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 434570401,
+            "numerator": 1500000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 434570401,
+            "numerator": 8736000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 4,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 11269293875,
+        "witness_after": {
+          "framed_bytes": 9961737,
+          "handle_ns": 4638093829,
+          "read_ns": 114821498,
+          "requests": 1357,
+          "write_ns": 35398645
+        },
+        "witness_before": {
+          "framed_bytes": 5557137,
+          "handle_ns": 2652435643,
+          "read_ns": 64516047,
+          "requests": 757,
+          "write_ns": 20175257
+        },
+        "witness_exchanges": 600,
+        "witness_exchanges_outside_operation_spans": 24,
+        "witness_framed_bytes": 4404600
+      }
+    ],
+    "confirmed_deliveries": 96,
+    "control_updates": 0,
+    "delivered_plaintext_bytes": 559104,
+    "elapsed_ns": {
+      "maximum": 7274410709,
+      "median": 6971617500.0,
+      "minimum": 6858833625
+    },
+    "epoch": 1,
+    "kind": "lifecycle",
+    "measured_operation_wall_ns": 27588818754,
+    "omitted_denominator_fraction": {
+      "denominator": 14038239667,
+      "numerator": 243830290
+    },
+    "outside_operation_spans_ns": 487660580,
+    "per_run_delivery_rate": {
+      "maximum": {
+        "denominator": 18290223,
+        "numerator": 64000000
+      },
+      "median": {
+        "denominator": 379711786297802773,
+        "numerator": 1307178281250000000
+      },
+      "minimum": {
+        "denominator": 7274410709,
+        "numerator": 24000000000
+      }
+    },
+    "per_run_plaintext_rate": {
+      "maximum": {
+        "denominator": 2612889,
+        "numerator": 53248000000
+      },
+      "median": {
+        "denominator": 379711786297802773,
+        "numerator": 7613006310000000000000
+      },
+      "minimum": {
+        "denominator": 7274410709,
+        "numerator": 139776000000000
+      }
+    },
+    "phase": "epoch",
+    "pooled_rates": {
+      "confirmed_deliveries_per_second": {
+        "denominator": 14038239667,
+        "numerator": 48000000000
+      },
+      "delivered_plaintext_bytes_per_second": {
+        "denominator": 14038239667,
+        "numerator": 279552000000000
+      }
+    },
+    "process_cpu_system_us": 1277924,
+    "process_cpu_user_us": 9853889,
+    "profile": "witness",
+    "repetitions": 4,
+    "retired_aggregates": 0,
+    "sum_only_rate_overstatement_fraction": {
+      "denominator": 13794409377,
+      "numerator": 243830290
+    },
+    "total_elapsed_ns": 28076479334,
+    "witness_exchanges": 2400,
+    "witness_exchanges_outside_operation_spans": 96
+  },
+  {
+    "all_phase_samples": [
+      {
+        "confirmed_deliveries": 48,
+        "control_updates": 1,
+        "cpu_system_us": 653417,
+        "cpu_user_us": 5042713,
+        "delivered_associated_data_bytes": 16896,
+        "delivered_plaintext_bytes": 279552,
+        "elapsed_ns": 14395826166,
+        "end_ns": 17960698833,
+        "epoch": null,
+        "first_span": 4,
+        "label": "measurement-lifecycle-witness-02",
+        "measured_operation_wall_ns": 14155367663,
+        "outside_operation_spans_ns": 240458503,
+        "past_last_span": 101,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 2399304361,
+            "numerator": 8000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 2399304361,
+            "numerator": 46592000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 1,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3564872667,
+        "witness_after": {
+          "framed_bytes": 9961737,
+          "handle_ns": 4567691810,
+          "read_ns": 111787332,
+          "requests": 1357,
+          "write_ns": 34868905
+        },
+        "witness_before": {
+          "framed_bytes": 836874,
+          "handle_ns": 410569578,
+          "read_ns": 9604248,
+          "requests": 114,
+          "write_ns": 3299753
+        },
+        "witness_exchanges": 1243,
+        "witness_exchanges_outside_operation_spans": 48,
+        "witness_framed_bytes": 9124863
+      },
+      {
+        "confirmed_deliveries": 48,
+        "control_updates": 1,
+        "cpu_system_us": 648895,
+        "cpu_user_us": 5033771,
+        "delivered_associated_data_bytes": 16896,
+        "delivered_plaintext_bytes": 279552,
+        "elapsed_ns": 14331211375,
+        "end_ns": 17946890083,
+        "epoch": null,
+        "first_span": 4,
+        "label": "measurement-lifecycle-witness-03",
+        "measured_operation_wall_ns": 14081220914,
+        "outside_operation_spans_ns": 249990461,
+        "past_last_span": 101,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 114649691,
+            "numerator": 384000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 8819207,
+            "numerator": 172032000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 2,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3615678708,
+        "witness_after": {
+          "framed_bytes": 9961737,
+          "handle_ns": 4567735966,
+          "read_ns": 112330437,
+          "requests": 1357,
+          "write_ns": 34357386
+        },
+        "witness_before": {
+          "framed_bytes": 836874,
+          "handle_ns": 416810744,
+          "read_ns": 8872128,
+          "requests": 114,
+          "write_ns": 3462335
+        },
+        "witness_exchanges": 1243,
+        "witness_exchanges_outside_operation_spans": 48,
+        "witness_framed_bytes": 9124863
+      },
+      {
+        "confirmed_deliveries": 48,
+        "control_updates": 1,
+        "cpu_system_us": 640187,
+        "cpu_user_us": 5057714,
+        "delivered_associated_data_bytes": 16896,
+        "delivered_plaintext_bytes": 279552,
+        "elapsed_ns": 14619627166,
+        "end_ns": 18156870291,
+        "epoch": null,
+        "first_span": 4,
+        "label": "measurement-lifecycle-witness-04",
+        "measured_operation_wall_ns": 14378872337,
+        "outside_operation_spans_ns": 240754829,
+        "past_last_span": 101,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 7309813583,
+            "numerator": 24000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 7309813583,
+            "numerator": 139776000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 3,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3537243125,
+        "witness_after": {
+          "framed_bytes": 9961737,
+          "handle_ns": 4660101580,
+          "read_ns": 108710633,
+          "requests": 1357,
+          "write_ns": 34624079
+        },
+        "witness_before": {
+          "framed_bytes": 836874,
+          "handle_ns": 407659712,
+          "read_ns": 9155210,
+          "requests": 114,
+          "write_ns": 3270297
+        },
+        "witness_exchanges": 1243,
+        "witness_exchanges_outside_operation_spans": 48,
+        "witness_framed_bytes": 9124863
+      },
+      {
+        "confirmed_deliveries": 48,
+        "control_updates": 1,
+        "cpu_system_us": 670431,
+        "cpu_user_us": 5061903,
+        "delivered_associated_data_bytes": 16896,
+        "delivered_plaintext_bytes": 279552,
+        "elapsed_ns": 14626500042,
+        "end_ns": 18222549208,
+        "epoch": null,
+        "first_span": 4,
+        "label": "measurement-lifecycle-witness-05",
+        "measured_operation_wall_ns": 14388382091,
+        "outside_operation_spans_ns": 238117951,
+        "past_last_span": 101,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 2437750007,
+            "numerator": 8000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 348250001,
+            "numerator": 6656000000000
+          }
+        },
+        "retained_outcome_reads": 0,
+        "retired_aggregates": 0,
+        "round": 4,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3596049166,
+        "witness_after": {
+          "framed_bytes": 9961737,
+          "handle_ns": 4638093829,
+          "read_ns": 114821498,
+          "requests": 1357,
+          "write_ns": 35398645
+        },
+        "witness_before": {
+          "framed_bytes": 836874,
+          "handle_ns": 411632666,
+          "read_ns": 10155955,
+          "requests": 114,
+          "write_ns": 3207919
+        },
+        "witness_exchanges": 1243,
+        "witness_exchanges_outside_operation_spans": 48,
+        "witness_framed_bytes": 9124863
+      }
+    ],
+    "confirmed_deliveries": 192,
+    "control_updates": 4,
+    "delivered_plaintext_bytes": 1118208,
+    "elapsed_ns": {
+      "maximum": 14626500042,
+      "median": 14507726666.0,
+      "minimum": 14331211375
+    },
+    "epoch": null,
+    "kind": "lifecycle",
+    "measured_operation_wall_ns": 57003843005,
+    "omitted_denominator_fraction": {
+      "denominator": 57973164749,
+      "numerator": 969321744
+    },
+    "outside_operation_spans_ns": 969321744,
+    "per_run_delivery_rate": {
+      "maximum": {
+        "denominator": 114649691,
+        "numerator": 384000000
+      },
+      "median": {
+        "denominator": 17538467607788935463,
+        "numerator": 58030906664000000000
+      },
+      "minimum": {
+        "denominator": 2437750007,
+        "numerator": 8000000000
+      }
+    },
+    "per_run_plaintext_rate": {
+      "maximum": {
+        "denominator": 8819207,
+        "numerator": 172032000000
+      },
+      "median": {
+        "denominator": 17538467607788935463,
+        "numerator": 337972000411136000000000
+      },
+      "minimum": {
+        "denominator": 348250001,
+        "numerator": 6656000000000
+      }
+    },
+    "phase": "ordinary-workload",
+    "pooled_rates": {
+      "confirmed_deliveries_per_second": {
+        "denominator": 57973164749,
+        "numerator": 192000000000
+      },
+      "delivered_plaintext_bytes_per_second": {
+        "denominator": 57973164749,
+        "numerator": 1118208000000000
+      }
+    },
+    "process_cpu_system_us": 2612930,
+    "process_cpu_user_us": 20196101,
+    "profile": "witness",
+    "repetitions": 4,
+    "retired_aggregates": 0,
+    "sum_only_rate_overstatement_fraction": {
+      "denominator": 57003843005,
+      "numerator": 969321744
+    },
+    "total_elapsed_ns": 57973164749,
+    "witness_exchanges": 4972,
+    "witness_exchanges_outside_operation_spans": 192
+  },
+  {
+    "all_phase_samples": [
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 157162,
+        "cpu_user_us": 1472451,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 3574932584,
+        "end_ns": 8668909375,
+        "epoch": 0,
+        "first_span": 6,
+        "label": "measurement-fanout-witness-02",
+        "measured_operation_wall_ns": 3549831875,
+        "outside_operation_spans_ns": 25100709,
+        "past_last_span": 42,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 446866573,
+            "numerator": 1500000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 446866573,
+            "numerator": 8736000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 446866573,
+            "numerator": 750000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 1,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 5093976791,
+        "witness_after": {
+          "framed_bytes": 4419282,
+          "handle_ns": 1822346619,
+          "read_ns": 44699116,
+          "requests": 602,
+          "write_ns": 13971906
+        },
+        "witness_before": {
+          "framed_bytes": 1380108,
+          "handle_ns": 769104418,
+          "read_ns": 15893783,
+          "requests": 188,
+          "write_ns": 5664330
+        },
+        "witness_exchanges": 414,
+        "witness_exchanges_outside_operation_spans": 6,
+        "witness_framed_bytes": 3039174
+      },
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 158561,
+        "cpu_user_us": 1504610,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 3535660250,
+        "end_ns": 8606954625,
+        "epoch": 0,
+        "first_span": 6,
+        "label": "measurement-fanout-witness-03",
+        "measured_operation_wall_ns": 3508808954,
+        "outside_operation_spans_ns": 26851296,
+        "past_last_span": 42,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 14142641,
+            "numerator": 48000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 14142641,
+            "numerator": 279552000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 14142641,
+            "numerator": 24000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 2,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 5071294375,
+        "witness_after": {
+          "framed_bytes": 4419282,
+          "handle_ns": 1868099962,
+          "read_ns": 44335920,
+          "requests": 602,
+          "write_ns": 14243385
+        },
+        "witness_before": {
+          "framed_bytes": 1380108,
+          "handle_ns": 795050333,
+          "read_ns": 16412912,
+          "requests": 188,
+          "write_ns": 5830542
+        },
+        "witness_exchanges": 414,
+        "witness_exchanges_outside_operation_spans": 6,
+        "witness_framed_bytes": 3039174
+      },
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 155108,
+        "cpu_user_us": 1453073,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 3514819208,
+        "end_ns": 8731772667,
+        "epoch": 0,
+        "first_span": 6,
+        "label": "measurement-fanout-witness-04",
+        "measured_operation_wall_ns": 3489165456,
+        "outside_operation_spans_ns": 25653752,
+        "past_last_span": 42,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 439352401,
+            "numerator": 1500000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 439352401,
+            "numerator": 8736000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 439352401,
+            "numerator": 750000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 3,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 5216953459,
+        "witness_after": {
+          "framed_bytes": 4419282,
+          "handle_ns": 1826062880,
+          "read_ns": 46081924,
+          "requests": 602,
+          "write_ns": 14179139
+        },
+        "witness_before": {
+          "framed_bytes": 1380108,
+          "handle_ns": 790872506,
+          "read_ns": 17064924,
+          "requests": 188,
+          "write_ns": 5987008
+        },
+        "witness_exchanges": 414,
+        "witness_exchanges_outside_operation_spans": 6,
+        "witness_framed_bytes": 3039174
+      },
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 164409,
+        "cpu_user_us": 1484081,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 3565360458,
+        "end_ns": 8611407583,
+        "epoch": 0,
+        "first_span": 6,
+        "label": "measurement-fanout-witness-05",
+        "measured_operation_wall_ns": 3537308086,
+        "outside_operation_spans_ns": 28052372,
+        "past_last_span": 42,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 594226743,
+            "numerator": 2000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 594226743,
+            "numerator": 11648000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 594226743,
+            "numerator": 1000000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 4,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 5046047125,
+        "witness_after": {
+          "framed_bytes": 4419282,
+          "handle_ns": 1805404373,
+          "read_ns": 47443882,
+          "requests": 602,
+          "write_ns": 14601289
+        },
+        "witness_before": {
+          "framed_bytes": 1380108,
+          "handle_ns": 762733254,
+          "read_ns": 15030505,
+          "requests": 188,
+          "write_ns": 5847708
+        },
+        "witness_exchanges": 414,
+        "witness_exchanges_outside_operation_spans": 6,
+        "witness_framed_bytes": 3039174
+      }
+    ],
+    "confirmed_deliveries": 48,
+    "control_updates": 0,
+    "delivered_plaintext_bytes": 279552,
+    "elapsed_ns": {
+      "maximum": 3574932584,
+      "median": 3550510354.0,
+      "minimum": 3514819208
+    },
+    "epoch": 0,
+    "kind": "fanout",
+    "measured_operation_wall_ns": 14085114371,
+    "omitted_denominator_fraction": {
+      "denominator": 14190772500,
+      "numerator": 105658129
+    },
+    "outside_operation_spans_ns": 105658129,
+    "per_run_delivery_rate": {
+      "maximum": {
+        "denominator": 439352401,
+        "numerator": 1500000000
+      },
+      "median": {
+        "denominator": 8403935498848263,
+        "numerator": 28404082832000000
+      },
+      "minimum": {
+        "denominator": 446866573,
+        "numerator": 1500000000
+      }
+    },
+    "per_run_plaintext_rate": {
+      "maximum": {
+        "denominator": 439352401,
+        "numerator": 8736000000000
+      },
+      "median": {
+        "denominator": 8403935498848263,
+        "numerator": 165425378413568000000
+      },
+      "minimum": {
+        "denominator": 446866573,
+        "numerator": 8736000000000
+      }
+    },
+    "phase": "epoch",
+    "pooled_rates": {
+      "confirmed_deliveries_per_second": {
+        "denominator": 1892103,
+        "numerator": 6400000
+      },
+      "delivered_plaintext_bytes_per_second": {
+        "denominator": 1892103,
+        "numerator": 37273600000
+      },
+      "retired_aggregates_per_second": {
+        "denominator": 1892103,
+        "numerator": 3200000
+      }
+    },
+    "process_cpu_system_us": 635240,
+    "process_cpu_user_us": 5914215,
+    "profile": "witness",
+    "repetitions": 4,
+    "retired_aggregates": 24,
+    "sum_only_rate_overstatement_fraction": {
+      "denominator": 14085114371,
+      "numerator": 105658129
+    },
+    "total_elapsed_ns": 14190772500,
+    "witness_exchanges": 1656,
+    "witness_exchanges_outside_operation_spans": 24
+  },
+  {
+    "all_phase_samples": [
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 164163,
+        "cpu_user_us": 1570428,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 3733508083,
+        "end_ns": 13389975541,
+        "epoch": 1,
+        "first_span": 44,
+        "label": "measurement-fanout-witness-02",
+        "measured_operation_wall_ns": 3706000539,
+        "outside_operation_spans_ns": 27507544,
+        "past_last_span": 80,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 3733508083,
+            "numerator": 12000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 3733508083,
+            "numerator": 69888000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 3733508083,
+            "numerator": 6000000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 1,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 9656467458,
+        "witness_after": {
+          "framed_bytes": 8089782,
+          "handle_ns": 3226356467,
+          "read_ns": 81493106,
+          "requests": 1102,
+          "write_ns": 24590609
+        },
+        "witness_before": {
+          "framed_bytes": 5050608,
+          "handle_ns": 2148925284,
+          "read_ns": 51191274,
+          "requests": 688,
+          "write_ns": 16181408
+        },
+        "witness_exchanges": 414,
+        "witness_exchanges_outside_operation_spans": 6,
+        "witness_framed_bytes": 3039174
+      },
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 166422,
+        "cpu_user_us": 1570320,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 3674142875,
+        "end_ns": 13274092167,
+        "epoch": 1,
+        "first_span": 44,
+        "label": "measurement-fanout-witness-03",
+        "measured_operation_wall_ns": 3647828916,
+        "outside_operation_spans_ns": 26313959,
+        "past_last_span": 80,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 29393143,
+            "numerator": 96000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 2261011,
+            "numerator": 43008000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 29393143,
+            "numerator": 48000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 2,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 9599949292,
+        "witness_after": {
+          "framed_bytes": 8089782,
+          "handle_ns": 3274000668,
+          "read_ns": 76913450,
+          "requests": 1102,
+          "write_ns": 24814270
+        },
+        "witness_before": {
+          "framed_bytes": 5050608,
+          "handle_ns": 2191050339,
+          "read_ns": 50763999,
+          "requests": 688,
+          "write_ns": 16377221
+        },
+        "witness_exchanges": 414,
+        "witness_exchanges_outside_operation_spans": 6,
+        "witness_framed_bytes": 3039174
+      },
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 159047,
+        "cpu_user_us": 1562002,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 3634481042,
+        "end_ns": 13341751584,
+        "epoch": 1,
+        "first_span": 44,
+        "label": "measurement-fanout-witness-04",
+        "measured_operation_wall_ns": 3607363206,
+        "outside_operation_spans_ns": 27117836,
+        "past_last_span": 80,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 1817240521,
+            "numerator": 6000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 1817240521,
+            "numerator": 34944000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 1817240521,
+            "numerator": 3000000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 3,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 9707270542,
+        "witness_after": {
+          "framed_bytes": 8089782,
+          "handle_ns": 3192156876,
+          "read_ns": 82414719,
+          "requests": 1102,
+          "write_ns": 24529432
+        },
+        "witness_before": {
+          "framed_bytes": 5050608,
+          "handle_ns": 2140996634,
+          "read_ns": 53081592,
+          "requests": 688,
+          "write_ns": 16328685
+        },
+        "witness_exchanges": 414,
+        "witness_exchanges_outside_operation_spans": 6,
+        "witness_framed_bytes": 3039174
+      },
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 161039,
+        "cpu_user_us": 1545198,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 3566620709,
+        "end_ns": 13168953125,
+        "epoch": 1,
+        "first_span": 44,
+        "label": "measurement-fanout-witness-05",
+        "measured_operation_wall_ns": 3539449414,
+        "outside_operation_spans_ns": 27171295,
+        "past_last_span": 80,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 3566620709,
+            "numerator": 12000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 3566620709,
+            "numerator": 69888000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 3566620709,
+            "numerator": 6000000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 4,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 9602332416,
+        "witness_after": {
+          "framed_bytes": 8089782,
+          "handle_ns": 3175346790,
+          "read_ns": 82980291,
+          "requests": 1102,
+          "write_ns": 25236289
+        },
+        "witness_before": {
+          "framed_bytes": 5050608,
+          "handle_ns": 2129028954,
+          "read_ns": 54243463,
+          "requests": 688,
+          "write_ns": 16969875
+        },
+        "witness_exchanges": 414,
+        "witness_exchanges_outside_operation_spans": 6,
+        "witness_framed_bytes": 3039174
+      }
+    ],
+    "confirmed_deliveries": 48,
+    "control_updates": 0,
+    "delivered_plaintext_bytes": 279552,
+    "elapsed_ns": {
+      "maximum": 3733508083,
+      "median": 3654311958.5,
+      "minimum": 3566620709
+    },
+    "epoch": 1,
+    "kind": "fanout",
+    "measured_operation_wall_ns": 14500642075,
+    "omitted_denominator_fraction": {
+      "denominator": 14608752709,
+      "numerator": 108110634
+    },
+    "outside_operation_spans_ns": 108110634,
+    "per_run_delivery_rate": {
+      "maximum": {
+        "denominator": 3566620709,
+        "numerator": 12000000000
+      },
+      "median": {
+        "denominator": 53414410499147503,
+        "numerator": 175406974008000000
+      },
+      "minimum": {
+        "denominator": 3733508083,
+        "numerator": 12000000000
+      }
+    },
+    "per_run_plaintext_rate": {
+      "maximum": {
+        "denominator": 3566620709,
+        "numerator": 69888000000000
+      },
+      "median": {
+        "denominator": 4108800807626731,
+        "numerator": 78582324355584000000
+      },
+      "minimum": {
+        "denominator": 3733508083,
+        "numerator": 69888000000000
+      }
+    },
+    "phase": "epoch",
+    "pooled_rates": {
+      "confirmed_deliveries_per_second": {
+        "denominator": 14608752709,
+        "numerator": 48000000000
+      },
+      "delivered_plaintext_bytes_per_second": {
+        "denominator": 14608752709,
+        "numerator": 279552000000000
+      },
+      "retired_aggregates_per_second": {
+        "denominator": 14608752709,
+        "numerator": 24000000000
+      }
+    },
+    "process_cpu_system_us": 650671,
+    "process_cpu_user_us": 6247948,
+    "profile": "witness",
+    "repetitions": 4,
+    "retired_aggregates": 24,
+    "sum_only_rate_overstatement_fraction": {
+      "denominator": 14500642075,
+      "numerator": 108110634
+    },
+    "total_elapsed_ns": 14608752709,
+    "witness_exchanges": 1656,
+    "witness_exchanges_outside_operation_spans": 24
+  },
+  {
+    "all_phase_samples": [
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 2,
+        "cpu_system_us": 356458,
+        "cpu_user_us": 3412112,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 8296023375,
+        "end_ns": 13389999708,
+        "epoch": null,
+        "first_span": 6,
+        "label": "measurement-fanout-witness-02",
+        "measured_operation_wall_ns": 8243251289,
+        "outside_operation_spans_ns": 52772086,
+        "past_last_span": 80,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 22122729,
+            "numerator": 64000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 22122729,
+            "numerator": 372736000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 22122729,
+            "numerator": 32000000
+          }
+        },
+        "retained_outcome_reads": 24,
+        "retired_aggregates": 12,
+        "round": 1,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 5093976333,
+        "witness_after": {
+          "framed_bytes": 8089782,
+          "handle_ns": 3226356467,
+          "read_ns": 81493106,
+          "requests": 1102,
+          "write_ns": 24590609
+        },
+        "witness_before": {
+          "framed_bytes": 1380108,
+          "handle_ns": 769104418,
+          "read_ns": 15893783,
+          "requests": 188,
+          "write_ns": 5664330
+        },
+        "witness_exchanges": 914,
+        "witness_exchanges_outside_operation_spans": 12,
+        "witness_framed_bytes": 6709674
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 2,
+        "cpu_system_us": 359394,
+        "cpu_user_us": 3437580,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 8202821125,
+        "end_ns": 13274115000,
+        "epoch": null,
+        "first_span": 6,
+        "label": "measurement-fanout-witness-03",
+        "measured_operation_wall_ns": 8149481995,
+        "outside_operation_spans_ns": 53339130,
+        "past_last_span": 80,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 65622569,
+            "numerator": 192000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 65622569,
+            "numerator": 1118208000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 65622569,
+            "numerator": 96000000
+          }
+        },
+        "retained_outcome_reads": 24,
+        "retired_aggregates": 12,
+        "round": 2,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 5071293875,
+        "witness_after": {
+          "framed_bytes": 8089782,
+          "handle_ns": 3274000668,
+          "read_ns": 76913450,
+          "requests": 1102,
+          "write_ns": 24814270
+        },
+        "witness_before": {
+          "framed_bytes": 1380108,
+          "handle_ns": 795050333,
+          "read_ns": 16412912,
+          "requests": 188,
+          "write_ns": 5830542
+        },
+        "witness_exchanges": 914,
+        "witness_exchanges_outside_operation_spans": 12,
+        "witness_framed_bytes": 6709674
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 2,
+        "cpu_system_us": 348787,
+        "cpu_user_us": 3382301,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 8124816625,
+        "end_ns": 13341769584,
+        "epoch": null,
+        "first_span": 6,
+        "label": "measurement-fanout-witness-04",
+        "measured_operation_wall_ns": 8071891120,
+        "outside_operation_spans_ns": 52925505,
+        "past_last_span": 80,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 64998533,
+            "numerator": 192000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 64998533,
+            "numerator": 1118208000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 64998533,
+            "numerator": 96000000
+          }
+        },
+        "retained_outcome_reads": 24,
+        "retired_aggregates": 12,
+        "round": 3,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 5216952959,
+        "witness_after": {
+          "framed_bytes": 8089782,
+          "handle_ns": 3192156876,
+          "read_ns": 82414719,
+          "requests": 1102,
+          "write_ns": 24529432
+        },
+        "witness_before": {
+          "framed_bytes": 1380108,
+          "handle_ns": 790872506,
+          "read_ns": 17064924,
+          "requests": 188,
+          "write_ns": 5987008
+        },
+        "witness_exchanges": 914,
+        "witness_exchanges_outside_operation_spans": 12,
+        "witness_framed_bytes": 6709674
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 2,
+        "cpu_system_us": 361103,
+        "cpu_user_us": 3396035,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 8122927250,
+        "end_ns": 13168973916,
+        "epoch": null,
+        "first_span": 6,
+        "label": "measurement-fanout-witness-05",
+        "measured_operation_wall_ns": 8067536000,
+        "outside_operation_spans_ns": 55391250,
+        "past_last_span": 80,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 32491709,
+            "numerator": 96000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 32491709,
+            "numerator": 559104000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 32491709,
+            "numerator": 48000000
+          }
+        },
+        "retained_outcome_reads": 24,
+        "retired_aggregates": 12,
+        "round": 4,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 5046046666,
+        "witness_after": {
+          "framed_bytes": 8089782,
+          "handle_ns": 3175346790,
+          "read_ns": 82980291,
+          "requests": 1102,
+          "write_ns": 25236289
+        },
+        "witness_before": {
+          "framed_bytes": 1380108,
+          "handle_ns": 762733254,
+          "read_ns": 15030505,
+          "requests": 188,
+          "write_ns": 5847708
+        },
+        "witness_exchanges": 914,
+        "witness_exchanges_outside_operation_spans": 12,
+        "witness_framed_bytes": 6709674
+      }
+    ],
+    "confirmed_deliveries": 96,
+    "control_updates": 8,
+    "delivered_plaintext_bytes": 559104,
+    "elapsed_ns": {
+      "maximum": 8296023375,
+      "median": 8163818875.0,
+      "minimum": 8122927250
+    },
+    "epoch": null,
+    "kind": "fanout",
+    "measured_operation_wall_ns": 32532160404,
+    "omitted_denominator_fraction": {
+      "denominator": 32746588375,
+      "numerator": 214427971
+    },
+    "outside_operation_spans_ns": 214427971,
+    "per_run_delivery_rate": {
+      "maximum": {
+        "denominator": 32491709,
+        "numerator": 96000000
+      },
+      "median": {
+        "denominator": 4265370716691277,
+        "numerator": 12539625792000000
+      },
+      "minimum": {
+        "denominator": 22122729,
+        "numerator": 64000000
+      }
+    },
+    "per_run_plaintext_rate": {
+      "maximum": {
+        "denominator": 32491709,
+        "numerator": 559104000000
+      },
+      "median": {
+        "denominator": 4265370716691277,
+        "numerator": 73030780612608000000
+      },
+      "minimum": {
+        "denominator": 22122729,
+        "numerator": 372736000000
+      }
+    },
+    "phase": "ordinary-workload",
+    "pooled_rates": {
+      "confirmed_deliveries_per_second": {
+        "denominator": 261972707,
+        "numerator": 768000000
+      },
+      "delivered_plaintext_bytes_per_second": {
+        "denominator": 261972707,
+        "numerator": 4472832000000
+      },
+      "retired_aggregates_per_second": {
+        "denominator": 261972707,
+        "numerator": 384000000
+      }
+    },
+    "process_cpu_system_us": 1425742,
+    "process_cpu_user_us": 13628028,
+    "profile": "witness",
+    "repetitions": 4,
+    "retired_aggregates": 48,
+    "sum_only_rate_overstatement_fraction": {
+      "denominator": 32532160404,
+      "numerator": 214427971
+    },
+    "total_elapsed_ns": 32746588375,
+    "witness_exchanges": 3656,
+    "witness_exchanges_outside_operation_spans": 48
+  },
+  {
+    "all_phase_samples": [
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 71146,
+        "cpu_user_us": 430122,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 1885618542,
+        "end_ns": 5527694667,
+        "epoch": 0,
+        "first_span": 6,
+        "label": "measurement-fanout-local-02",
+        "measured_operation_wall_ns": 1875985415,
+        "outside_operation_spans_ns": 9633127,
+        "past_last_span": 42,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 314269757,
+            "numerator": 2000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 314269757,
+            "numerator": 11648000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 314269757,
+            "numerator": 1000000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 1,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3642076125,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 83559,
+        "cpu_user_us": 469326,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 2050538458,
+        "end_ns": 5686872292,
+        "epoch": 0,
+        "first_span": 6,
+        "label": "measurement-fanout-local-03",
+        "measured_operation_wall_ns": 2040041629,
+        "outside_operation_spans_ns": 10496829,
+        "past_last_span": 42,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 1025269229,
+            "numerator": 6000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 1025269229,
+            "numerator": 34944000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 1025269229,
+            "numerator": 3000000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 2,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3636333834,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 82582,
+        "cpu_user_us": 468773,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 1984422916,
+        "end_ns": 5565703458,
+        "epoch": 0,
+        "first_span": 6,
+        "label": "measurement-fanout-local-04",
+        "measured_operation_wall_ns": 1973937418,
+        "outside_operation_spans_ns": 10485498,
+        "past_last_span": 42,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 496105729,
+            "numerator": 3000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 70872247,
+            "numerator": 2496000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 496105729,
+            "numerator": 1500000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 3,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3581280542,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 80191,
+        "cpu_user_us": 441232,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 1922482833,
+        "end_ns": 5513641708,
+        "epoch": 0,
+        "first_span": 6,
+        "label": "measurement-fanout-local-05",
+        "measured_operation_wall_ns": 1912351078,
+        "outside_operation_spans_ns": 10131755,
+        "past_last_span": 42,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 640827611,
+            "numerator": 4000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 640827611,
+            "numerator": 23296000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 640827611,
+            "numerator": 2000000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 4,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3591158875,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      }
+    ],
+    "confirmed_deliveries": 48,
+    "control_updates": 0,
+    "delivered_plaintext_bytes": 279552,
+    "elapsed_ns": {
+      "maximum": 2050538458,
+      "median": 1953452874.5,
+      "minimum": 1885618542
+    },
+    "epoch": 0,
+    "kind": "fanout",
+    "measured_operation_wall_ns": 7802315540,
+    "omitted_denominator_fraction": {
+      "denominator": 7843062749,
+      "numerator": 40747209
+    },
+    "outside_operation_spans_ns": 40747209,
+    "per_run_delivery_rate": {
+      "maximum": {
+        "denominator": 314269757,
+        "numerator": 2000000000
+      },
+      "median": {
+        "denominator": 317918249118483419,
+        "numerator": 1953452874500000000
+      },
+      "minimum": {
+        "denominator": 1025269229,
+        "numerator": 6000000000
+      }
+    },
+    "per_run_plaintext_rate": {
+      "maximum": {
+        "denominator": 314269757,
+        "numerator": 11648000000000
+      },
+      "median": {
+        "denominator": 45416892731211917,
+        "numerator": 1625272791584000000000
+      },
+      "minimum": {
+        "denominator": 1025269229,
+        "numerator": 34944000000000
+      }
+    },
+    "phase": "epoch",
+    "pooled_rates": {
+      "confirmed_deliveries_per_second": {
+        "denominator": 7843062749,
+        "numerator": 48000000000
+      },
+      "delivered_plaintext_bytes_per_second": {
+        "denominator": 7843062749,
+        "numerator": 279552000000000
+      },
+      "retired_aggregates_per_second": {
+        "denominator": 7843062749,
+        "numerator": 24000000000
+      }
+    },
+    "process_cpu_system_us": 317478,
+    "process_cpu_user_us": 1809453,
+    "profile": "local",
+    "repetitions": 4,
+    "retired_aggregates": 24,
+    "sum_only_rate_overstatement_fraction": {
+      "denominator": 7802315540,
+      "numerator": 40747209
+    },
+    "total_elapsed_ns": 7843062749,
+    "witness_exchanges": 0,
+    "witness_exchanges_outside_operation_spans": 0
+  },
+  {
+    "all_phase_samples": [
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 74299,
+        "cpu_user_us": 478348,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 1989340791,
+        "end_ns": 8013748583,
+        "epoch": 1,
+        "first_span": 44,
+        "label": "measurement-fanout-local-02",
+        "measured_operation_wall_ns": 1978627666,
+        "outside_operation_spans_ns": 10713125,
+        "past_last_span": 80,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 663113597,
+            "numerator": 4000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 663113597,
+            "numerator": 23296000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 663113597,
+            "numerator": 2000000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 1,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 6024407792,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 74771,
+        "cpu_user_us": 493783,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 1980050709,
+        "end_ns": 8219554209,
+        "epoch": 1,
+        "first_span": 44,
+        "label": "measurement-fanout-local-03",
+        "measured_operation_wall_ns": 1969392878,
+        "outside_operation_spans_ns": 10657831,
+        "past_last_span": 80,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 660016903,
+            "numerator": 4000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 7252933,
+            "numerator": 256000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 660016903,
+            "numerator": 2000000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 2,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 6239503500,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 76138,
+        "cpu_user_us": 504166,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 1999756666,
+        "end_ns": 8096179833,
+        "epoch": 1,
+        "first_span": 44,
+        "label": "measurement-fanout-local-04",
+        "measured_operation_wall_ns": 1988576792,
+        "outside_operation_spans_ns": 11179874,
+        "past_last_span": 80,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 999878333,
+            "numerator": 6000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 999878333,
+            "numerator": 34944000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 999878333,
+            "numerator": 3000000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 3,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 6096423167,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 12,
+        "control_updates": 0,
+        "cpu_system_us": 76470,
+        "cpu_user_us": 513196,
+        "delivered_associated_data_bytes": 4224,
+        "delivered_plaintext_bytes": 69888,
+        "elapsed_ns": 1983819583,
+        "end_ns": 8005218125,
+        "epoch": 1,
+        "first_span": 44,
+        "label": "measurement-fanout-local-05",
+        "measured_operation_wall_ns": 1972761919,
+        "outside_operation_spans_ns": 11057664,
+        "past_last_span": 80,
+        "phase": "epoch",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 1983819583,
+            "numerator": 12000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 1983819583,
+            "numerator": 69888000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 1983819583,
+            "numerator": 6000000000
+          }
+        },
+        "retained_outcome_reads": 12,
+        "retired_aggregates": 6,
+        "round": 4,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 6021398542,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      }
+    ],
+    "confirmed_deliveries": 48,
+    "control_updates": 0,
+    "delivered_plaintext_bytes": 279552,
+    "elapsed_ns": {
+      "maximum": 1999756666,
+      "median": 1986580187.0,
+      "minimum": 1980050709
+    },
+    "epoch": 1,
+    "kind": "fanout",
+    "measured_operation_wall_ns": 7909359255,
+    "omitted_denominator_fraction": {
+      "denominator": 7952967749,
+      "numerator": 43608494
+    },
+    "outside_operation_spans_ns": 43608494,
+    "per_run_delivery_rate": {
+      "maximum": {
+        "denominator": 660016903,
+        "numerator": 4000000000
+      },
+      "median": {
+        "denominator": 1315497739482170051,
+        "numerator": 7946320748000000000
+      },
+      "minimum": {
+        "denominator": 999878333,
+        "numerator": 6000000000
+      }
+    },
+    "per_run_plaintext_rate": {
+      "maximum": {
+        "denominator": 7252933,
+        "numerator": 256000000000
+      },
+      "median": {
+        "denominator": 1315497739482170051,
+        "numerator": 46279372036352000000000
+      },
+      "minimum": {
+        "denominator": 999878333,
+        "numerator": 34944000000000
+      }
+    },
+    "phase": "epoch",
+    "pooled_rates": {
+      "confirmed_deliveries_per_second": {
+        "denominator": 7952967749,
+        "numerator": 48000000000
+      },
+      "delivered_plaintext_bytes_per_second": {
+        "denominator": 7952967749,
+        "numerator": 279552000000000
+      },
+      "retired_aggregates_per_second": {
+        "denominator": 7952967749,
+        "numerator": 24000000000
+      }
+    },
+    "process_cpu_system_us": 301678,
+    "process_cpu_user_us": 1989493,
+    "profile": "local",
+    "repetitions": 4,
+    "retired_aggregates": 24,
+    "sum_only_rate_overstatement_fraction": {
+      "denominator": 7909359255,
+      "numerator": 43608494
+    },
+    "total_elapsed_ns": 7952967749,
+    "witness_exchanges": 0,
+    "witness_exchanges_outside_operation_spans": 0
+  },
+  {
+    "all_phase_samples": [
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 2,
+        "cpu_system_us": 154734,
+        "cpu_user_us": 1017392,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 4371698834,
+        "end_ns": 8013774292,
+        "epoch": null,
+        "first_span": 6,
+        "label": "measurement-fanout-local-02",
+        "measured_operation_wall_ns": 4351174123,
+        "outside_operation_spans_ns": 20524711,
+        "past_last_span": 80,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 2185849417,
+            "numerator": 12000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 2185849417,
+            "numerator": 69888000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 2185849417,
+            "numerator": 6000000000
+          }
+        },
+        "retained_outcome_reads": 24,
+        "retired_aggregates": 12,
+        "round": 1,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3642075458,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 2,
+        "cpu_system_us": 169438,
+        "cpu_user_us": 1099399,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 4583242625,
+        "end_ns": 8219575834,
+        "epoch": null,
+        "first_span": 6,
+        "label": "measurement-fanout-local-03",
+        "measured_operation_wall_ns": 4561875798,
+        "outside_operation_spans_ns": 21366827,
+        "past_last_span": 80,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 36665941,
+            "numerator": 192000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 2820457,
+            "numerator": 86016000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 36665941,
+            "numerator": 96000000
+          }
+        },
+        "retained_outcome_reads": 24,
+        "retired_aggregates": 12,
+        "round": 2,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3636333209,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 2,
+        "cpu_system_us": 169450,
+        "cpu_user_us": 1101039,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 4514921042,
+        "end_ns": 8096201000,
+        "epoch": null,
+        "first_span": 6,
+        "label": "measurement-fanout-local-04",
+        "measured_operation_wall_ns": 4493056627,
+        "outside_operation_spans_ns": 21864415,
+        "past_last_span": 80,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 2257460521,
+            "numerator": 12000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 2257460521,
+            "numerator": 69888000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 2257460521,
+            "numerator": 6000000000
+          }
+        },
+        "retained_outcome_reads": 24,
+        "retired_aggregates": 12,
+        "round": 3,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3581279958,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      },
+      {
+        "confirmed_deliveries": 24,
+        "control_updates": 2,
+        "cpu_system_us": 167050,
+        "cpu_user_us": 1077475,
+        "delivered_associated_data_bytes": 8448,
+        "delivered_plaintext_bytes": 139776,
+        "elapsed_ns": 4414083917,
+        "end_ns": 8005242292,
+        "epoch": null,
+        "first_span": 6,
+        "label": "measurement-fanout-local-05",
+        "measured_operation_wall_ns": 4392688622,
+        "outside_operation_spans_ns": 21395295,
+        "past_last_span": 80,
+        "phase": "ordinary-workload",
+        "rates": {
+          "confirmed_deliveries_per_second": {
+            "denominator": 4414083917,
+            "numerator": 24000000000
+          },
+          "delivered_plaintext_bytes_per_second": {
+            "denominator": 4414083917,
+            "numerator": 139776000000000
+          },
+          "retired_aggregates_per_second": {
+            "denominator": 4414083917,
+            "numerator": 12000000000
+          }
+        },
+        "retained_outcome_reads": 24,
+        "retired_aggregates": 12,
+        "round": 4,
+        "scope": "Continuous serial workload interval, including surrounding status checks, data preparation and observation overhead. Whole-process CPU and shared Witness; no saturation or per-client budget claim.",
+        "start_ns": 3591158375,
+        "witness_after": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_before": {
+          "framed_bytes": 0,
+          "handle_ns": 0,
+          "read_ns": 0,
+          "requests": 0,
+          "write_ns": 0
+        },
+        "witness_exchanges": 0,
+        "witness_exchanges_outside_operation_spans": 0,
+        "witness_framed_bytes": 0
+      }
+    ],
+    "confirmed_deliveries": 96,
+    "control_updates": 8,
+    "delivered_plaintext_bytes": 559104,
+    "elapsed_ns": {
+      "maximum": 4583242625,
+      "median": 4464502479.5,
+      "minimum": 4371698834
+    },
+    "epoch": null,
+    "kind": "fanout",
+    "measured_operation_wall_ns": 17798795170,
+    "omitted_denominator_fraction": {
+      "denominator": 687844093,
+      "numerator": 3275048
+    },
+    "outside_operation_spans_ns": 85151248,
+    "per_run_delivery_rate": {
+      "maximum": {
+        "denominator": 2185849417,
+        "numerator": 12000000000
+      },
+      "median": {
+        "denominator": 9964620179008540757,
+        "numerator": 53574029754000000000
+      },
+      "minimum": {
+        "denominator": 36665941,
+        "numerator": 192000000
+      }
+    },
+    "per_run_plaintext_rate": {
+      "maximum": {
+        "denominator": 2185849417,
+        "numerator": 69888000000000
+      },
+      "median": {
+        "denominator": 9964620179008540757,
+        "numerator": 312015149287296000000000
+      },
+      "minimum": {
+        "denominator": 2820457,
+        "numerator": 86016000000
+      }
+    },
+    "phase": "ordinary-workload",
+    "pooled_rates": {
+      "confirmed_deliveries_per_second": {
+        "denominator": 8941973209,
+        "numerator": 48000000000
+      },
+      "delivered_plaintext_bytes_per_second": {
+        "denominator": 687844093,
+        "numerator": 21504000000000
+      },
+      "retired_aggregates_per_second": {
+        "denominator": 8941973209,
+        "numerator": 24000000000
+      }
+    },
+    "process_cpu_system_us": 660672,
+    "process_cpu_user_us": 4295305,
+    "profile": "local",
+    "repetitions": 4,
+    "retired_aggregates": 48,
+    "sum_only_rate_overstatement_fraction": {
+      "denominator": 684569045,
+      "numerator": 3275048
+    },
+    "total_elapsed_ns": 17883946418,
+    "witness_exchanges": 0,
+    "witness_exchanges_outside_operation_spans": 0
+  }
+]

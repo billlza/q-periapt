@@ -1,0 +1,81 @@
+{
+  "base_head": "8671ca186a6120de127d3a993337f78f7d0ec8d1",
+  "source_commit_observed": "29ec0a37877dfdf0b1328f6886ed731e1436d440",
+  "ci_run": 38013166199,
+  "ci_job": 114098912056,
+  "ci_url": "https://github.com/billlza/q-periapt/actions/runs/38013166199/job/114098912056",
+  "terminal": "cancelled by the 120-minute job budget, confirmed by GitHub annotation",
+  "original_artifact": {
+    "id": 11660428012,
+    "bytes": 92066222,
+    "sha256": "a84197b9a931657941b6e729c67636e7914ae0c2572e6f46ad110d09e2f94724",
+    "verified": true
+  },
+  "observed_progress": "Rust/C prerequisites completed; Swift Release original registration/renewal/roster and real policy expiry were still producing successful results. Swift final report and whole-package final report are absent.",
+  "last_selected_completed_test": "witness_policy_expiry::original_foreign_owner_recovers_after_real_signed_policy_expiry",
+  "last_selected_test_seconds": 121.7,
+  "job_started_utc": "2026-10-10T03:28:10Z",
+  "job_completed_utc": "2026-10-10T05:29:16Z",
+  "change": {
+    "Swift_job_minutes_before": 120,
+    "Swift_job_minutes_after": 180,
+    "Kotlin_job_minutes_unchanged": 210,
+    "command_timeout_seconds_unchanged": 900,
+    "workflow_sha256": "6d28e41384c1cf5d609e749a8b215fa3fbf8c622a32bf57a0c3cdf10955397cf",
+    "command_runner_sha256": "90716ed8556dbd172df43ad84da88dfd55ca0797b08ffe4f75fee49bd806f645"
+  },
+  "retained_contract": [
+    "All Rust/C prerequisites and both Swift profiles remain mandatory.",
+    "Per-command, subprocess, expiry and failure-validation requirements are unchanged.",
+    "No command retry, partial profile acceptance or query/security-check removal."
+  ],
+  "local_validation": {
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "artifact",
+      "-p",
+      "test_continuity_*consumer.py"
+    ],
+    "python": "/opt/homebrew/opt/python@3.14/bin/python3.14",
+    "returncode": 0,
+    "tests": 30,
+    "reported_seconds": 1.734,
+    "ignored_or_skipped": 0,
+    "observation": "Actual tool session 94277 completed with OK; command output was read from the session, not captured as a separate raw log file."
+  },
+  "scope_limits": [
+    "Increasing the aggregate job budget allows the existing finite serial workload to finish; the next source-bound CI must establish sufficiency.",
+    "Recent successful progress is not a proof that no remaining stage can stall.",
+    "Archive ZIP modification times in SWIFT_PROGRESS.json have two-second granularity and are not controlled performance samples.",
+    "The original cancelled job remains incomplete; preserved partial files are not a successful installed Swift cohort."
+  ],
+  "release_claim_eligible": false,
+  "capture": {
+    "file": "CAPTURE.zip",
+    "bytes": 20813,
+    "sha256": "0046496ee18645a4ae3f3b2525b9ba52fc3abe21d6b6b040b8ccb9366bbbf228",
+    "files": {
+      "ANNOTATIONS.json": "0dad257b2e4cbfcf283ee976f292eb91add2ab289b7a80cc80cc7723f896fb9d",
+      "ARTIFACT.json": "96aa6bec9b545caea8215a2f6c453abecbd559eb267fae8c999bf417571701c6",
+      "JOB.json": "d7dc242ab9445a7b5ad6641f825f48c8d33c4cee5b7f855e7c1d30af1808772a",
+      "LOCAL_CHECKS.json": "912b3b91f3ccaba372700f5fe993d7094412bc3ca06bcb324554786648bf6322",
+      "LOCAL_REFERENCE.json": "1825b86a14cd1eae5a07ae9e39977fc0ce9bf30a4f9977941e65429c0a831c44",
+      "NATIVE_REPORT_SUMMARY.json": "dfc5389ba9e63a560cf670a8963369b002c78412287df2dd9bab22ce7cf97df8",
+      "SWIFT_PROGRESS.json": "687f2688c6f200ea4913071f775b8ccc33966d8a012cf13316e5eed99a059d95",
+      "WORKFLOW.patch": "59cb7e3ae091d5014cb732ed4b347156cc64f217d120f9a8b3a4c63915a27417",
+      "swift-account-reconciliation-release.stdout": "9069a013f3d2e44b3f6a250f31db3f47eb0a8c58f116ae66f92e0c31f8809f00",
+      "swift-credential-renewal-release.stdout": "ec8aab8ef67307e1b794698c5a05419ba7d555d458fbd6ea0bdb9c6436141938",
+      "swift-independent-policy-release.stdout": "e789fa0b4cf43690904b389ffcac28595a29c64bafb3ad50c118457597db2001",
+      "swift-peer-tls-preprocessing-release.stdout": "d0180460167a91145838b01e55b01fd7e4b9fd85132b3e66e424502ce4c02660",
+      "swift-witnessed-cancellation-debug.stdout": "74f34fe937abdd99cca69e861b2e613e47dd6057193571c0465c645d939fad3b",
+      "swift-witnessed-credential-renewal-release.stdout": "c12be573de50b391cf33c161f9f2b4c03306fb8e4eb59ab2922b41c7cea98828",
+      "swift-witnessed-policy-expiry-release.stdout": "c1f744a874b1c4ed0ae6edda3deaf8a772c1e15d27ca1bfb10913a49f5fb0419",
+      "swift-witnessed-roster-release.stdout": "9f4fa03d8f52c9adb56ad71444abc1ed396d7b33ea018d071a6df30a01041e07"
+    }
+  }
+}

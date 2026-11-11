@@ -18,6 +18,11 @@ import sys
 from typing import Any
 
 import apple_toolchain
+from apple_sdk_device_contract import (
+    CAPTURE_PROFILES, LEGACY_PROFILE, SDK_PROFILE, SDK_DEVICE_SCHEMA,
+    SDK_MATRIX_SCHEMA, SDK_DEVICE_KIND, SDK_MATRIX_KIND, SDK_SOURCE_INPUTS,
+    sdk_metadata, sdk_marker, validate_capture_profile,
+)
 from apple_proof_contract import (
     APPLE_DEVICE_PROOF_SCHEMA_VERSION,
     APPLE_MATRIX_PROOF_SCHEMA_VERSION,
@@ -321,13 +326,47 @@ def require(condition: bool, message: str) -> None:
         raise SystemExit(f"error: {message}")
 
 
+def capture_identity(capture_profile: str, *, matrix: bool = False) -> dict[str, Any]:
+    validate_capture_profile(capture_profile)
+    if capture_profile == LEGACY_PROFILE:
+        return {"schema_version": MATRIX_SCHEMA_VERSION if matrix else SCHEMA_VERSION}
+    return {
+        "schema_version": SDK_MATRIX_SCHEMA if matrix else SDK_DEVICE_SCHEMA,
+        "kind": SDK_MATRIX_KIND if matrix else SDK_DEVICE_KIND,
+        "sdk": sdk_metadata(),
+    }
+
+
+def verify_capture_identity(
+    proof: dict[str, Any], capture_profile: str, *, matrix: bool = False,
+) -> None:
+    expected = capture_identity(capture_profile, matrix=matrix)
+    fields = MATRIX_PROOF_FIELDS if matrix else APPLE_PROOF_FIELDS
+    label = "Apple device matrix proof" if matrix else "Apple device proof"
+    strict_keys(proof, fields | (set(expected) - {"schema_version"}), label)
+    verify_proof_schema(proof, label, expected["schema_version"])
+    if capture_profile == SDK_PROFILE:
+        # JSON serialization distinguishes integer revisions from bool/float.
+        actual = {key: proof[key] for key in expected}
+        require(json.dumps(actual, sort_keys=True) == json.dumps(expected, sort_keys=True),
+                f"{label} SDK identity or completed workload differs")
+
+
+def matrix_transports(capture_profile: str) -> dict[str, str]:
+    validate_capture_profile(capture_profile)
+    if capture_profile == SDK_PROFILE:
+        return {"ipad": "wired", "iphone": "wired"}
+    return dict(REQUIRED_MATRIX_LABEL_TO_TRANSPORT)
+
+
 def _require_fixed_apple_toolchain_selection(
     selected_developer_dir: object,
     *,
     selection_label: str,
+    capture_profile: str = LEGACY_PROFILE,
 ) -> None:
     require(
-        selected_developer_dir == str(apple_toolchain.FIXED_DEVELOPER_DIR),
+        selected_developer_dir == str(apple_toolchain.developer_dir_for_profile(capture_profile)),
         f"{selection_label} must select the fixed Apple release toolchain",
     )
 
@@ -337,12 +376,16 @@ def _verify_fixed_apple_toolchain_receipt(
     selected_developer_dir: object,
     *,
     selection_label: str,
+    capture_profile: str = LEGACY_PROFILE,
 ) -> dict[str, Any]:
     _require_fixed_apple_toolchain_selection(
         selected_developer_dir,
         selection_label=selection_label,
+        capture_profile=capture_profile,
     )
     try:
+        if capture_profile == SDK_PROFILE:
+            return apple_toolchain.verify_sdk_receipt(receipt)
         return apple_toolchain.verify_receipt(receipt)
     except apple_toolchain.AppleToolchainError as exc:
         raise SystemExit(f"error: Xcode toolchain verification failed: {exc}") from exc
@@ -503,27 +546,37 @@ def developer_mode_enabled(state: dict[str, Any]) -> bool:
     return enabled.get("mode") == 1
 
 
-def expected_marker(run_id: str) -> str:
+def expected_marker(run_id: str, capture_profile: str = LEGACY_PROFILE) -> str:
+    validate_capture_profile(capture_profile)
     require(bool(RUN_ID_RE.fullmatch(run_id)), f"invalid run id: {run_id}")
-    return f"{PASS_MARKER} run-id={run_id}"
+    return sdk_marker(run_id) if capture_profile == SDK_PROFILE else f"{PASS_MARKER} run-id={run_id}"
 
 
-def marker_count(text: str, run_id: str) -> int:
-    marker = expected_marker(run_id)
+def marker_count(text: str, run_id: str, capture_profile: str = LEGACY_PROFILE) -> int:
+    marker = expected_marker(run_id, capture_profile)
     return sum(1 for line in text.splitlines() if line.strip() == marker)
 
 
-def require_marker_text(text: str, path: pathlib.Path, label: str, run_id: str) -> None:
+def require_marker_text(
+    text: str, path: pathlib.Path, label: str, run_id: str,
+    capture_profile: str = LEGACY_PROFILE,
+) -> None:
     require(FAIL_MARKER not in text, f"{label} contains {FAIL_MARKER}: {path}")
-    count = marker_count(text, run_id)
-    require(count == 1, f"{label} must contain exactly one {expected_marker(run_id)}, found {count}: {path}")
+    marker = expected_marker(run_id, capture_profile)
+    count = marker_count(text, run_id, capture_profile)
+    require(count == 1, f"{label} must contain exactly one {marker}, found {count}: {path}")
     legacy_count = sum(1 for line in text.splitlines() if line.strip() == PASS_MARKER)
     require(legacy_count == 0, f"{label} contains legacy bare {PASS_MARKER}: {path}")
+    require(not any(line.strip().startswith((PASS_MARKER, "QPERIAPT_SDK_DEVICE_PASS"))
+                    and line.strip() != marker for line in text.splitlines()),
+            f"{label} contains a different device pass marker: {path}")
 
 
-def require_marker(path: pathlib.Path, label: str, run_id: str) -> None:
+def require_marker(
+    path: pathlib.Path, label: str, run_id: str, capture_profile: str = LEGACY_PROFILE,
+) -> None:
     snapshot = snapshot_file(path, label)
-    require_marker_text(snapshot_text(snapshot, label), path, label, run_id)
+    require_marker_text(snapshot_text(snapshot, label), path, label, run_id, capture_profile)
 
 
 def require_clean_build_log_text(text: str, path: pathlib.Path) -> None:
@@ -547,7 +600,9 @@ def run_line(args: list[str]) -> str:
         raise SystemExit(f"error: cannot run {' '.join(args)}: {exc}") from exc
 
 
-def run_devicectl_json(args: list[str], label: str) -> dict[str, Any]:
+def run_devicectl_json(
+    args: list[str], label: str, capture_profile: str = LEGACY_PROFILE,
+) -> dict[str, Any]:
     """Run devicectl with bounded stdout and parse one strict JSON object."""
 
     command = [
@@ -565,7 +620,7 @@ def run_devicectl_json(args: list[str], label: str) -> dict[str, Any]:
             timeout_seconds=DEVICECTL_COMMAND_TIMEOUT_SECONDS,
             maximum_bytes=MAX_DEVICECTL_JSON_BYTES,
             stderr=subprocess.DEVNULL,
-            environment=apple_toolchain.fixed_command_environment(),
+            environment=apple_toolchain.command_environment(capture_profile),
         )
     except BoundedProcessError as exc:
         raise SystemExit(f"error: {label} {exc.kind}: {exc}") from exc
@@ -599,7 +654,9 @@ def parse_installed_app_state(data: dict[str, Any], bundle_id: str) -> str:
     return "present" if apps else "absent"
 
 
-def load_installed_app_state(device_id: str, bundle_id: str) -> str:
+def load_installed_app_state(
+    device_id: str, bundle_id: str, capture_profile: str = LEGACY_PROFILE,
+) -> str:
     data = run_devicectl_json(
         [
             "device",
@@ -612,6 +669,7 @@ def load_installed_app_state(device_id: str, bundle_id: str) -> str:
             "--include-all-apps",
         ],
         "xcrun devicectl device info apps",
+        capture_profile,
     )
     return parse_installed_app_state(data, bundle_id)
 
@@ -756,10 +814,15 @@ def isoformat(value: dt.datetime) -> str:
     return value.astimezone(dt.timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def source_hashes(root: pathlib.Path) -> dict[str, str]:
+def source_inputs(capture_profile: str) -> dict[str, str]:
+    validate_capture_profile(capture_profile)
+    return SOURCE_INPUTS | (SDK_SOURCE_INPUTS if capture_profile == SDK_PROFILE else {})
+
+
+def source_hashes(root: pathlib.Path, capture_profile: str = LEGACY_PROFILE) -> dict[str, str]:
     """Return named supplemental hashes; canonical coverage is proof_source_tree_sha256."""
 
-    return {name: sha256_file(root / rel) for name, rel in SOURCE_INPUTS.items()}
+    return {name: sha256_file(root / rel) for name, rel in source_inputs(capture_profile).items()}
 
 
 def verify_expected_binary_hashes(
@@ -813,16 +876,18 @@ def validate_source_policy(root: pathlib.Path) -> dict[str, Any]:
     }
 
 
-def verify_source_hashes(root: pathlib.Path, proof: dict[str, Any]) -> None:
+def verify_source_hashes(
+    root: pathlib.Path, proof: dict[str, Any], capture_profile: str = LEGACY_PROFILE,
+) -> None:
     expected = proof.get("source_inputs_sha256")
     require(isinstance(expected, dict), "proof lacks source_inputs_sha256")
-    strict_keys(expected, set(SOURCE_INPUTS), "Apple device source-input hashes")
+    strict_keys(expected, set(source_inputs(capture_profile)), "Apple device source-input hashes")
     for name, digest in expected.items():
         require(
             isinstance(digest, str) and SHA256_RE.fullmatch(digest) is not None,
             f"Apple device source-input hash is malformed: {name}",
         )
-    current = source_hashes(root)
+    current = source_hashes(root, capture_profile)
     for name, got in current.items():
         require(expected.get(name) == got, f"source input changed since device proof: {name}")
 
@@ -924,11 +989,13 @@ def load_device_metadata(
     device_id: str,
     expected_device_type: str,
     expected_transport: str = "",
+    capture_profile: str = LEGACY_PROFILE,
 ) -> dict[str, Any]:
     device_reference = private_value_reference(device_id, "device")
     data = run_devicectl_json(
         ["device", "info", "details", "--device", device_id],
         f"xcrun devicectl device info details for {device_reference}",
+        capture_profile,
     )
     result = data.get("result", {})
     props = result.get("properties", {})
@@ -987,10 +1054,12 @@ def load_device_metadata(
 
 
 def emit(args: argparse.Namespace) -> None:
+    capture_profile = validate_capture_profile(getattr(args, "capture_profile", LEGACY_PROFILE))
     selected_developer_dir = os.environ.get("DEVELOPER_DIR", "")
     _require_fixed_apple_toolchain_selection(
         selected_developer_dir,
         selection_label="DEVELOPER_DIR",
+        capture_profile=capture_profile,
     )
     root = pathlib.Path(args.root).resolve()
     runs_root = device_runs_root(root)
@@ -1021,12 +1090,13 @@ def emit(args: argparse.Namespace) -> None:
     require_under(staticlib, root / "target", "device staticlib path")
 
     require_clean_build_log(build_log)
-    require_marker(launch_log, "device launch log", args.run_id)
-    require_marker(device_result, "device result marker", args.run_id)
+    require_marker(launch_log, "device launch log", args.run_id, capture_profile)
+    require_marker(device_result, "device result marker", args.run_id, capture_profile)
     device_metadata = load_device_metadata(
         args.device_id,
         args.expected_device_type,
         args.expected_transport,
+        capture_profile,
     )
     device_metadata["label"] = args.device_label
 
@@ -1040,7 +1110,7 @@ def emit(args: argparse.Namespace) -> None:
     )
     linkage_info = validate_linkage(linkage)
     source_policy = validate_source_policy(root)
-    source_inputs = source_hashes(root)
+    source_inputs = source_hashes(root, capture_profile)
     source_tree_dirty_at_emit = source_tree_dirty(root)
     require_source_snapshot_unchanged(
         root,
@@ -1062,6 +1132,7 @@ def emit(args: argparse.Namespace) -> None:
         toolchain_snapshot.value,
         selected_developer_dir,
         selection_label="DEVELOPER_DIR",
+        capture_profile=capture_profile,
     )
     private_evidence_before = inspect_private_evidence_tree(
         output.parent,
@@ -1069,7 +1140,7 @@ def emit(args: argparse.Namespace) -> None:
     )
 
     proof = {
-        "schema_version": SCHEMA_VERSION,
+        **capture_identity(capture_profile),
         "status": "pass",
         "git_commit": args.expected_git_commit,
         "source_tree_dirty": source_tree_dirty_at_emit,
@@ -1149,6 +1220,7 @@ def verify_proof_snapshot(
     expected_transport: str = "",
     allow_dirty_proof: bool = False,
     private_evidence_checked: bool = False,
+    capture_profile: str = LEGACY_PROFILE,
 ) -> dict[str, Any]:
     proof_path = proof_snapshot.file.path
     runs_root = device_runs_root(root)
@@ -1168,8 +1240,7 @@ def verify_proof_snapshot(
     max_age_seconds = validate_max_age_seconds(max_age_seconds)
     require_release_policy(max_age_seconds, allow_dirty_proof)
     proof = proof_snapshot.value
-    strict_keys(proof, APPLE_PROOF_FIELDS, "Apple device proof")
-    verify_proof_schema(proof, "Apple device proof")
+    verify_capture_identity(proof, capture_profile)
     require(proof.get("status") == "pass", "Apple device proof status is not pass")
     checks = proof.get("checks")
     require(isinstance(checks, dict), "Apple device proof lacks checks")
@@ -1198,7 +1269,7 @@ def verify_proof_snapshot(
     require(age >= 0, "Apple device proof timestamp is in the future")
     require(age <= max_age_seconds, f"Apple device proof is stale: {age}s old, max is {max_age_seconds}s")
 
-    verify_source_hashes(root, proof)
+    verify_source_hashes(root, proof, capture_profile)
     current_source_policy = validate_source_policy(root)
     require(proof.get("source_policy") == current_source_policy, "Apple device source policy changed since proof")
 
@@ -1208,8 +1279,8 @@ def verify_proof_snapshot(
     build_text = snapshot_text(build_snapshot, "Xcode build log")
     launch_text = snapshot_text(launch_snapshot, "device launch log")
     result_text = snapshot_text(result_snapshot, "device result marker")
-    require_marker_text(launch_text, launch_log, "device launch log", run_id)
-    require_marker_text(result_text, device_result, "device result marker", run_id)
+    require_marker_text(launch_text, launch_log, "device launch log", run_id, capture_profile)
+    require_marker_text(result_text, device_result, "device result marker", run_id, capture_profile)
     require_clean_build_log_text(build_text, build_log)
 
     expected_artifacts = proof.get("artifacts_sha256")
@@ -1360,6 +1431,7 @@ def verify_proof_snapshot(
         toolchain,
         developer_dir,
         selection_label="proof",
+        capture_profile=capture_profile,
     )
     require(current_toolchain == toolchain, "selected Xcode toolchain changed since proof")
     expected_xcode_version = [
@@ -1499,6 +1571,7 @@ def verify(args: argparse.Namespace) -> None:
         args.expected_device_type,
         args.expected_transport,
         args.allow_dirty_proof,
+        capture_profile=getattr(args, "capture_profile", LEGACY_PROFILE),
     )
     print("APPLE_DEVICE_PROOF_JSON_PASS")
     if manifest_bound:
@@ -1509,16 +1582,20 @@ def verify(args: argparse.Namespace) -> None:
 
 
 def inspect_device(args: argparse.Namespace) -> None:
+    capture_profile = validate_capture_profile(getattr(args, "capture_profile", LEGACY_PROFILE))
     metadata = load_device_metadata(
         args.device_id,
         args.expected_device_type,
         args.expected_transport,
+        capture_profile,
     )
     print(json.dumps(metadata, sort_keys=True))
 
 
 def inspect_app(args: argparse.Namespace) -> None:
-    state = load_installed_app_state(args.device_id, args.bundle_id)
+    state = load_installed_app_state(
+        args.device_id, args.bundle_id, getattr(args, "capture_profile", LEGACY_PROFILE),
+    )
     if args.expect:
         bundle_reference = private_value_reference(args.bundle_id, "bundle")
         require(
@@ -1570,6 +1647,8 @@ def parse_entry(value: str) -> tuple[str, str, pathlib.Path]:
 
 
 def emit_matrix(args: argparse.Namespace) -> None:
+    capture_profile = validate_capture_profile(getattr(args, "capture_profile", LEGACY_PROFILE))
+    transports = matrix_transports(capture_profile)
     root = pathlib.Path(args.root).resolve()
     output = pathlib.Path(args.output).resolve()
     matrix_root = pathlib.Path(args.matrix_root).resolve()
@@ -1603,8 +1682,9 @@ def emit_matrix(args: argparse.Namespace) -> None:
             device_result,
             max_age_seconds,
             expected_device_type=REQUIRED_MATRIX_LABEL_TO_TYPE[label],
-            expected_transport=REQUIRED_MATRIX_LABEL_TO_TRANSPORT[label],
+            expected_transport=transports[label],
             allow_dirty_proof=args.allow_dirty_proof,
+            capture_profile=capture_profile,
         )
         device = proof["device"]
         device_type = device["type"]
@@ -1655,7 +1735,7 @@ def emit_matrix(args: argparse.Namespace) -> None:
         "Apple release matrix requires exactly ipad and iphone labels",
     )
     entries = [entries_by_label[label] for label in REQUIRED_MATRIX_LABEL_TO_TYPE]
-    source_inputs = source_hashes(root)
+    source_inputs = source_hashes(root, capture_profile)
     source_tree_dirty_at_emit = source_tree_dirty(root)
     require(
         child_dirty_states == {source_tree_dirty_at_emit},
@@ -1668,7 +1748,7 @@ def emit_matrix(args: argparse.Namespace) -> None:
         "Apple device matrix proof was being assembled",
     )
     proof = {
-        "schema_version": MATRIX_SCHEMA_VERSION,
+        **capture_identity(capture_profile, matrix=True),
         "status": "pass",
         "git_commit": frozen_commit,
         "source_tree_dirty": source_tree_dirty_at_emit,
@@ -1694,7 +1774,9 @@ def verify_matrix_snapshot(
     matrix_root: pathlib.Path,
     max_age_seconds: int,
     allow_dirty_proof: bool,
+    capture_profile: str = LEGACY_PROFILE,
 ) -> None:
+    transports = matrix_transports(capture_profile)
     matrix_proof = matrix_snapshot.file.path
     runs_root = device_runs_root(root)
     require_under(matrix_root, runs_root, "matrix root")
@@ -1706,12 +1788,7 @@ def verify_matrix_snapshot(
     max_age_seconds = validate_max_age_seconds(max_age_seconds)
     require_release_policy(max_age_seconds, allow_dirty_proof)
     proof = matrix_snapshot.value
-    strict_keys(proof, MATRIX_PROOF_FIELDS, "Apple device matrix proof")
-    verify_proof_schema(
-        proof,
-        "Apple device matrix proof",
-        MATRIX_SCHEMA_VERSION,
-    )
+    verify_capture_identity(proof, capture_profile, matrix=True)
     require(proof.get("status") == "pass", "Apple device matrix proof status is not pass")
     verify_git_provenance(root, proof, allow_dirty_proof, "Apple device matrix proof")
     verify_source_tree_digest(root, proof, "Apple device matrix proof")
@@ -1719,7 +1796,7 @@ def verify_matrix_snapshot(
     age = int((utc_now() - generated_at).total_seconds())
     require(age >= 0, "Apple device matrix proof timestamp is in the future")
     require(age <= max_age_seconds, f"Apple device matrix proof is stale: {age}s old, max is {max_age_seconds}s")
-    verify_source_hashes(root, proof)
+    verify_source_hashes(root, proof, capture_profile)
     required_types = proof.get("required_device_types")
     require(
         required_types == list(REQUIRED_MATRIX_TYPES),
@@ -1746,8 +1823,8 @@ def verify_matrix_snapshot(
             f"matrix label {label} requires {REQUIRED_MATRIX_LABEL_TO_TYPE[label]}, got {device_type}",
         )
         require(
-            entry.get("transport") == REQUIRED_MATRIX_LABEL_TO_TRANSPORT[label],
-            f"matrix label {label} requires {REQUIRED_MATRIX_LABEL_TO_TRANSPORT[label]} transport",
+            entry.get("transport") == transports[label],
+            f"matrix label {label} requires {transports[label]} transport",
         )
         seen_types.add(device_type)
         require(entry.get("prefix") == label, f"matrix prefix for {label} must equal its label")
@@ -1767,9 +1844,10 @@ def verify_matrix_snapshot(
             device_result,
             max_age_seconds,
             expected_device_type=device_type,
-            expected_transport=REQUIRED_MATRIX_LABEL_TO_TRANSPORT[label],
+            expected_transport=transports[label],
             allow_dirty_proof=allow_dirty_proof,
             private_evidence_checked=True,
+            capture_profile=capture_profile,
         )
         child_device = child.get("device")
         require(isinstance(child_device, dict), f"child proof lacks device metadata for {label}")
@@ -1838,6 +1916,7 @@ def verify_matrix(args: argparse.Namespace) -> None:
         matrix_root,
         args.max_age_seconds,
         args.allow_dirty_proof,
+        capture_profile=getattr(args, "capture_profile", LEGACY_PROFILE),
     )
     print("APPLE_DEVICE_MATRIX_PROOF_JSON_PASS")
     if manifest_bound:
@@ -1845,6 +1924,11 @@ def verify_matrix(args: argparse.Namespace) -> None:
             "PROOF_TO_BYTE_SELECTED_PROOF_MANIFEST_PASS "
             f"section=apple_matrix sha256={snapshot.file.sha256}"
         )
+
+
+def verify_marker(args: argparse.Namespace) -> None:
+    require_marker(pathlib.Path(args.path), "device marker", args.run_id, args.capture_profile)
+    print(f"APPLE_DEVICE_MARKER_PASS profile={args.capture_profile}")
 
 
 def main() -> None:
@@ -1927,6 +2011,15 @@ def main() -> None:
     verify_matrix_parser.add_argument("--results-manifest", default="")
     verify_matrix_parser.add_argument("--expected-results-manifest-sha256", default="")
     verify_matrix_parser.set_defaults(func=verify_matrix)
+
+    marker_parser = sub.add_parser("verify-marker")
+    marker_parser.add_argument("--path", required=True)
+    marker_parser.add_argument("--run-id", required=True)
+    marker_parser.set_defaults(func=verify_marker)
+    for command_parser in (emit_parser, verify_parser, inspect_device_parser,
+                           inspect_app_parser, emit_matrix_parser, verify_matrix_parser,
+                           marker_parser):
+        command_parser.add_argument("--capture-profile", choices=CAPTURE_PROFILES, default=LEGACY_PROFILE)
 
     args = parser.parse_args()
     args.func(args)

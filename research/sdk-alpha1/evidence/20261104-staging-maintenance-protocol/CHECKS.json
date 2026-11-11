@@ -1,0 +1,19 @@
+{
+  "archive_members_reread": true,
+  "review_rerun_from_archive": true,
+  "capture_members": 193,
+  "capture_uncompressed_bytes": 2862186,
+  "capture_sha256": "d931c617c7ba7af47d786dcca88f1c5a27969e304f0e08f29db3a5d19d661a7a",
+  "evidence_verified": true,
+  "basic_run_completed": true,
+  "basic_case_count": 12,
+  "basic_recorded_owner_cuts": 11,
+  "separate_active_lease_replacement_control_passed": true,
+  "extended_aggregate_passed": false,
+  "extended_aggregate_failure": "existing operational file opener refuses a valid empty unpublished payload",
+  "product_maintenance_implemented": false,
+  "legacy_orphan_cleanup_qualified": false,
+  "general_recursive_cleanup_qualified": false,
+  "other_platforms_qualified": false,
+  "release_claim_eligible": false
+}

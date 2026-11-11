@@ -1,0 +1,6 @@
+{
+  "source": "/Users/bill/.cargo/bin/cargo-audit",
+  "destination": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/qperiapt-audit-tool/bin/cargo-audit",
+  "sha256": "3a148de44078c735484b24f083c2e9ea2e154eb1b26ca5b33bf9967570e014b4",
+  "global_installation": false
+}

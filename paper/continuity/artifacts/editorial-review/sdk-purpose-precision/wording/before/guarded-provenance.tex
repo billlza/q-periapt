@@ -1,0 +1,161 @@
+% Manuscript fragment. Requires amsmath, amssymb, amsthm.
+\subsection{Explicit guarded normalization of record readability}
+\label{sec:guarded-provenance}
+
+The path and readability definitions above already account for copying and
+later key disclosure. We now give their explicit guarded normalization and
+an executable realization for a record-decryption specialization. Here key
+derivation has fixed public edges independent of recovered plaintext. The
+optional plaintext-dependent key-extraction extension remains as defined
+above and is outside this specialization. The set $\Omega_{\rm src}$ below
+contains reservation-source identities; it is distinct from saved record
+versions and from the original-payload table $\mathcal O[v]$. Likewise,
+$\mathcal E^{\rm src}_t$ projects derivability onto protected source values,
+whereas $\mathcal C_t$ and $\mathcal L_t$ track acquired and readable versions.
+The graph is a fixed representation of admitted retained objects, not a
+replacement for the provenance transition rules or the byte renderer.
+
+
+A source identifier names one original sampling operation.  An acquisition
+history records what the adversary obtains, including objects obtained at
+different times.  These are distinct objects of the model: a copy preserves
+the former, while an additional acquisition can change the latter.
+
+\paragraph{Immutable record graph.}
+Let $\mathcal R$ be a finite set of immutable encrypted record objects.
+Each $r\in\mathcal R$ has a matching decryption-key identity $\kappa(r)$,
+a set of embedded child records $\operatorname{child}(r)$, and a set
+$\operatorname{orig}(r)$ of protected source values in its plaintext.
+Containment is acyclic.  Record identities distinguish ciphertext objects;
+source identities distinguish original sampling operations.  Several
+records can contain the same source.  A rewrapped record has a new record
+identity and may have a new key, while retaining its source identity.
+Key identities are equivalence classes of equal actual keys, rather than
+names assigned independently by separate API objects.
+
+Let $\mathcal D\subseteq\mathcal K\times\mathcal K$ be fixed public key
+derivation edges.  An edge $(k,k')$ means that possession of $k$ permits
+deterministic computation of $k'$.  This interface represents, for example,
+derivation of an operation-wrapping key from the journal key.  In the
+theorem below, these edges do not depend on plaintext recovered from records.
+Write $D^*$ for their reflexive transitive closure.
+
+Let $\Omega_{\rm src}=\bigcup_{r\in\mathcal R}\operatorname{orig}(r)$ be the
+declared source domain.  At a trace prefix $t$, let $A_t\subseteq\mathcal R$ be all record objects
+ever acquired by that prefix, $K_t\subseteq\mathcal K$ all directly
+disclosed keys, and $\mathcal S^{\rm dir}_t\subseteq\Omega_{\rm src}$ all directly disclosed source values, represented
+by their source identities.  These are cumulative sets.  The decryption-key
+closure is
+\[
+  K_t^*=\{k':\exists k\in K_t,\ (k,k')\in D^*\}.
+\]
+The concrete derivation rules are
+\[
+ \frac{k\quad(k,k')\in\mathcal D}{k'},\qquad
+ \frac{r\quad\kappa(r)}{c}\ (c\in\operatorname{child}(r)),\qquad
+ \frac{r\quad\kappa(r)}{o}\ (o\in\operatorname{orig}(r)).
+\]
+Their least closure starts from $A_t,K_t,\mathcal S^{\rm dir}_t$.  A fact $o$ in the source
+sort means that the protected value of source $o$ is derivable; it does
+not mean that a public identifier has become known.  The source projection
+of this closure is denoted $\mathcal E^{\rm src}_t$.
+
+\paragraph{Guarded routes.}
+For every path $p=(r_0,\ldots,r_\ell)$ in the containment graph ending
+at a record with $o\in\operatorname{orig}(r_\ell)$, define
+\[
+ g(p)=\{\kappa(r_0),\ldots,\kappa(r_\ell)\}.
+\]
+The normalized table contains a route $(r_0,g(p),o,p)$ for every such
+path.  Its exposure expression is
+\[
+ \widehat{\mathcal E}^{\rm src}_t=\mathcal S^{\rm dir}_t\ \cup\
+ \{o:\exists(r,g,o,p),\ r\in A_t\ \land\ g\subseteq K_t^*\}.
+ \tag{GP}
+\]
+Alternative records and paths are disjoined, while all keys on one path
+are conjoined.  Equal key identities occur only once in the guard set.
+
+\begin{theorem}[Exact guarded normalization]
+\label{thm:guarded-normalization}
+For every finite record graph and derivation interface above, and every
+acquisition prefix $(A_t,K_t,\mathcal S^{\rm dir}_t)$, the concrete and normalized exposure
+sets agree: $\mathcal E^{\rm src}_t=\widehat{\mathcal E}^{\rm src}_t$.  The equality applies to all prefixes of
+an adaptively chosen history.
+\end{theorem}
+\begin{proof}
+Key derivations depend only on disclosed keys and the fixed relation
+$\mathcal D$, so their least closure is exactly $K_t^*$.
+For the forward inclusion, take a source $o\in \mathcal E^{\rm src}_t$.
+If it was directly disclosed then $o\in \mathcal S^{\rm dir}_t$.
+Otherwise its first derivation decrypts a record $r_\ell$ with the
+matching key.  If that record was not acquired directly, its first
+availability follows by decrypting a parent.  Follow these first
+derivations backwards.  The finite acyclic record graph makes this
+process terminate at an acquired record $r_0$.  Every intervening key
+lies in $K_t^*$, yielding a route satisfying (GP).
+For the reverse inclusion, take a satisfied route.  Starting with its
+acquired first record, successively decrypt along the path.  Every
+required key is in $K_t^*$, so each child and finally $o$ is in the
+concrete least closure.  Direct disclosures are in that closure by
+definition.  Both inclusions hold for each fixed prefix; no independence
+or advance choice of the acquisition schedule was used.
+\end{proof}
+
+\paragraph{Efficient evaluation.}
+Equation (GP) is a declarative normal form: a compressed record DAG can
+have exponentially many paths.  An efficient leakage evaluator instead
+computes the iterative decryption and key-derivation fixed point, without
+enumerating those paths.  Let $N$ be the total number of record, key and
+source atoms, and let $M$ count rule and payload incidences.  There are at
+most $N$ strict-growth rounds; repeated rule scans therefore take
+$O(N(N+M))$ time and $O(N+M)$ space under standard indexed set and
+dictionary representations, with source-dictionary operations included
+in this accounting.  The finite checker materializes the route table only
+for its declared small fixtures, to compare that normal form against the
+forward evaluator.
+
+\begin{corollary}[Copies, deletion and late disclosure]
+\label{cor:guarded-history}
+Exposure is monotone under additional acquisitions, direct disclosures
+and key disclosures.  Copying or rewrapping a source adds routes to the
+same source identity.  Local deletion of a record previously acquired
+does not remove its routes from adversarial knowledge.  In particular,
+a later matching-key disclosure can expose a source in a ciphertext
+acquired before that disclosure and deleted locally in the meantime.
+\end{corollary}
+\begin{proof}
+The cumulative sets and their key closure only grow, and every predicate
+in (GP) is positive.  A source-preserving copy changes a route's record
+identity or key guards but not its terminal source.  Local deletion
+restricts future acquisition from that local store; it removes no member
+of $A_t$ and therefore cannot invalidate a satisfied route.
+\end{proof}
+
+\paragraph{Interface significance.}
+The theorem gives an exact finite normalization of the chosen
+record-decryption semantics.  It supports a precise original-operation
+leakage oracle: a query for source $o$ can be evaluated against the
+complete acquisition history, with a path and its key guards as a witness.
+The cryptographic transition from native ciphertexts and public
+commitments to this interface has a separate simulation obligation.
+The derivation rules do not model guessing, cryptanalysis, timing leakage
+or a quantum decryption oracle.  Accordingly, absence from $\mathcal E^{\rm src}_t$ is
+recorded as non-derivability by these rules; message indistinguishability
+outside an exposure set is supplied by a security theorem for the
+surrounding protocol.
+
+\paragraph{Native shape and finite checks.}
+At the fixed research source, operation reservations are encrypted under
+a wrapping key derived from the journal key, and tokens are retained
+within encrypted durable images or pending targets.  The corresponding
+route therefore includes the image key and the token key, with their
+actual derivation edge.  A fresh aggregate image can preserve an older
+token and its original source.  Public image-head digests are distinct
+observations from the record objects needed by the decryption rules.
+The executable supplement independently evaluates iterative decryption
+and guarded-route normalization, exhausts all acquisition/key/direct-source
+subsets for its declared finite graphs, and checks histories with late
+key disclosure and local deletion.  Its counts and source hash are in
+the accompanying machine-readable result; those checks validate the
+implemented finite model and supplement the general proof above.

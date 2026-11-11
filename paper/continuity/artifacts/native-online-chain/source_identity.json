@@ -1,0 +1,69 @@
+{
+  "schema": "qperiapt-native-online-chain-source-identity/1",
+  "repository": "billlza/q-periapt",
+  "inspected_commit": "a4c089570c787522210d16226219c0cc8aa9b05e",
+  "paper_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+  "retrieval": "Exact source text fetched from the specified immutable GitHub commit through the repository connector. Git blob identities and SHA-256 digests were independently computed from the stored bytes.",
+  "files": [
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages.rs",
+      "snapshot": "sources/messages.rs.txt",
+      "bytes": 42215,
+      "sha256": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
+      "git_blob_sha1": "ba2229b17b2c7dd42e5d3d580501f1e00ac5a9ad",
+      "pinned_228_blob_sha1": "ba2229b17b2c7dd42e5d3d580501f1e00ac5a9ad",
+      "matches_paper_pin": true,
+      "inspected_commit_url": "https://github.com/billlza/q-periapt/blob/a4c089570c787522210d16226219c0cc8aa9b05e/research/continuity-identity-candidate/src/durable/messages.rs"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/traffic.rs",
+      "snapshot": "sources/traffic.rs.txt",
+      "bytes": 21147,
+      "sha256": "5e19c0a6719895888a7018db2583c89da50c1de029d443834c357bce342cb6e2",
+      "git_blob_sha1": "0696a481910b6ca7c5781548edd67d814119431e",
+      "pinned_228_blob_sha1": "0696a481910b6ca7c5781548edd67d814119431e",
+      "matches_paper_pin": true,
+      "inspected_commit_url": "https://github.com/billlza/q-periapt/blob/a4c089570c787522210d16226219c0cc8aa9b05e/research/continuity-identity-candidate/src/durable/messages/traffic.rs"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey.rs",
+      "snapshot": "sources/rekey.rs.txt",
+      "bytes": 17022,
+      "sha256": "74f8b76dad4fc7f95a5cbaf47bc7cf51ef2231f18bc1f940e68793a050483a10",
+      "git_blob_sha1": "b529ec75f5908abc4c064deaaf4bcb87585c983b",
+      "pinned_228_blob_sha1": "b529ec75f5908abc4c064deaaf4bcb87585c983b",
+      "matches_paper_pin": true,
+      "inspected_commit_url": "https://github.com/billlza/q-periapt/blob/a4c089570c787522210d16226219c0cc8aa9b05e/research/continuity-identity-candidate/src/durable/messages/rekey.rs"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs",
+      "snapshot": "sources/rekey-response.rs.txt",
+      "bytes": 15442,
+      "sha256": "e2c1dfe4122c9f2ae41101dfb7b392abcd801f09dd63b5f39e6722f3585cee59",
+      "git_blob_sha1": "4b3ec64baae74580f1b0d75e7d3ff3271c2ba941",
+      "pinned_228_blob_sha1": "4b3ec64baae74580f1b0d75e7d3ff3271c2ba941",
+      "matches_paper_pin": true,
+      "inspected_commit_url": "https://github.com/billlza/q-periapt/blob/a4c089570c787522210d16226219c0cc8aa9b05e/research/continuity-identity-candidate/src/durable/messages/rekey/response.rs"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs",
+      "snapshot": "sources/rekey-completion.rs.txt",
+      "bytes": 42784,
+      "sha256": "d2ba085119db3cff2ebda780f4824b8b4cbd3a9f6e44531df45db48144a65c1e",
+      "git_blob_sha1": "0b230c7406f5d9e25c89405faaf4b3a0bdf720e3",
+      "pinned_228_blob_sha1": "0b230c7406f5d9e25c89405faaf4b3a0bdf720e3",
+      "matches_paper_pin": true,
+      "inspected_commit_url": "https://github.com/billlza/q-periapt/blob/a4c089570c787522210d16226219c0cc8aa9b05e/research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs"
+    },
+    {
+      "path": "research/continuity-identity-candidate/src/contract.rs",
+      "snapshot": "sources/contract.rs.txt",
+      "bytes": 4170,
+      "sha256": "3e6285fee34e5a785655d60cebf0704ba1a1d1385e6fb3e945ee79f682108f7e",
+      "git_blob_sha1": "210902bb3b39fc54a9ede786b7475487c7303bb7",
+      "pinned_228_blob_sha1": "210902bb3b39fc54a9ede786b7475487c7303bb7",
+      "matches_paper_pin": true,
+      "inspected_commit_url": "https://github.com/billlza/q-periapt/blob/a4c089570c787522210d16226219c0cc8aa9b05e/research/continuity-identity-candidate/src/contract.rs"
+    }
+  ]
+}

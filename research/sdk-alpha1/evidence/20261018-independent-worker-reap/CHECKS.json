@@ -1,0 +1,52 @@
+{
+  "base_head": "23280124efd2f0f3003d4ce85e3db665f6ec8a25",
+  "cause": "Popen waited for launcher shell rather than journal-owning Python; Linux next open observed surviving lease during process-group termination",
+  "unchanged_storage_protocol": true,
+  "direct_worker_pid_verified_at_each_cut": true,
+  "storage_kills": 16,
+  "storage_checks": 37,
+  "session_kills": 6,
+  "session_operations": 27,
+  "native_commands": 9,
+  "codec_refusals": 6,
+  "source_files": {
+    "peer/__init__.py": "9d7337e6f4f439c45ab9dc47bfdbff1335ec366df00229f36a31ae65f489bf9c",
+    "peer/authority.py": "8cf57f281b148af48fe7db3730326c8f9fa5267414606fca25b743cd23787731",
+    "peer/bootstrap.py": "d4683725f689d89d78e5d1083f8881d406bab2cca22bf7b98a3e22444f3d5618",
+    "peer/durable.py": "e8eac5c4174d743e14bbe39b33b649a670da4f2815114908b3b4966e34e7da3b",
+    "peer/journal.py": "a11d257e3001ac09ca34b452200210930869601b9368e38dfb59c7f983c5a592",
+    "peer/kem.py": "f7ecbfe02d3c50ae61a0843cda962671d5b3e41931bc922fcb15d6bbbba6e1e9",
+    "peer/private_files.py": "212e485e67020a87dc8742ecfc2a9fad2b87dcb87074ff5c3ea85face03b6756",
+    "peer/state_codec.py": "9124e96df2652e4fec9cb55322ab27b317beaa5c018bffdcb3d1152959a77232",
+    "peer/traffic.py": "494097ecff4a7d198ab278d14da8bd4a3ec6242f475ae5ce4a8d66dc197c1666",
+    "peer/wire.py": "76a64c94f876038a7f072d668307813d4b7b89a34bc760ad54adf18ac7b035af",
+    "durability_checks.py": "b6e8373cf9e029fb255a71732b92a2e43e4158a7272868329749cc303d9f93c5",
+    "fixture_inputs.py": "863030ed12e7f4c73d21f391cc206e995c46ef431b8135c44a4f76dce1b771c0",
+    "provider.py": "cc4840f7c2c7c23d97b522fb512bb6547b0570e79da092dcef4881988362bd76",
+    "run.py": "ccff899cfdf30d77a60f9cbf6d41bc226cddb4e53b0613a3923cdee61a41e8e7",
+    "session_worker.py": "e9ff3788d084556e8e5ec2db096ff54bcf72f7b1cf96d15d609d772baad5ea68",
+    "storage_checks.py": "566ccea9b2558fd6c0a307f73f512c70799e875937f0b812e0578e96046238a0",
+    "traffic_checks.py": "673c0b8e5c41ce0494d5c15b5a92cff0646caf1603c482f1fbd5c0603f3a7ef8",
+    "worker_process.py": "c5569ff0eaf18720e73984dee556dc596b5ae048bffef314884022e8c1f11c55",
+    "native/src/fixture.rs": "c5f14e4fe4d9a5fa8bf2c4069d2494e8dc3dc91f52e48b1f4368109ca3b5269f",
+    "native/src/journal.rs": "d11c455b85fa40aa04d704a708aa32fb239868e154694e302be853464633be06",
+    "native/src/main.rs": "f1753339aa6335fedbba09c6e5fcc343967188fb647c93bea138349a5a0cb211",
+    "native/Cargo.toml": "fe15d136d588decef21f96dcb229391f7c7b602f6ebf9db030da88a59dacec1b",
+    "native/Cargo.lock": "cc6e7de9921a0e051cb03b587ed5b194372427efe6f96ef829c7b5a025cd2d8d",
+    "requirements.txt": "484c3518a9e325f0ba45613d08e2a1a96113d5f8d265b6bc70855c87a0d15dd0"
+  },
+  "failed_CI": {
+    "run": 39129232912,
+    "job": 117680780391,
+    "artifact": 12137580588,
+    "bytes": 1826811,
+    "sha256": "78404f4086d27186f4e15f4b1748d2cc036a5bc0b4e8cfced12adcdef6fd91da"
+  },
+  "new_hosted_runtime": "pending",
+  "scope": "Independent harness direct-process teardown; no relaxed store lock, sleeps, retries, rekey or release claim",
+  "capture": {
+    "sha256": "f786ff61cde4aef6bfe534dc9174629ab81b715f31ef40d716c058564a3e066a",
+    "bytes": 1982713,
+    "members": 171
+  }
+}

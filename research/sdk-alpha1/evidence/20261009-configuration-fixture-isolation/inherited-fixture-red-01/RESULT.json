@@ -1,0 +1,12 @@
+{
+  "source_head": "e0e1dee0ba19e9c1e177d30e7ae16ef0d87f3f25",
+  "source_sha256": "6ff6b949aff867bcbc68722d0f6ffffbe9253548a4691fc4bdc0c44e63ef73b7",
+  "helper_sha256": "a6c1c13088f93e6660aacaeaf06acc7b26baede4ff37682950761917fa7b1b0c",
+  "client_sha256": "2b6542c6f39bd4a06c03e44cbc1119c79bf7f6f5b1aba79e1779fbd36de7e835",
+  "inherited_private_fixture_directory": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qpc-configuration-env-f1nm0abb/previous-connection",
+  "expected": "rejected",
+  "observed": "rejected",
+  "completed": true,
+  "error": "command failed (101): /Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/configuration-env-isolation-current/inherited-fixture-red-01/configuration-c-debug.stderr",
+  "seconds": 0.09722424997016788
+}

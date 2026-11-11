@@ -1,0 +1,320 @@
+{
+  "head": "23280124efd2f0f3003d4ce85e3db665f6ec8a25",
+  "run": 39129232911,
+  "installed_lifecycle_qualified": true,
+  "producer": {
+    "head": "23280124efd2f0f3003d4ce85e3db665f6ec8a25",
+    "run": 39129232911,
+    "artifact": 12137432813,
+    "artifact_bytes": 8704791,
+    "artifact_sha256": "2ab60e4e51741ac8d295becb87fde05d84388ebe08eeecc010b570c18ed04b18",
+    "payload_members": 927,
+    "facade_sources_verified": 124,
+    "candidate_Rust_sources_independently_verified": 373,
+    "all_ten_archives_and_package_bytes_unchanged_from_6b": true,
+    "declared_exports": 157,
+    "scope": "Producer source closure only; native controls and installed lifecycle remain separate."
+  },
+  "native": {
+    "head": "23280124efd2f0f3003d4ce85e3db665f6ec8a25",
+    "run": 39129232911,
+    "qualified": true,
+    "scope": "Installed Windows C controls, initial configuration and original ten owner test entries; root/public lifecycle semantics require separate independent replay. Same engine and host; no independent implementation, power-loss or release admission.",
+    "jobs": 2,
+    "profiles": 4,
+    "C_case_processes": 56,
+    "guard_processes": 4,
+    "platform_processes": 4,
+    "bounded_report_processes": 4,
+    "platform_scope": "Native caller worker/join/clock/sleep only; no C SDK foreign-worker or full lifecycle qualification",
+    "SDK_archives": 9,
+    "candidate_archives": 1,
+    "artifacts": [
+      {
+        "os": "windows-2022",
+        "artifact_id": 12138417657,
+        "artifact_sha256": "sha256:493f8a4cda736e14bbc427a2c33c60d1b542de99325b35769b993efe8f46b37a",
+        "artifact_bytes": 40897123,
+        "metadata_and_original_dependency_lock_verified": true,
+        "profiles": {
+          "debug": {
+            "independent_DLL_sha256": "3a2ee1ad1fd571a5bd8e31e74f3f3ca3f861dbb80caac3191369cafcc1d86c5d",
+            "independent_exports": 157,
+            "guard_passed": true,
+            "actual_C_process_cases": 14,
+            "trust_modes": [
+              "fixed",
+              "recoverable"
+            ],
+            "typed_refusals": [
+              500,
+              703,
+              203,
+              107
+            ],
+            "duplicate_complete_file_image_preserved": true,
+            "held_owner_floor_and_enabled_state_preserved": true,
+            "client_sha256_producer_observation": "d4f523d1b96cafb1fd691efca11768669e238b8f103b937984b27b564af5c99e",
+            "original_owner_entries": 10,
+            "effect_controls": 6,
+            "live_image_CRT_observations": [
+              [
+                "0",
+                "1",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0"
+              ],
+              [
+                "1",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ],
+              [
+                "2",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ]
+            ],
+            "mapped_image_original_lock_retained": true,
+            "root_publication_bytes": 8388608,
+            "root_default_limit": 1048576,
+            "root_guard": true,
+            "extended_input_and_shared_marker_control": true,
+            "native_UTF8_SDK_child_path_checked_before_normalization": true,
+            "first_registration_scenarios": 6,
+            "configuration_public_files": 190
+          },
+          "release": {
+            "independent_DLL_sha256": "aea4f4030266a8d3a05016ee63a491d9a439ba818eef6f0002f25a9da7f10c80",
+            "independent_exports": 157,
+            "guard_passed": true,
+            "actual_C_process_cases": 14,
+            "trust_modes": [
+              "fixed",
+              "recoverable"
+            ],
+            "typed_refusals": [
+              500,
+              703,
+              203,
+              107
+            ],
+            "duplicate_complete_file_image_preserved": true,
+            "held_owner_floor_and_enabled_state_preserved": true,
+            "client_sha256_producer_observation": "03ba337d1765741b6bc823404938c3273d5edf5de0f81d89ff715953b7c0fe34",
+            "original_owner_entries": 10,
+            "effect_controls": 6,
+            "live_image_CRT_observations": [
+              [
+                "0",
+                "1",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0"
+              ],
+              [
+                "1",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ],
+              [
+                "2",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ]
+            ],
+            "mapped_image_original_lock_retained": true,
+            "root_publication_bytes": 8388608,
+            "root_default_limit": 1048576,
+            "root_guard": true,
+            "extended_input_and_shared_marker_control": true,
+            "native_UTF8_SDK_child_path_checked_before_normalization": true,
+            "first_registration_scenarios": 6,
+            "configuration_public_files": 190
+          }
+        }
+      },
+      {
+        "os": "windows-2025",
+        "artifact_id": 12138039733,
+        "artifact_sha256": "sha256:e9c3a0ee892222549bd67ab359f0bff3e3a33ad0d418219f118e221591c0242c",
+        "artifact_bytes": 40889144,
+        "metadata_and_original_dependency_lock_verified": true,
+        "profiles": {
+          "debug": {
+            "independent_DLL_sha256": "88ec5952fcd3bcfae731e4b67f12f24d16ec3420e33d484563b81936a835bfa0",
+            "independent_exports": 157,
+            "guard_passed": true,
+            "actual_C_process_cases": 14,
+            "trust_modes": [
+              "fixed",
+              "recoverable"
+            ],
+            "typed_refusals": [
+              500,
+              703,
+              203,
+              107
+            ],
+            "duplicate_complete_file_image_preserved": true,
+            "held_owner_floor_and_enabled_state_preserved": true,
+            "client_sha256_producer_observation": "000683cee6d3f6f6b3ab413ac3fa726dfbd1dc3d5f9f6f31188a33b037ffd9c9",
+            "original_owner_entries": 10,
+            "effect_controls": 6,
+            "live_image_CRT_observations": [
+              [
+                "0",
+                "1",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0"
+              ],
+              [
+                "1",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ],
+              [
+                "2",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ]
+            ],
+            "mapped_image_original_lock_retained": true,
+            "root_publication_bytes": 8388608,
+            "root_default_limit": 1048576,
+            "root_guard": true,
+            "extended_input_and_shared_marker_control": true,
+            "native_UTF8_SDK_child_path_checked_before_normalization": true,
+            "first_registration_scenarios": 6,
+            "configuration_public_files": 190
+          },
+          "release": {
+            "independent_DLL_sha256": "5926f842b49e36be166fddfe01db3a97768e0336e98f021c57bf40910f0bab24",
+            "independent_exports": 157,
+            "guard_passed": true,
+            "actual_C_process_cases": 14,
+            "trust_modes": [
+              "fixed",
+              "recoverable"
+            ],
+            "typed_refusals": [
+              500,
+              703,
+              203,
+              107
+            ],
+            "duplicate_complete_file_image_preserved": true,
+            "held_owner_floor_and_enabled_state_preserved": true,
+            "client_sha256_producer_observation": "774e2f998421b248b9a51958b7f29c6e8f1b0f7872f123f371c03d5a34715c2c",
+            "original_owner_entries": 10,
+            "effect_controls": 6,
+            "live_image_CRT_observations": [
+              [
+                "0",
+                "1",
+                "0",
+                "0",
+                "0",
+                "0",
+                "0"
+              ],
+              [
+                "1",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ],
+              [
+                "2",
+                "0",
+                "1",
+                "13",
+                "32",
+                "32",
+                "0"
+              ]
+            ],
+            "mapped_image_original_lock_retained": true,
+            "root_publication_bytes": 8388608,
+            "root_default_limit": 1048576,
+            "root_guard": true,
+            "extended_input_and_shared_marker_control": true,
+            "native_UTF8_SDK_child_path_checked_before_normalization": true,
+            "first_registration_scenarios": 6,
+            "configuration_public_files": 190
+          }
+        }
+      }
+    ],
+    "client_digest_scope": "Client executable hashes are producer observations; downloaded DLL/header/import-library hashes and PE exports were independently checked."
+  },
+  "public_readback": {
+    "head": "23280124efd2f0f3003d4ce85e3db665f6ec8a25",
+    "run": 39129232911,
+    "profiles": 4,
+    "rows": [
+      {
+        "os": "windows-2022",
+        "native_artifact_id": 12138417657,
+        "native_bytes": 40897123,
+        "native_digest": "sha256:493f8a4cda736e14bbc427a2c33c60d1b542de99325b35769b993efe8f46b37a",
+        "readback_artifact_id": 12138721197,
+        "readback_digest": "sha256:f1545a6b09262fb3ef8f719b5b2d27ad137b99186b5717411a2b0695e04ce1fb",
+        "local_and_cloud_review_bytes_identical": true
+      },
+      {
+        "os": "windows-2025",
+        "native_artifact_id": 12138039733,
+        "native_bytes": 40889144,
+        "native_digest": "sha256:e9c3a0ee892222549bd67ab359f0bff3e3a33ad0d418219f118e221591c0242c",
+        "readback_artifact_id": 12137699055,
+        "readback_digest": "sha256:7f2f3913252cadf7560ecd8ea88863767611f2270e31f22ac7864399a95bec98",
+        "local_and_cloud_review_bytes_identical": true
+      }
+    ],
+    "C_scope": "56 initial-configuration cases,40 original owner suite entries,28 independently replayed C owner workloads and16 root replacement routes, plus24 first-registration carrier/trust scenarios with190 public files perprofile; original strict controls retained (seeNATIVE_C_REVIEW.json); same engine/host, not independent protocol implementation",
+    "Rust_scope": "All original installed public lifecycle contracts, same-engine/same-host;279publicfiles/profile; original reader and cloud/local review bytesmatch; no powerloss/performance/release claim"
+  },
+  "full_native_artifacts": "target/windows-installed-2328-01 and retained GitHub artifacts; compact capture omits complete native ZIPs/DLLs.",
+  "scope": "Installed Windows Debug/Release C/Rust lifecycle. Same engine and host, no independent implementation, hardware power loss, performance or release admission.",
+  "capture": {
+    "bytes": 751477,
+    "members": 41,
+    "sha256": "0f3bef5ca698dd4e329e24e79ddf5749beea0e1f6caba2a9ebdaac297ae39e75"
+  }
+}

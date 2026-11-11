@@ -1,0 +1,99 @@
+{
+  "archive": {
+    "bytes": 36444404,
+    "members": 19251,
+    "path": "CAPTURE.zip",
+    "sha256": "41ac35c1ae93b729d14a980ceb294478cab7494425a838f0d1b5b503f4ecc99a"
+  },
+  "browser_calls": 212,
+  "cases": [
+    {
+      "calls": 53,
+      "case": "local",
+      "effect_identity_unchanged": true,
+      "run": "run03",
+      "two_receivers": true
+    },
+    {
+      "calls": 53,
+      "case": "required",
+      "effect_identity_unchanged": true,
+      "run": "run03",
+      "two_receivers": true
+    },
+    {
+      "calls": 53,
+      "case": "worker-cut",
+      "effect_identity_unchanged": true,
+      "run": "run05",
+      "two_receivers": true
+    },
+    {
+      "calls": 53,
+      "case": "effect",
+      "effect_identity_unchanged": true,
+      "run": "run05",
+      "two_receivers": true
+    }
+  ],
+  "completed": true,
+  "counterexamples": [
+    "New native retained-ACK success escaped operation finish after the sync transform; direct owner-open assertion reproduced and fixed.",
+    "New WASM account indices used the positive-only limit validator; position zero failed before dispatch in run02, corrected and verified by run03/run04.",
+    "run01 driver shadowed the browser session name; failed result and owned close recovery retained.",
+    "The original TLS library filter ran zero tests; excluded and replaced by the explicit owned_connection integration target."
+  ],
+  "deadline_attempt": {
+    "action": "establish",
+    "code": "Deadline",
+    "completed": false,
+    "disposition": "Preserved failed run; fresh run05 adds monotonic timing and retains the same timeout and assertions. No bounded-latency SLO is established.",
+    "native_bootstrap_replies_completed": true,
+    "run": "run04",
+    "timeout_ms": 10000
+  },
+  "documentation": {
+    "docs/continuity/PRODUCT_ADMISSION.md": "f306dc118949499feb17f51be6909fffb2937f5064ccfb33cac85877bf9864e3"
+  },
+  "invalid_js_index_values": 10,
+  "manifest_sha256": "808fd97cef0a2a68d8321e7be163e9903ec943acac68acacdb01daccba414028",
+  "native_regressions": {
+    "fanout": 61,
+    "owned": 3,
+    "portable": 13
+  },
+  "package_sha256": "73b042caf75663d607011fd8e92fd61969c8abad63815844194c9db3a8a5f51d",
+  "private_material_archived": false,
+  "product_code_changed": true,
+  "release_claim_eligible": false,
+  "remaining": [
+    "Restricted inactive/expired/retired aggregate recovery and abandonment in the browser",
+    "Additional authority races, reservation/commit interruption and cancellation boundaries",
+    "Independent implementation and host interoperability, broader platform lifecycle, PCS, performance, current CI and final release admission"
+  ],
+  "schema": 1,
+  "scope": "Actual installed browser package and current-source native receivers, same engine on one macOS arm64 host; each fresh cohort has one complete three-device signed roster and a single witness authority.",
+  "source_base": "978e405f64b92999677e34be6ea3a36bd3471956",
+  "source_overlay": {
+    "ARTIFACT.md": "aa501eec579044cacfa84551dccf09dac8787d1e61c1a5cd3faaf0323b8064e2",
+    "artifact/codeql_rust_quality.py": "6313c330b8be2427850c6cda86d39191193681f82a608a5b186125d6e2ee6ffc",
+    "artifact/test_codeql_rust_quality.py": "2c3e36b149dc3ef8f6173ee0078d13c10dc60ccbe9dc357d6c4709e527300ca3",
+    "crates/q-periapt-sdk-wasm/PackageREADME.md": "ae08db50a29b40901ee53c2f3ef2274ea7d26665567923b328e50248ef514a2f",
+    "crates/q-periapt-sdk-wasm/package/web/index.d.ts": "ece4f2625ecc74c5cc124b37763b8d1a235292d9971e18cc981cfe5c79cfaa20",
+    "crates/q-periapt-sdk-wasm/package/web/index.js": "8c0c11e15e859d87151951653d01258bea742a585c8dd1218563894b5ca547a3",
+    "crates/q-periapt-sdk-wasm/src/continuity.rs": "7d9d8ae31d332cd20774a444c498162436dbd1d9dcf1f9a9ffb4767ff0f6bafc",
+    "crates/q-periapt-sdk-wasm/src/continuity/account.rs": "77f950b8167d9df4f0819fe74ca04278f1858f20fa4c44f445ed241f0fb8e075",
+    "crates/q-periapt-sdk-wasm/src/continuity/account/types.rs": "83a93797d92b2b98c2ebb7ae298bdefa55a3e0530c740c4c4d14483824cb7f7e",
+    "crates/q-periapt-sdk-wasm/tests/types.mts": "0873882cb699d5125d982e1125739299055b690015896a8a7aca303971f4d6d9",
+    "research/continuity-identity-candidate/src/browser/connections.rs": "95160aec4c364d5f27201a5e4e223b0b2c23a713473ad630989ca1360b466468",
+    "research/continuity-identity-candidate/src/browser/connections/account.rs": "6ac53d3fc36ee94c61f794b2fdcf2336c6254964f690772dd5d5d638ba285e71",
+    "research/continuity-identity-candidate/src/connection_transport.rs": "09b5276c9298d97b24a860080be8f4d7c9938fe45b613e0ef0f3ccc69f44ec6d",
+    "research/continuity-identity-candidate/src/connection_transport/client.rs": "6aa98d132888a350d69c74f9b33109c79863037b08ec8ae0f5a38cb52fbab8ef",
+    "research/continuity-identity-candidate/src/durable/messages/fanout.rs": "1f93fc5060894b1249066b4a8b073de9163b81f4780c8bd59ac664e77c3ef179",
+    "research/continuity-identity-candidate/src/durable/messages/fanout/archive.rs": "c8097468f9eadd7027cdb3ea0225fdc4c90e673d9f827e2400c567ef667adbd8",
+    "research/continuity-identity-candidate/src/session_exchange.rs": "e2fd1f3e31e69d3dbb68e33870f4112f80d8d749067335443c5546f4a6b51b39",
+    "research/continuity-identity-candidate/src/session_exchange/account.rs": "5aafcf934f7394a50280dab3bad17b98aac9b34f51a0066859fa287462602cf7",
+    "research/continuity-identity-candidate/src/session_exchange/tests.rs": "6733596072793bdcbe32fd2bdea7eb5aab7c92979b5d6f34931fee078e3272e2",
+    "research/continuity-identity-candidate/src/session_exchange/tests/account.rs": "11a21d04e52460126dc280aad8be1f55cdddcf9f0c811184eb7393fd48f2759a"
+  }
+}

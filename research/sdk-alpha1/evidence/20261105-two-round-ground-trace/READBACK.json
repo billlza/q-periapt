@@ -1,0 +1,33 @@
+{
+  "captured_utc": "2026-11-05T01:14:43.432152+00:00",
+  "scope": "Reviewed finite ground-trace diagnostic, not a Tamarin certificate or full security proof.",
+  "canonical_archive_sha256": "082aa9ab02e8eae4eb52296e329eeb22bb8ae2cf4a25114df5dc7177019528db",
+  "canonical_model_sha256": "dde5d06a071b1560da0d4c28c3f1fd81a3c39708f9fd8564ee391ddc362bcf7f",
+  "archive_bytes": 268346,
+  "archive_sha256": "b7d6113d959ce29f933aab648c22a33263aedbdc06f5d8903f237483eeffdb8a",
+  "members": 58,
+  "all_members_exact_readback": true,
+  "portable_replay": {
+    "argv_shape": [
+      "/Users/bhmq03@durham.ac.uk/.local/share/uv/python/cpython-3.14.10-macos-aarch64-none/bin/python3.14",
+      "-I",
+      "-S",
+      "-B",
+      "<fresh-extraction>/target/continuity-ground-witness/readback.py"
+    ],
+    "returncode": 0,
+    "elapsed_seconds": 0.3155376670183614,
+    "timeout_seconds": 60,
+    "maximum_stdout_bytes": 1048576,
+    "maximum_stderr_bytes": 1048576,
+    "python": "3.14.10 (main, Oct 26 2026, 13:59:48) [Clang 23.1.3 ]",
+    "stdout_sha256": "279912485f457d29518f0fd1b4fe7c88aad28f8bf2f9a0812d41d13b81c67258",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "positive_controls": 2,
+  "negative_controls": 22,
+  "valid_but_wrong_target_controls": 7,
+  "review_sha256": "dee13de57c1df078d84a2ba26d504aa6d0faec076c36a45bccad86d994bb2355",
+  "independent_recheck_sha256": "40ae059ac949bb8a1d424250835f92b73d920fbbd9cf95a976da90cb886ddb23",
+  "original_tamarin_query_inventory_changed": false
+}

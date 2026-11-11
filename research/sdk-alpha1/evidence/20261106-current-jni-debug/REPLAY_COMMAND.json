@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "sh",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-current-jni-readback-5678/standalone-debug-01/source/artifact/python-run.sh",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-current-jni-readback-5678/standalone-debug-01/source/target/current-rust-readback/archive_replay.py",
+    "replay-01",
+    "debug",
+    "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-current-jni-readback-5678/standalone-debug-01/data"
+  ],
+  "cwd": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/continuity-current-jni-readback-5678/standalone-debug-01/source",
+  "returncode": 0
+}

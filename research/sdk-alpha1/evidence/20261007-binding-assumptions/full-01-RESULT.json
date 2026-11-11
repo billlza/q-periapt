@@ -1,0 +1,63 @@
+{
+  "source_sha256": {
+    "BindingViaCR.ec": "56be8379973d6ef0602d7ee18384492f8963db25e29e38f2df63f9841ab30e68",
+    "MigrationBindingV2.ec": "0dbf7039d402ea7d10b5b0745f9f8d34ee6d78fb1ac6e99c7338c30182325062",
+    "JRejectionCountermodel.ec": "3c620ab425255f82910d70deb15091417f439c5dd7de5d8f36ef43f980eafc99",
+    "Makefile": "a3d015f5b1ef8f55b645b275b777ce7c5b23757681e1eba38d86d96da3ef1cb1",
+    "negative-controls.sh": "089a1fbd6dbb3e84f5762ee75b95de6918b4f6a2c12d3e6377f0201adf2dfd0f",
+    "continuity/PrekeySelectionV1.ec": "a5a1341009084c3cadd069233d94bd39930b9b7fa8e871ba5a7b24a051fae470",
+    "continuity/LifecycleContextV1.ec": "f6942ca33a1952624c5310b63db4c82df05585445fe97de85f4342188f17286c",
+    "continuity/Makefile": "8891f93d892a059fcb15e1816f236d75e6f6123afd72e536c0195ef38a2014bf"
+  },
+  "commands": [
+    {
+      "name": "binding-without-J",
+      "command": [
+        "/Users/bill/.opam/default/bin/easycrypt",
+        "compile",
+        "-no-eco",
+        "ContextBoundWithoutJ.ec"
+      ],
+      "returncode": 0,
+      "timeout": false,
+      "seconds": 1.1087722920347005
+    },
+    {
+      "name": "full-proofs",
+      "command": [
+        "make",
+        "EC=/Users/bill/.opam/default/bin/easycrypt",
+        "check"
+      ],
+      "returncode": 0,
+      "timeout": false,
+      "seconds": 5.005161749897525
+    },
+    {
+      "name": "dependency-controls",
+      "command": [
+        "sh",
+        "negative-controls.sh"
+      ],
+      "returncode": 0,
+      "timeout": false,
+      "seconds": 31.633171499939635
+    },
+    {
+      "name": "continuity-diagnostics",
+      "command": [
+        "make",
+        "-C",
+        "continuity",
+        "EC=/Users/bill/.opam/default/bin/easycrypt",
+        "check"
+      ],
+      "returncode": 0,
+      "timeout": false,
+      "seconds": 1.7098211250267923
+    }
+  ],
+  "passed": true,
+  "prefix_excludes_jrej_and_zof": true,
+  "scope": "Native pinned EasyCrypt model compilation; no implementation refinement, IND-CCA or real J attack claim."
+}

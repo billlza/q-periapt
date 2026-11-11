@@ -1,6 +1,8 @@
 #include <jni.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "q_periapt.h"
 
@@ -559,6 +561,275 @@ cleanup:
 	free(out_secret);
 }
 
+/* Owned ABI 2 extensions. Private bytes cross JNI only through explicit expert
+ * transfer/protocol export. Shape checks precede allocation/copy. */
+static jlong sdk_java_handle(uint64_t handle) {
+    _Static_assert(sizeof(jlong) == sizeof(uint64_t), "JNI handle width");
+    jlong result;
+    memcpy(&result, &handle, sizeof(result));
+    return result;
+}
+
+static jint native_sdk_extension_version(JNIEnv *env, jclass cls) {
+    (void)env; (void)cls;
+    return (jint)q_periapt_sdk_extension_version();
+}
+
+static jlong native_sdk_runtime_new(JNIEnv *env, jclass cls,
+        jbyteArray policy, jbyteArray signature, jbyteArray root, jbyteArray previous,
+        jint max_keys, jint max_calls) {
+    (void)cls;
+    jbyteArray arrays[] = {policy, signature, root, previous};
+    const char *labels[] = {"policy", "signature", "trustRoot", "previousState"};
+    uintptr_t lengths[4] = {0};
+    uint8_t *inputs[4] = {NULL};
+    uint64_t handle = 0;
+    if (!read_input_lengths(env, arrays, labels, 4, lengths)) goto cleanup;
+    if (lengths[0] == 0 || lengths[0] > Q_PERIAPT_MAX_SIGNED_POLICY_BYTES ||
+            lengths[1] != Q_PERIAPT_POLICY_SIGNATURE_LEN ||
+            lengths[2] != Q_PERIAPT_POLICY_VERIFICATION_KEY_LEN ||
+            (lengths[3] != 0 && lengths[3] != Q_PERIAPT_TRUSTED_POLICY_STATE_LEN)) {
+        throw_qperiapt(env, "q_periapt_sdk_runtime_new", Q_PERIAPT_ERR_LENGTH);
+        goto cleanup;
+    }
+    if (max_keys < 1 || max_keys > 1024 || max_calls < 1 || max_calls > 64) {
+        throw_qperiapt(env, "q_periapt_sdk_runtime_new", Q_PERIAPT_ERR_LIMITS);
+        goto cleanup;
+    }
+    if (!copy_inputs(env, arrays, 4, inputs, lengths)) goto cleanup;
+    QPeriaptRuntimeOptions options = {
+        .struct_size = sizeof(QPeriaptRuntimeOptions),
+        .extension_version = Q_PERIAPT_SDK_EXTENSION_VERSION,
+        .policy = {inputs[0], lengths[0]}, .signature = {inputs[1], lengths[1]},
+        .trust_root = {inputs[2], lengths[2]}, .previous_state = {inputs[3], lengths[3]},
+        .max_live_keys = (uint32_t)max_keys, .max_in_flight = (uint32_t)max_calls,
+    };
+    int32_t rc = q_periapt_sdk_runtime_new(&options, &handle);
+    if (rc != Q_PERIAPT_OK) throw_qperiapt(env, "q_periapt_sdk_runtime_new", rc);
+cleanup:
+    wipe_free_inputs(inputs, lengths, 4);
+    return sdk_java_handle(handle);
+}
+
+/* Result arrays are allocated before a read; native temporary bytes are always
+ * wiped, including NewByteArray/SetByteArrayRegion exceptions. */
+static jbyteArray sdk_read_bytes(JNIEnv *env, jlong handle, uintptr_t length,
+        const char *operation, int32_t (*read)(uint64_t, QPeriaptOutput)) {
+    uint8_t bytes[Q_PERIAPT_SDK_EXPANDED_KEY_LEN] = {0};
+    if (length > sizeof(bytes)) {
+        throw_state(env, "SDK output extent exceeds fixed workspace");
+        return NULL;
+    }
+    jbyteArray result = (*env)->NewByteArray(env, (jsize)length);
+    if (result != NULL) {
+        int32_t rc = read((uint64_t)handle, (QPeriaptOutput){bytes, length});
+        if (rc != Q_PERIAPT_OK) {
+            throw_qperiapt(env, operation, rc);
+            result = NULL;
+        } else if (!set_output(env, result, bytes, (jsize)length)) {
+            result = NULL;
+        }
+    }
+    secure_zero(bytes, sizeof(bytes));
+    return result;
+}
+
+static jbyteArray native_sdk_runtime_state(JNIEnv *env, jclass cls, jlong handle) {
+    (void)cls;
+    return sdk_read_bytes(env, handle, Q_PERIAPT_TRUSTED_POLICY_STATE_LEN,
+            "q_periapt_sdk_runtime_state", q_periapt_sdk_runtime_state);
+}
+static jbyteArray native_sdk_key_public(JNIEnv *env, jclass cls, jlong handle) {
+    (void)cls;
+    return sdk_read_bytes(env, handle, Q_PERIAPT_SDK_PUBLIC_KEY_LEN,
+            "q_periapt_sdk_key_public", q_periapt_sdk_key_public);
+}
+static jbyteArray native_sdk_secret_export(JNIEnv *env, jclass cls, jlong handle) {
+    (void)cls;
+    return sdk_read_bytes(env, handle, Q_PERIAPT_SECRET_LEN,
+            "q_periapt_sdk_secret_export", q_periapt_sdk_secret_export);
+}
+static jlong native_sdk_key_generate(JNIEnv *env, jclass cls, jlong runtime) {
+    (void)cls;
+    uint64_t key = 0;
+    int32_t rc = q_periapt_sdk_key_generate((uint64_t)runtime, &key);
+    if (rc != Q_PERIAPT_OK) throw_qperiapt(env, "q_periapt_sdk_key_generate", rc);
+    return sdk_java_handle(key);
+}
+
+/* If Java cannot receive the public ciphertext, its secret handle was never
+ * published to Java. Dispose it without disturbing the original pending error. */
+static void sdk_dispose_unpublished(uint64_t handle) {
+    if (handle != 0) {
+        int32_t rc = q_periapt_sdk_close(handle);
+        if (rc != Q_PERIAPT_OK && rc != Q_PERIAPT_ERR_CLOSED) {
+            fprintf(stderr, "Q-Periapt JNI unpublished owner disposal failed: %d\n", rc);
+        }
+    }
+}
+
+static jlong native_sdk_encapsulate(JNIEnv *env, jclass cls, jlong runtime,
+        jbyteArray peer, jbyteArray context, jbyteArray ciphertext) {
+    (void)cls;
+    jbyteArray arrays[] = {peer, context};
+    const char *labels[] = {"publicKey", "applicationContext"};
+    uintptr_t lengths[2] = {0};
+    uint8_t *inputs[2] = {NULL};
+    uint8_t bytes[Q_PERIAPT_SDK_CIPHERTEXT_LEN] = {0};
+    uint64_t secret = 0;
+    if (!check_exact_array(env, ciphertext, Q_PERIAPT_SDK_CIPHERTEXT_LEN, "ciphertext")) goto cleanup;
+    if (!read_input_lengths(env, arrays, labels, 2, lengths)) goto cleanup;
+    if (lengths[0] != Q_PERIAPT_SDK_PUBLIC_KEY_LEN || lengths[1] > Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES) {
+        throw_qperiapt(env, "q_periapt_sdk_encapsulate", Q_PERIAPT_ERR_LENGTH);
+        goto cleanup;
+    }
+    if (!copy_inputs(env, arrays, 2, inputs, lengths)) goto cleanup;
+    int32_t rc = q_periapt_sdk_encapsulate((uint64_t)runtime,
+            (QPeriaptInput){inputs[0], lengths[0]}, (QPeriaptInput){inputs[1], lengths[1]},
+            (QPeriaptOutput){bytes, sizeof(bytes)}, &secret);
+    if (rc != Q_PERIAPT_OK) {
+        throw_qperiapt(env, "q_periapt_sdk_encapsulate", rc);
+    } else if (!set_output(env, ciphertext, bytes, sizeof(bytes))) {
+        sdk_dispose_unpublished(secret);
+        secret = 0;
+    }
+cleanup:
+    wipe_free_inputs(inputs, lengths, 2);
+    secure_zero(bytes, sizeof(bytes));
+    return sdk_java_handle(secret);
+}
+
+static jlong native_sdk_decapsulate(JNIEnv *env, jclass cls, jlong key,
+        jbyteArray ciphertext, jbyteArray context) {
+    (void)cls;
+    jbyteArray arrays[] = {ciphertext, context};
+    const char *labels[] = {"ciphertext", "applicationContext"};
+    uintptr_t lengths[2] = {0};
+    uint8_t *inputs[2] = {NULL};
+    uint64_t secret = 0;
+    if (!read_input_lengths(env, arrays, labels, 2, lengths)) goto cleanup;
+    if (lengths[0] != Q_PERIAPT_SDK_CIPHERTEXT_LEN || lengths[1] > Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES) {
+        throw_qperiapt(env, "q_periapt_sdk_decapsulate", Q_PERIAPT_ERR_LENGTH);
+        goto cleanup;
+    }
+    if (!copy_inputs(env, arrays, 2, inputs, lengths)) goto cleanup;
+    int32_t rc = q_periapt_sdk_decapsulate((uint64_t)key,
+            (QPeriaptInput){inputs[0], lengths[0]}, (QPeriaptInput){inputs[1], lengths[1]}, &secret);
+    if (rc != Q_PERIAPT_OK) throw_qperiapt(env, "q_periapt_sdk_decapsulate", rc);
+cleanup:
+    wipe_free_inputs(inputs, lengths, 2);
+    return sdk_java_handle(secret);
+}
+
+static void native_sdk_close(JNIEnv *env, jclass cls, jlong handle) {
+    (void)cls;
+    int32_t rc = q_periapt_sdk_close((uint64_t)handle);
+    if (rc != Q_PERIAPT_OK && rc != Q_PERIAPT_ERR_CLOSED) {
+        throw_qperiapt(env, "q_periapt_sdk_close", rc);
+    }
+}
+
+static jlong native_sdk_secret_derive(JNIEnv *env, jclass cls, jlong secret,
+        jint purpose, jbyteArray protocol_label, jbyteArray context) {
+    (void)cls;
+    jbyteArray arrays[] = {protocol_label, context};
+    const char *labels[] = {"protocolLabel", "applicationContext"};
+    uintptr_t lengths[2] = {0};
+    uint8_t *inputs[2] = {NULL};
+    uint64_t key = 0;
+    if (!read_input_lengths(env, arrays, labels, 2, lengths)) goto cleanup;
+    if (lengths[0] == 0 || lengths[0] > Q_PERIAPT_SDK_MAX_PROTOCOL_LABEL_BYTES ||
+            lengths[1] > Q_PERIAPT_MAX_APPLICATION_CONTEXT_BYTES) {
+        throw_qperiapt(env, "q_periapt_sdk_secret_derive", Q_PERIAPT_ERR_LENGTH);
+        goto cleanup;
+    }
+    if (!copy_inputs(env, arrays, 2, inputs, lengths)) goto cleanup;
+    int32_t rc = q_periapt_sdk_secret_derive((uint64_t)secret, (uint32_t)purpose,
+            (QPeriaptInput){inputs[0], lengths[0]}, (QPeriaptInput){inputs[1], lengths[1]}, &key);
+    if (rc != Q_PERIAPT_OK) throw_qperiapt(env, "q_periapt_sdk_secret_derive", rc);
+cleanup:
+    wipe_free_inputs(inputs, lengths, 2);
+    return sdk_java_handle(key);
+}
+
+static jbyteArray native_sdk_derived_key_export(JNIEnv *env, jclass cls, jlong key) {
+    (void)cls;
+    return sdk_read_bytes(env, key, Q_PERIAPT_SECRET_LEN,
+            "q_periapt_sdk_derived_key_export", q_periapt_sdk_derived_key_export);
+}
+
+static jboolean native_sdk_runtime_enabled(JNIEnv *env, jclass cls, jlong handle) {
+    (void)cls;
+    uint32_t enabled = 0;
+    int32_t rc = q_periapt_sdk_runtime_enabled((uint64_t)handle, &enabled);
+    if (rc != Q_PERIAPT_OK) throw_qperiapt(env, "q_periapt_sdk_runtime_enabled", rc);
+    return enabled == 1 ? JNI_TRUE : JNI_FALSE;
+}
+
+static jlong native_sdk_runtime_prepare_update(JNIEnv *env, jclass cls, jlong runtime,
+        jbyteArray policy, jbyteArray signature) {
+    (void)cls;
+    jbyteArray arrays[] = {policy, signature};
+    const char *labels[] = {"policy", "signature"};
+    uintptr_t lengths[2] = {0};
+    uint8_t *inputs[2] = {NULL};
+    uint64_t update = 0;
+    if (!read_input_lengths(env, arrays, labels, 2, lengths)) goto cleanup;
+    if (lengths[0] == 0 || lengths[0] > Q_PERIAPT_MAX_SIGNED_POLICY_BYTES ||
+            lengths[1] != Q_PERIAPT_POLICY_SIGNATURE_LEN) {
+        throw_qperiapt(env, "q_periapt_sdk_runtime_prepare_update", Q_PERIAPT_ERR_LENGTH);
+        goto cleanup;
+    }
+    if (!copy_inputs(env, arrays, 2, inputs, lengths)) goto cleanup;
+    int32_t rc = q_periapt_sdk_runtime_prepare_update((uint64_t)runtime,
+            (QPeriaptInput){inputs[0], lengths[0]}, (QPeriaptInput){inputs[1], lengths[1]}, &update);
+    if (rc != Q_PERIAPT_OK) throw_qperiapt(env, "q_periapt_sdk_runtime_prepare_update", rc);
+cleanup:
+    wipe_free_inputs(inputs, lengths, 2);
+    return sdk_java_handle(update);
+}
+
+static jbyteArray native_sdk_policy_update_states(JNIEnv *env, jclass cls, jlong update) {
+    (void)cls;
+    return sdk_read_bytes(env, update, Q_PERIAPT_SDK_POLICY_UPDATE_STATES_LEN,
+            "q_periapt_sdk_policy_update_states", q_periapt_sdk_policy_update_states);
+}
+
+static jlong native_sdk_policy_update_activate(JNIEnv *env, jclass cls, jlong update) {
+    (void)cls;
+    uint64_t runtime = 0;
+    int32_t rc = q_periapt_sdk_policy_update_activate((uint64_t)update, &runtime);
+    if (rc != Q_PERIAPT_OK) throw_qperiapt(env, "q_periapt_sdk_policy_update_activate", rc);
+    return sdk_java_handle(runtime);
+}
+
+static jlong native_sdk_expert_key_import(JNIEnv *env, jclass cls, jlong runtime, jbyteArray encoded) {
+    (void)cls;
+    jbyteArray arrays[] = {encoded};
+    const char *labels[] = {"expandedKey"};
+    uintptr_t lengths[1] = {0};
+    uint8_t *inputs[1] = {NULL};
+    uint64_t key = 0;
+    if (!read_input_lengths(env, arrays, labels, 1, lengths)) goto cleanup;
+    if (lengths[0] != Q_PERIAPT_SDK_EXPANDED_KEY_LEN) {
+        throw_qperiapt(env, "q_periapt_sdk_expert_key_import", Q_PERIAPT_ERR_LENGTH);
+        goto cleanup;
+    }
+    if (!copy_inputs(env, arrays, 1, inputs, lengths)) goto cleanup;
+    int32_t rc = q_periapt_sdk_expert_key_import((uint64_t)runtime,
+            (QPeriaptInput){inputs[0], lengths[0]}, &key);
+    if (rc != Q_PERIAPT_OK) throw_qperiapt(env, "q_periapt_sdk_expert_key_import", rc);
+cleanup:
+    wipe_free_inputs(inputs, lengths, 1);
+    return sdk_java_handle(key);
+}
+
+static jbyteArray native_sdk_expert_key_export(JNIEnv *env, jclass cls, jlong key) {
+    (void)cls;
+    return sdk_read_bytes(env, key, Q_PERIAPT_SDK_EXPANDED_KEY_LEN,
+            "q_periapt_sdk_expert_key_export", q_periapt_sdk_expert_key_export);
+}
+
 static JNINativeMethod QPERIAPT_METHODS[] = {
 	{"runtimeAbiVersionNative", "()I", (void *)native_runtime_abi_version},
 	{"runtimeVersionNative", "()Ljava/lang/String;", (void *)native_runtime_version},
@@ -569,6 +840,23 @@ static JNINativeMethod QPERIAPT_METHODS[] = {
     {"generateKeypairNative", "([B[B[B[B[B)V", (void *)native_generate_keypair},
     {"encapsulateNative", "([B[B[B[B[B[B[B)V", (void *)native_encapsulate},
     {"decapsulateNative", "([B[B[B[B[B[B[B[B[B)V", (void *)native_decapsulate},
+    {"sdkExtensionVersionNative", "()I", (void *)native_sdk_extension_version},
+    {"sdkRuntimeNewNative", "([B[B[B[BII)J", (void *)native_sdk_runtime_new},
+    {"sdkRuntimeStateNative", "(J)[B", (void *)native_sdk_runtime_state},
+    {"sdkRuntimeEnabledNative", "(J)Z", (void *)native_sdk_runtime_enabled},
+    {"sdkRuntimePrepareUpdateNative", "(J[B[B)J", (void *)native_sdk_runtime_prepare_update},
+    {"sdkPolicyUpdateStatesNative", "(J)[B", (void *)native_sdk_policy_update_states},
+    {"sdkPolicyUpdateActivateNative", "(J)J", (void *)native_sdk_policy_update_activate},
+    {"sdkExpertKeyImportNative", "(J[B)J", (void *)native_sdk_expert_key_import},
+    {"sdkExpertKeyExportNative", "(J)[B", (void *)native_sdk_expert_key_export},
+    {"sdkKeyGenerateNative", "(J)J", (void *)native_sdk_key_generate},
+    {"sdkKeyPublicNative", "(J)[B", (void *)native_sdk_key_public},
+    {"sdkEncapsulateNative", "(J[B[B[B)J", (void *)native_sdk_encapsulate},
+    {"sdkDecapsulateNative", "(J[B[B)J", (void *)native_sdk_decapsulate},
+    {"sdkSecretExportNative", "(J)[B", (void *)native_sdk_secret_export},
+    {"sdkSecretDeriveNative", "(JI[B[B)J", (void *)native_sdk_secret_derive},
+    {"sdkDerivedKeyExportNative", "(J)[B", (void *)native_sdk_derived_key_export},
+    {"sdkCloseNative", "(J)V", (void *)native_sdk_close},
 };
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {

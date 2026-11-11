@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from typing import NoReturn, Sequence
 
 from evidence_io import EvidenceIOError, FileSnapshot, read_regular_snapshot
+from android_agp_consumer_contract import flat_sdk_export_files
 
 
 REPOSITORY_ROOT = pathlib.Path(__file__).resolve(strict=True).parent.parent
@@ -130,6 +131,24 @@ ANDROID_AAR_PROFILE = ProfileSpec(
     ),
 )
 
+ANDROID_SDK_AAR_PROFILE = ProfileSpec(
+    name="android-sdk-020-aar",
+    destination=pathlib.PurePosixPath(
+        "target/qperiapt-android-aar/q-periapt-android-0.2.0"
+    ),
+    nested_raw_containers=False,
+    containers=(
+        ContainerSpec(
+            artifact_name="abi2-android-sdk-020-aar",
+            members=(
+                MemberSpec("q-periapt-android-0.2.0.aar", "q-periapt-android-0.2.0.aar", _MAX_PAYLOAD_BYTES),
+                MemberSpec("MANIFEST.json", "MANIFEST.json", _MAX_METADATA_BYTES),
+                MemberSpec("SHA256SUMS", "SHA256SUMS", _MAX_CHECKSUM_BYTES),
+            ),
+        ),
+    ),
+)
+
 _LINUX_X86_PACKAGE = (
     "q-periapt-c-abi2-0.1.5-x86_64-unknown-linux-gnu.tar.gz"
 )
@@ -177,9 +196,27 @@ PLATFORM_CANDIDATE_PROFILE = ProfileSpec(
     ),
 )
 
+ANDROID_SDK_RUNTIME_REPLAY_PROFILES = {
+    runtime_profile: ProfileSpec(
+        name=f"android-sdk-020-runtime-{runtime_profile}",
+        destination=pathlib.PurePosixPath(f"target/android-sdk-runtime-intake-{runtime_profile}"),
+        nested_raw_containers=False,
+        containers=(ContainerSpec(
+            artifact_name=f"abi2-android-sdk-020-export-{runtime_profile}-x86_64",
+            members=tuple(MemberSpec(
+                leaf, leaf,
+                _MAX_PAYLOAD_BYTES if relative.endswith((".apk", ".aar"))
+                else _MAX_METADATA_BYTES if relative.endswith(".json") else 16 * 1024 * 1024,
+            ) for leaf, (_, relative) in flat_sdk_export_files().items()),
+        ),),
+    ) for runtime_profile in ("api23-4k", "api35-16k")
+}
+
 PROFILES = {
     ANDROID_AAR_PROFILE.name: ANDROID_AAR_PROFILE,
+    ANDROID_SDK_AAR_PROFILE.name: ANDROID_SDK_AAR_PROFILE,
     PLATFORM_CANDIDATE_PROFILE.name: PLATFORM_CANDIDATE_PROFILE,
+    **{profile.name: profile for profile in ANDROID_SDK_RUNTIME_REPLAY_PROFILES.values()},
 }
 
 

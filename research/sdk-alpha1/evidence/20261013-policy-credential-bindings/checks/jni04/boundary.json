@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home/bin/java",
+    "--enable-native-access=ALL-UNNAMED",
+    "-Xcheck:jni",
+    "-Djava.library.path=/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/jni04/installed",
+    "-cp",
+    "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/jni04/qperiapt-continuity-android.jar:/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/jni04/tests",
+    "dev.qperiapt.continuity.android.BridgeProbe"
+  ],
+  "cwd": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006",
+  "returncode": 0
+}

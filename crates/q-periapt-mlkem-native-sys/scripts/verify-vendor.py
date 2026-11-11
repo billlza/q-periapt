@@ -7,9 +7,9 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path, PurePosixPath
 
-EXPECTED_FILE_COUNT = 124
+EXPECTED_FILE_COUNT = 125
 EXPECTED_LICENSE_SHA256 = (
-    "6393331d41b9fed47a9e18d21b9b844ae8e76bcad8b6da45604c132ae13f3029"
+    "1c730e3c2cd4f70e058519ef3e910d8bdd4ed822ae2ce689f3c63d32fc52314b"
 )
 
 CRATE_ROOT = Path(__file__).resolve().parents[1]
@@ -102,7 +102,7 @@ def main() -> None:
         fail("upstream LICENSE hash mismatch")
 
     print(
-        f"verified mlkem-native v1.2.0: {len(actual_files)} files, "
+        f"verified mlkem-native v2.0.0: {len(actual_files)} files, "
         "no symlinks, all SHA-256 digests match"
     )
 

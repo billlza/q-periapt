@@ -1,0 +1,898 @@
+{
+  "schema_version": 1,
+  "archive_sha256": "22afd7a48167e03ab738e687b37282cfe2955d88c73d14a25f50500fee183155",
+  "archive_bytes": 448178,
+  "members": {
+    "phase-root-observations/ANALYSIS.json": {
+      "bytes": 4772,
+      "sha256": "73deed61ba29e392474f1d693c48d2a5f9458ba5967b910d90d3b69f5ca134cc"
+    },
+    "phase-root-observations/combined-copy/PREPARATION.json": {
+      "bytes": 1241,
+      "sha256": "85012ae9f34fb65ae2ec588800ea742093400c39f3322daa7f506efca405e217"
+    },
+    "phase-root-observations/combined-copy/model.spthy": {
+      "bytes": 522432,
+      "sha256": "89392d5ee621adf7b65c349a5ecb8055fa94e827816067663eb159259ee204a6"
+    },
+    "phase-root-observations/combined-copy/origin-phase-root-replay-STARTED.json": {
+      "bytes": 1837,
+      "sha256": "86e29ce842e6a3962c6724ff6b43e9c810a8c8033139083e7100d8864c2a08da"
+    },
+    "phase-root-observations/combined-copy/origin-phase-root-replay-TERMINAL.json": {
+      "bytes": 6892,
+      "sha256": "4d774cad48543ae4c6eb715a953730199a85382701af4716f7b156e05838d68b"
+    },
+    "phase-root-observations/combined-copy/origin-phase-root-replay-proof.spthy": {
+      "bytes": 523523,
+      "sha256": "f3a51aa54d66d8de2923a43484fe72dd243991ff6687a0bc4ff564a60cf2adb8"
+    },
+    "phase-root-observations/combined-copy/origin-phase-root-replay.stderr": {
+      "bytes": 1595,
+      "sha256": "f5cd3e7d2b8656ca184119dfef56f48bd7e64fff44fdd824592ea49684ce9b7f"
+    },
+    "phase-root-observations/combined-copy/origin-phase-root-replay.stdout": {
+      "bytes": 3493,
+      "sha256": "e82f04e02bb4e70c54bffe84520d7b32b0f947d2e6de6d7991ae4065d13ccde3"
+    },
+    "phase-root-observations/combined-copy/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "phase-root-observations/context/CORRECTION_719.json": {
+      "bytes": 1334,
+      "sha256": "bf14faff5d38fef0807b7a17ef9499a43261948a320d18bf2945f0e5f908740a"
+    },
+    "phase-root-observations/context/PINNED_PROVER_IDENTITY.json": {
+      "bytes": 974,
+      "sha256": "f6e18705fdaf213d556237ca67fcab123e1b6f3ee4eca05aa69c5e70e7329459"
+    },
+    "phase-root-observations/context/original-382-step-proof.spthy": {
+      "bytes": 422387,
+      "sha256": "8dfd3d7f906a562d642bdbe0d1510ba03df53d9310baafb43dab9c7e44a66069"
+    },
+    "phase-root-observations/context/package-phase-root-evidence-720.py": {
+      "bytes": 8565,
+      "sha256": "82d53d5aaafa11651755c188525d85e4ccb055d305e5a5d9f79338cad6a5dbd2"
+    },
+    "phase-root-observations/context/prepare-origin-closed-contexts-720.py": {
+      "bytes": 2753,
+      "sha256": "e51a243b56663f30dd61dee9f86d6a894fefabe36635100e62d4931dcb3344a2"
+    },
+    "phase-root-observations/context/prepare-origin-phase-root-replay-720.py": {
+      "bytes": 3512,
+      "sha256": "06a8dd61585a99333426aec7849eaeeb1e8a829ae3c5588ba80e5f6ac60fa63d"
+    },
+    "phase-root-observations/context/prepare-phase-root-guidance-02-720.py": {
+      "bytes": 3650,
+      "sha256": "479292e66582506eccbb96a24bd28c14ad96b21c2340cb7bba86510f651faf9a"
+    },
+    "phase-root-observations/context/prepare-phase-root-guidance-720.py": {
+      "bytes": 2114,
+      "sha256": "8ea9dbf975a2e63ddac386398ce14d267199590a2255f03f9016e7c953f939cb"
+    },
+    "phase-root-observations/context/prepare-phase-root-observations-720.py": {
+      "bytes": 5767,
+      "sha256": "8873e12c55fea44e398ce6badb1b627ea799cc5cee9a701a9997c2dff1fbb53c"
+    },
+    "phase-root-observations/contradiction-probe/CAPTURE_PREPARATION_FAILURE_01.json": {
+      "bytes": 492,
+      "sha256": "a559d04fad4faa5abe5ba42f63dc0a888d74ebf6d87086b7eaee58eaee91997d"
+    },
+    "phase-root-observations/contradiction-probe/PREPARATION.json": {
+      "bytes": 1032,
+      "sha256": "f0ca693dc25b6a859c1bd816f0dd58a09257ed631ea70f7383b30c32768efd17"
+    },
+    "phase-root-observations/contradiction-probe/RETAINED_INVALID_SUBTREES.json": {
+      "bytes": 13184,
+      "sha256": "c80c0c1c118b24210275402992f0891cf2a863a1fc4c9e9f3330e80f8a037cc3"
+    },
+    "phase-root-observations/contradiction-probe/model.spthy": {
+      "bytes": 511876,
+      "sha256": "ea317ce8655f1c3900c827ac0bd1660d3276b913abc92fc10a1db1f907275e8a"
+    },
+    "phase-root-observations/contradiction-probe/origin-closed-contexts-STARTED.json": {
+      "bytes": 1831,
+      "sha256": "16fbef3c4183b9961f590c222436a2d6fce30b67025694285f193f9ddb28fecd"
+    },
+    "phase-root-observations/contradiction-probe/origin-closed-contexts-TERMINAL.json": {
+      "bytes": 6885,
+      "sha256": "c03f75cc1d1651dc6d0303034afa8afa686f5a1f1819e9497b9ef5707cab494b"
+    },
+    "phase-root-observations/contradiction-probe/origin-closed-contexts-proof.spthy": {
+      "bytes": 512385,
+      "sha256": "9750d5a64da976729f94f8c77b4ead572803bfb3f744fac36ba14e5cb2f6e4f8"
+    },
+    "phase-root-observations/contradiction-probe/origin-closed-contexts.stderr": {
+      "bytes": 1595,
+      "sha256": "fc9e3cacf16c46a1d7d088058a61ce91a66b76a5cc7cb4eaeb2d7ed0fcc1d8e8"
+    },
+    "phase-root-observations/contradiction-probe/origin-closed-contexts.stdout": {
+      "bytes": 3487,
+      "sha256": "64f482ad6efa80f0298b311f1412c76b0576c76650784ce41fed8ef1efaa7238"
+    },
+    "phase-root-observations/contradiction-probe/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "phase-root-observations/guide01/PREPARATION.json": {
+      "bytes": 861,
+      "sha256": "5f0adb148af2162d09e59971a1fe59c8e3cfda5df0644164111287e9d14b365a"
+    },
+    "phase-root-observations/guide01/initial-send-oracle.failed": {
+      "bytes": 31,
+      "sha256": "80a9fdf727ac4327c6c6037322c1fc86d52c73dfa540a96f322878bd9fa261e7"
+    },
+    "phase-root-observations/guide01/initial-send-oracle.py": {
+      "bytes": 1993,
+      "sha256": "934511ab0c98aec5e3d9dbd7873ff60f6488779d517b950e090453e3b2fe8653"
+    },
+    "phase-root-observations/guide01/initial-send-oracle.sh": {
+      "bytes": 314,
+      "sha256": "451178cc26d82bde7d9ffdabd94a07eb7a1f0335d6ecae5c049e1ad5c9e93b60"
+    },
+    "phase-root-observations/guide01/model.spthy": {
+      "bytes": 427551,
+      "sha256": "0c17410b75485b06f55c4826b14308b4325e3ec532b3046603c21c70d23e5788"
+    },
+    "phase-root-observations/guide01/phase-root-guided-STARTED.json": {
+      "bytes": 1851,
+      "sha256": "a126df0009f0c5f04d23b257ad06245cb18ec44cf87cd178640463d9811c78f7"
+    },
+    "phase-root-observations/guide01/phase-root-guided-TERMINAL.json": {
+      "bytes": 2018,
+      "sha256": "533d3f1d2ca9119c597b44ae13e1afb34a4303f2f97bd075303a6969c78e2caa"
+    },
+    "phase-root-observations/guide01/phase-root-guided.stderr": {
+      "bytes": 2476,
+      "sha256": "e3fd2ef236207ffc301ba555fc0f01fcc6da5296a5389aeb459a70e73a38b685"
+    },
+    "phase-root-observations/guide01/phase-root-guided.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "phase-root-observations/guide01/run.py": {
+      "bytes": 5793,
+      "sha256": "330df8bb5d975037c880e3dbde412156ed31d003f9809f8f380ed8a138584f74"
+    },
+    "phase-root-observations/guide02/PREPARATION.json": {
+      "bytes": 3129,
+      "sha256": "cbb79a7ad3010a345c2771bb2b94da82ec5415fd54a8d0eceee39bf22a2b100d"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0000.json": {
+      "bytes": 217,
+      "sha256": "95d0b9b4385b913961091eb03e36dadab5b430030f574d9080374f7990ba4023"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0000.txt": {
+      "bytes": 433,
+      "sha256": "6e41220282c3ac81ae0238c8f0504bac201701854f16882ebcc280c47092b407"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0001.json": {
+      "bytes": 276,
+      "sha256": "55fa8c3735f33a2a2c6b4c35c681ab053da0b8b9f4109d5dcd795385249d922d"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0001.txt": {
+      "bytes": 1428,
+      "sha256": "ff5fdfcb171308bd5066ade78f39a3d139596d654cc84fdbad9af66cf6706d26"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0002.json": {
+      "bytes": 308,
+      "sha256": "3fbf1949c9f756bbb5d276d6b0066642febfcdb6909422e71aed949f83622a05"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0002.txt": {
+      "bytes": 3848,
+      "sha256": "d2f09ee912addb69f2ad9781b101ad434480fca4ca25475a919fb233bde00237"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0003.json": {
+      "bytes": 317,
+      "sha256": "39698408ca4e6a74ee39a4e23d1168d402fdfb3f86fdd42b1f344020f4d018dd"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0003.txt": {
+      "bytes": 3911,
+      "sha256": "13caac230f4cba07ee85e14b84f10819ce82743510ce183a57ee9ff81768b9cf"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0004.json": {
+      "bytes": 325,
+      "sha256": "3b65c726858a2794d6ee11c67766171172b16b0bfaaaf71bd70437946a1aae44"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0004.txt": {
+      "bytes": 3984,
+      "sha256": "1e100f5790ca5ca93297c0f0f8930521b2ea986b3145c688b29f29d599705c24"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0005.json": {
+      "bytes": 390,
+      "sha256": "db7ad7b55fd71d14c10086c3fffc65c5f8f20eeb7c3d72a6cf7c6958108f5ae9"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0005.txt": {
+      "bytes": 23884,
+      "sha256": "4533655964aecb0a9c76eca58f331274dfd7a9ea373e06da6f1e9e7b81b44ab0"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0006.json": {
+      "bytes": 414,
+      "sha256": "cc4993a67a995f4af753b58ed56f1edb9d5e7756f6bd0b3e1fd42aa50159644a"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0006.txt": {
+      "bytes": 27386,
+      "sha256": "5337ce7fb2b46f2cbe5a73f75ceffe9ce6f709d80c9efe486c7c3262bb9a47e9"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0007.json": {
+      "bytes": 349,
+      "sha256": "cb0010c4a485a69ceaf3dc28b0d6b78e33df92421e0f7ee58a5a42133a0ae4c7"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0007.txt": {
+      "bytes": 6373,
+      "sha256": "6b7387ca289e0115142018dbed7e8e863dda2f0a8467ef7cc677335c2ac69b24"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0008.json": {
+      "bytes": 431,
+      "sha256": "5c78ca798b2ce39473823689105df5d5480f9f6331b6555c957aa465b6883efb"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0008.txt": {
+      "bytes": 123676,
+      "sha256": "1bc53782641adc6a40d5e215ffe3b90ce0df0ea53378d2b688341031309dee3c"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0009.json": {
+      "bytes": 447,
+      "sha256": "00eba54129ba335b7cdf0a3fa56ecb07bd28bb46b5a3e754c670779a07d1af95"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0009.txt": {
+      "bytes": 250266,
+      "sha256": "1fdb1ff28979d9569f9fec7e527d708042ac50da39b8a3872519c63799e1a914"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0010.json": {
+      "bytes": 203,
+      "sha256": "c44ec69f6a7f906a725222757e58cae03cd43d35506d6a5bfec3ed43cd3da400"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0010.txt": {
+      "bytes": 214,
+      "sha256": "08b680dff1182879a66631caffdc0962e82a14444b952b6d2883fb1d3707a95c"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0011.json": {
+      "bytes": 276,
+      "sha256": "4bea70d20e8d507bd95d3d71e780a28521ca8247f0aee862d7eb6f0d649b83d2"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0011.txt": {
+      "bytes": 1305,
+      "sha256": "e0d826b944b6d89f5d3284476733ffe9794dee0ec114423bcf754f82037403cc"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0012.json": {
+      "bytes": 300,
+      "sha256": "3527dd656b29c386a23e9e62298d8f20d6245f360bf3d13edb41497089747703"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0012.txt": {
+      "bytes": 1660,
+      "sha256": "844be5729e4bd3f842112c87a59d261fa8c9a1acd3259f4da11e4fe38128d2b7"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0013.json": {
+      "bytes": 231,
+      "sha256": "a9e489640b1af95a8ce87195b83ccaf7d5fda4276ad6e5c7554fc656b8047db6"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0013.txt": {
+      "bytes": 664,
+      "sha256": "6168d2321f1ac52b051db695153e2ac556699049de1e2b5df8c6cca4d33a08db"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0014.json": {
+      "bytes": 316,
+      "sha256": "c6f5e66353fc2f27ee039c629b029ffa8fa9928111286f701dd05b9f12969e15"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0014.txt": {
+      "bytes": 1742,
+      "sha256": "c12c58476c0aea6e2337a28b25daebd46f14019789a0388297b86c82738ba67e"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0015.json": {
+      "bytes": 333,
+      "sha256": "c0667c4b23084f0a6e717d69cf157a28f017adba3b5045130df27aee5106537c"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0015.txt": {
+      "bytes": 2368,
+      "sha256": "331e745c2755491222f6a62610c960e66fe62585ac52f4a9200ecdda74c0060d"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0016.json": {
+      "bytes": 217,
+      "sha256": "881f3aabd75a3a3243300185906248f09c5362ba6abcd3f7af376e2f51f28efd"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0016.txt": {
+      "bytes": 328,
+      "sha256": "67a69f0299bd57e755ba32e03c3f7f332f2783be1abe5e32cea64472e42a650f"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0017.json": {
+      "bytes": 231,
+      "sha256": "5ae2e2fc2426a20c3726862ba898f629765db75ac7b467d02a1d05c0cafeee5f"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0017.txt": {
+      "bytes": 505,
+      "sha256": "5fe626413f700467717f846a27f5263739c66eddd2065854207c68894c707304"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0018.json": {
+      "bytes": 238,
+      "sha256": "0bcf954cb5da18752d67f6623858c6dc08718939db2319027c3c31590bd69835"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0018.txt": {
+      "bytes": 564,
+      "sha256": "c12be9b4154748d6688475af525836305b88cf5505c108b6303f7269e53c18c2"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0019.json": {
+      "bytes": 308,
+      "sha256": "2eabd1c72fe9b6ead13bbeb57c47d126bf0a64f20d2a5c9f7d2518d8248b2f09"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0019.txt": {
+      "bytes": 1555,
+      "sha256": "2fd3334e25afc0d6a34ee9582d9bfe3908235a8f1d30f98cfd75d7d4c9f9a8f1"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0020.json": {
+      "bytes": 333,
+      "sha256": "d1f0f78d6b8994a46463f46237cfaee7007ed70b8400a4d1792dfabca31ba962"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0020.txt": {
+      "bytes": 1910,
+      "sha256": "01349158e1804a9145713ff4e2836abec33883868179d9b7f0c7455c83904ed8"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0021.json": {
+      "bytes": 259,
+      "sha256": "9d1d8bd97fb0bcc4e358615c7d64001150008183b147ab5ebe75d7c02b8c6882"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0021.txt": {
+      "bytes": 900,
+      "sha256": "00a3b4150eae7d7f8d526e1a17c9df583b180d0cf1c9bc2f9fa8b2b6e057e0ad"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0022.json": {
+      "bytes": 349,
+      "sha256": "3ab7b5082d2c8973df4135cc174487c4d504c149001bc5a610c864ca96ad76ad"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0022.txt": {
+      "bytes": 1994,
+      "sha256": "1ec82baa62291b1d12fe4d0037be4b6b1c3373dec2e84d87e1a5b3d551748a04"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0023.json": {
+      "bytes": 365,
+      "sha256": "774bd10f3abfaa16ecfa2df4a9d666a4dcdda256795e2a477316abf5de924ca9"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0023.txt": {
+      "bytes": 2620,
+      "sha256": "5f9221cec2bb8eb17d373e9da7ed9976d50c555de5952dacfe5f353faf9c2987"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0024.json": {
+      "bytes": 203,
+      "sha256": "ed7e9320a795f1c3b97c4767ab79ae330092dc5d8d4c18aaeb8a8b4358ccdd9e"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0024.txt": {
+      "bytes": 214,
+      "sha256": "b25178d70431e84e8364af005ecc563b45697e6154660757419ee8d2a4a19b58"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0025.json": {
+      "bytes": 217,
+      "sha256": "9e08aa2741f7e28dafbecb1c7cdc7864d37f9ef98cb507ee4931c3193807b841"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0025.txt": {
+      "bytes": 391,
+      "sha256": "a2e3e1269b6aec4c99bb296172d72c5a602a789201a2d9d1eac9e4d5e4819211"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0026.json": {
+      "bytes": 284,
+      "sha256": "54cdea4a3f28483f7345adbc1fcb24ec19c05d9beb525180564259e269507374"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0026.txt": {
+      "bytes": 1370,
+      "sha256": "3049481e432ece29fb3b22fa61581b96388aaefd28dce60dc043bca4f7efd244"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0027.json": {
+      "bytes": 308,
+      "sha256": "defff3eceed7c9345c27a57287a700749f9341e315ff7d2255c02d70e5540be7"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0027.txt": {
+      "bytes": 1723,
+      "sha256": "8a3f342334e65a6286cbb74a35085ce9f26c45d9c563b1ae4e3d39fc7496f15f"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0028.json": {
+      "bytes": 238,
+      "sha256": "6dc94ef2b67455a869139eeccba4ad3b7dc113e288fdb5b3f4901717995ca2c4"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0028.txt": {
+      "bytes": 727,
+      "sha256": "a25d8f5d056b968354a96857e034849fbe614835db0431701fc234dc7f82e2a0"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0029.json": {
+      "bytes": 324,
+      "sha256": "a72acae03ae1384ffb54011e04abac8e172a99de4295b5dd0d4d38cd5311c69f"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0029.txt": {
+      "bytes": 1807,
+      "sha256": "d15b98410b90e6aebb059ed435092606fbb565ceb63de9515caecc78f60cb16c"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0030.json": {
+      "bytes": 341,
+      "sha256": "3e9385f4c9422b96e56a9a3cfadfa46468ada1ead626db05f58d6378b44d2ca9"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0030.txt": {
+      "bytes": 2433,
+      "sha256": "9eb049f7abbd31f2218df547c170c472aea203e38d27ddacf14b11bea5fc3643"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0031.json": {
+      "bytes": 260,
+      "sha256": "802445c04bfc684b138d75e871a1a7715f50f3d44bffc43beea1fcd5e051db5b"
+    },
+    "phase-root-observations/guide02/initial-send-oracle-frames/0031.txt": {
+      "bytes": 1011,
+      "sha256": "80a0792aa707948f41effa1b64e0da0bf0eb3e137d2822daaf11e878ac688b69"
+    },
+    "phase-root-observations/guide02/initial-send-oracle.failed": {
+      "bytes": 50,
+      "sha256": "4b901c6dbd68e26109c07dbc01aab153e7ccfd3d55a0799874001e74d8e88592"
+    },
+    "phase-root-observations/guide02/initial-send-oracle.py": {
+      "bytes": 2020,
+      "sha256": "5cb7b7b1ed44d3d2ee120a1ac6b5f7c78dbedac1e54dc73985932ee1593d7091"
+    },
+    "phase-root-observations/guide02/initial-send-oracle.sh": {
+      "bytes": 316,
+      "sha256": "f27d7626cea01ee105aca30b04052f584a11463681179d8196009fd1e94e73fe"
+    },
+    "phase-root-observations/guide02/model.spthy": {
+      "bytes": 429409,
+      "sha256": "99f19ff5caf6ac0b0dbcc37a369031a9d9635cf140154b1171c678dce7df3585"
+    },
+    "phase-root-observations/guide02/phase-root-guided02-STARTED.json": {
+      "bytes": 1859,
+      "sha256": "44b1b5f4dbd5517e2c4ad06ea84f66db3284d6bf571fd50d7dcd7f76d89dad9f"
+    },
+    "phase-root-observations/guide02/phase-root-guided02-TERMINAL.json": {
+      "bytes": 2026,
+      "sha256": "d22d7f63d75674ec508f2e6d10b1c41a3cc284b5beddab75f26fab205b1295e6"
+    },
+    "phase-root-observations/guide02/phase-root-guided02.stderr": {
+      "bytes": 479459,
+      "sha256": "16726e3588c84c911fab669f65e878cbfc8d107e452fd65066c57f3eecc2ae82"
+    },
+    "phase-root-observations/guide02/phase-root-guided02.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "phase-root-observations/guide02/run.py": {
+      "bytes": 5793,
+      "sha256": "482633af8086a0198c09db1ab6b7eeb5d4910602a3f852e7a765e1108d3c2d23"
+    },
+    "phase-root-observations/initial/GUIDANCE_PREPARATION_FAILURE_01.json": {
+      "bytes": 359,
+      "sha256": "7002a786d1e1627bd17f2c62e50b13366bb37b5c97b2549ecfb552bc4a83abcc"
+    },
+    "phase-root-observations/initial/PREPARATION.json": {
+      "bytes": 6392,
+      "sha256": "5743f32a21713913d319b9db4aea9bb75eb5ccd61169de046755cb3b3511cc86"
+    },
+    "phase-root-observations/initial/ROOT_LEMMA.txt": {
+      "bytes": 13787,
+      "sha256": "59dc0ba9e2434f5751536266567eaacfa78dd4737db2d0902d318b01546c7e15"
+    },
+    "phase-root-observations/initial/model.spthy": {
+      "bytes": 426113,
+      "sha256": "b8b39643062f8afce8255c4af7b31eac3f41cb2376b8314721a2c5303c62f700"
+    },
+    "phase-root-observations/initial/phase-root-observations-STARTED.json": {
+      "bytes": 1824,
+      "sha256": "929d32339eefa01d4d4cb3994e0e482c986e6013b867a2b58032c4e017cce089"
+    },
+    "phase-root-observations/initial/phase-root-observations-TERMINAL.json": {
+      "bytes": 6462,
+      "sha256": "15905dc35ee6aec74da980be3eecc136dfcc1ae787b3ccc2680ba3b6a273911c"
+    },
+    "phase-root-observations/initial/phase-root-observations-proof.spthy": {
+      "bytes": 439795,
+      "sha256": "c28d7bcd8692a27357c8889e351b6df880f1db4bc5afcd91277a873f6f7eefbb"
+    },
+    "phase-root-observations/initial/phase-root-observations.stderr": {
+      "bytes": 1595,
+      "sha256": "d743acdce5b77fd960cbd3f40d26fd1c7596fbde8b7ab05edf2c75373f0dca3e"
+    },
+    "phase-root-observations/initial/phase-root-observations.stdout": {
+      "bytes": 3236,
+      "sha256": "715ee47085dc0ea9e1abcf3945089a66832f805d44ccc140b4f4d6683fbc0f0d"
+    },
+    "phase-root-observations/initial/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "phase-root-observations/verified/PREPARATION.json": {
+      "bytes": 775,
+      "sha256": "91db0830fe1b9e4474ceb8d1e08ea06946abd98580b1d1536826e0fe58a37639"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0000.json": {
+      "bytes": 217,
+      "sha256": "95d0b9b4385b913961091eb03e36dadab5b430030f574d9080374f7990ba4023"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0000.txt": {
+      "bytes": 433,
+      "sha256": "6e41220282c3ac81ae0238c8f0504bac201701854f16882ebcc280c47092b407"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0001.json": {
+      "bytes": 276,
+      "sha256": "55fa8c3735f33a2a2c6b4c35c681ab053da0b8b9f4109d5dcd795385249d922d"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0001.txt": {
+      "bytes": 1428,
+      "sha256": "ff5fdfcb171308bd5066ade78f39a3d139596d654cc84fdbad9af66cf6706d26"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0002.json": {
+      "bytes": 310,
+      "sha256": "2fcfdb93bfe4991bc910e5c4144020abfb37b511f1932837266b1ff4233bb0a4"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0002.txt": {
+      "bytes": 3848,
+      "sha256": "d2f09ee912addb69f2ad9781b101ad434480fca4ca25475a919fb233bde00237"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0003.json": {
+      "bytes": 203,
+      "sha256": "c44ec69f6a7f906a725222757e58cae03cd43d35506d6a5bfec3ed43cd3da400"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0003.txt": {
+      "bytes": 214,
+      "sha256": "08b680dff1182879a66631caffdc0962e82a14444b952b6d2883fb1d3707a95c"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0004.json": {
+      "bytes": 278,
+      "sha256": "1ce304893efd73a7cbf931989f8ea2cafe734399daa611d6b5b630603897192f"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0004.txt": {
+      "bytes": 1305,
+      "sha256": "e0d826b944b6d89f5d3284476733ffe9794dee0ec114423bcf754f82037403cc"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0005.json": {
+      "bytes": 233,
+      "sha256": "79caf6c0e2297a25ff40c0388b0e1278d7c8bedaa4c91b0aa3eb5cac89f7e55c"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0005.txt": {
+      "bytes": 664,
+      "sha256": "6168d2321f1ac52b051db695153e2ac556699049de1e2b5df8c6cca4d33a08db"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0006.json": {
+      "bytes": 217,
+      "sha256": "881f3aabd75a3a3243300185906248f09c5362ba6abcd3f7af376e2f51f28efd"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0006.txt": {
+      "bytes": 328,
+      "sha256": "67a69f0299bd57e755ba32e03c3f7f332f2783be1abe5e32cea64472e42a650f"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0007.json": {
+      "bytes": 233,
+      "sha256": "5b9e0f72ad36d0704e0ee0bc6585cb1a0d882f23a9c3aa3b1c3d4470e8b2b974"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0007.txt": {
+      "bytes": 505,
+      "sha256": "5fe626413f700467717f846a27f5263739c66eddd2065854207c68894c707304"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0008.json": {
+      "bytes": 203,
+      "sha256": "ed7e9320a795f1c3b97c4767ab79ae330092dc5d8d4c18aaeb8a8b4358ccdd9e"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0008.txt": {
+      "bytes": 214,
+      "sha256": "b25178d70431e84e8364af005ecc563b45697e6154660757419ee8d2a4a19b58"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0009.json": {
+      "bytes": 219,
+      "sha256": "ddcf5db388b0b60628c483e4387cef62f6e7bb5b746a7238e67a2b9287735773"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0009.txt": {
+      "bytes": 391,
+      "sha256": "a2e3e1269b6aec4c99bb296172d72c5a602a789201a2d9d1eac9e4d5e4819211"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0010.json": {
+      "bytes": 260,
+      "sha256": "802445c04bfc684b138d75e871a1a7715f50f3d44bffc43beea1fcd5e051db5b"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0010.txt": {
+      "bytes": 1011,
+      "sha256": "80a0792aa707948f41effa1b64e0da0bf0eb3e137d2822daaf11e878ac688b69"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0011.json": {
+      "bytes": 294,
+      "sha256": "90f93ef079ec84f70d266c973b3860a844ac50db15fe5fe54777b8b262fdb1d9"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0011.txt": {
+      "bytes": 1522,
+      "sha256": "bb970255599e4c4b1f32c28c4ed67339b9203b4e96760e6848121d3002a1311e"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0012.json": {
+      "bytes": 217,
+      "sha256": "5009999c0ca1e679cccceabd8bf620a880ef2ca669eb7918f2369880fab9d83f"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0012.txt": {
+      "bytes": 499,
+      "sha256": "b1277f4530568d0941952f60d6dc560cfb34f8314bf1532e8aeec6ad8ba22c7e"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0013.json": {
+      "bytes": 310,
+      "sha256": "c2d50f78a6f8990c4905b2512277fdc404c46514dbafe9580db1fdcdb57e0ed6"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0013.txt": {
+      "bytes": 1685,
+      "sha256": "9cd1d0e4a6c37c54ff0af29054da3f089c20cd5515276fd3068c3b2931df736a"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0014.json": {
+      "bytes": 294,
+      "sha256": "cae618c42751be4520ead80cc1cb0bf27b1a330dc4b86aeb5f31daa0cec78887"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0014.txt": {
+      "bytes": 1419,
+      "sha256": "6254d400be710d9e6496acc6826636d1dabc97954e3309f8c1eecf3ee782a67d"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0015.json": {
+      "bytes": 302,
+      "sha256": "1cbc5a434cb5473449595689a6de97ba5ba3a5602f0fe1ad52cc0fd9b4ef1930"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0015.txt": {
+      "bytes": 1582,
+      "sha256": "0bec0695176165bf3251b7bb7535a3ef84bffa8a7b7564ffb2eb68efd2531074"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0016.json": {
+      "bytes": 268,
+      "sha256": "7e554f5d847af43e63a3e3adf988ecbe644336cf522d754dafa6ccad6be633a0"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0016.txt": {
+      "bytes": 1146,
+      "sha256": "29e23a126d67bbd112ad489a82eed1c5f7760288933da895c9f77763b138beee"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0017.json": {
+      "bytes": 302,
+      "sha256": "43aefea96e8e8f553cb198ec018a31ff7dd78ef9c0ab39502ec1b3a8e02abc8a"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0017.txt": {
+      "bytes": 2084,
+      "sha256": "1d420a243fde056065ef66c44a64a5bcc4fa8de710c77773930f9059cb4c15c0"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0018.json": {
+      "bytes": 268,
+      "sha256": "d5f9f2066f4792d7819a283dcfefa943db0479e101130b4e87ff06bffe56c84c"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0018.txt": {
+      "bytes": 1138,
+      "sha256": "4af19ea638016b7cf6762e0c725b84ebdfb790d3835b009e75f73c0ad7dc5ef7"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0019.json": {
+      "bytes": 302,
+      "sha256": "3abae178704de86e7b5410c7d714e8ac7798f98d2e07a3ce78756483db921119"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0019.txt": {
+      "bytes": 2014,
+      "sha256": "2f02b6a1813a1aeadc690e74f8c6a6bd764cd5e3252b82589a3cefda314d11e5"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0020.json": {
+      "bytes": 326,
+      "sha256": "8f5d3801c809dc30aec833ab7835ebcbef67859a4a204176f0c20588c9f027e0"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0020.txt": {
+      "bytes": 2139,
+      "sha256": "23b8c710602bc08a51a07acc0e25bdcc471e3e5ddb03d09e1d036c4dcb36f2bc"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0021.json": {
+      "bytes": 294,
+      "sha256": "cdd77d2c91dc3d41569629963ab85c2344fa13cca159841d06a1b6c2f0087a41"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0021.txt": {
+      "bytes": 1913,
+      "sha256": "636d868c8aa1a41dc4d9221daa675aa5fc34a711d12102ed98e215e565a54249"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0022.json": {
+      "bytes": 210,
+      "sha256": "ee398ae1dfb6e32323e9d7e59f79c49b10bd97b7baf8739808a27f5cea78cd48"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0022.txt": {
+      "bytes": 295,
+      "sha256": "4ef2a95396980081bb31720e4526f9b668a3162ac349c64c13bd7158f67bc7b2"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0023.json": {
+      "bytes": 241,
+      "sha256": "48c9506fadf13f88b7388a6b9eadabe22829758b3671978d890a9c2db37b90d4"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0023.txt": {
+      "bytes": 1184,
+      "sha256": "e980565564bbb09868b0a2716ca5ebf40e236f38a179f47c5f423f99f9b0959a"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0024.json": {
+      "bytes": 210,
+      "sha256": "e186196ba0b154761aea9371991010820c31acd1e8c8426228153e8285d07f30"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0024.txt": {
+      "bytes": 292,
+      "sha256": "91f62cea917f269cb8f1beb7241cab7c888671df37d8442e7d560eead6c0fdcf"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0025.json": {
+      "bytes": 210,
+      "sha256": "d7b464d7d7197fc8758665d544c0cf34d45da4c7aa4e079dc80a997db8412a37"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0025.txt": {
+      "bytes": 290,
+      "sha256": "6a16583521eb97f1fd989b8c843661705349d2926af1246d4f8d1a819f02aabc"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0026.json": {
+      "bytes": 261,
+      "sha256": "59458e97e46e84990d35f4aef40330b3581ea21c87812cfa2a2ff24361b6ee4b"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0026.txt": {
+      "bytes": 881,
+      "sha256": "e68434fa3ef6f786b2e40e3e526c22b2bbdd6534db05bbdcb14cb204ce390f0b"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0027.json": {
+      "bytes": 238,
+      "sha256": "3ab21e1ee1f7cb51a122838e4e5df2991220bf8013a3e89af9dc548736437200"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0027.txt": {
+      "bytes": 557,
+      "sha256": "b8e5a57f6ecbb15df35f01d3a5cb92b0699e4feda1da5a5e7863860bf03649ee"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0028.json": {
+      "bytes": 318,
+      "sha256": "9cc8450abc38441978a99d1d220e47061422e6ea35af5f75ef0c0b1b47c5fa49"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0028.txt": {
+      "bytes": 3466,
+      "sha256": "17bfb5d3b4b2930ef5f31cee17e779aafaec540a08192d01a992cd59f4b01c7c"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0029.json": {
+      "bytes": 270,
+      "sha256": "cf018bc8e1faf05a82c9f12d12dd98e3452d4c1282fe56d4373c75cf986e6807"
+    },
+    "phase-root-observations/verified/initial-send-oracle-frames/0029.txt": {
+      "bytes": 1198,
+      "sha256": "393aa6305efe3aa7cbc78e9a025d259d3d125c9861cb910a013b6cb7852b02d4"
+    },
+    "phase-root-observations/verified/initial-send-oracle.py": {
+      "bytes": 2020,
+      "sha256": "446dd4aaff9ffaf24287622e0ac284acbf07e64c0ebf69138cc861c22dcb64cb"
+    },
+    "phase-root-observations/verified/initial-send-oracle.sh": {
+      "bytes": 316,
+      "sha256": "68a04087cf0a963f4b08407d88acd7f5464185f7514820a3a55914c467499a6e"
+    },
+    "phase-root-observations/verified/model.spthy": {
+      "bytes": 429409,
+      "sha256": "99f19ff5caf6ac0b0dbcc37a369031a9d9635cf140154b1171c678dce7df3585"
+    },
+    "phase-root-observations/verified/phase-root-guided03-STARTED.json": {
+      "bytes": 1859,
+      "sha256": "0b056df56426150c3365627e485083da99c34144a4968490ef485d60cc5de4e3"
+    },
+    "phase-root-observations/verified/phase-root-guided03-TERMINAL.json": {
+      "bytes": 6485,
+      "sha256": "8da30d5e92e53378dded56f6cc00ff67f99ca7ce6d2e2613313023dca2ef8ede"
+    },
+    "phase-root-observations/verified/phase-root-guided03-proof.spthy": {
+      "bytes": 438421,
+      "sha256": "921304b3c0efa6a25f30989b0fcffcd105f785367f8152350bd19a3e6c2618dc"
+    },
+    "phase-root-observations/verified/phase-root-guided03.stderr": {
+      "bytes": 40870,
+      "sha256": "3e4f0c5c055facbb52fb64d6f3c88ce29f76d3f5b5e8bd7891973f28b64d06e1"
+    },
+    "phase-root-observations/verified/phase-root-guided03.stdout": {
+      "bytes": 3212,
+      "sha256": "00bb91acbfe2864862c589445212a348b336ee6d9558be612fca1f4f2321bc35"
+    },
+    "phase-root-observations/verified/run.py": {
+      "bytes": 5793,
+      "sha256": "482633af8086a0198c09db1ab6b7eeb5d4910602a3f852e7a765e1108d3c2d23"
+    }
+  },
+  "analysis": {
+    "schema_version": 1,
+    "source_commit": "dea0d3715d30bd727b497468f7a7c6bfe6fa0671",
+    "observation_erasure_exact": true,
+    "original_operational_prefix_sha256": "3cb837646fa2097468d1fad0a10433f50d5c31b6be5553f20085170c3eef0266",
+    "instrumented_rules": 12,
+    "root_field_observations": 17,
+    "initial_root_observations": 1,
+    "added_actions_only": true,
+    "changed_premises_conclusions_equations_restrictions": false,
+    "root_is_existing_fresh_initial_material_or_hash_not_a_fixed_initial_constant": true,
+    "phase_root_proof": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 75
+    },
+    "initial_root_separation_proof": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "new_root_properties_nonreuse_during_independent_proof": true,
+    "old13reuse_hidden_for_independent_root_checks": true,
+    "verified_oracle_callbacks": 30,
+    "callback_classes": {
+      "phase-premise": 13,
+      "induction-order": 17
+    },
+    "maximum_callbacks": 32,
+    "maximum_total_search_depth": 16,
+    "guide_remaining_depth": 10,
+    "baseline": {
+      "explicit_by_sorry_tokens": 42,
+      "invalid_proof_steps": 0,
+      "valid_comparable_frontier": true,
+      "valid_frontier_leaves": 42
+    },
+    "combined_attempts": {
+      "combined-copy": {
+        "explicit_by_sorry_tokens": 42,
+        "invalid_proof_steps": 7,
+        "valid_comparable_frontier": false,
+        "valid_frontier_leaves": null,
+        "steps": 389
+      },
+      "contradiction-probe": {
+        "explicit_by_sorry_tokens": 34,
+        "invalid_proof_steps": 7,
+        "valid_comparable_frontier": false,
+        "valid_frontier_leaves": null,
+        "steps": 353
+      }
+    },
+    "current_origin_and_multi_epoch_secrecy": "incomplete",
+    "prior719_interpretation_corrected": "Seven invalid copied proof steps were omitted by a by-sorry-only counter. The42legacy tokens are not a valid new frontier; helper ineffectiveness was not established. The retained719rawcapture remains unchanged, with CORRECTION.json and corrected README.",
+    "contradiction_hypothesis_rejected": "Replacing the7stale solve subtrees with contradiction still produces7invalid steps. Do not treat the34explicit open tokens or353recorded steps as proof progress.",
+    "next": "Capture the exact current goals at all7changed contexts, retain and restore the six unselected full Stored subtrees, then validate actual replacement methods. Do not add more invariants based solely on unchanged token counts.",
+    "limits": {
+      "seconds_per_run": 900,
+      "heap_gib": 12,
+      "threads": 1,
+      "derivation_seconds": 60,
+      "strictwarnings": true
+    },
+    "runs": {
+      "initial": {
+        "elapsed_seconds": 311.6823722090048,
+        "returncode": 0,
+        "observed_driver_exit": 1,
+        "accepted": false,
+        "timed_out": false,
+        "input_sha256": "b8b39643062f8afce8255c4af7b31eac3f41cb2376b8314721a2c5303c62f700",
+        "output_sha256": "c28d7bcd8692a27357c8889e351b6df880f1db4bc5afcd91277a873f6f7eefbb"
+      },
+      "guide01": {
+        "elapsed_seconds": 37.735303958004806,
+        "returncode": -2,
+        "observed_driver_exit": 1,
+        "accepted": false,
+        "timed_out": false,
+        "input_sha256": "0c17410b75485b06f55c4826b14308b4325e3ec532b3046603c21c70d23e5788",
+        "output_sha256": null
+      },
+      "guide02": {
+        "elapsed_seconds": 165.95583379099844,
+        "returncode": -2,
+        "observed_driver_exit": 1,
+        "accepted": false,
+        "timed_out": false,
+        "input_sha256": "99f19ff5caf6ac0b0dbcc37a369031a9d9635cf140154b1171c678dce7df3585",
+        "output_sha256": null
+      },
+      "verified": {
+        "elapsed_seconds": 319.43703699999605,
+        "returncode": 0,
+        "observed_driver_exit": 0,
+        "accepted": true,
+        "timed_out": false,
+        "input_sha256": "99f19ff5caf6ac0b0dbcc37a369031a9d9635cf140154b1171c678dce7df3585",
+        "output_sha256": "921304b3c0efa6a25f30989b0fcffcd105f785367f8152350bd19a3e6c2618dc"
+      },
+      "combined-copy": {
+        "elapsed_seconds": 331.13514945800125,
+        "returncode": 0,
+        "observed_driver_exit": 1,
+        "accepted": false,
+        "timed_out": false,
+        "input_sha256": "89392d5ee621adf7b65c349a5ecb8055fa94e827816067663eb159259ee204a6",
+        "output_sha256": "f3a51aa54d66d8de2923a43484fe72dd243991ff6687a0bc4ff564a60cf2adb8"
+      },
+      "contradiction-probe": {
+        "elapsed_seconds": 328.4808299169963,
+        "returncode": 0,
+        "observed_driver_exit": 1,
+        "accepted": false,
+        "timed_out": false,
+        "input_sha256": "ea317ce8655f1c3900c827ac0bd1660d3276b913abc92fc10a1db1f907275e8a",
+        "output_sha256": "9750d5a64da976729f94f8c77b4ead572803bfb3f744fac36ba14e5cb2f6e4f8"
+      }
+    },
+    "method_reference": "https://tamarin-prover.com/manual/master/book/011_advanced-features.html#using-an-oracle",
+    "release_claim_eligible": false
+  }
+}

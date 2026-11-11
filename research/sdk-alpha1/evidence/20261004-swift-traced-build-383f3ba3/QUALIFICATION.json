@@ -1,0 +1,19 @@
+{
+  "completed": true,
+  "scope": "Local translated SwiftPM build of arm64 test product then native execution of identical binary; not hosted CodeQL extraction qualification",
+  "failed_job": 111416123655,
+  "failed_head": "383f3ba30c7e99e6e380585d5da1683d78dceb27",
+  "observed": "15 hosted Swift tests pass after native launch, then CodeQL finalize fails with zero Swift source; tracing environment declares osx64/libtrace.dylib",
+  "inference": "Keep compilation inside CodeQL Rosetta tracing process tree, execute tests natively from a fresh shared scratch path; precise injection-loss exec boundary has not been proved",
+  "official_sources": [
+    "https://codeql.github.com/docs/codeql-overview/system-requirements/",
+    "https://github.com/github/codeql/blob/codeql-cli/v2.27.1/swift/tools/tracing-config.lua#L107",
+    "https://github.com/swiftlang/swift-package-manager/blob/main/Sources/Commands/SwiftBuildCommand.swift",
+    "https://github.com/swiftlang/swift-package-manager/blob/main/Sources/Commands/SwiftTestCommand.swift"
+  ],
+  "source_hashes": {
+    ".github/workflows/codeql.yml": "a55af2de33c61037fd5e2d9a3c65e2a2726c4f0c2dedf643bbb010a4a8702ed4",
+    "artifact/test_proof_to_byte_release.py": "285b539f62f5c9af69c130f7b1991bfd55cc712a6b869e29d0d84d5d0670849f"
+  },
+  "release_claim_eligible": false
+}

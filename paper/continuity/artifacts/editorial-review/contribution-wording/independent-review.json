@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "status": "accepted",
+  "reviewed_utc": "2026-11-09T02:56:46.961923+00:00",
+  "scope": "Scientific equivalence of the explanatory paragraphs after acquisition nonadditivity and the final record-connection consequence paragraph.",
+  "reviewed_files": [
+    {
+      "path": "paper/continuity/acquisition-nonadditivity.tex",
+      "before_sha256": "50cd83948e5e03329eacfbc380af9f7a99b63abab3cc6e3e75f0edf7f3dcd297",
+      "after_sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+      "after_bytes": 2722,
+      "formal_environments_identical": 2,
+      "display_math_blocks_identical": 5
+    },
+    {
+      "path": "paper/continuity/report-composition.tex",
+      "before_sha256": "b5c46a2c69bcb7d9dee8d460cdc55bf8ec8b691d612e8d33ccef1679408b45d3",
+      "after_sha256": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
+      "after_bytes": 12978,
+      "formal_environments_identical": 5,
+      "display_math_blocks_identical": 7
+    }
+  ],
+  "conclusions": {
+    "nonadditivity": "The exact fixed per-object union restriction is retained. The guarded joint acquisition/derivation interpretation, public origin identifiers, and separate information-theoretic example keep their original meanings. The wording makes no new impossibility claim for stateful/history-dependent or conservative abstractions.",
+    "record_composition": "The composition uses a correspondence already proved for the explicitly stopped native interface as an input. It retains the actual eligible-exposure residual, separate record-hop error/acquisition rules, and per-fragment provenance justification of any renderer permanent-ineligibility premise. The paragraph introduces no new general correspondence proof for arbitrary key-only projections.",
+    "report_interface": "Original immutable transcripts and cached tags remain the validation interface; changed-byte import keeps its distinct MAC-query interface.",
+    "formal_invariance": "All seven formal environments and every displayed mathematical block in the two supplied files are byte-identical before and after. The proposal changes explanatory prose only."
+  },
+  "accepted_after_sha256": [
+    "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+    "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7"
+  ]
+}

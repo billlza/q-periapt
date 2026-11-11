@@ -1,0 +1,47 @@
+{
+  "recorded_at": "2026-10-08T22:39:28.908731+00:00",
+  "source_head": "67e1a5b03bf263ab175bc2261e4b70413ce8d79f",
+  "pr_merge": "f4c28bad22afb06f61a0b5fdbb0068a9631265a2",
+  "rust_job": 113515487851,
+  "rust_analysis_quality_upload_post_success": true,
+  "aggregate_check": 113516080666,
+  "aggregate_conclusion": "failure",
+  "new_alerts_in_pr": {
+    "critical": 178,
+    "high": 1383,
+    "medium": 46,
+    "total": 1607
+  },
+  "open_pr_alerts": 1616,
+  "open_pr_rules": {
+    "rust/command-line-injection": 119,
+    "rust/path-injection": 553,
+    "py/command-line-injection": 37,
+    "py/path-injection": 796,
+    "rust/cleartext-logging": 35,
+    "rust/log-injection": 46,
+    "rust/hard-coded-cryptographic-value": 25,
+    "cpp/path-injection": 3,
+    "rust/uncontrolled-allocation-size": 2
+  },
+  "raw_rust_results": 809,
+  "raw_rust_rules": {
+    "rust/path-injection": 553,
+    "rust/uncontrolled-allocation-size": 2,
+    "rust/cleartext-logging": 35,
+    "rust/command-line-injection": 119,
+    "rust/hard-coded-cryptographic-value": 54,
+    "rust/log-injection": 46
+  },
+  "inventory_zip_sha256": "ac15b08762958e780732610522019d41225ddfba50b9c59d72bf8bd80ed4d94a",
+  "raw_rust_diagnostics": {
+    "artifact_id": 11583170809,
+    "bytes": 472513142,
+    "sha256": "025d899a0208906a57be29bcb9dec27f14136ac52d930f9a910822ee97fdbcbf",
+    "local_archive": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/codeql-67e1a5-preserved/RUST_DIAGNOSTICS.zip"
+  },
+  "dispositions_completed_in_this_record": 0,
+  "remote_dismissals": 0,
+  "query_suppressions": 0,
+  "release_claim_eligible": false
+}

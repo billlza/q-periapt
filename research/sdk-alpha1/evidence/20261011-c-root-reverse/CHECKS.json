@@ -1,0 +1,358 @@
+{
+  "schema_version": 1,
+  "kind": "qperiapt.installed_c_root_reverse_qualification",
+  "implementation_commit": "c69a94f31e58fb1ae8276d1ac6d5f4acf2c2c01d",
+  "completed": true,
+  "release_claim_eligible": false,
+  "publication_performed": false,
+  "scope": "Same-host macOS arm64, installed C root controller and C peer using the same native engine. Both application directions after root cutover, original-message recovery after sender loss and receiver loss inside a persisted callback, and epoch-1 traffic.",
+  "profiles": {
+    "debug": {
+      "completed": true,
+      "processes": 31,
+      "sigkill_cuts": 10,
+      "application_records": 3,
+      "reverse": {
+        "application_records": 1,
+        "completed": true,
+        "default_thread_stacks": {
+          "cut": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "recover": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          }
+        },
+        "epoch": 1,
+        "message": "0000000000000001000000000000000094d78cfd62ba2e80387a7ef14aed3b25",
+        "original_reply_recovered": true,
+        "processes": 5,
+        "receiver_sigkill": 1,
+        "release_claim_eligible": false
+      },
+      "full_history_witness": {
+        "authority_observations": [
+          {
+            "authority": "0a9f9d47408c9969439b47810234247bd035bbb09e74a6a1bacbffbc6a6d986e",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          },
+          {
+            "authority": "4c737a7df45e26719b45110fd37b280a7356f988c5454758005bf517319c55c8",
+            "outcome": 5
+          }
+        ],
+        "exchanges": 536,
+        "fresh_challenges": 536,
+        "logical_advances": 60,
+        "lost_commands": [],
+        "subjects": 4
+      },
+      "binaries": {
+        "libq_periapt_continuity_c_consumer.dylib": "67d0f84a02fc0273ccff7e961abfbfa84303e88c72f9de3b351f184d88b5aba2",
+        "qpc-c-client": "f30d8e7531d2f7a54f5ca87c93750092a41f3a92eed3191643ef990e4893a479",
+        "qpc-c-root-client": "bba3e86acfff816505266b3397df41c3a38be1c7eb2202d09380120793e9f873",
+        "root-3432ea88db7421c5": "4244f64f8f3aa0b31717c762ee717f734fa923a572c92fd8f03be6902258df3d"
+      },
+      "clippy": 0
+    },
+    "release": {
+      "completed": true,
+      "processes": 31,
+      "sigkill_cuts": 10,
+      "application_records": 3,
+      "reverse": {
+        "application_records": 1,
+        "completed": true,
+        "default_thread_stacks": {
+          "cut": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "recover": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          }
+        },
+        "epoch": 1,
+        "message": "00000000000000010000000000000000f019d7d1b862797f3ede728fa46bef2a",
+        "original_reply_recovered": true,
+        "processes": 5,
+        "receiver_sigkill": 1,
+        "release_claim_eligible": false
+      },
+      "full_history_witness": {
+        "authority_observations": [
+          {
+            "authority": "ed62ace0ed1199d72ae23a25be2850686f16aabcf5e13374c2a269dc28f32132",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          },
+          {
+            "authority": "c0d6b6d66adc92d7fe23d0985a287ab85bfdfbb7d081dfebc383ebba0222772c",
+            "outcome": 5
+          }
+        ],
+        "exchanges": 536,
+        "fresh_challenges": 536,
+        "logical_advances": 60,
+        "lost_commands": [],
+        "subjects": 4
+      },
+      "binaries": {
+        "libq_periapt_continuity_c_consumer.dylib": "78ebe3ca73d5bf05569ae21b4b7efeefcfe795b9be34f0d1fe5cd3fcdf0f65c0",
+        "qpc-c-client": "068a11e0ab210f058cac38ee2c329cd207b849b8e8f19e1549b91c1d14d58ee4",
+        "qpc-c-root-client": "a92012c90bb94b1a0628d5563c1b3814824fb8823891833001c1686801fd30fe",
+        "root-9b7064d6097bd46e": "97c25e3fb7964b12778c1dc76ca518fb259973713121da77838c6fd72dbb7ad8"
+      },
+      "clippy": "Same source and Rust 1.98.1 compiler checked in final-debug."
+    },
+    "msrv-debug": {
+      "completed": true,
+      "processes": 31,
+      "sigkill_cuts": 10,
+      "application_records": 3,
+      "reverse": {
+        "application_records": 1,
+        "completed": true,
+        "default_thread_stacks": {
+          "cut": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          },
+          "recover": {
+            "observed_bytes": 536576,
+            "system_default_bytes": 524288
+          }
+        },
+        "epoch": 1,
+        "message": "000000000000000100000000000000003400d8f57abc75161e99dc730f3c3e04",
+        "original_reply_recovered": true,
+        "processes": 5,
+        "receiver_sigkill": 1,
+        "release_claim_eligible": false
+      },
+      "full_history_witness": {
+        "authority_observations": [
+          {
+            "authority": "02da6f08e0176ec50c36e0bf27d86bd1254c2c54045f28241248c0a531e53dcf",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          },
+          {
+            "authority": "81704dcbce327405223dbc8945cf48e05e151161b0bc5ba6b29a2daaf97ab64c",
+            "outcome": 5
+          }
+        ],
+        "exchanges": 536,
+        "fresh_challenges": 536,
+        "logical_advances": 60,
+        "lost_commands": [],
+        "subjects": 4
+      },
+      "binaries": {
+        "libq_periapt_continuity_c_consumer.dylib": "b2b0f46a99ba507feca3db9597b8fe2ea3c9f700de722fd4fcb1ed950829e77b",
+        "qpc-c-client": "ae7523885fc4dd2adc8f9d0ea3110e1e2db3d8cd3d63fc159dc6365038c60f71",
+        "qpc-c-root-client": "9be53ba4ad38ad2ceb2269ee3c60dcd49cce60bff29d75b684408c7a1aff095e",
+        "root-212af1521ec5445e": "25afe5b13f7f35ba9a01772abffb7cbbbd1b268b013933d5ce7b1ae5e267c3b8"
+      },
+      "clippy": 0
+    }
+  },
+  "capture": {
+    "file": "CAPTURE.zip",
+    "sha256": "0aea154142215043619141047392125cbf5a69a0685ef836712a67b8b008d54a",
+    "bytes": 11456736,
+    "members": 685
+  },
+  "source_matches_current_fixture": true,
+  "runtime_sources_unchanged": true,
+  "prior_library_qualification": "../20261011-c-root-process/CHECKS.json",
+  "prior_outbound_qualification": "../20261011-c-root-traffic/CHECKS.json",
+  "shared_effect_body": {
+    "original_commit": "2a6508df92be9eb4ac85d562146558d4a41995c7",
+    "unchanged_body_sha256": "21156e411aea15f749eb2481a20923f8ce4774685557baf411428faeaf2aae0a",
+    "bytes": 3185,
+    "moved_to": "bindings/c/ContinuityPackageConsumer/application_effect.h",
+    "purpose": "Reuse exact effect persistence and deduplication semantics in both C receivers."
+  },
+  "related_python_tests": 141,
+  "reverse_adversarial_replays_rejected": 7,
+  "reverse_unit_mutations_rejected": 10,
+  "tracked_rust_sources": 549,
+  "gnu_c": "Both C translation units pass GNU C 15 syntax checks with all existing warnings denied; this is not Linux runtime qualification.",
+  "limits": [
+    "Same native implementation and host; no independent implementation or physical-device/cross-host proof.",
+    "C transition/adoption process variants and Swift/Kotlin managed root controller paths remain open.",
+    "Nine SIGKILL cuts occur after public calls; one kills the root receiver inside the callback after host effect persistence. The earlier peer exits with 77 after effect persistence. No power-loss or native in-commit fault claim.",
+    "No new cryptographic, post-compromise security, constant-time or performance conclusion.",
+    "Current-head hosted CI and the complete 0.2.0 release decision remain open."
+  ]
+}

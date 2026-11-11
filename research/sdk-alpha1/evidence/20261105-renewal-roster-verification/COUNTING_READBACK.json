@@ -1,0 +1,43 @@
+{
+  "baseline_attempts": 22994,
+  "baseline_export_note": "The baseline binary was copied and hash-checked before the original Cargo output path was reused by the candidate build. The original build record is preserved unchanged.",
+  "baseline_native_sha256": "c63b7dcd6a3c0df35217c6ed06fe051275d5ce1b635b4c8bfaf2ef3cf573b844",
+  "baseline_roster_attempts": 12648,
+  "baseline_roster_counts": {
+    "roster-1": 126,
+    "roster-2": 7425,
+    "roster-3": 4999,
+    "roster-4": 98
+  },
+  "baseline_source_commit": "3c3617019f2265f6f42b8d8f599b48584fa79d05",
+  "baseline_target_seconds": 10.730553708039224,
+  "candidate_attempts": 15569,
+  "candidate_native_sha256": "fdfef0e643d734528f45e4604cfc6da867e9a9ed7173998651bea4cfcf92c53e",
+  "candidate_roster_attempts": 5223,
+  "candidate_roster_counts": {
+    "roster-1": 126,
+    "roster-2": 2475,
+    "roster-3": 2524,
+    "roster-4": 98
+  },
+  "candidate_source_commit": "4ac872a09afc82f98f9a2b2a7055726206edff1a",
+  "candidate_target_seconds": 7.649538915953599,
+  "captured_utc": "2026-11-05T16:53:59.388333+00:00",
+  "distinct_input_digests_per_run": 170,
+  "failures_retained": [
+    "initial cross-repository Python wrapper refusal before build",
+    "case-insensitive build.json/BUILD.json collision after three successful build/check commands"
+  ],
+  "input_comparison_scope": "Fresh independently random fixtures: equal counts and workload, not identical input bytes across the two runs. Each roster fingerprint is separately matched to its actual public bytes.",
+  "interpretation": "Every credential, renewal grant, policy and Witness verification count is retained. Three repeated roster verifications per 2,475 historical grant decodes are removed by reusing the two exact independently pinned authenticated rosters within that verification. Instrumentation counts attempts and never caches or changes their cryptographic results.",
+  "limits": "Instrumentation and uncontrolled host conditions make timing diagnostic only. This is not proof of the original hosted timeout cause, a fixed remote job, a final source/package qualification, or a formal product resource budget.",
+  "original_native_exchange_seconds": 30,
+  "other_purpose_counts_identical": true,
+  "private_state_included": false,
+  "process_kills_per_run": 15,
+  "production_change_commit": "1bdb29a20d1d9c68496648f3be91efad710e4b0c",
+  "qualification_passed": false,
+  "release_claim_eligible": false,
+  "removed_roster_attempts": 7425,
+  "workers_per_run": 91
+}

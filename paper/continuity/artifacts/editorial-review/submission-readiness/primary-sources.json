@@ -1,0 +1,126 @@
+{
+  "schema": "qperiapt/joc-primary-positioning-audit/v1",
+  "checked_on": "2026-11-10",
+  "status": "passed_for_recorded_claims",
+  "new_bibliography_entries": 5,
+  "total_bibliography_entries": 34,
+  "scope": "Metadata and the exact comparison claims stated in related-work.tex; algorithmic basis of the new ordinary-KEM proof. Reading coverage is listed per source.",
+  "access_note": "Direct downloads of the five ePrint PDFs returned HTTP 403. Their primary publisher/IACR abstracts support the recorded comparison claims; no full-proof reading is attributed to those five papers. The Squirrel author PDF and official FIPS 203 were inspected directly.",
+  "entries": [
+    {
+      "key": "jaeger2018channel",
+      "title": "Optimal Channel Security Against Fine-Grained State Compromise: The Safety of Messaging",
+      "authors": [
+        "Joseph Jaeger",
+        "Igors Stepanovs"
+      ],
+      "publication": "CRYPTO 2018, LNCS 10991, pp. 33–62",
+      "primary_url": "https://link.springer.com/chapter/10.1007/978-3-319-96884-1_2",
+      "author_record": "https://eprint.iacr.org/2018/553",
+      "coverage": [
+        "publisher abstract",
+        "publication metadata",
+        "author publication list"
+      ],
+      "checked_claim": "Repeated fine-grained state compromise in bidirectional channels and the use of key-updating encryption/signatures."
+    },
+    {
+      "key": "balli2020ratcheting",
+      "title": "Determining the Core Primitive for Optimally Secure Ratcheting",
+      "authors": [
+        "Fatih Balli",
+        "Paul Rösler",
+        "Serge Vaudenay"
+      ],
+      "publication": "ASIACRYPT 2020, LNCS 12493, pp. 621–650",
+      "primary_url": "https://link.springer.com/chapter/10.1007/978-3-030-64840-4_21",
+      "author_record": "https://eprint.iacr.org/2020/148",
+      "coverage": [
+        "publisher abstract",
+        "IACR abstract",
+        "publication metadata"
+      ],
+      "checked_claim": "Combined state and randomness compromise in ratcheted key exchange, and key-updatable KEMs under the stated strong definitions."
+    },
+    {
+      "key": "collins2025leakage",
+      "title": "Towards Leakage-Resilient Ratcheted Key Exchange",
+      "authors": [
+        "Daniel Collins",
+        "Simone Colombo",
+        "Sina Schaeffler"
+      ],
+      "publication": "PKC 2025, LNCS 15675, pp. 170–202",
+      "primary_url": "https://link.springer.com/chapter/10.1007/978-3-031-91823-0_6",
+      "author_record": "https://eprint.iacr.org/2025/332",
+      "coverage": [
+        "publisher abstract",
+        "IACR metadata",
+        "author institution abstract"
+      ],
+      "checked_claim": "Bounded leakage in unidirectional ratcheted key exchange and key-updatable KEM constructions."
+    },
+    {
+      "key": "jaeger2020adaptive",
+      "title": "Handling Adaptive Compromise for Practical Encryption Schemes",
+      "authors": [
+        "Joseph Jaeger",
+        "Nirvan Tyagi"
+      ],
+      "publication": "CRYPTO 2020, LNCS 12170, pp. 3–32",
+      "primary_url": "https://link.springer.com/chapter/10.1007/978-3-030-56784-2_1",
+      "author_record": "https://eprint.iacr.org/2020/765",
+      "author_version_note": "Revised 18 July 2023; the strengthened equivocable definition is recorded in the primary abstract.",
+      "coverage": [
+        "publisher abstract",
+        "IACR abstract and revision note",
+        "publication metadata"
+      ],
+      "checked_claim": "A framework for adaptive compromise in practical encryption and pseudorandom-function constructions in ideal models."
+    },
+    {
+      "key": "jaeger2023program",
+      "title": "Let Attackers Program Ideal Models: Modularity and Composability for Adaptive Compromise",
+      "authors": [
+        "Joseph Jaeger"
+      ],
+      "publication": "EUROCRYPT 2023, LNCS 14006, pp. 101–131",
+      "primary_url": "https://link.springer.com/chapter/10.1007/978-3-031-30620-4_4",
+      "author_record": "https://eprint.iacr.org/2024/727",
+      "author_version_note": "The 2024 author version identifies the original EUROCRYPT 2023 publication.",
+      "coverage": [
+        "publisher abstract",
+        "IACR abstract",
+        "publication metadata"
+      ],
+      "checked_claim": "Modular and shared-ideal-primitive composition under adaptive compromise."
+    },
+    {
+      "key": "squirrel_existing_comparison",
+      "title": "Retained Squirrel secrecy/ratchet comparison",
+      "primary_url": "https://adrienkoutsos.fr/papers/26-secrecy-ratchet.pdf",
+      "coverage": [
+        "full author PDF",
+        "introduction and security-model discussion"
+      ],
+      "checked_claim": "The two-party unbounded-step development and its fixed trace/compromise setting, with non-deduction and real-or-random distinctions.",
+      "locators": "Author PDF, pp. 1–3 and the model discussion; the existing bibliography entry is retained."
+    },
+    {
+      "key": "fips203",
+      "title": "Module-Lattice-Based Key-Encapsulation Mechanism Standard",
+      "primary_url": "https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf",
+      "coverage": [
+        "full official standard",
+        "algorithm locators"
+      ],
+      "checked_claim": "Deterministic 32-byte K-PKE decryption, the internal encapsulation construction, and uniform 32-byte external encapsulation input.",
+      "locators": "Algorithms 15, 17 and 20; printed pp. 31, 33 and 37."
+    }
+  ],
+  "manuscript_files": {
+    "related-work.tex": "79986b07fb2984f048337edb6c06abeb59cda5087fc227cc5bab3fb4a12b71c8",
+    "references.bib": "1e7dcd24d5aa6a464d88631c04ac5826490261b4e829186dc90c8c9b5a5eb6b4",
+    "kem-ordinary-bridge.tex": "871a4a3a0a8744f0288a5a9c8adee47dd8738d0c341f333a8ed465d7fafd025f"
+  }
+}

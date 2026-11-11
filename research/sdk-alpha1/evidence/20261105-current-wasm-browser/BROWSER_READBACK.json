@@ -1,0 +1,67 @@
+{
+  "enrollment": {
+    "distinct_signing_identities": 7,
+    "native_binary_rechecked": true,
+    "native_verification_receipts": 19,
+    "original_cli_reader_passed": true,
+    "report_sha256": "0370123466c392eac3bdea2605ed4417fb299ad5f455126605b51d1a6225cb2a",
+    "source_files": 644
+  },
+  "installed_binding": {
+    "archive_sha256": "dea7351bd916d8bfc3c8e1bf3c2b0f8772864ddf48d175e1c8bea7d0af82970a",
+    "manifest_sha256": "03e799c3429606d6918b66c678bb6f092befd955e261181b7e87972a07b6fd47",
+    "receipt_sha256": "fdd21dac141af41713462ddaa4f3af9c88cdb62e8929f28363273f7812f2c73e",
+    "web_files": {
+      "application.js": "d25c682910de68933c939a99acef8ddbfaa793b1874b44fb21e226c92187a036",
+      "bounded-fetch.js": "e4debc248756f6e643e022222b90876b3b4cfdb674ee892c3d89baa796244c28",
+      "expert.d.ts": "1da7993423c89413f10b7175a123e16787ca5fc35b6375aed1a0d0601a61bbe9",
+      "expert.js": "940deb6e8c65c654008b5b9c0acf27ec185f9f3cec45235cd38dd50724f3df4c",
+      "index.d.ts": "ec59cea31330059b940b9c839eb9b8a105683a11d8fcf906155337871d588841",
+      "index.js": "5a61df9e31ce519fbdb1d1d84b4567324c85f97debb06a86ef8e4396b350788c",
+      "input.mjs": "9c50fe62d1edc247af7222d103f0ab6cd361d43d835e77ffe451e6a634614219",
+      "policy-database.js": "82e9376eebc3a8d20ee95cfea310b5a92fe5a05bfe4494e91e43cb337c3037cd",
+      "q_periapt_sdk_wasm.d.ts": "ab7f45688ceab25c30537a037e3a2b10a4213adb32f3c443e72150280af4b532",
+      "q_periapt_sdk_wasm.js": "30012724674c114c8890ed045159bc9a1385f56cec52d6c0b9a266255facaac5",
+      "q_periapt_sdk_wasm_bg.wasm": "1128a87d05edde703d707b0779043450d26580a60648a92a86603b1a9246cd06",
+      "storage-catalogue.js": "ecbe1666155e30d6134a175029f829255565efd989b2d5eccb8d0ee4fbf478ea",
+      "storage-database.js": "03eaea77e21cb5d8716b52550f10d02ca1dba9d8165b16d38a95a3148e66fac9",
+      "storage-io.js": "e5e4be3695332dd6afb4f5e7b1345adb06e7974272f081b517f474f311f10388",
+      "storage-opening.js": "0c55e5ee5a498c95066aeae7e0c583aecf0db15df41cf66ee25709ddc89a9b98",
+      "storage-root.js": "0a87b7410ca265b0fa66c7e8963ab75ee0a19de55e9531f8df04c086fcd45ac2",
+      "storage.d.ts": "ccac19d922d4c475323c4e3bf4854cf986309d7bb17645d3501332b1cc827411",
+      "storage.js": "ea0537e75957ab3980fd1378778099913363ebe029cd572b723041c38ca1a500"
+    }
+  },
+  "scope": "Independent byte and public-reader reread of original browser runs. Actual native binaries rechecked locally; capture inventory separately identifies exported bytes. No native or browser workload rerun and no independent protocol implementation claim.",
+  "session_source_files": 283,
+  "sessions": {
+    "local-session": {
+      "commands": 16,
+      "native_binaries_rechecked": 3,
+      "native_profile": "debug",
+      "original_public_reader_passed": true,
+      "peer_frames": 8,
+      "provider": "48.0.1",
+      "provider_openssl": "OpenSSL 4.0.1 9 Jun 2026",
+      "report_sha256": "7d7115e56b609297a727845d09df8f14c43308fd85a796849e7ba579383303f8",
+      "schema_version": 5,
+      "scope": "Installed browser public owner against repository-built native reference service; actual HTTP/TCP and OS time; fresh isolated test authority, local policy, not Passkey authorization, independent session implementation, TLS, physical device or power loss.",
+      "witness_frames": 0
+    },
+    "required-witness": {
+      "commands": 16,
+      "native_binaries_rechecked": 4,
+      "native_profile": "release",
+      "original_public_reader_passed": true,
+      "peer_frames": 8,
+      "provider": "48.0.1",
+      "provider_openssl": "OpenSSL 4.0.1 9 Jun 2026",
+      "report_sha256": "8b625265f0a5eb0285645dfe2768435e73930585e61ec620e0a4312a27c94698",
+      "schema_version": 6,
+      "scope": "Installed browser public owner against repository-built native reference service; actual HTTP/TCP and OS time; fresh isolated test authority, required witnessed policy, not Passkey authorization, independent session implementation, TLS, physical device or power loss.",
+      "witness_frames": 185
+    }
+  },
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "verified_utc": "2026-11-05T21:27:04.132555+00:00"
+}
