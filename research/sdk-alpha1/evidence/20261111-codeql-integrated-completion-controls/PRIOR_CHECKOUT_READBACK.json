@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "source_commit": "7c1c1b6f95747b9ccb877b803bd1ad7cee3cdd9d",
+  "source_tree": "3c8aea118257a0919530c66bdf7b618c0d8dfc21",
+  "workflow_commit": "beaf2773dd2f879dec1ae17724bf860583ed14bf",
+  "run_id": 43066759983,
+  "job_id": 130683671253,
+  "artifact_id": 13876775935,
+  "artifact_bytes": 288676,
+  "artifact_sha256": "5470a1db44ae6af62f3d64e0d190b3c9087a2ec3e094190845366c9876619048",
+  "local_manifest_sha256": "3bcbfb9cee79873f7b845ccd81d4a66bcac5d3df9941abcadbc79b3dcc7adf98",
+  "local_packet_files_verified": 9,
+  "full_git_tree_reconstructed": true,
+  "candidate_changed_paths": [
+    ".github/workflows/codeql.yml",
+    "artifact/test_codeql_workflow_contract.py"
+  ],
+  "retained_inventory_matches_git_blobs_modes_and_sizes": true,
+  "omitted_inventory_matches_exact_historical_zip_set": true,
+  "hosted_validator_asserted_complete_index_and_retained_byte_identity": true,
+  "tracked_files": 7929,
+  "retained_files": 7387,
+  "omitted_archives": 542,
+  "retained_bytes": 239527127,
+  "omitted_git_blob_bytes": 4787753249,
+  "tracked_rust_sources": 1241,
+  "authenticated_archived_rust_sources": 68,
+  "checkout_elapsed_seconds": 15.861989596,
+  "checkout_api_step_seconds": 16.0,
+  "git_object_directory_bytes": 100256247,
+  "workflow_contract_tests_passed": 10,
+  "workflow_contract_test_seconds": 0.029,
+  "artifact_members": [
+    {
+      "path": "CHECKOUT.json",
+      "bytes": 642,
+      "sha256": "e40485fa95ce047842e3f90638e90a41a6cab602f5a65c8a9eb7437d43888bd0"
+    },
+    {
+      "path": "OMITTED_ARCHIVES.json",
+      "bytes": 86986,
+      "sha256": "d88013b63c8f38ef0d577dce5ff56bd8d471fbf611c3725b5685d3b40ba7af2b"
+    },
+    {
+      "path": "RETAINED_FILES.json",
+      "bytes": 1488900,
+      "sha256": "55f2da32da2fb9be04c0c7a9b59b687c63eea42e41014ef0bfd4caeef800fae1"
+    },
+    {
+      "path": "contracts.log",
+      "bytes": 2215,
+      "sha256": "1dcbd3aa474fdeb26892f85030c250dfa2cf0de416561ae1d83f4a9bcaf44cf4"
+    },
+    {
+      "path": "git-object-count.txt",
+      "bytes": 102,
+      "sha256": "7528ca9b04208194e42e56ac14a06c7c6fd67c39c3ccede09baf6a822166d5a7"
+    },
+    {
+      "path": "source-census.log",
+      "bytes": 61,
+      "sha256": "256ea4cd107d9e2b249fed5c465603b6796752132e94d7fdd9cb3f6bb79cf7ca"
+    }
+  ]
+}

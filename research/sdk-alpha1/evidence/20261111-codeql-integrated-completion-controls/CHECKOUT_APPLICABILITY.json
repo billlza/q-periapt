@@ -1,0 +1,49 @@
+{
+  "all_research_paths_blobs_modes_unchanged": true,
+  "authenticated_archived_rust_sources_in_unchanged_qualified_tree": 68,
+  "changed_paths_between_qualified_source_and_external_head": [
+    ".github/workflows/codeql.yml",
+    "artifact/codeql_evaluator_logs.py",
+    "artifact/test_codeql_progress.py",
+    "artifact/test_codeql_workflow_contract.py"
+  ],
+  "checkout_source_blobs": {
+    "3b042375d4ac8e40b10d07941595341a6cc9b807": {
+      ".github/workflows/codeql.yml": "4c43118eebd859f36520481adba0b79ba3d39186",
+      "artifact/test_codeql_workflow_contract.py": "f31d94e2e26afd96151a834f75083655b62e805e"
+    },
+    "7c1c1b6f95747b9ccb877b803bd1ad7cee3cdd9d": {
+      ".github/workflows/codeql.yml": "eb7d29e45edb3af073540d95800a98eebe27c3c5",
+      "artifact/test_codeql_workflow_contract.py": "6005b465eb57b77185c8e36eb63a685cb96800bc"
+    },
+    "ed38e305552db2825d90622c130973df87e16d50": {
+      ".github/workflows/codeql.yml": "eb7d29e45edb3af073540d95800a98eebe27c3c5",
+      "artifact/test_codeql_workflow_contract.py": "6005b465eb57b77185c8e36eb63a685cb96800bc"
+    }
+  },
+  "conclusion": "The prior checkout transformation remains applicable when merging the two completion-boundary files into the qualified checkout implementation. Timing remains the original source-bound hosted observation.",
+  "external_base": "d2f9035c341db488bf0aba7b440d6548660d62b7",
+  "external_changed_paths": [
+    "artifact/codeql_evaluator_logs.py",
+    "artifact/test_codeql_progress.py"
+  ],
+  "external_head": "3b042375d4ac8e40b10d07941595341a6cc9b807",
+  "external_head_does_not_change_checkout_implementation": true,
+  "measurement_source": "7c1c1b6f95747b9ccb877b803bd1ad7cee3cdd9d",
+  "omitted_files": 542,
+  "omitted_git_blob_bytes": 4787753249,
+  "omitted_inventory_sha256": "d3383088f0b0ec2e5406e299ef4e52b32897ab9f9ed8a43c3d78d3a9559f9b42",
+  "prior_git_object_directory_bytes": 100256247,
+  "prior_hosted_checkout_seconds": 15.861989596,
+  "qualification_evidence_commit": "6ebd0e9a50c828e83ec2020163bd3511b39b57cc",
+  "qualified_and_query_checkout_implementation_bytes_equal": true,
+  "qualified_source": "7c1c1b6f95747b9ccb877b803bd1ad7cee3cdd9d",
+  "qualified_source_tree": "3c8aea118257a0919530c66bdf7b618c0d8dfc21",
+  "query_source": "ed38e305552db2825d90622c130973df87e16d50",
+  "retained_files": 7387,
+  "same_exact_omitted_paths_blobs_and_modes": true,
+  "schema": 1,
+  "tracked_files": 7929,
+  "tracked_rust_sources": 1241,
+  "verification": "Read existing Git tree metadata and sealed qualification inventory only; no checkout, test, CodeQL, CI or reference operation executed."
+}

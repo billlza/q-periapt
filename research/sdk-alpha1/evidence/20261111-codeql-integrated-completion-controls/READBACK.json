@@ -1,0 +1,62 @@
+{
+  "boundary_repair_source": "3b042375d4ac8e40b10d07941595341a6cc9b807",
+  "combined_index_tree": "7ff2bcc70f29ef8055c011ceeccbbbe55ed7dd9c",
+  "module_counts": {
+    "test_codeql_process_resources": 23,
+    "test_codeql_progress": 17,
+    "test_codeql_rust_plan": 24,
+    "test_codeql_rust_profile": 38,
+    "test_codeql_rust_publication": 29,
+    "test_codeql_rust_transfer": 15,
+    "test_codeql_summary_archive_input": 5,
+    "test_codeql_summary_control": 97,
+    "test_codeql_summary_plan": 16,
+    "test_codeql_summary_projection": 24,
+    "test_codeql_workflow_contract": 10
+  },
+  "new_boundary_test_methods": [
+    "test_buffered_completion_is_rejected_when_a_later_chunk_overflows",
+    "test_oversized_completion_lines_cannot_hide_extra_completion_evidence",
+    "test_oversized_completion_marker_is_rejected_at_every_chunk_boundary",
+    "test_unrelated_oversized_diagnostics_keep_original_receipt_and_bounded_memory"
+  ],
+  "new_test_or_query_execution": false,
+  "only_working_vs_index_difference": "One real stderr fixture path added to the existing summary-control sparse checkout list. Its exact working bytes are bound by CANDIDATE.json.",
+  "original_files": {
+    "CANDIDATE.json": {
+      "bytes": 139320,
+      "sha256": "00c1b48e7e70e401f03bcd3877f8558ba4979d96630a36b9e17b7226823cacf0"
+    },
+    "RESULT.json": {
+      "bytes": 744,
+      "sha256": "9fe3c029e85015bf9e5d5f7b4e2f15130b91451c2fa6f9d162398182df4cd964"
+    },
+    "controls.log": {
+      "bytes": 55532,
+      "sha256": "223457d8a0f16418a3b6e79ca160a5aa5a8acc4a097ae9d3123035534774e658"
+    }
+  },
+  "preflight_scope": "These 182 cases passed inside the original 298-case combined run. No additional isolated sparse checkout or separate preflight run was executed for this readback.",
+  "query_source": "ed38e305552db2825d90622c130973df87e16d50",
+  "recorded_source_unchanged": true,
+  "returncode": 0,
+  "schema": 1,
+  "six_module_passed_subset": 182,
+  "six_module_preflight_members": [
+    "test_codeql_summary_control",
+    "test_codeql_summary_archive_input",
+    "test_codeql_process_resources",
+    "test_codeql_summary_plan",
+    "test_codeql_progress",
+    "test_codeql_summary_projection"
+  ],
+  "source_bytes_bound": 16946225,
+  "source_files_bound": 623,
+  "source_scope": "Exact artifact and workflow working bytes, including retained stderr fixture sparse input; docs excluded from control inputs",
+  "tests": 298,
+  "unittest_seconds": 10.642,
+  "wall_seconds": 11.45256088199858,
+  "working_vs_index_paths": [
+    ".github/workflows/codeql-summary-control.yml"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "boundary_repair_source": "3b042375d4ac8e40b10d07941595341a6cc9b807",
+  "combined_index_tree": "7ff2bcc70f29ef8055c011ceeccbbbe55ed7dd9c",
+  "files": {
+    "CANDIDATE.json": {
+      "bytes": 139320,
+      "sha256": "00c1b48e7e70e401f03bcd3877f8558ba4979d96630a36b9e17b7226823cacf0"
+    },
+    "CHECKOUT_APPLICABILITY.json": {
+      "bytes": 2604,
+      "sha256": "5bd7501ddf3d58345dc21c677ca2d6d16ea3567d194f4755127e2e14f7f75194"
+    },
+    "PRIOR_CHECKOUT_READBACK.json": {
+      "bytes": 2274,
+      "sha256": "808854ab274236319d4086da505838c19aa2b78ed69d24b1e6d908ff1dd09933"
+    },
+    "READBACK.json": {
+      "bytes": 2573,
+      "sha256": "859ca701674b21e3a81262109539b299c458915b99f12f1e8a600f09cfa4c338"
+    },
+    "README.md": {
+      "bytes": 3158,
+      "sha256": "3c82d2b4b6b70e84cab01b894a099b0e6d556634e3bee965dbf3f7c9da79c190"
+    },
+    "RESULT.json": {
+      "bytes": 744,
+      "sha256": "9fe3c029e85015bf9e5d5f7b4e2f15130b91451c2fa6f9d162398182df4cd964"
+    },
+    "controls.log": {
+      "bytes": 55532,
+      "sha256": "223457d8a0f16418a3b6e79ca160a5aa5a8acc4a097ae9d3123035534774e658"
+    }
+  },
+  "kind": "qperiapt.integrated_completion_controls",
+  "query_source": "ed38e305552db2825d90622c130973df87e16d50",
+  "repository_directory": "research/sdk-alpha1/evidence/20261111-codeql-integrated-completion-controls",
+  "schema": 1
+}
