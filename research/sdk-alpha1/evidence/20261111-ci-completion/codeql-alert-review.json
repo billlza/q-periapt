@@ -1,0 +1,263 @@
+{
+  "schema": 1,
+  "scope": "Read-only bounded source/dataflow review of three core Python sink records and three C path records. No alerts dismissed, no scan policy changed, no source files edited by this review.",
+  "source": {
+    "run_id": 42959257074,
+    "pr": 115,
+    "head": "3c9df1feeb7857e53ac4d6269788d20c87851459",
+    "integration_base": "56eb5dca95a913539040d0939c733d1f11f89d50",
+    "merge_commit": "834c67183c403fd10d65600252ecbcb950c1af11",
+    "tree": "0f281a963c2bd0e6f203c025a99d507ae73da9c2"
+  },
+  "archives": {
+    "actions": {
+      "file": "codeql-actions.zip",
+      "bytes": 20022,
+      "sha256": "08967795a99744eec67f71b6f6f3de4e651ceb1b0bab553eff107ede72470bdb",
+      "merge_commit": "834c67183c403fd10d65600252ecbcb950c1af11",
+      "tree": "0f281a963c2bd0e6f203c025a99d507ae73da9c2",
+      "raw_results": 0
+    },
+    "cpp": {
+      "file": "codeql-cpp.zip",
+      "bytes": 68289,
+      "sha256": "01906e5b119356eb02f92a8b9f17d94b8adc8256501c83880bfeb74d7cfbb88a",
+      "merge_commit": "834c67183c403fd10d65600252ecbcb950c1af11",
+      "tree": "0f281a963c2bd0e6f203c025a99d507ae73da9c2",
+      "raw_results": 3
+    },
+    "java": {
+      "file": "codeql-java.zip",
+      "bytes": 109930,
+      "sha256": "17785d683dcb9ad4d309ff602efe2932d3ce09e3553fcf708f3b071d51eac4de",
+      "merge_commit": "834c67183c403fd10d65600252ecbcb950c1af11",
+      "tree": "0f281a963c2bd0e6f203c025a99d507ae73da9c2",
+      "raw_results": 0
+    },
+    "python": {
+      "file": "codeql-python.zip",
+      "bytes": 299482,
+      "sha256": "c664a1e7677f992ed28bd31566ed1d553031408b5504d633f5ff466c6c892023",
+      "merge_commit": "834c67183c403fd10d65600252ecbcb950c1af11",
+      "tree": "0f281a963c2bd0e6f203c025a99d507ae73da9c2",
+      "raw_results": 1410
+    }
+  },
+  "counts": {
+    "raw_total": 1413,
+    "raw_by_language": {
+      "codeql-cpp": 3,
+      "codeql-python": 1410
+    },
+    "raw_by_rule": {
+      "cpp/path-injection": 3,
+      "py/code-injection": 1,
+      "py/clear-text-storage-sensitive-data": 1,
+      "py/weak-sensitive-data-hashing": 1,
+      "py/polynomial-redos": 3,
+      "py/path-injection": 1299,
+      "py/command-line-injection": 52,
+      "py/overly-permissive-file": 53
+    },
+    "raw_critical_class": 53,
+    "pr_gate_reported_new_alerts": {
+      "critical": 12,
+      "high": 507,
+      "total": 519
+    },
+    "interpretation": "Raw SARIF results cover full analyzed source. The PR gate reports its new-alert/baseline comparison subset. These are different populations; 1413 and 519 must not be presented as two counts of the same event."
+  },
+  "reviewed_findings": [
+    {
+      "result_index": 3,
+      "rule": "py/code-injection",
+      "sink": "artifact/python_bootstrap.py:44",
+      "sources": [
+        "artifact/python_bootstrap.py:91 -> dispatch:47 -> -c:60 -> _execute:36 -> compile/exec:44"
+      ],
+      "assessment": "Explicit operator-requested Python execution interface. The -c/stdin modes intentionally accept code. Observed source is process argv, not parsed release evidence or a network request. Launcher startup isolation is a separate property.",
+      "controls": [
+        "artifact/python-env.sh invokes CPython with -I -S -B and a fresh private pycache_prefix",
+        "artifact/python_bootstrap.py clears PYTHON* environment names and places repository import roots after standard-library paths",
+        "script-path mode checks a non-symlink regular file resolved inside the repository"
+      ],
+      "boundary": "Any caller that promotes untrusted data into a -c code argument would need its own validation. This review does not establish that property for every caller.",
+      "disposition": "Documented interface boundary; no scanner dismissal."
+    },
+    {
+      "result_index": 1316,
+      "rule": "py/command-line-injection",
+      "sink": "artifact/git_provenance.py:117",
+      "sources": [
+        "platform_distribution.py CLI --root -> _regular_directory:202 -> _source_identity:256 -> run_git_text -> run_git_bytes",
+        "platform_stable_publication.py CLI --verifier-checkout -> _normalize_direct_child:334 -> _normalize_verifier_checkout:566 -> provenance checks -> run_git_bytes"
+      ],
+      "assessment": "The reported taint reaches repository selector values for a fixed /usr/bin/git invocation. The shown paths do not choose a program or add command tokens.",
+      "controls": [
+        "Path resolves to an existing repository with a non-symlink .git directory",
+        "--git-dir=<root> and --work-tree=<root> each remain one argument; the executable is fixed",
+        "Minimal environment removes caller GIT_* selectors, PATH overrides and system/global Git configuration; fsmonitor/hooks/attributes/excludes are explicitly controlled",
+        "Publication verifier path additionally requires a direct child of its fixed safe root, canonical spelling, no aliases, same UID and mode 0700",
+        "The traced operations choose fixed Git subcommands; commit identities are checked by COMMIT_RE in the provenance helpers"
+      ],
+      "boundary": "The generic helper accepts caller-supplied args. Its safety depends on the invoking helper constructing the intended Git operation; this record covers the two SARIF-origin command paths and does not certify every possible caller.",
+      "disposition": "Source-specific argument and environment controls confirmed; no scanner dismissal."
+    },
+    {
+      "result_index": 1312,
+      "rule": "py/command-line-injection",
+      "sink": "artifact/bounded_process.py:356 (_start_process)",
+      "related_source_count": 23,
+      "reviewed_related_source_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "unreviewed_related_source_ids": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "assessment": "This module enforces process ownership, deadlines and bounded output. It intentionally executes the supplied argv and is not an executable allowlist or a general argument-injection sanitizer.",
+      "controls": [
+        "No generic command-execution CLI is exposed by this module",
+        "argv is copied and checked for non-empty strings/NUL; Popen receives argv plus an explicit executable without shell parsing",
+        "Explicit process environments are validated and passed exactly; omitted environment still inherits by design",
+        "Related source 1: android_runtime_control.py takes the hosted runner ANDROID_HOME/avdmanager, builds adb/emulator paths and uses fixed diagnostic command operands",
+        "Related source 2: android_sdk_package.py clears Java injection environment variables, requires a canonical absolute JAVA_HOME and then invokes its bin/java --version",
+        "Related source 3: android_sdk_package.py accepts an operator-selected --gradle program and verifies version; it remains an explicit toolchain selection interface",
+        "Related source 4: apple_sdk_profile.py admits host_target from HOST_TARGETS before placing it in cargo --target; source manifest/package/feature arguments are fixed and application arguments follow --"
+      ],
+      "boundary": "Only the four representative SARIF source paths were traced. The other 19 related source entries remain open in this bounded review; shell=False alone is not a disposition for them.",
+      "disposition": "Partial caller review complete; aggregate command-injection finding remains open."
+    },
+    {
+      "result_index": 0,
+      "rule": "cpp/path-injection",
+      "sink": "bindings/c/ContinuityPackageConsumer/setup_client.c:20",
+      "sources": [
+        "QPC_TEST_SYNC_LOG via getenv at line 17"
+      ],
+      "assessment": "The sink appends fixed phase receipts in the qualification client. In the actual harness, QPC_TEST_* values are discarded before the harness supplies its own generated receipt path.",
+      "controls": [
+        "setup_io_phase admits action io and phase 1..4",
+        "O_APPEND|O_CLOEXEC|O_NOFOLLOW; fstat requires a regular same-UID mode-0600 single-link file before writes",
+        "continuity_c_faults.Matrix removes inherited LD_*, DYLD_*, QPERIAPT_* and QPC_TEST_* at lines 249-250",
+        "Matrix.receipt generates fixed-prefix .events leaves under its evidence output; inject supplies target/log explicitly",
+        "continuity_setup_io.Matrix builds its private case root and invokes setup-io-activate with the intended installation.redb and generated receipt"
+      ],
+      "boundary": "The C function alone does not confine every same-user path. The documented protection includes the harness-owned environment and private workspace. O_NOFOLLOW checks the final component, not all ancestor directories.",
+      "disposition": "Harness-specific confinement and descriptor constraints established; no scanner dismissal."
+    },
+    {
+      "result_index": 1,
+      "rule": "cpp/path-injection",
+      "sink": "bindings/c/ContinuityPackageConsumer/sync_probe.c:89",
+      "sources": [
+        "QPC_TEST_SYNC_TARGET via getenv at line 73"
+      ],
+      "assessment": "This independent fault-injection probe selects the exact inode whose sync calls will be observed. It is compiled as a separate probe by continuity_c_consumer.py and is not linked into the SDK library.",
+      "controls": [
+        "Target path must be absolute",
+        "O_RDONLY|O_CLOEXEC|O_NOFOLLOW followed by same-UID/0600/regular/single-link fstat checks",
+        "The admitted device+inode pair is retained and compared against each intercepted fd",
+        "Harness rebuilds QPC_TEST_* values and chooses target files under its private temporary case root"
+      ],
+      "boundary": "Direct execution with operator-controlled environment is an explicit fault-injection interface; no claim of accepting hostile caller-selected paths is made.",
+      "disposition": "Harness-specific target selection and inode checks established; no scanner dismissal."
+    },
+    {
+      "result_index": 2,
+      "rule": "cpp/path-injection",
+      "sink": "bindings/c/ContinuityPackageConsumer/sync_probe.c:95",
+      "sources": [
+        "QPC_TEST_SYNC_LOG via getenv at line 74"
+      ],
+      "assessment": "The independently built probe creates a fresh phase receipt in the harness-selected evidence directory.",
+      "controls": [
+        "Absolute log path required",
+        "O_WRONLY|O_APPEND|O_CREAT|O_EXCL|O_CLOEXEC|O_NOFOLLOW with creation mode 0600 prevents overwriting an existing target",
+        "Matrix filters inherited injected environment and supplies the fresh receipt name",
+        "continuity_package.py:429-437 admits a fresh evidence output and creates a private mkdtemp workspace; fault cases add mode-0700 subdirectories"
+      ],
+      "boundary": "The file-open flags do not themselves impose a directory allowlist; harness path construction and ownership supply that boundary.",
+      "disposition": "Harness-specific fresh receipt creation established; no scanner dismissal."
+    }
+  ],
+  "source_sha256": {
+    "artifact/python_bootstrap.py": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
+    "artifact/python-env.sh": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49",
+    "artifact/python-run.sh": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255",
+    "artifact/git_provenance.py": "8bb64d7f43d1ffa00a39b31a174e8667d4d2cfb1f8c42a019a32627f6a065f3f",
+    "artifact/bounded_process.py": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+    "artifact/android_runtime_control.py": "a8c0949de1c105ef4050cde6a5142d7532dfbbf1949e9ac62bc5783bb63129f1",
+    "artifact/android_sdk_package.py": "faf1a9cd6176cc85b60b6f80fc75696df3fd8676286448d68680494dfb885b56",
+    "artifact/apple_sdk_profile.py": "f85c2a8f3ae7b530410c2602b906fb508da9855e276b8e131ffaf2852d8170cf",
+    "artifact/continuity_c_faults.py": "e892a369fda9d4d432b5e63ce0566af7a9603050e48fec437e8588600aa680b8",
+    "artifact/continuity_setup_io.py": "da690e02cdeac2fc7b4f59c1bd94a0fe34774fd5c0c2cecceadf918903e2d95b",
+    "artifact/continuity_package.py": "1e19d5e6d20354dc7407b1981b1e04767e6cc8f9171ea41a25595796f694ed29",
+    "artifact/continuity_c_consumer.py": "c8638ea7cffd34b9aeb38e3c31dd36313ca6868ed26a013d39d6798e73c9ab34",
+    "artifact/platform_distribution.py": "efccd83e58e6f356f6f9438ac0cdc30b307df5d9cc7679333738aaa2b9f9924e",
+    "artifact/platform_stable_publication.py": "32d095ba9dd53e8646824aee70378d5d572f41fed8228ef15b6cba3d05b50f52",
+    "bindings/c/ContinuityPackageConsumer/setup_client.c": "e49ac1b2ab423695cd5bed9c9bb095eed53dfbff707fb0d8e496610fd38c7a3b",
+    "bindings/c/ContinuityPackageConsumer/sync_probe.c": "30b6ee6b8129c43622f16c3d28c8d2d51ba1fa9b3f80486df04bbfac16f623e7"
+  },
+  "validation": {
+    "command": [
+      "python",
+      "-m",
+      "unittest",
+      "-v",
+      "test_git_provenance.GitProvenanceTests.test_caller_git_environment_cannot_redirect_repository",
+      "test_bounded_process.BoundedProcessTests.test_explicit_environment_is_exact_and_malformed_entries_fail_fast",
+      "test_bounded_process.BoundedProcessTests.test_module_has_no_generic_command_or_output_cli",
+      "test_bounded_process.BoundedProcessTests.test_process_start_separates_executable_and_never_uses_a_shell",
+      "test_proof_to_byte_release.BoundVerifierWiringTests.test_release_entrypoint_does_not_execute_forged_timestamp_pyc",
+      "test_proof_to_byte_release.BoundVerifierWiringTests.test_release_entrypoint_ignores_hostile_python_startup_environment"
+    ],
+    "suite_exit": 1,
+    "executed_passed": [
+      "test_git_provenance.GitProvenanceTests.test_caller_git_environment_cannot_redirect_repository",
+      "test_bounded_process.BoundedProcessTests.test_explicit_environment_is_exact_and_malformed_entries_fail_fast",
+      "test_bounded_process.BoundedProcessTests.test_module_has_no_generic_command_or_output_cli",
+      "test_bounded_process.BoundedProcessTests.test_process_start_separates_executable_and_never_uses_a_shell"
+    ],
+    "not_executed_due_to_class_setup": [
+      "test_proof_to_byte_release.BoundVerifierWiringTests.test_release_entrypoint_does_not_execute_forged_timestamp_pyc",
+      "test_proof_to_byte_release.BoundVerifierWiringTests.test_release_entrypoint_ignores_hostile_python_startup_environment"
+    ],
+    "setup_error": "Sparse review checkout lacks research/hqc-fips207-candidate/README.md, which BoundVerifierWiringTests.setUpClass requires for its complete proof-input snapshot. The two launcher tests were not executed and are not counted as passing.",
+    "log": {
+      "filename": "codeql-core-sink-controls.log",
+      "bytes": 3605,
+      "sha256": "9af3f5ff6eba076d136153b63a02b6c599f6a475d61cfd42d2130db70cabc94d"
+    },
+    "c_runtime_tests": "Not executed in this bounded source review."
+  },
+  "conclusion": {
+    "confirmed_cross_trust_boundary_exploit_in_reviewed_paths": false,
+    "meaning": "No concrete unauthorized-execution/path-confinement counterexample was established in the specifically reviewed harness and command paths. This is not an all-findings dismissal.",
+    "open_scope": [
+      "Nineteen untraced related sources feeding bounded_process.py:356",
+      "The remaining raw SARIF findings outside these six selected sink records",
+      "The overall CodeQL gate remains unresolved until source-specific failures/findings and required publication configurations are addressed."
+    ]
+  }
+}

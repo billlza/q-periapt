@@ -1,0 +1,33 @@
+{
+  "status": "passed",
+  "integration_base_commit": "56eb5dca95a913539040d0939c733d1f11f89d50",
+  "integration_repair_commit": "490ba88bd16541ab545ebffa19c5d8137c86ca3f",
+  "source_sha256": {
+    "artifact/android-device-smoke.sh": "59e9fdeeb9db8a22f0bdbb562421b94db8430746558daeff3d51c0811fc7e936",
+    "artifact/test_android_device_proof.py": "fc01ef42d94232316b954a183e6c882622e098299057cb55e325daf203c2046f",
+    ".github/workflows/ci.yml": "bcdc37a3b115048191adf4569a18139202efc3167fc8ee5bbc6a9171b069dbc0"
+  },
+  "failed_hosted_run": 42855086673,
+  "failed_hosted_job": 130209634251,
+  "failed_diagnostics_artifact": 13827375408,
+  "local_validation": {
+    "selected_test_modules": [
+      "test_android_device_proof"
+    ],
+    "selection": "test name contains cleanup_, framework_readiness, or runtime_failure",
+    "tests": 41,
+    "seconds": 5.481,
+    "exit_code": 0
+  },
+  "integration_preservation": [
+    "capture_emulator_failure_logs remains in the cleanup failure path",
+    "existing recovery_capture_status and diagnostic_status fixture controls remain available"
+  ],
+  "evidence_sha256": {
+    "android-cleanup-regression.log": "fe7c6ae0cc07190588eb69cee219766eb1e99d6d96c81f9c21fa98a34d3fe284",
+    "android-cleanup-timing-control.json": "fe6d07a2fc7627bb53b337289fa3c1df68aecfed4a7a69b460fe59635d31684d",
+    "paper-android-failure.zip": "34fe64da6325c4e5d6afcb7caef5b44a3c8fdb5e60380fbe6025fed4df1cb23f"
+  },
+  "hosted_validation": "pending for the repaired source",
+  "scope": "The retained deterministic timing comparison was executed against the canonical paper repair. The integration port is separately identified above and passed the listed 41 regression tests."
+}

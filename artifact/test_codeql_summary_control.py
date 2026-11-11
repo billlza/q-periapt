@@ -1290,6 +1290,51 @@ class EvaluatorLogObservationTests(unittest.TestCase):
         with self.assertRaises(control.ControlError):
             control.validate_observations(result, "heap-2048")
 
+    def test_repeated_log_prefixes_do_not_fabricate_observations(self):
+        malformed = (
+            "[PROGRESS] " + "] Loaded a" * 16000 + "\n"
+            + "Pausing evaluation to evict " + "." * 128000 + "x\n"
+            + "TaintReach::" + "Stage0::" * 16000 + "x\n"
+        ).encode()
+        (self.evidence / "evaluator/run.log").write_bytes(self.raw + malformed)
+        result = control.evaluator_observations(self.evidence)
+        self.assertEqual(result["precompiled_query_loads"], [])
+        self.assertEqual(result["max_taint_stage_iterations"], {"4": 281})
+        self.assertEqual(result["eviction_categories"], {"ARRAYS": 1, "VITAL": 1})
+        self.assertEqual(result["eviction_pause_count"], 2)
+
+    def test_log_markers_preserve_first_stage_last_iteration_and_complete_path(self):
+        extra = (
+            "[PROGRESS] Loaded /tmp/a ] Loaded b.qlx. \t\n"
+            "TaintReach::Stage2::a (iteration 3) Stage4::b (iteration 19)\n"
+            "Pausing evaluation to evict 1.2MiB ARRAYS and ..GiB VITAL and 2B ARRAYS\n"
+        ).encode()
+        (self.evidence / "evaluator/run.log").write_bytes(self.raw + extra)
+        result = control.evaluator_observations(self.evidence)
+        self.assertEqual(result["precompiled_query_loads"], ["/tmp/a ] Loaded b.qlx"])
+        self.assertEqual(result["max_taint_stage_iterations"], {"4": 281, "2": 19})
+        self.assertEqual(result["eviction_categories"], {"ARRAYS": 2, "VITAL": 2})
+
+    def test_final_unterminated_line_cannot_complete_after_observation_deadline(self):
+        (self.evidence / "evaluator/run.log").write_bytes(b"last unterminated line")
+        clock = [0.0]
+        original_consumer = control.consume_regular_snapshot
+        def consume_then_expire(*args, **kwargs):
+            snapshot = original_consumer(*args, **kwargs)
+            clock[0] = control.OBSERVATION_SECONDS + 1
+            return snapshot
+        with patch.object(control.time, "monotonic", side_effect=lambda: clock[0]), \
+                patch.object(control, "consume_regular_snapshot", side_effect=consume_then_expire):
+            with self.assertRaisesRegex(control.ControlError, "observation exceeded"):
+                control.evaluator_observations(self.evidence)
+
+    def test_heap_observation_never_joins_separate_physical_lines(self):
+        (self.evidence / "query.stdout").write_bytes(b"size_t MaxHeapSize\n = 2147483648 \n")
+        result = control.evaluator_observations(self.evidence)
+        self.assertEqual(result["max_heap_bytes_observed"], [])
+        with self.assertRaises(control.ControlError):
+            control.validate_observations(result, "heap-2048")
+
     def test_observation_rejects_unbounded_or_redirected_log_input(self):
         for field in ("MAX_EVALUATOR_LOG_BYTES", "MAX_EVALUATOR_TOTAL_BYTES"):
             with self.subTest(field=field), patch.object(control, field, 1):

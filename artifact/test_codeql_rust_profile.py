@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -495,40 +496,64 @@ class RustProfileTests(unittest.TestCase):
                     profile_module.tracked_lockfiles(Path("/source"))
 
     @contextlib.contextmanager
-    def paper_lock_inventory_fixture(self):
+    def archived_lock_inventory_fixture(self, *, git_index=False):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             expected = profile_module.WORKSPACE_LOCKFILES
             archives = {}
-            for relative in profile_module.PAPER_ARCHIVE_LOCKFILES:
+            for relative in profile_module.ARCHIVE_LOCKFILES:
                 path = root / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 payload = ("retained source lock: " + relative + "\n").encode()
                 path.write_bytes(payload)
                 archives[relative] = hashlib.sha256(payload).hexdigest()
             tracked = tuple(sorted((*expected, *archives)))
-            with mock.patch.object(profile_module, "PAPER_ARCHIVE_LOCKFILES", archives), \
-                    mock.patch.object(profile_module, "run_git_bytes", return_value="\n".join(tracked).encode()):
+            if git_index:
+                for relative in expected:
+                    path = root / relative
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text("version = 4\n")
+                subprocess.run(["/usr/bin/git", "init", "-q", str(root)], check=True, capture_output=True)
+                profile_module.run_git_bytes(root, ["add", "--", *tracked])
+            inventory_context = contextlib.nullcontext() if git_index else mock.patch.object(
+                profile_module, "run_git_bytes", return_value="\n".join(tracked).encode())
+            with mock.patch.object(profile_module, "ARCHIVE_LOCKFILES", archives), inventory_context:
                 yield root, expected, archives
 
-    def test_workspace_lock_inventory_keeps_pinned_paper_archives_out_of_fetch_roots(self) -> None:
-        with self.paper_lock_inventory_fixture() as (root, expected, archives):
+    def test_workspace_lock_inventory_keeps_pinned_archives_out_of_fetch_roots(self) -> None:
+        with self.archived_lock_inventory_fixture() as (root, expected, archives):
             self.assertEqual(profile_module.tracked_lockfiles(root), expected)
             self.assertTrue(set(expected).isdisjoint(archives))
 
-    def test_workspace_lock_inventory_rejects_changed_paper_archive_bytes(self) -> None:
-        with self.paper_lock_inventory_fixture() as (root, _expected, archives):
+    def test_workspace_lock_inventory_uses_actual_git_suffix_matching(self) -> None:
+        with self.archived_lock_inventory_fixture(git_index=True) as (root, expected, _archives):
+            retained = "research/sdk-alpha1/evidence/20261110-native-distribution/consumer-Cargo.lock"
+            tracked = profile_module.run_git_bytes(root, ["ls-files", "--", "*Cargo.lock"]).decode().splitlines()
+            self.assertIn(retained, tracked)
+            # The prefixed manifest is retained evidence; Cargo.toml would
+            # instead activate an unreviewed workspace next to this snapshot.
+            (root / retained).with_name("consumer-Cargo.toml").write_text("[workspace]\n")
+            self.assertEqual(profile_module.tracked_lockfiles(root), expected)
+            unexpected = root / "research/unreviewed/consumer-Cargo.lock"
+            unexpected.parent.mkdir(parents=True)
+            unexpected.write_text("version = 4\n")
+            profile_module.run_git_bytes(root, ["add", "--", str(unexpected.relative_to(root))])
+            with self.assertRaisesRegex(ValueError, "workspace lock inventory differs"):
+                profile_module.tracked_lockfiles(root)
+
+    def test_workspace_lock_inventory_rejects_changed_archive_bytes(self) -> None:
+        with self.archived_lock_inventory_fixture() as (root, _expected, archives):
             for relative in archives:
                 with self.subTest(archive=relative):
                     path = root / relative
                     original = path.read_bytes()
                     path.write_bytes(original + b"changed\n")
-                    with self.assertRaisesRegex(ValueError, "archived paper lock snapshot differs"):
+                    with self.assertRaisesRegex(ValueError, "archived lock snapshot differs"):
                         profile_module.tracked_lockfiles(root)
                     path.write_bytes(original)
 
     def test_workspace_lock_inventory_rejects_adjacent_archive_manifests(self) -> None:
-        with self.paper_lock_inventory_fixture() as (root, _expected, archives):
+        with self.archived_lock_inventory_fixture() as (root, _expected, archives):
             for relative in archives:
                 manifest = (root / relative).with_name("Cargo.toml")
                 for kind in ("regular", "dangling-symlink"):
@@ -537,7 +562,7 @@ class RustProfileTests(unittest.TestCase):
                             manifest.write_text("[workspace]\n")
                         else:
                             manifest.symlink_to("absent-manifest")
-                        with self.assertRaisesRegex(ValueError, "archived paper lock has an adjacent Cargo.toml"):
+                        with self.assertRaisesRegex(ValueError, "archived lock has an adjacent Cargo.toml"):
                             profile_module.tracked_lockfiles(root)
                         manifest.unlink()
 
