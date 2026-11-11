@@ -217,11 +217,71 @@ PID reuse, reparenting, missing procfs, sample-count and byte bounds, exclusive
 outputs, and secondary diagnostic failures. They validate the measurement path;
 they do not provide new CodeQL workload performance results.
 
+## Fixed full-summary join-plan candidate
+
+The [resource readback of run 42822797947](../research/sdk-alpha1/evidence/20261111-codeql-summary-resources/README.md)
+retains the two completed allocation experiments. Both produced 38 fresh results,
+all semantically equal to their retained counterparts, before the five-hour
+deadline stopped the full summary query. Its Stage4 `fwdFlowRead` and `fwdFlow0`
+relations dominate the matched predicate intervals, with repeated eviction of
+live intermediate arrays and substantial per-process storage reads. This
+motivates an execution-plan experiment with the query source held fixed.
+
+`--summary-plan-mode all` selects a fixed compiled capsule for the original full
+`SummaryStats.ql`. It was compiled by the authenticated CLI 2.27.2 with
+`--dynamic-join-order-mode=all`; the 39 query sources and the other 38 bundled
+QLX files retain their original hashes. The CLI's `all` mode includes recursive
+relations, where this workload spends its time. The original `none` mode remains
+the default.
+
+Merely changing the execute flag does not generate this candidate. A real CLI
+probe loaded the existing bundled QLX under both flags. Explicit recompilation
+changed the compiler input key from `46a58f9971dcf45e8c0bc8d65b761ea4` to
+`209f28c6b9e8d5465a3f8417573e42d6`. Separate compilations in different pack
+locations produced different binary output, so both allocation arms install
+**the same prebuilt bytes** from `codeql-summary-dynamic-plan.zip`. They do not
+compile independently or replace binary identity with equality of compiler keys.
+
+The capsule contains one QLX and its 15 referenced stage files, totalling 617,277
+uncompressed bytes. The 620,068-byte ZIP has SHA-256
+`ce21381b3bec721aab246b26b84c00834959871235e1e82354addca8a40dcef7`.
+`codeql_summary_dynamic_plan.json` records every member's size and digest,
+source and tool identities, and the compiler input key. Its own digest is pinned
+in `codeql_summary_plan.py`. The upstream query-source license accompanies the
+capsule in `codeql-summary-dynamic-plan.LICENSE`.
+
+Installation admits all capsule bytes before mutation, preserves the original
+QLX in the evidence, creates new stages exclusively, and atomically replaces the
+full summary's QLX. The controller checks the original source inventory and the
+entire effective 39-query compiled inventory. After evaluation stops, it checks
+those inventories and the full 16-file capsule closure again. A missing or
+changed member fails admission. A secondary postcheck failure remains recorded
+alongside the original evaluator timeout or exit failure.
+
+The candidate additionally requires logs showing exactly the 39 admitted QLX
+paths loaded and zero implicit query compilations. A real relocation admission
+installed only the capsule files into a separate authenticated tool directory,
+loaded all 39 QLX files, and completed all 39 queries on an empty Rust schema.
+The full summary's decoded result matched the bundled plan on that fixture.
+These checks establish capsule completeness and executable compatibility. The
+retained project database supplies the performance experiment.
+
+The new run retains both original allocation arms, the same database and starting
+cache, all 39 fresh outputs, the 18,000-second limit, and the full semantic
+comparison. Each allocation therefore has a historical counterpart in run
+42822797947 with the full-summary plan as the common treatment change. Completing
+the new pair still requires all 39 fresh results in each arm, equality across the
+arms, and equality with all 38 retained results. The production workflow continues
+to use its existing authenticated plan.
+
 ## Execution
 
 The workflow `.github/workflows/codeql-summary-control.yml` runs on a push to
-`diagnostic/codeql-summary-cache` that changes one of its five implementation
-files. It also has a manual dispatch entry point. Opening its PR does not trigger
+`diagnostic/codeql-summary-cache` selects the original `none` plan. A push to
+`diagnostic/codeql-summary-joins` selects the explicit `all` candidate. The
+branch-specific concurrency group keeps those controls independent. The workflow
+filters pushes to its implementation and capsule files. Its manual dispatch
+accepts `summary_plan_mode`, defaulting to `none` on every branch. Opening its PR does not trigger
 a second copy of the five-hour matrix. Each evaluator job has a six-hour hard
 limit, a five-hour supervised evaluator limit, and an always-run evidence upload.
 The aggregate job always attempts to compare the two receipts.
@@ -229,7 +289,7 @@ The aggregate job always attempts to compare the two receipts.
 Local admission and failure-path checks:
 
 ```sh
-sh artifact/python-run.sh -m unittest -v test_codeql_summary_control test_codeql_process_resources
+sh artifact/python-run.sh -m unittest -v test_codeql_summary_control test_codeql_process_resources test_codeql_summary_plan
 ```
 
 These tests exercise source binding, safe restoration, old-versus-fresh result

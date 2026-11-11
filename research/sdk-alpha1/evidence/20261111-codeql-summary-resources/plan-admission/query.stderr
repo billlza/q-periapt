@@ -1,0 +1,123 @@
+Resolving data extensions.
+Finished resolving data extensions.
+Loading data extensions.
+Finished loading data extensions.
+WARNING: Not caching stages during query-loading, since max heap size is only 1536 MB.
+[1/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/AstConsistencyCounts.qlx.
+[2/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/CfgConsistencyCounts.qlx.
+[3/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/DataFlowConsistencyCounts.qlx.
+[4/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractedFiles.qlx.
+[5/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractionErrors.qlx.
+[6/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/ExtractionWarnings.qlx.
+[7/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/SsaConsistencyCounts.qlx.
+[8/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/TypeInferenceConsistencyCounts.qlx.
+[9/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/UnextractedElements.qlx.
+[10/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/diagnostics/UnresolvedMacroCalls.qlx.
+[11/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-020/RegexInjection.qlx.
+[12/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-022/TaintedPath.qlx.
+[13/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-078/CommandInjection.qlx.
+[14/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-079/XSS.qlx.
+[15/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-089/SqlInjection.qlx.
+[16/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-117/LogInjection.qlx.
+[17/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-295/DisabledCertificateCheck.qlx.
+[18/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-311/CleartextTransmission.qlx.
+[19/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-312/CleartextLogging.qlx.
+[20/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-312/CleartextStorageDatabase.qlx.
+[21/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-319/UseOfHttp.qlx.
+[22/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-327/BrokenCryptoAlgorithm.qlx.
+[23/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-327/WeakSensitiveDataHashing.qlx.
+[24/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-614/InsecureCookie.qlx.
+[25/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-770/UncontrolledAllocationSize.qlx.
+[26/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-798/HardcodedCryptographicValue.qlx.
+[27/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-825/AccessAfterLifetime.qlx.
+[28/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-825/AccessInvalidPointer.qlx.
+[29/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/security/CWE-918/RequestForgery.qlx.
+[30/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/LinesOfCode.qlx.
+[31/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/LinesOfUserCode.qlx.
+[32/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NodesWithTypeAtLengthLimit.qlx.
+[33/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NumberOfFilesExtractedWithErrors.qlx.
+[34/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/NumberOfSuccessfullyExtractedFiles.qlx.
+[35/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/QuerySinkCounts.qlx.
+[36/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStats.qlx.
+[37/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStatsReduced.qlx.
+[38/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/telemetry/DatabaseQualityDiagnostics.qlx.
+[39/39] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/helper-full-suite/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/telemetry/ExtractorInformation.qlx.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.ql.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.ql.
+[1/39 eval 917ms] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.bqrs.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.ql.
+[2/39 eval 54ms] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.bqrs.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractedFiles.ql.
+[3/39 eval 185ms] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.bqrs.
+[4/39 eval 1ms] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractedFiles.bqrs.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractionErrors.ql.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractionWarnings.ql.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.ql.
+[5/39 eval 2ms] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionErrors.bqrs.
+[6/39 eval 1ms] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionWarnings.bqrs.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.ql.
+[7/39 eval 9ms] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.bqrs.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/UnextractedElements.ql.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.ql.
+[8/39 eval 4ms] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-020/RegexInjection.ql.
+[9/39 eval 1ms] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnextractedElements.bqrs.
+[10/39 eval 2ms] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-022/TaintedPath.ql.
+[11/39 eval 4ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-020/RegexInjection.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-078/CommandInjection.ql.
+[12/39 eval 5ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-022/TaintedPath.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-079/XSS.ql.
+[13/39 eval 4ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-078/CommandInjection.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-089/SqlInjection.ql.
+[14/39 eval 5ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-079/XSS.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-117/LogInjection.ql.
+[15/39 eval 3ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-089/SqlInjection.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.ql.
+[16/39 eval 4ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-117/LogInjection.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.ql.
+[17/39 eval 4ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-312/CleartextLogging.ql.
+[18/39 eval 4ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.ql.
+[19/39 eval 3ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextLogging.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-319/UseOfHttp.ql.
+[20/39 eval 3ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.ql.
+[21/39 eval 4ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-319/UseOfHttp.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.ql.
+[22/39 eval 1ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-614/InsecureCookie.ql.
+[23/39 eval 18ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.ql.
+[24/39 eval 8ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-614/InsecureCookie.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.ql.
+[25/39 eval 4ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.ql.
+[26/39 eval 4ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.ql.
+[27/39 eval 4ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-918/RequestForgery.ql.
+[28/39 eval 4ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.bqrs.
+Starting evaluation of codeql/rust-queries/queries/summary/LinesOfCode.ql.
+[29/39 eval 5ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-918/RequestForgery.bqrs.
+Starting evaluation of codeql/rust-queries/queries/summary/LinesOfUserCode.ql.
+Starting evaluation of codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.ql.
+[30/39 eval 3ms] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfCode.bqrs.
+[31/39 eval 1ms] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfUserCode.bqrs.
+Starting evaluation of codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.ql.
+Starting evaluation of codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.ql.
+[32/39 eval 2ms] Evaluation done; writing results to codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.bqrs.
+Starting evaluation of codeql/rust-queries/queries/summary/QuerySinkCounts.ql.
+[33/39 eval 1ms] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.bqrs.
+[34/39 eval 2ms] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs.
+Starting evaluation of codeql/rust-queries/queries/summary/SummaryStats.ql.
+[35/39 eval 12ms] Evaluation done; writing results to codeql/rust-queries/queries/summary/QuerySinkCounts.bqrs.
+Starting evaluation of codeql/rust-queries/queries/summary/SummaryStatsReduced.ql.
+[36/39 eval 520ms] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs.
+Starting evaluation of codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.ql.
+[37/39 eval 31ms] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStatsReduced.bqrs.
+Starting evaluation of codeql/rust-queries/queries/telemetry/ExtractorInformation.ql.
+[38/39 eval 7ms] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.bqrs.
+[39/39 eval 95ms] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/ExtractorInformation.bqrs.
+Shutting down query evaluator.

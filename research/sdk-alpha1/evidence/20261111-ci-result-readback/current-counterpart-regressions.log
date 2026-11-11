@@ -1,0 +1,7 @@
+test_archive_edges_preserve_source_build_and_lint_settings (test_continuity_independent_package.IndependentPackageTests.test_archive_edges_preserve_source_build_and_lint_settings) ... ok
+test_complete_counterpart_setup_retains_lock_and_refuses_existing_state (test_continuity_independent_package.IndependentPackageTests.test_complete_counterpart_setup_retains_lock_and_refuses_existing_state) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.017s
+
+OK

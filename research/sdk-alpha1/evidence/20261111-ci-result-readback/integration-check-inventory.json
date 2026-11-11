@@ -1,0 +1,3589 @@
+{
+  "observed_at_utc": "2026-11-11 03:10:37 UTC",
+  "repository": "billlza/q-periapt",
+  "integration_head": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+  "inspected_check_count": 130,
+  "check_total": 130,
+  "check_counts": {
+    "queued": 128,
+    "success": 2
+  },
+  "all_check_heads": [
+    "8bdb36698c9d955de8c71a41179d11d224f696e0"
+  ],
+  "required_main": {
+    "head": "48d0fb9a5651b50494ec33d025dda52bd2ff5eae",
+    "protected": true,
+    "enforcement": "everyone",
+    "contexts": [
+      "abi2-linux-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+      "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+      "audit",
+      "bindings-kotlin",
+      "bindings-swift",
+      "bindings-wasm",
+      "cross (aarch64-unknown-linux-gnu)",
+      "cross (riscv64gc-unknown-linux-gnu)",
+      "cross (wasm32-unknown-unknown)",
+      "cross (x86_64-unknown-linux-gnu)",
+      "cross-compiler (beta)",
+      "cross-compiler (nightly)",
+      "cross-compiler (stable)",
+      "feature-fence",
+      "formal-easycrypt",
+      "formal-proof",
+      "fuzz",
+      "no_std",
+      "pq-optional-backends",
+      "proverif-proof",
+      "riscv64-run",
+      "sidechannel",
+      "tamarin-proof",
+      "transport",
+      "abi2-windows-package-2022",
+      "Binary CT [x86_64-portable]",
+      "bindings-android-aar",
+      "hqc-draft-candidate",
+      "msrv",
+      "rust-publish-contract",
+      "windows",
+      "Binary CT [aarch64-native]",
+      "check"
+    ],
+    "successful": [
+      "abi2-windows-package-2022"
+    ]
+  },
+  "runs": [
+    {
+      "id": 42917560978,
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "event": "push",
+      "status": "queued",
+      "conclusion": null,
+      "total_jobs": 56,
+      "returned_jobs": 56,
+      "jobs": [
+        {
+          "id": 130183842392,
+          "name": "windows",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "windows-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842392"
+        },
+        {
+          "id": 130183842774,
+          "name": "formal-proof",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842774"
+        },
+        {
+          "id": 130183842785,
+          "name": "bindings-kotlin",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-22.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842785"
+        },
+        {
+          "id": 130183842799,
+          "name": "x86-avx2-candidate",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842799"
+        },
+        {
+          "id": 130183842832,
+          "name": "cross-compiler (stable)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842832"
+        },
+        {
+          "id": 130183842841,
+          "name": "check",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-22.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842841"
+        },
+        {
+          "id": 130183842871,
+          "name": "sidechannel",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842871"
+        },
+        {
+          "id": 130183842872,
+          "name": "cross (riscv64gc-unknown-linux-gnu)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842872"
+        },
+        {
+          "id": 130183842908,
+          "name": "bindings-wasm",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842908"
+        },
+        {
+          "id": 130183842932,
+          "name": "Binary CT [aarch64-native]",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04-arm"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842932"
+        },
+        {
+          "id": 130183842940,
+          "name": "bindings-swift",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "macos-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842940"
+        },
+        {
+          "id": 130183842976,
+          "name": "formal-easycrypt",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842976"
+        },
+        {
+          "id": 130183842980,
+          "name": "cross-compiler (beta)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842980"
+        },
+        {
+          "id": 130183842995,
+          "name": "msrv",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842995"
+        },
+        {
+          "id": 130183843005,
+          "name": "standard-tls-interop",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-26.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843005"
+        },
+        {
+          "id": 130183843013,
+          "name": "tamarin-proof",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843013"
+        },
+        {
+          "id": 130183843055,
+          "name": "abi2-windows-package-2022",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "completed",
+          "conclusion": "success",
+          "runner_id": 1000087443,
+          "runner_name": "GitHub Actions 1000087443",
+          "labels": [
+            "windows-2022"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T23:37:08Z",
+          "completed_at": "2026-11-10T23:49:08Z",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:37:09Z",
+              "completed_at": "2026-11-10T23:37:10Z"
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:37:10Z",
+              "completed_at": "2026-11-10T23:40:01Z"
+            },
+            {
+              "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:40:01Z",
+              "completed_at": "2026-11-10T23:40:15Z"
+            },
+            {
+              "name": "Run cargo +1.98.1 install cbindgen --version 0.29.4 --locked",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:40:15Z",
+              "completed_at": "2026-11-10T23:40:18Z"
+            },
+            {
+              "name": "Verify exact Windows 2022 source and toolchain",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:40:18Z",
+              "completed_at": "2026-11-10T23:40:19Z"
+            },
+            {
+              "name": "Test Windows 2022 package trust boundary",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:40:19Z",
+              "completed_at": "2026-11-10T23:41:07Z"
+            },
+            {
+              "name": "Build, archive, extract, and consume the Windows 2022 SDK",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:41:07Z",
+              "completed_at": "2026-11-10T23:48:24Z"
+            },
+            {
+              "name": "Reconsume only the Windows 2022 candidate archive",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:48:24Z",
+              "completed_at": "2026-11-10T23:49:04Z"
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:49:04Z",
+              "completed_at": "2026-11-10T23:49:06Z"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:49:06Z",
+              "completed_at": "2026-11-10T23:49:06Z"
+            }
+          ],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843055"
+        },
+        {
+          "id": 130183843084,
+          "name": "audit",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843084"
+        },
+        {
+          "id": 130183843091,
+          "name": "cross-compiler (nightly)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843091"
+        },
+        {
+          "id": 130183843092,
+          "name": "proverif-proof",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843092"
+        },
+        {
+          "id": 130183843142,
+          "name": "feature-fence",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843142"
+        },
+        {
+          "id": 130183843170,
+          "name": "hqc-draft-candidate",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843170"
+        },
+        {
+          "id": 130183843178,
+          "name": "transport",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843178"
+        },
+        {
+          "id": 130183843243,
+          "name": "riscv64-run",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843243"
+        },
+        {
+          "id": 130183843252,
+          "name": "Binary CT [x86_64-portable]",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843252"
+        },
+        {
+          "id": 130183843253,
+          "name": "continuity-spqr-reference (ubuntu-24.04)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843253"
+        },
+        {
+          "id": 130183843271,
+          "name": "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-22.04-arm"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843271"
+        },
+        {
+          "id": 130183843331,
+          "name": "cross (x86_64-unknown-linux-gnu)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843331"
+        },
+        {
+          "id": 130183843350,
+          "name": "no_std",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843350"
+        },
+        {
+          "id": 130183843363,
+          "name": "continuity-spqr-reference (macos-15)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "macos-15"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843363"
+        },
+        {
+          "id": 130183843367,
+          "name": "pq-optional-backends",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843367"
+        },
+        {
+          "id": 130183843458,
+          "name": "cross (aarch64-unknown-linux-gnu)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843458"
+        },
+        {
+          "id": 130183843526,
+          "name": "rust-publish-contract",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843526"
+        },
+        {
+          "id": 130183843581,
+          "name": "fuzz",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843581"
+        },
+        {
+          "id": 130183843598,
+          "name": "cross (wasm32-unknown-unknown)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843598"
+        },
+        {
+          "id": 130183843614,
+          "name": "abi2-linux-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-22.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843614"
+        },
+        {
+          "id": 130183843822,
+          "name": "bindings-android-aar",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843822"
+        },
+        {
+          "id": 130183844066,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, suite)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844066"
+        },
+        {
+          "id": 130183844115,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, release)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844115"
+        },
+        {
+          "id": 130183844130,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, capacity)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844130"
+        },
+        {
+          "id": 130183844133,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-transferred)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844133"
+        },
+        {
+          "id": 130183844139,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, release)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844139"
+        },
+        {
+          "id": 130183844146,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-account-root)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844146"
+        },
+        {
+          "id": 130183844156,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-account-root)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844156"
+        },
+        {
+          "id": 130183844159,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "macos-15"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844159"
+        },
+        {
+          "id": 130183844191,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, roster-capacity)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844191"
+        },
+        {
+          "id": 130183844195,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-next-attempt)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844195"
+        },
+        {
+          "id": 130183844196,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-other)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844196"
+        },
+        {
+          "id": 130183844201,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-other)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844201"
+        },
+        {
+          "id": 130183844215,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "macos-15"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844215"
+        },
+        {
+          "id": 130183844227,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-next-attempt)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844227"
+        },
+        {
+          "id": 130183844265,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, suite)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844265"
+        },
+        {
+          "id": 130183844308,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, capacity)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844308"
+        },
+        {
+          "id": 130183844312,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-transferred)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844312"
+        },
+        {
+          "id": 130183844317,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "macos-15"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844317"
+        },
+        {
+          "id": 130183844341,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, roster-capacity)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:15Z",
+          "started_at": "2026-11-10T22:46:15Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844341"
+        }
+      ]
+    },
+    {
+      "id": 42917588037,
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "event": "pull_request",
+      "status": "queued",
+      "conclusion": null,
+      "total_jobs": 56,
+      "returned_jobs": 56,
+      "jobs": [
+        {
+          "id": 130183921215,
+          "name": "rust-publish-contract",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921215"
+        },
+        {
+          "id": 130183921449,
+          "name": "msrv",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921449"
+        },
+        {
+          "id": 130183921456,
+          "name": "continuity-spqr-reference (ubuntu-24.04)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921456"
+        },
+        {
+          "id": 130183921527,
+          "name": "x86-avx2-candidate",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921527"
+        },
+        {
+          "id": 130183921561,
+          "name": "transport",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921561"
+        },
+        {
+          "id": 130183921584,
+          "name": "bindings-kotlin",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-22.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921584"
+        },
+        {
+          "id": 130183921591,
+          "name": "proverif-proof",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921591"
+        },
+        {
+          "id": 130183921592,
+          "name": "cross (aarch64-unknown-linux-gnu)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921592"
+        },
+        {
+          "id": 130183921610,
+          "name": "formal-proof",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921610"
+        },
+        {
+          "id": 130183921625,
+          "name": "Binary CT [aarch64-native]",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04-arm"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921625"
+        },
+        {
+          "id": 130183921634,
+          "name": "no_std",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921634"
+        },
+        {
+          "id": 130183921661,
+          "name": "audit",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921661"
+        },
+        {
+          "id": 130183921679,
+          "name": "riscv64-run",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921679"
+        },
+        {
+          "id": 130183921686,
+          "name": "bindings-android-aar",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921686"
+        },
+        {
+          "id": 130183921692,
+          "name": "cross (x86_64-unknown-linux-gnu)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921692"
+        },
+        {
+          "id": 130183921707,
+          "name": "sidechannel",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921707"
+        },
+        {
+          "id": 130183921727,
+          "name": "feature-fence",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921727"
+        },
+        {
+          "id": 130183921733,
+          "name": "cross-compiler (nightly)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921733"
+        },
+        {
+          "id": 130183921768,
+          "name": "standard-tls-interop",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-26.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921768"
+        },
+        {
+          "id": 130183921798,
+          "name": "pq-optional-backends",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921798"
+        },
+        {
+          "id": 130183921802,
+          "name": "cross (wasm32-unknown-unknown)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921802"
+        },
+        {
+          "id": 130183921803,
+          "name": "bindings-swift",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "macos-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921803"
+        },
+        {
+          "id": 130183921815,
+          "name": "hqc-draft-candidate",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921815"
+        },
+        {
+          "id": 130183921835,
+          "name": "cross-compiler (stable)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921835"
+        },
+        {
+          "id": 130183921854,
+          "name": "continuity-spqr-reference (macos-15)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "macos-15"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921854"
+        },
+        {
+          "id": 130183921858,
+          "name": "windows",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "windows-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921858"
+        },
+        {
+          "id": 130183921859,
+          "name": "fuzz",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921859"
+        },
+        {
+          "id": 130183921863,
+          "name": "tamarin-proof",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921863"
+        },
+        {
+          "id": 130183921864,
+          "name": "formal-easycrypt",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921864"
+        },
+        {
+          "id": 130183921873,
+          "name": "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-22.04-arm"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921873"
+        },
+        {
+          "id": 130183921901,
+          "name": "cross (riscv64gc-unknown-linux-gnu)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921901"
+        },
+        {
+          "id": 130183921903,
+          "name": "cross-compiler (beta)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921903"
+        },
+        {
+          "id": 130183921913,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "macos-15"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921913"
+        },
+        {
+          "id": 130183921916,
+          "name": "check",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-22.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921916"
+        },
+        {
+          "id": 130183922035,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "macos-15"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922035"
+        },
+        {
+          "id": 130183922052,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-other)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922052"
+        },
+        {
+          "id": 130183922069,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, roster-capacity)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922069"
+        },
+        {
+          "id": 130183922072,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-transferred)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922072"
+        },
+        {
+          "id": 130183922116,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, release)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922116"
+        },
+        {
+          "id": 130183922136,
+          "name": "abi2-linux-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-22.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922136"
+        },
+        {
+          "id": 130183922169,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, release)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922169"
+        },
+        {
+          "id": 130183922170,
+          "name": "Binary CT [x86_64-portable]",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922170"
+        },
+        {
+          "id": 130183922188,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, suite)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922188"
+        },
+        {
+          "id": 130183922192,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, capacity)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922192"
+        },
+        {
+          "id": 130183922197,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-next-attempt)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922197"
+        },
+        {
+          "id": 130183922210,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, capacity)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922210"
+        },
+        {
+          "id": 130183922261,
+          "name": "abi2-windows-package-2022",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "completed",
+          "conclusion": "success",
+          "runner_id": 1000087464,
+          "runner_name": "GitHub Actions 1000087464",
+          "labels": [
+            "windows-2022"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T23:45:44Z",
+          "completed_at": "2026-11-10T23:55:13Z",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:45:45Z",
+              "completed_at": "2026-11-10T23:45:46Z"
+            },
+            {
+              "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:45:46Z",
+              "completed_at": "2026-11-10T23:46:57Z"
+            },
+            {
+              "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:46:57Z",
+              "completed_at": "2026-11-10T23:47:11Z"
+            },
+            {
+              "name": "Run cargo +1.98.1 install cbindgen --version 0.29.4 --locked",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:47:11Z",
+              "completed_at": "2026-11-10T23:47:15Z"
+            },
+            {
+              "name": "Verify exact Windows 2022 source and toolchain",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:47:15Z",
+              "completed_at": "2026-11-10T23:47:16Z"
+            },
+            {
+              "name": "Test Windows 2022 package trust boundary",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:47:16Z",
+              "completed_at": "2026-11-10T23:47:58Z"
+            },
+            {
+              "name": "Build, archive, extract, and consume the Windows 2022 SDK",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:47:58Z",
+              "completed_at": "2026-11-10T23:54:35Z"
+            },
+            {
+              "name": "Reconsume only the Windows 2022 candidate archive",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:54:35Z",
+              "completed_at": "2026-11-10T23:55:10Z"
+            },
+            {
+              "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:55:10Z",
+              "completed_at": "2026-11-10T23:55:12Z"
+            },
+            {
+              "name": "Complete job",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-11-10T23:55:12Z",
+              "completed_at": "2026-11-10T23:55:12Z"
+            }
+          ],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922261"
+        },
+        {
+          "id": 130183922270,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, suite)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922270"
+        },
+        {
+          "id": 130183922280,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, roster-capacity)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922280"
+        },
+        {
+          "id": 130183922355,
+          "name": "bindings-wasm",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922355"
+        },
+        {
+          "id": 130183922384,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-next-attempt)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922384"
+        },
+        {
+          "id": 130183922386,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-account-root)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922386"
+        },
+        {
+          "id": 130183922416,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-other)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922416"
+        },
+        {
+          "id": 130183922441,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-transferred)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922441"
+        },
+        {
+          "id": 130183922457,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "macos-15"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922457"
+        },
+        {
+          "id": 130183922856,
+          "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-account-root)",
+          "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "status": "queued",
+          "conclusion": null,
+          "runner_id": 0,
+          "runner_name": "",
+          "labels": [
+            "ubuntu-24.04"
+          ],
+          "created_at": "2026-11-10T22:46:25Z",
+          "started_at": "2026-11-10T22:46:25Z",
+          "completed_at": null,
+          "steps": [],
+          "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922856"
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": 130183922856,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-account-root)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922856"
+    },
+    {
+      "id": 130183922457,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922457"
+    },
+    {
+      "id": 130183922441,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-transferred)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922441"
+    },
+    {
+      "id": 130183922416,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-other)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922416"
+    },
+    {
+      "id": 130183922386,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-account-root)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922386"
+    },
+    {
+      "id": 130183922384,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-next-attempt)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922384"
+    },
+    {
+      "id": 130183922355,
+      "name": "bindings-wasm",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922355"
+    },
+    {
+      "id": 130183922280,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, roster-capacity)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922280"
+    },
+    {
+      "id": 130183922270,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, suite)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922270"
+    },
+    {
+      "id": 130183922261,
+      "name": "abi2-windows-package-2022",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "completed",
+      "conclusion": "success",
+      "app_id": 15368,
+      "started_at": "2026-11-10T23:45:44Z",
+      "completed_at": "2026-11-10T23:55:13Z",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922261"
+    },
+    {
+      "id": 130183922210,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, capacity)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922210"
+    },
+    {
+      "id": 130183922197,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-next-attempt)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922197"
+    },
+    {
+      "id": 130183922192,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, capacity)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922192"
+    },
+    {
+      "id": 130183922188,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, suite)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922188"
+    },
+    {
+      "id": 130183922170,
+      "name": "Binary CT [x86_64-portable]",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922170"
+    },
+    {
+      "id": 130183922169,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, release)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922169"
+    },
+    {
+      "id": 130183922136,
+      "name": "abi2-linux-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922136"
+    },
+    {
+      "id": 130183922116,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, release)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922116"
+    },
+    {
+      "id": 130183922072,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-transferred)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922072"
+    },
+    {
+      "id": 130183922069,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, roster-capacity)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922069"
+    },
+    {
+      "id": 130183922052,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-other)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922052"
+    },
+    {
+      "id": 130183922035,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183922035"
+    },
+    {
+      "id": 130183921916,
+      "name": "check",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921916"
+    },
+    {
+      "id": 130183921913,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921913"
+    },
+    {
+      "id": 130183921903,
+      "name": "cross-compiler (beta)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921903"
+    },
+    {
+      "id": 130183921901,
+      "name": "cross (riscv64gc-unknown-linux-gnu)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921901"
+    },
+    {
+      "id": 130183921873,
+      "name": "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921873"
+    },
+    {
+      "id": 130183921864,
+      "name": "formal-easycrypt",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921864"
+    },
+    {
+      "id": 130183921863,
+      "name": "tamarin-proof",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921863"
+    },
+    {
+      "id": 130183921859,
+      "name": "fuzz",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921859"
+    },
+    {
+      "id": 130183921858,
+      "name": "windows",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921858"
+    },
+    {
+      "id": 130183921854,
+      "name": "continuity-spqr-reference (macos-15)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921854"
+    },
+    {
+      "id": 130183921835,
+      "name": "cross-compiler (stable)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921835"
+    },
+    {
+      "id": 130183921815,
+      "name": "hqc-draft-candidate",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921815"
+    },
+    {
+      "id": 130183921803,
+      "name": "bindings-swift",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921803"
+    },
+    {
+      "id": 130183921802,
+      "name": "cross (wasm32-unknown-unknown)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921802"
+    },
+    {
+      "id": 130183921798,
+      "name": "pq-optional-backends",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921798"
+    },
+    {
+      "id": 130183921768,
+      "name": "standard-tls-interop",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921768"
+    },
+    {
+      "id": 130183921733,
+      "name": "cross-compiler (nightly)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921733"
+    },
+    {
+      "id": 130183921727,
+      "name": "feature-fence",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921727"
+    },
+    {
+      "id": 130183921707,
+      "name": "sidechannel",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921707"
+    },
+    {
+      "id": 130183921692,
+      "name": "cross (x86_64-unknown-linux-gnu)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921692"
+    },
+    {
+      "id": 130183921686,
+      "name": "bindings-android-aar",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921686"
+    },
+    {
+      "id": 130183921679,
+      "name": "riscv64-run",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921679"
+    },
+    {
+      "id": 130183921661,
+      "name": "audit",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921661"
+    },
+    {
+      "id": 130183921634,
+      "name": "no_std",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921634"
+    },
+    {
+      "id": 130183921625,
+      "name": "Binary CT [aarch64-native]",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921625"
+    },
+    {
+      "id": 130183921610,
+      "name": "formal-proof",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921610"
+    },
+    {
+      "id": 130183921592,
+      "name": "cross (aarch64-unknown-linux-gnu)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921592"
+    },
+    {
+      "id": 130183921591,
+      "name": "proverif-proof",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921591"
+    },
+    {
+      "id": 130183921584,
+      "name": "bindings-kotlin",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921584"
+    },
+    {
+      "id": 130183921561,
+      "name": "transport",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921561"
+    },
+    {
+      "id": 130183921527,
+      "name": "x86-avx2-candidate",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921527"
+    },
+    {
+      "id": 130183921456,
+      "name": "continuity-spqr-reference (ubuntu-24.04)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921456"
+    },
+    {
+      "id": 130183921449,
+      "name": "msrv",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921449"
+    },
+    {
+      "id": 130183921215,
+      "name": "rust-publish-contract",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:25Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588037/job/130183921215"
+    },
+    {
+      "id": 130183904878,
+      "name": "native-retry-readiness",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:23Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917587945/job/130183904878"
+    },
+    {
+      "id": 130183903615,
+      "name": "root-continuation / root (ubuntu-24.04, x86_64)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:23Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588113/job/130183903615"
+    },
+    {
+      "id": 130183903559,
+      "name": "account-exchange (macos-15, arm64)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:23Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588113/job/130183903559"
+    },
+    {
+      "id": 130183903453,
+      "name": "root-winner / root (ubuntu-24.04, x86_64)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:23Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588113/job/130183903453"
+    },
+    {
+      "id": 130183903325,
+      "name": "root-continuation / root (macos-15, arm64)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:23Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588113/job/130183903325"
+    },
+    {
+      "id": 130183903298,
+      "name": "account-exchange (ubuntu-24.04, x86_64)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:23Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588113/job/130183903298"
+    },
+    {
+      "id": 130183903241,
+      "name": "account-validation (macos-15, arm64)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:23Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588113/job/130183903241"
+    },
+    {
+      "id": 130183903240,
+      "name": "root-unactivated / root (macos-15, arm64)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:23Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588113/job/130183903240"
+    },
+    {
+      "id": 130183903171,
+      "name": "root-winner / root (macos-15, arm64)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:23Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588113/job/130183903171"
+    },
+    {
+      "id": 130183903156,
+      "name": "root-unactivated / root (ubuntu-24.04, x86_64)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:23Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588113/job/130183903156"
+    },
+    {
+      "id": 130183902841,
+      "name": "account-validation (ubuntu-24.04, x86_64)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:22Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588113/job/130183902841"
+    },
+    {
+      "id": 130183899108,
+      "name": "manuscript",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:22Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588003/job/130183899108"
+    },
+    {
+      "id": 130183898374,
+      "name": "directory-format",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:22Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588075/job/130183898374"
+    },
+    {
+      "id": 130183898148,
+      "name": "native-and-reference-matched",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:22Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588146/job/130183898148"
+    },
+    {
+      "id": 130183897953,
+      "name": "directory-behavior",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:22Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588075/job/130183897953"
+    },
+    {
+      "id": 130183897428,
+      "name": "continuity-publication",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:22Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917587951/job/130183897428"
+    },
+    {
+      "id": 130183896910,
+      "name": "continuity-evidence",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:22Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917587951/job/130183896910"
+    },
+    {
+      "id": 130183892886,
+      "name": "ubuntu-2204-lifetime",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:21Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917588030/job/130183892886"
+    },
+    {
+      "id": 130183844341,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, roster-capacity)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844341"
+    },
+    {
+      "id": 130183844317,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844317"
+    },
+    {
+      "id": 130183844312,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-transferred)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844312"
+    },
+    {
+      "id": 130183844308,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, capacity)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844308"
+    },
+    {
+      "id": 130183844265,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, suite)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844265"
+    },
+    {
+      "id": 130183844227,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-next-attempt)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844227"
+    },
+    {
+      "id": 130183844215,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844215"
+    },
+    {
+      "id": 130183844201,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-other)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844201"
+    },
+    {
+      "id": 130183844196,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-other)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844196"
+    },
+    {
+      "id": 130183844195,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-next-attempt)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844195"
+    },
+    {
+      "id": 130183844191,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, roster-capacity)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844191"
+    },
+    {
+      "id": 130183844159,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844159"
+    },
+    {
+      "id": 130183844156,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-account-root)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844156"
+    },
+    {
+      "id": 130183844146,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-account-root)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844146"
+    },
+    {
+      "id": 130183844139,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, release)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844139"
+    },
+    {
+      "id": 130183844133,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-transferred)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844133"
+    },
+    {
+      "id": 130183844130,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, capacity)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844130"
+    },
+    {
+      "id": 130183844115,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, release)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844115"
+    },
+    {
+      "id": 130183844066,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, suite)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183844066"
+    },
+    {
+      "id": 130183843822,
+      "name": "bindings-android-aar",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843822"
+    },
+    {
+      "id": 130183843614,
+      "name": "abi2-linux-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843614"
+    },
+    {
+      "id": 130183843598,
+      "name": "cross (wasm32-unknown-unknown)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843598"
+    },
+    {
+      "id": 130183843581,
+      "name": "fuzz",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843581"
+    },
+    {
+      "id": 130183843526,
+      "name": "rust-publish-contract",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843526"
+    },
+    {
+      "id": 130183843458,
+      "name": "cross (aarch64-unknown-linux-gnu)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843458"
+    },
+    {
+      "id": 130183843367,
+      "name": "pq-optional-backends",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843367"
+    },
+    {
+      "id": 130183843363,
+      "name": "continuity-spqr-reference (macos-15)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843363"
+    },
+    {
+      "id": 130183843350,
+      "name": "no_std",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843350"
+    },
+    {
+      "id": 130183843331,
+      "name": "cross (x86_64-unknown-linux-gnu)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843331"
+    },
+    {
+      "id": 130183843271,
+      "name": "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843271"
+    },
+    {
+      "id": 130183843253,
+      "name": "continuity-spqr-reference (ubuntu-24.04)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843253"
+    },
+    {
+      "id": 130183843252,
+      "name": "Binary CT [x86_64-portable]",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843252"
+    },
+    {
+      "id": 130183843243,
+      "name": "riscv64-run",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843243"
+    },
+    {
+      "id": 130183843178,
+      "name": "transport",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843178"
+    },
+    {
+      "id": 130183843170,
+      "name": "hqc-draft-candidate",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843170"
+    },
+    {
+      "id": 130183843142,
+      "name": "feature-fence",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843142"
+    },
+    {
+      "id": 130183843092,
+      "name": "proverif-proof",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843092"
+    },
+    {
+      "id": 130183843091,
+      "name": "cross-compiler (nightly)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843091"
+    },
+    {
+      "id": 130183843084,
+      "name": "audit",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843084"
+    },
+    {
+      "id": 130183843055,
+      "name": "abi2-windows-package-2022",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "completed",
+      "conclusion": "success",
+      "app_id": 15368,
+      "started_at": "2026-11-10T23:37:08Z",
+      "completed_at": "2026-11-10T23:49:08Z",
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843055"
+    },
+    {
+      "id": 130183843013,
+      "name": "tamarin-proof",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843013"
+    },
+    {
+      "id": 130183843005,
+      "name": "standard-tls-interop",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183843005"
+    },
+    {
+      "id": 130183842995,
+      "name": "msrv",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842995"
+    },
+    {
+      "id": 130183842980,
+      "name": "cross-compiler (beta)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842980"
+    },
+    {
+      "id": 130183842976,
+      "name": "formal-easycrypt",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842976"
+    },
+    {
+      "id": 130183842940,
+      "name": "bindings-swift",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842940"
+    },
+    {
+      "id": 130183842932,
+      "name": "Binary CT [aarch64-native]",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842932"
+    },
+    {
+      "id": 130183842908,
+      "name": "bindings-wasm",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842908"
+    },
+    {
+      "id": 130183842872,
+      "name": "cross (riscv64gc-unknown-linux-gnu)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842872"
+    },
+    {
+      "id": 130183842871,
+      "name": "sidechannel",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842871"
+    },
+    {
+      "id": 130183842841,
+      "name": "check",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842841"
+    },
+    {
+      "id": 130183842832,
+      "name": "cross-compiler (stable)",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842832"
+    },
+    {
+      "id": 130183842799,
+      "name": "x86-avx2-candidate",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842799"
+    },
+    {
+      "id": 130183842785,
+      "name": "bindings-kotlin",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842785"
+    },
+    {
+      "id": 130183842774,
+      "name": "formal-proof",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842774"
+    },
+    {
+      "id": 130183842392,
+      "name": "windows",
+      "head_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+      "status": "queued",
+      "conclusion": null,
+      "app_id": 15368,
+      "started_at": "2026-11-10T22:46:15Z",
+      "completed_at": null,
+      "url": "https://github.com/billlza/q-periapt/actions/runs/42917560978/job/130183842392"
+    }
+  ],
+  "android_dependency": {
+    "runtime_job": "bindings-android-runtime-16k",
+    "profiles": [
+      "api35-16k",
+      "api23-4k"
+    ],
+    "needs": "bindings-android-aar",
+    "upstream_queue_ids": [
+      130183843822,
+      130183921686
+    ],
+    "runtime_jobs_materialized": false
+  },
+  "license_guard_dependency": {
+    "job": "check",
+    "queued_job_ids": [
+      130183842841,
+      130183921916
+    ],
+    "runner_ids": [
+      0,
+      0
+    ],
+    "executed_steps": [
+      0,
+      0
+    ]
+  },
+  "conclusion": "The integration head is unchanged. Both exact-head generic runs have one successful Windows package job and 55 unassigned queued jobs each. Across all workflows, 130 checks comprise 2 success and 128 queued, with no executed current-source failure. Android runtime jobs await the unassigned AAR producer; the license/readiness source checks await the unassigned check jobs. No new failure log or source defect is established by this readback.",
+  "operations": "Read-only APIs and source inspection; no source mutation, remote writes, reruns or merges."
+}

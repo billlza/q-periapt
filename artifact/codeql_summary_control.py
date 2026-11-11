@@ -29,6 +29,7 @@ from typing import BinaryIO
 
 from bounded_process import BoundedProcessError, TimeoutPolicy, capture_output
 from codeql_process_resources import ProcessResourceSampler
+import codeql_summary_plan as summary_plan
 from evidence_io import (EvidenceIOError, consume_regular_snapshot, fresh_output_directory,
                          parse_strict_json_bytes, read_regular_snapshot)
 import codeql_log_recovery as retained
@@ -437,11 +438,13 @@ def jvm_probe(codeql: Path, root: Path, environment: dict, profile: str) -> dict
     return {"max_heap_bytes_observed": observed, "codeql_version": CLI_VERSION}
 
 
-def query_command(codeql: Path, database: Path, root: Path, profile: str) -> list[str]:
+def query_command(codeql: Path, database: Path, root: Path, profile: str,
+                  summary_plan_mode: str = "none") -> list[str]:
     require(profile in PROFILES, "unknown allocation profile")
+    require(summary_plan_mode in ("none", "all"), "unknown summary plan mode")
     heap, native = PROFILES[profile]
     return [str(codeql), "execute", "queries", f"-J-Xmx{heap}M", f"--off-heap-ram={native}", "-J-XX:+PrintFlagsFinal",
-            "--threads=4", "--threat-model=local", "--warnings=show", "--dynamic-join-order-mode=none",
+            "--threads=4", "--threat-model=local", "--warnings=show", "--dynamic-join-order-mode=" + summary_plan_mode,
             "--no-rerun", "--verbosity=progress", "--evaluator-log-level=5",
             "--common-caches=" + str(root / "cache"), "--logdir=" + str(root / "evidence/evaluator"),
             "--output=" + str(root / "results"), "--", str(database / "db-rust"), "path:" + str(root / "frozen.qls")]
@@ -630,7 +633,8 @@ def evaluator_observations(evidence: Path) -> dict:
     result = {"schema": 1, "logs": [], "query_starts": 0, "query_completions": 0,
               "pause_count": 0, "eviction_pause_count": 0, "eviction_categories": {},
               "first_timestamp": None, "last_timestamp": None, "max_taint_stage_iterations": {},
-              "max_heap_bytes_observed": [], "off_heap_mb_observed": [], "evaluator_start_lines": 0}
+              "max_heap_bytes_observed": [], "off_heap_mb_observed": [], "evaluator_start_lines": 0,
+              "precompiled_query_loads": [], "query_compilations": 0}
     total_bytes = 0
 
     def observe(line: bytes) -> None:
@@ -645,6 +649,10 @@ def evaluator_observations(evidence: Path) -> dict:
         if "[PROGRESS]" in text:
             result["query_starts"] += "Starting evaluation of " in text
             result["query_completions"] += "Evaluation done; writing results to " in text
+            loaded = re.search(r"\] Loaded (.+\.qlx)\.\s*$", text)
+            if loaded:
+                result["precompiled_query_loads"].append(loaded[1])
+        result["query_compilations"] += "Compiling query plan for " in text
         result["pause_count"] += "Pausing evaluation to " in text
         if "Pausing evaluation to evict " in text:
             result["eviction_pause_count"] += 1
@@ -711,13 +719,31 @@ def configuration(profile: str) -> dict:
             "reserved_mb": RESERVED_MB, "threads": THREADS, "deadline_seconds": EVALUATION_SECONDS}
 
 
-def compare_reports(baseline: dict, candidate: dict) -> dict:
+def validate_candidate_loads(record: dict, codeql: Path, query_hashes: dict) -> None:
+    pack = codeql.parent / "qlpacks/codeql/rust-queries" / QUERY_VERSION
+    expected = sorted(str((pack / query).with_suffix(".qlx")) for query in query_hashes)
+    observed = record.get("precompiled_query_loads")
+    require(isinstance(observed, list) and all(isinstance(item, str) for item in observed)
+            and sorted(observed) == expected and record.get("query_compilations") == 0,
+            "candidate evaluation did not load exactly the 39 admitted precompiled queries")
+
+
+def compare_reports(baseline: dict, candidate: dict, summary_plan_mode: str = "none") -> dict:
+    require(summary_plan_mode in ("none", "all"), "unknown comparison summary plan mode")
     for profile, report in (("heap-2048", baseline), ("heap-1536", candidate)):
         require(report.get("schema") == 1 and report.get("kind") == "qperiapt.codeql_summary_control"
                 and report.get("profile") == profile, "comparison report identity differs")
         require(report.get("release_claim_eligible") is False and report.get("sarif_published") is False,
                 "diagnostic report made a publication claim")
         require(report.get("configuration") == configuration(profile), "comparison allocation differs")
+        require(report.get("summary_plan_mode", "none") == summary_plan_mode,
+                "comparison summary plan mode differs")
+        if summary_plan_mode == "all":
+            expected_plan = summary_plan.expected_identity()
+            require(report.get("summary_plan") == expected_plan
+                    and report.get("summary_plan_after") == expected_plan
+                    and "summary_plan_after_failure" not in report,
+                    "candidate summary plan identity or post-evaluation check differs")
     for key in ("source", "input_identity", "tool_identity", "query_hashes", "compiled_query_hashes", "ram_resolution",
                 "experiment_commit", "retained_results", "cache_scope"):
         require(key in baseline and baseline[key] == candidate.get(key), "paired starting identity differs: " + key)
@@ -744,9 +770,11 @@ def compare_reports(baseline: dict, candidate: dict) -> dict:
     pinned = read_json(QUERY_MANIFEST)
     validate_query_inventory(baseline["query_hashes"], pinned)
     compiled = baseline["compiled_query_hashes"]
+    compiled_pin = (summary_plan.COMPILED_INVENTORY_SHA256 if summary_plan_mode == "all"
+                    else COMPILED_INVENTORY_SHA256)
     require(isinstance(compiled, dict) and set(compiled) == set(baseline["query_hashes"])
             and all(is_sha256(value) for value in compiled.values())
-            and canonical_sha(compiled) == COMPILED_INVENTORY_SHA256, "compiled plan census or digest differs")
+            and canonical_sha(compiled) == compiled_pin, "compiled plan census or digest differs")
     for profile, report in (("heap-2048", baseline), ("heap-1536", candidate)):
         command = report.get("query_command")
         require(isinstance(command, list) and command and all(isinstance(arg, str) for arg in command),
@@ -758,7 +786,7 @@ def compare_reports(baseline: dict, candidate: dict) -> dict:
                 and ".." not in executable.parts and ".." not in output.parts,
                 "recorded evaluator paths differ from the fixed layout")
         root = output.parent
-        require(command == query_command(executable, root / "database", root, profile),
+        require(command == query_command(executable, root / "database", root, profile, summary_plan_mode),
                 "recorded evaluator command differs from the complete specification")
     strip_memory = lambda command: [arg for arg in command if not arg.startswith(("-J-Xmx", "--off-heap-ram="))]
     require(strip_memory(baseline["query_command"]) == strip_memory(candidate["query_command"]),
@@ -773,6 +801,8 @@ def compare_reports(baseline: dict, candidate: dict) -> dict:
                                                 "codeql_version": CLI_VERSION},
                 "actual bundle JVM admission is missing or malformed")
         validate_observations(report.get("observations"), profile)
+        if summary_plan_mode == "all":
+            validate_candidate_loads(report["observations"], Path(report["query_command"][0]), baseline["query_hashes"])
         validate_retained_results(report.get("retained_results"), report.get("results"), baseline["query_hashes"])
         evaluation = report.get("evaluation", {})
         require(report.get("completed") is True and evaluation.get("returncode") == 0
@@ -792,6 +822,7 @@ def compare_reports(baseline: dict, candidate: dict) -> dict:
     return {"schema": 1, "kind": "qperiapt.codeql_summary_control_comparison", "completed": True,
             "source": SOURCE, "input_identity": baseline["input_identity"], "query_count": 39,
             "experiment_commit": baseline["experiment_commit"],
+            "summary_plan_mode": summary_plan_mode,
             "semantic_results_equal": True, "retained_result_count": 38, "cache_scope": CACHE_SCOPE,
             "retained_semantic_results_equal": True, "production_default_validated": False, "sarif_published": False, "release_claim_eligible": False,
             "heap_2048_seconds": baseline["evaluation"].get("seconds"),
@@ -800,9 +831,11 @@ def compare_reports(baseline: dict, candidate: dict) -> dict:
             "observations": {"heap-2048": baseline["observations"], "heap-1536": candidate["observations"]}}
 
 
-def evaluate(codeql: Path, bundle: Path, output: Path, profile: str) -> None:
+def evaluate(codeql: Path, bundle: Path, output: Path, profile: str,
+             summary_plan_mode: str = "none") -> None:
     require(profile in PROFILES and platform.system() == "Linux" and platform.machine() == "x86_64",
             "requires a supported Linux x86_64 allocation profile")
+    require(summary_plan_mode in ("none", "all"), "unknown summary plan mode")
     root = fresh_output_directory(output, within=Path(os.environ["RUNNER_TEMP"]).resolve(),
                                   label="retained SummaryStats allocation control")
     root.mkdir(mode=0o700, parents=True)
@@ -811,6 +844,7 @@ def evaluate(codeql: Path, bundle: Path, output: Path, profile: str) -> None:
     report = {"schema": 1, "kind": "qperiapt.codeql_summary_control", "profile": profile,
               "completed": False, "sarif_published": False, "release_claim_eligible": False,
               "source": SOURCE, "configuration": configuration(profile), "experiment_commit": os.environ.get("GITHUB_SHA"),
+              "summary_plan_mode": summary_plan_mode,
               "cache_scope": CACHE_SCOPE,
               "host": {"kernel": platform.release(), "architecture": platform.machine(), "cpus": os.cpu_count(),
                        "meminfo": Path("/proc/meminfo").read_text(), "cpuinfo": Path("/proc/cpuinfo").read_text()}}
@@ -829,11 +863,21 @@ def evaluate(codeql: Path, bundle: Path, output: Path, profile: str) -> None:
         codeql = codeql.absolute()
         queries, report["tool_identity"], report["query_hashes"], report["compiled_query_hashes"], report["ram_resolution"] = \
             admit_tool(codeql, bundle, database, root, environment)
+        if summary_plan_mode == "all":
+            phase = "install_summary_plan"
+            pack = codeql.parent / "qlpacks/codeql/rust-queries" / QUERY_VERSION
+            report["summary_plan"] = summary_plan.install(pack, evidence)
+            effective = {relative: sha(path.with_suffix(".qlx")) for relative, path in queries.items()}
+            require(canonical_sha(effective) == summary_plan.COMPILED_INVENTORY_SHA256,
+                    "candidate changed another compiled query or did not install the fixed full summary")
+            validate_query_inventory({relative: sha(path) for relative, path in queries.items()},
+                                     read_json(QUERY_MANIFEST))
+            report["compiled_query_hashes"] = effective
         phase = "jvm_admission"
         report["jvm_admission"] = jvm_probe(codeql, root, environment, profile)
         phase = "decode_retained_results"
         report["retained_results"] = decode_retained_results(codeql, queries, root, environment)
-        command = query_command(codeql, database, root, profile)
+        command = query_command(codeql, database, root, profile, summary_plan_mode)
         report["query_command"] = command
         write_json(evidence / "RESULT.json", report)
         require(not any((root / "results").iterdir()), "query output is not fresh")
@@ -847,15 +891,36 @@ def evaluate(codeql: Path, bundle: Path, output: Path, profile: str) -> None:
                 write_json(evidence / "EVALUATOR_OBSERVATIONS.json", report["observations"])
             except (ValueError, OSError) as error:
                 report["observation_failure"] = {"type": type(error).__name__}
+            if summary_plan_mode == "all":
+                # Always recheck effective bytes after the stopped evaluator.
+                # Retain a secondary integrity failure without replacing the
+                # evaluator's original exception or timeout.
+                try:
+                    require({relative: sha(path) for relative, path in queries.items()} == report["query_hashes"],
+                            "query source changed during candidate evaluation")
+                    require({relative: sha(path.with_suffix(".qlx")) for relative, path in queries.items()}
+                            == report["compiled_query_hashes"], "compiled query changed during candidate evaluation")
+                    report["summary_plan_after"] = summary_plan.validate(pack)
+                    write_json(evidence / "SUMMARY_PLAN_AFTER.json", report["summary_plan_after"])
+                except (ValueError, OSError) as error:
+                    report["summary_plan_after_failure"] = {"type": type(error).__name__, "message": str(error)}
+                    try:
+                        write_json(evidence / "SUMMARY_PLAN_AFTER_FAILURE.json", report["summary_plan_after_failure"])
+                    except (ValueError, OSError) as retention_error:
+                        report["summary_plan_failure_retention_error"] = {"type": type(retention_error).__name__}
         validate_observations(report.get("observations"), profile)
         require(report["evaluation"]["returncode"] == 0, "query evaluation did not complete")
+        if summary_plan_mode == "all":
+            require(report.get("summary_plan_after") == report["summary_plan"]
+                    and "summary_plan_after_failure" not in report, "candidate effective plan changed during evaluation")
+            validate_candidate_loads(report["observations"], codeql, report["query_hashes"])
         phase = "decode_results"
         report["results"] = decode_results(codeql, queries, root, environment)
         validate_retained_results(report["retained_results"], report["results"], queries)
         report["completed"] = True
     except BaseException as error:
         report["failure"] = {"phase": phase, "type": type(error).__name__,
-                             "message": str(error) if isinstance(error, ControlError)
+                             "message": str(error) if isinstance(error, (ControlError, summary_plan.PlanError))
                              else "operation failed; inspect retained command receipts and logs"}
         try:
             if (evidence / "query.json").is_file():
@@ -879,18 +944,20 @@ def main() -> None:
     run.add_argument("--tool-archive", type=Path, required=True)
     run.add_argument("--output", type=Path, required=True)
     run.add_argument("--profile", choices=tuple(PROFILES), required=True)
+    run.add_argument("--summary-plan-mode", choices=("none", "all"), default="none")
     compare = commands.add_parser("compare")
     compare.add_argument("--baseline", type=Path, required=True)
     compare.add_argument("--candidate", type=Path, required=True)
     compare.add_argument("--output", type=Path, required=True)
+    compare.add_argument("--summary-plan-mode", choices=("none", "all"), default="none")
     args = parser.parse_args()
     if args.action == "run":
-        evaluate(args.codeql, args.tool_archive, args.output, args.profile)
+        evaluate(args.codeql, args.tool_archive, args.output, args.profile, args.summary_plan_mode)
     else:
         result = {"schema": 1, "kind": "qperiapt.codeql_summary_control_comparison", "completed": False,
                   "sarif_published": False, "release_claim_eligible": False}
         try:
-            result = compare_reports(read_json(args.baseline), read_json(args.candidate))
+            result = compare_reports(read_json(args.baseline), read_json(args.candidate), args.summary_plan_mode)
         except BaseException as error:
             result["failure"] = {"type": type(error).__name__, "message": str(error) if isinstance(error, ControlError)
                                  else "comparison input could not be admitted"}
