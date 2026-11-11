@@ -1,0 +1,95 @@
+{
+  "all_nine_artifact_files_identical_between_original_combined_and_public_source": true,
+  "combined_controls": {
+    "returncode": 0,
+    "tests": 294,
+    "unittest_seconds": 11.277,
+    "wall_seconds": 12.262043443000948
+  },
+  "combined_controls_source_commit": "f0602f08b0dfe76b1aad9671200bce48a1394cd7",
+  "combined_controls_source_tree": "9daa64caa7814d759397fbde3218b6a2f6721348",
+  "evidence_parent": "b1580cfa2740a860caa4c9a6e7540303c315b27a",
+  "files": [
+    {
+      "blob": "676762bddc186f877eb67d52f2b7f9efabff3e6a",
+      "bytes": 621211,
+      "path": "artifact/codeql-summary-projection-plan.zip",
+      "sha256": "35ab9955321008fb55e436c78b38725370fd5930885635e43ed093ab672fc6d3"
+    },
+    {
+      "blob": "e16de1e2ba95ea287661e4bb5e37324d5019fadc",
+      "bytes": 27476,
+      "path": "artifact/codeql_rust_plan.py",
+      "sha256": "f3144bf92a35624a29cb98f80c43548b125b334dd7d1db5cd3303c4ba6ae29cc"
+    },
+    {
+      "blob": "193805f8a85267162d9a6682ba40533942170530",
+      "bytes": 6587,
+      "path": "artifact/codeql_summary_projection.json",
+      "sha256": "efd65ee72a4f966620a3d9bd6ac97b0a6d8ef5567017f3c342f654c4e1f55873"
+    },
+    {
+      "blob": "b5eb07eabeeb3bc752eabab5a14d0d57b6847920",
+      "bytes": 14547,
+      "path": "artifact/codeql_summary_projection.md",
+      "sha256": "122a5766bbf0edebe2b926d3b0cff683ade577b5e4cf6f0ced1c83b1d11aa493"
+    },
+    {
+      "blob": "869d980ae9097d6b4b53d71fcb350ba076137f8d",
+      "bytes": 8974,
+      "path": "artifact/codeql_summary_projection.patch",
+      "sha256": "2e01d15c01f2240d8915fb124865f0d7f81b486929245ba5f61ad0502de06207"
+    },
+    {
+      "blob": "7ec825bc98c28fb0cb553d4952e774db6780b568",
+      "bytes": 14848,
+      "path": "artifact/codeql_summary_projection.py",
+      "sha256": "36467935b98f9e1eb8d361713904cef25cf16575407729b0b1e65db53682397d"
+    },
+    {
+      "blob": "87671090e456faff865ee99b72df03b67df2afe9",
+      "bytes": 117209,
+      "path": "artifact/codeql_summary_projection_dependencies.json.gz",
+      "sha256": "1a76d5d9eaf26bd931ba9710db92904fa8314b39daeb9d450a1600b8bb44cf95"
+    },
+    {
+      "blob": "403a31dd6ce03f5907693d8898ebcfa98da272b0",
+      "bytes": 28003,
+      "path": "artifact/test_codeql_rust_plan.py",
+      "sha256": "0cb87cd0142c89438599c7c3ecd0cfc9bd637c0597ce87edd1ed834e83c8f285"
+    },
+    {
+      "blob": "508c2968d22237aaa54d48f34c250c4a5eea1dbf",
+      "bytes": 32527,
+      "path": "artifact/test_codeql_summary_projection.py",
+      "sha256": "baaa6633b7fd083b4f7a19fd2b987bbf33bb88a1fd3f94ec9363c3e4540182c0"
+    }
+  ],
+  "original_candidate_commit": "aee89ae8ff3001f201a9b801661995d0e6f27681",
+  "original_candidate_tree": "9daa64caa7814d759397fbde3218b6a2f6721348",
+  "public_source": {
+    "author": {
+      "date": "2026-11-11T18:14:49Z",
+      "email": "149552943+billlza@users.noreply.github.com",
+      "name": "月溅星河"
+    },
+    "commit": "ed38e305552db2825d90622c130973df87e16d50",
+    "committer": {
+      "date": "2026-11-11T18:14:49Z",
+      "email": "149552943+billlza@users.noreply.github.com",
+      "name": "月溅星河"
+    },
+    "parent": "9c0d63d4d258f126af92a8bda64aec090019a1b3",
+    "tree": "9daa64caa7814d759397fbde3218b6a2f6721348",
+    "url": "https://github.com/billlza/q-periapt/commit/ed38e305552db2825d90622c130973df87e16d50"
+  },
+  "public_source_root_and_artifact_tree_hashes_independently_reconstructed": true,
+  "schema": 1,
+  "scope": "Source, all-mode compilation, actual RA, installation and regression qualification; full 39-query runtime execution is separately bound.",
+  "sealed_original_packet": {
+    "all_original_bytes_preserved": true,
+    "bytes": 132247,
+    "files": 24,
+    "manifest_sha256": "5f171972568d6728c71e2cf03b1c00371b51bea44db8b0b56fd8c78480e4a485"
+  }
+}

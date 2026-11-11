@@ -1,0 +1,27 @@
+{
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "test_codeql_rust_plan",
+    "test_codeql_rust_profile",
+    "test_codeql_rust_publication",
+    "test_codeql_rust_transfer",
+    "test_codeql_summary_archive_input",
+    "test_codeql_summary_plan",
+    "test_codeql_summary_control",
+    "test_codeql_summary_projection",
+    "test_codeql_process_resources",
+    "test_codeql_progress",
+    "test_codeql_workflow_contract"
+  ],
+  "started_utc": "2026-11-11T18:13:29.360484+00:00",
+  "source_commit": "f0602f08b0dfe76b1aad9671200bce48a1394cd7",
+  "source_tree": "9daa64caa7814d759397fbde3218b6a2f6721348",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "returncode": 0,
+  "finished_utc": "2026-11-11T18:13:41.622710+00:00",
+  "wall_seconds": 12.262043443000948
+}

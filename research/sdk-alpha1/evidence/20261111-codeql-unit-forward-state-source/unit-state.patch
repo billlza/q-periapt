@@ -1,0 +1,195 @@
+--- 9c/DataFlowImpl.qll
++++ unit-state/DataFlowImpl.qll
+@@ -545,94 +545,113 @@
+          * argument in a call, and if so, `summaryCtx` records the
+          * corresponding parameter position and access path of that argument.
+          */
+-        pragma[nomagic]
++        // Inline the typed interface so Unit is not stored in the selected closure.
++        pragma[inline]
+         additional predicate fwdFlow(
+           Nd node, Cc cc, SummaryCtx summaryCtx, Typ t, Ap ap, TypOption stored
+         ) {
+           if Param::fuseUnitForwardState()
+-          then
+-            exists(ApApprox apa |
++          then exists(t) and fwdFlowUnit(node, cc, summaryCtx, ap, stored)
++          else fwdFlowTyped(node, cc, summaryCtx, t, ap, stored)
++        }
++
++        // Preserve the original typed projection in every unselected stage.
++        pragma[nomagic]
++        private predicate fwdFlowTyped(
++          Nd node, Cc cc, SummaryCtx summaryCtx, Typ t, Ap ap, TypOption stored
++        ) {
++          fwdFlow1(node, cc, summaryCtx, _, t, ap, stored)
++        }
++
++        // Typ is the singleton Unit in exactly the two selected stages. Keep its
++        // node/type guards at their original branch positions while omitting it
++        // from the recursive representation; stored still distinguishes None/Some.
++        pragma[nomagic]
++        private predicate fwdFlowUnit(
++          Nd node, Cc cc, SummaryCtx summaryCtx, Ap ap, TypOption stored
++        ) {
++          Param::fuseUnitForwardState() and
++          exists(Typ t, ApApprox apa |
++            (
++              sourceNode(node) and
++              (if hasSourceCallCtx() then cc = ccSomeCall() else cc = ccNone()) and
++              summaryCtx.isSourceCtx() and
++              t = getNodeTyp(node) and
++              ap instanceof ApNil and
++              apa = getApprox(ap) and
++              stored.isNone()
++              or
++              exists(Nd mid, Typ t0, LocalCc localCc |
++                fwdFlow(mid, cc, summaryCtx, t0, ap, stored) and
++                apa = getApprox(ap) and
++                localCc = getLocalCc(cc)
++              |
++                localStep(mid, node, true, _, localCc, _) and
++                t = t0
++                or
++                localStep(mid, node, false, t, localCc, _) and
++                ap instanceof ApNil
++              )
++              or
++              fwdFlowJump(node, t, ap, stored) and
++              apa = getApprox(ap) and
++              cc = ccNone() and
++              summaryCtx = TSummaryCtxNone()
++              or
++              // store
++              exists(Content c, Ap ap0 |
++                fwdFlowStore(_, _, ap0, _, c, t, stored, node, cc, summaryCtx) and
++                ap = apCons(c, ap0) and
++                apa = getApprox(ap) and
++                getAnApLengthLowerBound(ap0) < accessPathLimit()
++              )
++              or
++              // read
+               (
+-                sourceNode(node) and
+-                (if hasSourceCallCtx() then cc = ccSomeCall() else cc = ccNone()) and
+-                summaryCtx.isSourceCtx() and
+-                t = getNodeTyp(node) and
+-                ap instanceof ApNil and
++                if Param::projectRecursiveReadTargets()
++                then fwdFlowReadTarget(node, t, ap, stored, cc, summaryCtx)
++                else fwdFlowRead(_, _, _, _, _, node, t, ap, stored, cc, summaryCtx)
++              ) and
++              apa = getApprox(ap)
++              or
++              // flow into a callable without summary context
++              fwdFlowInNoFlowThrough(node, cc, summaryCtx, t, ap, stored) and
++              apa = getApprox(ap) and
++              // When the call contexts of source and sink needs to match then there's
++              // never any reason to enter a callable except to find a summary. See also
++              // the comment in `PathNodeMid::isAtSink`.
++              not Config::getAFeature() instanceof FeatureEqualSourceSinkCallContext
++              or
++              // flow into a callable with summary context (non-linear recursion)
++              exists(boolean mustReturn |
++                fwdFlowInFlowThrough(node, cc, t, ap, stored, mustReturn) and
+                 apa = getApprox(ap) and
+-                stored.isNone()
+-                or
+-                exists(Nd mid, Typ t0, LocalCc localCc |
+-                  fwdFlow(mid, cc, summaryCtx, t0, ap, stored) and
+-                  apa = getApprox(ap) and
+-                  localCc = getLocalCc(cc)
+-                |
+-                  localStep(mid, node, true, _, localCc, _) and
+-                  t = t0
+-                  or
+-                  localStep(mid, node, false, t, localCc, _) and
+-                  ap instanceof ApNil
+-                )
+-                or
+-                fwdFlowJump(node, t, ap, stored) and
++                summaryCtx = TSummaryCtxSome(node, t, ap, stored, mustReturn)
++              )
++              or
++              // flow out of a callable
++              fwdFlowOut(_, _, node, cc, summaryCtx, t, ap, stored) and
++              apa = getApprox(ap)
++              or
++              // flow through a callable
++              exists(Call call, RetNd ret, boolean allowsFieldFlow |
++                fwdFlowThrough(call, cc, summaryCtx, t, ap, stored, ret) and
++                flowThroughOutOfCall(call, ret, node, allowsFieldFlow) and
+                 apa = getApprox(ap) and
+-                cc = ccNone() and
+-                summaryCtx = TSummaryCtxNone()
+-                or
+-                // store
+-                exists(Content c, Ap ap0 |
+-                  fwdFlowStore(_, _, ap0, _, c, t, stored, node, cc, summaryCtx) and
+-                  ap = apCons(c, ap0) and
+-                  apa = getApprox(ap) and
+-                  getAnApLengthLowerBound(ap0) < accessPathLimit()
+-                )
+-                or
+-                // read
+-                (
+-                  if Param::projectRecursiveReadTargets()
+-                  then fwdFlowReadTarget(node, t, ap, stored, cc, summaryCtx)
+-                  else fwdFlowRead(_, _, _, _, _, node, t, ap, stored, cc, summaryCtx)
+-                ) and
+-                apa = getApprox(ap)
+-                or
+-                // flow into a callable without summary context
+-                fwdFlowInNoFlowThrough(node, cc, summaryCtx, t, ap, stored) and
+-                apa = getApprox(ap) and
+-                // When the call contexts of source and sink needs to match then there's
+-                // never any reason to enter a callable except to find a summary. See also
+-                // the comment in `PathNodeMid::isAtSink`.
+-                not Config::getAFeature() instanceof FeatureEqualSourceSinkCallContext
+-                or
+-                // flow into a callable with summary context (non-linear recursion)
+-                exists(boolean mustReturn |
+-                  fwdFlowInFlowThrough(node, cc, t, ap, stored, mustReturn) and
+-                  apa = getApprox(ap) and
+-                  summaryCtx = TSummaryCtxSome(node, t, ap, stored, mustReturn)
+-                )
+-                or
+-                // flow out of a callable
+-                fwdFlowOut(_, _, node, cc, summaryCtx, t, ap, stored) and
+-                apa = getApprox(ap)
+-                or
+-                // flow through a callable
+-                exists(Call call, RetNd ret, boolean allowsFieldFlow |
+-                  fwdFlowThrough(call, cc, summaryCtx, t, ap, stored, ret) and
+-                  flowThroughOutOfCall(call, ret, node, allowsFieldFlow) and
+-                  apa = getApprox(ap) and
+-                  if allowsFieldFlow = false then ap instanceof ApNil else any()
+-                )
+-              ) and
+-              PrevStage::revFlow(node, apa) and
+-              filter(node, t, ap, t) and
+-              (
+-                if node instanceof CastingNd
+-                then
+-                  ap instanceof ApNil or
+-                  compatibleContainer(getHeadContent(ap), node.getType()) or
+-                  topTypeContent(getHeadContent(ap))
+-                else any()
++                if allowsFieldFlow = false then ap instanceof ApNil else any()
+               )
++            ) and
++            PrevStage::revFlow(node, apa) and
++            filter(node, t, ap, t) and
++            (
++              if node instanceof CastingNd
++              then
++                ap instanceof ApNil or
++                compatibleContainer(getHeadContent(ap), node.getType()) or
++                topTypeContent(getHeadContent(ap))
++              else any()
+             )
+-          else fwdFlow1(node, cc, summaryCtx, _, t, ap, stored)
++          )
+         }
+ 
+         private predicate fwdFlow1(

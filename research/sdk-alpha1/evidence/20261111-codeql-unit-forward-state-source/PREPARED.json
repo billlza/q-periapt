@@ -1,0 +1,10 @@
+{
+  "baseline_public_source": "9c0d63d4d258f126af92a8bda64aec090019a1b3",
+  "baseline_source_sha256": "99b4abd6d105ae3b1997312bb360bced64303b10bcde306bf0f675ca7602e67b",
+  "candidate_source_sha256": "b075351f6095254a2284bf644e61e505dc73d4ee12f36670c01b9adf6e6dc5a7",
+  "candidate_source_bytes": 144545,
+  "source_path": "/workspace/scratch/qperiapt-recovery-20261111/forward-unit-state-validation/codeql/qlpacks/codeql/rust-queries/0.1.44/.codeql/libraries/codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll",
+  "new_production_modes": 0,
+  "changed_source_modules": 1,
+  "private_caches_initially_empty": true
+}

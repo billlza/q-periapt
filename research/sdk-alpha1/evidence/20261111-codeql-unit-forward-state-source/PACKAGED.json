@@ -1,0 +1,34 @@
+{
+  "capsule": {
+    "bytes": 621211,
+    "sha256": "35ab9955321008fb55e436c78b38725370fd5930885635e43ed093ab672fc6d3"
+  },
+  "compiled_inventory_sha256": "4970ebd41c7d6d6d28e4bc53692312f25624e3e4736b1ff9cf0ea22676308e55",
+  "compiler_inputs_digest": "c327768d3f383933ff70cd941341916b",
+  "complete_capsule_members": 16,
+  "dependency_inventory": {
+    "bytes": 117209,
+    "effective_inventory_sha256": "80c10f4a92aded996552ea84195daabb75535f918bb53c3d98e89dc4ce4d11d5",
+    "expanded_bytes": 444724,
+    "file_count": 1175,
+    "path": "codeql_summary_projection_dependencies.json.gz",
+    "root": ".codeql/libraries",
+    "sha256": "1a76d5d9eaf26bd931ba9710db92904fa8314b39daeb9d450a1600b8bb44cf95",
+    "upstream_inventory_sha256": "cc5094dfbf7174718ed834b8f21dd0efb6be55388102009dcd4e9d1795ea48f6"
+  },
+  "effective_source": {
+    "bytes": 144545,
+    "sha256": "b075351f6095254a2284bf644e61e505dc73d4ee12f36670c01b9adf6e6dc5a7"
+  },
+  "manifest_sha256": "efd65ee72a4f966620a3d9bd6ac97b0a6d8ef5567017f3c342f654c4e1f55873",
+  "patch": {
+    "bytes": 8974,
+    "sha256": "2e01d15c01f2240d8915fb124865f0d7f81b486929245ba5f61ad0502de06207"
+  },
+  "plan": {
+    "bytes": 185345,
+    "sha256": "960dd13808625feadd9d19474e7b2cd7fcac391050c402602e5c4a094b5576fb"
+  },
+  "root_query_count": 39,
+  "unchanged_other_compiled_queries": 38
+}

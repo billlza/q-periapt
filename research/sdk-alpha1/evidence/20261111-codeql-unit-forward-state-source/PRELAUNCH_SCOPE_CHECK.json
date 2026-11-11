@@ -1,0 +1,8 @@
+{
+  "compiler_started": false,
+  "reason": "Initial runtime inventory scope excluded all qlpacks, unlike the retained evidence scope; no compiler process was launched.",
+  "files_excluding_all_qlpacks": 1074,
+  "bytes_excluding_all_qlpacks": 221686449,
+  "resolved_scope": "Runtime excludes only the target rust-queries pack; all 2282 files / 231156107 bytes are compared individually with retained 9c runtime.",
+  "inventory_encoding": "Explicit path -> {bytes, sha256}; sorted compact JSON, retained before/after. Earlier digest assertion compared an unspecified prior inventory encoding and stopped before compiler launch."
+}

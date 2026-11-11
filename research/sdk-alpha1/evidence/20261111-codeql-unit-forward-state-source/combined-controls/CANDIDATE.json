@@ -1,0 +1,80 @@
+{
+  "local_commit": "f0602f08b0dfe76b1aad9671200bce48a1394cd7",
+  "parent_sha": "9c0d63d4d258f126af92a8bda64aec090019a1b3",
+  "base_tree": "85fcc41a318020290955f6862b65b99a96b79691",
+  "tree": "9daa64caa7814d759397fbde3218b6a2f6721348",
+  "files": [
+    {
+      "path": "artifact/codeql-summary-projection-plan.zip",
+      "mode": "100644",
+      "blob": "676762bddc186f877eb67d52f2b7f9efabff3e6a",
+      "bytes": 621211,
+      "sha256": "35ab9955321008fb55e436c78b38725370fd5930885635e43ed093ab672fc6d3",
+      "local_path": "/workspace/scratch/qperiapt-recovery-20261111/sdk-codeql-final/artifact/codeql-summary-projection-plan.zip"
+    },
+    {
+      "path": "artifact/codeql_rust_plan.py",
+      "mode": "100644",
+      "blob": "e16de1e2ba95ea287661e4bb5e37324d5019fadc",
+      "bytes": 27476,
+      "sha256": "f3144bf92a35624a29cb98f80c43548b125b334dd7d1db5cd3303c4ba6ae29cc",
+      "local_path": "/workspace/scratch/qperiapt-recovery-20261111/sdk-codeql-final/artifact/codeql_rust_plan.py"
+    },
+    {
+      "path": "artifact/codeql_summary_projection.json",
+      "mode": "100644",
+      "blob": "193805f8a85267162d9a6682ba40533942170530",
+      "bytes": 6587,
+      "sha256": "efd65ee72a4f966620a3d9bd6ac97b0a6d8ef5567017f3c342f654c4e1f55873",
+      "local_path": "/workspace/scratch/qperiapt-recovery-20261111/sdk-codeql-final/artifact/codeql_summary_projection.json"
+    },
+    {
+      "path": "artifact/codeql_summary_projection.md",
+      "mode": "100644",
+      "blob": "b5eb07eabeeb3bc752eabab5a14d0d57b6847920",
+      "bytes": 14547,
+      "sha256": "122a5766bbf0edebe2b926d3b0cff683ade577b5e4cf6f0ced1c83b1d11aa493",
+      "local_path": "/workspace/scratch/qperiapt-recovery-20261111/sdk-codeql-final/artifact/codeql_summary_projection.md"
+    },
+    {
+      "path": "artifact/codeql_summary_projection.patch",
+      "mode": "100644",
+      "blob": "869d980ae9097d6b4b53d71fcb350ba076137f8d",
+      "bytes": 8974,
+      "sha256": "2e01d15c01f2240d8915fb124865f0d7f81b486929245ba5f61ad0502de06207",
+      "local_path": "/workspace/scratch/qperiapt-recovery-20261111/sdk-codeql-final/artifact/codeql_summary_projection.patch"
+    },
+    {
+      "path": "artifact/codeql_summary_projection.py",
+      "mode": "100644",
+      "blob": "7ec825bc98c28fb0cb553d4952e774db6780b568",
+      "bytes": 14848,
+      "sha256": "36467935b98f9e1eb8d361713904cef25cf16575407729b0b1e65db53682397d",
+      "local_path": "/workspace/scratch/qperiapt-recovery-20261111/sdk-codeql-final/artifact/codeql_summary_projection.py"
+    },
+    {
+      "path": "artifact/codeql_summary_projection_dependencies.json.gz",
+      "mode": "100644",
+      "blob": "87671090e456faff865ee99b72df03b67df2afe9",
+      "bytes": 117209,
+      "sha256": "1a76d5d9eaf26bd931ba9710db92904fa8314b39daeb9d450a1600b8bb44cf95",
+      "local_path": "/workspace/scratch/qperiapt-recovery-20261111/sdk-codeql-final/artifact/codeql_summary_projection_dependencies.json.gz"
+    },
+    {
+      "path": "artifact/test_codeql_rust_plan.py",
+      "mode": "100644",
+      "blob": "403a31dd6ce03f5907693d8898ebcfa98da272b0",
+      "bytes": 28003,
+      "sha256": "0cb87cd0142c89438599c7c3ecd0cfc9bd637c0597ce87edd1ed834e83c8f285",
+      "local_path": "/workspace/scratch/qperiapt-recovery-20261111/sdk-codeql-final/artifact/test_codeql_rust_plan.py"
+    },
+    {
+      "path": "artifact/test_codeql_summary_projection.py",
+      "mode": "100644",
+      "blob": "508c2968d22237aaa54d48f34c250c4a5eea1dbf",
+      "bytes": 32527,
+      "sha256": "baaa6633b7fd083b4f7a19fd2b987bbf33bb88a1fd3f94ec9363c3e4540182c0",
+      "local_path": "/workspace/scratch/qperiapt-recovery-20261111/sdk-codeql-final/artifact/test_codeql_summary_projection.py"
+    }
+  ]
+}

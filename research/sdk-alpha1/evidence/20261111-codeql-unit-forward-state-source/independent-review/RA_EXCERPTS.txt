@@ -1,0 +1,367 @@
+# Full original RA: /workspace/scratch/qperiapt-recovery-20261111/forward-unit-state-validation/candidate.ra.txt
+# Bytes: 10613270
+# SHA-256: 371eae585a6609f5651ad40f034ed9254a7337da71a5d66e3e3c38433f68127c
+# Original lines are copied exactly after each line-number prefix.
+
+## Stage3 five-column core and preserved node-admissibility guard — lines 171010-171038
+171010:   JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple ap, numbered_tuple stored) :- 
+171011:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::TAnyCallContext#e3244ff0`
+171012:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`
+171013:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`
+171014:     SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage2::revFlow/4#00a69496`
+171015:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::getNodeTyp/1#bdbb785c`
+171016:     SENTINEL TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxNone#b608e920
+171017:     [[[ BASE CASE ]]]
+171018:     exists(bool apa |
+171019:       `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::TAnyCallContext#e3244ff0`/1
+171020:         on
+171021:         [cc] and
+171022:       `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+171023:         on
+171024:         [ap] and
+171025:       `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2
+171026:         on
+171027:         [ap, apa] and
+171028:       `project#TaintReach::TaintReachFlow::Flow::Stage2::revFlow/4#00a69496`/2
+171029:         on
+171030:         [node, apa] and
+171031:       `TaintReach::TaintReachFlow::Flow::Stage3::getNodeTyp/1#bdbb785c`/2
+171032:         on
+171033:         [node, _] and
+171034:       `TaintReach::TaintReachFlow::Stage1::sourceNode/2#95610752`/2 on [node, _] and
+171035:       (
+171036:         `TaintReach::TaintReachFlow::Stage1::Stage1NoState::notExpectsContent/1#c8704f41`/1
+171037:           on
+171038:           [node]
+
+## Stage3 local delta without a type argument — lines 171060-171091
+171060:     [[[ SEMINAIVE VARIANT ]]]
+171061:     exists(bool apa |
+171062:       `project#TaintReach::TaintReachFlow::Flow::Stage2::revFlow/4#00a69496`/2
+171063:         on
+171064:         [node, apa] and
+171065:       (
+171066:         (
+171067:           exists(numbered_tuple mid |
+171068:             `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2
+171069:               on
+171070:               [ap, apa] and
+171071:             `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev_delta`/5
+171072:               on
+171073:               [mid, cc, summaryCtx, ap, stored] and
+171074:             (
+171075:               (
+171076:                 `project#TaintReach::TaintReachFlow::Flow::Stage3Param::localStep/6#74366f66#cpe#1236#ffbf`/2
+171077:                   on
+171078:                   [mid, node] and
+171079:                 `project#TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#nullary`/0
+171080:                   on
+171081:                   []
+171082:               )
+171083:               or
+171084:               (
+171085:                 `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+171086:                   on
+171087:                   [ap] and
+171088:                 `project#TaintReach::TaintReachFlow::Flow::Stage3Param::localStep/6#74366f66#cpe#1236#ffbf#2`/2
+171089:                   on
+171090:                   [mid, node] and
+171091:                 `project#TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#nullary`/0
+
+## Stage3 five-column previous-iteration exclusion — lines 171310-171320
+171310:               not(allowsFieldFlow = false)
+171311:             ))
+171312:         )
+171313:       ) and
+171314:       not
+171315:         `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev`/5
+171316:         on
+171317:         [node, cc, summaryCtx, ap, stored] and
+171318:       (
+171319:         `TaintReach::TaintReachFlow::Stage1::Stage1NoState::notExpectsContent/1#c8704f41`/1
+171320:           on
+
+## Stage3 Param and Out reconstruct Unit at their original interfaces — lines 171415-171461
+171415:   JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::fwdFlow1Param/5#cff8aee9`(numbered_tuple p, numbered_tuple cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :- 
+171416:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::TAnyCallContext#e3244ff0`
+171417:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`
+171418:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`
+171419:     SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage2::revFlow/4#00a69496`
+171420:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::getNodeTyp/1#bdbb785c`
+171421:     SENTINEL TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxNone#b608e920
+171422:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::CallContextCall#fa712389`
+171423:     SENTINEL `project#DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ParamNodeEx#4ef9090d#2`
+171424:     [[[ BASE CASE ]]]
+171425:     false
+171426:     [[[ SEMINAIVE VARIANT ]]]
+171427:     Unit::Unit#825cd3a7/1 on [t0] and
+171428:     `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev_delta`/5
+171429:       on
+171430:       [p, cc, _, ap, stored] and
+171431:     `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::CallContextCall#fa712389`/1
+171432:       on
+171433:       [cc] and
+171434:     not
+171435:       `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::fwdFlow1Param/5#cff8aee9#prev`/5
+171436:       on
+171437:       [p, cc, t0, ap, stored] and
+171438:     `project#DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ParamNodeEx#4ef9090d#2`/1
+171439:       on
+171440:       [p]
+171441:   JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::fwdFlow1Out/5#ef7f2b40`(numbered_tuple node, numbered_tuple cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :- 
+171442:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::TAnyCallContext#e3244ff0`
+171443:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`
+171444:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`
+171445:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::getNodeTyp/1#bdbb785c`
+171446:     SENTINEL TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxNone#b608e920
+171447:     SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage2::callEdgeReturn/6#7e197442#4`
+171448:     [[[ BASE CASE ]]]
+171449:     false
+171450:     [[[ SEMINAIVE VARIANT ]]]
+171451:     Unit::Unit#825cd3a7/1 on [t0] and
+171452:     `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev_delta`/5
+171453:       on
+171454:       [node, cc, _, ap, stored] and
+171455:     not
+171456:       `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::fwdFlow1Out/5#ef7f2b40#prev`/5
+171457:       on
+171458:       [node, cc, t0, ap, stored] and
+171459:     `project#TaintReach::TaintReachFlow::Flow::Stage2::callEdgeReturn/6#7e197442#4`/1
+171460:       on
+171461:       [node]
+
+## Stage3 projected consumer now has three columns — lines 172551-172565
+172551: EVALUATE NONRECURSIVE JOIN AST RELATION:
+172552:   `project#TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#2`(numbered_tuple arg, numbered_tuple argAp#unbound#2, numbered_tuple argStored#unbound#2) :- 
+172553:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40`
+172554:     `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40`/5
+172555:       on
+172556:       [arg, _, _, argAp#unbound#2, argStored#unbound#2]
+172557: 
+172558: EVALUATE NONRECURSIVE JOIN AST RELATION:
+172559:   `project#TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#3`(numbered_tuple node, numbered_tuple any#expr#, numbered_tuple ap) :- 
+172560:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40`
+172561:     `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40`/5
+172562:       on
+172563:       [node, _, any#expr#, ap, _]
+172564: 
+172565: EVALUATE NONRECURSIVE JOIN AST RELATION:
+
+## Stage3 consumer restores argT locally — lines 172641-172651
+172641:         )
+172642:       ) and
+172643:       primitive directionalBind on [arg#unbound, arg] and
+172644:       `project#TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#2`/3
+172645:         on
+172646:         [arg, argAp#unbound#2, argStored#unbound#2] and
+172647:       primitive directionalBind on [argAp#unbound#2, argAp] and
+172648:       primitive directionalBind on [argStored#unbound#2, argStored] and
+172649:       Unit::Unit#825cd3a7/1 on [argT#unbound#2] and
+172650:       primitive directionalBind on [argT#unbound#2, argT])
+172651: 
+
+## Stage4 five-column core and preserved node-admissibility/clear guards — lines 176465-176499
+176465:   JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b`(numbered_tuple node, bool cc, numbered_tuple summaryCtx, numbered_tuple ap, numbered_tuple stored) :- 
+176466:     SENTINEL TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxNone#74f2e043
+176467:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`
+176468:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`
+176469:     SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage3::revFlow/4#5631bada`
+176470:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::getNodeTyp/1#b03aabcc`
+176471:     [[[ BASE CASE ]]]
+176472:     exists(bool v1000, numbered_tuple apa |
+176473:       TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxNone#74f2e043/1
+176474:         on
+176475:         [summaryCtx] and
+176476:       v1000 = false and
+176477:       Boolean::Boolean#5dd548d1/1 on [v1000] and
+176478:       `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+176479:         on
+176480:         [ap] and
+176481:       `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`/2
+176482:         on
+176483:         [ap, apa] and
+176484:       `project#TaintReach::TaintReachFlow::Flow::Stage3::revFlow/4#5631bada`/2
+176485:         on
+176486:         [node, apa] and
+176487:       `TaintReach::TaintReachFlow::Flow::Stage4::getNodeTyp/1#b03aabcc`/2
+176488:         on
+176489:         [node, _] and
+176490:       `TaintReach::TaintReachFlow::Stage1::sourceNode/2#95610752`/2 on [node, _] and
+176491:       not
+176492:         `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+176493:         on
+176494:         [node, ap] and
+176495:       (
+176496:         `TaintReach::TaintReachFlow::Stage1::Stage1NoState::notExpectsContent/1#c8704f41`/1
+176497:           on
+176498:           [node]
+176499:         or
+
+## Stage4 local delta without a type argument — lines 176526-176552
+176526:             `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`/2
+176527:               on
+176528:               [ap, apa] and
+176529:             not
+176530:               `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+176531:               on
+176532:               [node, ap] and
+176533:             `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev_delta`/5
+176534:               on
+176535:               [mid, cc, summaryCtx, ap, stored] and
+176536:             (
+176537:               `project#TaintReach::TaintReachFlow::Flow::Stage4Param::localStep/6#92364e6d`/2
+176538:                 on
+176539:                 [mid, node]
+176540:               or
+176541:               (
+176542:                 `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+176543:                   on
+176544:                   [ap] and
+176545:                 `project#TaintReach::TaintReachFlow::Flow::Stage4Param::localStep/6#92364e6d#2`/2
+176546:                   on
+176547:                   [mid, node]
+176548:               )
+176549:             ))
+176550:         )
+176551:         or
+176552:         (
+
+## Stage4 five-column previous-iteration exclusion — lines 176800-176813
+176800:               or
+176801:               not(allowsFieldFlow = false)
+176802:             ))
+176803:         )
+176804:       ) and
+176805:       not
+176806:         `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev`/5
+176807:         on
+176808:         [node, cc, summaryCtx, ap, stored] and
+176809:       not
+176810:         `TaintReach::TaintReachFlow::Flow::Stage4Param::clear/2#76d89d19`/2
+176811:         on
+176812:         [node, ap] and
+176813:       (
+
+## Stage4 Param and Out reconstruct Unit at their original interfaces — lines 176869-176913
+176869:   JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::fwdFlow1Param/5#cfa8cdd6`(numbered_tuple p, bool cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :- 
+176870:     SENTINEL TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxNone#74f2e043
+176871:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`
+176872:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`
+176873:     SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage3::revFlow/4#5631bada`
+176874:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::getNodeTyp/1#b03aabcc`
+176875:     SENTINEL `project#DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ParamNodeEx#4ef9090d#2`
+176876:     [[[ BASE CASE ]]]
+176877:     false
+176878:     [[[ SEMINAIVE VARIANT ]]]
+176879:     exists(bool v1000 |
+176880:       cc = true and
+176881:       Unit::Unit#825cd3a7/1 on [t0] and
+176882:       v1000 = true and
+176883:       `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev_delta`/5
+176884:         on
+176885:         [p, v1000, _, ap, stored] and
+176886:       not
+176887:         `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::fwdFlow1Param/5#cfa8cdd6#prev`/5
+176888:         on
+176889:         [p, cc, t0, ap, stored] and
+176890:       `project#DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ParamNodeEx#4ef9090d#2`/1
+176891:         on
+176892:         [p])
+176893:   JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::fwdFlow1Out/5#c9724e4c`(numbered_tuple node, bool cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :- 
+176894:     SENTINEL TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxNone#74f2e043
+176895:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`
+176896:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`
+176897:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::getNodeTyp/1#b03aabcc`
+176898:     SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage3::callEdgeReturn/6#4a057f58#3`
+176899:     [[[ BASE CASE ]]]
+176900:     false
+176901:     [[[ SEMINAIVE VARIANT ]]]
+176902:     Unit::Unit#825cd3a7/1 on [t0] and
+176903:     `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev_delta`/5
+176904:       on
+176905:       [node, cc, _, ap, stored] and
+176906:     not
+176907:       `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::fwdFlow1Out/5#c9724e4c#prev`/5
+176908:       on
+176909:       [node, cc, t0, ap, stored] and
+176910:     `project#TaintReach::TaintReachFlow::Flow::Stage3::callEdgeReturn/6#4a057f58#3`/1
+176911:       on
+176912:       [node]
+176913:   JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlow::dataFlowTakenCallEdgeIn/5#59b175e3`(numbered_tuple call, numbered_tuple c, numbered_tuple arg, numbered_tuple p, bool cc) :- 
+
+## Stage4 projected consumer now has three columns — lines 177560-177574
+177560: EVALUATE NONRECURSIVE JOIN AST RELATION:
+177561:   `project#TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#2`(numbered_tuple arg, numbered_tuple argAp#unbound#2, numbered_tuple argStored#unbound#2) :- 
+177562:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b`
+177563:     `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b`/5
+177564:       on
+177565:       [arg, _, _, argAp#unbound#2, argStored#unbound#2]
+177566: 
+177567: EVALUATE NONRECURSIVE JOIN AST RELATION:
+177568:   `project#TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#3`(numbered_tuple node, numbered_tuple any#expr#, numbered_tuple ap) :- 
+177569:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b`
+177570:     `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b`/5
+177571:       on
+177572:       [node, _, any#expr#, ap, _]
+177573: 
+177574: EVALUATE NONRECURSIVE JOIN AST RELATION:
+
+## Stage4 consumer restores argT locally — lines 177644-177654
+177644:       ) and
+177645:       primitive directionalBind on [arg#unbound, arg] and
+177646:       `project#TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#2`/3
+177647:         on
+177648:         [arg, argAp#unbound#2, argStored#unbound#2] and
+177649:       primitive directionalBind on [argAp#unbound#2, argAp] and
+177650:       primitive directionalBind on [argStored#unbound#2, argStored] and
+177651:       Unit::Unit#825cd3a7/1 on [argT#unbound#2] and
+177652:       primitive directionalBind on [argT#unbound#2, argT])
+177653: 
+177654: EVALUATE NONRECURSIVE JOIN AST RELATION:
+
+## Stage3 typed argument-only auxiliary is retained — lines 169954-169974
+169954:   JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowIntoArg/8#2debfe23`(numbered_tuple arg, numbered_tuple outercc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, bool emptyAp, numbered_tuple stored, bool cc) :- 
+169955:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::TAnyCallContext#e3244ff0`
+169956:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`
+169957:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`
+169958:     SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage2::revFlow/4#00a69496`
+169959:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::getNodeTyp/1#bdbb785c`
+169960:     SENTINEL TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxNone#b608e920
+169961:     SENTINEL `project#DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ArgNodeEx#1e38d7ae`
+169962:     [[[ BASE CASE ]]]
+169963:     false
+169964:     [[[ SEMINAIVE VARIANT ]]]
+169965:     Unit::Unit#825cd3a7/1 on [t] and
+169966:     `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev_delta`/5
+169967:       on
+169968:       [arg, outercc, summaryCtx, ap, stored] and
+169969:     `project#DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ArgNodeEx#1e38d7ae`/1
+169970:       on
+169971:       [arg] and
+169972:     (
+169973:       (
+169974:         `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`/1
+
+## Stage4 typed argument-only auxiliary is retained — lines 175471-175491
+175471:   JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowIntoArg/8#3141b088`(numbered_tuple arg, bool outercc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, bool emptyAp, numbered_tuple stored, bool cc) :- 
+175472:     SENTINEL TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxNone#74f2e043
+175473:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`
+175474:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`
+175475:     SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage3::revFlow/4#5631bada`
+175476:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::getNodeTyp/1#b03aabcc`
+175477:     SENTINEL `project#DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ArgNodeEx#1e38d7ae`
+175478:     [[[ BASE CASE ]]]
+175479:     false
+175480:     [[[ SEMINAIVE VARIANT ]]]
+175481:     Unit::Unit#825cd3a7/1 on [t] and
+175482:     `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev_delta`/5
+175483:       on
+175484:       [arg, outercc, summaryCtx, ap, stored] and
+175485:     `project#DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ArgNodeEx#1e38d7ae`/1
+175486:       on
+175487:       [arg] and
+175488:     (
+175489:       (
+175490:         `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`/1
+175491:           on
+

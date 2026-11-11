@@ -1,0 +1,17 @@
+{
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "test_codeql_summary_projection",
+    "test_codeql_rust_plan"
+  ],
+  "working_directory": "/workspace/scratch/qperiapt-recovery-20261111/forward-unit-state-candidate",
+  "exit_code": 0,
+  "tests": 48,
+  "unittest_seconds": 0.843,
+  "wall_seconds": 1.568379599999389,
+  "database_queries_executed": 0
+}

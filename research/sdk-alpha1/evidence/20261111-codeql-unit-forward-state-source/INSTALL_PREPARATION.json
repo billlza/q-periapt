@@ -1,0 +1,6 @@
+{
+  "first_copy_preserved_installer_readonly_modes": true,
+  "initial_restore_stopped_before_install": true,
+  "correction": "Make the two owned scratch preimage files writable before restoring their authenticated upstream bytes. All admission and install checks run after reconstruction.",
+  "original_evidence_or_runtime_modified": false
+}

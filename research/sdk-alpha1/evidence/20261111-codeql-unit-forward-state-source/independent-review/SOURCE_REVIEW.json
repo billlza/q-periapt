@@ -1,0 +1,19 @@
+{
+  "baseline": {
+    "bytes": 143802,
+    "sha256": "99b4abd6d105ae3b1997312bb360bced64303b10bcde306bf0f675ca7602e67b"
+  },
+  "candidate": {
+    "bytes": 144545,
+    "sha256": "b075351f6095254a2284bf644e61e505dc73d4ee12f36670c01b9adf6e6dc5a7"
+  },
+  "all_source_before_replacement_unchanged": true,
+  "all_source_after_replacement_unchanged": true,
+  "selected_formula_unchanged_modulo_comments_whitespace_local_t_quantifier": true,
+  "fwdFlowTyped_formula_identical_to_original_fallback": true,
+  "public_adapter_exact_F5_times_Unit_with_original_fallback": true,
+  "getNodeTyp_definition_and_branch_placement_preserved": true,
+  "Param_Out_and_other_recursive_consumers_unchanged": true,
+  "stage_selection_and_stage3_stage4_filters_unchanged": true,
+  "source_scope": "Only the original fwdFlow declaration is replaced by the inline adapter and two private predicates. No CodeQL compiler or tests were run by this reviewer."
+}

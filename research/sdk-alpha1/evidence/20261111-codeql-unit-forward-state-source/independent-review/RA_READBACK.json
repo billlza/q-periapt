@@ -1,0 +1,777 @@
+{
+  "recorded_at_utc": "2026-11-11T18:10:52.686833+00:00",
+  "source_ra": "/workspace/scratch/qperiapt-recovery-20261111/forward-unit-state-validation/candidate.ra.txt",
+  "ra_bytes": 10613270,
+  "ra_sha256": "371eae585a6609f5651ad40f034ed9254a7337da71a5d66e3e3c38433f68127c",
+  "mode": "all",
+  "candidate_vendor_source_sha256": "b075351f6095254a2284bf644e61e505dc73d4ee12f36670c01b9adf6e6dc5a7",
+  "baseline_ra_sha256": "0e0971997d62e3cc45ce3beef78938cd0f92d260b1d6e67d648b1c051a96747b",
+  "selected": {
+    "Stage3": {
+      "core_definition": {
+        "line": 171010,
+        "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple ap, numbered_tuple stored) :-"
+      },
+      "all_core_and_projection_definitions": [
+        {
+          "line": 163320,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#nullary`() :-"
+        },
+        {
+          "line": 171010,
+          "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple ap, numbered_tuple stored) :-"
+        },
+        {
+          "line": 172451,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40`(numbered_tuple arg, numbered_tuple ap) :-"
+        },
+        {
+          "line": 172552,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#2`(numbered_tuple arg, numbered_tuple argAp#unbound#2, numbered_tuple argStored#unbound#2) :-"
+        },
+        {
+          "line": 172559,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#3`(numbered_tuple node, numbered_tuple any#expr#, numbered_tuple ap) :-"
+        }
+      ],
+      "forbidden_typed_core_mentions": {
+        "fwdFlow/6": 0,
+        "fwdFlowTyped/6": 0,
+        "fwdFlow0/7": 0,
+        "fwdFlow1/7": 0
+      },
+      "direct_core_calls": [
+        {
+          "line": 169966,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev_delta",
+          "arguments": [
+            "arg",
+            "outercc",
+            "summaryCtx",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 170080,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev_delta",
+          "arguments": [
+            "node1",
+            "cc",
+            "summaryCtx",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 170163,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev_delta",
+          "arguments": [
+            "node1",
+            "cc",
+            "summaryCtx",
+            "ap1",
+            "stored1"
+          ]
+        },
+        {
+          "line": 170916,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev_delta",
+          "arguments": [
+            "mid",
+            "_",
+            "_",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 170929,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev_delta",
+          "arguments": [
+            "mid",
+            "_",
+            "_",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 171071,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev_delta",
+          "arguments": [
+            "mid",
+            "cc",
+            "summaryCtx",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 171315,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev",
+          "arguments": [
+            "node",
+            "cc",
+            "summaryCtx",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 171428,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev_delta",
+          "arguments": [
+            "p",
+            "cc",
+            "_",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 171452,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev_delta",
+          "arguments": [
+            "node",
+            "cc",
+            "_",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 171627,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev_delta",
+          "arguments": [
+            "ret#unbound",
+            "ccc",
+            "summaryCtx",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 171675,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev",
+          "arguments": [
+            "ret#unbound",
+            "ccc",
+            "summaryCtx",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 171853,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40#prev_delta",
+          "arguments": [
+            "ret",
+            "cc",
+            "summaryCtx",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 172453,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40",
+          "arguments": [
+            "arg",
+            "_",
+            "_",
+            "ap",
+            "_"
+          ]
+        },
+        {
+          "line": 172554,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40",
+          "arguments": [
+            "arg",
+            "_",
+            "_",
+            "argAp#unbound#2",
+            "argStored#unbound#2"
+          ]
+        },
+        {
+          "line": 172561,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowUnit/5#03486f40",
+          "arguments": [
+            "node",
+            "_",
+            "any#expr#",
+            "ap",
+            "_"
+          ]
+        }
+      ],
+      "all_direct_calls_arity_five": true,
+      "projected_arg_consumer_columns_before": 4,
+      "projected_arg_consumer_columns_after": 3,
+      "node_admissibility_retained_as_getNodeTyp_node_wildcard": true,
+      "typed_auxiliary_definitions_retained": {
+        "fwdFlowIntoArg/8": [
+          {
+            "line": 169954,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowIntoArg/8#2debfe23`(numbered_tuple arg, numbered_tuple outercc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, bool emptyAp, numbered_tuple stored, bool cc) :-"
+          }
+        ],
+        "FwdTypeFlowInput::dataFlowTakenCallEdgeIn0/8": [
+          {
+            "line": 170004,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::dataFlowTakenCallEdgeIn0/8#1d3315d1`(numbered_tuple call, numbered_tuple c, numbered_tuple p, numbered_tuple innercc, numbered_tuple t, numbered_tuple ap, numbered_tuple stored, bool cc) :-"
+          }
+        ],
+        "fwdFlowRead0/8": [
+          {
+            "line": 170067,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead0/8#166d1b0a`(numbered_tuple t, numbered_tuple ap, numbered_tuple stored, numbered_tuple c, numbered_tuple node1, numbered_tuple node2, numbered_tuple cc, numbered_tuple summaryCtx) :-"
+          }
+        ],
+        "fwdFlowStore/10": [
+          {
+            "line": 170150,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowStore/10#064d3538`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple t2, numbered_tuple stored2, numbered_tuple node2, numbered_tuple cc, numbered_tuple summaryCtx) :-"
+          },
+          {
+            "line": 172440,
+            "header": "`project#TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowStore/10#064d3538`(numbered_tuple node1, numbered_tuple ap1, numbered_tuple c, numbered_tuple node2) :-"
+          }
+        ],
+        "fwdFlowJump/4": [
+          {
+            "line": 170902,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowJump/4#a4bd9696`(numbered_tuple node, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-"
+          }
+        ],
+        "FwdTypeFlowInput::fwdFlow1Param/5": [
+          {
+            "line": 171415,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::fwdFlow1Param/5#cff8aee9`(numbered_tuple p, numbered_tuple cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-"
+          }
+        ],
+        "FwdTypeFlowInput::fwdFlow1Out/5": [
+          {
+            "line": 171441,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::fwdFlow1Out/5#ef7f2b40`(numbered_tuple node, numbered_tuple cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-"
+          }
+        ],
+        "fwdFlowInFlowThrough/6": [
+          {
+            "line": 171542,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowInFlowThrough/6#4008274f`(numbered_tuple p, numbered_tuple innercc, numbered_tuple t, numbered_tuple ap, numbered_tuple stored, bool mustReturn) :-"
+          }
+        ],
+        "fwdFlowRetFromArg/6": [
+          {
+            "line": 171606,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRetFromArg/6#10c3932b`(numbered_tuple ret, numbered_tuple ccc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-"
+          }
+        ],
+        "fwdFlowReadTarget/6": [
+          {
+            "line": 171704,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowReadTarget/6#073a1dab`(numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, numbered_tuple cc, numbered_tuple summaryCtx) :-"
+          }
+        ],
+        "fwdFlowIntoRet/6": [
+          {
+            "line": 171840,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowIntoRet/6#e1d4c9c5`(numbered_tuple ret, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-"
+          }
+        ],
+        "fwdFlowInNoFlowThrough/6": [
+          {
+            "line": 171862,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowInNoFlowThrough/6#d4538053`(numbered_tuple p, numbered_tuple innercc, numbered_tuple innerSummaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-"
+          }
+        ],
+        "fwdFlowThrough/7": [
+          {
+            "line": 172078,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowThrough/7#42ecc4e6`(numbered_tuple call, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored, numbered_tuple ret) :-"
+          }
+        ],
+        "FwdTypeFlowInput::dataFlowTakenCallEdgeOut0/7": [
+          {
+            "line": 172116,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::dataFlowTakenCallEdgeOut0/7#20aa658a`(numbered_tuple call, numbered_tuple c, numbered_tuple node, numbered_tuple cc, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-"
+          }
+        ],
+        "fwdFlowRead/11": [
+          {
+            "line": 172343,
+            "header": "`TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, numbered_tuple cc, numbered_tuple summaryCtx) :-"
+          }
+        ],
+        "returnFlowsThrough/8": [
+          {
+            "line": 172411,
+            "header": "`TaintReach::TaintReachFlow::Flow::Stage3::returnFlowsThrough/8#584c2b37`(numbered_tuple ret, numbered_tuple pos, numbered_tuple ccc, numbered_tuple p, numbered_tuple argT, numbered_tuple argAp, numbered_tuple argStored, numbered_tuple ap) :-"
+          },
+          {
+            "line": 172598,
+            "header": "`project#TaintReach::TaintReachFlow::Flow::Stage3::returnFlowsThrough/8#584c2b37`(numbered_tuple p#unbound, numbered_tuple argT#unbound, numbered_tuple argAp#unbound, numbered_tuple argStored#unbound) :-"
+          },
+          {
+            "line": 172653,
+            "header": "`project#TaintReach::TaintReachFlow::Flow::Stage3::returnFlowsThrough/8#584c2b37#2`(numbered_tuple node, numbered_tuple pos, numbered_tuple ap) :-"
+          },
+          {
+            "line": 172660,
+            "header": "`project#TaintReach::TaintReachFlow::Flow::Stage3::returnFlowsThrough/8#584c2b37#3`(numbered_tuple ret, numbered_tuple pos, numbered_tuple ccc, numbered_tuple ap) :-"
+          },
+          {
+            "line": 172667,
+            "header": "`project#TaintReach::TaintReachFlow::Flow::Stage3::returnFlowsThrough/8#584c2b37#4`(numbered_tuple pos, numbered_tuple p, numbered_tuple ap) :-"
+          },
+          {
+            "line": 172674,
+            "header": "`project#TaintReach::TaintReachFlow::Flow::Stage3::returnFlowsThrough/8#584c2b37#5`(numbered_tuple ret, numbered_tuple pos, numbered_tuple p, numbered_tuple argAp, numbered_tuple ap) :-"
+          }
+        ]
+      },
+      "interpretation": "The full selected core and delta/previous forms have five columns; consumer interfaces restore Unit locally. Existing event/return/read/store typed auxiliary relations remain."
+    },
+    "Stage4": {
+      "core_definition": {
+        "line": 176465,
+        "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b`(numbered_tuple node, bool cc, numbered_tuple summaryCtx, numbered_tuple ap, numbered_tuple stored) :-"
+      },
+      "all_core_and_projection_definitions": [
+        {
+          "line": 176465,
+          "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b`(numbered_tuple node, bool cc, numbered_tuple summaryCtx, numbered_tuple ap, numbered_tuple stored) :-"
+        },
+        {
+          "line": 177460,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b`(numbered_tuple arg, numbered_tuple ap) :-"
+        },
+        {
+          "line": 177561,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#2`(numbered_tuple arg, numbered_tuple argAp#unbound#2, numbered_tuple argStored#unbound#2) :-"
+        },
+        {
+          "line": 177568,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#3`(numbered_tuple node, numbered_tuple any#expr#, numbered_tuple ap) :-"
+        }
+      ],
+      "forbidden_typed_core_mentions": {
+        "fwdFlow/6": 0,
+        "fwdFlowTyped/6": 0,
+        "fwdFlow0/7": 0,
+        "fwdFlow1/7": 0
+      },
+      "direct_core_calls": [
+        {
+          "line": 175482,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev_delta",
+          "arguments": [
+            "arg",
+            "outercc",
+            "summaryCtx",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 175586,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev_delta",
+          "arguments": [
+            "node1",
+            "cc",
+            "summaryCtx",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 175667,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev_delta",
+          "arguments": [
+            "node1",
+            "cc",
+            "summaryCtx",
+            "ap1",
+            "stored1"
+          ]
+        },
+        {
+          "line": 176411,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev_delta",
+          "arguments": [
+            "mid",
+            "_",
+            "_",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 176424,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev_delta",
+          "arguments": [
+            "mid",
+            "_",
+            "_",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 176533,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev_delta",
+          "arguments": [
+            "mid",
+            "cc",
+            "summaryCtx",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 176806,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev",
+          "arguments": [
+            "node",
+            "cc",
+            "summaryCtx",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 176883,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev_delta",
+          "arguments": [
+            "p",
+            "v1000",
+            "_",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 176903,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev_delta",
+          "arguments": [
+            "node",
+            "cc",
+            "_",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 176977,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev",
+          "arguments": [
+            "ret#unbound",
+            "v1000",
+            "summaryCtx",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 177009,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev_delta",
+          "arguments": [
+            "ret#unbound",
+            "v1001",
+            "summaryCtx",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 177057,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b#prev_delta",
+          "arguments": [
+            "ret",
+            "v1000",
+            "summaryCtx",
+            "ap",
+            "stored"
+          ]
+        },
+        {
+          "line": 177462,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b",
+          "arguments": [
+            "arg",
+            "_",
+            "_",
+            "ap",
+            "_"
+          ]
+        },
+        {
+          "line": 177563,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b",
+          "arguments": [
+            "arg",
+            "_",
+            "_",
+            "argAp#unbound#2",
+            "argStored#unbound#2"
+          ]
+        },
+        {
+          "line": 177570,
+          "relation": "TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowUnit/5#72d6524b",
+          "arguments": [
+            "node",
+            "_",
+            "any#expr#",
+            "ap",
+            "_"
+          ]
+        }
+      ],
+      "all_direct_calls_arity_five": true,
+      "projected_arg_consumer_columns_before": 4,
+      "projected_arg_consumer_columns_after": 3,
+      "node_admissibility_retained_as_getNodeTyp_node_wildcard": true,
+      "typed_auxiliary_definitions_retained": {
+        "fwdFlowIntoArg/8": [
+          {
+            "line": 175471,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowIntoArg/8#3141b088`(numbered_tuple arg, bool outercc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, bool emptyAp, numbered_tuple stored, bool cc) :-"
+          }
+        ],
+        "FwdTypeFlowInput::dataFlowTakenCallEdgeIn0/8": [
+          {
+            "line": 175520,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::dataFlowTakenCallEdgeIn0/8#c7ffbf9d`(numbered_tuple call, numbered_tuple c, numbered_tuple p, bool innercc, numbered_tuple t, numbered_tuple ap, numbered_tuple stored, bool cc) :-"
+          }
+        ],
+        "fwdFlowRead0/8": [
+          {
+            "line": 175574,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2`(numbered_tuple t, numbered_tuple ap, numbered_tuple stored, numbered_tuple c, numbered_tuple node1, numbered_tuple node2, bool cc, numbered_tuple summaryCtx) :-"
+          }
+        ],
+        "fwdFlowStore/10": [
+          {
+            "line": 175655,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowStore/10#c1938703`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple t2, numbered_tuple stored2, numbered_tuple node2, bool cc, numbered_tuple summaryCtx) :-"
+          },
+          {
+            "line": 177449,
+            "header": "`project#TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowStore/10#c1938703`(numbered_tuple node1, numbered_tuple ap1, numbered_tuple c, numbered_tuple node2) :-"
+          }
+        ],
+        "fwdFlowJump/4": [
+          {
+            "line": 176398,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowJump/4#4f0a9f4a`(numbered_tuple node, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-"
+          }
+        ],
+        "FwdTypeFlowInput::fwdFlow1Param/5": [
+          {
+            "line": 176869,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::fwdFlow1Param/5#cfa8cdd6`(numbered_tuple p, bool cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-"
+          }
+        ],
+        "FwdTypeFlowInput::fwdFlow1Out/5": [
+          {
+            "line": 176893,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::fwdFlow1Out/5#c9724e4c`(numbered_tuple node, bool cc, numbered_tuple t0, numbered_tuple ap, numbered_tuple stored) :-"
+          }
+        ],
+        "fwdFlowInFlowThrough/6": [
+          {
+            "line": 175149,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowInFlowThrough/6#f992157f`(numbered_tuple p, bool innercc, numbered_tuple t, numbered_tuple ap, numbered_tuple stored, bool mustReturn) :-"
+          }
+        ],
+        "fwdFlowRetFromArg/6": [
+          {
+            "line": 176949,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRetFromArg/6#886f63ee`(numbered_tuple ret, bool ccc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-"
+          }
+        ],
+        "fwdFlowReadTarget/6": [
+          {
+            "line": 175289,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac`(numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :-"
+          }
+        ],
+        "fwdFlowIntoRet/6": [
+          {
+            "line": 177043,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowIntoRet/6#3c8ca87c`(numbered_tuple ret, bool cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-"
+          }
+        ],
+        "fwdFlowInNoFlowThrough/6": [
+          {
+            "line": 177063,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowInNoFlowThrough/6#be7b65f0`(numbered_tuple p, bool innercc, numbered_tuple innerSummaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-"
+          }
+        ],
+        "fwdFlowThrough/7": [
+          {
+            "line": 175379,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowThrough/7#64f4f391`(numbered_tuple call, bool cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored, numbered_tuple ret) :-"
+          }
+        ],
+        "FwdTypeFlowInput::dataFlowTakenCallEdgeOut0/7": [
+          {
+            "line": 175415,
+            "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::dataFlowTakenCallEdgeOut0/7#a14b778f`(numbered_tuple call, numbered_tuple c, numbered_tuple node, bool cc, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-"
+          }
+        ],
+        "fwdFlowRead/11": [
+          {
+            "line": 177352,
+            "header": "`TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :-"
+          }
+        ],
+        "returnFlowsThrough/8": [
+          {
+            "line": 177420,
+            "header": "`TaintReach::TaintReachFlow::Flow::Stage4::returnFlowsThrough/8#a7593bac`(numbered_tuple ret, numbered_tuple pos, bool ccc, numbered_tuple p, numbered_tuple argT, numbered_tuple argAp, numbered_tuple argStored, numbered_tuple ap) :-"
+          },
+          {
+            "line": 177600,
+            "header": "`project#TaintReach::TaintReachFlow::Flow::Stage4::returnFlowsThrough/8#a7593bac`(numbered_tuple p#unbound, numbered_tuple argT#unbound, numbered_tuple argAp#unbound, numbered_tuple argStored#unbound) :-"
+          },
+          {
+            "line": 177655,
+            "header": "`project#TaintReach::TaintReachFlow::Flow::Stage4::returnFlowsThrough/8#a7593bac#2`(numbered_tuple node, numbered_tuple pos, numbered_tuple ap) :-"
+          },
+          {
+            "line": 177662,
+            "header": "`project#TaintReach::TaintReachFlow::Flow::Stage4::returnFlowsThrough/8#a7593bac#3`(numbered_tuple ret, numbered_tuple pos, numbered_tuple ap) :-"
+          },
+          {
+            "line": 177669,
+            "header": "`project#TaintReach::TaintReachFlow::Flow::Stage4::returnFlowsThrough/8#a7593bac#4`(numbered_tuple pos, numbered_tuple p, numbered_tuple ap) :-"
+          }
+        ]
+      },
+      "interpretation": "The full selected core and delta/previous forms have five columns; consumer interfaces restore Unit locally. Existing event/return/read/store typed auxiliary relations remain."
+    }
+  },
+  "unselected": {
+    "Stage2": {
+      "typed_core_definitions": [
+        {
+          "line": 166488,
+          "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage2::fwdFlowTyped/6#e268ef6e`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, bool ap, numbered_tuple stored) :-"
+        },
+        {
+          "line": 167371,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage2::fwdFlowTyped/6#e268ef6e`(numbered_tuple arg, bool ap) :-"
+        },
+        {
+          "line": 167421,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage2::fwdFlowTyped/6#e268ef6e#2`(numbered_tuple arg, numbered_tuple argT#unbound#2, bool argAp#unbound#2, numbered_tuple argStored#unbound#2) :-"
+        },
+        {
+          "line": 167428,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage2::fwdFlowTyped/6#e268ef6e#3`(numbered_tuple node, numbered_tuple any#expr#) :-"
+        }
+      ],
+      "fwdFlow0_definitions": [
+        {
+          "line": 166786,
+          "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage2::fwdFlow0/7#d7084360`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, bool ap, numbered_tuple apa, numbered_tuple stored) :-"
+        }
+      ],
+      "fwdFlow1_definitions": [
+        {
+          "line": 165900,
+          "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage2::fwdFlow1/7#3e3e05c7`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t0, numbered_tuple t, bool ap, numbered_tuple stored) :-"
+        },
+        {
+          "line": 167089,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage2::fwdFlow1/7#3e3e05c7`(numbered_tuple node, numbered_tuple cc, numbered_tuple t0, bool ap, numbered_tuple stored) :-"
+        }
+      ],
+      "fwdFlowUnit_mentions": 0,
+      "original_public_core_name_mentions": 0,
+      "interpretation": "Original typed boundary retained through the explicitly introduced internal fwdFlowTyped name."
+    },
+    "Stage5": {
+      "typed_core_definitions": [
+        {
+          "line": 182527,
+          "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage5::fwdFlowTyped/6#f6b49ab5`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-"
+        },
+        {
+          "line": 183475,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage5::fwdFlowTyped/6#f6b49ab5`(numbered_tuple arg, numbered_tuple ap) :-"
+        },
+        {
+          "line": 183569,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage5::fwdFlowTyped/6#f6b49ab5#2`(numbered_tuple arg, numbered_tuple argT#unbound#2, numbered_tuple argAp#unbound#2, numbered_tuple argStored#unbound#2) :-"
+        },
+        {
+          "line": 183576,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage5::fwdFlowTyped/6#f6b49ab5#3`(numbered_tuple node, numbered_tuple any#expr#, numbered_tuple ap) :-"
+        },
+        {
+          "line": 183583,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage5::fwdFlowTyped/6#f6b49ab5#4`(numbered_tuple n, numbered_tuple any#expr#, numbered_tuple call_result#2, numbered_tuple ap0) :-"
+        }
+      ],
+      "fwdFlow0_definitions": [
+        {
+          "line": 182913,
+          "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage5::fwdFlow0/7#b98d1c34`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple apa, numbered_tuple stored) :-"
+        }
+      ],
+      "fwdFlow1_definitions": [
+        {
+          "line": 182796,
+          "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage5::fwdFlow1/7#a16fac54`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t0, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-"
+        }
+      ],
+      "fwdFlowUnit_mentions": 0,
+      "original_public_core_name_mentions": 0,
+      "interpretation": "Original typed boundary retained through the explicitly introduced internal fwdFlowTyped name."
+    },
+    "Stage6": {
+      "typed_core_definitions": [
+        {
+          "line": 188832,
+          "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage6::fwdFlowTyped/6#b2a8b585`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-"
+        },
+        {
+          "line": 189853,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage6::fwdFlowTyped/6#b2a8b585`(numbered_tuple arg, numbered_tuple ap) :-"
+        },
+        {
+          "line": 189950,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage6::fwdFlowTyped/6#b2a8b585#2`(numbered_tuple arg, numbered_tuple argT#unbound#2, numbered_tuple argAp#unbound#2, numbered_tuple argStored#unbound#2) :-"
+        },
+        {
+          "line": 189957,
+          "header": "`project#TaintReach::TaintReachFlow::Flow::Stage6::fwdFlowTyped/6#b2a8b585#3`(numbered_tuple node, numbered_tuple any#expr#, numbered_tuple ap) :-"
+        }
+      ],
+      "fwdFlow0_definitions": [
+        {
+          "line": 189213,
+          "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage6::fwdFlow0/7#01a49f79`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t, numbered_tuple ap, numbered_tuple apa, numbered_tuple stored) :-"
+        }
+      ],
+      "fwdFlow1_definitions": [
+        {
+          "line": 189097,
+          "header": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage6::fwdFlow1/7#2e6e6c90`(numbered_tuple node, numbered_tuple cc, numbered_tuple summaryCtx, numbered_tuple t0, numbered_tuple t, numbered_tuple ap, numbered_tuple stored) :-"
+        }
+      ],
+      "fwdFlowUnit_mentions": 0,
+      "original_public_core_name_mentions": 0,
+      "interpretation": "Original typed boundary retained through the explicitly introduced internal fwdFlowTyped name."
+    }
+  },
+  "runtime_performance_measurement": false,
+  "reviewer_started_compiler_or_query": false,
+  "scope": "Static compiled RA result. Physical runtime index encoding and measured memory/time changes are not determined by this readback."
+}

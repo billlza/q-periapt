@@ -1,0 +1,18 @@
+{
+  "/workspace/scratch/qperiapt-recovery-20261111/forward-unit-state-validation/DEPENDENCY_INVENTORY_BEFORE.json": {
+    "bytes": 212943,
+    "sha256": "c9a8371c591bbf04bb816787ab361b80a8bc9156158a7e92f3c46268e5cf28d4"
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/forward-unit-state-validation/POST_INSTALL_INVENTORY.json": {
+    "bytes": 262908,
+    "sha256": "ab17d67383b3824c99ea10597bcc54e970b70515de3c8ce3d11ce6de0a9d68c2"
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/forward-unit-state-validation/RUNTIME_INVENTORY_BEFORE.json": {
+    "bytes": 427134,
+    "sha256": "f2b576cba5d65caa1c541a212c4180851516987bf9acc6e0177c8d074240c0b8"
+  },
+  "/workspace/scratch/qperiapt-recovery-20261111/forward-unit-state-validation/candidate.ra.txt": {
+    "bytes": 10613270,
+    "sha256": "371eae585a6609f5651ad40f034ed9254a7337da71a5d66e3e3c38433f68127c"
+  }
+}
