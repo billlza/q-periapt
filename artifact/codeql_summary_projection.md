@@ -1,10 +1,10 @@
-# Stage4 read-target projection
+# Stage3 and Stage4 read-target projection
 
 The `projection` mode gives the full Rust SummaryStats query an explicit,
-source-bound compiled plan. Within the Stage4 forward recursion, it carries the
-six columns consumed by the next forward state. The original eleven-column read
-relation is reconstructed after that closure for its complete downstream
-consumers, including reverse traversal and PathGraph. The source patch retains
+source-bound compiled plan. Within each of the Stage3 and Stage4 forward
+recursions, it carries the six columns consumed by the next forward state. The
+original eleven-column read relation is reconstructed after each closure for its
+complete downstream consumers, including reverse traversal and PathGraph. The source patch retains
 the original join, both type checks, and both access-path branches.
 
 The existing modes remain separate:
@@ -13,10 +13,10 @@ The existing modes remain separate:
 | --- | --- | --- | --- |
 | `none` (default) | Original official QLX | Original official source | `none` |
 | `all` | Existing fixed join-order capsule | Original official source | `all` |
-| `projection` | Fixed Stage4 target-projection capsule | One declared vendor patch | `all` |
+| `projection` | Fixed Stage3+Stage4 target-projection capsule | One declared vendor patch | `all` |
 
 `projection` is an admission mode, not a new CodeQL command-line value. Its
-compiler input key is `70fcc50b9809b694b26b77a11722cdbb`. Both allocation arms use
+compiler input key is `6a7530eb694360655ab8331a895c9fcd`. Both allocation arms use
 the same capsule and patch. The comparison command must select `projection`
 explicitly; reports from other modes cannot be substituted even though `all`
 and `projection` have the same evaluator join option.
@@ -28,7 +28,12 @@ official Rust CLI 2.27.2 bundle, all 39 root-query identities, the original
 compiled-query inventory, the projected inventory, and the complete capsule.
 Its digest is independently fixed in the installer. The capsule contains the
 full SummaryStats QLX and its 15 referenced stages. Its SHA-256 is
-`1fe6db109a540d6063fca24e25e9d6c56a88f972a5c248d74fd95f7248fb6132`.
+`5b17fb41cd3c59fea564ec4e9cb49ef586c0ad06ccc3f2445e46b7b5ca8430cb`.
+
+These pins identify the Stage3+Stage4 product. The earlier Stage4-only capsule
+has a different compiler key, source inventory and compiled-query inventory;
+the current admission checks distinguish those products even though their
+controller mode is named `projection`.
 
 The vendor patch changes only
 `codeql/dataflow@2.1.15/codeql/dataflow/internal/DataFlowImpl.qll`. The manifest
@@ -96,12 +101,15 @@ The map `(X, R) -> (X, P(R))` preserves the initial empty relations, commutes
 with each immediate-consequence step, and preserves increasing unions. Thus
 the two positive systems have the same least fixed point on their common
 forward state. Computing the unchanged `H(X)` after convergence restores the
-full read relation for subsequent consumers. Only Stage4 selects this helper;
-other stages retain the original read path.
+full read relation for subsequent consumers. Stage3 and Stage4 select this helper;
+the other stages retain the original read path. Stage2 is unchanged, and the
+Stage3 argument preserves the exported relations used as Stage4 inputs. The same
+argument therefore applies to Stage4 with those preserved inputs.
 
 The frozen candidate compiled successfully with the official CLI, and its
-optimized RA places the six-column helper within the forward-recursive layer
-and the complete eleven-column relation outside it. These establish source
+optimized RA places the six-column helper within each selected stage's forward
+recursive layer and the complete eleven-column relation outside it. Both later
+`readStepFwd` consumers retain the complete relation. These establish source
 equivalence and the intended compiled structure. Runtime completion and resource
 measurements are obtained from the explicitly selected evaluation and retained
 in its report.

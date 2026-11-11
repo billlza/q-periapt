@@ -1,4 +1,4 @@
-"""Admit the fixed Stage4 read-target projection over the official Rust bundle.
+"""Admit the fixed Stage3 and Stage4 read-target projection over the official Rust bundle.
 
 Only the full SummaryStats QLX and its closed stage capsule use this plan. The
 single vendor patch is applied to the query pack's actual embedded dependency,
@@ -24,14 +24,14 @@ from evidence_io import parse_strict_json_bytes, read_regular_snapshot
 
 
 MANIFEST = Path(__file__).with_name("codeql_summary_projection.json")
-MANIFEST_SHA256 = "d330c1063954c6cd5803426df4e1ad7727d716976872049d140f5f47c12be191"
+MANIFEST_SHA256 = "2cb1739ba0f0aeeb00e8a017b7cd0218a0a7519771a58dd47cb7f89a8813ca91"
 CAPSULE = Path(__file__).with_name("codeql-summary-projection-plan.zip")
 PATCH = Path(__file__).with_name("codeql_summary_projection.patch")
 DEPENDENCIES = Path(__file__).with_name("codeql_summary_projection_dependencies.json.gz")
 QUERY_MANIFEST = Path(__file__).with_name("codeql_rust_queries.json")
-COMPILER_INPUTS_DIGEST = "70fcc50b9809b694b26b77a11722cdbb"
-COMPILED_INVENTORY_SHA256 = "f1a3d81b2e0a35262ea88d795825478f9217e4f897befdff6146bfbf2f521b14"
-PLAN_SHA256 = "65e651eb4b56da599cca6538a9eaf55df2cc1dd8ce3943e91786c24daa1d97df"
+COMPILER_INPUTS_DIGEST = "6a7530eb694360655ab8331a895c9fcd"
+COMPILED_INVENTORY_SHA256 = "a63755946874528cfb0788ef967cfd3797d0865fef2fa133757f1ee393a720d0"
+PLAN_SHA256 = "ba1a984f8b78d99ce61e91b110833381c5c8366bf1b4ff783b32cb6180fcb45d"
 DEPENDENCY_PATH = "codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll"
 PATCH_PATH = "codeql/dataflow/internal/DataFlowImpl.qll"
 PLAN_PATH = capsule.PLAN_PATH

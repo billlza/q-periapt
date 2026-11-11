@@ -43,7 +43,7 @@
 +        /**
 +         * The exact target-state projection of the original read join.
 +         *
-+         * Stage4 feeds this projection into its forward recursive closure. The
++         * Stages 3 and 4 feed this projection into their forward closures. The
 +         * original full relation remains available for reverse/path consumers
 +         * after the forward closure; no source/content witness is discarded there.
 +         */
@@ -66,16 +66,29 @@
  
          pragma[nomagic]
          private predicate fwdFlowRead(
-@@ -2956,10 +2987,12 @@
-     }
+@@ -2847,10 +2878,12 @@
+     private module Stage2 = MkStage<S1>::Stage<Stage2Param>;
  
-     private module Stage4Param implements MkStage<Stage3>::StageParam {
-       private module PrevStage = Stage3;
+     private module Stage3Param implements MkStage<Stage2>::StageParam {
+       private module PrevStage = Stage2;
  
 +      predicate projectRecursiveReadTargets() { any() }
 +
        class Typ = Unit;
  
+       class Ap = ApproxAccessPathFront;
+ 
+       class ApNil = ApproxAccessPathFrontNil;
+@@ -2955,10 +2988,12 @@
+       else t = t0
+     }
+ 
+     private module Stage4Param implements MkStage<Stage3>::StageParam {
+       private module PrevStage = Stage3;
++
++      predicate projectRecursiveReadTargets() { any() }
+ 
+       class Typ = Unit;
+ 
        class Ap = AccessPathFront;
  
-       class ApNil = AccessPathFrontNil;
