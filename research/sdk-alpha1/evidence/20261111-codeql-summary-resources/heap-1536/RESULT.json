@@ -1,0 +1,794 @@
+{
+  "cache_scope": "Warm-cache control: exact retained database/cache; fresh common cache and all 39 output BQRS.",
+  "compiled_query_hashes": {
+    "queries/diagnostics/AstConsistencyCounts.ql": "ac7b48bf00cdc0d4a27f9ef2b60892fe9b14a1f580b093e0b6f77744eaec8992",
+    "queries/diagnostics/CfgConsistencyCounts.ql": "106bf6901fa18962eea85ca582d21896c84dcd54cdf1191ab28e920908895334",
+    "queries/diagnostics/DataFlowConsistencyCounts.ql": "89e8c819e1a4df77e27bbe6d89991670373583639dfe41c21b2ea1991f35621b",
+    "queries/diagnostics/ExtractedFiles.ql": "02ea240b3f2e67b43d81e986ef5ef16fd097bf5d6d1d2ebeea26c47f6c3e9f88",
+    "queries/diagnostics/ExtractionErrors.ql": "fc33fbb18bcbc4f7430cffc0d76bd2a752f8a7ece13d5f8a2a28884f7752b100",
+    "queries/diagnostics/ExtractionWarnings.ql": "0a4be624691ca9160c83a8f900c180488845eea32ab365cf8485a0cf2e46acdf",
+    "queries/diagnostics/SsaConsistencyCounts.ql": "4e964ae6967e7069ffe482eb19edfc77927d2c0263e8897cb6724b1a011f1ee4",
+    "queries/diagnostics/TypeInferenceConsistencyCounts.ql": "8cdf06a238bdf82774ff47172ef136a315faa3b57348cada6cf2636e178a86ec",
+    "queries/diagnostics/UnextractedElements.ql": "08d55d6f6d20c6dae12a6805660894cdaf41d84ab598d2405057515609f8932a",
+    "queries/diagnostics/UnresolvedMacroCalls.ql": "c15df1bed33e47b59e0ac478dc52f4f18b8e6114f4746720dd5605081dab55f5",
+    "queries/security/CWE-020/RegexInjection.ql": "20f20aef63f0b312d83d48bd5083b29626f9f391e6a89e7a09b25d59600490c9",
+    "queries/security/CWE-022/TaintedPath.ql": "292bdb8b98d36eab315e30088797d80c2a7d510f88127f427bea8b572006a1ef",
+    "queries/security/CWE-078/CommandInjection.ql": "18053fe50164fd8f10d97582adb740f1d413553a286b74857d15bbd1aff4937e",
+    "queries/security/CWE-079/XSS.ql": "6899d043134657864522ffce81668e46bdf8779722fb614aaa5277ab237492be",
+    "queries/security/CWE-089/SqlInjection.ql": "b9cc8ba65a359388e2bf1810109fa65a8852317fd14d7d22c7bf70418e4214e8",
+    "queries/security/CWE-117/LogInjection.ql": "f34b4cbf73dedec8ad05d8dc5de20b666b521d5b77844d23514422e28de0c592",
+    "queries/security/CWE-295/DisabledCertificateCheck.ql": "383b62092e0cea04d930ed4807011955dc7a9bc46263410ab3311ec10db9e1b3",
+    "queries/security/CWE-311/CleartextTransmission.ql": "71b918d7fc207f82cb43a0508defc091d30d23c71d9e03fc1173c0c54f86cc61",
+    "queries/security/CWE-312/CleartextLogging.ql": "b0af90203696722ed4b06d514a71f60f3920bee01f3a2f6ba4300c6b78773b68",
+    "queries/security/CWE-312/CleartextStorageDatabase.ql": "01b1ed605e4e874560aa61407b5e48eed469eb7deb8b5d58f884ecfa558d1431",
+    "queries/security/CWE-319/UseOfHttp.ql": "5dd2f895e3f7196c0079c1d1b5afacca9b76a31bda539ca2a2b68f6065942490",
+    "queries/security/CWE-327/BrokenCryptoAlgorithm.ql": "6bc456f127ce53b792e5bba69749c750e98c24e88133f49a10115c481dcfaa00",
+    "queries/security/CWE-327/WeakSensitiveDataHashing.ql": "d2420712e951c55dfe2b11d3b143791d53ad8116d33c06fa2d3b200da8685b19",
+    "queries/security/CWE-614/InsecureCookie.ql": "59d26745830cb0f517350051675aea906e87431861e23a21bfe29b21198d749e",
+    "queries/security/CWE-770/UncontrolledAllocationSize.ql": "da2a7d3c0af1842980ed7501faba1f97cccf38b6df7875aad9cb3dac31ab80e0",
+    "queries/security/CWE-798/HardcodedCryptographicValue.ql": "77ffc85292bb9d72f66e6cc177545adc2a1b45ed997f3bdd501c8057df5b0c58",
+    "queries/security/CWE-825/AccessAfterLifetime.ql": "91d03be6b35c33e8fa17da0c41ad82af1dacee81bc9059d14782b167a8e17138",
+    "queries/security/CWE-825/AccessInvalidPointer.ql": "108a9283ac51bb43b73a12ae003c8953b05d149de0f3ea085e45e51c2f4c9fc1",
+    "queries/security/CWE-918/RequestForgery.ql": "349ae1bcd3cfa1cdfd70c1b18b41c278c9386ebf7ec3db616a4c884577bb194a",
+    "queries/summary/LinesOfCode.ql": "de201bea93eaa2b3aeaa580bd961704e068f4a6bacb5dfc95ee82a5dc67cd23c",
+    "queries/summary/LinesOfUserCode.ql": "ab6d4fa3a666f2ff4516a25bb4e82bc062e48c3a084b52de6a9632e2d3ca13f6",
+    "queries/summary/NodesWithTypeAtLengthLimit.ql": "4f8d7d1593c762b29f9d3930b8f3a58e9e296cc32ee65011d8baf35cbb9b5138",
+    "queries/summary/NumberOfFilesExtractedWithErrors.ql": "84578f86e3b6b44efad3c304938a588b904121b92bf87fbca789994de6ba9c67",
+    "queries/summary/NumberOfSuccessfullyExtractedFiles.ql": "94534405867fd989251464bbb55c90e6dbbe046b5b260ced6cec88a8289b85e1",
+    "queries/summary/QuerySinkCounts.ql": "11142162d957898cd640b96bb7caabd3fc9c72a9ff2bdf1b258fcb9443bf3410",
+    "queries/summary/SummaryStats.ql": "bc65daf746a13e0d162f0853b3a21eda41ff2d573774e6862983a916c06244a6",
+    "queries/summary/SummaryStatsReduced.ql": "ec84f96f284498fc71f3b29137ed9a1b625ee1d081a07f0cbdee9402ea99fd92",
+    "queries/telemetry/DatabaseQualityDiagnostics.ql": "ff6b9b8b7669630e6cc62908f0dcd403c3bca33d191de8cdc5639c23656188a8",
+    "queries/telemetry/ExtractorInformation.ql": "abc7ac6e1f02f23697e55b1db2536c3883f4f3cc44ea57e84d946ded6cbcb51e"
+  },
+  "completed": false,
+  "configuration": {
+    "deadline_seconds": 18000,
+    "heap_mb": 1536,
+    "native_mb": 11155,
+    "requested_ram_mb": 14000,
+    "reserved_mb": 1309,
+    "threads": 4
+  },
+  "evaluation": {
+    "cleanup_ambiguous": false,
+    "command": [
+      "/home/runner/work/_temp/codeql-summary-tool/codeql/codeql",
+      "execute",
+      "queries",
+      "-J-Xmx1536M",
+      "--off-heap-ram=11155",
+      "-J-XX:+PrintFlagsFinal",
+      "--threads=4",
+      "--threat-model=local",
+      "--warnings=show",
+      "--dynamic-join-order-mode=none",
+      "--no-rerun",
+      "--verbosity=progress",
+      "--evaluator-log-level=5",
+      "--common-caches=/home/runner/work/_temp/qperiapt-codeql-summary-control/cache",
+      "--logdir=/home/runner/work/_temp/qperiapt-codeql-summary-control/evidence/evaluator",
+      "--output=/home/runner/work/_temp/qperiapt-codeql-summary-control/results",
+      "--",
+      "/home/runner/work/_temp/qperiapt-codeql-summary-control/database/db-rust",
+      "path:/home/runner/work/_temp/qperiapt-codeql-summary-control/frozen.qls"
+    ],
+    "resource_observation": {
+      "clock_ticks_per_second": 100,
+      "controller_pid": 2354,
+      "controller_start_ticks": 8222,
+      "excluded_preexisting_roots": 0,
+      "interpretation": {
+        "cpu": "sum of maximum observed own-process user/system ticks per identity",
+        "exit": "evaluator exit, deadline, query coverage and result admission are independent",
+        "io": "per-process raw counters only; may include waited-for children",
+        "omissions": "short-lived or already-reparented unseen descendants and between-sample peaks may be missed",
+        "peak": "maximum recorded non-atomic sample, not actual job peak or PSS",
+        "rss": "approximate proc stat RSS; tree sums may double-count shared pages"
+      },
+      "interval_seconds": 2.0,
+      "io_unavailable": 1,
+      "kind": "qperiapt.codeql_process_resources",
+      "limits": {
+        "census_processes": 8192,
+        "observed_identities": 4096,
+        "output_bytes": 33554432,
+        "proc_file_bytes": 16384,
+        "samples": 10000,
+        "scan_work_seconds": 0.75,
+        "selected_processes": 512,
+        "shutdown_wait_seconds": 2.0
+      },
+      "max_sample_span_seconds": 0.18764614600149798,
+      "observed_process_cpu_seconds": 28195.9,
+      "observed_process_identities": 2,
+      "observed_root_identities": 1,
+      "output_bytes": 7080313,
+      "page_bytes": 4096,
+      "partial_censuses": 0,
+      "peak_sampled_roots_rss_bytes": 1978368,
+      "peak_sampled_tree_rss_bytes": 14297202688,
+      "platform": "Linux",
+      "proc_read_errors": 1,
+      "sampler_cpu_seconds": 43.566944956,
+      "samples": 8975,
+      "samples_file": "PROCESS_RESOURCES.jsonl",
+      "samples_with_processes": 8974,
+      "sampling_wall_seconds": 18001.057786521,
+      "schema": 1,
+      "scope": "new controller descendants observed during query evaluation",
+      "shutdown_complete": true,
+      "status": "stopped"
+    },
+    "returncode": null,
+    "seconds": 18001.060879306,
+    "stopped": "timeout"
+  },
+  "experiment_commit": "748edb36681827c09fe327717b6478089e28548a",
+  "failure": {
+    "message": "operation failed; inspect retained command receipts and logs",
+    "phase": "evaluate",
+    "type": "BoundedProcessError"
+  },
+  "host": {
+    "architecture": "x86_64",
+    "cpuinfo": "processor\t: 0\nvendor_id\t: AuthenticAMD\ncpu family\t: 25\nmodel\t\t: 17\nmodel name\t: AMD EPYC 9V74 80-Core Processor\nstepping\t: 1\nmicrocode\t: 0xffffffff\ncpu MHz\t\t: 3701.901\ncache size\t: 1024 KB\nphysical id\t: 0\nsiblings\t: 4\ncore id\t\t: 0\ncpu cores\t: 2\napicid\t\t: 0\ninitial apicid\t: 0\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 28\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves user_shstk avx512_bf16 clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload avx512vbmi umip avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid fsrm\nbugs\t\t: sysret_ss_attrs null_seg spectre_v1 spectre_v2 spec_store_bypass srso spectre_v2_user tsa\nbogomips\t: 5192.29\nTLB size\t: 3584 4K pages\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 48 bits physical, 48 bits virtual\npower management:\n\nprocessor\t: 1\nvendor_id\t: AuthenticAMD\ncpu family\t: 25\nmodel\t\t: 17\nmodel name\t: AMD EPYC 9V74 80-Core Processor\nstepping\t: 1\nmicrocode\t: 0xffffffff\ncpu MHz\t\t: 2596.146\ncache size\t: 1024 KB\nphysical id\t: 0\nsiblings\t: 4\ncore id\t\t: 0\ncpu cores\t: 2\napicid\t\t: 1\ninitial apicid\t: 1\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 28\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves user_shstk avx512_bf16 clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload avx512vbmi umip avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid fsrm\nbugs\t\t: sysret_ss_attrs null_seg spectre_v1 spectre_v2 spec_store_bypass srso spectre_v2_user tsa\nbogomips\t: 5192.29\nTLB size\t: 3584 4K pages\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 48 bits physical, 48 bits virtual\npower management:\n\nprocessor\t: 2\nvendor_id\t: AuthenticAMD\ncpu family\t: 25\nmodel\t\t: 17\nmodel name\t: AMD EPYC 9V74 80-Core Processor\nstepping\t: 1\nmicrocode\t: 0xffffffff\ncpu MHz\t\t: 2596.146\ncache size\t: 1024 KB\nphysical id\t: 0\nsiblings\t: 4\ncore id\t\t: 1\ncpu cores\t: 2\napicid\t\t: 2\ninitial apicid\t: 2\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 28\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves user_shstk avx512_bf16 clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload avx512vbmi umip avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid fsrm\nbugs\t\t: sysret_ss_attrs null_seg spectre_v1 spectre_v2 spec_store_bypass srso spectre_v2_user tsa\nbogomips\t: 5192.29\nTLB size\t: 3584 4K pages\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 48 bits physical, 48 bits virtual\npower management:\n\nprocessor\t: 3\nvendor_id\t: AuthenticAMD\ncpu family\t: 25\nmodel\t\t: 17\nmodel name\t: AMD EPYC 9V74 80-Core Processor\nstepping\t: 1\nmicrocode\t: 0xffffffff\ncpu MHz\t\t: 3694.515\ncache size\t: 1024 KB\nphysical id\t: 0\nsiblings\t: 4\ncore id\t\t: 1\ncpu cores\t: 2\napicid\t\t: 3\ninitial apicid\t: 3\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 28\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves user_shstk avx512_bf16 clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload avx512vbmi umip avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid fsrm\nbugs\t\t: sysret_ss_attrs null_seg spectre_v1 spectre_v2 spec_store_bypass srso spectre_v2_user tsa\nbogomips\t: 5192.29\nTLB size\t: 3584 4K pages\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 48 bits physical, 48 bits virtual\npower management:\n\n",
+    "cpus": 4,
+    "kernel": "7.0.0-1017-azure",
+    "meminfo": "MemTotal:       16367524 kB\nMemFree:        14307744 kB\nMemAvailable:   15255204 kB\nBuffers:           62392 kB\nCached:          1173780 kB\nSwapCached:            0 kB\nActive:           724072 kB\nInactive:         777284 kB\nActive(anon):     320784 kB\nInactive(anon):        0 kB\nActive(file):     403288 kB\nInactive(file):   777284 kB\nUnevictable:       46728 kB\nMlocked:           43656 kB\nSwapTotal:       3145724 kB\nSwapFree:        3145724 kB\nZswap:                 0 kB\nZswapped:              0 kB\nDirty:            376292 kB\nWriteback:             0 kB\nAnonPages:        311980 kB\nMapped:           327204 kB\nShmem:             46864 kB\nKReclaimable:      56440 kB\nSlab:             132724 kB\nSReclaimable:      56440 kB\nSUnreclaim:        76284 kB\nKernelStack:        4272 kB\nPageTables:         6264 kB\nSecPageTables:         0 kB\nNFS_Unstable:          0 kB\nBounce:                0 kB\nWritebackTmp:          0 kB\nCommitLimit:    11329484 kB\nCommitted_AS:    2032544 kB\nVmallocTotal:   34359738367 kB\nVmallocUsed:       42724 kB\nVmallocChunk:          0 kB\nPercpu:             2352 kB\nHardwareCorrupted:     0 kB\nAnonHugePages:         0 kB\nShmemHugePages:        0 kB\nShmemPmdMapped:        0 kB\nFileHugePages:         0 kB\nFilePmdMapped:         0 kB\nCmaTotal:              0 kB\nCmaFree:         1476608 kB\nUnaccepted:            0 kB\nBalloon:               0 kB\nGPUActive:             0 kB\nGPUReclaim:            0 kB\nHugePages_Total:       0\nHugePages_Free:        0\nHugePages_Rsvd:        0\nHugePages_Surp:        0\nHugepagesize:       2048 kB\nHugetlb:               0 kB\nDirectMap4k:      126080 kB\nDirectMap2M:     4063232 kB\nDirectMap1G:    14680064 kB\n"
+  },
+  "input_identity": {
+    "cache_file_count": 1437,
+    "cache_inventory_sha256": "2e972c45962dc468698ac7db6cf3fcde6a17bb3b3bc954af06a9166eab3bdbe0",
+    "database_inventory_sha256": "aafbc13d377d69fa4428ffd705a08eb77cfe40f2d4fe3fae02995fe9f839d33d",
+    "inner_bytes": 269008328,
+    "inner_sha256": "c8bdc47f5cbb0b6d83c0d60c63e8ff9f80ad63683c58cdf32311dd8bb6c9dbf1",
+    "metadata_git_sha": "56f191f04a57806869b8a03078ee4d27ffe900ab",
+    "metadata_sha256": "909ce48c7a00cebdbea45235e30a26d6c3b321f3dbf12b68bbca48323b6bee7b",
+    "retained_result_count": 38,
+    "retained_results_inventory_sha256": "4eb77cdb48e39a811a6f4844705400f10cf3b44113e5f58e0c8b748adec0d63b"
+  },
+  "jvm_admission": {
+    "codeql_version": "2.27.2",
+    "max_heap_bytes_observed": [
+      1610612736
+    ]
+  },
+  "kind": "qperiapt.codeql_summary_control",
+  "observations": {
+    "evaluator_start_lines": 1,
+    "eviction_categories": {
+      "ARRAYS": 66033
+    },
+    "eviction_pause_count": 66033,
+    "first_timestamp": "2026-11-10 18:54:05",
+    "last_timestamp": "2026-11-10 23:54:04",
+    "logs": [
+      {
+        "bytes": 406689908,
+        "path": "evaluator/execute-queries-20261110.185405.391.log",
+        "sha256": "3f5035fe312f61c0a884a476a8b33a3c9e752062b2cb1f7878c82ceecf5c464e"
+      }
+    ],
+    "max_heap_bytes_observed": [
+      1610612736
+    ],
+    "max_taint_stage_iterations": {
+      "1": 216,
+      "2": 671,
+      "3": 756,
+      "4": 282
+    },
+    "off_heap_mb_observed": [
+      11155
+    ],
+    "pause_count": 66033,
+    "query_completions": 38,
+    "query_starts": 39,
+    "schema": 1
+  },
+  "partial_results": {
+    "all_expected_bqrs_captured": false,
+    "analysis_completed": false,
+    "budget_exhausted": false,
+    "budget_seconds": 120,
+    "byte_budget_exhausted": false,
+    "capture_errors": {},
+    "captured_query_count": 38,
+    "decoded_query_count": 38,
+    "expected_query_count": 39,
+    "kind": "qperiapt.codeql_summary_control_partial_results",
+    "missing_queries": [
+      "queries/summary/SummaryStats.ql"
+    ],
+    "results": {
+      "queries/diagnostics/AstConsistencyCounts.ql": {
+        "bqrs_sha256": "b337518c15ef079d99345b9682a3914171db6ae47f20f1d58426197afc3ef747",
+        "bytes": 615,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 119,
+        "path": "partial-fresh-bqrs/queries/diagnostics/AstConsistencyCounts.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "6bb5525b1677f980d9b2488623e64bb348c332413935fb1069c09fa67f5e3376"
+      },
+      "queries/diagnostics/CfgConsistencyCounts.ql": {
+        "bqrs_sha256": "caf655e484673a0613f8839db7b9a79949971056c26e14b2caa572197343754b",
+        "bytes": 787,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 119,
+        "path": "partial-fresh-bqrs/queries/diagnostics/CfgConsistencyCounts.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "dbf6ac651cf30d070dec4a1eb98c6c8b57d08ab717e7479afc72cacbbbc5b5cc"
+      },
+      "queries/diagnostics/DataFlowConsistencyCounts.ql": {
+        "bqrs_sha256": "42885fb8f8abfa4971443df5e04a3157d722c5243cc4deb4afca24db6c070ef8",
+        "bytes": 1655,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 119,
+        "path": "partial-fresh-bqrs/queries/diagnostics/DataFlowConsistencyCounts.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "dfecd370b76c891343eedf4fae0733e6d48622511f9485a5524c399cd18e5941"
+      },
+      "queries/diagnostics/ExtractedFiles.ql": {
+        "bqrs_sha256": "739c7a620bcad4f5d6ca65c796b7364c5b91d64d785ce37bc5d3e93141fde00f",
+        "bytes": 294661,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 118,
+        "path": "partial-fresh-bqrs/queries/diagnostics/ExtractedFiles.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "72b30bd5cba93633146ab2bb2d2fca54b181232c378d6020993f47d18572fcfd"
+      },
+      "queries/diagnostics/ExtractionErrors.ql": {
+        "bqrs_sha256": "0911df7570ce33e091693882c799194eb9452a5b9e034b6925e6cb9441da504c",
+        "bytes": 339,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 118,
+        "path": "partial-fresh-bqrs/queries/diagnostics/ExtractionErrors.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "84eff2f1825a22b01bd5299d98acddf6026fb2acc3e61f7fb31d7981c6bc3846"
+      },
+      "queries/diagnostics/ExtractionWarnings.ql": {
+        "bqrs_sha256": "892a5cbb31840b24accbc95708190f7a0ce3f01826796f72459970ede0019298",
+        "bytes": 349,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 117,
+        "path": "partial-fresh-bqrs/queries/diagnostics/ExtractionWarnings.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "f1b9b0a85db7037951e8ba5fd085edebf14e3a2cc41bda262dc403bbdda11fbb"
+      },
+      "queries/diagnostics/SsaConsistencyCounts.ql": {
+        "bqrs_sha256": "8723defe5f62f09bd8a30c42d96e6d79545af805766f84f8d8f3c2233622b7c7",
+        "bytes": 880,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 117,
+        "path": "partial-fresh-bqrs/queries/diagnostics/SsaConsistencyCounts.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "7aa0d8dbb68afc128a4d90d5f3436313a79ee11b6e30aad54571b431b4c66252"
+      },
+      "queries/diagnostics/TypeInferenceConsistencyCounts.ql": {
+        "bqrs_sha256": "3d12c2f3d2b706cc51e4bf3ef2469e09cb9242dff93302b348048dd019a77250",
+        "bytes": 591,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 116,
+        "path": "partial-fresh-bqrs/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "05cf522c996bae06f52d2869dcad7aa83d66a15e49f0d03ff84f7a967f8069c3"
+      },
+      "queries/diagnostics/UnextractedElements.ql": {
+        "bqrs_sha256": "016893a31bb8abb9a758e72bab47b2231ba72bff9fa546e76d5df494d6350511",
+        "bytes": 361,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 116,
+        "path": "partial-fresh-bqrs/queries/diagnostics/UnextractedElements.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "0a659f12f3e1254761ce9c92d65931a25099b6ddabc323b087829d73a7e62e20"
+      },
+      "queries/diagnostics/UnresolvedMacroCalls.ql": {
+        "bqrs_sha256": "95e41ec731c55e180ae73f95019e6a28fdb5ff49af739b20b6ee80315651e9c3",
+        "bytes": 6365,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 116,
+        "path": "partial-fresh-bqrs/queries/diagnostics/UnresolvedMacroCalls.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "c370f5a203c475d078edd7a4d60868b10133dfc1215af34cb83e77474cf6faac"
+      },
+      "queries/security/CWE-020/RegexInjection.ql": {
+        "bqrs_sha256": "4288b032892f694e657a41c4e9ed0272111e671ae101a975d3f8ebf8034074f7",
+        "bytes": 857,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 115,
+        "path": "partial-fresh-bqrs/queries/security/CWE-020/RegexInjection.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+      },
+      "queries/security/CWE-022/TaintedPath.ql": {
+        "bqrs_sha256": "9d19aefac0c6bd6ac5e5832d48427590fd5fe55e8f6b23b4ce18d273ccfc1368",
+        "bytes": 1017352,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 115,
+        "path": "partial-fresh-bqrs/queries/security/CWE-022/TaintedPath.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "15ad11987d1ba51b7905c0c416f218115bec27978ef0b4f35a42847110ed7542"
+      },
+      "queries/security/CWE-078/CommandInjection.ql": {
+        "bqrs_sha256": "b0d33844b170e79171c3faa724bc407864dc88cef7a0fb7e00c5663d2c0fe91c",
+        "bytes": 274704,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 114,
+        "path": "partial-fresh-bqrs/queries/security/CWE-078/CommandInjection.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "ff43af868ebfe00d7b68ace12bc5425830533cc42d856ee6cd3135c2c4370b82"
+      },
+      "queries/security/CWE-079/XSS.ql": {
+        "bqrs_sha256": "1e98108a76a300cf8b9792a1c360430056907298e8be4734239250335f6928fe",
+        "bytes": 646,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 113,
+        "path": "partial-fresh-bqrs/queries/security/CWE-079/XSS.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+      },
+      "queries/security/CWE-089/SqlInjection.ql": {
+        "bqrs_sha256": "2adbecad07194f71f2194fcab3bdba32886142b1ba15b1eded8f6ede664e0872",
+        "bytes": 665,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 113,
+        "path": "partial-fresh-bqrs/queries/security/CWE-089/SqlInjection.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+      },
+      "queries/security/CWE-117/LogInjection.ql": {
+        "bqrs_sha256": "03d4738cc7e8236ace9f4b262a2dc2ea6c51dc2a5294606facf48563787f4af6",
+        "bytes": 40852,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 112,
+        "path": "partial-fresh-bqrs/queries/security/CWE-117/LogInjection.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "800832526b7e6ffaf3214f356dcee115f8aa4d4c0dcb568e7e629c5d2e008a57"
+      },
+      "queries/security/CWE-295/DisabledCertificateCheck.ql": {
+        "bqrs_sha256": "5078956a7b4a80e82fb657cb478f040b14d37c7c96e77192da93c88e45b701b8",
+        "bytes": 676,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 112,
+        "path": "partial-fresh-bqrs/queries/security/CWE-295/DisabledCertificateCheck.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "d2e254bfad8989c9d0500d31392ef5b9ab46972d9e97f1efe5ddb9d1f6b372e1"
+      },
+      "queries/security/CWE-311/CleartextTransmission.ql": {
+        "bqrs_sha256": "fe45f49a74266d0d6149ba989280c21b577c4e1c5fc7ca8d92bd2516e8ffea51",
+        "bytes": 695,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 112,
+        "path": "partial-fresh-bqrs/queries/security/CWE-311/CleartextTransmission.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "95f15756992e089283ff0e765613a299c96f5b226001baaa705a8b6c38edce97"
+      },
+      "queries/security/CWE-312/CleartextLogging.ql": {
+        "bqrs_sha256": "4b4f437058cd3e74958d3828c0aceac7abb5c730a38fd743004acbad8f8d96f1",
+        "bytes": 392833,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 111,
+        "path": "partial-fresh-bqrs/queries/security/CWE-312/CleartextLogging.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "d3baa1526d0257f7eb332e1d69b4810d3b26eb9cbec6451f97e14808a34fb93f"
+      },
+      "queries/security/CWE-312/CleartextStorageDatabase.ql": {
+        "bqrs_sha256": "d9073f672e086c81b574100a4320fade9f20dcc3542fc11a23bbbbfae40d6e20",
+        "bytes": 704,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 111,
+        "path": "partial-fresh-bqrs/queries/security/CWE-312/CleartextStorageDatabase.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "95f15756992e089283ff0e765613a299c96f5b226001baaa705a8b6c38edce97"
+      },
+      "queries/security/CWE-319/UseOfHttp.ql": {
+        "bqrs_sha256": "53badbc7430efb3e6d68c1cd73e92c9d7af887b8aef2632955e27a37b13eff7b",
+        "bytes": 613,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 110,
+        "path": "partial-fresh-bqrs/queries/security/CWE-319/UseOfHttp.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+      },
+      "queries/security/CWE-327/BrokenCryptoAlgorithm.ql": {
+        "bqrs_sha256": "59fb8d264bcc6b56f4ae185e6d02a36e2a843fd2688331970fdac7c34cf71c9d",
+        "bytes": 524,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 110,
+        "path": "partial-fresh-bqrs/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "b341c406238eb41a6ae36a0588b7c62b425040d7ac05ca16f2b77d5afb5a6ce9"
+      },
+      "queries/security/CWE-327/WeakSensitiveDataHashing.ql": {
+        "bqrs_sha256": "228ac3b09b0a8500c113fd8f38dc10cd4c654779be9b7d909374fe2f0e12dbac",
+        "bytes": 738,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 109,
+        "path": "partial-fresh-bqrs/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced"
+      },
+      "queries/security/CWE-614/InsecureCookie.ql": {
+        "bqrs_sha256": "dfe6bf3d75f71234dd2e25f86914b3ba69023a64338f5a21be1b120e1c52b4dc",
+        "bytes": 769,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 109,
+        "path": "partial-fresh-bqrs/queries/security/CWE-614/InsecureCookie.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "d2e254bfad8989c9d0500d31392ef5b9ab46972d9e97f1efe5ddb9d1f6b372e1"
+      },
+      "queries/security/CWE-770/UncontrolledAllocationSize.ql": {
+        "bqrs_sha256": "11c8adef5181d918b07bce74a6bca9c944e64cc0e406c66e829b1cc929fb753d",
+        "bytes": 1922,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 108,
+        "path": "partial-fresh-bqrs/queries/security/CWE-770/UncontrolledAllocationSize.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "420d8b59728ca9bef5e0a2f5f378c34843017413bee1d17bd5d83687161c365d"
+      },
+      "queries/security/CWE-798/HardcodedCryptographicValue.ql": {
+        "bqrs_sha256": "8c98959cae5ca9b46dd6dd144db550e81174c5f23e3e67a02bfe51d63b7888ee",
+        "bytes": 622157,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 108,
+        "path": "partial-fresh-bqrs/queries/security/CWE-798/HardcodedCryptographicValue.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "48c6f6b8e7e8a6b1686f75534e878f88353bf6e6eec98fcf8cc9dd127a72496f"
+      },
+      "queries/security/CWE-825/AccessAfterLifetime.ql": {
+        "bqrs_sha256": "0597b6db6bb161acdc95d3e6a3beadd62baa6e38ad4720f66ab288f857a0a9c3",
+        "bytes": 753,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 107,
+        "path": "partial-fresh-bqrs/queries/security/CWE-825/AccessAfterLifetime.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "f2a7960593b1718a5d42fc0b50338c0c0357b884a2791f87454f53bb9c6adefa"
+      },
+      "queries/security/CWE-825/AccessInvalidPointer.ql": {
+        "bqrs_sha256": "1f29ed3ef4c3184cd532362d7ab8558016196d333f760d991f5037e022ce3b29",
+        "bytes": 1592,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 107,
+        "path": "partial-fresh-bqrs/queries/security/CWE-825/AccessInvalidPointer.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "9146778c5c26076dcc08222937805674f34d71111cb5ba7dd5a06dad676987ec"
+      },
+      "queries/security/CWE-918/RequestForgery.ql": {
+        "bqrs_sha256": "899957a43c7ff5441cbf5e4fa8ef47520d5546ce49654c1e8c371df055c3f3ce",
+        "bytes": 623,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 107,
+        "path": "partial-fresh-bqrs/queries/security/CWE-918/RequestForgery.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced"
+      },
+      "queries/summary/LinesOfCode.ql": {
+        "bqrs_sha256": "d765306475e2c13f86a539e6a9158a50d27cc3737c51147b768785bc28800ecd",
+        "bytes": 657,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 106,
+        "path": "partial-fresh-bqrs/queries/summary/LinesOfCode.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "e2d1b55fde4146eb72a6cf09ef9ed1c6ce68eb1419f0256836c827b6d6c06d2f"
+      },
+      "queries/summary/LinesOfUserCode.ql": {
+        "bqrs_sha256": "1f63b206e61a43b823b16dd933d3cb13d2a22188929545059af2fb302779579f",
+        "bytes": 503,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 106,
+        "path": "partial-fresh-bqrs/queries/summary/LinesOfUserCode.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "e2d1b55fde4146eb72a6cf09ef9ed1c6ce68eb1419f0256836c827b6d6c06d2f"
+      },
+      "queries/summary/NodesWithTypeAtLengthLimit.ql": {
+        "bqrs_sha256": "11eb7637eba377661589862b3015c637e3d49eceeb38bdc7128a9890c24fda48",
+        "bytes": 398,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 105,
+        "path": "partial-fresh-bqrs/queries/summary/NodesWithTypeAtLengthLimit.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "3fb32cdc2fe562214054ed2c79dab8bfdbda458574d6774aaec13166c5577679"
+      },
+      "queries/summary/NumberOfFilesExtractedWithErrors.ql": {
+        "bqrs_sha256": "3092e15f4fa12b753d9d8504e4a238ec019d10a951f6dbeb2044d11e4f04ceb7",
+        "bytes": 520,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 105,
+        "path": "partial-fresh-bqrs/queries/summary/NumberOfFilesExtractedWithErrors.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "84e831543dc7042284b8f6ab2a0201a49e1af5aa0603c9d627fbc3090e97fdcc"
+      },
+      "queries/summary/NumberOfSuccessfullyExtractedFiles.ql": {
+        "bqrs_sha256": "98463fbf3510c8466d9c81252ce07e006732c9e716872331bd777a93597aa86a",
+        "bytes": 499,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 104,
+        "path": "partial-fresh-bqrs/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "79fc88a53fdd3ec543a4dc258f81b7b14c4a984fd882cb182bfdeb574dda228d"
+      },
+      "queries/summary/QuerySinkCounts.ql": {
+        "bqrs_sha256": "5d1fe880534b16ff1c7fabdfd7d658f9150d052850b81ce7be4ad7b2443995a2",
+        "bytes": 685,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 104,
+        "path": "partial-fresh-bqrs/queries/summary/QuerySinkCounts.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "8ef6e1404fc534c393918bd0563102b9de96fbd68f2ca310a51a92427ed994f3"
+      },
+      "queries/summary/SummaryStatsReduced.ql": {
+        "bqrs_sha256": "b2306c9c7781708b8fd770e93f5b7bb15bc759a1c5082467b001d6c4c46adc02",
+        "bytes": 907,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 103,
+        "path": "partial-fresh-bqrs/queries/summary/SummaryStatsReduced.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "08c368f7288a55afc4f3ddaa075fa42a8537b70174e34295a2d06b36e05fad66"
+      },
+      "queries/telemetry/DatabaseQualityDiagnostics.ql": {
+        "bqrs_sha256": "8a3d1ffc360e51d04b5ce5126121728db8f6c16465df1a00aafbc077c9612b3f",
+        "bytes": 351,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 103,
+        "path": "partial-fresh-bqrs/queries/telemetry/DatabaseQualityDiagnostics.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "630a5f7a583bc8fb5cc7a007c3d16650e4b93098a0718ae439cff36af3e67dd2"
+      },
+      "queries/telemetry/ExtractorInformation.ql": {
+        "bqrs_sha256": "1fadf2b9b18b9642b84d5950c4a9d99a5e85d78104c712950426a517c51adc02",
+        "bytes": 1113,
+        "decode_status": "decoded",
+        "decode_timeout_seconds": 103,
+        "path": "partial-fresh-bqrs/queries/telemetry/ExtractorInformation.bqrs",
+        "retained_semantics_equal": true,
+        "semantic_sha256": "fcc244e412cb6ba89f4e7f1663da9e4e9a3d8774e026c1f3672c3b04c7c8f18e"
+      }
+    },
+    "schema": 1,
+    "seconds": 17.289002790999803,
+    "status": "partial",
+    "uncaptured_queries": [
+      "queries/summary/SummaryStats.ql"
+    ]
+  },
+  "profile": "heap-1536",
+  "query_command": [
+    "/home/runner/work/_temp/codeql-summary-tool/codeql/codeql",
+    "execute",
+    "queries",
+    "-J-Xmx1536M",
+    "--off-heap-ram=11155",
+    "-J-XX:+PrintFlagsFinal",
+    "--threads=4",
+    "--threat-model=local",
+    "--warnings=show",
+    "--dynamic-join-order-mode=none",
+    "--no-rerun",
+    "--verbosity=progress",
+    "--evaluator-log-level=5",
+    "--common-caches=/home/runner/work/_temp/qperiapt-codeql-summary-control/cache",
+    "--logdir=/home/runner/work/_temp/qperiapt-codeql-summary-control/evidence/evaluator",
+    "--output=/home/runner/work/_temp/qperiapt-codeql-summary-control/results",
+    "--",
+    "/home/runner/work/_temp/qperiapt-codeql-summary-control/database/db-rust",
+    "path:/home/runner/work/_temp/qperiapt-codeql-summary-control/frozen.qls"
+  ],
+  "query_hashes": {
+    "queries/diagnostics/AstConsistencyCounts.ql": "c9c8b2a8a1ee980f5b1965f452fa019b039ec5ee7a42799ea7f873665c69db84",
+    "queries/diagnostics/CfgConsistencyCounts.ql": "23cb5b92c6a6d2be7726f9606b55ca5fd9daf64cc2fd4e00c5536d14c5543235",
+    "queries/diagnostics/DataFlowConsistencyCounts.ql": "f5b11e03eeaa93718cc4b06f8a156572b2dd5bd7670eb60f5ea7ea17754332c9",
+    "queries/diagnostics/ExtractedFiles.ql": "6d12bb119c89f29f141f2f55492d4c6f79cd70339d68631839f7aee9c8c274a1",
+    "queries/diagnostics/ExtractionErrors.ql": "ec4c0e3c20aff0ebe17233f9da9423177bec772460688e7af2b56f381210af1a",
+    "queries/diagnostics/ExtractionWarnings.ql": "987af841298bd6b1a3275f082901910bf65d8982f5bc820f82c1583bf2212db5",
+    "queries/diagnostics/SsaConsistencyCounts.ql": "d0d5ec30499ee986b95c703f5be17431884f39db053bbb8cd6bc94d8eff74aee",
+    "queries/diagnostics/TypeInferenceConsistencyCounts.ql": "7d3b0dcd3addcd6c296628ccefcc1d3918db46218777024d12644c1466dfb7af",
+    "queries/diagnostics/UnextractedElements.ql": "1f88302dbbe3d3b27a958e24dba98a7cb54b8b775dfb27bd1bcb9e33f2c8d983",
+    "queries/diagnostics/UnresolvedMacroCalls.ql": "77697771fda0ab90748895bef80a5fcec21c3ad22f45381139dffaf68a4b8fcd",
+    "queries/security/CWE-020/RegexInjection.ql": "ecdf3f90049e5ede3f7306ca296970851b3fef32d109cda6b925360862c03d05",
+    "queries/security/CWE-022/TaintedPath.ql": "54a163a0ed35235ef74a8900374fe19fcac6e7e8618f034b38988c5f172b5829",
+    "queries/security/CWE-078/CommandInjection.ql": "6e84fbfd06e0c5d7f725b98ab8d99169af5492a09f42dcb95137fbfbbee540e1",
+    "queries/security/CWE-079/XSS.ql": "4c597b45caf16e6b058a051d80c959d7acc2415d242c1c54f53bc4463d7b97cc",
+    "queries/security/CWE-089/SqlInjection.ql": "4f945c5acedc1aec130cc7d603157749e2b24d6e8e90b3972607f2bf7df733a0",
+    "queries/security/CWE-117/LogInjection.ql": "3cc0bfabb558e749b5c5786bf4f57ccabcd23724276cdf270e7c12c280c81d91",
+    "queries/security/CWE-295/DisabledCertificateCheck.ql": "bb4ac00eb5877a60da75f3ee21e62091fa4ea2b238d4edb0536e2d58645c0f11",
+    "queries/security/CWE-311/CleartextTransmission.ql": "2d37915676fe130802400d0c555bcade15a346f034ac1bf705a70ebc518fdf4e",
+    "queries/security/CWE-312/CleartextLogging.ql": "5a7e8e1d931633244a7cf5e1bfc6a4ed8457f744a5963adc7db6813682cbde26",
+    "queries/security/CWE-312/CleartextStorageDatabase.ql": "1fe4820c6900f0ff475b713420b251e73f3dffc2bf516b98a30c99850b08af78",
+    "queries/security/CWE-319/UseOfHttp.ql": "f5700e02ba1f8b1048f810d44af9fb2cbe7997b3c3aa10019d1a3c45c70455f1",
+    "queries/security/CWE-327/BrokenCryptoAlgorithm.ql": "d72b643a2d734248068bac3406c10cea5146057088128f083c774a9487d5c6d7",
+    "queries/security/CWE-327/WeakSensitiveDataHashing.ql": "bdc66903e0e87d1bc65013c4342eba9feedf002123be5f9d8b1ee917194609db",
+    "queries/security/CWE-614/InsecureCookie.ql": "80226d95f67f18a166bd8feda5e66789c4fa280d44eadceca08543d3803cc740",
+    "queries/security/CWE-770/UncontrolledAllocationSize.ql": "7d1f9cad63f89864d4294e7f30ee193ee6409226e6f8837e4aded2c258f71573",
+    "queries/security/CWE-798/HardcodedCryptographicValue.ql": "cb4b9cddfc46ff773a3ace3ff9ed20f8470becfbfa7b025d454eb1ca4ac1abc4",
+    "queries/security/CWE-825/AccessAfterLifetime.ql": "bdbb47991c6edd8c928ab521e04bf8a8d53014d0ee51bcfd799e7ee9f2814dc5",
+    "queries/security/CWE-825/AccessInvalidPointer.ql": "db3cb765c52c1aec388b57953c149de3745b17736c77e474f5bf450c5108f293",
+    "queries/security/CWE-918/RequestForgery.ql": "2fb2997e69ca19ef155c5828dc5a5cac4021413418af112260dd4457cd7583a8",
+    "queries/summary/LinesOfCode.ql": "968ca623f49b4ce3cd0e44865d4858b7b008c01ba3c63a6d5e229578d4e00500",
+    "queries/summary/LinesOfUserCode.ql": "e34fe32ab5f1df521501cc987f6db08e9eba136b935889a684516410125b258a",
+    "queries/summary/NodesWithTypeAtLengthLimit.ql": "50fb4179195411d096d508abbde900a41d8c984ecc4e0f3fb2b6118bdd709c1c",
+    "queries/summary/NumberOfFilesExtractedWithErrors.ql": "7300f0244b58b7968d17c182c96d1fb0ef1e61ac5bc043824a750f62b7ce6235",
+    "queries/summary/NumberOfSuccessfullyExtractedFiles.ql": "1b1e3e1e0d44f68aa1edd69a2f7f9ed9797a782cb7895241d6cb3387558bb462",
+    "queries/summary/QuerySinkCounts.ql": "dcd3468204448cd14d4da33b39368dcf6ca8fc02a349b33b90b1c166412d5450",
+    "queries/summary/SummaryStats.ql": "7278d53373afb4f8069122e287c9c036a959ba0d167c152d67cd0de885881d67",
+    "queries/summary/SummaryStatsReduced.ql": "03e416cb9164ac8ca6e75dbe80928cc5c0b7d99e8eab62d8725855d423eca89c",
+    "queries/telemetry/DatabaseQualityDiagnostics.ql": "fcabf3dd92b5f7b94b3f94efec87add22652c3200ec4b2a030b83b719ecc445b",
+    "queries/telemetry/ExtractorInformation.ql": "e7fee1aef3a5f7cf9992d2cf42667a5d335487fcb524c928bac31431d0bdd81d"
+  },
+  "ram_resolution": [
+    "-J-Xmx3362M",
+    "--off-heap-ram=9329"
+  ],
+  "release_claim_eligible": false,
+  "retained_results": {
+    "queries/diagnostics/AstConsistencyCounts.ql": {
+      "bqrs_sha256": "40e4c0928199763aceb8f969eff3443885953c1b027e22c81b42603c3b0c783f",
+      "semantic_sha256": "6bb5525b1677f980d9b2488623e64bb348c332413935fb1069c09fa67f5e3376"
+    },
+    "queries/diagnostics/CfgConsistencyCounts.ql": {
+      "bqrs_sha256": "80fb44993e6e33f0da9a98d2545a9b0b4305b85650413e6eb68856146563482f",
+      "semantic_sha256": "dbf6ac651cf30d070dec4a1eb98c6c8b57d08ab717e7479afc72cacbbbc5b5cc"
+    },
+    "queries/diagnostics/DataFlowConsistencyCounts.ql": {
+      "bqrs_sha256": "44e1df242764a22edbe8f5bf992f22ca4a806a6740bd5131e6613a48806b9da4",
+      "semantic_sha256": "dfecd370b76c891343eedf4fae0733e6d48622511f9485a5524c399cd18e5941"
+    },
+    "queries/diagnostics/ExtractedFiles.ql": {
+      "bqrs_sha256": "3ad33d5d586f9ed828c6dc6f3faa5a360132bfe5c85a6c6cc1934885a5a6cd3c",
+      "semantic_sha256": "72b30bd5cba93633146ab2bb2d2fca54b181232c378d6020993f47d18572fcfd"
+    },
+    "queries/diagnostics/ExtractionErrors.ql": {
+      "bqrs_sha256": "1640933ebb09c2367e3882b6e387a97341410c5687babd994d0ad1490c6f6d17",
+      "semantic_sha256": "84eff2f1825a22b01bd5299d98acddf6026fb2acc3e61f7fb31d7981c6bc3846"
+    },
+    "queries/diagnostics/ExtractionWarnings.ql": {
+      "bqrs_sha256": "1a932e1880bf91ece57f3dee9d7559d7b0bbed05df5436f84da0c6d2738b1cfc",
+      "semantic_sha256": "f1b9b0a85db7037951e8ba5fd085edebf14e3a2cc41bda262dc403bbdda11fbb"
+    },
+    "queries/diagnostics/SsaConsistencyCounts.ql": {
+      "bqrs_sha256": "c8b0e9da0ef8d72a50d1c11ad0c55014cbdc8337cd96d224285958db6e60c9f2",
+      "semantic_sha256": "7aa0d8dbb68afc128a4d90d5f3436313a79ee11b6e30aad54571b431b4c66252"
+    },
+    "queries/diagnostics/TypeInferenceConsistencyCounts.ql": {
+      "bqrs_sha256": "b1089a04306af37337c47965066e79b9570c55d6a4b1fbc691050ca6f317a8fc",
+      "semantic_sha256": "05cf522c996bae06f52d2869dcad7aa83d66a15e49f0d03ff84f7a967f8069c3"
+    },
+    "queries/diagnostics/UnextractedElements.ql": {
+      "bqrs_sha256": "e7b8a4f9a5d0b0e937a1ce953fb254ff9a888692bf4d607fb670abfdb6cde33c",
+      "semantic_sha256": "0a659f12f3e1254761ce9c92d65931a25099b6ddabc323b087829d73a7e62e20"
+    },
+    "queries/diagnostics/UnresolvedMacroCalls.ql": {
+      "bqrs_sha256": "17639a86ec131576e2826e93c6e5535ba9effc3c62e2e477b7e9a59e3a5cc7fd",
+      "semantic_sha256": "c370f5a203c475d078edd7a4d60868b10133dfc1215af34cb83e77474cf6faac"
+    },
+    "queries/security/CWE-020/RegexInjection.ql": {
+      "bqrs_sha256": "6d49274841283aed409ddab44511deab5204e244903c88ef2d1b1bee4a799fb6",
+      "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+    },
+    "queries/security/CWE-022/TaintedPath.ql": {
+      "bqrs_sha256": "30b68b4d0ddb921d5cbf2a4ca61c7b3d92755dc0e8817104c18b4d54f8340f0e",
+      "semantic_sha256": "15ad11987d1ba51b7905c0c416f218115bec27978ef0b4f35a42847110ed7542"
+    },
+    "queries/security/CWE-078/CommandInjection.ql": {
+      "bqrs_sha256": "f92781f942055893f7c3c94661df4aa4a1724028bf07871c6f796e147ad28414",
+      "semantic_sha256": "ff43af868ebfe00d7b68ace12bc5425830533cc42d856ee6cd3135c2c4370b82"
+    },
+    "queries/security/CWE-079/XSS.ql": {
+      "bqrs_sha256": "4cee66f7eb57ce85502b223cac791c54cf554ac0db4fea48fe73883edb4ff1ca",
+      "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+    },
+    "queries/security/CWE-089/SqlInjection.ql": {
+      "bqrs_sha256": "9a89e68d01bdbf847a50377b9bdc5e7c9c694f2c77b8a6a9a770365ab0e835bd",
+      "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+    },
+    "queries/security/CWE-117/LogInjection.ql": {
+      "bqrs_sha256": "2de0f4571060b6991436e979efdf13483c59c742212b563f24fecd15560cb8ca",
+      "semantic_sha256": "800832526b7e6ffaf3214f356dcee115f8aa4d4c0dcb568e7e629c5d2e008a57"
+    },
+    "queries/security/CWE-295/DisabledCertificateCheck.ql": {
+      "bqrs_sha256": "748c40d746c3508f3371dfb2d68637421f1e885dbe0cc925e78a94e29d18c15b",
+      "semantic_sha256": "d2e254bfad8989c9d0500d31392ef5b9ab46972d9e97f1efe5ddb9d1f6b372e1"
+    },
+    "queries/security/CWE-311/CleartextTransmission.ql": {
+      "bqrs_sha256": "9b00a2ad8552b996b1abd1fe1ba35fa7bd7607f43ded3ec182f6bd8a93050632",
+      "semantic_sha256": "95f15756992e089283ff0e765613a299c96f5b226001baaa705a8b6c38edce97"
+    },
+    "queries/security/CWE-312/CleartextLogging.ql": {
+      "bqrs_sha256": "917976e5c16784097a72dba836287b59ef452090120aace269cebf5cafa7eef3",
+      "semantic_sha256": "d3baa1526d0257f7eb332e1d69b4810d3b26eb9cbec6451f97e14808a34fb93f"
+    },
+    "queries/security/CWE-312/CleartextStorageDatabase.ql": {
+      "bqrs_sha256": "28005ebc57d102cb34fea9230359aeeb6897558df38c863337da0f530b062311",
+      "semantic_sha256": "95f15756992e089283ff0e765613a299c96f5b226001baaa705a8b6c38edce97"
+    },
+    "queries/security/CWE-319/UseOfHttp.ql": {
+      "bqrs_sha256": "e71a27f76341f63da5f1048af058e3bbfa64e006bf28441599f8f977aa47b550",
+      "semantic_sha256": "cae37aad6a33b57f91710d002abc4973b33a04e110c9ed437a137fd327f6a3fa"
+    },
+    "queries/security/CWE-327/BrokenCryptoAlgorithm.ql": {
+      "bqrs_sha256": "bccffdd45153bc74756fd8bfa70cc1b82e150f6a1d49154e5a1e7b4cbaa0568e",
+      "semantic_sha256": "b341c406238eb41a6ae36a0588b7c62b425040d7ac05ca16f2b77d5afb5a6ce9"
+    },
+    "queries/security/CWE-327/WeakSensitiveDataHashing.ql": {
+      "bqrs_sha256": "d043cada5f766bfe46977ec78f57edbea6eb61f39bc27a46877b49b11fd10921",
+      "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced"
+    },
+    "queries/security/CWE-614/InsecureCookie.ql": {
+      "bqrs_sha256": "9f69856bcadf9cce00ce88cf3a1fbda2910558d43215ce504eacad9dcc965054",
+      "semantic_sha256": "d2e254bfad8989c9d0500d31392ef5b9ab46972d9e97f1efe5ddb9d1f6b372e1"
+    },
+    "queries/security/CWE-770/UncontrolledAllocationSize.ql": {
+      "bqrs_sha256": "932ed178e6d2e0fb2a3728bd683f0ca85457a708ef67f1aaeee55462ba5a8892",
+      "semantic_sha256": "420d8b59728ca9bef5e0a2f5f378c34843017413bee1d17bd5d83687161c365d"
+    },
+    "queries/security/CWE-798/HardcodedCryptographicValue.ql": {
+      "bqrs_sha256": "76ec21c75a3378877cf2e55ebe9f078bf3525a9590f94dead3c4fb93d02c7e63",
+      "semantic_sha256": "48c6f6b8e7e8a6b1686f75534e878f88353bf6e6eec98fcf8cc9dd127a72496f"
+    },
+    "queries/security/CWE-825/AccessAfterLifetime.ql": {
+      "bqrs_sha256": "18be8c14d832eccfda2cbfba2e5607469183b5bbad25a58e30c0d5cd87f0482a",
+      "semantic_sha256": "f2a7960593b1718a5d42fc0b50338c0c0357b884a2791f87454f53bb9c6adefa"
+    },
+    "queries/security/CWE-825/AccessInvalidPointer.ql": {
+      "bqrs_sha256": "d4831c7d7dc2c555df94b0588e0fb714a0c5b1ec3bf0b07315383237dad2b518",
+      "semantic_sha256": "9146778c5c26076dcc08222937805674f34d71111cb5ba7dd5a06dad676987ec"
+    },
+    "queries/security/CWE-918/RequestForgery.ql": {
+      "bqrs_sha256": "9966cf7d150087d8a1af06cd0e85b64ee37b526bfb5e61beece3766922fc7d40",
+      "semantic_sha256": "3811bf5d854ba1a30c2d657aff75e68406ad7f1bb888fea4fa5ca0c22c949ced"
+    },
+    "queries/summary/LinesOfCode.ql": {
+      "bqrs_sha256": "37d1b92825b1451ff1b601d9931dfe1038f837166aa8df97a362c53513189696",
+      "semantic_sha256": "e2d1b55fde4146eb72a6cf09ef9ed1c6ce68eb1419f0256836c827b6d6c06d2f"
+    },
+    "queries/summary/LinesOfUserCode.ql": {
+      "bqrs_sha256": "9297980aab65444dd8945e35fd70ad5b2695f78dc5c399d0c0f77fce470292dc",
+      "semantic_sha256": "e2d1b55fde4146eb72a6cf09ef9ed1c6ce68eb1419f0256836c827b6d6c06d2f"
+    },
+    "queries/summary/NodesWithTypeAtLengthLimit.ql": {
+      "bqrs_sha256": "0eaaf1c1ee132918cedd6b7a1103334b56ba4ad2032d40e3ab8679682e069cdd",
+      "semantic_sha256": "3fb32cdc2fe562214054ed2c79dab8bfdbda458574d6774aaec13166c5577679"
+    },
+    "queries/summary/NumberOfFilesExtractedWithErrors.ql": {
+      "bqrs_sha256": "18b0dd0cf266e789dbd21c542f48c279c2ef839d7ba8fc03b8903462701c643d",
+      "semantic_sha256": "84e831543dc7042284b8f6ab2a0201a49e1af5aa0603c9d627fbc3090e97fdcc"
+    },
+    "queries/summary/NumberOfSuccessfullyExtractedFiles.ql": {
+      "bqrs_sha256": "cb601f36fb7b7742f4d3390a7fc79415c4d49f7acef4ad66719fe2a56d4c9b73",
+      "semantic_sha256": "79fc88a53fdd3ec543a4dc258f81b7b14c4a984fd882cb182bfdeb574dda228d"
+    },
+    "queries/summary/QuerySinkCounts.ql": {
+      "bqrs_sha256": "47216163f632d1bdf665fcc9343e80ae3dc5dec9fce2914f197f6563094b7fe2",
+      "semantic_sha256": "8ef6e1404fc534c393918bd0563102b9de96fbd68f2ca310a51a92427ed994f3"
+    },
+    "queries/summary/SummaryStatsReduced.ql": {
+      "bqrs_sha256": "49e06742cb4fba04ca704e240c3644cfc46bce1670194e68b3ea5ce3a93bb339",
+      "semantic_sha256": "08c368f7288a55afc4f3ddaa075fa42a8537b70174e34295a2d06b36e05fad66"
+    },
+    "queries/telemetry/DatabaseQualityDiagnostics.ql": {
+      "bqrs_sha256": "0cf636c4af7a405a49ed116f9fc1f2662d8e9d22f659fd7a5056298e6171d516",
+      "semantic_sha256": "630a5f7a583bc8fb5cc7a007c3d16650e4b93098a0718ae439cff36af3e67dd2"
+    },
+    "queries/telemetry/ExtractorInformation.ql": {
+      "bqrs_sha256": "00afb7d63876e5f6f7c5b1229fd37cb11c8f6e1326d965fb50b3fcfffb124a03",
+      "semantic_sha256": "fcc244e412cb6ba89f4e7f1663da9e4e9a3d8774e026c1f3672c3b04c7c8f18e"
+    }
+  },
+  "sarif_published": false,
+  "schema": 1,
+  "source": {
+    "analyzed_commit": "56f191f04a57806869b8a03078ee4d27ffe900ab",
+    "artifact_bytes": 288417501,
+    "artifact_id": 13677417145,
+    "artifact_sha256": "cb0bd89478b9a8d0f635a9ffa2156a06e3fbbf81b0054b8a1a474c045711d43d",
+    "source_head": "3254c81066af26cd23a2881198010fb616ce6b7a",
+    "source_run": 42554273879
+  },
+  "tool_identity": {
+    "codeql_sha256": "5010324098d11f9e2d34e0fcf53bb44e40e8e3ffc8aecefe695269b54edaa413",
+    "codeql_version": "2.27.2",
+    "query_pack": "0.1.44",
+    "tool_bundle_bytes": 98247028,
+    "tool_bundle_sha256": "acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea"
+  }
+}

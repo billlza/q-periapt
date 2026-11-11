@@ -2,14 +2,27 @@ name: Retained SummaryStats allocation control
 
 on:
   workflow_dispatch:
+    inputs:
+      summary_plan_mode:
+        description: Full SummaryStats plan (all selects the fixed experimental capsule)
+        type: choice
+        options: [none, all]
+        default: none
   push:
-    branches: [diagnostic/codeql-summary-cache]
+    branches: [diagnostic/codeql-summary-cache, diagnostic/codeql-summary-joins]
     paths:
       - .github/workflows/codeql-summary-control.yml
       - artifact/codeql_summary_control.py
       - artifact/test_codeql_summary_control.py
       - artifact/codeql_process_resources.py
       - artifact/test_codeql_process_resources.py
+      - artifact/codeql_summary_plan.py
+      - artifact/test_codeql_summary_plan.py
+      - artifact/codeql_summary_dynamic_plan.json
+      - artifact/codeql-summary-dynamic-plan.zip
+
+env:
+  SUMMARY_PLAN_MODE: ${{ (github.event_name == 'push' && github.ref_name == 'diagnostic/codeql-summary-joins' && 'all') || (github.event_name == 'workflow_dispatch' && inputs.summary_plan_mode) || 'none' }}
 
 permissions:
   contents: read
@@ -40,6 +53,10 @@ jobs:
             artifact/test_codeql_summary_control.py
             artifact/codeql_process_resources.py
             artifact/test_codeql_process_resources.py
+            artifact/codeql_summary_plan.py
+            artifact/test_codeql_summary_plan.py
+            artifact/codeql_summary_dynamic_plan.json
+            artifact/codeql-summary-dynamic-plan.zip
             artifact/codeql_log_recovery.py
             artifact/codeql_rust_queries.json
             artifact/bounded_process.py
@@ -49,7 +66,7 @@ jobs:
             artifact/python_bootstrap.py
       - name: Check exact inputs, fresh results and strict paired comparison
         timeout-minutes: 2
-        run: sh artifact/python-run.sh -m unittest -v test_codeql_summary_control test_codeql_process_resources
+        run: sh artifact/python-run.sh -m unittest -v test_codeql_summary_control test_codeql_process_resources test_codeql_summary_plan
       - name: Install the authenticated Rust CLI 2.27.2 bundle
         timeout-minutes: 12
         run: |
@@ -76,6 +93,7 @@ jobs:
             --codeql "$RUNNER_TEMP/codeql-summary-tool/codeql/codeql" \
             --tool-archive "$RUNNER_TEMP/codeql-bundle-rust-linux64.tar.zst" \
             --profile "$CASE_PROFILE" \
+            --summary-plan-mode "$SUMMARY_PLAN_MODE" \
             --output "$RUNNER_TEMP/qperiapt-codeql-summary-control"
       - name: Retain inputs, raw query logs and incomplete evaluation receipts
         if: always()
@@ -101,6 +119,9 @@ jobs:
           sparse-checkout: |
             artifact/codeql_summary_control.py
             artifact/codeql_process_resources.py
+            artifact/codeql_summary_plan.py
+            artifact/codeql_summary_dynamic_plan.json
+            artifact/codeql-summary-dynamic-plan.zip
             artifact/codeql_log_recovery.py
             artifact/codeql_rust_queries.json
             artifact/bounded_process.py
@@ -123,6 +144,7 @@ jobs:
         if: always()
         run: |
           sh artifact/python-run.sh artifact/codeql_summary_control.py compare \
+            --summary-plan-mode "$SUMMARY_PLAN_MODE" \
             --baseline "$RUNNER_TEMP/qperiapt-codeql-summary-pair/heap-2048/RESULT.json" \
             --candidate "$RUNNER_TEMP/qperiapt-codeql-summary-pair/heap-1536/RESULT.json" \
             --output "$RUNNER_TEMP/SUMMARY_CONTROL_COMPARISON.json"

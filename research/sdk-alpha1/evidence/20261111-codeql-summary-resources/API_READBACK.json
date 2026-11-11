@@ -1,0 +1,201 @@
+{
+  "observed_at_utc": "2026-11-11T03:23:00Z",
+  "repository": "billlza/q-periapt",
+  "run": {
+    "id": 42822797947,
+    "url": "https://github.com/billlza/q-periapt/actions/runs/42822797947",
+    "head_sha": "748edb36681827c09fe327717b6478089e28548a",
+    "head_branch": "diagnostic/codeql-summary-cache",
+    "status": "queued",
+    "conclusion": null,
+    "created_at": "2026-11-10T13:15:04Z",
+    "updated_at": "2026-11-10T23:57:01Z"
+  },
+  "jobs": [
+    {
+      "id": 129852302609,
+      "name": "Retained 56f191f0 macOS database, heap-1536",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-10T18:53:25Z",
+      "completed_at": "2026-11-10T23:54:43Z",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_name": "GitHub Actions 1000086840",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-10T18:53:25Z",
+          "completed_at": "2026-11-10T18:53:26Z"
+        },
+        {
+          "name": "Run actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-10T18:53:26Z",
+          "completed_at": "2026-11-10T18:53:28Z"
+        },
+        {
+          "name": "Check exact inputs, fresh results and strict paired comparison",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-10T18:53:28Z",
+          "completed_at": "2026-11-10T18:53:36Z"
+        },
+        {
+          "name": "Install the authenticated Rust CLI 2.27.2 bundle",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-10T18:53:36Z",
+          "completed_at": "2026-11-10T18:53:38Z"
+        },
+        {
+          "name": "Run all 39 queries from an identical warm cache within five hours",
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-11-10T18:53:38Z",
+          "completed_at": "2026-11-10T23:54:26Z"
+        },
+        {
+          "name": "Retain inputs, raw query logs and incomplete evaluation receipts",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-10T23:54:26Z",
+          "completed_at": "2026-11-10T23:54:31Z"
+        },
+        {
+          "name": "Post Run actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-10T23:54:31Z",
+          "completed_at": "2026-11-10T23:54:31Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-10T23:54:31Z",
+          "completed_at": "2026-11-10T23:54:31Z"
+        }
+      ]
+    },
+    {
+      "id": 129852303046,
+      "name": "Retained 56f191f0 macOS database, heap-2048",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-10T18:55:35Z",
+      "completed_at": "2026-11-10T23:57:01Z",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_name": "GitHub Actions 1000086841",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-10T18:55:36Z",
+          "completed_at": "2026-11-10T18:55:36Z"
+        },
+        {
+          "name": "Run actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-10T18:55:36Z",
+          "completed_at": "2026-11-10T18:55:38Z"
+        },
+        {
+          "name": "Check exact inputs, fresh results and strict paired comparison",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-10T18:55:38Z",
+          "completed_at": "2026-11-10T18:55:46Z"
+        },
+        {
+          "name": "Install the authenticated Rust CLI 2.27.2 bundle",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-10T18:55:46Z",
+          "completed_at": "2026-11-10T18:55:48Z"
+        },
+        {
+          "name": "Run all 39 queries from an identical warm cache within five hours",
+          "status": "completed",
+          "conclusion": "failure",
+          "started_at": "2026-11-10T18:55:48Z",
+          "completed_at": "2026-11-10T23:56:49Z"
+        },
+        {
+          "name": "Retain inputs, raw query logs and incomplete evaluation receipts",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-10T23:56:49Z",
+          "completed_at": "2026-11-10T23:56:55Z"
+        },
+        {
+          "name": "Post Run actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-10T23:56:55Z",
+          "completed_at": "2026-11-10T23:56:55Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "started_at": "2026-11-10T23:56:55Z",
+          "completed_at": "2026-11-10T23:56:55Z"
+        }
+      ]
+    },
+    {
+      "id": 130217499454,
+      "name": "Require complete equivalent results from both allocations",
+      "status": "queued",
+      "conclusion": null,
+      "started_at": "2026-11-10T23:57:01Z",
+      "completed_at": null,
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_name": "",
+      "steps": []
+    }
+  ],
+  "artifacts": [
+    {
+      "id": 13813748616,
+      "name": "codeql-summary-control-heap-2048",
+      "size_in_bytes": 25627939,
+      "digest": "sha256:b5a7f3f90b7c40b5abf68e62d7007458a8692c3a9b358c33eb5f02d9559d5a2f",
+      "created_at": "2026-11-10T23:56:54Z",
+      "expires_at": "2026-11-24T23:56:49Z",
+      "workflow_run": {
+        "id": 42822797947,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "diagnostic/codeql-summary-cache",
+        "head_sha": "748edb36681827c09fe327717b6478089e28548a"
+      }
+    },
+    {
+      "id": 13813588831,
+      "name": "codeql-summary-control-heap-1536",
+      "size_in_bytes": 25584177,
+      "digest": "sha256:43768e3f4346d2ca169ae2f9bc23f631d56a14dd30e51927005b35a64b1cc05e",
+      "created_at": "2026-11-10T23:54:31Z",
+      "expires_at": "2026-11-24T23:54:26Z",
+      "workflow_run": {
+        "id": 42822797947,
+        "repository_id": 1279236693,
+        "head_repository_id": 1279236693,
+        "head_branch": "diagnostic/codeql-summary-cache",
+        "head_sha": "748edb36681827c09fe327717b6478089e28548a"
+      }
+    }
+  ]
+}

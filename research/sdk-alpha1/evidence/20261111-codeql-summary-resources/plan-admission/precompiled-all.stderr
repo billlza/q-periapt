@@ -1,0 +1,9 @@
+Resolving data extensions.
+Finished resolving data extensions.
+Loading data extensions.
+Finished loading data extensions.
+WARNING: Not caching stages during query-loading, since max heap size is only 1024 MB.
+[1/1] Loaded /workspace/scratch/2f48ae2878bc/codeql-control-20261111/authenticated-tool/codeql/qlpacks/codeql/rust-queries/0.1.44/queries/summary/SummaryStats.qlx.
+Starting evaluation of codeql/rust-queries/queries/summary/SummaryStats.ql.
+[1/1 eval 1.2s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs.
+Shutting down query evaluator.
