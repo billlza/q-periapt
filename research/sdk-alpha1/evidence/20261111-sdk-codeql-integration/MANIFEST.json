@@ -1,0 +1,28 @@
+{
+  "files": {
+    "CODEQL_JOBS.json": {
+      "bytes": 12351,
+      "sha256": "c9668fed06ee303459d6d8e4d14052cb2f6dc0a74043cd8a46bdafd014912599"
+    },
+    "README.md": {
+      "bytes": 2919,
+      "sha256": "511ca056fe9c891775ef0e11102268ec39c11f00275ab56ee271bd14a4b6cb9e"
+    },
+    "REFERENCES.json": {
+      "bytes": 2512,
+      "sha256": "e68584dd1f2ddfe97ad5828acec892f0fb314d43309827d61c846bf4aee2e8be"
+    },
+    "SOURCE_EQUIVALENCE.json": {
+      "bytes": 2068,
+      "sha256": "37954e7e07466163dff4fbfeca5f67f5413c3bf0ef38a0e0d20ba63fe40eaaed"
+    },
+    "WORKFLOW_RUNS.json": {
+      "bytes": 6144,
+      "sha256": "27430af8e8f04024c03b67904492c277355dfd8f7943ea3e327efbc390c62460"
+    }
+  },
+  "kind": "qperiapt.sdk_codeql_integration_readback",
+  "qualified_production_commit": "b5185165283880527a54289b47397fde78ddf553",
+  "schema": 1,
+  "sdk_commit": "75eda8f54a721dbed16a0bed43cdc493c9071485"
+}

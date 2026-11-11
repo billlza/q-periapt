@@ -1,0 +1,180 @@
+{
+  "ordinary_ci": {
+    "path": ".github/workflows/ci.yml",
+    "pull_request_run_id": 43050342715,
+    "push_run_count": 0,
+    "run_count": 1
+  },
+  "schema": 1,
+  "selection": "All workflow runs returned for the exact SDK head; total_count fits the one 100-entry page.",
+  "snapshot_window": {
+    "finished_utc": "2026-11-11 15:41:44 UTC",
+    "started_utc": "2026-11-11 15:41:43 UTC"
+  },
+  "source_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs?head_sha=75eda8f54a721dbed16a0bed43cdc493c9071485&per_page=100",
+  "total_count": 9,
+  "workflow_runs": [
+    {
+      "conclusion": null,
+      "created_at": "2026-11-11T15:38:15Z",
+      "event": "pull_request",
+      "head_branch": "integration/sdk-020",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342662",
+      "id": 43050342662,
+      "name": "Continuity matched directed opportunities",
+      "path": ".github/workflows/continuity-matched-comparison.yml",
+      "pull_requests": [
+        121
+      ],
+      "run_attempt": 1,
+      "run_started_at": "2026-11-11T15:38:15Z",
+      "status": "in_progress",
+      "updated_at": "2026-11-11T15:38:20Z"
+    },
+    {
+      "conclusion": null,
+      "created_at": "2026-11-11T15:38:15Z",
+      "event": "pull_request",
+      "head_branch": "integration/sdk-020",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342668",
+      "id": 43050342668,
+      "name": "Continuity reference account",
+      "path": ".github/workflows/reference-account.yml",
+      "pull_requests": [
+        121
+      ],
+      "run_attempt": 1,
+      "run_started_at": "2026-11-11T15:38:15Z",
+      "status": "queued",
+      "updated_at": "2026-11-11T15:38:22Z"
+    },
+    {
+      "conclusion": null,
+      "created_at": "2026-11-11T15:38:15Z",
+      "event": "pull_request",
+      "head_branch": "integration/sdk-020",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342680",
+      "id": 43050342680,
+      "name": "Continuity native retry readiness",
+      "path": ".github/workflows/continuity-retry-age-comparison.yml",
+      "pull_requests": [
+        121
+      ],
+      "run_attempt": 1,
+      "run_started_at": "2026-11-11T15:38:15Z",
+      "status": "in_progress",
+      "updated_at": "2026-11-11T15:38:21Z"
+    },
+    {
+      "conclusion": null,
+      "created_at": "2026-11-11T15:38:15Z",
+      "event": "pull_request",
+      "head_branch": "integration/sdk-020",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342735",
+      "id": 43050342735,
+      "name": "JoC manuscript",
+      "path": ".github/workflows/joc-manuscript.yml",
+      "pull_requests": [
+        121
+      ],
+      "run_attempt": 1,
+      "run_started_at": "2026-11-11T15:38:15Z",
+      "status": "in_progress",
+      "updated_at": "2026-11-11T15:38:21Z"
+    },
+    {
+      "conclusion": null,
+      "created_at": "2026-11-11T15:38:15Z",
+      "event": "pull_request",
+      "head_branch": "integration/sdk-020",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342604",
+      "id": 43050342604,
+      "name": "Directory lease contract",
+      "path": ".github/workflows/directory-lease-contract.yml",
+      "pull_requests": [
+        121
+      ],
+      "run_attempt": 1,
+      "run_started_at": "2026-11-11T15:38:15Z",
+      "status": "in_progress",
+      "updated_at": "2026-11-11T15:38:22Z"
+    },
+    {
+      "conclusion": null,
+      "created_at": "2026-11-11T15:38:15Z",
+      "event": "pull_request",
+      "head_branch": "integration/sdk-020",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342715",
+      "id": 43050342715,
+      "name": "ci",
+      "path": ".github/workflows/ci.yml",
+      "pull_requests": [
+        121
+      ],
+      "run_attempt": 1,
+      "run_started_at": "2026-11-11T15:38:15Z",
+      "status": "queued",
+      "updated_at": "2026-11-11T15:38:21Z"
+    },
+    {
+      "conclusion": null,
+      "created_at": "2026-11-11T15:38:15Z",
+      "event": "pull_request",
+      "head_branch": "integration/sdk-020",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342673",
+      "id": 43050342673,
+      "name": "Continuity focused regressions",
+      "path": ".github/workflows/continuity-regression.yml",
+      "pull_requests": [
+        121
+      ],
+      "run_attempt": 1,
+      "run_started_at": "2026-11-11T15:38:15Z",
+      "status": "queued",
+      "updated_at": "2026-11-11T15:38:15Z"
+    },
+    {
+      "conclusion": null,
+      "created_at": "2026-11-11T15:38:15Z",
+      "event": "pull_request",
+      "head_branch": "integration/sdk-020",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342732",
+      "id": 43050342732,
+      "name": "CodeQL",
+      "path": ".github/workflows/codeql.yml",
+      "pull_requests": [
+        121
+      ],
+      "run_attempt": 1,
+      "run_started_at": "2026-11-11T15:38:15Z",
+      "status": "queued",
+      "updated_at": "2026-11-11T15:38:15Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-11-11T15:38:15Z",
+      "event": "pull_request",
+      "head_branch": "integration/sdk-020",
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342828",
+      "id": 43050342828,
+      "name": "peer-configuration-lifetime",
+      "path": ".github/workflows/peer-configuration-lifetime.yml",
+      "pull_requests": [
+        121
+      ],
+      "run_attempt": 1,
+      "run_started_at": "2026-11-11T15:38:15Z",
+      "status": "completed",
+      "updated_at": "2026-11-11T15:38:30Z"
+    }
+  ]
+}

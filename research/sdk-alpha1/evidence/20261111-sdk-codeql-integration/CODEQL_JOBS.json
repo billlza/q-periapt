@@ -1,0 +1,402 @@
+{
+  "interpretation": "The job and step states show Linux execution while macOS jobs remain queued. GitHub also supplies started_at for queued placeholders; that field alone is not treated as execution. The workflow-list aggregate status is retained separately and was still queued.",
+  "jobs": [
+    {
+      "completed_at": null,
+      "conclusion": null,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342732/job/130625389506",
+      "id": 130625389506,
+      "labels": [
+        "macos-26"
+      ],
+      "name": "Prepare Rust (macos)",
+      "run_attempt": 1,
+      "run_id": 43050342732,
+      "runner_group_name": "",
+      "runner_id": 0,
+      "runner_name": "",
+      "started_at": "2026-11-11T15:38:16Z",
+      "status": "queued",
+      "steps": []
+    },
+    {
+      "completed_at": null,
+      "conclusion": null,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342732/job/130625389933",
+      "id": 130625389933,
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "name": "Analyze Rust (wasm)",
+      "run_attempt": 1,
+      "run_id": 43050342732,
+      "runner_group_name": "GitHub Actions",
+      "runner_id": 1000089198,
+      "runner_name": "GitHub Actions 1000089198",
+      "started_at": "2026-11-11T15:38:21Z",
+      "status": "in_progress",
+      "steps": [
+        {
+          "completed_at": "2026-11-11T15:38:23Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "started_at": "2026-11-11T15:38:22Z",
+          "status": "completed"
+        },
+        {
+          "completed_at": "2026-11-11T15:41:27Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "started_at": "2026-11-11T15:38:23Z",
+          "status": "completed"
+        },
+        {
+          "completed_at": "2026-11-11T15:41:39Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "number": 3,
+          "started_at": "2026-11-11T15:41:27Z",
+          "status": "completed"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Install analysis build dependencies",
+          "number": 4,
+          "started_at": "2026-11-11T15:41:39Z",
+          "status": "in_progress"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Check target coverage and publication rejection cases",
+          "number": 5,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Run github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+          "number": 6,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Compile and extract the actual target",
+          "number": 7,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Download the authenticated projection runtime",
+          "number": 8,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Run every security-extended query",
+          "number": 9,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Retain profile evidence before bundling diagnostics",
+          "number": 10,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Retain Rust query logs independently of the database archive",
+          "number": 11,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Bundle the completed or partial database",
+          "number": 12,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Retain Rust database and consumer diagnostics",
+          "number": 13,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 26,
+          "started_at": null,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "completed_at": null,
+      "conclusion": null,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342732/job/130625389939",
+      "id": 130625389939,
+      "labels": [
+        "macos-latest"
+      ],
+      "name": "Analyze (swift)",
+      "run_attempt": 1,
+      "run_id": 43050342732,
+      "runner_group_name": "",
+      "runner_id": 0,
+      "runner_name": "",
+      "started_at": "2026-11-11T15:38:16Z",
+      "status": "queued",
+      "steps": []
+    },
+    {
+      "completed_at": null,
+      "conclusion": null,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342732/job/130625390075",
+      "id": 130625390075,
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "name": "Analyze Rust (native)",
+      "run_attempt": 1,
+      "run_id": 43050342732,
+      "runner_group_name": "GitHub Actions",
+      "runner_id": 1000089199,
+      "runner_name": "GitHub Actions 1000089199",
+      "started_at": "2026-11-11T15:38:21Z",
+      "status": "in_progress",
+      "steps": [
+        {
+          "completed_at": "2026-11-11T15:38:24Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "started_at": "2026-11-11T15:38:22Z",
+          "status": "completed"
+        },
+        {
+          "completed_at": "2026-11-11T15:41:35Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 2,
+          "started_at": "2026-11-11T15:38:24Z",
+          "status": "completed"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+          "number": 3,
+          "started_at": "2026-11-11T15:41:35Z",
+          "status": "in_progress"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Install analysis build dependencies",
+          "number": 4,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Check target coverage and publication rejection cases",
+          "number": 5,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Run github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2",
+          "number": 6,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Compile and extract the actual target",
+          "number": 7,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Download the authenticated projection runtime",
+          "number": 8,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Run every security-extended query",
+          "number": 9,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Retain profile evidence before bundling diagnostics",
+          "number": 10,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Retain Rust query logs independently of the database archive",
+          "number": 11,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Bundle the completed or partial database",
+          "number": 12,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Retain Rust database and consumer diagnostics",
+          "number": 13,
+          "started_at": null,
+          "status": "pending"
+        },
+        {
+          "completed_at": null,
+          "conclusion": null,
+          "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "number": 26,
+          "started_at": null,
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "completed_at": null,
+      "conclusion": null,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342732/job/130625390162",
+      "id": 130625390162,
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "name": "Analyze (java-kotlin)",
+      "run_attempt": 1,
+      "run_id": 43050342732,
+      "runner_group_name": "",
+      "runner_id": 0,
+      "runner_name": "",
+      "started_at": "2026-11-11T15:38:16Z",
+      "status": "queued",
+      "steps": []
+    },
+    {
+      "completed_at": null,
+      "conclusion": null,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342732/job/130625390199",
+      "id": 130625390199,
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "name": "Analyze (c-cpp)",
+      "run_attempt": 1,
+      "run_id": 43050342732,
+      "runner_group_name": "",
+      "runner_id": 0,
+      "runner_name": "",
+      "started_at": "2026-11-11T15:38:16Z",
+      "status": "queued",
+      "steps": []
+    },
+    {
+      "completed_at": null,
+      "conclusion": null,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342732/job/130625390248",
+      "id": 130625390248,
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "name": "Analyze (actions)",
+      "run_attempt": 1,
+      "run_id": 43050342732,
+      "runner_group_name": "",
+      "runner_id": 0,
+      "runner_name": "",
+      "started_at": "2026-11-11T15:38:16Z",
+      "status": "queued",
+      "steps": []
+    },
+    {
+      "completed_at": null,
+      "conclusion": null,
+      "head_sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+      "html_url": "https://github.com/billlza/q-periapt/actions/runs/43050342732/job/130625390511",
+      "id": 130625390511,
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "name": "Analyze (python)",
+      "run_attempt": 1,
+      "run_id": 43050342732,
+      "runner_group_name": "",
+      "runner_id": 0,
+      "runner_name": "",
+      "started_at": "2026-11-11T15:38:16Z",
+      "status": "queued",
+      "steps": []
+    }
+  ],
+  "observation": {
+    "linux_job_ids": [
+      130625390075,
+      130625389933
+    ],
+    "macos_preparation_and_swift_still_queued": true,
+    "native_and_wasm_have_assigned_runners_and_executed_steps": true,
+    "queued_macos_job_ids": [
+      130625389506,
+      130625389939
+    ]
+  },
+  "schema": 1,
+  "snapshot_window": {
+    "finished_utc": "2026-11-11 15:41:44 UTC",
+    "started_utc": "2026-11-11 15:41:43 UTC"
+  },
+  "source_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43050342732/jobs?per_page=100",
+  "total_count": 8
+}

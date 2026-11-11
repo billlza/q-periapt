@@ -1,0 +1,68 @@
+{
+  "base": {
+    "parents": [
+      "951b8dcaebc11223bf01c79c1c4c3a20349be989"
+    ],
+    "sha": "b5185165283880527a54289b47397fde78ddf553",
+    "tree": "8bd4c68aef4ddabe448f47996a709619b5c03924"
+  },
+  "comparison": {
+    "ahead_by": 1,
+    "behind_by": 0,
+    "status": "ahead",
+    "total_commits": 1
+  },
+  "files": [
+    {
+      "additions": 2,
+      "changes": 4,
+      "deletions": 2,
+      "filename": "artifact/codeql_summary_projection.md",
+      "sha": "5a28e5f461129d35db238ab6f1f0d964294e0bca",
+      "status": "modified"
+    },
+    {
+      "additions": 38,
+      "changes": 63,
+      "deletions": 25,
+      "filename": "docs/SDK_0_2_RELEASE_READINESS.md",
+      "sha": "179f628244f9a3b8b2504b925055dce21c7d1ad0",
+      "status": "modified"
+    },
+    {
+      "additions": 31,
+      "changes": 47,
+      "deletions": 16,
+      "filename": "docs/SDK_INTERNAL_REVIEW.md",
+      "sha": "916486652fca2fc946a881d836b7e339c7581f7a",
+      "status": "modified"
+    }
+  ],
+  "head": {
+    "parents": [
+      "b5185165283880527a54289b47397fde78ddf553"
+    ],
+    "sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+    "tree": "e992a9077e657e63c6b698527d26fe81ad67c535"
+  },
+  "merge_base": {
+    "parents": [
+      "951b8dcaebc11223bf01c79c1c4c3a20349be989"
+    ],
+    "sha": "b5185165283880527a54289b47397fde78ddf553",
+    "tree": "8bd4c68aef4ddabe448f47996a709619b5c03924"
+  },
+  "schema": 1,
+  "scope": "Selected commit and file metadata from the complete three-file GitHub comparison; no patch text copied.",
+  "snapshot_window": {
+    "finished_utc": "2026-11-11 15:41:44 UTC",
+    "started_utc": "2026-11-11 15:41:43 UTC"
+  },
+  "source_url": "https://api.github.com/repos/billlza/q-periapt/compare/b5185165283880527a54289b47397fde78ddf553...75eda8f54a721dbed16a0bed43cdc493c9071485",
+  "verification": {
+    "code_and_workflow_files_unchanged": true,
+    "only_three_markdown_files_changed": true,
+    "qualified_production_commit": "b5185165283880527a54289b47397fde78ddf553",
+    "sdk_integration_commit": "75eda8f54a721dbed16a0bed43cdc493c9071485"
+  }
+}

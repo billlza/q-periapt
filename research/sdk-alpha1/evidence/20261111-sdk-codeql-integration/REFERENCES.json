@@ -1,0 +1,72 @@
+{
+  "branches": [
+    {
+      "object": {
+        "sha": "75eda8f54a721dbed16a0bed43cdc493c9071485",
+        "type": "commit",
+        "url": "https://api.github.com/repos/billlza/q-periapt/git/commits/75eda8f54a721dbed16a0bed43cdc493c9071485"
+      },
+      "ref": "refs/heads/integration/sdk-020",
+      "source_url": "https://api.github.com/repos/billlza/q-periapt/git/ref/heads/integration/sdk-020",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/refs/heads/integration/sdk-020"
+    },
+    {
+      "object": {
+        "sha": "48d0fb9a5651b50494ec33d025dda52bd2ff5eae",
+        "type": "commit",
+        "url": "https://api.github.com/repos/billlza/q-periapt/git/commits/48d0fb9a5651b50494ec33d025dda52bd2ff5eae"
+      },
+      "ref": "refs/heads/main",
+      "source_url": "https://api.github.com/repos/billlza/q-periapt/git/ref/heads/main",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/refs/heads/main"
+    }
+  ],
+  "pull_requests": [
+    {
+      "base": {
+        "ref": "integration/sdk-020",
+        "sha": "faabcff16fc49e1a99388c68f0991a2bfd64d509"
+      },
+      "draft": false,
+      "head": {
+        "ref": "fix/codeql-stage34-progress",
+        "sha": "ff193302f207bb3f06a2941a7c6bf98a2eeb5a17"
+      },
+      "html_url": "https://github.com/billlza/q-periapt/pull/169",
+      "merge_commit_sha": "ff193302f207bb3f06a2941a7c6bf98a2eeb5a17",
+      "mergeable": null,
+      "mergeable_state": "unknown",
+      "merged": true,
+      "merged_at": "2026-11-11T15:38:00Z",
+      "number": 169,
+      "source_url": "https://api.github.com/repos/billlza/q-periapt/pulls/169",
+      "state": "closed"
+    },
+    {
+      "base": {
+        "ref": "main",
+        "sha": "48d0fb9a5651b50494ec33d025dda52bd2ff5eae"
+      },
+      "draft": false,
+      "head": {
+        "ref": "integration/sdk-020",
+        "sha": "75eda8f54a721dbed16a0bed43cdc493c9071485"
+      },
+      "html_url": "https://github.com/billlza/q-periapt/pull/121",
+      "merge_commit_sha": "b72f7f8e8e6f2526ebab4b825b7d47402ac9835f",
+      "mergeable": true,
+      "mergeable_state": "blocked",
+      "merged": false,
+      "merged_at": null,
+      "number": 121,
+      "source_url": "https://api.github.com/repos/billlza/q-periapt/pulls/121",
+      "state": "open"
+    }
+  ],
+  "schema": 1,
+  "scope": "Selected branch and pull-request state metadata; old PR bodies are omitted.",
+  "snapshot_window": {
+    "finished_utc": "2026-11-11 15:41:44 UTC",
+    "started_utc": "2026-11-11 15:41:43 UTC"
+  }
+}
