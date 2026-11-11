@@ -44,13 +44,18 @@ WORKSPACE_LOCKFILES = (
     "research/continuity-whole-kem-reference/Cargo.lock",
     "research/hqc-fips207-candidate/Cargo.lock",
 )
-# Source snapshots retained by the paper at f26e30a57cd6f22370ac2f1b3ba1962c1997b25d.
-# These exact files preserve provenance; they are not Cargo fetch roots.
-PAPER_ARCHIVE_LOCKFILES = {
+# Exact retained source/evidence snapshots are not Cargo fetch roots. Git's
+# *Cargo.lock pathspec also matches prefixed archive names, so bind those
+# explicitly instead of weakening the live workspace inventory.
+ARCHIVE_LOCKFILES = {
+    # Paper snapshots at f26e30a57cd6f22370ac2f1b3ba1962c1997b25d.
     "paper/continuity/artifacts/signature-bridge/sources/q-periapt-native/Cargo.lock":
         "b3f7403faca9c95c0f77d5abb6ce732bb9b89c1a4c72ad6ba6e58f533e0af3d9",
     "paper/continuity/artifacts/signature-bridge/sources/q-periapt-native/research/continuity-identity-candidate/Cargo.lock":
         "fda2e0592f7e013816b343d461da1e32346b4256603eda317d12b4ebd200c26b",
+    # Installed native-consumer evidence; its prefixed manifest is archival.
+    "research/sdk-alpha1/evidence/20261110-native-distribution/consumer-Cargo.lock":
+        "9a10dfaca8599e74ca4a4783639c1bc9d34752cd73be3176e3d3499a28d0209e",
 }
 
 
@@ -136,16 +141,16 @@ def compiler_commands(root: Path, profile: str):
 
 def tracked_lockfiles(root: Path) -> tuple[str, ...]:
     tracked = tuple(run_git_bytes(root, ["ls-files", "--", "*Cargo.lock"]).decode().splitlines())
-    locks = tuple(path for path in tracked if path not in PAPER_ARCHIVE_LOCKFILES)
+    locks = tuple(path for path in tracked if path not in ARCHIVE_LOCKFILES)
     sdk.require(locks == WORKSPACE_LOCKFILES, "tracked workspace lock inventory differs")
     for relative in tracked:
-        if relative in PAPER_ARCHIVE_LOCKFILES:
+        if relative in ARCHIVE_LOCKFILES:
             archive = root / relative
             manifest = archive.with_name("Cargo.toml")
             sdk.require(not manifest.exists() and not manifest.is_symlink(),
-                        "archived paper lock has an adjacent Cargo.toml")
-            sdk.require(sdk.snapshot(archive, maximum=1024 * 1024).sha256 == PAPER_ARCHIVE_LOCKFILES[relative],
-                        "archived paper lock snapshot differs")
+                        "archived lock has an adjacent Cargo.toml")
+            sdk.require(sdk.snapshot(archive, maximum=1024 * 1024).sha256 == ARCHIVE_LOCKFILES[relative],
+                        "archived lock snapshot differs")
     return locks
 
 
