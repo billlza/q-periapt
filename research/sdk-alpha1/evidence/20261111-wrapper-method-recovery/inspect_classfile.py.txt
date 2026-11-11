@@ -1,0 +1,142 @@
+"""Read selected Java class references without starting a JVM."""
+import hashlib
+import json
+from pathlib import Path
+import struct
+import zipfile
+
+
+class Reader:
+    def __init__(self, data):
+        self.data, self.offset = data, 0
+
+    def take(self, size):
+        value = self.data[self.offset:self.offset + size]
+        assert len(value) == size
+        self.offset += size
+        return value
+
+    def integer(self, size):
+        return int.from_bytes(self.take(size), 'big')
+
+
+def read_class(data):
+    r = Reader(data)
+    assert r.integer(4) == 0xcafebabe
+    r.take(4)
+    cp = [None] * r.integer(2)
+    index = 1
+    while index < len(cp):
+        tag = r.integer(1)
+        if tag == 1:
+            value = r.take(r.integer(2)).decode('utf-8', errors='replace')
+        elif tag in (3, 4):
+            value = struct.unpack('>i' if tag == 3 else '>f', r.take(4))[0]
+        elif tag in (5, 6):
+            value = struct.unpack('>q' if tag == 5 else '>d', r.take(8))[0]
+        elif tag in (7, 8, 16, 19, 20):
+            value = r.integer(2)
+        elif tag in (9, 10, 11, 12, 17, 18):
+            value = [r.integer(2), r.integer(2)]
+        elif tag == 15:
+            value = [r.integer(1), r.integer(2)]
+        else:
+            raise ValueError(tag)
+        cp[index] = (tag, value)
+        index += 2 if tag in (5, 6) else 1
+
+    def constant(index):
+        tag, value = cp[index]
+        if tag in (7, 8, 16, 19, 20):
+            return constant(value)
+        if tag in (9, 10, 11, 12):
+            return [constant(part) for part in value]
+        return value
+
+    def attributes(reader):
+        return [(constant(reader.integer(2)), reader.take(reader.integer(4)))
+                for _ in range(reader.integer(2))]
+
+    r.integer(2)
+    name, parent = constant(r.integer(2)), constant(r.integer(2))
+    r.take(2 * r.integer(2))
+    members = []
+    for kind in ('fields', 'methods'):
+        for _ in range(r.integer(2)):
+            r.integer(2)
+            item = {'kind': kind, 'name': constant(r.integer(2)),
+                    'descriptor': constant(r.integer(2))}
+            refs = []
+            for attr_name, content in attributes(r):
+                if attr_name != 'Code':
+                    continue
+                reader = Reader(content)
+                reader.take(4)
+                code = reader.take(reader.integer(4))
+                position = 0
+                while position < len(code):
+                    start, opcode = position, code[position]
+                    position += 1
+                    if opcode in (0xaa, 0xab):
+                        position = (position + 3) & ~3
+                        if opcode == 0xaa:
+                            low = int.from_bytes(code[position + 4:position + 8], 'big', signed=True)
+                            high = int.from_bytes(code[position + 8:position + 12], 'big', signed=True)
+                            position += 12 + 4 * (high - low + 1)
+                        else:
+                            pairs = int.from_bytes(code[position + 4:position + 8], 'big')
+                            position += 8 + 8 * pairs
+                        continue
+                    if opcode == 0xc4:
+                        position += 5 if code[position] == 0x84 else 3
+                        continue
+                    operands = 0
+                    if opcode in (0x10, 0x12, 0xa9, 0xbc) or 0x15 <= opcode <= 0x19 or 0x36 <= opcode <= 0x3a:
+                        operands = 1
+                    elif opcode in (0x11, 0x13, 0x14, 0x84, 0xbb, 0xbd, 0xc0, 0xc1, 0xc6, 0xc7) or 0x99 <= opcode <= 0xa8 or 0xb2 <= opcode <= 0xb8:
+                        operands = 2
+                    elif opcode == 0xc5:
+                        operands = 3
+                    elif opcode in (0xb9, 0xba, 0xc8, 0xc9):
+                        operands = 4
+                    if opcode == 0x12:
+                        refs.append({'offset': start, 'opcode': hex(opcode), 'constant': constant(code[position])})
+                    elif opcode in (0x13, 0x14, 0xbb, 0xbd, 0xc0, 0xc1, 0xc5) or 0xb2 <= opcode <= 0xba:
+                        refs.append({'offset': start, 'opcode': hex(opcode),
+                                     'constant': constant(int.from_bytes(code[position:position + 2], 'big'))})
+                    position += operands
+                assert position == len(code)
+                item['code_hex'] = code.hex()
+                item['references'] = refs
+            members.append(item)
+    return {'name': name, 'parent': parent, 'bytes': len(data),
+            'sha256': hashlib.sha256(data).hexdigest(), 'members': members}
+
+
+if __name__ == '__main__':
+    root = Path('/workspace/scratch/4b61438fb07b')
+    jar = root / 'summary-plan-feasibility/tool/codeql/tools/codeql.jar'
+    selected = {
+        'com/semmle/cli2/database/DatabaseLayout.class':
+            {'getScratchFolder', 'getTemporaryFolder', 'getOverlayBaseMetadata', 'getOverlayChangesPath'},
+        'com/semmle/cli2/database/DatabaseAnalysisConfig.class':
+            {'readOptionalFromScratchDirectory', 'writeToScratchDirectory'},
+        'com/semmle/cli2/database/RunQueriesCommand.class':
+            {'augmentAnalysisConfigFromDatabase'},
+    }
+    report = {'jar': str(jar), 'jar_sha256': hashlib.sha256(jar.read_bytes()).hexdigest(),
+              'method': 'Static class-file constant-pool and bytecode reference readback; no JVM', 'classes': []}
+    with zipfile.ZipFile(jar) as archive:
+        for path, methods in selected.items():
+            value = read_class(archive.read(path))
+            value['members'] = [item for item in value['members'] if item['name'] in methods]
+            report['classes'].append(value)
+        memory = read_class(archive.read('com/semmle/cli2/resolve/ResolveRamCommand.class'))
+    Path(__file__).with_name('MEMORY_ROUTING_READBACK.json').write_text(json.dumps(memory, indent=2) + '\n')
+    output = Path(__file__).with_name('DATABASE_CONFIG_READBACK.json')
+    output.write_text(json.dumps(report, indent=2) + '\n')
+    for value in report['classes']:
+        for method in value['members']:
+            print(value['name'], method['name'])
+            for ref in method.get('references', []):
+                print(ref)

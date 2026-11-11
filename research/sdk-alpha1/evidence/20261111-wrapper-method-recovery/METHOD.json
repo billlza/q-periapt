@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "method_version": 1,
+  "kind": "qperiapt.local_database_analyze_fixture_method",
+  "state": "prepared_not_executed",
+  "database": "/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/database-complete",
+  "database_manifest": "/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/evidence/INITIAL_DATABASE_FILES.json.gz",
+  "database_manifest_sha256": "fd16b6bffbd8181597b28657afb49e4c49979979d39e221633e8c9be3bb10d7c",
+  "archive": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/codeql-bundle-rust-linux64.tar.zst",
+  "archive_bytes": 98247028,
+  "archive_sha256": "acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea",
+  "projection_manifest_sha256": "2cb1739ba0f0aeeb00e8a017b7cd0218a0a7519771a58dd47cb7f89a8813ca91",
+  "compiler_inputs_digest": "6a7530eb694360655ab8331a895c9fcd",
+  "scope": "Local end-to-end database analyze and SARIF validation on the accepted nonempty official env fixture",
+  "budget": {
+    "supervisor_seconds": 600,
+    "threads": 1,
+    "heap_mib": 1024,
+    "native_mib": 4096,
+    "memory_arguments": [
+      "--ram=1024",
+      "--off-heap-ram=4096",
+      "--measure-ram=xmx"
+    ],
+    "expected_resolver_result": [
+      "-J-Xmx1024M",
+      "--off-heap-ram=4096",
+      "--measure-ram=xmx"
+    ],
+    "minimum_available_memory_bytes": 7516192768,
+    "resource_scope": "Local explicit-Xmx fixture; distinct from the hosted 14000/9329 allocation"
+  },
+  "query_count": 39,
+  "dynamic_join_order_mode": "all",
+  "threat_model": "local",
+  "expected_implicit_compilations": 0,
+  "expected_fresh_bqrs": 39,
+  "expected_summary_rows": 29,
+  "summary_semantic_sha256": "e2582f4726e1866ef348bf49f05d8c70c62afc6ce8a913eb883bf88684101725",
+  "command_contract": [
+    "database",
+    "analyze",
+    "<private database>",
+    "<frozen 39-query suite>",
+    "--format=sarif-latest",
+    "--output=<private evidence/results.sarif>",
+    "--threads=1",
+    "--ram=1024",
+    "--off-heap-ram=4096",
+    "--measure-ram=xmx",
+    "-J-Xmx1024M",
+    "-J-XX:+PrintFlagsFinal",
+    "--threat-model=local",
+    "--no-download",
+    "--common-caches=<private common cache>",
+    "--sarif-category=/language:rust",
+    "--dynamic-join-order-mode=all",
+    "--verbosity=progress",
+    "--logdir=<private evidence/evaluator>",
+    "--qlconfig-file=<private qlconfig.yml>"
+  ],
+  "private_qlconfig_bytes": "{}\n",
+  "result_comparison": "Complete decoded SummaryStats JSON equality against all three retained baselines; no rerun or row normalization",
+  "publication": {
+    "sarif_uploaded": false,
+    "hosted_profile_receipt_created": false
+  }
+}

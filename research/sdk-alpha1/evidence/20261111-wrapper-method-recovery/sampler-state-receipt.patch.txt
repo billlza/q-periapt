@@ -1,0 +1,25 @@
+--- a/run_fixture.py
++++ b/run_fixture.py
+@@ -330,7 +330,9 @@
+         try:
+             sampler = JvmCommandSampler(evidence)
+             sampler.start()
+-            resource_observation = {'status': 'started'}
++            resource_observation = {
++                'status': sampler.state.get('status', 'unknown'),
++                'sampler_state': dict(sampler.state)}
+         except Exception as error:
+             resource_observation = {'status': 'unavailable', 'type': type(error).__name__,
+                                     'message': str(error)}
+@@ -342,8 +344,9 @@
+         if sampler is not None:
+             try:
+                 sampler.stop()
+-                if resource_observation['status'] == 'started':
+-                    resource_observation = {'status': 'completed'}
++                resource_observation = {
++                    'status': sampler.state.get('status', 'unknown'),
++                    'sampler_state': dict(sampler.state)}
+             except BaseException as error:
+                 resource_observation = {'status': 'stop_failed', 'type': type(error).__name__,
+                                         'message': str(error)}

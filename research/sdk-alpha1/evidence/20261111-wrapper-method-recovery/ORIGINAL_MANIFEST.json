@@ -1,0 +1,34 @@
+{
+  "codeql_invocations": 0,
+  "files": {
+    "DATABASE_CONFIG_READBACK.json": {
+      "bytes": 20011,
+      "sha256": "2aad0640dba9070c8e30a855901651b1eda4cd0504ade8d70ffc3fd37d2be073"
+    },
+    "MEMORY_ROUTING_READBACK.json": {
+      "bytes": 52748,
+      "sha256": "5c59a42248ec0ec322604196f28ddc3d257475b04c5413c060567362c34d94d5"
+    },
+    "METHOD.json": {
+      "bytes": 2629,
+      "sha256": "cb5d24a3b8dc39bf3115dd8f426483a79397228010adbad74353003071af951b"
+    },
+    "README.md": {
+      "bytes": 7663,
+      "sha256": "fdd821c3218aafcf7d9f32adce881767a34d0b797ed248345de24ca6be4b9f37"
+    },
+    "inspect_classfile.py": {
+      "bytes": 6262,
+      "sha256": "5f4aca364a1d6773d37e771410e02a94ce648bdcecd5232156cd8424300fe1f9"
+    },
+    "run_fixture.py": {
+      "bytes": 28039,
+      "sha256": "10dd2e7b9ff2062d895bcffd3dfdc9386423c9e5e8278470373b92f21e656eda"
+    }
+  },
+  "jvm_invocations": 0,
+  "kind": "qperiapt.local_analyze_fixture_prepared_method",
+  "method_version": 1,
+  "schema": 1,
+  "state": "prepared_not_executed"
+}

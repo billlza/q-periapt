@@ -1,0 +1,494 @@
+#!/usr/bin/env python3
+"""Run the fixed local Rust fixture through database analyze and validate its SARIF.
+
+This method is prepared separately from its execution. Without --execute it only
+prints the declared method. It never creates a hosted PROFILE or ANALYSIS receipt.
+"""
+from __future__ import annotations
+
+import argparse
+from datetime import datetime, timezone
+import gzip
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+import threading
+
+sys.dont_write_bytecode = True
+
+METHOD_VERSION = 1
+WORKSPACE = Path('/workspace/scratch/4b61438fb07b')
+ARCHIVE = WORKSPACE / 'summary-plan-feasibility/codeql-bundle-rust-linux64.tar.zst'
+ARCHIVE_SHA256 = 'acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea'
+ARCHIVE_BYTES = 98247028
+DATABASE = WORKSPACE / 'summary-env-validation-20261111/database-complete'
+DATABASE_MANIFEST = WORKSPACE / 'summary-env-validation-20261111/evidence/INITIAL_DATABASE_FILES.json.gz'
+DATABASE_MANIFEST_SHA256 = 'fd16b6bffbd8181597b28657afb49e4c49979979d39e221633e8c9be3bb10d7c'
+PROJECTION_MANIFEST_SHA256 = '2cb1739ba0f0aeeb00e8a017b7cd0218a0a7519771a58dd47cb7f89a8813ca91'
+COMPILER_KEY = '6a7530eb694360655ab8331a895c9fcd'
+WHOLE_PACK_INVENTORY_SHA256 = '13705d5f8b164bd69a12219c41a7fe8ba7e304247a4b78d0150c4dd36882d441'
+BASELINE_DECODE_SHA256 = 'f05f212ce3a9847d01191fb595c9a154aac94a83e33faf6fdc7f85dbb19b259e'
+BASELINE_SEMANTIC_SHA256 = 'e2582f4726e1866ef348bf49f05d8c70c62afc6ce8a913eb883bf88684101725'
+BASELINES = {
+    'all': WORKSPACE / 'summary-env-validation-20261111/evidence/decode-all/stdout.log',
+    'stage4': WORKSPACE / 'summary-env-validation-20261111/evidence/decode-projection/stdout.log',
+    'stage3-stage4': WORKSPACE / 'summary-stage34-feasibility/evidence/decode-stage34/stdout.log',
+}
+SUMMARY = 'queries/summary/SummaryStats.ql'
+MAXIMUM_SECONDS = 600
+HEAP_MIB, NATIVE_MIB, THREADS = 1024, 4096, 1
+MEMORY_ARGUMENTS = ['--ram=1024', '--off-heap-ram=4096', '--measure-ram=xmx']
+RESOLVED_MEMORY = ['-J-Xmx1024M', '--off-heap-ram=4096', '--measure-ram=xmx']
+
+
+def require(value: bool, message: str) -> None:
+    if not value:
+        raise ValueError(message)
+
+
+def canonical_sha(value: object) -> str:
+    raw = json.dumps(value, sort_keys=True, separators=(',', ':')).encode()
+    return hashlib.sha256(raw).hexdigest()
+
+
+def identity(path: Path) -> dict:
+    require(path.is_file() and not path.is_symlink(), 'not a regular file: ' + str(path))
+    digest = hashlib.sha256()
+    with path.open('rb') as stream:
+        while block := stream.read(1024 * 1024):
+            digest.update(block)
+    return {'bytes': path.stat().st_size, 'sha256': digest.hexdigest()}
+
+
+def inventory(root: Path) -> dict:
+    entries = {}
+    for path in sorted(root.rglob('*')):
+        require(not path.is_symlink(), 'unexpected symbolic link: ' + str(path))
+        if path.is_dir():
+            continue
+        entries[path.relative_to(root).as_posix()] = identity(path)
+    return entries
+
+
+def write_json(path: Path, value: object) -> None:
+    with path.open('x') as stream:
+        json.dump(value, stream, indent=2, sort_keys=True)
+        stream.write('\n')
+
+
+def strict_json(data: bytes) -> object:
+    def unique(pairs):
+        value = {}
+        for key, item in pairs:
+            require(key not in value, 'duplicate JSON field: ' + key)
+            value[key] = item
+        return value
+    def reject_constant(value):
+        raise ValueError('nonfinite JSON value: ' + value)
+    return json.loads(data, object_pairs_hook=unique, parse_constant=reject_constant)
+
+
+def declared_method() -> dict:
+    return {
+        'schema': 1, 'method_version': METHOD_VERSION,
+        'kind': 'qperiapt.local_database_analyze_fixture_method',
+        'state': 'prepared_not_executed',
+        'database': str(DATABASE), 'database_manifest': str(DATABASE_MANIFEST),
+        'database_manifest_sha256': DATABASE_MANIFEST_SHA256,
+        'archive': str(ARCHIVE), 'archive_bytes': ARCHIVE_BYTES, 'archive_sha256': ARCHIVE_SHA256,
+        'projection_manifest_sha256': PROJECTION_MANIFEST_SHA256,
+        'compiler_inputs_digest': COMPILER_KEY,
+        'scope': 'Local end-to-end database analyze and SARIF validation on the accepted nonempty official env fixture',
+        'budget': {'supervisor_seconds': MAXIMUM_SECONDS, 'threads': THREADS,
+                   'heap_mib': HEAP_MIB, 'native_mib': NATIVE_MIB,
+                   'memory_arguments': MEMORY_ARGUMENTS,
+                   'expected_resolver_result': RESOLVED_MEMORY,
+                   'minimum_available_memory_bytes': 7 * 1024**3,
+                   'resource_scope': 'Local explicit-Xmx fixture; distinct from the hosted 14000/9329 allocation'},
+        'query_count': 39, 'dynamic_join_order_mode': 'all', 'threat_model': 'local',
+        'expected_implicit_compilations': 0, 'expected_fresh_bqrs': 39,
+        'expected_summary_rows': 29, 'summary_semantic_sha256': BASELINE_SEMANTIC_SHA256,
+        'command_contract': ['database', 'analyze', '<private database>', '<frozen 39-query suite>',
+                             '--format=sarif-latest', '--output=<private evidence/results.sarif>',
+                             '--threads=1', *MEMORY_ARGUMENTS, '-J-Xmx1024M',
+                             '-J-XX:+PrintFlagsFinal', '--threat-model=local', '--no-download',
+                             '--common-caches=<private common cache>', '--sarif-category=/language:rust',
+                             '--dynamic-join-order-mode=all', '--verbosity=progress',
+                             '--logdir=<private evidence/evaluator>', '--qlconfig-file=<private qlconfig.yml>'],
+        'private_qlconfig_bytes': '{}\n',
+        'result_comparison': 'Complete decoded SummaryStats JSON equality against all three retained baselines; no rerun or row normalization',
+        'publication': {'sarif_uploaded': False, 'hosted_profile_receipt_created': False},
+    }
+
+
+def require_exclusive_resources() -> dict:
+    memory = Path('/proc/meminfo').read_text()
+    match = re.search(r'^MemAvailable:\s+([0-9]+) kB$', memory, re.MULTILINE)
+    require(match is not None, 'cannot read current MemAvailable')
+    available = int(match[1]) * 1024
+    require(available >= 7 * 1024**3, 'less than the declared 7 GiB available-memory admission')
+    active = []
+    for entry in Path('/proc').iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            command = (entry / 'cmdline').read_bytes()
+        except (FileNotFoundError, ProcessLookupError):
+            continue
+        except PermissionError:
+            continue
+        if b'com.semmle.cli2.CodeQL' in command:
+            active.append(int(entry.name))
+    require(not active, 'another CodeQL JVM is active: ' + str(active))
+    return {'observed_utc': datetime.now(timezone.utc).isoformat(),
+            'mem_available_bytes': available, 'active_codeql_jvms': active}
+
+
+def execute(args) -> int:
+    require(re.fullmatch(r'[0-9a-f]{40}', args.source_commit) is not None,
+            'a full source commit is required')
+    repo = args.repository.resolve(strict=True)
+    actual_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip()
+    require(actual_commit == args.source_commit, 'repository commit differs')
+    require(not subprocess.check_output(['git', 'status', '--porcelain'], cwd=repo).strip(),
+            'repository must be clean before method execution')
+    output = args.output.resolve()
+    require(not output.exists() and not output.is_symlink(), 'output directory already exists')
+    resources = require_exclusive_resources()
+    sys.path.insert(0, str(repo / 'artifact'))
+    import codeql_rust_plan as production_plan
+    import codeql_rust_profile as profile
+    import codeql_summary_projection as projection
+    import codeql_evaluator_logs as evaluator_logs
+    from codeql_process_resources import ProcessResourceSampler, read_small
+    from codeql_summary_control import metadata_root_fields
+    from bounded_process import TimeoutPolicy
+
+    require(projection.MANIFEST_SHA256 == PROJECTION_MANIFEST_SHA256
+            and projection.COMPILER_INPUTS_DIGEST == COMPILER_KEY,
+            'the production source selects a different projection')
+    output.mkdir(parents=True)
+    evidence = output / 'evidence'
+    evidence.mkdir()
+    for directory in ('tmp', 'common-cache'):
+        (output / directory).mkdir()
+    (evidence / 'evaluator').mkdir()
+    qlconfig = output / 'qlconfig.yml'
+    qlconfig.write_bytes(b'{}\n')
+    qlconfig_before = identity(qlconfig)
+    write_json(evidence / 'QLCONFIG.json', {'path': str(qlconfig), **qlconfig_before,
+               'contents': '{}\n', 'scope': 'Explicit private pack-resolution configuration'})
+    method = {**declared_method(), 'state': 'started', 'source_commit': actual_commit,
+              'method_source': identity(Path(__file__)), 'resource_admission': resources,
+              'started_utc': datetime.now(timezone.utc).isoformat()}
+    source_files = ['codeql_rust_plan.py', 'codeql_rust_profile.py', 'codeql_summary_projection.py',
+                    'codeql_summary_projection.json', 'codeql_evaluator_logs.py', 'bounded_process.py',
+                    'codeql_process_resources.py', 'evidence_io.py', 'codeql_rust_queries.json']
+    method['method_dependencies'] = {name: identity(repo / 'artifact' / name) for name in source_files}
+    write_json(evidence / 'METHOD.json', method)
+
+    environment_input = {key: os.environ[key] for key in ('RUNNER_TRACKING_ID',) if key in os.environ}
+    environment_input['CODEQL_EXPECTED_COMMIT'] = actual_commit
+    environment = production_plan.controlled_environment(environment_input, output / 'tmp')
+    write_json(evidence / 'ENVIRONMENT_POLICY.json', {
+        'retained_names': sorted(environment), 'codeql_or_java_override_variables_inherited': False,
+        'home_variable_reassigned': False, 'common_cache': str(output / 'common-cache'),
+        'source': 'codeql_rust_plan.controlled_environment'})
+
+    class LocalCommandRun:
+        """Reuse the real bounded production command wrapper, without a hosted profile."""
+        command = profile.ProfileRun.command
+
+    run = LocalCommandRun()
+    run.root, run.output, run.evidence = output, output, evidence
+    run.environment = environment
+
+    require(identity(DATABASE_MANIFEST)['sha256'] == DATABASE_MANIFEST_SHA256,
+            'frozen initial database manifest differs')
+    initial_database = strict_json(gzip.decompress(DATABASE_MANIFEST.read_bytes()))
+    require(isinstance(initial_database, dict) and len(initial_database) == 6651,
+            'initial database file census differs')
+    require(inventory(DATABASE) == initial_database, 'accepted source database changed')
+    database = output / 'database'
+    shutil.copytree(DATABASE, database)
+    require(inventory(database) == initial_database, 'private database copy differs')
+    require(not (database / 'results').exists(), 'private database has previous results')
+    database_before = production_plan.admit_database(database)
+    metadata_before = (database / 'codeql-database.yml').read_bytes()
+    (evidence / 'DATABASE_METADATA_BEFORE.yml').write_bytes(metadata_before)
+    write_json(evidence / 'DATABASE_ADMISSION_BEFORE.json', database_before)
+
+    codeql_root = production_plan.extract_runtime(ARCHIVE, output / 'runtime', run.command)
+    run.codeql = codeql_root / 'codeql'
+    pack = codeql_root / 'qlpacks/codeql/rust-queries/0.1.44'
+    admission = evidence / 'plan-admission'
+    admission.mkdir()
+    plan_before = projection.install(pack, admission)
+    require(plan_before == projection.validate(pack), 'projection post-install identity differs')
+    pack_before = inventory(pack)
+    require(len(pack_before) == 1357 and canonical_sha(pack_before) == WHOLE_PACK_INVENTORY_SHA256,
+            'private pack differs from the frozen executed Stage3+Stage4 candidate')
+    runtime_before = production_plan.runtime_inventory(codeql_root)
+    write_json(evidence / 'RUNTIME_BEFORE.json', runtime_before)
+    write_json(evidence / 'PACK_BEFORE.json', pack_before)
+    queries = strict_json((repo / 'artifact/codeql_rust_queries.json').read_bytes())['queries']
+    require(len(queries) == 39 and SUMMARY in queries, 'query inventory differs')
+    for name, digest in queries.items():
+        require(identity(pack / name)['sha256'] == digest, 'root query source differs: ' + name)
+    suite = output / 'frozen.qls'
+    suite.write_text(''.join('- query: ' + json.dumps(str(pack / name)) + '\n' for name in sorted(queries)))
+    baseline_values = {}
+    baseline_directory = evidence / 'retained-baselines'
+    baseline_directory.mkdir()
+    for name, path in BASELINES.items():
+        raw = path.read_bytes()
+        require(hashlib.sha256(raw).hexdigest() == BASELINE_DECODE_SHA256,
+                'retained baseline differs: ' + name)
+        baseline_values[name] = strict_json(raw)
+        (baseline_directory / (name + '.json')).write_bytes(raw)
+
+    codeql = str(run.codeql)
+    analysis_command = [codeql, 'database', 'analyze', str(database), str(suite),
+                        '--format=sarif-latest', '--output=' + str(evidence / 'results.sarif'),
+                        '--threads=1', *MEMORY_ARGUMENTS, '-J-Xmx1024M', '-J-XX:+PrintFlagsFinal',
+                        '--threat-model=local', '--no-download',
+                        '--common-caches=' + str(output / 'common-cache'),
+                        '--sarif-category=' + profile.sarif_category('native'),
+                        '--dynamic-join-order-mode=all', '--verbosity=progress',
+                        '--logdir=' + str(evidence / 'evaluator'), '--qlconfig-file=' + str(qlconfig)]
+    write_json(evidence / 'DECLARED_COMMAND.json', {
+        'analyze': analysis_command, 'supervisor_seconds': MAXIMUM_SECONDS,
+        'memory_contract': RESOLVED_MEMORY, 'source_commit': actual_commit})
+    failure = None
+    post_errors = []
+    sampler = None
+    resource_observation = {'status': 'not_started'}
+
+    class JvmCommandSampler(ProcessResourceSampler):
+        """Retain actual JVM argv from the existing owned process-tree sample."""
+        def __init__(self, directory):
+            super().__init__(directory)
+            self.jvm_commands = {}
+            self.jvm_read_errors = []
+            self.jvm_lock = threading.Lock()
+
+        def _sample(self):
+            sample = super()._sample()
+            if sample is None:
+                return sample
+            for process in sample['processes']:
+                if process['comm'] != 'java':
+                    continue
+                try:
+                    raw = read_small(self.proc_root / str(process['pid']) / 'cmdline')
+                    current = self._stat(process['pid'])
+                    require(current['start_ticks'] == process['start_ticks'], 'JVM process identity changed')
+                    argv = [part.decode('utf-8', 'surrogateescape') for part in raw.split(b'\0') if part]
+                    if 'com.semmle.cli2.CodeQL' not in argv:
+                        continue
+                    entry = argv.index('com.semmle.cli2.CodeQL')
+                    key = (process['pid'], process['start_ticks'], hashlib.sha256(raw).hexdigest())
+                    with self.jvm_lock:
+                        require(key in self.jvm_commands or len(self.jvm_commands) < 64,
+                                'JVM command observation count exceeded')
+                        if key not in self.jvm_commands:
+                            self.jvm_commands[key] = {
+                                'pid': process['pid'], 'start_ticks': process['start_ticks'],
+                                'parent_pid': process['ppid'], 'root_pid': process['root_pid'],
+                                'root_start_ticks': process['root_start_ticks'],
+                                'first_observed_elapsed_seconds': sample['elapsed_seconds'],
+                                'cmdline_sha256': key[2], 'argv': argv,
+                                'jvm_heap_arguments': [arg for arg in argv[:entry] if arg.startswith('-Xmx')],
+                                'cli_arguments': argv[entry + 1:]}
+                except (OSError, ValueError) as error:
+                    with self.jvm_lock:
+                        if len(self.jvm_read_errors) < 32:
+                            self.jvm_read_errors.append({'pid': process['pid'], 'type': type(error).__name__,
+                                                         'message': str(error)})
+            return sample
+
+        def command_receipt(self):
+            with self.jvm_lock:
+                return {'schema': 1, 'method': 'Actual argv from sampled owned process-tree identities',
+                        'commands': list(self.jvm_commands.values()), 'read_errors': list(self.jvm_read_errors),
+                        'sampling_state': dict(self.state),
+                        'scope': 'All observed wrapper and evaluator JVM commands, without deduplication of distinct process identities or argv'}
+
+    try:
+        resolved = strict_json(run.command('resolve-local-ram', [
+            codeql, 'resolve', 'ram', '--dataset=' + str(database / 'db-rust'),
+            *MEMORY_ARGUMENTS, '-J-Xmx512M', '--format=json'], seconds=120))
+        write_json(evidence / 'LOCAL_MEMORY.json', {'resolved': resolved, 'expected': RESOLVED_MEMORY,
+                   'scope': 'Local explicit-Xmx method; not the hosted allocation'})
+        require(resolved == RESOLVED_MEMORY, 'actual local memory resolution differs; no query was started')
+        require_exclusive_resources()
+        try:
+            sampler = JvmCommandSampler(evidence)
+            sampler.start()
+            resource_observation = {'status': 'started'}
+        except Exception as error:
+            resource_observation = {'status': 'unavailable', 'type': type(error).__name__,
+                                    'message': str(error)}
+        run.command('analyze', analysis_command, seconds=MAXIMUM_SECONDS,
+                    timeout_policy=TimeoutPolicy.STANDARD)
+    except BaseException as error:
+        failure = error
+    finally:
+        if sampler is not None:
+            try:
+                sampler.stop()
+                if resource_observation['status'] == 'started':
+                    resource_observation = {'status': 'completed'}
+            except BaseException as error:
+                resource_observation = {'status': 'stop_failed', 'type': type(error).__name__,
+                                        'message': str(error)}
+        write_json(evidence / 'RESOURCE_OBSERVATION_STATUS.json', resource_observation)
+        if sampler is not None:
+            write_json(evidence / 'JVM_COMMANDS.json', sampler.command_receipt())
+        for label, check in (
+            ('plan-postcheck', lambda: require(projection.validate(pack) == plan_before,
+                                              'projection identity changed')),
+            ('pack-postcheck', lambda: require(inventory(pack) == pack_before, 'query pack changed')),
+            ('runtime-postcheck', lambda: require(production_plan.runtime_inventory(codeql_root) == runtime_before,
+                                                 'analysis runtime changed')),
+            ('qlconfig-postcheck', lambda: require(identity(qlconfig) == qlconfig_before,
+                                                  'private QL configuration changed')),
+            ('source-database-postcheck', lambda: require(inventory(DATABASE) == initial_database,
+                                                        'accepted source database changed')),
+        ):
+            try:
+                check()
+            except BaseException as error:
+                post_errors.append({'step': label, 'type': type(error).__name__, 'message': str(error)})
+        write_json(evidence / 'POSTCHECK.json', {'errors': post_errors,
+                   'original_failure': None if failure is None else {'type': type(failure).__name__, 'message': str(failure)}})
+
+    if failure is not None:
+        for error in post_errors:
+            failure.add_note(str(error))
+        raise failure
+    require(not post_errors, 'post-execution identity check failed')
+    observations = evaluator_logs.observe(evidence, pattern='execute-queries-*.log', stdio_prefix='analyze',
+                                          capture_invocation=True)
+    write_json(evidence / 'EVALUATOR_OBSERVATIONS.json', observations)
+    evaluator_logs.validate_loads(observations, [str((pack / name).with_suffix('.qlx')) for name in queries])
+    require(observations['evaluator_start_lines'] == 1
+            and observations['off_heap_mb_observed'] == [NATIVE_MIB], 'actual evaluator allocation differs')
+    require(observations['query_starts'] == observations['query_completions'] == 39,
+            'evaluator progress does not show the complete 39-query execution')
+    heap_arguments = observations['jvm_heap_mb_arguments']
+    require(heap_arguments and all(value == HEAP_MIB for value in heap_arguments),
+            'actual evaluator JVM heap arguments differ from the admitted local allocation')
+    heap_observations = observations['max_heap_bytes_observed']
+    require(heap_observations and set(heap_observations) == {HEAP_MIB * 1024**2},
+            'actual JVM heap observations differ from the admitted local allocation')
+
+    result_root = database / 'results/codeql/rust-queries'
+    expected_results = {str(Path(name).with_suffix('.bqrs')) for name in queries}
+    found_results = {p.relative_to(result_root).as_posix() for p in result_root.rglob('*.bqrs')}
+    require(found_results == expected_results and len(list(database.rglob('*.bqrs'))) == 39,
+            'fresh BQRS census differs from the exact 39-query suite')
+    results = {name: identity(result_root / name) for name in sorted(expected_results)}
+    write_json(evidence / 'FRESH_RESULTS.json', results)
+    for name in sorted(results):
+        target = evidence / 'results' / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(result_root / name, target)
+    sarif = strict_json((evidence / 'results.sarif').read_bytes())
+    profile.validate_sarif(sarif, 'native')
+
+    decoded = run.command('decode-summary', [codeql, 'bqrs', 'decode', '--format=json',
+                            '-J-Xmx512M', str(result_root / Path(SUMMARY).with_suffix('.bqrs'))], seconds=120)
+    decoded_value = strict_json(decoded)
+    require(all(decoded_value == value for value in baseline_values.values()),
+            'complete SummaryStats result differs from a retained baseline')
+    require(canonical_sha(decoded_value) == BASELINE_SEMANTIC_SHA256, 'SummaryStats semantic identity differs')
+    rows = decoded_value['#select']['tuples']
+    require(len(rows) == 29 and len({row[0] for row in rows}) == 29, 'SummaryStats row census differs')
+    values = dict(rows)
+    require(values['Taint sources - active'] == 15 and values['Taint reach - nodes tainted'] == 106,
+            'accepted fixture no longer has the established nonempty taint population')
+
+    database_after = production_plan.admit_database(database)
+    metadata_after = (database / 'codeql-database.yml').read_bytes()
+    (evidence / 'DATABASE_METADATA_AFTER.yml').write_bytes(metadata_after)
+    write_json(evidence / 'DATABASE_ADMISSION_AFTER.json', database_after)
+    before_fields, after_fields = metadata_root_fields(metadata_before.decode()), metadata_root_fields(metadata_after.decode())
+    before_fields.pop('baselineLinesOfCode', None)
+    after_fields.pop('baselineLinesOfCode', None)
+    require(before_fields == after_fields, 'database structural metadata changed')
+    immutable = {name: expected for name, expected in initial_database.items()
+                 if not name.startswith(('db-rust/default/cache/', 'log/', 'working/', 'temp/'))
+                 and name != 'codeql-database.yml'}
+    require(all(identity(database / name) == expected for name, expected in immutable.items()),
+            'immutable extracted input bytes changed')
+    require(projection.validate(pack) == plan_before and inventory(pack) == pack_before,
+            'query pack changed during result decoding')
+    require(production_plan.runtime_inventory(codeql_root) == runtime_before,
+            'runtime changed during result decoding')
+    require(identity(qlconfig) == qlconfig_before, 'private QL configuration changed during decoding')
+    require(not subprocess.check_output(['git', 'status', '--porcelain'], cwd=repo).strip()
+            and subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip() == actual_commit,
+            'method source checkout changed')
+    write_json(evidence / 'LOCAL_WRAPPER_RESULT.json', {
+        'schema': 1, 'method_version': METHOD_VERSION,
+        'kind': 'qperiapt.local_nonempty_fixture_database_analyze',
+        'status': 'complete_equal_summary_valid_sarif', 'source_commit': actual_commit,
+        'finished_utc': datetime.now(timezone.utc).isoformat(),
+        'projection_identity': plan_before, 'query_count': 39,
+        'precompiled_query_loads': 39, 'implicit_compilations': 0, 'fresh_bqrs_count': 39,
+        'sarif': identity(evidence / 'results.sarif'),
+        'sarif_validation': 'existing codeql_rust_profile.validate_sarif with native category',
+        'summary_bqrs': results[str(Path(SUMMARY).with_suffix('.bqrs'))],
+        'summary_decoded': identity(evidence / 'decode-summary.stdout'),
+        'summary_semantic_sha256': canonical_sha(decoded_value), 'summary_rows': 29,
+        'all_retained_baselines_equal': True, 'retained_baselines_rerun': False,
+        'summary_values': values, 'immutable_initial_database_files': len(immutable),
+        'plan_pack_and_runtime_unchanged_after_analysis_and_decode': True,
+        'private_qlconfig': qlconfig_before,
+        'actual_evaluator_heap_mb_arguments': heap_arguments,
+        'all_wrapper_and_evaluator_max_heap_bytes_observed': heap_observations,
+        'metadata_before_sha256': hashlib.sha256(metadata_before).hexdigest(),
+        'metadata_after_sha256': hashlib.sha256(metadata_after).hexdigest(),
+        'allowed_metadata_derivation': 'baselineLinesOfCode only',
+        'scope': 'Local official env fixture with explicit 1024/4096 MiB and one thread; separate from hosted production memory and target coverage',
+        'sarif_uploaded': False, 'hosted_profile_receipt_created': False})
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--execute', action='store_true', help='Run only after the exclusive large probe has ended')
+    parser.add_argument('--repository', type=Path, default=WORKSPACE / 'summary-production-implementation')
+    parser.add_argument('--source-commit')
+    parser.add_argument('--output', type=Path, default=WORKSPACE / 'summary-stage34-analyze-fixture')
+    args = parser.parse_args()
+    if not args.execute:
+        print(json.dumps(declared_method(), indent=2))
+        return 0
+    require(args.source_commit is not None, '--source-commit is required for execution')
+    try:
+        return execute(args)
+    except BaseException as error:
+        evidence = args.output.resolve() / 'evidence'
+        if evidence.is_dir() and not (evidence / 'FAILURE.json').exists():
+            write_json(evidence / 'FAILURE.json', {'type': type(error).__name__, 'message': str(error),
+                       'notes': getattr(error, '__notes__', []),
+                       'recorded_utc': datetime.now(timezone.utc).isoformat()})
+        print(type(error).__name__ + ': ' + str(error), file=sys.stderr)
+        command_receipt = evidence / 'analyze.json'
+        if command_receipt.is_file():
+            record = strict_json(command_receipt.read_bytes())
+            code = record.get('returncode')
+            if isinstance(code, int) and 1 <= code <= 255:
+                return code
+        return 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

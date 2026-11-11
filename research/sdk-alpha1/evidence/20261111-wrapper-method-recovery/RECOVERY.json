@@ -1,0 +1,95 @@
+{
+  "base_commit": "ff193302f207bb3f06a2941a7c6bf98a2eeb5a17",
+  "branch": "recover/codeql-wrapper-method-20261111",
+  "identity_verification": "SHA-256 implementation checked against the published abc vector; all five recovered original file hashes exactly match pre-interruption observations",
+  "kind": "qperiapt.prepared_wrapper_method_recovery",
+  "original_local_directory": "/workspace/scratch/4b61438fb07b/summary-analyze-fixture-method",
+  "pending_correction": {
+    "applied": false,
+    "path": "sampler-state-receipt.patch.txt",
+    "purpose": "Reflect the sampler's actual state in the auxiliary resource-observation receipt",
+    "python_or_runtime_verified": false
+  },
+  "recovered_files": {
+    "METHOD.json": {
+      "bytes": 2629,
+      "original_path": "METHOD.json",
+      "sha256": "cb5d24a3b8dc39bf3115dd8f426483a79397228010adbad74353003071af951b",
+      "status": "exact_original_bytes_recovered"
+    },
+    "ORIGINAL_MANIFEST.json": {
+      "bytes": 1045,
+      "original_path": "MANIFEST.json",
+      "sha256": "25190917a53b4dd2a0748f6c029b1cd6d106834d2dc5b63f8d624762b2a133a9",
+      "status": "exact_original_bytes_recovered"
+    },
+    "ORIGINAL_README.md": {
+      "bytes": 7663,
+      "original_path": "README.md",
+      "sha256": "fdd821c3218aafcf7d9f32adce881767a34d0b797ed248345de24ca6be4b9f37",
+      "status": "exact_original_bytes_recovered"
+    },
+    "README.md": {
+      "bytes": 4816,
+      "sha256": "36f06342821853d656da5191a591b1a768741fa6042a96764a44c08edabd402b",
+      "status": "new_recovery_explanation"
+    },
+    "inspect_classfile.py.txt": {
+      "bytes": 6262,
+      "original_path": "inspect_classfile.py",
+      "sha256": "5f4aca364a1d6773d37e771410e02a94ce648bdcecd5232156cd8424300fe1f9",
+      "status": "exact_original_bytes_recovered"
+    },
+    "run_fixture.py.txt": {
+      "bytes": 28039,
+      "original_path": "run_fixture.py",
+      "sha256": "10dd2e7b9ff2062d895bcffd3dfdc9386423c9e5e8278470373b92f21e656eda",
+      "status": "exact_original_bytes_recovered"
+    },
+    "sampler-state-receipt.patch.txt": {
+      "bytes": 1174,
+      "sha256": "059ccc7e62309986bf14fe5f5721f75eeb18f6a22e394d856868fe4d1756f336",
+      "status": "new_unapplied_unverified_correction"
+    }
+  },
+  "recovery_method": "Reconstruct original text from recorded source edits and JSON output; verify byte lengths and SHA-256 against pre-interruption observations",
+  "schema": 1,
+  "scope": {
+    "active_runtime_source_modified": false,
+    "new_codeql_invocations": 0,
+    "new_jvm_invocations": 0,
+    "original_script_bytes_preserved": true,
+    "query_results_created": 0,
+    "sarif_results_created": 0,
+    "workflow_dispatches": 0
+  },
+  "source_reconstruction_checkpoints": [
+    {
+      "bytes": 24763,
+      "sha256": "33e9fb960d5671b13148cbc38e7376b21275108b6d03f4119529250caf9988f9"
+    },
+    {
+      "bytes": 26689,
+      "sha256": "5446caf854bc8bbb5bcc5d3a169e5756578779ca8fb014932a5ebefb936875e3"
+    },
+    {
+      "bytes": 28039,
+      "sha256": "10dd2e7b9ff2062d895bcffd3dfdc9386423c9e5e8278470373b92f21e656eda"
+    }
+  ],
+  "state": "method_unexecuted",
+  "unavailable_original_files": {
+    "DATABASE_CONFIG_READBACK.json": {
+      "bytes": 20011,
+      "reproduction_method": "inspect_classfile.py.txt over the authenticated official JAR; not rerun during recovery",
+      "sha256": "2aad0640dba9070c8e30a855901651b1eda4cd0504ade8d70ffc3fd37d2be073",
+      "status": "original_bytes_inaccessible_not_recreated"
+    },
+    "MEMORY_ROUTING_READBACK.json": {
+      "bytes": 52748,
+      "reproduction_method": "inspect_classfile.py.txt over the authenticated official JAR; not rerun during recovery",
+      "sha256": "5c59a42248ec0ec322604196f28ddc3d257475b04c5413c060567362c34d94d5",
+      "status": "original_bytes_inaccessible_not_recreated"
+    }
+  }
+}
