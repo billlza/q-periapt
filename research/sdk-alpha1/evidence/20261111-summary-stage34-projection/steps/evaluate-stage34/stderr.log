@@ -1,0 +1,9 @@
+Resolving data extensions.
+Finished resolving data extensions.
+Loading data extensions.
+Finished loading data extensions.
+WARNING: Not caching stages during query-loading, since max heap size is only 1536 MB.
+[1/1] Loaded /workspace/scratch/4b61438fb07b/summary-stage34-feasibility/candidate-query-pack/queries/summary/SummaryStats.qlx.
+Starting evaluation of codeql/rust-queries/queries/summary/SummaryStats.ql.
+[1/1 eval 1m36s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs.
+Shutting down query evaluator.

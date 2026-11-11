@@ -1,0 +1,45 @@
+{
+  "archive": {
+    "bytes": 78600,
+    "path": "reproduction-sources.zip",
+    "sha256": "e91c97950f7b49e7ab2415e52d4667213a7bbabfd3c12363e0e39a7063560c3c"
+  },
+  "base_commit": "faabcff16fc49e1a99388c68f0991a2bfd64d509",
+  "base_tree": "b5c6e256b9abb95a8163efae052c34ae6bd0f035",
+  "files": {
+    "base/artifact/codeql_rust_profile.py": {
+      "bytes": 28938,
+      "sha256": "c3f05df1f380be6ff691067b435acaaee173745f2eb6e165151a49965f28dc3c"
+    },
+    "base/artifact/codeql_summary_control.py": {
+      "bytes": 61730,
+      "sha256": "5ef520a9bece36439ce8b23f8cc079134224e120db926251395e67f4399084c3"
+    },
+    "fixed/artifact/codeql_rust_profile.py": {
+      "bytes": 29063,
+      "sha256": "b71e7b97d9fea01f4b5b0083143951562a7b2caa865abe5c67289f68ca93940a"
+    },
+    "fixed/artifact/codeql_summary_control.py": {
+      "bytes": 61848,
+      "sha256": "74d63ff7c3a12ac44796dd6b05199d6e438e32d0a9b03716b707bb17ce10e368"
+    },
+    "fixed/artifact/python-run.sh": {
+      "bytes": 228,
+      "sha256": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255"
+    },
+    "fixed/artifact/test_codeql_rust_profile.py": {
+      "bytes": 49256,
+      "sha256": "61326ef4456e2b41fb010186e3f5a9f27019975f81322c3ab093423ddc06b6b3"
+    },
+    "fixed/artifact/test_codeql_summary_control.py": {
+      "bytes": 81809,
+      "sha256": "5ac5f3c2048721674130a1d4739c14eba63ead1efc7785e4f75705aaac7f8303"
+    }
+  },
+  "fixed_commit": "ac02d3032655da78f6ac39642369cb023ebad71d",
+  "fixed_tree": "da36191741a59c084c5890eb95174d15fd9f8238",
+  "kind": "qperiapt.codeql_live_log_reproduction_sources",
+  "replay": "Use a separate checkout at the fixed commit. The two focused tests are named in RECEIPT.json. Reproduce the failing control by replacing only the two production modules with the archived base versions while retaining the fixed tests; restore the fixed modules before repeating the passing control and the two-module compatibility invocation. The current packaging step runs none of these commands.",
+  "schema": 1,
+  "scope": "Full bytes of both pre-fix production modules, the four fixed source/test files, and the unchanged Python runner. Other repository dependencies and fixed assets are restored from the fixed commit."
+}

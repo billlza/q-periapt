@@ -1,0 +1,114 @@
+diff --git a/artifact/codeql_rust_profile.py b/artifact/codeql_rust_profile.py
+index 955fc8ff..eae0d4d9 100644
+--- a/artifact/codeql_rust_profile.py
++++ b/artifact/codeql_rust_profile.py
+@@ -98,9 +98,10 @@ class ProfileRun:
+         try:
+             # Stream bounded diagnostics into fresh evidence files while the
+             # child runs. A timeout still fails, with the emitted query progress
+-            # retained alongside the failure receipt.
+-            with (self.evidence / (label + ".stdout")).open("xb") as stdout, \
+-                    (self.evidence / (label + ".stderr")).open("xb") as stderr, \
++            # retained alongside the failure receipt. Unbuffered files make
++            # even small progress writes readable before command completion.
++            with (self.evidence / (label + ".stdout")).open("xb", buffering=0) as stdout, \
++                    (self.evidence / (label + ".stderr")).open("xb", buffering=0) as stderr, \
+                     contextlib.chdir(cwd or self.root):
+                 # This receipt precedes the supervisor call, so a killed worker
+                 # still records which command was invoked and when. It is not
+diff --git a/artifact/codeql_summary_control.py b/artifact/codeql_summary_control.py
+index 2afde9fa..f5e90b1c 100644
+--- a/artifact/codeql_summary_control.py
++++ b/artifact/codeql_summary_control.py
+@@ -485,7 +485,9 @@ def run_queries(command: list[str], evidence: Path, environment: dict, seconds:
+             sampler.start()
+         except Exception as error:
+             report["resource_observation"] = {"status": "unavailable", "failure_type": type(error).__name__}
+-        with (evidence / "query.stdout").open("xb") as stdout, (evidence / "query.stderr").open("xb") as stderr:
++        # Expose each bounded chunk while the evaluator is still running.
++        with (evidence / "query.stdout").open("xb", buffering=0) as stdout, \
++                (evidence / "query.stderr").open("xb", buffering=0) as stderr:
+             result = capture_output(command, timeout_seconds=seconds, timeout_policy=TimeoutPolicy.LONG_ANALYSIS,
+                                     maximum_stdout_bytes=32 * 1024**2, maximum_stderr_bytes=16 * 1024**2,
+                                     stdout_sink=stdout.write, stderr_sink=stderr.write, environment=environment)
+diff --git a/artifact/test_codeql_rust_profile.py b/artifact/test_codeql_rust_profile.py
+index 3f87a3e9..d85aaa76 100644
+--- a/artifact/test_codeql_rust_profile.py
++++ b/artifact/test_codeql_rust_profile.py
+@@ -607,6 +607,35 @@ class RustProfileTests(unittest.TestCase):
+             self.assertEqual(json.loads((run.evidence / "failure.json").read_text())["returncode"], 7)
+             self.assertFalse((run.evidence / "ANALYSIS.json").exists())
+ 
++    def test_both_log_streams_are_readable_before_the_child_exits(self) -> None:
++        with tempfile.TemporaryDirectory() as temporary:
++            root = Path(temporary)
++            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
++            child = """\
++from pathlib import Path
++import sys, time
++expected = (b'live stdout\\n', b'live stderr\\n')
++sys.stdout.buffer.write(expected[0]); sys.stdout.buffer.flush()
++sys.stderr.buffer.write(expected[1]); sys.stderr.buffer.flush()
++logs = [Path(path) for path in sys.argv[1:3]]
++deadline = time.monotonic() + 5
++while time.monotonic() < deadline:
++    if tuple(path.read_bytes() for path in logs) == expected:
++        assert not Path(sys.argv[3]).exists(), 'completion preceded the live read'
++        Path(sys.argv[4]).write_bytes(b'visible before exit\\n')
++        break
++    time.sleep(0.01)
++else:
++    raise SystemExit('small stdout/stderr writes were not visible before child exit')
++"""
++            output = run.command("live", [sys.executable, "-c", child,
++                str(run.evidence / "live.stdout"), str(run.evidence / "live.stderr"),
++                str(run.evidence / "live.json"), str(run.evidence / "child-observed.txt")], seconds=10)
++            self.assertEqual(output, b"live stdout\n")
++            self.assertEqual((run.evidence / "child-observed.txt").read_bytes(), b"visible before exit\n")
++            self.assertEqual((run.evidence / "live.stdout").read_bytes(), b"live stdout\n")
++            self.assertEqual((run.evidence / "live.stderr").read_bytes(), b"live stderr\n")
++
+     def test_timeout_records_cleanup_and_remains_a_failure(self) -> None:
+         with tempfile.TemporaryDirectory() as temporary:
+             root = Path(temporary)
+diff --git a/artifact/test_codeql_summary_control.py b/artifact/test_codeql_summary_control.py
+index 7c79d814..2f5c7175 100644
+--- a/artifact/test_codeql_summary_control.py
++++ b/artifact/test_codeql_summary_control.py
+@@ -547,6 +547,36 @@ class EvaluationEvidenceTests(unittest.TestCase):
+             self.assertIn(b"out\n", output)
+             self.assertIn(b"err\n", output)
+ 
++    def test_both_log_streams_are_readable_before_the_child_exits(self):
++        with tempfile.TemporaryDirectory() as folder:
++            root = Path(folder)
++            child = """\
++from pathlib import Path
++import sys, time
++expected = (b'live stdout\\n', b'live stderr\\n')
++sys.stdout.buffer.write(expected[0]); sys.stdout.buffer.flush()
++sys.stderr.buffer.write(expected[1]); sys.stderr.buffer.flush()
++logs = [Path(path) for path in sys.argv[1:3]]
++deadline = time.monotonic() + 5
++while time.monotonic() < deadline:
++    if tuple(path.read_bytes() for path in logs) == expected:
++        assert not Path(sys.argv[3]).exists(), 'completion preceded the live read'
++        Path(sys.argv[4]).write_bytes(b'visible before exit\\n')
++        break
++    time.sleep(0.01)
++else:
++    raise SystemExit('small stdout/stderr writes were not visible before child exit')
++"""
++            result = control.run_queries(
++                [sys.executable, "-c", child, str(root / "query.stdout"), str(root / "query.stderr"),
++                 str(root / "query.json"), str(root / "child-observed.txt")],
++                root, dict(os.environ), 10,
++            )
++            self.assertEqual(result["returncode"], 0)
++            self.assertEqual((root / "child-observed.txt").read_bytes(), b"visible before exit\n")
++            self.assertEqual((root / "query.stdout").read_bytes(), b"live stdout\n")
++            self.assertEqual((root / "query.stderr").read_bytes(), b"live stderr\n")
++
+     def test_timeout_is_failure_with_partial_output_and_receipt(self):
+         with tempfile.TemporaryDirectory() as folder:
+             root = Path(folder)

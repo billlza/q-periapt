@@ -1,0 +1,73 @@
+{
+  "kind": "qperiapt.stage3_stage4_compiled_recursive_placement",
+  "ra": {
+    "bytes": 10610247,
+    "sha256": "b5b6d32f5c56686b685fa30b93c1b00187fd584626c7b603b7decf62c08185b5"
+  },
+  "stages": {
+    "3": {
+      "forward_recursive_layer_lines": [
+        169800,
+        172287
+      ],
+      "target_recursive_definition_line": 171727,
+      "target_relation_mentions_in_layer": [
+        170040,
+        171727,
+        171810
+      ],
+      "full_read_mentions": [
+        {
+          "line": 172321,
+          "text": "`TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, numbered_tuple cc, numbered_tuple summaryCtx) :-"
+        },
+        {
+          "line": 172357,
+          "text": "SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`"
+        },
+        {
+          "line": 172358,
+          "text": "`TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`/11"
+        }
+      ],
+      "full_read_definition_line": 172321,
+      "full_read_definition_section": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+      "full_read_absent_from_forward_recursive_layer": true,
+      "readStepFwd_definition_line": 172356,
+      "readStepFwd_section": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+      "readStepFwd_still_consumes_full_read": true
+    },
+    "4": {
+      "forward_recursive_layer_lines": [
+        174991,
+        177236
+      ],
+      "target_recursive_definition_line": 175263,
+      "target_relation_mentions_in_layer": [
+        175263,
+        175344,
+        176914
+      ],
+      "full_read_mentions": [
+        {
+          "line": 177270,
+          "text": "`TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :-"
+        },
+        {
+          "line": 177306,
+          "text": "SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`"
+        },
+        {
+          "line": 177307,
+          "text": "`TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`/11"
+        }
+      ],
+      "full_read_definition_line": 177270,
+      "full_read_definition_section": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+      "full_read_absent_from_forward_recursive_layer": true,
+      "readStepFwd_definition_line": 177305,
+      "readStepFwd_section": "EVALUATE NONRECURSIVE JOIN AST RELATION:",
+      "readStepFwd_still_consumes_full_read": true
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "archive": "reproduction-sources.zip",
+  "controller": {
+    "bytes": 60930,
+    "sha256": "5fd41ef197189ff5a173fdbe1e39772899cc6f26ee0e4d1b0377973b2f69d409"
+  },
+  "controller_record_matched": true,
+  "controller_source_commit": "443f05fa4da60093f57b6f529fccf19c17373300",
+  "controller_source_tree": "67f21ad8937655c6ff6f1c6495da52d71a14015d",
+  "files": {
+    "artifact/bounded_process.py": {
+      "bytes": 51311,
+      "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45"
+    },
+    "artifact/codeql_log_recovery.py": {
+      "bytes": 13567,
+      "sha256": "8ff89ca9b86c93f304c099b0d8eb65eb0079d8a084bd72bc820b84369d104378"
+    },
+    "artifact/codeql_process_resources.py": {
+      "bytes": 16881,
+      "sha256": "8b4d14b9667a7c10e653f680311c12db595369f0e6a5b2800aae6beefeec26a6"
+    },
+    "artifact/codeql_rust_queries.json": {
+      "bytes": 4737,
+      "sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b"
+    },
+    "artifact/codeql_summary_control.py": {
+      "bytes": 60930,
+      "sha256": "5fd41ef197189ff5a173fdbe1e39772899cc6f26ee0e4d1b0377973b2f69d409"
+    },
+    "artifact/codeql_summary_dynamic_plan.json": {
+      "bytes": 3556,
+      "sha256": "308a36a957741fdfa8a58f40fb81ffae6e863759527b516ca93816c75057c1f7"
+    },
+    "artifact/codeql_summary_plan.py": {
+      "bytes": 8526,
+      "sha256": "7fe886cfbc944d937c77cfa15d45861d8931f98f9facca287ca97dff56ef57a0"
+    },
+    "artifact/evidence_io.py": {
+      "bytes": 44308,
+      "sha256": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d"
+    },
+    "frozen.qls": {
+      "bytes": 4971,
+      "sha256": "603cea367e208ba10e17b09dd6497927bfe69e61441d9193b416f4e0631fff42"
+    },
+    "local-method/run_projection_full_probe.py": {
+      "bytes": 9055,
+      "sha256": "7ca6051af6140ec1d5e9c8e5ef870104025b3bb7eb4d0f403a494d7b515e4502"
+    },
+    "review-method/package_stage4_probe.py": {
+      "bytes": 19157,
+      "sha256": "6119659ed0f1d544e39b76de367ae43d5bb656ec5dac32f040c77d2eaf43f700"
+    },
+    "review-spec/codeql_summary_projection.json": {
+      "bytes": 6587,
+      "sha256": "d330c1063954c6cd5803426df4e1ad7727d716976872049d140f5f47c12be191"
+    }
+  },
+  "import_closure_scope": "The six repository Python modules from the actual controller commit. The entrypoint records its own and controller hashes; imported-module hashes are reconstructed from that source commit, not claimed as independent runtime instrumentation.",
+  "kind": "qperiapt.stage4_probe_source_binding",
+  "later_working_tree_edits": "Files in the integration worktree were updated after the original Python import. The current worktree controller is not substituted for the archived executed version.",
+  "method": {
+    "bytes": 9055,
+    "sha256": "7ca6051af6140ec1d5e9c8e5ef870104025b3bb7eb4d0f403a494d7b515e4502"
+  },
+  "method_path": "/workspace/scratch/4b61438fb07b/run_projection_full_probe.py",
+  "method_record_matched": true,
+  "replay": "Extract the archive into an isolated workspace. Restore the fixed retained input artifact and official CodeQL Rust bundle plus the original prototype pack/capsule identified by raw/LOCAL_PROBE.json and raw/SOURCE_TRANSPORT.json. The archived method has original absolute workspace paths; adapt only the workspace location explicitly and record that derivative method hash. Its ARTIFACT directory must contain the archived commit-443f05fa import closure. Do not execute in the currently running probe workspace."
+}

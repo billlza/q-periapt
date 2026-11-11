@@ -1,0 +1,19 @@
+live invoked at 2026-11-11T11:59:04.950+00:00 (bound 10s)
+live complete
+clang-targets invoked at 2026-11-11T11:59:04.992+00:00 (bound 900s)
+clang-targets complete
+clang-consumer invoked at 2026-11-11T11:59:04.995+00:00 (bound 900s)
+clang-consumer complete
+clang-targets invoked at 2026-11-11T11:59:04.999+00:00 (bound 900s)
+clang-targets complete
+clang-consumer invoked at 2026-11-11T11:59:05.001+00:00 (bound 900s)
+clang-consumer complete
+observe invoked at 2026-11-11T11:59:05.003+00:00 (bound 10s)
+observe complete
+interrupted invoked at 2026-11-11T11:59:05.038+00:00 (bound 900s)
+failure invoked at 2026-11-11T11:59:05.050+00:00 (bound 900s)
+timeout invoked at 2026-11-11T11:59:05.072+00:00 (bound 1s)
+----------------------------------------------------------------------
+Ran 209 tests in 10.147s
+
+OK

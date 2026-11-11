@@ -1,0 +1,38 @@
+{
+  "archive": "reproduction-inputs.zip",
+  "archive_identity": {
+    "bytes": 39490,
+    "sha256": "d30348c614298095de420f5ad0378875648ff712df0cc3255c0df584a1774a09"
+  },
+  "expanded_bytes": 206297,
+  "kind": "qperiapt.stage3_stage4_reproduction_input_archive",
+  "member_count": 6,
+  "members": {
+    "methods/bounded_process.py": {
+      "bytes": 51311,
+      "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45"
+    },
+    "methods/compare_fixture.py": {
+      "bytes": 6793,
+      "sha256": "e6decf2718258fb9a3c90fd3315c50ef1cd752e7724ee0dbcc2ac06a97235050"
+    },
+    "methods/compile_candidate.py": {
+      "bytes": 3559,
+      "sha256": "a74cb2ba41e423bb4bee31a1ca8854820641e5d614037c84bd0279549fb42153"
+    },
+    "methods/run_bounded.py": {
+      "bytes": 3871,
+      "sha256": "41036e1ad508fbe44fb73b30d528dac747b84c938d8f69b4e14f2753a2c1c2be"
+    },
+    "vendor-source/LICENSE": {
+      "bytes": 1074,
+      "sha256": "66056d06b874e3eb6a22f5fff297e1676a23dc43e8c8b81279c1ef33a6a270df"
+    },
+    "vendor-source/codeql/dataflow/internal/DataFlowImpl.qll": {
+      "bytes": 139689,
+      "sha256": "6a444d1baf03a1db4cbf1f98e39320ba3a7d68d2b9b6db7feffb2bf9cd315bde"
+    }
+  },
+  "schema": 1,
+  "source_snapshot_purpose": "Exact candidate vendor source and method versions, archived separately from active SDK source inputs."
+}

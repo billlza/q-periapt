@@ -1,0 +1,58 @@
+{
+  "base_commit": "faabcff16fc49e1a99388c68f0991a2bfd64d509",
+  "file_count": 11,
+  "files": {
+    "README.md": {
+      "bytes": 2834,
+      "sha256": "043ec7e4b661a3a899756de9167d8733b8da08f00f46602acef9fa207b3d1a70"
+    },
+    "RECEIPT.json": {
+      "bytes": 5516,
+      "sha256": "5de87f3892a9407c2d65645ef38b483a2e91bf0981e5a6ebb89fcff4d2d0941a"
+    },
+    "SOURCE_IDENTITY.json": {
+      "bytes": 2240,
+      "sha256": "9cae2df17930f283ac91665b9a274c495af532abac3a69221bdfcb21c150ada3"
+    },
+    "after.exit": {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "after.log": {
+      "bytes": 514,
+      "sha256": "bd363674ea95603b2e95f6cdc1e670fc7bcbc2330f0fc2e34301b22c9374c530"
+    },
+    "before.exit": {
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    "before.log": {
+      "bytes": 2364,
+      "sha256": "02a323e665d4186e34ad9a45c3700c4b084e238bcb805caa09e377d72bb02b2e"
+    },
+    "compatibility.exit": {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "compatibility.log": {
+      "bytes": 805,
+      "sha256": "baefdf351990514261494a45d27ba2babab5fed03908321092d71385fc933db8"
+    },
+    "live-log.patch": {
+      "bytes": 6586,
+      "sha256": "73672145f977f8047a7bd204a432dee6f80317472298c891758e55626b0e7d1c"
+    },
+    "reproduction-sources.zip": {
+      "bytes": 78600,
+      "sha256": "e91c97950f7b49e7ab2415e52d4667213a7bbabfd3c12363e0e39a7063560c3c"
+    }
+  },
+  "fixed_commit": "ac02d3032655da78f6ac39642369cb023ebad71d",
+  "fixed_tree": "da36191741a59c084c5890eb95174d15fd9f8238",
+  "kind": "qperiapt.codeql_live_log_validation_packet",
+  "new_codeql_invocations": 0,
+  "new_tests": 0,
+  "packaging_only": true,
+  "payload_bytes": 99465,
+  "schema": 1
+}

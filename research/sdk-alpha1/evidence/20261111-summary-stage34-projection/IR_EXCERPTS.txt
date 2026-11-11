@@ -1,0 +1,95 @@
+169799: 
+169800: EVALUATE RECURSIVE LAYER:
+169801:   JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::FwdTypeFlowInput::dataFlowNonCallEntry/2#36812cd1`(numbered_tuple c, bool cc) :- 
+169802:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage2::revFlow/4#00a69496`
+169803:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::NodeEx.getEnclosingCallable0/0#dispred#165c92cd`
+169804:     [[[ BASE CASE ]]]
+169805:     exists(
+169806:       numbered_tuple node, numbered_tuple this#bound, numbered_tuple call_result
+169807:      |
+169808:       cc = false and
+169809:       `TaintReach::TaintReachFlow::Stage1::sourceNode/2#95610752`/2 on [node, _] and
+
+171726:       [ret, ccc, summaryCtx, t, ap, stored]
+171727:   JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowReadTarget/6#073a1dab`(numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, numbered_tuple cc, numbered_tuple summaryCtx) :- 
+171728:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TApproxFrontNil#2e3f0473@staged_ext`
+171729:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`
+171730:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::CallContextSensitivity<TaintReach::TaintReachFlow::Flow::Stage3Param::CallContextSensitivityInput>::TAnyCallContext#e3244ff0`
+171731:     SENTINEL TaintReach::TaintReachFlow::Flow::Stage3::TSummaryCtxNone#b608e920
+171732:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::getNodeTyp/1#bdbb785c`
+171733:     SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage2::storeStepCand/5#faa243c7#4`
+171734:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::ApproxAccessPathFront.getAHead/1#dispred#8562832d`
+171735:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3Param::getHeadContent/1#2a167731`
+171736:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::readStepCand/4#a8595e9b`
+
+172320: EVALUATE NONRECURSIVE JOIN AST RELATION:
+172321:   `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, numbered_tuple cc, numbered_tuple summaryCtx) :- 
+172322:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowConsCand/5#a93e05d0`
+172323:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead0/8#166d1b0a`
+172324:     `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowConsCand/5#a93e05d0`/5
+172325:       on
+172326:       [_, ap1, c, _, ap2] and
+172327:     `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead0/8#166d1b0a`/8
+172328:       on
+172329:       [t1, ap1, stored1, c, node1, node2, cc, summaryCtx] and
+172330:     (
+
+172355: EVALUATE NONRECURSIVE JOIN AST RELATION:
+172356:   `TaintReach::TaintReachFlow::Flow::Stage3::readStepFwd/5#17d0527c`(numbered_tuple n1, numbered_tuple ap1, numbered_tuple c, numbered_tuple n2, numbered_tuple ap2) :- 
+172357:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`
+172358:     `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`/11
+172359:       on
+172360:       [n1, _, ap1, _, c, n2, _, ap2, _, _, _]
+172361: 
+172362: EVALUATE NONRECURSIVE JOIN AST RELATION:
+172363:   `project#TaintReach::TaintReachFlow::Flow::Stage3::flowIntoCallTaken/5#30aedf67`(numbered_tuple call, numbered_tuple arg#unbound, numbered_tuple p, bool call_result) :- 
+172364:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::flowIntoCallTaken/5#30aedf67`
+172365:     `TaintReach::TaintReachFlow::Flow::Stage3::flowIntoCallTaken/5#30aedf67`/5
+
+174990: 
+174991: EVALUATE RECURSIVE LAYER:
+174992:   JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::FwdTypeFlowInput::dataFlowNonCallEntry/2#1a6c99e6`(numbered_tuple c, bool cc) :- 
+174993:     SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage3::revFlow/4#5631bada`
+174994:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::NodeEx.getEnclosingCallable0/0#dispred#165c92cd`
+174995:     [[[ BASE CASE ]]]
+174996:     exists(
+174997:       numbered_tuple any#expr#, numbered_tuple node, numbered_tuple this#bound,
+174998:       numbered_tuple call_result
+174999:      |
+175000:       cc = false and
+
+175262:         [call, ret, innercc, inner, out, allowsFieldFlow])
+175263:   JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac`(numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :- 
+175264:     SENTINEL `DataFlowImplCommon::MakeImplCommon<Locations::Location,DataFlowImpl::RustDataFlow>::Cached::TFrontNil#cd26e215@staged_ext`
+175265:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4Param::getApprox/1#89db3137`
+175266:     SENTINEL TaintReach::TaintReachFlow::Flow::Stage4::TSummaryCtxNone#74f2e043
+175267:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::getNodeTyp/1#b03aabcc`
+175268:     SENTINEL `project#TaintReach::TaintReachFlow::Flow::Stage3::storeStepCand/5#a4aeb032#3`
+175269:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4Param::getHeadContent/1#ced52de7`
+175270:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::readStepCand/4#ec3a382a`
+175271:     [[[ BASE CASE ]]]
+175272:     false
+
+177269: EVALUATE NONRECURSIVE JOIN AST RELATION:
+177270:   `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, bool cc, numbered_tuple summaryCtx) :- 
+177271:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowConsCand/5#647d45b6`
+177272:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2`
+177273:     `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowConsCand/5#647d45b6`/5
+177274:       on
+177275:       [_, ap1, c, _, ap2] and
+177276:     `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead0/8#b63267b2`/8
+177277:       on
+177278:       [t1, ap1, stored1, c, node1, node2, cc, summaryCtx] and
+177279:     (
+
+177304: EVALUATE NONRECURSIVE JOIN AST RELATION:
+177305:   `TaintReach::TaintReachFlow::Flow::Stage4::readStepFwd/5#09e21249`(numbered_tuple n1, numbered_tuple ap1, numbered_tuple c, numbered_tuple n2, numbered_tuple ap2) :- 
+177306:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`
+177307:     `TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9`/11
+177308:       on
+177309:       [n1, _, ap1, _, c, n2, _, ap2, _, _, _]
+177310: 
+177311: EVALUATE NONRECURSIVE JOIN AST RELATION:
+177312:   `project#TaintReach::TaintReachFlow::Flow::Stage4::flowIntoCallTaken/5#dcd7ab42`(numbered_tuple call, numbered_tuple arg#unbound, numbered_tuple p, bool call_result) :- 
+177313:     SENTINEL `TaintReach::TaintReachFlow::Flow::Stage4::flowIntoCallTaken/5#dcd7ab42`
+177314:     `TaintReach::TaintReachFlow::Flow::Stage4::flowIntoCallTaken/5#dcd7ab42`/5

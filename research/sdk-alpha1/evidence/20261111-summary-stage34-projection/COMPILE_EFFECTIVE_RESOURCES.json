@@ -1,0 +1,14 @@
+{
+  "kind": "qperiapt.codeql_compiler_requested_and_effective_resources",
+  "requested_heap_mib": 1536,
+  "requested_ram_option_mib": 2048,
+  "cli_minimum_ram_mib": 2638,
+  "effective_heap_mib": 1800,
+  "reason": "CodeQL 2.27.2 raises the RAM option to its minimum and respawns with a final -J-Xmx1800M argument; original request and raw compiler receipts are retained.",
+  "evidence_lines": [
+    "[2026-11-11 20:33:02] [WARN] query compile> Increasing --ram from 2048 to 2638 which is the minimum needed.",
+    "[2026-11-11 20:33:02] Chaining via /tmp/codeql.wsmK0wjK to plumbing: query compile -J-Xmx1536M --verbosity=progress --logdir=/workspace/scratch/4b61438fb07b/summary-stage34-feasibility/logs --common-caches=/workspace/scratch/4b61438fb07b/summary-stage34-feasibility/cache -J-Xmx1800M --ram=0 --warnings=show --no-default-compilation-cache --qlconfig-file=/workspace/scratch/4b61438fb07b/summary-stage34-feasibility/qlconfig.yml --dynamic-join-order-mode=all --precompile --dump-ra --format=text --threads=1 -- /workspace/scratch/4b61438fb07b/summary-stage34-feasibility/candidate-query-pack/queries/summary/SummaryStats.ql"
+  ],
+  "threads": 1,
+  "supervisor_seconds": 180
+}

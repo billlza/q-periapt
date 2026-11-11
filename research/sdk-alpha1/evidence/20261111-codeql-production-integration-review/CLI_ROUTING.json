@@ -1,0 +1,1243 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.codeql_2_27_2_static_wrapper_routing",
+  "codeql_jar": {
+    "path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tool/codeql/tools/codeql.jar",
+    "bytes": 31624470,
+    "sha256": "7af8d9c682a7fa9ec825951b516fe857529e16d077f9d9e13cf6fdb9ad7a8b56"
+  },
+  "execution": {
+    "jvm_invoked": false,
+    "codeql_invoked": false
+  },
+  "interpretation": "Constant and bytecode references support the wrapper call/option routing; this is not an end-to-end candidate analyze run. Offsets are bytecode offsets, not source lines.",
+  "full_readback": {
+    "path": "CLI_CLASS_READBACK.json.gz",
+    "expanded_bytes": 169569,
+    "expanded_sha256": "e5daabd49c2352fe7dd03b09d679d4629e69c8b58ce1123d271a2a81c2918906"
+  },
+  "classes": [
+    {
+      "entry": "com/semmle/cli2/database/AnalyzeCommand.class",
+      "bytes": 9013,
+      "sha256": "f5c3c61a60e0b20510a2bd9f0ddcf6098771013b1c04be7205e9132616d9c638",
+      "superclass": "com/semmle/cli2/picocli/SubcommandCommon",
+      "fields": [
+        {
+          "name": "rerun",
+          "descriptor": "Ljava/lang/Boolean;",
+          "attributes": [
+            "RuntimeVisibleAnnotations"
+          ]
+        },
+        {
+          "name": "threatModelOptions",
+          "descriptor": "Lcom/semmle/cli2/ThreatModelOptions;",
+          "attributes": [
+            "RuntimeVisibleAnnotations"
+          ]
+        },
+        {
+          "name": "evalOptions",
+          "descriptor": "Lcom/semmle/cli2/EvaluatorOptions;",
+          "attributes": [
+            "RuntimeVisibleAnnotations"
+          ]
+        },
+        {
+          "name": "compilerOptions",
+          "descriptor": "Lcom/semmle/cli2/CompilationOptions;",
+          "attributes": [
+            "RuntimeVisibleAnnotations"
+          ]
+        }
+      ],
+      "methods": [
+        {
+          "name": "executeSubcommand",
+          "descriptor": "()V",
+          "code_sha256": "211c387c32586e7bc565b4b8b30e54e5ee254ca6d3315b8764868c2ef64d7486",
+          "selected_references": [
+            {
+              "offset": 49,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/AnalyzeCommand",
+                [
+                  "evalOptions",
+                  "Lcom/semmle/cli2/EvaluatorOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 70,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/AnalyzeCommand",
+                [
+                  "threatModelOptions",
+                  "Lcom/semmle/cli2/ThreatModelOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 84,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/AnalyzeCommand",
+                [
+                  "compilerOptions",
+                  "Lcom/semmle/cli2/CompilationOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 91,
+              "opcode": "new",
+              "constant": "com/semmle/cli2/NoRerunOption"
+            },
+            {
+              "offset": 95,
+              "opcode": "invokespecial",
+              "constant": [
+                "com/semmle/cli2/NoRerunOption",
+                [
+                  "<init>",
+                  "()V"
+                ]
+              ]
+            },
+            {
+              "offset": 105,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/NoRerunOption",
+                [
+                  "setRerun",
+                  "(Z)Lcom/semmle/cli2/NoRerunOption;"
+                ]
+              ]
+            },
+            {
+              "offset": 224,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/AnalyzeCommand",
+                [
+                  "evalOptions",
+                  "Lcom/semmle/cli2/EvaluatorOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 237,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/AnalyzeCommand",
+                [
+                  "compilerOptions",
+                  "Lcom/semmle/cli2/CompilationOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 319,
+              "opcode": "ldc",
+              "constant": "com/semmle/cli2/database/RunQueriesCommand"
+            },
+            {
+              "offset": 322,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/AnalyzeCommand",
+                [
+                  "execPlumbingInProcess",
+                  "(Ljava/lang/Class;[Ljava/lang/Object;)Lcom/semmle/cli2/picocli/SubcommandDone;"
+                ]
+              ]
+            },
+            {
+              "offset": 327,
+              "opcode": "ldc",
+              "constant": "com/semmle/cli2/database/RunQueriesCommand"
+            },
+            {
+              "offset": 330,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/AnalyzeCommand",
+                [
+                  "runPlumbingInProcess",
+                  "(Ljava/lang/Class;[Ljava/lang/Object;)I"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "name": "continueAfterRunningQueries",
+          "descriptor": "(Lcom/semmle/cli2/picocli/SubcommandCommon;ILcom/semmle/cli2/database/InterpretChainingHelper;)Lcom/semmle/cli2/picocli/SubcommandDone;",
+          "code_sha256": "538a1071ef11c3a6b0176546e711ef0a6f66d65a25f088d1b34600875a1b00f2",
+          "selected_references": [
+            {
+              "offset": 69,
+              "opcode": "ldc",
+              "constant": "com/semmle/cli2/database/InterpretResultsCommand"
+            },
+            {
+              "offset": 86,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/picocli/SubcommandCommon",
+                [
+                  "execPlumbingInProcess",
+                  "(Ljava/lang/Class;[Ljava/lang/Object;)Lcom/semmle/cli2/picocli/SubcommandDone;"
+                ]
+              ]
+            },
+            {
+              "offset": 118,
+              "opcode": "ldc",
+              "constant": "com/semmle/cli2/database/InterpretResultsCommand"
+            },
+            {
+              "offset": 137,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/picocli/SubcommandCommon",
+                [
+                  "execPlumbingAsChildProcess",
+                  "(Ljava/lang/Class;Lcom/semmle/cli2/RamOptions;[Ljava/lang/Object;)Lcom/semmle/cli2/picocli/SubcommandDone;"
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "relevant_text": [
+        "--download",
+        "--rerun",
+        "This command combines the effect of the @|bold codeql database run-queries|@ and @|bold codeql database interpret-results|@ commands. If you want to run queries whose results @|italic don't|@ meet the requirements for being interpreted as source-code alerts, use @|bold codeql database run-queries|@ or @|bold codeql query run|@ instead, and then @|bold codeql bqrs decode|@ to convert the raw results to a readable notation."
+      ]
+    },
+    {
+      "entry": "com/semmle/cli2/database/RunQueriesCommand.class",
+      "bytes": 13366,
+      "sha256": "24c2b23b0547674ec72a4f59913887b2ccf68bf70d3016bbe8cd5b2e1e814745",
+      "superclass": "com/semmle/cli2/picocli/SubcommandCommon",
+      "fields": [
+        {
+          "name": "threatModelOptions",
+          "descriptor": "Lcom/semmle/cli2/ThreatModelOptions;",
+          "attributes": [
+            "RuntimeVisibleAnnotations"
+          ]
+        },
+        {
+          "name": "evalOptions",
+          "descriptor": "Lcom/semmle/cli2/EvaluatorOptions;",
+          "attributes": [
+            "RuntimeVisibleAnnotations"
+          ]
+        },
+        {
+          "name": "compilerOptions",
+          "descriptor": "Lcom/semmle/cli2/CompilationOptions;",
+          "attributes": [
+            "RuntimeVisibleAnnotations"
+          ]
+        },
+        {
+          "name": "rerunOption",
+          "descriptor": "Lcom/semmle/cli2/NoRerunOption;",
+          "attributes": [
+            "RuntimeVisibleAnnotations"
+          ]
+        }
+      ],
+      "methods": [
+        {
+          "name": "executeSubcommand",
+          "descriptor": "()V",
+          "code_sha256": "b64c3036cd95c4852271866970e80a94a95e970ed1b6b5c48709cbd9624aef0d",
+          "selected_references": [
+            {
+              "offset": 2,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "positional",
+                  "Lcom/semmle/cli2/QueriesSpecifier1$WithDatabase;"
+                ]
+              ]
+            },
+            {
+              "offset": 24,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "positional",
+                  "Lcom/semmle/cli2/QueriesSpecifier1$WithDatabase;"
+                ]
+              ]
+            },
+            {
+              "offset": 43,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/DatabaseLayout",
+                [
+                  "getResultsDir",
+                  "()Ljava/nio/file/Path;"
+                ]
+              ]
+            },
+            {
+              "offset": 109,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "evalOptions",
+                  "Lcom/semmle/cli2/EvaluatorOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 126,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "printProgress",
+                  "(Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 131,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "positional",
+                  "Lcom/semmle/cli2/QueriesSpecifier1$WithDatabase;"
+                ]
+              ]
+            },
+            {
+              "offset": 139,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "resolver",
+                  "()Lcom/semmle/frontend/packs/QlPackResolver;"
+                ]
+              ]
+            },
+            {
+              "offset": 146,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "compilerOptions",
+                  "Lcom/semmle/cli2/CompilationOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 153,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "extensionPackOptions",
+                  "Lcom/semmle/cli2/ExtensionPackOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 157,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "threatModelOptions",
+                  "Lcom/semmle/cli2/ThreatModelOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 161,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "positional",
+                  "Lcom/semmle/cli2/QueriesSpecifier1$WithDatabase;"
+                ]
+              ]
+            },
+            {
+              "offset": 168,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "positional",
+                  "Lcom/semmle/cli2/QueriesSpecifier1$WithDatabase;"
+                ]
+              ]
+            },
+            {
+              "offset": 174,
+              "opcode": "invokestatic",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "augmentAnalysisConfigFromDatabase",
+                  "(Lcom/semmle/cli2/picocli/SubcommandCommon;Ljava/util/List;Lcom/semmle/cli2/database/DatabaseLayout;Lcom/semmle/frontend/packs/VirtualFileSystem;Lcom/semmle/cli2/QLPackPathOptions;Lcom/semmle/cli2/ExtensionPackOptions;Lcom/semmle/cli2/ThreatModelOptions;ZZ)Ljava/util/List;"
+                ]
+              ]
+            },
+            {
+              "offset": 179,
+              "opcode": "ldc_w",
+              "constant": "com/semmle/cli2/execute/ExecuteQueriesCommand"
+            },
+            {
+              "offset": 187,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "ramOptions",
+                  "Lcom/semmle/cli2/RamOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 205,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "evalOptions",
+                  "Lcom/semmle/cli2/EvaluatorOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 212,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "extensionPackOptions",
+                  "Lcom/semmle/cli2/ExtensionPackOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 219,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "threatModelOptions",
+                  "Lcom/semmle/cli2/ThreatModelOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 226,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "compilerOptions",
+                  "Lcom/semmle/cli2/CompilationOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 233,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "rerunOption",
+                  "Lcom/semmle/cli2/NoRerunOption;"
+                ]
+              ]
+            },
+            {
+              "offset": 240,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "startupOption",
+                  "Lcom/semmle/cli2/StopAfterStartupOption;"
+                ]
+              ]
+            },
+            {
+              "offset": 248,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "interpretChainer",
+                  "Lcom/semmle/cli2/database/InterpretChainingHelper;"
+                ]
+              ]
+            },
+            {
+              "offset": 285,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "execPlumbingAsChildProcess",
+                  "(Ljava/lang/Class;Lcom/semmle/cli2/RamOptions;[Ljava/lang/Object;)Lcom/semmle/cli2/picocli/SubcommandDone;"
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "relevant_text": []
+    },
+    {
+      "entry": "com/semmle/cli2/database/InterpretResultsCommand.class",
+      "bytes": 23902,
+      "sha256": "a8e59a8239db34cd33d439eb9ad1a836988dbea6329ae8b6c1ae92e8fbcc40ba",
+      "superclass": "com/semmle/cli2/picocli/SubcommandCommon",
+      "fields": [],
+      "methods": [
+        {
+          "name": "executeSubcommand",
+          "descriptor": "()V",
+          "code_sha256": "c480d97db826cafa0d9d51938d1006ffd2c958cf4dfab59f8c9c22801bb14f9d",
+          "selected_references": [
+            {
+              "offset": 2,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "databaseDir",
+                  "Ljava/nio/file/Path;"
+                ]
+              ]
+            },
+            {
+              "offset": 10,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/DatabaseLayout",
+                [
+                  "getResultsDir",
+                  "()Ljava/nio/file/Path;"
+                ]
+              ]
+            },
+            {
+              "offset": 33,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "queriesSpec",
+                  "Ljava/util/List;"
+                ]
+              ]
+            },
+            {
+              "offset": 38,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "resolver",
+                  "()Lcom/semmle/frontend/packs/QlPackResolver;"
+                ]
+              ]
+            },
+            {
+              "offset": 45,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "pathOptions",
+                  "Lcom/semmle/cli2/QLPackPathOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 49,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "extensionPackOptions",
+                  "Lcom/semmle/cli2/ExtensionPackOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 60,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "includeDatabaseExtensionPacks",
+                  "()Z"
+                ]
+              ]
+            },
+            {
+              "offset": 64,
+              "opcode": "invokestatic",
+              "constant": [
+                "com/semmle/cli2/database/RunQueriesCommand",
+                [
+                  "augmentAnalysisConfigFromDatabase",
+                  "(Lcom/semmle/cli2/picocli/SubcommandCommon;Ljava/util/List;Lcom/semmle/cli2/database/DatabaseLayout;Lcom/semmle/frontend/packs/VirtualFileSystem;Lcom/semmle/cli2/QLPackPathOptions;Lcom/semmle/cli2/ExtensionPackOptions;Lcom/semmle/cli2/ThreatModelOptions;ZZ)Ljava/util/List;"
+                ]
+              ]
+            },
+            {
+              "offset": 79,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "pathOptions",
+                  "Lcom/semmle/cli2/QLPackPathOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 93,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "callPlumbingInProcess",
+                  "(Ljava/lang/Class;[Ljava/lang/Object;)Ljava/lang/Object;"
+                ]
+              ]
+            },
+            {
+              "offset": 105,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "resolver",
+                  "()Lcom/semmle/frontend/packs/QlPackResolver;"
+                ]
+              ]
+            },
+            {
+              "offset": 117,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printProgress",
+                  "(Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 130,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "pathOptions",
+                  "Lcom/semmle/cli2/QLPackPathOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 137,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "extensionPackOptions",
+                  "Lcom/semmle/cli2/ExtensionPackOptions;"
+                ]
+              ]
+            },
+            {
+              "offset": 146,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "callPlumbingInProcess",
+                  "(Ljava/lang/Class;[Ljava/lang/Object;)Ljava/lang/Object;"
+                ]
+              ]
+            },
+            {
+              "offset": 155,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "interpretResultsOpts",
+                  "Lcom/semmle/cli2/InterpretationOptions$WithThreads;"
+                ]
+              ]
+            },
+            {
+              "offset": 171,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printWarning",
+                  "(Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 175,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "interpretResultsOpts",
+                  "Lcom/semmle/cli2/InterpretationOptions$WithThreads;"
+                ]
+              ]
+            },
+            {
+              "offset": 237,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printProgress",
+                  "(Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 270,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "callPlumbingInProcess",
+                  "(Ljava/lang/Class;[Ljava/lang/Object;)Ljava/lang/Object;"
+                ]
+              ]
+            },
+            {
+              "offset": 325,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printWarning",
+                  "(Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 343,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printProgressDetail",
+                  "(Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 409,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "interpretResultsOpts",
+                  "Lcom/semmle/cli2/InterpretationOptions$WithThreads;"
+                ]
+              ]
+            },
+            {
+              "offset": 538,
+              "opcode": "checkcast",
+              "constant": "com/semmle/cli2/database/InterpretResultsCommand$SourceQuery"
+            },
+            {
+              "offset": 552,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand$SourceQuery",
+                [
+                  "query",
+                  "()Lcom/semmle/frontend/packs/ResolvedQuery;"
+                ]
+              ]
+            },
+            {
+              "offset": 572,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand$SourceQuery",
+                [
+                  "query",
+                  "()Lcom/semmle/frontend/packs/ResolvedQuery;"
+                ]
+              ]
+            },
+            {
+              "offset": 575,
+              "opcode": "invokestatic",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "getHelpPath",
+                  "(Lcom/semmle/frontend/packs/ResolvedQuery;)Ljava/util/Optional;"
+                ]
+              ]
+            },
+            {
+              "offset": 584,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand$SourceQuery",
+                [
+                  "query",
+                  "()Lcom/semmle/frontend/packs/ResolvedQuery;"
+                ]
+              ]
+            },
+            {
+              "offset": 590,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand$SourceQuery",
+                [
+                  "results",
+                  "()Lcom/semmle/api/result/ResultsFile;"
+                ]
+              ]
+            },
+            {
+              "offset": 630,
+              "opcode": "new",
+              "constant": "com/semmle/cli2/database/InterpretResultsCommand$BqrsQuery"
+            },
+            {
+              "offset": 638,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand$SourceQuery",
+                [
+                  "results",
+                  "()Lcom/semmle/api/result/ResultsFile;"
+                ]
+              ]
+            },
+            {
+              "offset": 641,
+              "opcode": "invokespecial",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand$BqrsQuery",
+                [
+                  "<init>",
+                  "(Lcom/semmle/analysis/results/yaml/BqrsQueryInfo;Lcom/semmle/api/result/ResultsFile;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 729,
+              "opcode": "checkcast",
+              "constant": "com/semmle/cli2/database/InterpretResultsCommand$BqrsQuery"
+            },
+            {
+              "offset": 738,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand$BqrsQuery",
+                [
+                  "bqrsQueryInfo",
+                  "()Lcom/semmle/analysis/results/yaml/BqrsQueryInfo;"
+                ]
+              ]
+            },
+            {
+              "offset": 743,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand$BqrsQuery",
+                [
+                  "results",
+                  "()Lcom/semmle/api/result/ResultsFile;"
+                ]
+              ]
+            },
+            {
+              "offset": 761,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand$BqrsQuery",
+                [
+                  "bqrsQueryInfo",
+                  "()Lcom/semmle/analysis/results/yaml/BqrsQueryInfo;"
+                ]
+              ]
+            },
+            {
+              "offset": 836,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand$BqrsQuery",
+                [
+                  "results",
+                  "()Lcom/semmle/api/result/ResultsFile;"
+                ]
+              ]
+            },
+            {
+              "offset": 846,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printProgressDetail",
+                  "(Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 885,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printProgress",
+                  "(Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 926,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printProgress",
+                  "(Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 987,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printProgressDetail",
+                  "(Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 1001,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printSpammy",
+                  "(Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 1019,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printWarning",
+                  "(Ljava/lang/Throwable;Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 1040,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "interpretResultsOpts",
+                  "Lcom/semmle/cli2/InterpretationOptions$WithThreads;"
+                ]
+              ]
+            },
+            {
+              "offset": 1072,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "newAnalysisSummary",
+                  "Lcom/semmle/cli2/NewAnalysisSummaryOption;"
+                ]
+              ]
+            },
+            {
+              "offset": 1080,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "getVerbosity",
+                  "()Lcom/semmle/util/logging/Verbosity;"
+                ]
+              ]
+            },
+            {
+              "offset": 1092,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printDiagnosticsSummary",
+                  "Ljava/lang/Boolean;"
+                ]
+              ]
+            },
+            {
+              "offset": 1095,
+              "opcode": "invokestatic",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "boolOptionValue",
+                  "(Ljava/lang/Boolean;)Z"
+                ]
+              ]
+            },
+            {
+              "offset": 1122,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printMetricsSummary",
+                  "Ljava/lang/Boolean;"
+                ]
+              ]
+            },
+            {
+              "offset": 1125,
+              "opcode": "invokestatic",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "boolOptionValue",
+                  "(Ljava/lang/Boolean;)Z"
+                ]
+              ]
+            },
+            {
+              "offset": 1142,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printBaselineLoc",
+                  "Ljava/lang/Boolean;"
+                ]
+              ]
+            },
+            {
+              "offset": 1145,
+              "opcode": "invokestatic",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "boolOptionValue",
+                  "(Ljava/lang/Boolean;)Z"
+                ]
+              ]
+            },
+            {
+              "offset": 1162,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "databaseDir",
+                  "Ljava/nio/file/Path;"
+                ]
+              ]
+            },
+            {
+              "offset": 1166,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "runPlumbingInProcess",
+                  "(Ljava/lang/Class;[Ljava/lang/Object;)I"
+                ]
+              ]
+            },
+            {
+              "offset": 1181,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "interpretResultsOpts",
+                  "Lcom/semmle/cli2/InterpretationOptions$WithThreads;"
+                ]
+              ]
+            },
+            {
+              "offset": 1191,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printProgress",
+                  "(Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 1211,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "interpretResultsOpts",
+                  "Lcom/semmle/cli2/InterpretationOptions$WithThreads;"
+                ]
+              ]
+            },
+            {
+              "offset": 1250,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "interpretResultsOpts",
+                  "Lcom/semmle/cli2/InterpretationOptions$WithThreads;"
+                ]
+              ]
+            },
+            {
+              "offset": 1265,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printProgress",
+                  "(Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            },
+            {
+              "offset": 1269,
+              "opcode": "getfield",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "chainedTimeout",
+                  "Ljava/lang/Boolean;"
+                ]
+              ]
+            },
+            {
+              "offset": 1272,
+              "opcode": "invokestatic",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "boolOptionValue",
+                  "(Ljava/lang/Boolean;)Z"
+                ]
+              ]
+            },
+            {
+              "offset": 1286,
+              "opcode": "invokevirtual",
+              "constant": [
+                "com/semmle/cli2/database/InterpretResultsCommand",
+                [
+                  "printError",
+                  "(Ljava/lang/String;[Ljava/lang/Object;)V"
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "relevant_text": []
+    },
+    {
+      "entry": "com/semmle/cli2/CompilationOptions.class",
+      "bytes": 7101,
+      "sha256": "18a2c7a93a43a081fd0fa094d9e4b2f6ce21370fd1f208e591e6d0d7a03df2b7",
+      "superclass": "com/semmle/cli2/CoreCompilationOptions",
+      "fields": [],
+      "methods": [],
+      "relevant_text": []
+    },
+    {
+      "entry": "com/semmle/cli2/CoreCompilationOptions.class",
+      "bytes": 1554,
+      "sha256": "2fb01618bb37e3f27d1dc58d8aaeb5b559206f6e7d33609a8f4914c9b9095e2f",
+      "superclass": "com/semmle/cli2/picocli/ReserialisableOptions",
+      "fields": [
+        {
+          "name": "dynamicJoinOptions",
+          "descriptor": "Lcom/semmle/cli2/DynamicJoinOptions;",
+          "attributes": [
+            "RuntimeVisibleAnnotations"
+          ]
+        }
+      ],
+      "methods": [],
+      "relevant_text": []
+    },
+    {
+      "entry": "com/semmle/cli2/DynamicJoinOptions.class",
+      "bytes": 893,
+      "sha256": "29beb059dd6e833bd6a2d389ff8596b9634f47dbb8209d0cde81db4ce26fd173",
+      "superclass": "com/semmle/cli2/picocli/ReserialisableOptions",
+      "fields": [
+        {
+          "name": "dynamicJoinMode",
+          "descriptor": "Lcom/semmle/api/DynamicJoinMode;",
+          "attributes": [
+            "RuntimeVisibleAnnotations"
+          ]
+        }
+      ],
+      "methods": [],
+      "relevant_text": [
+        "--dynamic-join-order-mode"
+      ]
+    }
+  ]
+}

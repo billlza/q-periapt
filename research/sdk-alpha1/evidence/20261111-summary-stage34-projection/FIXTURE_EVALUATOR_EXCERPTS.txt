@@ -1,0 +1,5 @@
+[2026-11-11 20:37:07] [PROGRESS] execute queries> [1/1] Loaded /workspace/scratch/4b61438fb07b/summary-stage34-feasibility/candidate-query-pack/queries/summary/SummaryStats.qlx.
+[2026-11-11 20:38:29] (81s)  >>> Created relation TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowReadTarget/6#073a1dab/6@5e7884w4 with 78 rows and digest 7c5daf299264jo0bg9popg0dt4c.
+[2026-11-11 20:38:29] (81s)  >>> Created relation TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81/11@18b79coo with 78 rows and digest 4dc439jno1lnmi9nn2l8k47a1ff.
+[2026-11-11 20:38:29] (81s)  >>> Created relation TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowReadTarget/6#ede52cac/6@8c2021xv with 78 rows and digest 0aeedeu5rvfljmmn3d0m9vqg9m5.
+[2026-11-11 20:38:29] (81s)  >>> Created relation TaintReach::TaintReachFlow::Flow::Stage4::fwdFlowRead/11#fdd4a6d9/11@9de387t6 with 78 rows and digest b5dc56n02j0d4492ub25r54nfi6.

@@ -1,0 +1,39 @@
+{
+  "additional_support_spec": {
+    "bytes": 6587,
+    "commit": "11ba16eb257c4d68ed967fa554d9a36b362848b0",
+    "path": "artifact/codeql_summary_projection.json",
+    "role": "Later published identity specification for the identical original Stage4 capsule; not the controller version executed by this probe.",
+    "sha256": "d330c1063954c6cd5803426df4e1ad7727d716976872049d140f5f47c12be191"
+  },
+  "checked_pack": "/workspace/scratch/4b61438fb07b/codeql-projection-full-probe/query-pack",
+  "compiled_inventory_sha256": "f1a3d81b2e0a35262ea88d795825478f9217e4f897befdff6146bfbf2f521b14",
+  "compiled_query_count": 39,
+  "compiler_inputs_digest": "70fcc50b9809b694b26b77a11722cdbb",
+  "dependency_exact_path_set": true,
+  "dependency_file_count": 1175,
+  "dependency_inventory_sha256": "be9ab53000782d96523d8ec1fc81fa8503333916fad38dd9c8f76586e36b879e",
+  "expected_dependency_source": {
+    "bytes": 117234,
+    "path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/review-packet/DEPENDENCY_INVENTORIES.json.gz",
+    "sha256": "e14c4a9036d0fcc6116348897c63b78cd1521b95218b39671c992105e9a91735"
+  },
+  "finished_utc": "2026-11-11T11:54:14.578489+00:00",
+  "full_summary_qlx": {
+    "bytes": 185038,
+    "sha256": "65e651eb4b56da599cca6538a9eaf55df2cc1dd8ce3943e91786c24daa1d97df"
+  },
+  "kind": "qperiapt.stage4_probe_readonly_postcheck",
+  "new_codeql_processes": 0,
+  "query_pack_writes": 0,
+  "query_scope": "The exact 39-query frozen suite. The bundled root pack also contains unused queries; this receipt does not relabel those as part of the selected suite.",
+  "query_source_count": 39,
+  "recorded_precompiled_loads": 39,
+  "recorded_query_compilations": 0,
+  "root_qll_exact_path_count": 6,
+  "same_pack_as_original_frozen_suite": true,
+  "stage_count": 15,
+  "started_utc": "2026-11-11T11:54:13.973962+00:00",
+  "status": "pass",
+  "support_file_count": 9
+}

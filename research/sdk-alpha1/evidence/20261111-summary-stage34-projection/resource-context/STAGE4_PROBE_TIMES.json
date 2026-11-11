@@ -1,0 +1,12 @@
+{
+  "kind": "selected_fields_from_original_probe_record",
+  "original_file_identity": {
+    "bytes": 67870,
+    "sha256": "05277b05222c1c7a81fd64f2bdd0f9ffb6566d6191a14f0e2f3708ea385e45b3"
+  },
+  "fields": {
+    "evaluator_invocation_utc": "2026-11-11T10:55:59.322658+00:00",
+    "finished_utc": "2026-11-11T11:34:04.297685+00:00"
+  },
+  "finished_utc_scope": "overall probe record including capture and decoding of 38 partial results; not the evaluator kernel-termination timestamp"
+}

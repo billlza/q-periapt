@@ -1,0 +1,8 @@
+{
+  "command": [
+    "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tool/codeql/codeql",
+    "version",
+    "--format=terse"
+  ],
+  "returncode": 0
+}

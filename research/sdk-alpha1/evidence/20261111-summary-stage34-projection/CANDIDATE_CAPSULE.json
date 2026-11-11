@@ -1,0 +1,82 @@
+{
+  "capsule_bytes": 620230,
+  "capsule_sha256": "5b17fb41cd3c59fea564ec4e9cb49ef586c0ad06ccc3f2445e46b7b5ca8430cb",
+  "compiler_inputs_digest": "6a7530eb694360655ab8331a895c9fcd",
+  "created_utc": "2026-11-11T11:36:10.932434+00:00",
+  "effective_library_sha256": "6a444d1baf03a1db4cbf1f98e39320ba3a7d68d2b9b6db7feffb2bf9cd315bde",
+  "expanded_bytes": 617218,
+  "files": {
+    ".codeql/precompiled/266715g1c4rd672ujepjgi5fsmc.bytes.qlx": {
+      "bytes": 14842,
+      "sha256": "9472d70a5151f9cac02d2016680bf479f3adad82b2d8d48cf1b971bec60d0af0"
+    },
+    ".codeql/precompiled/47f63fj481bvvuauchr49n26qtb.bytes.qlx": {
+      "bytes": 33595,
+      "sha256": "4d4d2ece884cf4ff03693e5b4fb1168cdfa9cc2ce6ed1e3856d3665cb473ef51"
+    },
+    ".codeql/precompiled/565a9d64n8024vqc5u3or3rcmb6.bytes.qlx": {
+      "bytes": 7146,
+      "sha256": "bd2d5678ea5c3ea307a3fb8bbc0d0174a1bc1745579be6fa7ed7672e164c605c"
+    },
+    ".codeql/precompiled/57bb59t3tviloldd611r8aftir9.bytes.qlx": {
+      "bytes": 448,
+      "sha256": "b6714ef7bd4b610ae33a83906e96efd07e02019b8a3448268b730df13306ce62"
+    },
+    ".codeql/precompiled/67028590t9804sq9kmavegj6gl3.bytes.qlx": {
+      "bytes": 29467,
+      "sha256": "93358c0b20c9775f302cc368aab6b14614373304669052def65f384d90e1e89d"
+    },
+    ".codeql/precompiled/7d2aa4fcodo9r6ammqfgjnus0s2.bytes.qlx": {
+      "bytes": 24266,
+      "sha256": "21717ce1b4f747c971d704dedabdff5b8fd28a04a226b6e1bbde62ffa0520f2d"
+    },
+    ".codeql/precompiled/8de8ce9afu9vq64lq7evn1lmrqe.bytes.qlx": {
+      "bytes": 3880,
+      "sha256": "3b805bc9a8b4b37557e8c226ab5984364e23af3b6e0244d2948ac3dda173c22f"
+    },
+    ".codeql/precompiled/920d42i4oiktr3pea5mtpdghgi5.bytes.qlx": {
+      "bytes": 4589,
+      "sha256": "fa02c25341dc529f220c36e71d9ad83ba927df4723254364703e366469f48c6d"
+    },
+    ".codeql/precompiled/95e5fe1cbcunk6bm09ntu8si5c2.bytes.qlx": {
+      "bytes": 8914,
+      "sha256": "6dc4ad730ab8e6d0ee976b6d3b24795f6a581de8554620e19b13de8f3afa0c61"
+    },
+    ".codeql/precompiled/99491bg0q67q5r8celhn897t9g4.bytes.qlx": {
+      "bytes": 20186,
+      "sha256": "9e8dd7df58c4f9897790f8a0e3513ebec2b2accbb02c9679f484dac93f6e3437"
+    },
+    ".codeql/precompiled/b81d34jvfp9o2ugpjjo6j4iveg2.bytes.qlx": {
+      "bytes": 114386,
+      "sha256": "03836f2004cd1ad0d881ae22cf7180db51c0ba2f2f95aa90e8375cb9009f62f5"
+    },
+    ".codeql/precompiled/b984dfcdns318ijtr7qr19rqric.bytes.qlx": {
+      "bytes": 79808,
+      "sha256": "8d83367c5ea5e187bc279ce00978090f57e21d42982fd59c119fa26c90ccb061"
+    },
+    ".codeql/precompiled/d2c15dipnla9kdt2q7aa7f06ih8.bytes.qlx": {
+      "bytes": 64511,
+      "sha256": "d04664df001b485169c97003e397889c164cde50fab9db88b0190c12541a46d6"
+    },
+    ".codeql/precompiled/e502ebhkdql97eol8n9v79g9e6a.bytes.qlx": {
+      "bytes": 22228,
+      "sha256": "0afa25dd84a5fbd4c0d23cc7f107eba0a5eed81b157b01484153cdbe04db25ab"
+    },
+    ".codeql/precompiled/f3dcadlh0ves4mif8vcqi8cgthe.bytes.qlx": {
+      "bytes": 3916,
+      "sha256": "48b317adffddd440b1ede947251213288ba3e2e73efdcc2d8e6cb4b4bef68fe6"
+    },
+    "queries/summary/SummaryStats.qlx": {
+      "bytes": 185036,
+      "sha256": "ba1a984f8b78d99ce61e91b110833381c5c8366bf1b4ff783b32cb6180fcb45d"
+    }
+  },
+  "kind": "qperiapt.stage3_stage4_projected_read_capsule",
+  "plan_path": "queries/summary/SummaryStats.qlx",
+  "postcompile_dependency_files_unchanged": 1175,
+  "postcompile_other_qlx_unchanged": 38,
+  "postcompile_root_queries_unchanged": 39,
+  "query_source_sha256": "7278d53373afb4f8069122e287c9c036a959ba0d167c152d67cd0de885881d67",
+  "stage_count": 15,
+  "vendor_patch_sha256": "7eeff3c79e8c808f56f25ce7e8e10b73e6227448e1c15531b583ec7ed13898a8"
+}

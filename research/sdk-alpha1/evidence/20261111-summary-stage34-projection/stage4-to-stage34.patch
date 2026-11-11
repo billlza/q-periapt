@@ -1,0 +1,28 @@
+--- a/codeql/dataflow/internal/DataFlowImpl.qll
++++ b/codeql/dataflow/internal/DataFlowImpl.qll
+@@ -852,11 +852,11 @@
+         }
+ 
+         /**
+          * The exact target-state projection of the original read join.
+          *
+-         * Stage4 feeds this projection into its forward recursive closure. The
++         * Stages 3 and 4 feed this projection into their forward closures. The
+          * original full relation remains available for reverse/path consumers
+          * after the forward closure; no source/content witness is discarded there.
+          */
+         pragma[nomagic]
+         private predicate fwdFlowReadTarget(
+@@ -2878,10 +2878,12 @@
+     private module Stage2 = MkStage<S1>::Stage<Stage2Param>;
+ 
+     private module Stage3Param implements MkStage<Stage2>::StageParam {
+       private module PrevStage = Stage2;
+ 
++      predicate projectRecursiveReadTargets() { any() }
++
+       class Typ = Unit;
+ 
+       class Ap = ApproxAccessPathFront;
+ 
+       class ApNil = ApproxAccessPathFrontNil;

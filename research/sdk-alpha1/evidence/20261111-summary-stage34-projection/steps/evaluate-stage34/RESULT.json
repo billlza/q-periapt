@@ -1,0 +1,47 @@
+{
+  "kind": "qperiapt.local_env_fixture_step",
+  "name": "evaluate-stage34",
+  "command": [
+    "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tool/codeql/codeql",
+    "execute",
+    "queries",
+    "-J-Xmx1536M",
+    "--off-heap-ram=512",
+    "--threads=1",
+    "--threat-model=local",
+    "--warnings=show",
+    "--dynamic-join-order-mode=all",
+    "--no-rerun",
+    "--verbosity=progress",
+    "--evaluator-log-level=5",
+    "--common-caches=/workspace/scratch/4b61438fb07b/summary-stage34-feasibility/fixture/common-cache",
+    "--logdir=/workspace/scratch/4b61438fb07b/summary-stage34-feasibility/fixture/logs",
+    "--output=/workspace/scratch/4b61438fb07b/summary-stage34-feasibility/fixture/results",
+    "--",
+    "/workspace/scratch/4b61438fb07b/summary-stage34-feasibility/fixture/database/db-rust",
+    "path:/workspace/scratch/4b61438fb07b/summary-stage34-feasibility/fixture/full-summary.qls"
+  ],
+  "cwd": "/workspace/scratch/4b61438fb07b/summary-stage34-feasibility",
+  "supervisor_timeout_seconds": 300,
+  "maximum_stdout_bytes": 67108864,
+  "maximum_stderr_bytes": 67108864,
+  "rust_toolchain_bin": "/workspace/scratch/4b61438fb07b/rustix-toolchain/install/bin",
+  "cargo_net_offline": true,
+  "extractor_environment": {},
+  "started_utc": "2026-11-11T11:37:03.873501+00:00",
+  "bounded_process_sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+  "status": "completed",
+  "exit_code": 0,
+  "wall_seconds": 100.0007528699989,
+  "completed_utc": "2026-11-11T11:38:43.875321+00:00",
+  "streams": {
+    "stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stderr.log": {
+      "bytes": 552,
+      "sha256": "fd493dc83de142a496864156fbaae8ebd13a1813ca5d45e50d085bb8af3ba1b2"
+    }
+  }
+}

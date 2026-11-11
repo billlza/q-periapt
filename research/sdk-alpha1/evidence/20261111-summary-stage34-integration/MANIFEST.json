@@ -1,0 +1,22 @@
+{
+  "file_count": 3,
+  "files": {
+    "INTEGRATED_TESTS.json": {
+      "bytes": 11658,
+      "sha256": "209d931bd0eec5206e3b162e8158936f1b84185dd59759e185bd1bbea4ced662"
+    },
+    "README.md": {
+      "bytes": 1591,
+      "sha256": "aa2e618ca05072045cd1e493a04ecf74971e1327a39c8eb5a84467a293499c04"
+    },
+    "integrated-tests.log": {
+      "bytes": 806,
+      "sha256": "32f6970a182c6e8afe26ec03d9ceb96498a932db37a4bb3adde91b7e221d6bbf"
+    }
+  },
+  "kind": "qperiapt.stage34_integration_review_packet",
+  "new_codeql_invocations_during_packaging": 0,
+  "new_tests_during_packaging": 0,
+  "payload_bytes": 14055,
+  "schema": 1
+}

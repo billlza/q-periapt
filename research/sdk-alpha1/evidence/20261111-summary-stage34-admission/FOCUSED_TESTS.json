@@ -1,0 +1,21 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-m",
+    "unittest",
+    "-v",
+    "test_codeql_summary_control",
+    "test_codeql_summary_plan",
+    "test_codeql_summary_projection",
+    "test_codeql_process_resources"
+  ],
+  "cwd": "/workspace/scratch/4b61438fb07b/summary-stage34-admission/artifact",
+  "started_utc": "2026-11-11T11:52:56.928088+00:00",
+  "scope": "existing focused Python tests; no CodeQL CLI or JVM invocation",
+  "returncode": 0,
+  "finished_utc": "2026-11-11T11:53:06.019606+00:00",
+  "log": {
+    "bytes": 29403,
+    "sha256": "7ee585c497e218ebf9d980b08475eef0b7cac6000f146329a63541b0769ac843"
+  }
+}

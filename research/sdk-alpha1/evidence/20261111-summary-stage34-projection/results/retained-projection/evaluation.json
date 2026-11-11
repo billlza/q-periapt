@@ -1,0 +1,47 @@
+{
+  "kind": "qperiapt.local_env_fixture_step",
+  "name": "evaluate-projection",
+  "command": [
+    "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tool/codeql/codeql",
+    "execute",
+    "queries",
+    "-J-Xmx1536M",
+    "--off-heap-ram=512",
+    "--threads=1",
+    "--threat-model=local",
+    "--warnings=show",
+    "--dynamic-join-order-mode=all",
+    "--no-rerun",
+    "--verbosity=progress",
+    "--evaluator-log-level=5",
+    "--common-caches=/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/arms/projection/common-cache",
+    "--logdir=/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/arms/projection/logs",
+    "--output=/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/arms/projection/results",
+    "--",
+    "/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/arms/projection/database/db-rust",
+    "path:/workspace/scratch/4b61438fb07b/summary-env-validation-20261111/arms/projection/full-summary.qls"
+  ],
+  "cwd": "/workspace/scratch/4b61438fb07b/summary-env-validation-20261111",
+  "supervisor_timeout_seconds": 300,
+  "maximum_stdout_bytes": 67108864,
+  "maximum_stderr_bytes": 67108864,
+  "rust_toolchain_bin": "/workspace/scratch/4b61438fb07b/rustix-toolchain/install/bin",
+  "cargo_net_offline": true,
+  "extractor_environment": {},
+  "started_utc": "2026-11-11T11:04:24.898772+00:00",
+  "bounded_process_sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+  "status": "completed",
+  "exit_code": 0,
+  "wall_seconds": 113.11825087099987,
+  "completed_utc": "2026-11-11T11:06:18.017455+00:00",
+  "streams": {
+    "stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "stderr.log": {
+      "bytes": 562,
+      "sha256": "f2bee273d7939c761f5023e849bab087bc1845d2561e721f751669f688098ea4"
+    }
+  }
+}

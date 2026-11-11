@@ -1,0 +1,68 @@
+{
+  "kind": "qperiapt.stage34_admission_source_binding",
+  "method_archive": {
+    "bytes": 2132,
+    "path": "methods.zip",
+    "sha256": "146fdd7c7503b20e9bdb8a4375fe4f6efddd591606a3e1448815e71599e522d3"
+  },
+  "method_members": {
+    "verify_real_pack.py": {
+      "bytes": 5720,
+      "sha256": "3b03564b6e2e317c5d54e1206a7505cfbb197bb5df6f7a43273d61a3098fbffc"
+    }
+  },
+  "repository_files": {
+    "artifact/codeql-summary-projection-plan.zip": {
+      "bytes": 620230,
+      "sha256": "5b17fb41cd3c59fea564ec4e9cb49ef586c0ad06ccc3f2445e46b7b5ca8430cb"
+    },
+    "artifact/codeql_process_resources.py": {
+      "bytes": 16881,
+      "sha256": "8b4d14b9667a7c10e653f680311c12db595369f0e6a5b2800aae6beefeec26a6"
+    },
+    "artifact/codeql_summary_control.py": {
+      "bytes": 61730,
+      "sha256": "5ef520a9bece36439ce8b23f8cc079134224e120db926251395e67f4399084c3"
+    },
+    "artifact/codeql_summary_plan.py": {
+      "bytes": 9381,
+      "sha256": "066965055ef1a0b431cf1322c7255ef3a983c4f712cdabaf5dfbd1e5c8e76435"
+    },
+    "artifact/codeql_summary_projection.json": {
+      "bytes": 6587,
+      "sha256": "2cb1739ba0f0aeeb00e8a017b7cd0218a0a7519771a58dd47cb7f89a8813ca91"
+    },
+    "artifact/codeql_summary_projection.patch": {
+      "bytes": 3235,
+      "sha256": "7eeff3c79e8c808f56f25ce7e8e10b73e6227448e1c15531b583ec7ed13898a8"
+    },
+    "artifact/codeql_summary_projection.py": {
+      "bytes": 14869,
+      "sha256": "022c6259abbd8f2287486a2ecefd443581c4275ea33a23a0e9d240dab54f047c"
+    },
+    "artifact/codeql_summary_projection_dependencies.json.gz": {
+      "bytes": 116388,
+      "sha256": "593af185eecf54d8c93895e6e8ecc194b162117622bc1ae8621e2122ba3a4401"
+    },
+    "artifact/test_codeql_process_resources.py": {
+      "bytes": 17634,
+      "sha256": "adbfe560c1f45dab042552fc8bba941c4adf9cc784d657ad39d9914259d75f1a"
+    },
+    "artifact/test_codeql_summary_control.py": {
+      "bytes": 80347,
+      "sha256": "cb872ac7e6052abb65d69d22becc713658a79af3e1775e490bc4f4799619ed97"
+    },
+    "artifact/test_codeql_summary_plan.py": {
+      "bytes": 14817,
+      "sha256": "22a59a77614af61eedff6f1763f6c058e4f76bdf581b7de420fae6eb0cb612e4"
+    },
+    "artifact/test_codeql_summary_projection.py": {
+      "bytes": 32431,
+      "sha256": "16ae9db01c83cc1352b7d86506e59f17879815931a9ff9d766450afe86609486"
+    }
+  },
+  "schema": 1,
+  "scope": "Existing one-run focused-test and real-pack admission evidence, bound to the final source commit. The method archive preserves the original verification script; installed packs, original package bytes and duplicate installation evidence are represented by the hashes in REAL_PACK_ADMISSION.json.",
+  "source_commit": "278d0312985dc0fa7e186397940baf233a1af7d0",
+  "source_tree": "a32262b3a0c889b5eab181f038ede14ed0da19d3"
+}

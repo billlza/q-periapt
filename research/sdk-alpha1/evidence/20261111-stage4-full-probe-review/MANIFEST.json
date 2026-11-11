@@ -1,0 +1,138 @@
+{
+  "created_utc": "2026-11-11T11:55:56.287035+00:00",
+  "credential_scan": {
+    "matched_secret_or_signed_url_patterns": 0,
+    "text_or_archive_members_scanned": 263
+  },
+  "file_count": 25,
+  "files": [
+    {
+      "bytes": 2076,
+      "relative_path": "EXTERNAL_ARTIFACTS.json",
+      "sha256": "e448f66467f59eb00f79dea7a6fbef95dba0404909423d295dd33df589a4937f"
+    },
+    {
+      "bytes": 48576,
+      "relative_path": "PARTIAL_SEMANTICS_REVIEW.json",
+      "sha256": "e82308b6c08649904423f96a37218ac50144c3dd591ec8717b0c5f654bd40f68"
+    },
+    {
+      "bytes": 64049,
+      "relative_path": "QUERY_PACK_INVENTORY.json.gz",
+      "sha256": "3566adc488ad23f70add727dd6aa7d0ce2138722d8a7836b6cfb9600c521ee84"
+    },
+    {
+      "bytes": 1882,
+      "relative_path": "QUERY_PACK_POSTCHECK.json",
+      "sha256": "17fbc3a5b8042b6de64099102f5e2f381215fc903137ecda43f339c77589e24b"
+    },
+    {
+      "bytes": 7637,
+      "relative_path": "README.md",
+      "sha256": "18e372a49a06579282fbe6847062ed97c5c0c0f10e38f26298097b101b70c88e"
+    },
+    {
+      "bytes": 3491,
+      "relative_path": "REPRODUCTION_SOURCES.json",
+      "sha256": "5a513129b5f2c7001c2b8af250ac9fe1c455906fc9f280f54ab657d9398c6347"
+    },
+    {
+      "bytes": 1888,
+      "relative_path": "REVIEW.json",
+      "sha256": "6e1a4a66257a872be5d4802929220d06a38071c324422db5de02c7688c187018"
+    },
+    {
+      "bytes": 521674,
+      "relative_path": "decoded-results.zip",
+      "sha256": "de0e1881feedf49aaaeaf17185f82ad056d8a588bb7acc9a5b99461962e98e5c"
+    },
+    {
+      "bytes": 1646,
+      "relative_path": "overlap/COMPILE.json",
+      "sha256": "19ec0faebb9de757dc7d2307b2b84d59e2d3e70d2b20903fdbbea4166652f761"
+    },
+    {
+      "bytes": 1214,
+      "relative_path": "overlap/COMPILE_STARTED.json",
+      "sha256": "9533eaab922ecccd562c355f05ebcb29c52f2e7912a7081de2e0cf91e51778ee"
+    },
+    {
+      "bytes": 1637,
+      "relative_path": "overlap/RESOURCE_CONTEXT.json",
+      "sha256": "97c7b48847f41ba92d8346b84214e7761068af527e4a5a6d5ea7abed2e0d61c6"
+    },
+    {
+      "bytes": 3893,
+      "relative_path": "raw/DATABASE_ARCHIVE.json",
+      "sha256": "abf5ae81b30279456f7e61d63ac9d846d8189ab162e39816f26f8584581ec3c0"
+    },
+    {
+      "bytes": 67870,
+      "relative_path": "raw/LOCAL_PROBE.json",
+      "sha256": "05277b05222c1c7a81fd64f2bdd0f9ffb6566d6191a14f0e2f3708ea385e45b3"
+    },
+    {
+      "bytes": 17888,
+      "relative_path": "raw/PARTIAL_RESULTS.json",
+      "sha256": "83cda9ddb976d643cd0a264ed4d02de71a023309efb41c98d81efcf4400b3ca0"
+    },
+    {
+      "bytes": 1728,
+      "relative_path": "raw/PROCESS_RESOURCES.json",
+      "sha256": "f15bed3b41a16264d25b8d1eb3527fccdcb007d4bea4b69af5714bebcc563f9a"
+    },
+    {
+      "bytes": 872,
+      "relative_path": "raw/SOURCE_TRANSPORT.json",
+      "sha256": "d1e0bce050c13a4a0d9f3fe13b484e8dc1b8daf04b70f695d6dddec898f01e90"
+    },
+    {
+      "bytes": 2765,
+      "relative_path": "raw/query.json",
+      "sha256": "ca13e5d61e7f2823ab26658fc8ef5a6abc95436b6e6f10f4386c0ac09647624e"
+    },
+    {
+      "bytes": 13522,
+      "relative_path": "raw/query.stderr",
+      "sha256": "a2bbaf9ec8a86890a402469b4b2adc09fa69aaddba7a53a227cb5edc8b6f8935"
+    },
+    {
+      "bytes": 59064,
+      "relative_path": "raw/query.stdout",
+      "sha256": "c786e7823ba2813cccf15272d1b359154c67f23eb711b2cfa3f6645a8cc70bfa"
+    },
+    {
+      "bytes": 161,
+      "relative_path": "raw/version.json",
+      "sha256": "799ef07192ba23bdb5e97e0eb1fe1b3ebecc4f918f9c1137e3a10d045f51e9d8"
+    },
+    {
+      "bytes": 0,
+      "relative_path": "raw/version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 7,
+      "relative_path": "raw/version.stdout",
+      "sha256": "76aea453698ecab1f061990a3b977d5e6f28fde9ede6ee73d8e8321d1e725426"
+    },
+    {
+      "bytes": 66528,
+      "relative_path": "reproduction-sources.zip",
+      "sha256": "501e303ea731b2737f1b500634b0b826d7631c57db7a3d4c85712ff57ac1e52c"
+    },
+    {
+      "bytes": 5194,
+      "relative_path": "stage3/STAGE3_RA_READBACK.json",
+      "sha256": "71b30f7f2012441c90e6fda3f9a1d938bf85fd30b79db07c784352fe1e6672ad"
+    },
+    {
+      "bytes": 37737,
+      "relative_path": "stage3/STAGE3_READBACK.json",
+      "sha256": "e5200d51f5f95768e47d7c644f5a404415b649576ee78d310b4ec7c8b683fb1b"
+    }
+  ],
+  "kind": "qperiapt.stage4_probe_review_packet",
+  "schema": 1,
+  "total_bytes": 932999
+}

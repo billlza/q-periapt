@@ -1,0 +1,217 @@
+{
+  "credential_url_and_internal_role_label_scan": "no matches, including decompressed logs and archive members",
+  "existing_baselines_rerun": false,
+  "file_count": 46,
+  "files": {
+    "CANDIDATE_CAPSULE.json": {
+      "bytes": 3664,
+      "sha256": "67deb94ac2b9fc34b32c42031efe597ac317f0c48ed6dfb5ad54583f584e4e20"
+    },
+    "COMPILE.json": {
+      "bytes": 1646,
+      "sha256": "19ec0faebb9de757dc7d2307b2b84d59e2d3e70d2b20903fdbbea4166652f761"
+    },
+    "COMPILE_EFFECTIVE_RESOURCES.json": {
+      "bytes": 1189,
+      "sha256": "a7eb5efd8045e4b0781fb18a7b1e70117a20f6101abc2acff8fb47ca23f79620"
+    },
+    "COMPILE_STARTED.json": {
+      "bytes": 1214,
+      "sha256": "9533eaab922ecccd562c355f05ebcb29c52f2e7912a7081de2e0cf91e51778ee"
+    },
+    "DEPENDENCY_INVENTORIES.json.gz": {
+      "bytes": 116388,
+      "sha256": "593af185eecf54d8c93895e6e8ecc194b162117622bc1ae8621e2122ba3a4401"
+    },
+    "EQUIVALENCE.md": {
+      "bytes": 4005,
+      "sha256": "7440e41f89ba2d833806ca218a76692464a22aec44322c7a2fdf9fd5a69fb9e4"
+    },
+    "FIXTURE_COMPARISON.json": {
+      "bytes": 8370,
+      "sha256": "e853f4c713afd47c8ef68d95452999a40994cd99788862acef1760b81feea28c"
+    },
+    "FIXTURE_EVALUATOR_EXCERPTS.txt": {
+      "bytes": 910,
+      "sha256": "629f9a429db55e577d6070253cd9ae4321c1754c373f4cc21eb17cac47d151ab"
+    },
+    "FIXTURE_INPUTS.json": {
+      "bytes": 4515,
+      "sha256": "152a584fccad5d515cfda737c4f88141e809cd2b1d2f11f8914a93255553770c"
+    },
+    "IR_COMPARISON.json": {
+      "bytes": 2789,
+      "sha256": "bbb6e89f35f827fd8cf3c8239433dcf69d09e022af09ff4851a28a1d3bb2c811"
+    },
+    "IR_EXCERPTS.txt": {
+      "bytes": 7284,
+      "sha256": "632c7f46a4be235d5578a533b63b0b5dde73c2147c7f0744c403e3b4cd0e5d1c"
+    },
+    "LOG_IDENTITIES.json": {
+      "bytes": 1098,
+      "sha256": "788b596545ba9abc768e8b1720cc572fe2ddf48276faa2463c75a85e358778d0"
+    },
+    "PRIOR_ARTIFACTS_PRESERVED.json": {
+      "bytes": 622,
+      "sha256": "756a60629b4366551ffb5b0bcbd67ff0f0b9720f82cc8645c13b88804ff64cec"
+    },
+    "README.md": {
+      "bytes": 6970,
+      "sha256": "1e22b43a2814a288d0dd587b0798b6b6ba927ba213df1242ac781256df6236d9"
+    },
+    "REPRODUCTION_INPUTS.json": {
+      "bytes": 1360,
+      "sha256": "01a2c92f3e02b530138b95c45b359b62a77df8cf21eb5d1d9a1c76b32e75cddb"
+    },
+    "RESOURCE_CONTEXT.json": {
+      "bytes": 1637,
+      "sha256": "97c7b48847f41ba92d8346b84214e7761068af527e4a5a6d5ea7abed2e0d61c6"
+    },
+    "SOURCE_EQUIVALENCE.json": {
+      "bytes": 1367,
+      "sha256": "c2ab5e745aae5da54849b645d6ab0f8ac1a53edd9cd4ac43cc369c1cc93c149e"
+    },
+    "SOURCE_IDENTITY.json": {
+      "bytes": 1442,
+      "sha256": "c41520bf01be31b9b6ff21ec75c81a43254921b5f83988a50be4f706b7cf7106"
+    },
+    "STAGE3_FEASIBILITY_READBACK.json": {
+      "bytes": 5194,
+      "sha256": "71b30f7f2012441c90e6fda3f9a1d938bf85fd30b79db07c784352fe1e6672ad"
+    },
+    "codeql-stage34-projected-read.zip": {
+      "bytes": 620230,
+      "sha256": "5b17fb41cd3c59fea564ec4e9cb49ef586c0ad06ccc3f2445e46b7b5ca8430cb"
+    },
+    "compile.stderr": {
+      "bytes": 348,
+      "sha256": "7ddb30a16d49bea492965f9cf877026df16feaf0eab120a39fc3900b60c04c28"
+    },
+    "logs/compiler-1.log.gz": {
+      "bytes": 486,
+      "sha256": "3472431443cc4c7c3fa5d663e9b3abba4551d6983fba77d7178f23aa80972098"
+    },
+    "logs/compiler-2.log.gz": {
+      "bytes": 2367,
+      "sha256": "5ad0cf821ac407476a8bc587a9d27a9d7dca242cc2eb272e6c1f95fe070e7736"
+    },
+    "logs/fixture-evaluator.log.gz": {
+      "bytes": 925120,
+      "sha256": "5903c466ac2f2291c8c42015f36d39896bbe98a089bd95b4de8289a2becb5da8"
+    },
+    "logs/summary-stage34-all.ra.gz": {
+      "bytes": 943464,
+      "sha256": "3ad387a2dd46d654d7a1c03353f4dee0a9996cff63153a9b7a86fe5ccb5b46ba"
+    },
+    "reproduction-inputs.zip": {
+      "bytes": 39490,
+      "sha256": "d30348c614298095de420f5ad0378875648ff712df0cc3255c0df584a1774a09"
+    },
+    "resource-context/STAGE4_PROBE_TIMES.json": {
+      "bytes": 486,
+      "sha256": "12a82f4047ba0567239a2164db9c143f6a3b425ebcc378a8f27e4fda13cfce78"
+    },
+    "resource-context/stage4-probe-query.json": {
+      "bytes": 2765,
+      "sha256": "ca13e5d61e7f2823ab26658fc8ef5a6abc95436b6e6f10f4386c0ac09647624e"
+    },
+    "resource-context/stage4-probe-query.stderr": {
+      "bytes": 13522,
+      "sha256": "a2bbaf9ec8a86890a402469b4b2adc09fa69aaddba7a53a227cb5edc8b6f8935"
+    },
+    "results/retained-all/SummaryStats.bqrs": {
+      "bytes": 1205,
+      "sha256": "dbf9d94e54347870ef823e577559547332c4629a790800a3f5ae9be00b1fd6d0"
+    },
+    "results/retained-all/decoded.json": {
+      "bytes": 1185,
+      "sha256": "f05f212ce3a9847d01191fb595c9a154aac94a83e33faf6fdc7f85dbb19b259e"
+    },
+    "results/retained-all/evaluation.json": {
+      "bytes": 1839,
+      "sha256": "a6409552d1a47a6aa11c2c1debbf6713e7f0e40ead326267f659da86653f4c39"
+    },
+    "results/retained-projection/SummaryStats.bqrs": {
+      "bytes": 1205,
+      "sha256": "662c7fe4f765ca6e6b03aa83760b52b66b0e7d6ead65abe992b0f9f38fc760d6"
+    },
+    "results/retained-projection/decoded.json": {
+      "bytes": 1185,
+      "sha256": "f05f212ce3a9847d01191fb595c9a154aac94a83e33faf6fdc7f85dbb19b259e"
+    },
+    "results/retained-projection/evaluation.json": {
+      "bytes": 1881,
+      "sha256": "fa79fb0c3bb93d265aeae78f4000af511314e2eefa81729d7fb77bde16e0928c"
+    },
+    "results/stage34/SummaryStats.bqrs": {
+      "bytes": 1205,
+      "sha256": "6f42d354f2cbe34bcc95e5330fb5b09cdbe33276fee415ac85764620b93ca8d2"
+    },
+    "stage34-read-target-projection.patch": {
+      "bytes": 3235,
+      "sha256": "7eeff3c79e8c808f56f25ce7e8e10b73e6227448e1c15531b583ec7ed13898a8"
+    },
+    "stage4-to-stage34.patch": {
+      "bytes": 1021,
+      "sha256": "62e126cbcd3a9dfec736fa4e711dd91432b701e0229e0734ae534298b8d7e71b"
+    },
+    "steps/decode-stage34/RESULT.json": {
+      "bytes": 1281,
+      "sha256": "f76b3646fc740102783745dce8be0a5415b37378321c1668db619fc410ecfb11"
+    },
+    "steps/decode-stage34/STARTED.json": {
+      "bytes": 867,
+      "sha256": "e265d627206172e4d98d24179b294d8bc7df50280c2d4a080048ef76a6d3f2a5"
+    },
+    "steps/decode-stage34/stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "steps/decode-stage34/stdout.log": {
+      "bytes": 1185,
+      "sha256": "f05f212ce3a9847d01191fb595c9a154aac94a83e33faf6fdc7f85dbb19b259e"
+    },
+    "steps/evaluate-stage34/RESULT.json": {
+      "bytes": 1813,
+      "sha256": "06c8b8764380791d46ff0aa2348871033855d17833259ab2a9e67483fd0cd442"
+    },
+    "steps/evaluate-stage34/STARTED.json": {
+      "bytes": 1401,
+      "sha256": "29a07ffc59afaa9cb1fcb012f7e40ab96461cf7f86a4c14da44cda335b399768"
+    },
+    "steps/evaluate-stage34/stderr.log": {
+      "bytes": 552,
+      "sha256": "fd493dc83de142a496864156fbaae8ebd13a1813ca5d45e50d085bb8af3ba1b2"
+    },
+    "steps/evaluate-stage34/stdout.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "generated_utc": "2026-11-11T11:48:07.559429+00:00",
+  "intended_repository_directory": "research/sdk-alpha1/evidence/20261111-summary-stage34-projection",
+  "kind": "qperiapt.stage3_stage4_projection_candidate_evidence",
+  "new_compiles": 1,
+  "new_query_evaluations": 1,
+  "payload_bytes": 2741002,
+  "publication_edit": {
+    "after": {
+      "bytes": 6970,
+      "sha256": "1e22b43a2814a288d0dd587b0798b6b6ba927ba213df1242ac781256df6236d9"
+    },
+    "before": {
+      "bytes": 6960,
+      "sha256": "5ed867287234764f152d74ac75ff99b250cad5fd604d5fb9bb1a16dfa58e9e24"
+    },
+    "file": "README.md",
+    "scope": "Editorial wording only: public attribution and explicit in-progress experiment scope. Original experimental receipts and logs are unchanged."
+  },
+  "schema": 1,
+  "source_inputs_archived": true,
+  "source_manifest": {
+    "bytes": 7474,
+    "path": "/workspace/scratch/4b61438fb07b/summary-stage34-feasibility/review-packet/MANIFEST.json",
+    "sha256": "26d5fdf11eb8073ac39aa42d591536727403cb72f855edcb41859c619f53d94c"
+  },
+  "status": "compiled_structure_and_complete_nonempty_fixture_equality"
+}

@@ -1,0 +1,43 @@
+{
+  "actions": {
+    "codeql_started": false,
+    "compiler_started": false,
+    "fixture_started": false,
+    "query_pack_modified": false,
+    "query_started": false,
+    "remote_modified": false
+  },
+  "concurrent_compile": {
+    "finished_utc": "2026-11-11T11:34:40.929829+00:00",
+    "sources": [
+      "overlap/COMPILE_STARTED.json",
+      "overlap/COMPILE.json"
+    ],
+    "started_utc": "2026-11-11T11:33:01.649495+00:00"
+  },
+  "configuration": {
+    "deadline_seconds": 3600,
+    "heap_mb": 1024,
+    "native_mb": 4096,
+    "threads": 4
+  },
+  "execution_status": "incomplete",
+  "invocation_utc": "2026-11-11T10:55:59.322658+00:00",
+  "kind": "qperiapt.stage4_full_probe_review",
+  "missing_query": "queries/summary/SummaryStats.ql",
+  "new_codeql_processes": 0,
+  "partial_semantic_comparisons": {
+    "passed": 38,
+    "total_available": 38
+  },
+  "performance_interpretation": "The probe overlapped a separately recorded Stage3+Stage4 compilation near termination. Its incomplete wall time is not a clean performance baseline, and no exact kernel kill time or speedup is inferred.",
+  "query_pack_postcheck": "pass",
+  "receipt_finished_utc": "2026-11-11T11:34:04.297685+00:00",
+  "returncode": 137,
+  "review_finished_utc": "2026-11-11T11:54:16.639764+00:00",
+  "review_started_utc": "2026-11-11T11:54:13.973962+00:00",
+  "stage3_diagnostic_scope": "The original Stage4 candidate was still evaluating Stage3 in the fixed-prefix readback. The snapshot and RA identify a Stage3 recursive full-read relation as a concrete optimization target; the separate Stage3+Stage4 candidate is a different plan.",
+  "supervised_seconds": 2256.1679024040004,
+  "supervisor_stop_reason": null,
+  "termination_cause": "Undetermined. The recorded return code is 137 and stderr ends with Killed; no kernel or cgroup cause record is available. The supervisor did not record a timeout stop."
+}

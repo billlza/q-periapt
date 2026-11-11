@@ -1,0 +1,42 @@
+{
+  "compiler_1": {
+    "gzip": {
+      "bytes": 486,
+      "sha256": "3472431443cc4c7c3fa5d663e9b3abba4551d6983fba77d7178f23aa80972098"
+    },
+    "raw": {
+      "bytes": 1322,
+      "sha256": "b5b2c63ba6426875945daf73766aab1c63f7d170e5e68f39e2b6e31caa7814d7"
+    }
+  },
+  "compiler_2": {
+    "gzip": {
+      "bytes": 2367,
+      "sha256": "5ad0cf821ac407476a8bc587a9d27a9d7dca242cc2eb272e6c1f95fe070e7736"
+    },
+    "raw": {
+      "bytes": 25023,
+      "sha256": "2e4f896ae1937068ff081a2b0d40f7dad7ceb391861b8a53a980687e79596350"
+    }
+  },
+  "fixture_evaluator": {
+    "gzip": {
+      "bytes": 925120,
+      "sha256": "5903c466ac2f2291c8c42015f36d39896bbe98a089bd95b4de8289a2becb5da8"
+    },
+    "raw": {
+      "bytes": 12298980,
+      "sha256": "aa6bd8620b65cbe23ee1a53ed601a458cd1fc1f52d332c187588e35f6aa93771"
+    }
+  },
+  "ra": {
+    "gzip": {
+      "bytes": 943464,
+      "sha256": "3ad387a2dd46d654d7a1c03353f4dee0a9996cff63153a9b7a86fe5ccb5b46ba"
+    },
+    "raw": {
+      "bytes": 10610247,
+      "sha256": "b5b6d32f5c56686b685fa30b93c1b00187fd584626c7b603b7decf62c08185b5"
+    }
+  }
+}

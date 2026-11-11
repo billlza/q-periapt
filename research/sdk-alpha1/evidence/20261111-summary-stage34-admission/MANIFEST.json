@@ -1,0 +1,38 @@
+{
+  "file_count": 7,
+  "files": {
+    "FOCUSED_TESTS.json": {
+      "bytes": 679,
+      "sha256": "2220b80a3550fee77f7a12b55981ee420cf47d2a7c3d7f1afbcc908e8cd9be54"
+    },
+    "README.md": {
+      "bytes": 3062,
+      "sha256": "7f5b1c989bbee9b2af0789c5bb13e12fd28ebf391f1ce3df298bb0e694e79225"
+    },
+    "REAL_PACK_ADMISSION.json": {
+      "bytes": 11256,
+      "sha256": "9efc1482fff74422f8c46b1f568e389540f9e83cf35e487545cbdfe6e5f1c901"
+    },
+    "SOURCE_IDENTITY.json": {
+      "bytes": 2791,
+      "sha256": "060c82f6afceae8f0719aaf1804e2e7a5b5b15a37a69cf85ede5e0c500593319"
+    },
+    "focused-tests.log": {
+      "bytes": 29403,
+      "sha256": "7ee585c497e218ebf9d980b08475eef0b7cac6000f146329a63541b0769ac843"
+    },
+    "methods.zip": {
+      "bytes": 2132,
+      "sha256": "146fdd7c7503b20e9bdb8a4375fe4f6efddd591606a3e1448815e71599e522d3"
+    },
+    "real-pack-admission.log": {
+      "bytes": 597,
+      "sha256": "b2898b523fbbaeff5648e3601aa533d3a877682fe099b672339e126e379f253e"
+    }
+  },
+  "kind": "qperiapt.stage34_admission_review_packet",
+  "new_codeql_invocations_during_packaging": 0,
+  "new_tests_during_packaging": 0,
+  "payload_bytes": 49920,
+  "schema": 1
+}

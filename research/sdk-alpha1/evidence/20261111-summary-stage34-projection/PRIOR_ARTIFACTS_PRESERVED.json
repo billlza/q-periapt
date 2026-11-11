@@ -1,0 +1,20 @@
+{
+  "kind": "qperiapt.prior_stage4_artifacts_preserved",
+  "stage4_vendor_source": {
+    "bytes": 139632,
+    "sha256": "c2578c2642d0e382ca5438c7d72f69415ca115b5b248778eb0b8b1398526ca06"
+  },
+  "stage4_capsule": {
+    "bytes": 620156,
+    "sha256": "1fe6db109a540d6063fca24e25e9d6c56a88f972a5c248d74fd95f7248fb6132"
+  },
+  "prior_fixture_packet_manifest": {
+    "bytes": 7829,
+    "sha256": "945f2cd3b1016272b55a2cc564c3e85bb6a69a0d14193e9f9e1a060846252c31"
+  },
+  "prior_fixture_comparison": {
+    "bytes": 8017,
+    "sha256": "d9ed757acda8b06d67f628f664e994cc0cbceed49f1f99f8bb306621aef6eacd"
+  },
+  "unchanged": true
+}

@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.codeql_live_log_visibility_fix",
+  "recorded_at_utc": "2026-11-11T11:34:03+00:00",
+  "repository": "billlza/q-periapt",
+  "base_commit": "faabcff16fc49e1a99388c68f0991a2bfd64d509",
+  "base_tree": "b5c6e256b9abb95a8163efae052c34ae6bd0f035",
+  "commit": "ac02d3032655da78f6ac39642369cb023ebad71d",
+  "tree": "da36191741a59c084c5890eb95174d15fd9f8238",
+  "identity": [
+    "月溅星河 <149552943+billlza@users.noreply.github.com>",
+    "月溅星河 <149552943+billlza@users.noreply.github.com>"
+  ],
+  "files": {
+    "artifact/codeql_rust_profile.py": {
+      "bytes": 29063,
+      "sha256": "b71e7b97d9fea01f4b5b0083143951562a7b2caa865abe5c67289f68ca93940a"
+    },
+    "artifact/codeql_summary_control.py": {
+      "bytes": 61848,
+      "sha256": "74d63ff7c3a12ac44796dd6b05199d6e438e32d0a9b03716b707bb17ce10e368"
+    },
+    "artifact/test_codeql_rust_profile.py": {
+      "bytes": 49256,
+      "sha256": "61326ef4456e2b41fb010186e3f5a9f27019975f81322c3ab093423ddc06b6b3"
+    },
+    "artifact/test_codeql_summary_control.py": {
+      "bytes": 81809,
+      "sha256": "5ac5f3c2048721674130a1d4739c14eba63ead1efc7785e4f75705aaac7f8303"
+    }
+  },
+  "root_cause": "Default BufferedWriter sinks retain small subprocess-output chunks in user-space until a buffer fills or the file closes. A flushed child pipe therefore did not imply visibility in the retained log file.",
+  "change": "Use exclusive unbuffered binary file handles for stdout and stderr in run_queries and ProfileRun.command; retain the existing bounded capture and context-manager lifetime.",
+  "regression_protocol": {
+    "children": "Two actual CPython subprocesses, one through each production logging entry point.",
+    "writes": "Each child writes 12 bytes to stdout and 12 bytes to stderr and flushes both pipes.",
+    "live_read": "Before exiting, each child polls the parent log files for both exact byte strings and verifies that the final parent receipt does not yet exist. It records success only after those checks.",
+    "poll_bound_seconds": 5,
+    "supervisor_bound_seconds": 10
+  },
+  "validation": {
+    "before": {
+      "production_source": "faabcff16fc49e1a99388c68f0991a2bfd64d509",
+      "test_sources": "New regression files listed above, unchanged between the before and after invocations.",
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "-m",
+        "unittest",
+        "-v",
+        "test_codeql_summary_control.EvaluationEvidenceTests.test_both_log_streams_are_readable_before_the_child_exits",
+        "test_codeql_rust_profile.RustProfileTests.test_both_log_streams_are_readable_before_the_child_exits"
+      ],
+      "exit_code": 1,
+      "tests": 2,
+      "failures": 1,
+      "errors": 1,
+      "unittest_seconds": 10.079,
+      "interpretation": "Both entry points reproduced the missing live visibility; existing nonzero-exit failure behavior remained active."
+    },
+    "after": {
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "-m",
+        "unittest",
+        "-v",
+        "test_codeql_summary_control.EvaluationEvidenceTests.test_both_log_streams_are_readable_before_the_child_exits",
+        "test_codeql_rust_profile.RustProfileTests.test_both_log_streams_are_readable_before_the_child_exits"
+      ],
+      "exit_code": 0,
+      "tests": 2,
+      "unittest_seconds": 0.077
+    },
+    "compatibility": {
+      "command": [
+        "sh",
+        "artifact/python-run.sh",
+        "-m",
+        "unittest",
+        "-q",
+        "test_codeql_summary_control",
+        "test_codeql_rust_profile"
+      ],
+      "exit_code": 0,
+      "tests": 134,
+      "unittest_seconds": 5.729,
+      "coverage": "Existing timeout/nonzero-exit retention, source and query admission, partial result handling and comparison behavior, plus the new live-visibility regressions."
+    },
+    "capture_calls": {
+      "artifact/codeql_summary_control.py": {
+        "call_count": 2,
+        "arguments_ast_unchanged": true
+      },
+      "artifact/codeql_rust_profile.py": {
+        "call_count": 1,
+        "arguments_ast_unchanged": true
+      }
+    },
+    "git_diff_check": "passed",
+    "clean_worktree": true
+  },
+  "artifacts": {
+    "before.log": {
+      "path": "before.log",
+      "bytes": 2364,
+      "sha256": "02a323e665d4186e34ad9a45c3700c4b084e238bcb805caa09e377d72bb02b2e"
+    },
+    "before.exit": {
+      "path": "before.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    "after.log": {
+      "path": "after.log",
+      "bytes": 514,
+      "sha256": "bd363674ea95603b2e95f6cdc1e670fc7bcbc2330f0fc2e34301b22c9374c530"
+    },
+    "after.exit": {
+      "path": "after.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "compatibility.log": {
+      "path": "compatibility.log",
+      "bytes": 805,
+      "sha256": "baefdf351990514261494a45d27ba2babab5fed03908321092d71385fc933db8"
+    },
+    "compatibility.exit": {
+      "path": "compatibility.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    "live-log.patch": {
+      "path": "live-log.patch",
+      "bytes": 6586,
+      "sha256": "73672145f977f8047a7bd204a432dee6f80317472298c891758e55626b0e7d1c"
+    }
+  },
+  "scope": "Local four-file fix and focused verification only. No live probe, query pack, remote branch or workflow run was changed; no 207-test suite rerun."
+}

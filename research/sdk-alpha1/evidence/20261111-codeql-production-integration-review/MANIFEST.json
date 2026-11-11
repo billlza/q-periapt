@@ -1,0 +1,48 @@
+{
+  "kind": "qperiapt.codeql_production_integration_read_only_packet",
+  "member_count": 5,
+  "members": {
+    "CLI_CLASS_READBACK.json.gz": {
+      "bytes": 12155,
+      "sha256": "2918189ccb8d2e28c8d5b38d616d2e86f85d837d5bcd3a2eb97195d7687f2fe3"
+    },
+    "CLI_ROUTING.json": {
+      "bytes": 39635,
+      "sha256": "bbde5bc8212476f5b38e9cae0ca1e0c7f66728f8fa32d9ca7410ec29db92a341"
+    },
+    "OFFICIAL_ACTION_READBACK.json": {
+      "bytes": 7790,
+      "sha256": "553f3ff80d6d923d624d71d447d1beb0c29d0a1ba00450dd8e475ef54aa234be"
+    },
+    "READBACK.json": {
+      "bytes": 25124,
+      "sha256": "ca38717eb52f8ffc2b151628310c49a988f7dae7988eceed6a45e7bf9818f9cc"
+    },
+    "README.md": {
+      "bytes": 15086,
+      "sha256": "20b4f7cd29def9fb27c45a1c54d0377347657409b96868d1aa6c80f77d64573f"
+    }
+  },
+  "publication_edit": {
+    "after": {
+      "bytes": 15086,
+      "sha256": "20b4f7cd29def9fb27c45a1c54d0377347657409b96868d1aa6c80f77d64573f"
+    },
+    "before": {
+      "bytes": 15081,
+      "sha256": "bf4f767552d7a97dd29973bfd2cf66dde0114ba1a4a5a8983973933a64501eb9"
+    },
+    "file": "README.md",
+    "scope": "Editorial wording only: public attribution and explicit in-progress experiment scope. Original experimental receipts and logs are unchanged."
+  },
+  "review_only": true,
+  "schema": 1,
+  "source_commit": "faabcff16fc49e1a99388c68f0991a2bfd64d509",
+  "source_manifest": {
+    "bytes": 1692,
+    "path": "/workspace/scratch/4b61438fb07b/codeql-production-integration-review/MANIFEST.json",
+    "sha256": "8699015704e7761c8e8ec9595c56ea063c28c0e10d546e037f310877b9b2d9a5"
+  },
+  "source_tree": "b5c6e256b9abb95a8163efae052c34ae6bd0f035",
+  "total_member_bytes": 99790
+}

@@ -1,0 +1,32 @@
+test_both_log_streams_are_readable_before_the_child_exits (test_codeql_summary_control.EvaluationEvidenceTests.test_both_log_streams_are_readable_before_the_child_exits) ... FAIL
+test_both_log_streams_are_readable_before_the_child_exits (test_codeql_rust_profile.RustProfileTests.test_both_log_streams_are_readable_before_the_child_exits) ... live invoked at 2026-11-11T11:31:29.172+00:00 (bound 10s)
+ERROR
+
+======================================================================
+ERROR: test_both_log_streams_are_readable_before_the_child_exits (test_codeql_rust_profile.RustProfileTests.test_both_log_streams_are_readable_before_the_child_exits)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/4b61438fb07b/codeql-live-log-review/artifact/test_codeql_rust_profile.py", line 631, in test_both_log_streams_are_readable_before_the_child_exits
+    output = run.command("live", [sys.executable, "-c", child,
+        str(run.evidence / "live.stdout"), str(run.evidence / "live.stderr"),
+        str(run.evidence / "live.json"), str(run.evidence / "child-observed.txt")], seconds=10)
+  File "/workspace/scratch/4b61438fb07b/codeql-live-log-review/artifact/codeql_rust_profile.py", line 125, in command
+    sdk.require(result.returncode == 0, "command failed: " + label)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/4b61438fb07b/codeql-live-log-review/artifact/rust_sdk_profile.py", line 66, in require
+    raise ValueError(message)
+ValueError: command failed: live
+
+======================================================================
+FAIL: test_both_log_streams_are_readable_before_the_child_exits (test_codeql_summary_control.EvaluationEvidenceTests.test_both_log_streams_are_readable_before_the_child_exits)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/4b61438fb07b/codeql-live-log-review/artifact/test_codeql_summary_control.py", line 575, in test_both_log_streams_are_readable_before_the_child_exits
+    self.assertEqual(result["returncode"], 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 0
+
+----------------------------------------------------------------------
+Ran 2 tests in 10.079s
+
+FAILED (failures=1, errors=1)

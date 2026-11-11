@@ -1,0 +1,12 @@
+{
+  "receipt": "/workspace/scratch/4b61438fb07b/summary-stage34-admission-validation/REAL_PACK_ADMISSION.json",
+  "sha256": "9efc1482fff74422f8c46b1f568e389540f9e83cf35e487545cbdfe6e5f1c901",
+  "seconds": 3.3954690729988215,
+  "effective_file_count": 1357,
+  "compiler_inputs_digest": "6a7530eb694360655ab8331a895c9fcd",
+  "manifest_sha256": "2cb1739ba0f0aeeb00e8a017b7cd0218a0a7519771a58dd47cb7f89a8813ca91",
+  "old_stage4_control": {
+    "exception_type": "PlanError",
+    "message": "projection dependency source: codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll differs"
+  }
+}

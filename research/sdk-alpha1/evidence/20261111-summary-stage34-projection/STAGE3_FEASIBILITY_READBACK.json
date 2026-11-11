@@ -1,0 +1,89 @@
+{
+  "actions": {
+    "compiler_executed": false,
+    "evaluator_started": false,
+    "running_probe_changed": false,
+    "source_edited": false
+  },
+  "all_full_read_mentions": [
+    {
+      "line": 170040,
+      "text": "`TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81#prev_delta`/11"
+    },
+    {
+      "line": 170451,
+      "text": "JOIN AST rec `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`(numbered_tuple node1, numbered_tuple t1, numbered_tuple ap1, numbered_tuple stored1, numbered_tuple c, numbered_tuple node2, numbered_tuple t2, numbered_tuple ap2, numbered_tuple stored2, numbered_tuple cc, numbered_tuple summaryCtx) :-"
+    },
+    {
+      "line": 170532,
+      "text": "`TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81#prev`/11"
+    },
+    {
+      "line": 172320,
+      "text": "SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`"
+    },
+    {
+      "line": 172321,
+      "text": "`TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`/11"
+    }
+  ],
+  "compiled_capsule_sha256": "1fe6db109a540d6063fca24e25e9d6c56a88f972a5c248d74fd95f7248fb6132",
+  "compiler_inputs_digest": "70fcc50b9809b694b26b77a11722cdbb",
+  "conclusion": {
+    "cardinality_scope": "The live log does not expose the cardinality of the projected six-column target relation. No duplicate-witness factor or speedup estimate is derived from raw delta counts.",
+    "next_candidate_scope": "A separate explicitly reviewed full-SummaryStats candidate could enable the existing switch in Stage3Param as well as Stage4Param. Its compiled SCC placement and capsule/source identity must be verified as a new candidate; no claim about an uncompiled Stage3-enabled plan is made here.",
+    "performance_basis": "The current live probe has a directly measured Stage3 Read11 hotspot (284 matched wall seconds so far, maximum reported delta 2112710 rows) and sustained native eviction before Stage4. That is a concrete target for reducing recursive witness materialization.",
+    "source_equivalence": "The existing generic helper is the exact existential projection of the original body for a fixed Stage parameter. Enabling it for Stage3 preserves the common least fixed point by the same commuting projection map, provided the original full relation and downstream/PathGraph consumers remain intact.",
+    "structural_precondition_met": "In this full SummaryStats RA, the only Stage3 forward-SCC consumer of the full read relation outside its own evaluator duplicate-elimination reference is fwdFlow0, which consumes exactly the same six target columns. No additional recursive consumer was found. The complete readStepFwd consumer is already in a later nonrecursive layer."
+  },
+  "full_read_definition_line": 170451,
+  "kind": "qperiapt.stage3_projection_feasibility_readonly",
+  "post_recursive_consumer": {
+    "columns": "[n1, _, ap1, _, c, n2, _, ap2, _, _, _]",
+    "excerpt": "EVALUATE NONRECURSIVE JOIN AST RELATION:\n  `TaintReach::TaintReachFlow::Flow::Stage3::readStepFwd/5#17d0527c`(numbered_tuple n1, numbered_tuple ap1, numbered_tuple c, numbered_tuple n2, numbered_tuple ap2) :- \n    SENTINEL `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`\n    `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81`/11\n      on\n      [n1, _, ap1, _, c, n2, _, ap2, _, _, _]",
+    "lines": [
+      172318,
+      172323
+    ],
+    "relation": "Stage3::readStepFwd/5#17d0527c",
+    "section": "EVALUATE NONRECURSIVE JOIN AST RELATION"
+  },
+  "ra": {
+    "bytes": 10608562,
+    "path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/candidate-bound-all.ra",
+    "sha256": "53080bf67a287135e9fc88a08980bdd8fd60efffbd46188c44dc075916623e55"
+  },
+  "recursive_consumer": {
+    "columns": "[_, _, _, _, _, node, t, ap, stored, cc, summaryCtx]",
+    "definition_line": 169889,
+    "excerpt": "      or\n      (\n        `TaintReach::TaintReachFlow::Flow::Stage3::fwdFlowRead/11#c6ecab81#prev_delta`/11\n          on\n          [_, _, _, _, _, node, t, ap, stored, cc, summaryCtx] and\n        `TaintReach::TaintReachFlow::Flow::Stage3Param::getApprox/1#356f3cd9`/2\n          on\n          [ap, apa]\n      )",
+    "excerpt_lines": [
+      170038,
+      170046
+    ],
+    "followed_by": "Stage3Param::getApprox(ap, apa)",
+    "read_reference_line": 170040,
+    "relation": "Stage3::fwdFlow0/7#80c977db"
+  },
+  "self_reference": {
+    "kind": "evaluator previous-relation duplicate elimination, not another source-level consumer",
+    "line": 170532
+  },
+  "source": {
+    "bytes": 139632,
+    "path": "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/candidate-query-pack/.codeql/libraries/codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll",
+    "sha256": "c2578c2642d0e382ca5438c7d72f69415ca115b5b248778eb0b8b1398526ca06"
+  },
+  "source_calls": {
+    "PathGraph_localStep_line": 2330,
+    "Stage3Param_definition_line": 2880,
+    "default_projection_false_line": 469,
+    "only_existing_true_override_Stage4_line": 2992,
+    "readStepFwd_line": 1302,
+    "recursive_read_branch_line": 625
+  },
+  "stage3_recursive_layer_lines": [
+    169800,
+    172285
+  ]
+}

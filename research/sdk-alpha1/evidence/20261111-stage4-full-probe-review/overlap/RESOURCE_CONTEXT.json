@@ -1,0 +1,27 @@
+{
+  "kind": "qperiapt.stage3_stage4_candidate_resource_context",
+  "compiler_started_utc": "2026-11-11T11:33:01.649495+00:00",
+  "compiler_finished_utc": "2026-11-11T11:34:40.929829+00:00",
+  "compiler_exit_code": 0,
+  "compiler_resources": "Requested heap 1,536 MiB and RAM option 2,048 MiB; CLI raised its minimum RAM to 2,638 MiB and effective JVM heap to 1,800 MiB.",
+  "retained_stage4_probe": {
+    "query_record": {
+      "bytes": 2765,
+      "sha256": "ca13e5d61e7f2823ab26658fc8ef5a6abc95436b6e6f10f4386c0ac09647624e"
+    },
+    "stderr": {
+      "bytes": 13522,
+      "sha256": "a2bbaf9ec8a86890a402469b4b2adc09fa69aaddba7a53a227cb5edc8b6f8935"
+    },
+    "returncode": 137,
+    "supervised_seconds": 2256.1679024040004,
+    "controller_stopped": null,
+    "invocation_utc": "2026-11-11T10:55:59.322658+00:00",
+    "overall_record_finished_utc": "2026-11-11T11:34:04.297685+00:00",
+    "last_evaluator_log_timestamp_utc_reported_in_probe_readback": "2026-11-11T11:33:29Z",
+    "peak_sampled_process_tree_rss_bytes": 6004535296,
+    "termination_cause": "Undetermined. Exit code 137 and stderr Killed are observed; a kernel/cgroup cause record is unavailable."
+  },
+  "interpretation": "The Stage4 retained-project probe and this candidate compile overlapped. The interrupted probe is retained as incomplete resource evidence, not a clean timing baseline. No exact kernel kill time is inferred by adding supervisor duration to invocation time. The subsequent new fixture execution occurred after the probe termination.",
+  "future_large_query_scheduling": "exclusive execution with no concurrent compilation or fixture query"
+}

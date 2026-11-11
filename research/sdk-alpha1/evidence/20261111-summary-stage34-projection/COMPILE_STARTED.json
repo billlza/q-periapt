@@ -1,0 +1,32 @@
+{
+  "kind": "qperiapt.stage3_stage4_projection_compile",
+  "command": [
+    "/workspace/scratch/4b61438fb07b/summary-plan-feasibility/tool/codeql/codeql",
+    "query",
+    "compile",
+    "--precompile",
+    "--dynamic-join-order-mode=all",
+    "--no-default-compilation-cache",
+    "--common-caches=/workspace/scratch/4b61438fb07b/summary-stage34-feasibility/cache",
+    "--threads=1",
+    "--ram=2048",
+    "-J-Xmx1536M",
+    "--dump-ra",
+    "--format=text",
+    "--logdir=/workspace/scratch/4b61438fb07b/summary-stage34-feasibility/logs",
+    "--",
+    "/workspace/scratch/4b61438fb07b/summary-stage34-feasibility/candidate-query-pack/queries/summary/SummaryStats.ql"
+  ],
+  "supervisor_seconds": 180,
+  "threads": 1,
+  "heap_mib": 1536,
+  "ram_option_mib": 2048,
+  "minimum_mem_available_kib": 2621440,
+  "observed_mem_available_kib": 3035640,
+  "maximum_stdout_bytes": 67108864,
+  "maximum_stderr_bytes": 67108864,
+  "started_utc": "2026-11-11T11:33:01.649495+00:00",
+  "source_receipt_sha256": "c41520bf01be31b9b6ff21ec75c81a43254921b5f83988a50be4f706b7cf7106",
+  "bounded_process_sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+  "concurrent_compiles_started_by_this_task": 0
+}

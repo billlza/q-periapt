@@ -1,0 +1,291 @@
+{
+  "command": [
+    "python3",
+    "-m",
+    "unittest",
+    "-q",
+    "test_codeql_summary_archive_input",
+    "test_codeql_summary_control",
+    "test_codeql_summary_plan",
+    "test_codeql_summary_projection",
+    "test_codeql_process_resources",
+    "test_codeql_rust_profile",
+    "test_codeql_workflow_contract"
+  ],
+  "cwd": "/workspace/scratch/4b61438fb07b/codeql-stage34-integration/artifact",
+  "execution": {
+    "exit_receipt": "Recorded process session 88994 completed with exit 0. The original combined stdout/stderr log is retained.",
+    "last_child_trace_utc": "2026-11-11T11:59:05.072+00:00",
+    "returncode": 0,
+    "started_utc_approximate": "2026-11-11T11:58:56Z",
+    "tests": 209,
+    "unittest_seconds": 10.147
+  },
+  "kind": "qperiapt.stage34_projection_integrated_python_tests",
+  "log": {
+    "bytes": 806,
+    "path": "integrated-tests.log",
+    "sha256": "32f6970a182c6e8afe26ec03d9ceb96498a932db37a4bb3adde91b7e221d6bbf"
+  },
+  "new_codeql_invocations_during_packaging": 0,
+  "new_tests_during_packaging": 0,
+  "production_workflow_changed": false,
+  "published_commit": "ff193302f207bb3f06a2941a7c6bf98a2eeb5a17",
+  "published_parent": "faabcff16fc49e1a99388c68f0991a2bfd64d509",
+  "published_tree": "94e532b4414b552a94ce8e161e9bb319a86246d9",
+  "raw_log_path": "/workspace/scratch/4b61438fb07b/codeql-stage34-integrated-tests.log",
+  "schema": 1,
+  "source_files": {
+    ".github/workflows/abi2-platform-candidate.yml": {
+      "bytes": 20342,
+      "sha256": "1b3f9fc2cad1d9011f64e4ef3dbf7bf6ea319274e7bbb6f6a3710fdc23c6de6f"
+    },
+    ".github/workflows/android-platform-probe.yml": {
+      "bytes": 2703,
+      "sha256": "7cfa54dc48d51f2541f0498283ba3355c1b3e40307695915501d949ae1541964"
+    },
+    ".github/workflows/android-runtime-control.yml": {
+      "bytes": 3034,
+      "sha256": "c86c8e23537d96beeef82ad6faa24a2cfee685467af69604b26ed3e2f6f550c0"
+    },
+    ".github/workflows/ci.yml": {
+      "bytes": 166748,
+      "sha256": "2cece937d2bacc994d8834929751a9075b06dbcac3315683fe44af4417a35ebe"
+    },
+    ".github/workflows/codeql-log-recovery.yml": {
+      "bytes": 1223,
+      "sha256": "c9072e6bafcda880f6f9aae49149b093b62bd4d31f220b6b185e8a4a32befee4"
+    },
+    ".github/workflows/codeql-memory-control.yml": {
+      "bytes": 2042,
+      "sha256": "cebc1acc6040e629503907b7180f5a922556249eecbc70f22fcacec72b47703b"
+    },
+    ".github/workflows/codeql-summary-control.yml": {
+      "bytes": 7470,
+      "sha256": "201964fa5c867b9a2021140cd4f6a1b4521071c0ddd06db7bea025ea212a7133"
+    },
+    ".github/workflows/codeql.yml": {
+      "bytes": 22552,
+      "sha256": "993751e65be27d56907d1e996419533060a81d507964d41148241a6d8c191378"
+    },
+    ".github/workflows/continuity-android-installed.yml": {
+      "bytes": 13677,
+      "sha256": "9502668c90a05b98727de769e6aab973d1c5d495a032d86aa61d530058c2c992"
+    },
+    ".github/workflows/continuity-matched-comparison.yml": {
+      "bytes": 3254,
+      "sha256": "2540957467ffdcb5b80a35c98ac45319c985c56c830484d95d7afc7b297f93e4"
+    },
+    ".github/workflows/continuity-proof-environment.yml": {
+      "bytes": 5262,
+      "sha256": "ff9d92e5077c6a94557557b386a72ca1125260defdf608acbb35e4fd4b51c7c7"
+    },
+    ".github/workflows/continuity-regression.yml": {
+      "bytes": 4140,
+      "sha256": "a8dadea7d2b0a51f9549c80a5c27b3c288e519498abd5601390b4d16d4d68c98"
+    },
+    ".github/workflows/continuity-retry-age-comparison.yml": {
+      "bytes": 2897,
+      "sha256": "bb49c4dc288c66467d461e33cb830ddf313087bbb5d1ada6a46f7f6020c45110"
+    },
+    ".github/workflows/continuity-services.yml": {
+      "bytes": 2179,
+      "sha256": "6ba9ba760882ecd873a509153af786c0e3aa274ce13f50a9f585807edfe3aa89"
+    },
+    ".github/workflows/continuity-windows-package.yml": {
+      "bytes": 11589,
+      "sha256": "38a4e9386a84e05cc8136f1f228d99e2b392c45f2c55c6ae77605ddd6b42210b"
+    },
+    ".github/workflows/directory-lease-contract.yml": {
+      "bytes": 3084,
+      "sha256": "128d447335f57155c5a1ae1e6530d0afaef048528f56dc325ec1965ae5b2e988"
+    },
+    ".github/workflows/fanout-latency.yml": {
+      "bytes": 3920,
+      "sha256": "1fb8e01be186ed1a429af54a9fb9dc12daead4e786280fc14d5c1680b5e37280"
+    },
+    ".github/workflows/host-store-windows.yml": {
+      "bytes": 10815,
+      "sha256": "2928f593b065e12d5f01b4d47013cf5f3a07a94728d9a895bfcdd9eee515badf"
+    },
+    ".github/workflows/independent-continuity.yml": {
+      "bytes": 41047,
+      "sha256": "77deed6a5d60af772cd05d80e5e59b1a87ab4c7753005455b412a5a3bc55d833"
+    },
+    ".github/workflows/joc-manuscript.yml": {
+      "bytes": 7765,
+      "sha256": "8b414f64c70ce14f11677ef4f9eadaefa7c4c6b56181e9e21ca33efb5ac075a7"
+    },
+    ".github/workflows/peer-configuration-lifetime.yml": {
+      "bytes": 4144,
+      "sha256": "4d4c39776441b5703eb949c29c65d61044ddc6cb3d172ce08bf05f5106fdf513"
+    },
+    ".github/workflows/reference-account.yml": {
+      "bytes": 32490,
+      "sha256": "0353941368ec42e2c3be9e64804e4282ebc74a23f39eb5c09abeeea77f909225"
+    },
+    ".github/workflows/reference-root.yml": {
+      "bytes": 5930,
+      "sha256": "54c47475e29d33278d0d989c0c447daa278ebdb629b889678160d9051745a142"
+    },
+    "artifact/bounded_process.py": {
+      "bytes": 51311,
+      "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45"
+    },
+    "artifact/c_abi_contract.py": {
+      "bytes": 57177,
+      "sha256": "d2a7e6dab49e69038a66a436e0a7066e6e162be07920bb4dc326f823fe03e8f9"
+    },
+    "artifact/c_package_manifest.py": {
+      "bytes": 33751,
+      "sha256": "30274edd771c6c3200685f5595ca972478d0c5d099821018cf383fb4e833aa97"
+    },
+    "artifact/codeql-summary-dynamic-plan.zip": {
+      "bytes": 620068,
+      "sha256": "ce21381b3bec721aab246b26b84c00834959871235e1e82354addca8a40dcef7"
+    },
+    "artifact/codeql-summary-projection-plan.zip": {
+      "bytes": 620230,
+      "sha256": "5b17fb41cd3c59fea564ec4e9cb49ef586c0ad06ccc3f2445e46b7b5ca8430cb"
+    },
+    "artifact/codeql_compiler_sources.py": {
+      "bytes": 6351,
+      "sha256": "57ef0cbd9ff83fbfbe00f1a01052233112cb9d3137d55e25f5c3ab2191a480fc"
+    },
+    "artifact/codeql_consumer_context.py": {
+      "bytes": 11127,
+      "sha256": "1c268bab2ebaa933025ee97ceb53756f48ac49ed2b33ade6ff68995a61d02e44"
+    },
+    "artifact/codeql_log_recovery.py": {
+      "bytes": 13567,
+      "sha256": "8ff89ca9b86c93f304c099b0d8eb65eb0079d8a084bd72bc820b84369d104378"
+    },
+    "artifact/codeql_process_resources.py": {
+      "bytes": 16881,
+      "sha256": "8b4d14b9667a7c10e653f680311c12db595369f0e6a5b2800aae6beefeec26a6"
+    },
+    "artifact/codeql_rust_profile.py": {
+      "bytes": 29063,
+      "sha256": "b71e7b97d9fea01f4b5b0083143951562a7b2caa865abe5c67289f68ca93940a"
+    },
+    "artifact/codeql_rust_quality.py": {
+      "bytes": 38244,
+      "sha256": "78560445e1cbea13bbb57fc379eeaf9f5db4618e98490001a32027c14b2db4f8"
+    },
+    "artifact/codeql_rust_queries.json": {
+      "bytes": 4737,
+      "sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b"
+    },
+    "artifact/codeql_rust_transfer.py": {
+      "bytes": 17595,
+      "sha256": "754751845825f901c5d55798b4eb57eace573f29ff85ff994d95e69d539c3cf9"
+    },
+    "artifact/codeql_summary_control.py": {
+      "bytes": 61848,
+      "sha256": "74d63ff7c3a12ac44796dd6b05199d6e438e32d0a9b03716b707bb17ce10e368"
+    },
+    "artifact/codeql_summary_dynamic_plan.json": {
+      "bytes": 3556,
+      "sha256": "308a36a957741fdfa8a58f40fb81ffae6e863759527b516ca93816c75057c1f7"
+    },
+    "artifact/codeql_summary_plan.py": {
+      "bytes": 9381,
+      "sha256": "066965055ef1a0b431cf1322c7255ef3a983c4f712cdabaf5dfbd1e5c8e76435"
+    },
+    "artifact/codeql_summary_projection.json": {
+      "bytes": 6587,
+      "sha256": "2cb1739ba0f0aeeb00e8a017b7cd0218a0a7519771a58dd47cb7f89a8813ca91"
+    },
+    "artifact/codeql_summary_projection.patch": {
+      "bytes": 3235,
+      "sha256": "7eeff3c79e8c808f56f25ce7e8e10b73e6227448e1c15531b583ec7ed13898a8"
+    },
+    "artifact/codeql_summary_projection.py": {
+      "bytes": 14869,
+      "sha256": "022c6259abbd8f2287486a2ecefd443581c4275ea33a23a0e9d240dab54f047c"
+    },
+    "artifact/codeql_summary_projection_dependencies.json.gz": {
+      "bytes": 116388,
+      "sha256": "593af185eecf54d8c93895e6e8ecc194b162117622bc1ae8621e2122ba3a4401"
+    },
+    "artifact/codeql_target_coverage.py": {
+      "bytes": 7569,
+      "sha256": "d01144e3a94d5aedca4b24be1890be03c4b8b248b1ebfd920e8c47f54a6c4424"
+    },
+    "artifact/crates_io_registry_metadata.py": {
+      "bytes": 11653,
+      "sha256": "f4a16e59e4218c4339a38abcb0542a9616e1735bf8d743b5c24e54c5216aa777"
+    },
+    "artifact/evidence_io.py": {
+      "bytes": 44308,
+      "sha256": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d"
+    },
+    "artifact/git_provenance.py": {
+      "bytes": 22349,
+      "sha256": "8bb64d7f43d1ffa00a39b31a174e8667d4d2cfb1f8c42a019a32627f6a065f3f"
+    },
+    "artifact/installed_rust_graph.py": {
+      "bytes": 2392,
+      "sha256": "0150573580c4acab5b0e542b28e31278a8eeeeff65594bef322001801ee6b42c"
+    },
+    "artifact/package_bom.py": {
+      "bytes": 14571,
+      "sha256": "cec214359e543cdac4156acf46a90e5243359c249ed579f9e45a063a633977c6"
+    },
+    "artifact/release_binary_scan.py": {
+      "bytes": 23991,
+      "sha256": "4d14fc9adc6508733a9b9c511935883292f6b2acf87a13ab92aa11bdb3152fd2"
+    },
+    "artifact/rust_publish_contract.py": {
+      "bytes": 139001,
+      "sha256": "bb1f1586982a0dfaf958bb4784c592732db9a5ff9fc0ede51f07019493286679"
+    },
+    "artifact/rust_sdk_profile.py": {
+      "bytes": 27974,
+      "sha256": "f23d73ec6afabaee763328557c93f4bf542365384ed8ee10b386b6d697ed7af5"
+    },
+    "artifact/sdk_abi2_spec.py": {
+      "bytes": 12101,
+      "sha256": "16a3828eaefed3892a0b7e03c2009032a3d58c106ac44334476b96a93cb2214e"
+    },
+    "artifact/test_codeql_process_resources.py": {
+      "bytes": 17634,
+      "sha256": "adbfe560c1f45dab042552fc8bba941c4adf9cc784d657ad39d9914259d75f1a"
+    },
+    "artifact/test_codeql_rust_profile.py": {
+      "bytes": 49256,
+      "sha256": "61326ef4456e2b41fb010186e3f5a9f27019975f81322c3ab093423ddc06b6b3"
+    },
+    "artifact/test_codeql_rust_transfer.py": {
+      "bytes": 15196,
+      "sha256": "3c346141c7652fe2a2caa545cd0115ca0ef3ec8fc1e9966171dfbf6b52603e1d"
+    },
+    "artifact/test_codeql_summary_archive_input.py": {
+      "bytes": 5888,
+      "sha256": "2f75fdfab4a078c046b6f2a68aa9dc12d9a7883583f9eec1c9a5dc16ab2e0f59"
+    },
+    "artifact/test_codeql_summary_control.py": {
+      "bytes": 81809,
+      "sha256": "5ac5f3c2048721674130a1d4739c14eba63ead1efc7785e4f75705aaac7f8303"
+    },
+    "artifact/test_codeql_summary_plan.py": {
+      "bytes": 14817,
+      "sha256": "22a59a77614af61eedff6f1763f6c058e4f76bdf581b7de420fae6eb0cb612e4"
+    },
+    "artifact/test_codeql_summary_projection.py": {
+      "bytes": 32431,
+      "sha256": "16ae9db01c83cc1352b7d86506e59f17879815931a9ff9d766450afe86609486"
+    },
+    "artifact/test_codeql_workflow_contract.py": {
+      "bytes": 7513,
+      "sha256": "25611bec142b5b118a51aebb4bd7a90e4cf61ec4bdfbfae521aecf7044841c2b"
+    },
+    "artifact/third_party_licenses.py": {
+      "bytes": 37137,
+      "sha256": "2d7ee6080ef833a35b93247454dbc1ecfe27f3d9ffbdb7f2db24e6a6a35bb6b7"
+    }
+  },
+  "source_scope": "The seven test modules and their static repository import closure, all workflow files, and fixed query/plan/projection inputs. Every listed file is read from the tested immutable commit; the entire tested tree is identified above.",
+  "tested_local_commit": "fe10c840a38e88ef6c358126e703ed5a20cd167b",
+  "tested_tree": "94e532b4414b552a94ce8e161e9bb319a86246d9"
+}
