@@ -18,7 +18,7 @@ side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.
 > in a `publish = false` shadow crate with no suite code or ABI. The release
 > graph depends on the target-selected `q-periapt-mlkem-native-sys`
 > boundary over vendored `mlkem-native` v2.0.0 plus pinned pre-1.0 backends
-> (`fips204` 0.4.6 and `sha3` 0.10.9). **Do not deploy.** The value proposition is
+> (`fips204` 0.5.0, `sha3` 0.12.0 and `shake` 0.1.0). **Do not deploy.** The value proposition is
 > *not* primitive or speed superiority — it is
 > auditable composition, crypto-agility, side-channel CI, machine-checked binding
 > proofs, deterministic byte identity in the explicitly tested conformance cells,
@@ -375,7 +375,7 @@ backend is a zero-sized type implementing a core trait:
 | `MlKem768XWingSeed` | ML-KEM-768 seed-dk API | `q-periapt-mlkem-native-sys` + `sha3` 0.10.9 | `Kem`, `PreparedKem`, `C2PRI = true`, `COMPAT_XWING_SAFE = true`; stable private bytes remain the 32-byte seed, while an optional process-local prepared owner holds and erases the 2,400-byte expanded key. It is the only backend admitted to `CompatXWing`. |
 | `X25519` | X25519 ECDH-as-KEM | `x25519-dalek` 3.0.0 | `Kem`, default-false first-slot capabilities; deterministic from a 32-byte scalar. Canonical X-Wing uses it in the absorbed traditional slot. |
 | `Sha3_256Xof` | SHA3-256 | RustCrypto `sha3` 0.10.9 | `Xof256`; byte-identical public/secret absorption with fail-closed selective staging erasure. |
-| `MlDsa65` | ML-DSA-65 (FIPS 204) | `fips204` 0.4.6 | `Signer` + `Verifier`; external/pure, context, hedged, and SHAKE-128 pre-hash modes are wired. The deprecated internal API is deliberately not exposed. Signing uses FIPS 204 rejection sampling and therefore has a documented variable-iteration boundary; verification is the ABI2 product path. |
+| `MlDsa65` | ML-DSA-65 (FIPS 204) | `fips204` 0.5.0 | `Signer` + `Verifier`; external/pure, context, hedged, and SHAKE-128 pre-hash modes are wired. The deprecated internal API is deliberately not exposed. Signing uses FIPS 204 rejection sampling and therefore has a documented variable-iteration boundary; verification is the ABI2 product path. |
 | `SlhDsaSha2_128s/192s/256s` | SLH-DSA (FIPS 205) | `fips205` 0.4.1 | **feature `slh-dsa`** (off by default). |
 
 These backends are reused by `q-periapt-ffi`, `q-periapt-wasm`,

@@ -245,6 +245,8 @@ REQUIRED_AAR_ENTRIES = frozenset(
 )
 THIRD_PARTY_RUST_PREFIX = "META-INF/THIRD_PARTY/rust/"
 THIRD_PARTY_RUST_INVENTORY = THIRD_PARTY_RUST_PREFIX + "INVENTORY.json"
+# Retained manifest reference-target field. Coverage is verified against the
+# multi-target inventory below, not inferred from this ABI's dependency graph.
 THIRD_PARTY_RUST_TARGET = "x86_64-linux-android"
 THIRD_PARTY_RUST_COVERED_TARGETS = (
     "aarch64-linux-android",
@@ -1111,7 +1113,7 @@ def audit_third_party_license_entries(entries: dict[str, bytes], *, profile: str
                 output.write_bytes(data)
             inventory = verify_third_party_licenses(
                 package_root,
-                expected_target=THIRD_PARTY_RUST_TARGET,
+                expected_targets=THIRD_PARTY_RUST_COVERED_TARGETS,
             )
         except (OSError, ThirdPartyLicenseError) as exc:
             raise AndroidVerificationError(
@@ -1390,6 +1392,10 @@ def verify_manifest(
         rust_licenses.get("covered_targets")
         == list(THIRD_PARTY_RUST_COVERED_TARGETS),
         "Android AAR manifest Rust license covered-target list mismatch",
+    )
+    require(
+        sorted(rust_licenses["covered_targets"]) == inventory["targets"],
+        "Android AAR manifest and Rust license inventory target coverage differs",
     )
 
     abi = exact_object(

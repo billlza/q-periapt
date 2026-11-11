@@ -70,7 +70,7 @@ venue and writing-plan choices for the current Continuity paper.
 > **Backend-migration history and current boundary.** The 2026-07-13 migration moved
 > the artifact from its former provider to portable `mlkem-native` v1.2.0 through
 > `q-periapt-mlkem-native-sys`, `fips204` 0.4.6, and `sha3` 0.10.9. The current
-> backend instead pins `mlkem-native` v2.0.0, `fips204` 0.4.6, `sha3` 0.12.0 and
+> backend instead pins `mlkem-native` v2.0.0, `fips204` 0.5.0, `sha3` 0.12.0 and
 > `shake` 0.1.0. Its default feature set selects upstream AArch64 native arithmetic plus a fixed per-target
 > FIPS 202 assembly profile (Armv8.4-A SHA3 on the two Apple Silicon slices,
 > Armv8-A scalar elsewhere) on exactly five little-endian Apple/Linux/Android
