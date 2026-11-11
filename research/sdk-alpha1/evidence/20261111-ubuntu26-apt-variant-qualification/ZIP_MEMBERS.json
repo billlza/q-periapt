@@ -1,0 +1,62 @@
+[
+  {
+    "path": "apt-install.log",
+    "bytes": 63773,
+    "sha256": "02e6bdeb3621c600cc58be19fb87c95f892425dbc5dcc3f74edf1cfa5ce9a004",
+    "crc32": 910345827
+  },
+  {
+    "path": "apt-time.txt",
+    "bytes": 19,
+    "sha256": "7de48ba79cf329d62d7b76ec6f9ad949c34ae3bd1b8f2d111e23843f7300f456",
+    "crc32": 3666626566
+  },
+  {
+    "path": "formal-dependency-consumers.log",
+    "bytes": 2570,
+    "sha256": "28d2ce92152c0b9981b026b6c9ca5c5e8cf4e3b0b93d0e1cc6678f22c2ef5a93",
+    "crc32": 368550749
+  },
+  {
+    "path": "installed-after.tsv",
+    "bytes": 43373,
+    "sha256": "26e0fd928414a1e804b8f3583fa62591f452598814dbec97085ec1776d68d09d",
+    "crc32": 2938654342
+  },
+  {
+    "path": "installed-before.tsv",
+    "bytes": 38174,
+    "sha256": "b21ae06212f8ce6bd6a95cf57a1279afa93ce7fef569887ea63cce2b268cfe0a",
+    "crc32": 1864036549
+  },
+  {
+    "path": "native-cross-consumers.log",
+    "bytes": 1055,
+    "sha256": "9a281be0bed9dbca32c8ff4bb917eaed2ef7bb2024f0a8ca42c5fa588abd77b0",
+    "crc32": 3180373560
+  },
+  {
+    "path": "openssl-consumer.log",
+    "bytes": 1751,
+    "sha256": "058bdeb089d8ff8b685afb248b600b9310a4163df8d5581c12dd2bb9b443236a",
+    "crc32": 2448969309
+  },
+  {
+    "path": "package-transition.json",
+    "bytes": 6787,
+    "sha256": "e73c015e18bad34f6062735d29c1f2e067012818f2506240b434347d588d4a6c",
+    "crc32": 1991997531
+  },
+  {
+    "path": "runner-architecture.txt",
+    "bytes": 592,
+    "sha256": "c6a19d7584cea1df2aaf04426c55124807a73cffca9bf730c7313925c4ce1613",
+    "crc32": 3323862283
+  },
+  {
+    "path": "source.txt",
+    "bytes": 82,
+    "sha256": "da65b3a851c73569779ecc397bbeb630386e4ccfe9999fac0d9a2670865aa700",
+    "crc32": 2911263593
+  }
+]

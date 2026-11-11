@@ -1,0 +1,70 @@
+{
+  "schema": "ubuntu-apt-primary-source-readback-v1",
+  "completed_utc": "2026-11-11T16:50:26.042698+00:00",
+  "dsc": {
+    "url": "https://archive.ubuntu.com/ubuntu/pool/main/a/apt/apt_3.2.1ubuntu0.1.dsc",
+    "final_url": "https://archive.ubuntu.com/ubuntu/pool/main/a/apt/apt_3.2.1ubuntu0.1.dsc",
+    "http_status": 200,
+    "started_utc": "2026-11-11T16:50:10.928818+00:00",
+    "completed_utc": "2026-11-11T16:50:19.464550+00:00",
+    "bytes": 3171,
+    "sha256": "bd4b092b663c26898c20023e3cded33fad35b0699fea5b3dbb5150b35228a2c8",
+    "http_date": "Wed, 11 Nov 2026 16:50:00 GMT",
+    "http_content_type": "text/prs.lines.tag"
+  },
+  "source_archive": {
+    "url": "https://archive.ubuntu.com/ubuntu/pool/main/a/apt/apt_3.2.1ubuntu0.1.tar.xz",
+    "final_url": "https://archive.ubuntu.com/ubuntu/pool/main/a/apt/apt_3.2.1ubuntu0.1.tar.xz",
+    "http_status": 200,
+    "started_utc": "2026-11-11T16:50:19.464617+00:00",
+    "completed_utc": "2026-11-11T16:50:25.859310+00:00",
+    "bytes": 2477440,
+    "sha256": "0febcf286d6038c534c4aa83119dbf8a4dda29a10e133ca97adb01b368d420cc",
+    "http_date": "Wed, 11 Nov 2026 16:50:24 GMT",
+    "http_content_type": "application/x-xz",
+    "dsc_checksum_record": {
+      "name": "apt_3.2.1ubuntu0.1.tar.xz",
+      "bytes": 2477440,
+      "sha256": "0febcf286d6038c534c4aa83119dbf8a4dda29a10e133ca97adb01b368d420cc"
+    },
+    "dsc_bytes_and_sha256_match": true,
+    "retained_on_disk": false
+  },
+  "version_changelog_first_line": "apt (3.2.1ubuntu0.1) resolute-security; urgency=medium",
+  "version_changelog_tar_member": "apt-3.2.1ubuntu0.1/debian/changelog",
+  "members": [
+    {
+      "tar_member": "apt-3.2.1ubuntu0.1/apt-pkg/deb/debmetaindex.cc",
+      "bytes": 56776,
+      "sha256": "13a9ffbf197c225d0b00c80e4a01cb7ed26128cade1c415f962c28b747bd3a69",
+      "saved_path": "/workspace/scratch/qperiapt-recovery-20261111/apt-variants-validation/primary/ubuntu-apt-3.2.1ubuntu0.1-debmetaindex.cc"
+    },
+    {
+      "tar_member": "apt-3.2.1ubuntu0.1/apt-pkg/aptconfiguration.cc",
+      "bytes": 26207,
+      "sha256": "8fb713c4926d804008a7e67a3c9167c5c485a3cd827b0478365775f6df880b13",
+      "saved_path": "/workspace/scratch/qperiapt-recovery-20261111/apt-variants-validation/primary/ubuntu-apt-3.2.1ubuntu0.1-aptconfiguration.cc"
+    }
+  ],
+  "saved_files_readback": [
+    {
+      "path": "/workspace/scratch/qperiapt-recovery-20261111/apt-variants-validation/primary/ubuntu-apt-3.2.1ubuntu0.1-source.dsc",
+      "bytes": 3171,
+      "sha256": "bd4b092b663c26898c20023e3cded33fad35b0699fea5b3dbb5150b35228a2c8",
+      "matches_download_or_tar_member": true
+    },
+    {
+      "path": "/workspace/scratch/qperiapt-recovery-20261111/apt-variants-validation/primary/ubuntu-apt-3.2.1ubuntu0.1-debmetaindex.cc",
+      "bytes": 56776,
+      "sha256": "13a9ffbf197c225d0b00c80e4a01cb7ed26128cade1c415f962c28b747bd3a69",
+      "matches_download_or_tar_member": true
+    },
+    {
+      "path": "/workspace/scratch/qperiapt-recovery-20261111/apt-variants-validation/primary/ubuntu-apt-3.2.1ubuntu0.1-aptconfiguration.cc",
+      "bytes": 26207,
+      "sha256": "8fb713c4926d804008a7e67a3c9167c5c485a3cd827b0478365775f6df880b13",
+      "matches_download_or_tar_member": true
+    }
+  ],
+  "scope": "Official HTTPS source retrieval and byte/checksum readback only. No APT installation, APT execution, query, test, or production repository change. DSC PGP signature not separately verified."
+}

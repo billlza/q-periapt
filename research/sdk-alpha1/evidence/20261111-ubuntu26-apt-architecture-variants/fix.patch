@@ -1,0 +1,17 @@
+diff --git a/artifact/ci_apt.sh b/artifact/ci_apt.sh
+index 564c982f..a7adeea7 100644
+--- a/artifact/ci_apt.sh
++++ b/artifact/ci_apt.sh
+@@ -24,9 +24,10 @@ apt_workspace=$(mktemp -d /tmp/qperiapt-apt.XXXXXXXX)
+ trap 'sudo -n rm -rf -- "$apt_workspace"' EXIT
+ chmod 0755 "$apt_workspace"
+ mkdir -p "$apt_workspace/sourceparts" "$apt_workspace/lists" "$apt_workspace/cache/archives"
++# Preserve APT's configured architectures and variants, including amd64v3.
+ for pocket in "$suite" "$suite-updates" "$suite-security" "$suite-backports"; do
+-  printf 'deb [arch=%s signed-by=%s] %s %s main restricted universe multiverse\n' \
+-    "$architecture" "$keyring" "$mirror" "$pocket"
++  printf 'deb [signed-by=%s] %s %s main restricted universe multiverse\n' \
++    "$keyring" "$mirror" "$pocket"
+ done > "$apt_workspace/sources.list"
+ chmod 0644 "$apt_workspace/sources.list"
+ printf 'APT source: %s; suite=%s; architecture=%s\n' "$mirror" "$suite" "$architecture"

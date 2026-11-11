@@ -1,0 +1,152 @@
+{
+  "schema": 1,
+  "directory": "research/sdk-alpha1/evidence/20261111-ubuntu26-apt-architecture-variants",
+  "failed_source_commit": "2f42d2ce913421f9b7a7df39fbc56845d55717de",
+  "local_fix_commit": "0c80fb1273bbd994cfe092bdb12ef69ec23f9c5c",
+  "files": [
+    {
+      "path": "CONTROLS.json",
+      "bytes": 3700,
+      "sha256": "3d48d656aa75c6c5896558966888a07cb25d8273c7c42932a7297942de940353",
+      "git_blob": "42e66a46dca19db6d5ab61f9c1948155379bcfbb"
+    },
+    {
+      "path": "FAILURE_ANALYSIS.json",
+      "bytes": 41715,
+      "sha256": "c5edaa2ce94b8c5ea31dd8e64287d219e3f98ca6e1d5cd43f1ad32bd29419977",
+      "git_blob": "5f468363b527561841ca5074c671fa791df90f20"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5543,
+      "sha256": "a07a353bc81d121dbe98fec83864666bb15fff9d37c53dbca1a00360ec227992",
+      "git_blob": "6178a602c68ba4b380b8f1b14e8c55b38de90a33"
+    },
+    {
+      "path": "VALIDATION.json",
+      "bytes": 1168,
+      "sha256": "bb6e6fc330f4a30a659aa3e935b2d9b3dfd9e7a2ca9f153b95123ac2e51d4783",
+      "git_blob": "5963cf50eefd2f18f16cb8ea269372b9c6eaff5e"
+    },
+    {
+      "path": "check_controls.py",
+      "bytes": 6111,
+      "sha256": "e4c3f069357d82ff0f6fad9574eb078d4cc42f0faa152129483b3d84cd054c5c",
+      "git_blob": "2ae51ae609dac5cfa7e62b58d8da4f2869b6ce11"
+    },
+    {
+      "path": "fix.patch",
+      "bytes": 956,
+      "sha256": "b44874dc4de459290a3b819c2cc481c04c34447d468bf6a09f4bc13acb8e81dd",
+      "git_blob": "5d8b46a356567d1539a9ebd7c3c0fa80f4e6b68c"
+    },
+    {
+      "path": "logs/130657939157.log",
+      "bytes": 105843,
+      "sha256": "951f2e8a2a3aebcb51514bf9b173149aeeb207c18a78dd8ca2b2d0b838fb1e71",
+      "git_blob": "eba3ec96d6be8d833ddcad0697c89d6e517865bc"
+    },
+    {
+      "path": "logs/130657939191.log",
+      "bytes": 32151,
+      "sha256": "c218b4a8a4fab3aaf7d711638789b40e491c36af7ce0c4d8bc3f4148291948db",
+      "git_blob": "5ae8ed3a226af3543a1337b830cdc485360583e5"
+    },
+    {
+      "path": "logs/130657939332.log",
+      "bytes": 43894,
+      "sha256": "0d2edcf816b3e756d13126bea5c1f64e000557e41db62330939e27101bd2be73",
+      "git_blob": "b896512e107657ee96ce6cfb4aa974874e199453"
+    },
+    {
+      "path": "logs/130657939476.log",
+      "bytes": 35688,
+      "sha256": "a6c79175952d6c88adbe3f9852177bb015c4c49546a391d6b85ca5d8a9e2ffb7",
+      "git_blob": "43370926808945f58bbc327bbef8ef245c5d0a65"
+    },
+    {
+      "path": "primary/apt-aptconfiguration.cc",
+      "bytes": 26207,
+      "sha256": "8fb713c4926d804008a7e67a3c9167c5c485a3cd827b0478365775f6df880b13",
+      "git_blob": "a0164c6c3d18e857770fd2c59d820844d363591e"
+    },
+    {
+      "path": "primary/apt-aptconfiguration.cc.readback.json",
+      "bytes": 1548,
+      "sha256": "fd1271e5793cfaf81707176e4ed6827f442686af4b90fcd5bd377c4360b0236d",
+      "git_blob": "4bb37a063fbc7907802b5b28b4fdacf9b1cb3eee"
+    },
+    {
+      "path": "primary/apt-debmetaindex.cc",
+      "bytes": 56776,
+      "sha256": "13a9ffbf197c225d0b00c80e4a01cb7ed26128cade1c415f962c28b747bd3a69",
+      "git_blob": "b8516365442b6a070878cd21a9195590795c0f20"
+    },
+    {
+      "path": "primary/apt-debmetaindex.cc.readback.json",
+      "bytes": 1548,
+      "sha256": "9f7143065376362d997bba6adc3a94f7742f8a7238e66c6c5938f3666e797bfe",
+      "git_blob": "a7ed05956e91637aa8f1296522bd601c85311e03"
+    },
+    {
+      "path": "primary/ubuntu-26.04-release-notes-readback.json",
+      "bytes": 2229,
+      "sha256": "865ee0371652813388a2a8b0148c26695148eecb3fac2eca7c3f1dbfff8ac7a5",
+      "git_blob": "e27640534d70953c089e1fae531893c9ce8cd7cb"
+    },
+    {
+      "path": "primary/ubuntu-26.04-release-notes.html",
+      "bytes": 189549,
+      "sha256": "befd0983ffed034a831fb1730013e504c1d22cc4dc514fa95f12995f2d00839f",
+      "git_blob": "1ddcfb3b7ca7caaedfec3663d81273f632cbf248"
+    },
+    {
+      "path": "primary/ubuntu-apt-3.2.1ubuntu0.1-READBACK.json",
+      "bytes": 3431,
+      "sha256": "73f5ceddf6a2a3c2c40ca315993859e30708e33c82f215dc91e5270f745463d7",
+      "git_blob": "2ee795db11e3bacb1d5c09e0779824ee4849d560"
+    },
+    {
+      "path": "primary/ubuntu-apt-3.2.1ubuntu0.1-aptconfiguration.cc",
+      "bytes": 26207,
+      "sha256": "8fb713c4926d804008a7e67a3c9167c5c485a3cd827b0478365775f6df880b13",
+      "git_blob": "a0164c6c3d18e857770fd2c59d820844d363591e"
+    },
+    {
+      "path": "primary/ubuntu-apt-3.2.1ubuntu0.1-debmetaindex.cc",
+      "bytes": 56776,
+      "sha256": "13a9ffbf197c225d0b00c80e4a01cb7ed26128cade1c415f962c28b747bd3a69",
+      "git_blob": "b8516365442b6a070878cd21a9195590795c0f20"
+    },
+    {
+      "path": "primary/ubuntu-apt-3.2.1ubuntu0.1-source.dsc",
+      "bytes": 3171,
+      "sha256": "bd4b092b663c26898c20023e3cded33fad35b0699fea5b3dbb5150b35228a2c8",
+      "git_blob": "0e974eceda750b1e76205225b886ea19b6538c92"
+    },
+    {
+      "path": "primary/ubuntu-sources-list-manpage.html",
+      "bytes": 45422,
+      "sha256": "4a1c766b16529faa0872bfab3b4db7e4d725bc6fc702dead59ada3010dc378e4",
+      "git_blob": "97cd6d8605000d67cb9d56ac553e4930cac9f0a4"
+    },
+    {
+      "path": "primary/ubuntu-sources-list-manpage.html.readback.json",
+      "bytes": 1017,
+      "sha256": "dba7902dc3de2f7f990e3a3a7e208a05fabb7bd35cc96422a5d54c9b581659e9",
+      "git_blob": "a9eaccca3b812f77b19f8db64138744a11fe1744"
+    },
+    {
+      "path": "primary/ubuntu-supported-architectures.html",
+      "bytes": 120282,
+      "sha256": "a99e869c11079e6e4105658bab42c6d2576668684242d25bb269c7ba51f659c4",
+      "git_blob": "8c441c1090b113722b7b7889166c78fd9489ed82"
+    },
+    {
+      "path": "primary/ubuntu-supported-architectures.html.readback.json",
+      "bytes": 1802,
+      "sha256": "c91604866b6e4f59e8a8dcbcf8dccdfa59e6137ff2de71ac7b1e934b7797d02f",
+      "git_blob": "64e25000002ddf767f9bdff57b69cfba2132b590"
+    }
+  ]
+}

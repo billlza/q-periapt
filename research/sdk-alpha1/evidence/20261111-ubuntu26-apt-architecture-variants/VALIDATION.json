@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "base_commit": "2f42d2ce913421f9b7a7df39fbc56845d55717de",
+  "local_commit": "0c80fb1273bbd994cfe092bdb12ef69ec23f9c5c",
+  "tree": "d30b89eb9c661bf514618f511f5979ec0b062e9c",
+  "changed_files": [
+    "artifact/ci_apt.sh"
+  ],
+  "previous_helper_sha256": "6b1400ed58da149b7be100e22f545b2255ea620db0587ea15841ce06344ee364",
+  "corrected_helper_sha256": "f679d9f8c4929c02f83c4e29215f45a3eb3c2042195a92b2299f0f05c5411ce5",
+  "bash_syntax_exit_code": 0,
+  "diff_check_exit_code": 0,
+  "transaction_body_byte_identical": true,
+  "isolated_fixture_controls": 13,
+  "fixture_scope": "Existing host/tool-location controls adapted for preserved APT architecture selection; no actual APT trust, solver or installation claim.",
+  "hosted_validation": "Separate Ubuntu26 validation is owned by the root task; no hosted result assigned in this local receipt.",
+  "primary_mechanism_source": {
+    "ubuntu_source_version": "3.2.1ubuntu0.1",
+    "archive_bytes": 2477440,
+    "archive_sha256": "0febcf286d6038c534c4aa83119dbf8a4dda29a10e133ca97adb01b368d420cc",
+    "dsc_bytes_and_sha256_match": true,
+    "mechanism_files_identical_to_pinned_upstream": true
+  }
+}

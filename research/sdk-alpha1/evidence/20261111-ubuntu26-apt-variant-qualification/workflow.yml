@@ -1,0 +1,135 @@
+name: Ubuntu APT variant qualification
+
+on:
+  push:
+    branches: [diagnostic/ubuntu-apt-variants]
+
+permissions:
+  contents: read
+
+env:
+  BOOTSTRAP_SOURCE: 96e9a63cf8359b130003cd851008a7ce3649aea7
+
+jobs:
+  ubuntu-variants:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: ${{ env.BOOTSTRAP_SOURCE }}
+      - name: Record source, configured variants, and installed versions
+        run: |
+          test "$(git rev-parse HEAD)" = "$BOOTSTRAP_SOURCE"
+          mkdir -p "$RUNNER_TEMP/apt-variants-evidence"
+          git rev-parse HEAD 'HEAD^{tree}' | tee "$RUNNER_TEMP/apt-variants-evidence/source.txt"
+          {
+            printf 'ImageOS=%s\nImageVersion=%s\n' "$ImageOS" "$ImageVersion"
+            uname -sm
+            cat /etc/os-release
+            dpkg --print-architecture
+            dpkg --print-foreign-architectures
+            apt-config dump | sed -n '/^APT::Architecture/p'
+          } | tee "$RUNNER_TEMP/apt-variants-evidence/runner-architecture.txt"
+          dpkg-query -W -f='${binary:Package}\t${Version}\n' | sort \
+            > "$RUNNER_TEMP/apt-variants-evidence/installed-before.tsv"
+      - name: Install all four previously failing dependency sets
+        timeout-minutes: 8
+        run: |
+          /usr/bin/time -f 'wall_seconds=%e' -o "$RUNNER_TEMP/apt-variants-evidence/apt-time.txt" \
+            bash artifact/ci_apt.sh valgrind qemu-user gcc-riscv64-linux-gnu \
+              graphviz unzip libgtk2.0-dev ocaml pkg-config \
+            2>&1 | tee "$RUNNER_TEMP/apt-variants-evidence/apt-install.log"
+          dpkg-query -W -f='${binary:Package}\t${Version}\n' | sort \
+            > "$RUNNER_TEMP/apt-variants-evidence/installed-after.tsv"
+          python3 -I -S - "$RUNNER_TEMP/apt-variants-evidence" <<'PY'
+          from pathlib import Path
+          import json, subprocess, sys
+          root = Path(sys.argv[1])
+          before, after = [dict(line.split('\t') for line in (root / name).read_text().splitlines())
+                           for name in ('installed-before.tsv', 'installed-after.tsv')]
+          changes = {}
+          for package, previous in before.items():
+              if package not in after:
+                  raise SystemExit('installed package removed: ' + package)
+              current = after[package]
+              if subprocess.run(['dpkg', '--compare-versions', current, 'ge', previous]).returncode:
+                  raise SystemExit('installed package downgraded: ' + package)
+              if current != previous:
+                  changes[package] = {'before': previous, 'after': current}
+          report = {'before_count': len(before), 'after_count': len(after),
+                    'downgrades': 0, 'removals': 0, 'upgrades': changes,
+                    'new_packages': {p: v for p, v in after.items() if p not in before}}
+          (root / 'package-transition.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(report, sort_keys=True))
+          PY
+      - name: Compile and execute Memcheck and RISC-V consumers
+        run: |
+          {
+            valgrind --version
+            printf '#include <valgrind/memcheck.h>\nint main(void) { int value = 0; VALGRIND_MAKE_MEM_DEFINED(&value, sizeof(value)); return value; }\n' | \
+              cc -x c - -o "$RUNNER_TEMP/qperiapt-memcheck"
+            valgrind --tool=memcheck --error-exitcode=42 "$RUNNER_TEMP/qperiapt-memcheck"
+            riscv64-linux-gnu-gcc --version
+            qemu-riscv64 --version
+            printf '#include <stdio.h>\nint main(void) { return puts("RISCV_CONSUMER_OK") < 0; }\n' | \
+              riscv64-linux-gnu-gcc -x c - -o "$RUNNER_TEMP/qperiapt-riscv"
+            qemu-riscv64 -L /usr/riscv64-linux-gnu "$RUNNER_TEMP/qperiapt-riscv"
+          } 2>&1 | tee "$RUNNER_TEMP/apt-variants-evidence/native-cross-consumers.log"
+      - name: Exercise formal-tool build dependencies
+        run: |
+          {
+            dot -V
+            printf 'digraph { a -> b }\n' | dot -Tsvg -o "$RUNNER_TEMP/qperiapt-graph.svg"
+            test -s "$RUNNER_TEMP/qperiapt-graph.svg"
+            python3 -I -S -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1],"w"); z.writestr("probe.txt","archive consumer"); z.close()' "$RUNNER_TEMP/qperiapt-probe.zip"
+            unzip -t "$RUNNER_TEMP/qperiapt-probe.zip"
+            ocamlc -version
+            printf 'let () = print_endline "OCAML_CONSUMER_OK"\n' > "$RUNNER_TEMP/qperiapt-probe.ml"
+            ocamlc -o "$RUNNER_TEMP/qperiapt-ocaml" "$RUNNER_TEMP/qperiapt-probe.ml"
+            "$RUNNER_TEMP/qperiapt-ocaml"
+            pkg-config --modversion gtk+-2.0
+            printf '#include <gtk/gtk.h>\nint main(void) { return gtk_major_version != 2; }\n' | \
+              cc -x c - $(pkg-config --cflags --libs gtk+-2.0) -o "$RUNNER_TEMP/qperiapt-gtk"
+            "$RUNNER_TEMP/qperiapt-gtk"
+            printf '%s\n' 'FORMAL_DEPENDENCY_CONSUMERS_OK'
+          } 2>&1 | tee "$RUNNER_TEMP/apt-variants-evidence/formal-dependency-consumers.log"
+      - name: Compile and execute the existing OpenSSL consumer after installation
+        run: |
+          {
+            consumer="$RUNNER_TEMP/qperiapt-native-consumer"
+            mkdir -p "$consumer"
+            cmake --version
+            pkg-config --version
+            pkg-config --modversion openssl
+            cat > "$consumer/CMakeLists.txt" <<'CMAKE'
+          cmake_minimum_required(VERSION 3.20)
+          project(QPeriaptNativeToolsConsumer C)
+          find_package(PkgConfig REQUIRED)
+          pkg_check_modules(OPENSSL REQUIRED IMPORTED_TARGET openssl>=3.0)
+          add_executable(native-tools-consumer "${QPERIAPT_SOURCE_DIR}/bindings/c/ContinuityPackageConsumer/witness_tls_peer.c")
+          target_compile_features(native-tools-consumer PRIVATE c_std_11)
+          target_compile_options(native-tools-consumer PRIVATE -Wall -Wextra -Wpedantic -Werror)
+          target_link_libraries(native-tools-consumer PRIVATE PkgConfig::OPENSSL)
+          enable_testing()
+          add_test(NAME native-tools-consumer COMMAND native-tools-consumer identity)
+          CMAKE
+            cmake -S "$consumer" -B "$consumer/build" -DQPERIAPT_SOURCE_DIR="$GITHUB_WORKSPACE" \
+              -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF -DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF
+            cmake --build "$consumer/build"
+            ctest --verbose --test-dir "$consumer/build" --no-tests=error --output-on-failure
+          } 2>&1 | tee "$RUNNER_TEMP/apt-variants-evidence/openssl-consumer.log"
+      - name: Verify clean source
+        run: test -z "$(git status --porcelain)"
+      - name: Retain installed-version and execution evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ubuntu-apt-variants-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/apt-variants-evidence/
+          if-no-files-found: error
+          retention-days: 14

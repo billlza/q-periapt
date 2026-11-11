@@ -1,0 +1,933 @@
+
+<!doctype html>
+<html lang="en" dir="ltr">
+  
+<head>
+  <meta charset="UTF-8" />
+  <meta name="author" content="Canonical" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#E95420" />
+  <title>Ubuntu Manpage: sources.list - List of configured APT data sources</title>
+  
+    <meta name="description" content="List of configured APT data sources" />
+    <link rel="canonical" href="https://manpages.ubuntu.com/manpages/resolute/man5/sources.list.5.html" />
+    <link rel="alternate" type="text/plain" href="/manpages/resolute/man5/sources.list.5.txt" />
+    <meta property="og:title" content="sources.list" />
+    <meta property="og:description" content="List of configured APT data sources" />
+    <meta property="og:url" content="https://manpages.ubuntu.com/manpages/resolute/man5/sources.list.5.html" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Ubuntu Manpages" />
+    <script type="application/ld+json">[{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","item":"https://manpages.ubuntu.com/manpages/resolute","name":"resolute","position":1},{"@type":"ListItem","item":"https://manpages.ubuntu.com/manpages/resolute/man5","name":"man(5)","position":2}]},{"@context":"https://schema.org","@type":"TechArticle","description":"List of configured APT data sources","isPartOf":{"@type":"WebSite","name":"Ubuntu Manpages","url":"https://manpages.ubuntu.com"},"name":"sources.list","url":"https://manpages.ubuntu.com/manpages/resolute/man5/sources.list.5.html"}]</script>
+
+  <link rel="describedby" href="/llms.txt" />
+  <link
+    rel="stylesheet"
+    href="https://assets.ubuntu.com/v1/vanilla_framework_version_4_44_0_min.css"
+  />
+  <meta name="base-path" content="" />
+  <link rel="stylesheet" href="/static/docs.css" />
+  <link
+    rel="icon"
+    type="image/png"
+    href="https://assets.ubuntu.com/v1/16c27f81-COF%2520favicon-16x16.png"
+    sizes="16x16"
+  />
+  <link
+    rel="icon"
+    type="image/png"
+    href="https://assets.ubuntu.com/v1/be7e4cc6-COF-favicon-32x32.png"
+    sizes="32x32"
+  />
+  <link
+    rel="icon"
+    type="image/png"
+    href="https://assets.ubuntu.com/v1/6ead207a-COF-favicon-48x48.png"
+    sizes="48x48"
+  />
+  <link
+    rel="apple-touch-icon"
+    sizes="180x180"
+    href="https://assets.ubuntu.com/v1/f38b9c7e-COF%2520apple-touch-icon.png"
+  />
+</head>
+
+  <body class="is-paper">
+    <div class="l-docs">
+      <div class="l-docs__header">
+        
+<header id="navigation" class="p-navigation is-dark">
+  <div class="row--25-75">
+    <div class="col">
+      <div class="p-navigation__banner">
+        <div class="p-navigation__tagged-logo">
+          <a class="p-navigation__link" href="/">
+            <div class="p-navigation__logo-tag">
+              <img
+                class="p-navigation__logo-icon"
+                src="https://assets.ubuntu.com/v1/82818827-CoF_white.svg"
+                alt=""
+              />
+            </div>
+            <span class="p-navigation__logo-title">Manpages</span>
+          </a>
+        </div>
+        <a href="#navigation" class="p-navigation__toggle--open" title="menu">Menu</a>
+        <a href="#navigation-closed" class="p-navigation__toggle--close" title="close menu"
+          >Close menu</a
+        >
+      </div>
+    </div>
+    <div class="col">
+      <div class="p-navigation__row u-fixed-width">
+        <nav class="p-navigation__nav" aria-label="Main">
+          <ul class="p-navigation__items">
+            <li class="p-navigation__item">
+              <a class="p-navigation__link" href="/search">Search</a>
+            </li>
+            <li class="p-navigation__item">
+              <a class="p-navigation__link" href="/manpages">Browse</a>
+            </li>
+            <li class="p-navigation__item--dropdown-toggle" id="releases-dropdown">
+              <a class="p-navigation__link" aria-controls="releases-menu" href="#">Releases</a>
+              <ul class="p-navigation__dropdown--right" id="releases-menu" aria-hidden="true">
+                
+                <li class="p-navigation__dropdown-item">
+                  <a class="p-navigation__link" href="/manpages/tenacious"
+                    >27.04
+                    <span style="opacity: 0.7">(tenacious)</span></a
+                  >
+                </li>
+                
+                <li class="p-navigation__dropdown-item">
+                  <a class="p-navigation__link" href="/manpages/stonking"
+                    >26.10
+                    <span style="opacity: 0.7">(stonking)</span></a
+                  >
+                </li>
+                
+                <li class="p-navigation__dropdown-item">
+                  <a class="p-navigation__link" href="/manpages/resolute"
+                    >26.04 LTS
+                    <span style="opacity: 0.7">(resolute)</span></a
+                  >
+                </li>
+                
+                <li class="p-navigation__dropdown-item">
+                  <a class="p-navigation__link" href="/manpages/noble"
+                    >24.04 LTS
+                    <span style="opacity: 0.7">(noble)</span></a
+                  >
+                </li>
+                
+                <li class="p-navigation__dropdown-item">
+                  <a class="p-navigation__link" href="/manpages/jammy"
+                    >22.04 LTS
+                    <span style="opacity: 0.7">(jammy)</span></a
+                  >
+                </li>
+                
+                <li class="p-navigation__dropdown-item">
+                  <a class="p-navigation__link" href="/manpages/focal"
+                    >20.04 LTS
+                    <span style="opacity: 0.7">(focal)</span></a
+                  >
+                </li>
+                
+                <li class="p-navigation__dropdown-item">
+                  <a class="p-navigation__link" href="/manpages/bionic"
+                    >18.04 LTS
+                    <span style="opacity: 0.7">(bionic)</span></a
+                  >
+                </li>
+                
+                <li class="p-navigation__dropdown-item">
+                  <a class="p-navigation__link" href="/manpages/xenial"
+                    >16.04 LTS
+                    <span style="opacity: 0.7">(xenial)</span></a
+                  >
+                </li>
+                
+                <li class="p-navigation__dropdown-item">
+                  <a class="p-navigation__link" href="/manpages/trusty"
+                    >14.04 LTS
+                    <span style="opacity: 0.7">(trusty)</span></a
+                  >
+                </li>
+                
+              </ul>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </div>
+</header>
+
+        <section id="search-docs" class="p-strip is-bordered is-shallow l-docs__subgrid">
+          <div class="l-docs__sidebar u-hide--medium u-hide--small">
+            <div class="u-fixed-width">
+              <h5 class="u-sv-2">Ubuntu Manpages</h5>
+            </div>
+          </div>
+          <div class="l-docs__main">
+            <div class="row">
+              <div class="mp-search-bar">
+                <form class="p-search-box u-no-margin--bottom" method="get" action="/search">
+                  
+<input
+  type="search"
+  class="p-search-box__input"
+  name="q"
+  placeholder="Search for a command, package, or topic..."
+  required=""
+  autocomplete="on"
+/>
+<button type="reset" class="p-search-box__reset" name="close">
+  <i class="p-icon--close">Close</i>
+</button>
+<button type="submit" class="p-search-box__button" name="submitSearch">
+  <i class="p-icon--search">Search</i>
+</button>
+
+                </form>
+                
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="l-docs__sidebar">
+        <nav class="p-side-navigation--raw-html is-sticky" id="drawer" aria-label="sidebar">
+          <div class="u-hide--large p-strip is-shallow">
+            <div class="u-fixed-width">
+              <button class="p-side-navigation__toggle js-drawer-toggle" aria-controls="drawer">
+                Toggle side navigation
+              </button>
+            </div>
+          </div>
+          <div class="p-side-navigation__overlay js-drawer-toggle" aria-controls="drawer"></div>
+          <div class="p-side-navigation__drawer">
+            <div class="p-side-navigation__drawer-header">
+              <button class="p-side-navigation__toggle--in-drawer js-drawer-toggle" aria-controls="drawer">
+                Toggle side navigation
+              </button>
+            </div>
+            <ul>
+              <li><a href="/">Home</a></li>
+              <li><a href="/search">Search</a></li>
+              <li><a href="/manpages">Browse</a></li>
+            </ul>
+            
+            
+
+<ul>
+  <li><strong>Other versions</strong></li>
+  
+  <li><a href="/manpages/trusty/man5/sources.list.5.html">14.04 LTS</a></li>
+  
+  <li><a href="/manpages/xenial/man5/sources.list.5.html">16.04 LTS</a></li>
+  
+  <li><a href="/manpages/bionic/man5/sources.list.5.html">18.04 LTS</a></li>
+  
+  <li><a href="/manpages/focal/man5/sources.list.5.html">20.04 LTS</a></li>
+  
+  <li><a href="/manpages/jammy/man5/sources.list.5.html">22.04 LTS</a></li>
+  
+  <li><a href="/manpages/noble/man5/sources.list.5.html">24.04 LTS</a></li>
+  
+  <li><a href="/manpages/resolute/man5/sources.list.5.html">26.04 LTS</a></li>
+  
+  <li><a href="/manpages/stonking/man5/sources.list.5.html">26.10</a></li>
+  
+  <li><a href="/manpages/tenacious/man5/sources.list.5.html">27.04</a></li>
+  
+</ul>
+
+
+          </div>
+        </nav>
+      </aside>
+
+      
+<div class="l-docs__title" id="main-content">
+  <div class="p-section--shallow">
+    <div class="row">
+      <div class="col-12">
+        
+        <nav class="p-breadcrumbs" aria-label="Breadcrumb">
+          <ol class="p-breadcrumbs__items">
+            
+            <li class="p-breadcrumbs__item">
+              <a class="p-breadcrumbs__link" href="/manpages/resolute">resolute</a>
+            </li>
+            
+            <li class="p-breadcrumbs__item">
+              <a class="p-breadcrumbs__link" href="/manpages/resolute/man5">man(5)</a>
+            </li>
+            
+            
+            <li class="p-breadcrumbs__item">
+              <a class="p-breadcrumbs__link" href="/manpages.gz/resolute/man5/sources.list.5.gz">sources.list.5.gz</a>
+            </li>
+            
+          </ol>
+        </nav>
+        
+        <h1>sources.list</h1>
+        <p class="p-heading--4">List of configured APT data sources</p>
+        
+        <ul class="p-inline-list--middot u-text--muted u-no-margin--bottom">
+          <li class="p-inline-list__item">
+            Provided by: <a href="https://launchpad.net/ubuntu/resolute/&#43;package/apt">apt (Version: 3.2.1ubuntu0.1)</a>
+          </li>
+          
+          
+          <li class="p-inline-list__item">
+            <a href="https://bugs.launchpad.net/ubuntu/&#43;source/apt/&#43;filebug-advanced" title="Report a bug in this documentation">Report a bug</a>
+          </li>
+          
+        </ul>
+        
+      </div>
+    </div>
+  </div>
+</div>
+
+
+      
+
+<div class="l-docs__meta">
+  <div class="l-docs__sticky-container">
+    <aside class="p-table-of-contents">
+      <div class="p-table-of-contents__section">
+        <h2 class="p-table-of-contents__header">On this page</h2>
+        <nav class="p-table-of-contents__nav" aria-label="Table of contents">
+          <ul class="p-table-of-contents__list" id="toc-list">
+            <li class="p-table-of-contents__item"><a class="p-table-of-contents__link" href="#description">DESCRIPTION</a></li>
+<li class="p-table-of-contents__item"><a class="p-table-of-contents__link" href="#sources-list-d">SOURCES.LIST.D</a></li>
+<li class="p-table-of-contents__item"><a class="p-table-of-contents__link" href="#one-line-style-format">ONE-LINE-STYLE FORMAT</a></li>
+<li class="p-table-of-contents__item"><a class="p-table-of-contents__link" href="#deb822-style-format">DEB822-STYLE FORMAT</a></li>
+<li class="p-table-of-contents__item"><a class="p-table-of-contents__link" href="#the-deb-and-deb-src-types-general-format">THE DEB AND DEB-SRC TYPES: GENERAL FORMAT</a></li>
+<li class="p-table-of-contents__item"><a class="p-table-of-contents__link" href="#the-deb-and-deb-src-types-options">THE DEB AND DEB-SRC TYPES: OPTIONS</a></li>
+<li class="p-table-of-contents__item"><a class="p-table-of-contents__link" href="#uri-specification">URI SPECIFICATION</a></li>
+<li class="p-table-of-contents__item"><a class="p-table-of-contents__link" href="#examples">EXAMPLES</a></li>
+<li class="p-table-of-contents__item"><a class="p-table-of-contents__link" href="#see-also">SEE ALSO</a></li>
+<li class="p-table-of-contents__item"><a class="p-table-of-contents__link" href="#bugs">BUGS</a></li>
+<li class="p-table-of-contents__item"><a class="p-table-of-contents__link" href="#authors">AUTHORS</a></li>
+<li class="p-table-of-contents__item"><a class="p-table-of-contents__link" href="#notes">NOTES</a></li>
+
+          </ul>
+        </nav>
+      </div>
+    </aside>
+  </div>
+</div>
+
+
+
+      <main class="l-docs__main">
+        
+<div class="row">
+  <div class="col-12" id="manpage-content">
+    
+<h2 id="description" class="Sh"><a class="permalink" href="#description">DESCRIPTION</a></h2>
+<section class="Sh mp-section"><p class="Pp">The source list /etc/apt/sources.list and the files contained in
+    /etc/apt/sources.list.d/ are designed to support any number of active
+    sources and a variety of source media. The files list one source per line
+    (one-line style) or contain multiline stanzas defining one or more sources
+    per stanza (deb822 style), with the most preferred source listed first (in
+    case a single version is available from more than one source). The
+    information available from the configured sources is acquired by <b>apt-get
+    update</b> (or by an equivalent command from another APT front-end).</p>
+<p class="Pp">If multiple source lists are used, the most-preferred sources are
+    those listed in /etc/apt/sources.list, followed by each file in
+    /etc/apt/sources.list.d/ in lexicographic order: for example,
+    00-high-preference.list is more-preferred than 50-middle-preference.sources
+    which is more-preferred than z-low-preference.list.</p>
+</section>
+<h2 id="sources-list-d" class="Sh"><a class="permalink" href="#sources-list-d">SOURCES.LIST.D</a></h2>
+<section class="Sh mp-section"><p class="Pp">The /etc/apt/sources.list.d directory provides a way to add
+    sources.list entries in separate files. Two different file formats are
+    allowed as described in the next two sections. Filenames need to have either
+    the extension .list or .sources depending on the contained format. The
+    filenames may only contain letters (a-z and A-Z), digits (0-9), underscore
+    (_), hyphen (-) and period (.) characters. Otherwise APT will print a notice
+    that it has ignored a file, unless that file matches a pattern in the
+    Dir::Ignore-Files-Silently configuration list - in which case it will be
+    silently ignored.</p>
+<p class="Pp">The suggested filename for new systems is
+    /etc/apt/sources.list.d/<i>vendor</i>.sources, where <i>vendor</i> is the
+    result of <b>dpkg-vendor --query Vendor | tr A-Z a-z</b>, in deb822-style
+    format. For example, Ubuntu uses /etc/apt/sources.list.d/ubuntu.sources.</p>
+</section>
+<h2 id="one-line-style-format" class="Sh"><a class="permalink" href="#one-line-style-format">ONE-LINE-STYLE
+  FORMAT</a></h2>
+<section class="Sh mp-section"><p class="Pp">Files in this format have the extension .list. Each line
+    specifying a source starts with a type (e.g. deb-src) followed by options
+    and arguments for this type. Individual entries cannot be continued onto a
+    following line. Empty lines are ignored, and a # character anywhere on a
+    line marks the remainder of that line as a comment. Consequently an entry
+    can be disabled by commenting out the entire line. If options should be
+    provided they are separated by spaces and all of them together are enclosed
+    by square brackets ([]) included in the line after the type separated from
+    it with a space. If an option allows multiple values these are separated
+    from each other with a comma (,). An option name is separated from its
+    value(s) by an equals sign (=). Multivalue options also have -= and += as
+    separators, which instead of replacing the default with the given value(s)
+    modify the default value(s) to remove or include the given values.</p>
+<p class="Pp">This is the traditional format and supported by all apt versions.
+    Note that not all options as described below are supported by all apt
+    versions. Note also that some older applications parsing this format on
+    their own might not expect to encounter options as they were uncommon before
+    the introduction of multi-architecture support.</p>
+<p class="Pp">This format is deprecated and may eventually be removed, but not
+    before 2029.</p>
+</section>
+<h2 id="deb822-style-format" class="Sh"><a class="permalink" href="#deb822-style-format">DEB822-STYLE
+  FORMAT</a></h2>
+<section class="Sh mp-section"><p class="Pp">Files in this format have the extension .sources. The format is
+    similar in syntax to other files used by Debian and its derivatives, such as
+    the metadata files that apt will download from the configured sources or the
+    debian/control file in a Debian source package. Individual entries are
+    separated by an empty line; additional empty lines are ignored, and a #
+    character at the start of the line marks the entire line as a comment. An
+    entry can hence be disabled by commenting out each line belonging to the
+    stanza, but it is usually easier to add the field &quot;Enabled: no&quot; to
+    the stanza to disable the entry. Removing the field or setting it to yes
+    re-enables it. Options have the same syntax as every other field: A field
+    name separated by a colon (:) and optionally spaces from its value(s). Note
+    especially that multiple values are separated by whitespaces (like spaces,
+    tabs and newlines), not by commas as in the one-line format. Multivalue
+    fields like Architectures also have Architectures-Add and
+    Architectures-Remove to modify the default value rather than replacing
+  it.</p>
+<p class="Pp">This is a new format supported by apt itself since version 1.1.
+    Previous versions ignore such files with a notice message as described
+    earlier. It is intended to make this format gradually the default format,
+    deprecating the previously described one-line-style format, as it is easier
+    to create, extend and modify for humans and machines alike especially if a
+    lot of sources and/or options are involved. Developers who are working with
+    and/or parsing apt sources are highly encouraged to add support for this
+    format and to contact the APT team to coordinate and share this work. Users
+    can freely adopt this format already, but may encounter problems with
+    software not supporting the format yet.</p>
+</section>
+<h2 id="the-deb-and-deb-src-types-general-format" class="Sh">THE DEB AND DEB-SRC TYPES: GENERAL FORMAT</h2>
+<section class="Sh mp-section"><p class="Pp">The deb type references a typical two-level Debian archive,
+    distribution/component. The distribution is generally a suite name like
+    stable or testing or a codename like trixie or forky while component is one
+    of main, contrib, non-free or non-free-firmware. The deb-src type references
+    a Debian distribution's source code in the same form as the deb type. A
+    deb-src line is required to fetch source indexes.</p>
+<p class="Pp">The format for two one-line-style entries using the deb and
+    deb-src types is:</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>deb [ option1=value1 option2=value2 ] uri suite [component1] [component2] [...]
+deb-src [ option1=value1 option2=value2 ] uri suite [component1] [component2] [...]</pre>
+</div>
+<p class="Pp">Alternatively the equivalent entry in deb822 style looks like
+    this:</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>
+     Types: deb deb-src
+     URIs: uri
+     Suites: suite
+     Components: [component1] [component2] [...]
+     option1: value1
+     option2: value2
+   </pre>
+</div>
+<p class="Pp">The URI for the deb type must specify the base of the Debian
+    distribution, from which APT will find the information it needs. suite can
+    specify an exact path, in which case the components must be omitted and
+    suite must end with a slash (/). This is useful for the case when only a
+    particular sub-directory of the archive denoted by the URI is of interest.
+    If suite does not specify an exact path, at least one component must be
+    present.</p>
+<p class="Pp">suite may also contain a variable, $(ARCH) which expands to the
+    Debian architecture (such as amd64 or armel) used on the system. This
+    permits architecture-independent sources.list files to be used. In general
+    this is only of interest when specifying an exact path; APT will
+    automatically generate a URI with the current architecture otherwise.</p>
+<p class="Pp">Especially in the one-line-style format since only one
+    distribution can be specified per line it may be necessary to have multiple
+    lines for the same URI, if a subset of all available distributions or
+    components at that location is desired. APT will sort the URI list after it
+    has generated a complete set internally, and will collapse multiple
+    references to the same Internet host, for instance, into a single
+    connection, so that it does not inefficiently establish a connection, close
+    it, do something else, and then re-establish a connection to that same host.
+    APT also parallelizes connections to different hosts to more effectively
+    deal with sites with low bandwidth.</p>
+<p class="Pp">It is important to list sources in order of preference, with the
+    most preferred source listed first. Typically this will result in sorting by
+    speed from fastest to slowest (CD-ROM followed by hosts on a local network,
+    followed by distant Internet hosts, for example).</p>
+<p class="Pp">As an example, the sources for your distribution could look like
+    this in the deprecated one-line-style format:</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://archive.ubuntu.com/ubuntu plucky main restricted
+deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://security.ubuntu.com/ubuntu plucky-security main restricted
+deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://us.archive.ubuntu.com/ubuntu plucky-updates main restricted</pre>
+</div>
+<p class="Pp">or like this in deb822 style format:</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>Types: deb
+URIs: http://us.archive.ubuntu.com/ubuntu
+Suites: plucky plucky-updates
+Components: main restricted
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+Types: deb
+URIs: http://security.ubuntu.com/ubuntu
+Suites: plucky-security
+Components: main restricted
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg</pre>
+</div>
+</section>
+<h2 id="the-deb-and-deb-src-types-options" class="Sh">THE DEB AND DEB-SRC TYPES: OPTIONS</h2>
+<section class="Sh mp-section"><p class="Pp">Each source entry can have options specified to modify which
+    source is accessed and how data is acquired from it. Format, syntax and
+    names of the options vary between the one-line-style and deb822-style
+    formats as described, but they both have the same options available. For
+    simplicity we list the deb822 field name and provide the one-line name in
+    brackets. Remember that besides setting multivalue options explicitly, there
+    is also the option to modify them based on the default, but we aren't
+    listing those names explicitly here. Unsupported options are silently
+    ignored by all APT versions.</p>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>Include</b> (<b>include</b>) is a multivalue
+  option defining which packages should be used from this repository. Others are
+  not parsed.</div>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>Exclude</b> (<b>exclude</b>) is a multivalue
+  option defining which packages should not be used from this repository. They
+  will not be parsed. This option is mutually exclusive with
+  <b>Include</b>.</div>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>Architectures</b> (<b>arch</b>) is a
+  multivalue option defining for which architectures information should be
+  downloaded. If this option isn't set the default is all architectures as
+  defined by the <b>APT::Architectures</b> config option.</div>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>Languages</b> (<b>lang</b>) is a multivalue
+  option defining for which languages information such as translated package
+  descriptions should be downloaded. If this option isn't set the default is all
+  languages as defined by the <b>Acquire::Languages</b> config option.</div>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>Targets</b> (<b>target</b>) is a multivalue
+  option defining which download targets apt will try to acquire from this
+  source. If not specified, the default set is defined by the
+  <b>Acquire::IndexTargets</b> configuration scope (targets are specified by
+  their name in the Created-By field). Additionally, targets can be enabled or
+  disabled by using the Identifier field as an option with a boolean value
+  instead of using this multivalue option.</div>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>PDiffs</b> (<b>pdiffs</b>) is a yes/no value
+  which controls if APT should try to use PDiffs to update old indexes instead
+  of downloading the new indexes entirely. The value of this option is ignored
+  if the repository doesn't announce the availability of PDiffs. Defaults to the
+  value of the option with the same name for a specific index file defined in
+  the <b>Acquire::IndexTargets</b> scope, which itself defaults to the value of
+  configuration option <b>Acquire::PDiffs</b> which defaults to yes.</div>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>By-Hash</b> (<b>by-hash</b>) can have the
+  value yes, no or force and controls if APT should try to acquire indexes via a
+  URI constructed from a hashsum of the expected file instead of using the
+  well-known stable filename of the index. Using this can avoid hashsum
+  mismatches, but requires a supporting mirror. A yes or no value
+  activates/disables the use of this feature if this source indicates support
+  for it, while force will enable the feature regardless of what the source
+  indicates. Defaults to the value of the option of the same name for a specific
+  index file defined in the <b>Acquire::IndexTargets</b> scope, which itself
+  defaults to the value of configuration option <b>Acquire::By-Hash</b> which
+  defaults to yes.</div>
+<p class="Pp">Furthermore, there are options which if set affect <i>all</i>
+    sources with the same URI and Suite, so they have to be set on all such
+    entries and can not be varied between different components. APT will try to
+    detect and error out on such anomalies.</p>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>Allow-Insecure</b> (<b>allow-insecure</b>),
+  <b>Allow-Weak</b> (<b>allow-weak</b>) and <b>Allow-Downgrade-To-Insecure</b>
+  (<b>allow-downgrade-to-insecure</b>) are boolean values which all default to
+  no. If set to yes they circumvent parts of <a href="/manpages/resolute/man8/apt-secure.8.html"><b>apt-secure</b>(8)</a> and should
+  therefore not be used lightly!</div>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>Trusted</b> (<b>trusted</b>) is a tri-state
+  value which defaults to APT deciding if a source is considered trusted or if
+  warnings should be raised before e.g. packages are installed from this source.
+  This option can be used to override that decision. The value yes tells APT
+  always to consider this source as trusted, even if it doesn't pass
+  authentication checks. It disables parts of <a href="/manpages/resolute/man8/apt-secure.8.html"><b>apt-secure</b>(8)</a>, and should
+  therefore only be used in a local and trusted context (if at all) as otherwise
+  security is breached. The value no does the opposite, causing the source to be
+  handled as untrusted even if the authentication checks passed successfully.
+  The default value can't be set explicitly.</div>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>Signed-By</b> (<b>signed-by</b>) is an option
+  to require a repository to pass <a href="/manpages/resolute/man8/apt-secure.8.html"><b>apt-secure</b>(8)</a> verification with a
+  certain set of keys rather than all trusted keys apt has configured. It is
+  specified as a list of absolute paths to keyring files (have to be accessible
+  and readable for the _apt system user, so ensure everyone has read-permissions
+  on the file) and fingerprints of keys to select from these keyrings. The
+  recommended locations for keyrings are /usr/share/keyrings for keyrings
+  managed by packages, and /etc/apt/keyrings for keyrings managed by the system
+  operator. If no keyring files are specified the default is the trusted.gpg
+  keyring and all keyrings in the trusted.gpg.d/ directory. If no fingerprint is
+  specified all keys in the keyrings are selected. A fingerprint will accept
+  also all signatures by a subkey of this key, if this isn't desired an
+  exclamation mark (!) can be appended to the fingerprint to disable this
+  behaviour. The option defaults to the value of the option with the same name
+  if set in the previously acquired Release file of this repository (only
+  fingerprints can be specified there through). Otherwise all keys in the
+  trusted keyrings are considered valid signers for this repository. The option
+  may also be set directly to an embedded GPG public key block. Special care is
+  needed to encode the empty line with leading spaces and &quot;.&quot;:
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>Types: deb
+URIs: https://deb.debian.org
+Suites: stable
+Components: main contrib non-free non-free-firmware
+Signed-By:
+ -----BEGIN PGP PUBLIC KEY BLOCK-----
+ .
+ mDMEYCQjIxYJKwYBBAHaRw8BAQdAD/P5Nvvnvk66SxBBHDbhRml9ORg1WV5CvzKY
+ CuMfoIS0BmFiY2RlZoiQBBMWCgA4FiEErCIG1VhKWMWo2yfAREZd5NfO31cFAmAk
+ IyMCGyMFCwkIBwMFFQoJCAsFFgIDAQACHgECF4AACgkQREZd5NfO31fbOwD6ArzS
+ dM0Dkd5h2Ujy1b6KcAaVW9FOa5UNfJ9FFBtjLQEBAJ7UyWD3dZzhvlaAwunsk7DG
+ 3bHcln8DMpIJVXht78sL
+ =IE0r
+ -----END PGP PUBLIC KEY BLOCK-----</pre>
+</div>
+<p class="Pp"></p>
+</div>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>Check-Valid-Until</b>
+  (<b>check-valid-until</b>) is a yes/no value which controls if APT should try
+  to detect replay attacks. A repository creator can declare a time until which
+  the data provided in the repository should be considered valid, and if this
+  time is reached, but no new data is provided, the data is considered expired
+  and an error is raised. Besides increasing security, as a malicious attacker
+  can't send old data forever to prevent a user from upgrading to a new version,
+  this also helps users identify mirrors which are no longer updated. However,
+  some repositories such as historic archives are not updated any more by
+  design, so this check can be disabled by setting this option to no. Defaults
+  to the value of configuration option <b>Acquire::Check-Valid-Until</b> which
+  itself defaults to yes.</div>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>Valid-Until-Min</b> (<b>valid-until-min</b>)
+  and <b>Valid-Until-Max</b> (<b>valid-until-max</b>) can be used to raise or
+  lower the time period in seconds in which the data from this repository is
+  considered valid. -Max can be especially useful if the repository provides no
+  Valid-Until field on its Release file to set your own value, while -Min can be
+  used to increase the valid time on seldom updated (local) mirrors of a more
+  frequently updated but less accessible archive (which is in the sources.list
+  as well) instead of disabling the check entirely. Default to the value of the
+  configuration options <b>Acquire::Min-ValidTime</b> and
+  <b>Acquire::Max-ValidTime</b> which are both unset by default.</div>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>Check-Date</b> (<b>check-date</b>) is a yes/no
+  value which controls if APT should consider the machine's time correct and
+  hence perform time related checks, such as verifying that a Release file is
+  not from the future. Disabling it also disables the <b>Check-Valid-Until</b>
+  option mentioned above.</div>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>Date-Max-Future</b> (<b>date-max-future</b>)
+  controls how far from the future a repository may be. Default to the value of
+  the configuration option <b>Acquire::Max-FutureTime</b> which is 10 seconds by
+  default.</div>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>InRelease-Path</b> (<b>inrelease-path</b>)
+  determines the path to the InRelease file, relative to the normal position of
+  an InRelease file. By default, this option is unset and APT will try to fetch
+  an InRelease or, if that fails, a Release file and its associated Release.gpg
+  file. By setting this option, the specified path will be tried instead of the
+  InRelease file, and the fallback to Release files will be disabled.</div>
+<p class="Pp"></p>
+<div class="Bd-indent">&#x2022;<b>Snapshot</b> (<b>snapshot</b>) allows
+  selecting an earlier version of the archive from the snapshot service.
+  Supported values are: enable (default) to allow selecting a snapshot with the
+  <b>--snapshot</b> option, ID, or disable to exclude the repository.
+<p class="Pp">Snapshot IDs are usually timestamps in the form of
+    YYYYMMDDTHHMMSSZ, such as 20220102T030405Z which is the January 2nd, 2022 at
+    03:04:05 UTC, servers may however support additional types of IDs, and APT
+    does not perform any checks so far.</p>
+</div>
+<p class="Pp"></p>
+</section>
+<h2 id="uri-specification" class="Sh"><a class="permalink" href="#uri-specification">URI
+  SPECIFICATION</a></h2>
+<section class="Sh mp-section"><p class="Pp">The currently recognized URI types are:</p>
+<p class="Pp"><b>http</b> (<a href="/manpages/resolute/man1/apt-transport-http.1.html"><b>apt-transport-http</b>(1)</a>)</p>
+<div class="Bd-indent">The http scheme specifies an HTTP server for an archive
+  and is the most commonly used method. The URI can directly include login
+  information if the archive requires it, but the use of <a href="/manpages/resolute/man5/apt_auth.conf.5.html"><b>apt_auth.conf</b>(5)</a>
+  should be preferred. The method also supports SOCKS5 and HTTP(S) proxies
+  either configured via apt-specific configuration or specified by the
+  environment variable <b>http_proxy</b> in the format (assuming an HTTP proxy
+  requiring authentication) <i>http://user:pass@server:port/</i>. The
+  authentication details for proxies can also be supplied via
+  <a href="/manpages/resolute/man5/apt_auth.conf.5.html"><b>apt_auth.conf</b>(5)</a>.
+<p class="Pp">Note that these forms of authentication are insecure as the whole
+    communication with the remote server (or proxy) is not encrypted so a
+    sufficiently capable attacker can observe and record login as well as all
+    other interactions. The attacker can <i>not</i> modify the communication
+    through as APT's data security model is independent of the chosen transport
+    method. See <a href="/manpages/resolute/man8/apt-secure.8.html"><b>apt-secure</b>(8)</a> for details.</p>
+</div>
+<p class="Pp"><b>https</b> (<a href="/manpages/resolute/man1/apt-transport-https.1.html"><b>apt-transport-https</b>(1)</a>)</p>
+<div class="Bd-indent">The https scheme specifies an HTTPS server for an archive
+  and is very similar in use and available options to the http scheme. The main
+  difference is that the communication between apt and server (or proxy) is
+  encrypted. Note that the encryption does not prevent an attacker from knowing
+  which server (or proxy) apt is communicating with and deeper analysis can
+  potentially still reveal which data was downloaded. If this is a concern the
+  Tor-based schemes mentioned further below might be a suitable
+  alternative.</div>
+<p class="Pp"><b>mirror</b>, <b>mirror+</b><b></b><i>scheme</i>
+    (<a href="/manpages/resolute/man1/apt-transport-mirror.1.html"><b>apt-transport-mirror</b>(1)</a>)</p>
+<div class="Bd-indent">The mirror scheme specifies the location of a mirrorlist.
+  By default the scheme used for the location is http, but any other scheme can
+  be used via <b>mirror+</b><b></b><i>scheme</i>. The mirrorlist itself can
+  contain many different URIs for mirrors the APT client can transparently pick,
+  choose and fallback between intended to help both with distributing the load
+  over the available mirrors and ensuring that clients can acquire data even if
+  some configured mirrors are not available.</div>
+<p class="Pp"><b>file</b></p>
+<div class="Bd-indent">The file scheme allows an arbitrary directory in the file
+  system to be considered an archive. This is useful for NFS mounts and local
+  mirrors or archives.</div>
+<p class="Pp"><b>cdrom</b></p>
+<div class="Bd-indent">The cdrom scheme allows APT to use a local CD-ROM, DVD or
+  USB drive with media swapping. Use the <a href="/manpages/resolute/man8/apt-cdrom.8.html"><b>apt-cdrom</b>(8)</a> program to create
+  cdrom entries in the source list.</div>
+<p class="Pp"><b>copy</b></p>
+<div class="Bd-indent">The copy scheme is identical to the file scheme except
+  that packages are copied into the cache directory instead of used directly at
+  their location. This is useful for people using removable media to copy files
+  around with APT.</div>
+<p class="Pp">adding more recognizable URI types</p>
+<div class="Bd-indent">APT can be extended with more methods shipped in other
+  optional packages, which should follow the naming scheme
+  apt-transport-<i>method</i>. For instance, the APT team also maintains the
+  package apt-transport-tor, which provides access methods for HTTP and HTTPS
+  URIs routed via the Tor network.</div>
+</section>
+<h2 id="examples" class="Sh"><a class="permalink" href="#examples">EXAMPLES</a></h2>
+<section class="Sh mp-section"><p class="Pp">Uses the archive stored locally (or NFS mounted) at
+    /home/apt/debian for stable/main, stable/contrib, stable/non-free and
+    stable/non-free-firmware.</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>deb file:/home/apt/debian stable main contrib non-free non-free-firmware</pre>
+</div>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>Types: deb
+URIs: file:/home/apt/debian
+Suites: stable
+Components: main contrib non-free non-free-firmware</pre>
+</div>
+<p class="Pp">As above, except this uses the unstable (development)
+    distribution.</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>deb file:/home/apt/debian unstable main contrib non-free non-free-firmware</pre>
+</div>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>Types: deb
+URIs: file:/home/apt/debian
+Suites: unstable
+Components: main contrib non-free non-free-firmware</pre>
+</div>
+<p class="Pp">Sources specification for the above.</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>deb-src file:/home/apt/debian unstable main contrib non-free non-free-firmware</pre>
+</div>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>Types: deb-src
+URIs: file:/home/apt/debian
+Suites: unstable
+Components: main contrib non-free non-free-firmware</pre>
+</div>
+<p class="Pp">The first line gets package information for the architectures in
+    APT::Architectures while the second always retrieves amd64 and armel.</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>deb http://deb.debian.org/debian trixie main
+deb [ arch=amd64,armel ] http://deb.debian.org/debian trixie main</pre>
+</div>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>Types: deb
+URIs: http://deb.debian.org/debian
+Suites: trixie
+Components: main
+Types: deb
+URIs: http://deb.debian.org/debian
+Suites: trixie
+Components: main
+Architectures: amd64 armel</pre>
+</div>
+<p class="Pp">Uses HTTP to access the archive at archive.debian.org, and uses
+    only the hamm/main area.</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>deb http://archive.debian.org/debian-archive hamm main</pre>
+</div>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>Types: deb
+URIs: http://archive.debian.org/debian-archive
+Suites: hamm
+Components: main</pre>
+</div>
+<p class="Pp">Uses HTTPS to access the archive at deb.debian.org, under the
+    debian directory, and uses only the trixie/contrib area.</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>deb https://deb.debian.org/debian trixie contrib</pre>
+</div>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>Types: deb
+URIs: https://deb.debian.org/debian
+Suites: trixie
+Components: contrib</pre>
+</div>
+<p class="Pp">Uses HTTPS to access the archive at deb.debian.org, under the
+    debian directory, and uses only the unstable/contrib area. If this line
+    appears as well as the one in the previous example in sources.list a single
+    HTTPS session will be used for both resource lines.</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>deb https://deb.debian.org/debian unstable contrib</pre>
+</div>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>Types: deb
+URIs: https://deb.debian.org/debian
+Suites: unstable
+Components: contrib</pre>
+</div>
+<p class="Pp">Uses HTTP to access the archive at ftp.tlh.debian.org, under the
+    universe directory, and uses only files found under unstable/binary-i386 on
+    i386 machines, unstable/binary-amd64 on amd64, and so forth for other
+    supported architectures. [Note this example only illustrates how to use the
+    substitution variable; official debian archives are not structured like
+    this]</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>deb http://ftp.tlh.debian.org/universe unstable/binary-$(ARCH)/</pre>
+</div>
+<p class="Pp"></p>
+<p class="Pp"></p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>Types: deb
+URIs: http://ftp.tlh.debian.org/universe
+Suites: unstable/binary-$(ARCH)/</pre>
+</div>
+<p class="Pp">Uses HTTP to get binary packages as well as sources from the
+    stable, testing and unstable suites and the components main and contrib.</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>deb http://deb.debian.org/debian stable main contrib
+deb-src http://deb.debian.org/debian stable main contrib
+deb http://deb.debian.org/debian testing main contrib
+deb-src http://deb.debian.org/debian testing main contrib
+deb http://deb.debian.org/debian unstable main contrib
+deb-src http://deb.debian.org/debian unstable main contrib</pre>
+</div>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>Types: deb deb-src
+URIs: http://deb.debian.org/debian
+Suites: stable testing unstable
+Components: main contrib</pre>
+</div>
+<p class="Pp">Uses a specific timestamp for Snapshots.</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>Types: deb deb-src
+URIs: http://deb.debian.org/debian
+Suites: stable testing unstable
+Snapshot: 20250311T030104Z
+Components: main contrib
+   </pre>
+</div>
+<p class="Pp">Doesn't allow the optional parameter --snapshot.</p>
+<p class="Pp"></p>
+<div class="Bd-indent">
+<pre>Types: deb deb-src
+URIs: http://deb.debian.org/debian-security
+Suites: stable-security
+Snapshot: disable
+Components: main contrib non-free-firmware
+   </pre>
+</div>
+</section>
+<h2 id="see-also" class="Sh"><a class="permalink" href="#see-also">SEE
+  ALSO</a></h2>
+<section class="Sh mp-section"><p class="Pp"><a href="/manpages/resolute/man8/apt-get.8.html"><b>apt-get</b>(8)</a>, <a href="/manpages/resolute/man5/apt.conf.5.html"><b>apt.conf</b>(5)</a>,
+    /usr/share/doc/apt/acquire-additional-files.md.gz</p>
+</section>
+<h2 id="bugs" class="Sh"><a class="permalink" href="#bugs">BUGS</a></h2>
+<section class="Sh mp-section"><p class="Pp"><b>APT bug page</b>[1]. If you wish to report a bug in APT, please
+    see /usr/share/doc/debian/bug-reporting.txt or the <a href="/manpages/resolute/man1/reportbug.1.html"><b>reportbug</b>(1)</a>
+    command.</p>
+</section>
+<h2 id="authors" class="Sh"><a class="permalink" href="#authors">AUTHORS</a></h2>
+<section class="Sh mp-section"><p class="Pp"><b>Jason Gunthorpe</b></p>
+<div class="Bd-indent"></div>
+<p class="Pp"><b>APT team</b></p>
+<div class="Bd-indent"></div>
+</section>
+<h2 id="notes" class="Sh"><a class="permalink" href="#notes">NOTES</a></h2>
+<section class="Sh mp-section"><dl class="Bl-tag">
+  <dt> 1.</dt>
+  <dd>APT bug page</dd>
+</dl>
+<div class="Bd-indent">https://bugs.debian.org/src:apt</div>
+</section>
+  </div>
+</div>
+
+      </main>
+
+      <div class="l-docs__footer">
+        
+<footer class="p-strip is-dark">
+  <div class="row">
+    <div class="col-12">
+      <nav aria-label="Footer">
+        <p>
+          Powered by the
+          <a href="https://github.com/canonical/ubuntu-manpages-operator"
+            >Ubuntu Manpage Operator</a
+          >, file bugs in
+          <a href="https://github.com/canonical/ubuntu-manpages-operator/issues">GitHub</a>
+        </p>
+        <p>
+          &copy; Canonical Ltd. Ubuntu and Canonical are registered trademarks of Canonical Ltd.
+        </p>
+      </nav>
+    </div>
+  </div>
+</footer>
+
+      </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+    
+  </body>
+</html>

@@ -1,0 +1,414 @@
+﻿2026-11-11T16:33:43.5306232Z Current runner version: '2.338.2'
+2026-11-11T16:33:43.5344147Z ##[group]Runner Image Provisioner
+2026-11-11T16:33:43.5345513Z Hosted Compute Agent
+2026-11-11T16:33:43.5346780Z Version: 20261028.624
+2026-11-11T16:33:43.5348077Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-11T16:33:43.5349544Z Build Date: 2026-10-28T21:51:42Z
+2026-11-11T16:33:43.5351004Z Worker ID: {180bef1c-3c9d-46b6-9494-db7111961e7c}
+2026-11-11T16:33:43.5352384Z Region: eastus
+2026-11-11T16:33:43.5353345Z Cloud: Azure
+2026-11-11T16:33:43.5354410Z ##[endgroup]
+2026-11-11T16:33:43.5356948Z ##[group]Operating System
+2026-11-11T16:33:43.5358036Z Ubuntu
+2026-11-11T16:33:43.5358880Z 26.04.1
+2026-11-11T16:33:43.5359744Z LTS
+2026-11-11T16:33:43.5360758Z ##[endgroup]
+2026-11-11T16:33:43.5361754Z ##[group]Runner Image
+2026-11-11T16:33:43.5362914Z Image: ubuntu-26.04
+2026-11-11T16:33:43.5363894Z Version: 20261101.186.1
+2026-11-11T16:33:43.5366526Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-11T16:33:43.5369465Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261101.186
+2026-11-11T16:33:43.5371246Z ##[endgroup]
+2026-11-11T16:33:43.5373350Z ##[group]GITHUB_TOKEN Permissions
+2026-11-11T16:33:43.5376644Z Contents: read
+2026-11-11T16:33:43.5377779Z Metadata: read
+2026-11-11T16:33:43.5378947Z ##[endgroup]
+2026-11-11T16:33:43.5382025Z Secret source: Actions
+2026-11-11T16:33:43.5383736Z Cache mode: write
+2026-11-11T16:33:43.5385527Z Prepare workflow directory
+2026-11-11T16:33:43.5992767Z Prepare all required actions
+2026-11-11T16:33:43.6048533Z Getting action download info
+2026-11-11T16:33:43.7481305Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-11T16:33:43.9612148Z Complete job name: proverif-proof
+2026-11-11T16:33:44.0594568Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-11T16:33:44.0595843Z with:
+2026-11-11T16:33:44.0596557Z   persist-credentials: false
+2026-11-11T16:33:44.0597164Z   repository: billlza/q-periapt
+2026-11-11T16:33:44.0601192Z   token: ***
+2026-11-11T16:33:44.0601668Z   ssh-strict: true
+2026-11-11T16:33:44.0602149Z   ssh-user: git
+2026-11-11T16:33:44.0602613Z   clean: true
+2026-11-11T16:33:44.0603094Z   sparse-checkout-cone-mode: true
+2026-11-11T16:33:44.0603668Z   fetch-depth: 1
+2026-11-11T16:33:44.0604147Z   fetch-tags: false
+2026-11-11T16:33:44.0604650Z   show-progress: true
+2026-11-11T16:33:44.0605154Z   lfs: false
+2026-11-11T16:33:44.0605608Z   submodules: false
+2026-11-11T16:33:44.0606097Z   set-safe-directory: true
+2026-11-11T16:33:44.0606945Z   allow-unsafe-pr-checkout: false
+2026-11-11T16:33:44.0607938Z env:
+2026-11-11T16:33:44.0608419Z   CARGO_TERM_COLOR: always
+2026-11-11T16:33:44.0608977Z   RUSTFLAGS: -D warnings
+2026-11-11T16:33:44.0609540Z   CARGO_NET_RETRY: 10
+2026-11-11T16:33:44.0610059Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T16:33:44.0610619Z   GIT_CONFIG_COUNT: 1
+2026-11-11T16:33:44.0611150Z   GIT_CONFIG_KEY_0: init.defaultBranch
+2026-11-11T16:33:44.0611739Z   GIT_CONFIG_VALUE_0: main
+2026-11-11T16:33:44.0612244Z ##[endgroup]
+2026-11-11T16:33:44.3518258Z Syncing repository: billlza/q-periapt
+2026-11-11T16:33:44.3522332Z ##[group]Getting Git version info
+2026-11-11T16:33:44.3524378Z Working directory is '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T16:33:44.3527769Z [command]/usr/bin/git version
+2026-11-11T16:33:44.3529507Z git version 2.56.0
+2026-11-11T16:33:44.3540715Z ##[endgroup]
+2026-11-11T16:33:44.3556684Z Temporarily overriding HOME='/home/runner/work/_temp/ad4fea9e-bccd-406e-a11b-ed7409daceb7' before making global git config changes
+2026-11-11T16:33:44.3560184Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T16:33:44.3565069Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T16:33:44.3637992Z Deleting the contents of '/home/runner/work/q-periapt/q-periapt'
+2026-11-11T16:33:44.3642744Z ##[group]Determining repository object format
+2026-11-11T16:33:44.3646486Z ##[endgroup]
+2026-11-11T16:33:44.3649521Z ##[group]Initializing the repository
+2026-11-11T16:33:44.3652546Z [command]/usr/bin/git init /home/runner/work/q-periapt/q-periapt
+2026-11-11T16:33:44.3799501Z Initialized empty Git repository in /home/runner/work/q-periapt/q-periapt/.git/
+2026-11-11T16:33:44.3815773Z [command]/usr/bin/git remote add origin https://github.com/billlza/q-periapt
+2026-11-11T16:33:44.3868264Z ##[endgroup]
+2026-11-11T16:33:44.3871032Z ##[group]Disabling automatic garbage collection
+2026-11-11T16:33:44.3873385Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-11T16:33:44.3918248Z ##[endgroup]
+2026-11-11T16:33:44.3920187Z ##[group]Setting up auth
+2026-11-11T16:33:44.3921868Z Removing SSH command configuration
+2026-11-11T16:33:44.3924593Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T16:33:44.3972073Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T16:33:44.4450253Z Removing HTTP extra header
+2026-11-11T16:33:44.4455790Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T16:33:44.4500762Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T16:33:44.4779430Z Removing includeIf entries pointing to credentials config files
+2026-11-11T16:33:44.4784525Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T16:33:44.4823102Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T16:33:44.5126606Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-da813cc0-4486-431e-a284-caedc55d6036.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-11T16:33:44.5174070Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path /home/runner/work/_temp/git-credentials-da813cc0-4486-431e-a284-caedc55d6036.config
+2026-11-11T16:33:44.5222090Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-da813cc0-4486-431e-a284-caedc55d6036.config
+2026-11-11T16:33:44.5273119Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-da813cc0-4486-431e-a284-caedc55d6036.config
+2026-11-11T16:33:44.5317300Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-da813cc0-4486-431e-a284-caedc55d6036.config
+2026-11-11T16:33:44.5353592Z ##[endgroup]
+2026-11-11T16:33:44.5356830Z ##[group]Fetching the repository
+2026-11-11T16:33:44.5364052Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +706207d11ddfc6371176698fd302b20d7714bbdb:refs/remotes/pull/121/merge
+2026-11-11T16:36:02.0045152Z From https://github.com/billlza/q-periapt
+2026-11-11T16:36:02.0046241Z  * [new ref]         706207d11ddfc6371176698fd302b20d7714bbdb -> pull/121/merge
+2026-11-11T16:36:02.0067841Z ##[endgroup]
+2026-11-11T16:36:02.0068870Z ##[group]Determining the checkout info
+2026-11-11T16:36:02.0069627Z ##[endgroup]
+2026-11-11T16:36:02.0070191Z [command]/usr/bin/git sparse-checkout disable
+2026-11-11T16:36:02.0121196Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-11T16:36:02.0154048Z ##[group]Checking out the ref
+2026-11-11T16:36:02.0158560Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/121/merge
+2026-11-11T16:36:03.0844395Z Updating files:  70% (5626/7929)
+2026-11-11T16:36:03.7563902Z Updating files:  71% (5630/7929)
+2026-11-11T16:36:04.1156723Z Updating files:  72% (5709/7929)
+2026-11-11T16:36:04.2439285Z Updating files:  72% (5763/7929)
+2026-11-11T16:36:04.6250904Z Updating files:  73% (5789/7929)
+2026-11-11T16:36:04.9887901Z Updating files:  74% (5868/7929)
+2026-11-11T16:36:05.0418033Z Updating files:  75% (5947/7929)
+2026-11-11T16:36:05.1306672Z Updating files:  75% (5951/7929)
+2026-11-11T16:36:05.8486536Z Updating files:  76% (6027/7929)
+2026-11-11T16:36:05.9991040Z Updating files:  77% (6106/7929)
+2026-11-11T16:36:06.0542859Z Updating files:  78% (6185/7929)
+2026-11-11T16:36:06.1833465Z Updating files:  78% (6206/7929)
+2026-11-11T16:36:06.5881533Z Updating files:  79% (6264/7929)
+2026-11-11T16:36:07.1294950Z Updating files:  80% (6344/7929)
+2026-11-11T16:36:08.0598043Z Updating files:  80% (6390/7929)
+2026-11-11T16:36:08.0598865Z Updating files:  80% (6421/7929)
+2026-11-11T16:36:08.9859660Z Updating files:  81% (6423/7929)
+2026-11-11T16:36:09.0596526Z Updating files:  82% (6502/7929)
+2026-11-11T16:36:09.2751654Z Updating files:  82% (6504/7929)
+2026-11-11T16:36:09.3191365Z Updating files:  83% (6582/7929)
+2026-11-11T16:36:09.3632542Z Updating files:  84% (6661/7929)
+2026-11-11T16:36:09.7900729Z Updating files:  85% (6740/7929)
+2026-11-11T16:36:10.0391726Z Updating files:  86% (6819/7929)
+2026-11-11T16:36:10.0475626Z Updating files:  86% (6859/7929)
+2026-11-11T16:36:10.8478620Z Updating files:  87% (6899/7929)
+2026-11-11T16:36:11.1018520Z Updating files:  88% (6978/7929)
+2026-11-11T16:36:12.0372974Z Updating files:  88% (6992/7929)
+2026-11-11T16:36:12.0877567Z Updating files:  88% (7042/7929)
+2026-11-11T16:36:12.7568875Z Updating files:  89% (7057/7929)
+2026-11-11T16:36:13.0564904Z Updating files:  90% (7137/7929)
+2026-11-11T16:36:13.2545082Z Updating files:  90% (7155/7929)
+2026-11-11T16:36:13.3416843Z Updating files:  91% (7216/7929)
+2026-11-11T16:36:13.3477775Z Updating files:  92% (7295/7929)
+2026-11-11T16:36:13.3549964Z Updating files:  93% (7374/7929)
+2026-11-11T16:36:13.3605663Z Updating files:  94% (7454/7929)
+2026-11-11T16:36:13.3649360Z Updating files:  95% (7533/7929)
+2026-11-11T16:36:13.3770560Z Updating files:  96% (7612/7929)
+2026-11-11T16:36:13.3870809Z Updating files:  97% (7692/7929)
+2026-11-11T16:36:13.3963314Z Updating files:  98% (7771/7929)
+2026-11-11T16:36:13.4050793Z Updating files:  99% (7850/7929)
+2026-11-11T16:36:13.4235129Z Updating files: 100% (7929/7929)
+2026-11-11T16:36:13.4235649Z Updating files: 100% (7929/7929), done.
+2026-11-11T16:36:13.4236183Z Note: switching to 'refs/remotes/pull/121/merge'.
+2026-11-11T16:36:13.4237256Z 
+2026-11-11T16:36:13.4238083Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-11T16:36:13.4239244Z changes and commit them, and you can discard any commits you make in this
+2026-11-11T16:36:13.4267211Z state without impacting any branches by switching back to a branch.
+2026-11-11T16:36:13.4296797Z 
+2026-11-11T16:36:13.4299145Z If you want to create a new branch to retain commits you create, you may
+2026-11-11T16:36:13.4300875Z do so (now or later) by using -c with the switch command. Example:
+2026-11-11T16:36:13.4301586Z 
+2026-11-11T16:36:13.4302010Z   git switch -c <new-branch-name>
+2026-11-11T16:36:13.4302510Z 
+2026-11-11T16:36:13.4302739Z Or undo this operation with:
+2026-11-11T16:36:13.4303121Z 
+2026-11-11T16:36:13.4303255Z   git switch -
+2026-11-11T16:36:13.4303449Z 
+2026-11-11T16:36:13.4303821Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-11T16:36:13.4304354Z 
+2026-11-11T16:36:13.4304959Z HEAD is now at 706207d Merge 2f42d2ce913421f9b7a7df39fbc56845d55717de into 48d0fb9a5651b50494ec33d025dda52bd2ff5eae
+2026-11-11T16:36:13.5044144Z ##[endgroup]
+2026-11-11T16:36:13.5097436Z [command]/usr/bin/git log -1 --format=%H
+2026-11-11T16:36:13.5129269Z 706207d11ddfc6371176698fd302b20d7714bbdb
+2026-11-11T16:36:13.5145489Z ##[group]Removing auth
+2026-11-11T16:36:13.5145960Z Removing SSH command configuration
+2026-11-11T16:36:13.5149622Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T16:36:13.5195636Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T16:36:13.5493918Z Removing HTTP extra header
+2026-11-11T16:36:13.5498318Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T16:36:13.5539704Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T16:36:13.5840809Z Removing includeIf entries pointing to credentials config files
+2026-11-11T16:36:13.5845174Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T16:36:13.5873762Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T16:36:13.5874767Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T16:36:13.5875357Z includeif.gitdir:/github/workspace/.git.path
+2026-11-11T16:36:13.5875745Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T16:36:13.5885740Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-11T16:36:13.5913389Z /home/runner/work/_temp/git-credentials-da813cc0-4486-431e-a284-caedc55d6036.config
+2026-11-11T16:36:13.5923427Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-da813cc0\-4486\-431e\-a284\-caedc55d6036\.config
+2026-11-11T16:36:13.6773614Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-11T16:36:13.6802364Z /home/runner/work/_temp/git-credentials-da813cc0-4486-431e-a284-caedc55d6036.config
+2026-11-11T16:36:13.6816231Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-da813cc0\-4486\-431e\-a284\-caedc55d6036\.config
+2026-11-11T16:36:13.8165797Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-11T16:36:13.8200911Z /github/runner_temp/git-credentials-da813cc0-4486-431e-a284-caedc55d6036.config
+2026-11-11T16:36:13.8209457Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-da813cc0\-4486\-431e\-a284\-caedc55d6036\.config
+2026-11-11T16:36:13.9789338Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-11T16:36:13.9818740Z /github/runner_temp/git-credentials-da813cc0-4486-431e-a284-caedc55d6036.config
+2026-11-11T16:36:13.9826929Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-da813cc0\-4486\-431e\-a284\-caedc55d6036\.config
+2026-11-11T16:36:14.0730885Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T16:36:14.1116581Z Removing credentials config '/home/runner/work/_temp/git-credentials-da813cc0-4486-431e-a284-caedc55d6036.config'
+2026-11-11T16:36:14.1118211Z ##[endgroup]
+2026-11-11T16:36:14.1650500Z ##[group]Run for e in ServerDone ClientFinish RevealSig RevealPQ RevealTrad; do
+2026-11-11T16:36:14.1651148Z [36;1mfor e in ServerDone ClientFinish RevealSig RevealPQ RevealTrad; do[0m
+2026-11-11T16:36:14.1651785Z [36;1m  grep -qE "^event ${e}\(" formal/proverif/handshake.pv || { echo "missing event: ${e}"; exit 1; }[0m
+2026-11-11T16:36:14.1652254Z [36;1mdone[0m
+2026-11-11T16:36:14.1652527Z [36;1mn=$(grep -cE '^query ' formal/proverif/handshake.pv)[0m
+2026-11-11T16:36:14.1653129Z [36;1mtest "$n" -eq 6 || { echo "expected exactly 6 queries, found $n"; exit 1; }[0m
+2026-11-11T16:36:14.1715484Z shell: /usr/bin/bash -e {0}
+2026-11-11T16:36:14.1715768Z env:
+2026-11-11T16:36:14.1715971Z   CARGO_TERM_COLOR: always
+2026-11-11T16:36:14.1716217Z   RUSTFLAGS: -D warnings
+2026-11-11T16:36:14.1716709Z   CARGO_NET_RETRY: 10
+2026-11-11T16:36:14.1716943Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T16:36:14.1717191Z ##[endgroup]
+2026-11-11T16:36:14.2503644Z ##[group]Run set -euo pipefail
+2026-11-11T16:36:14.2504041Z [36;1mset -euo pipefail[0m
+2026-11-11T16:36:14.2504302Z [36;1m[0m
+2026-11-11T16:36:14.2504507Z [36;1mOPAM_BIN=[0m
+2026-11-11T16:36:14.2504750Z [36;1mcleanup_opam_asset() {[0m
+2026-11-11T16:36:14.2505058Z [36;1m  test -n "$OPAM_BIN" || return 0[0m
+2026-11-11T16:36:14.2505381Z [36;1m  opam_parent=${OPAM_BIN%/*}[0m
+2026-11-11T16:36:14.2505682Z [36;1m  case "$opam_parent" in[0m
+2026-11-11T16:36:14.2506012Z [36;1m    /tmp/qperiapt-formal-tool-asset.?*) ;;[0m
+2026-11-11T16:36:14.2506647Z [36;1m    *)[0m
+2026-11-11T16:36:14.2507046Z [36;1m      printf 'error: refusing to clean unexpected opam asset path: %s\n' \[0m
+2026-11-11T16:36:14.2507475Z [36;1m        "$OPAM_BIN" >&2[0m
+2026-11-11T16:36:14.2507723Z [36;1m      return 1[0m
+2026-11-11T16:36:14.2507953Z [36;1m      ;;[0m
+2026-11-11T16:36:14.2508150Z [36;1m  esac[0m
+2026-11-11T16:36:14.2508368Z [36;1m  case "${opam_parent#/tmp/}" in[0m
+2026-11-11T16:36:14.2508669Z [36;1m    */*)[0m
+2026-11-11T16:36:14.2508964Z [36;1m      printf 'error: refusing nested opam asset path: %s\n' \[0m
+2026-11-11T16:36:14.2509333Z [36;1m        "$OPAM_BIN" >&2[0m
+2026-11-11T16:36:14.2509612Z [36;1m      return 1[0m
+2026-11-11T16:36:14.2509830Z [36;1m      ;;[0m
+2026-11-11T16:36:14.2510018Z [36;1m  esac[0m
+2026-11-11T16:36:14.2510320Z [36;1m  opam_suffix=${opam_parent#/tmp/qperiapt-formal-tool-asset.}[0m
+2026-11-11T16:36:14.2510701Z [36;1m  case "$opam_suffix" in[0m
+2026-11-11T16:36:14.2511126Z [36;1m    "" | *[!0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz._-]*)[0m
+2026-11-11T16:36:14.2511681Z [36;1m      printf 'error: refusing malformed opam asset path: %s\n' \[0m
+2026-11-11T16:36:14.2512049Z [36;1m        "$OPAM_BIN" >&2[0m
+2026-11-11T16:36:14.2512295Z [36;1m      return 1[0m
+2026-11-11T16:36:14.2512508Z [36;1m      ;;[0m
+2026-11-11T16:36:14.2512702Z [36;1m  esac[0m
+2026-11-11T16:36:14.2512934Z [36;1m  if [ "${#opam_suffix}" -gt 64 ]; then[0m
+2026-11-11T16:36:14.2513314Z [36;1m    printf 'error: refusing oversized opam asset path: %s\n' \[0m
+2026-11-11T16:36:14.2513686Z [36;1m      "$OPAM_BIN" >&2[0m
+2026-11-11T16:36:14.2513919Z [36;1m    return 1[0m
+2026-11-11T16:36:14.2514121Z [36;1m  fi[0m
+2026-11-11T16:36:14.2514382Z [36;1m  if [ -L "$opam_parent" ] || [ ! -d "$opam_parent" ]; then[0m
+2026-11-11T16:36:14.2514806Z [36;1m    printf 'error: refusing invalid opam asset directory: %s\n' \[0m
+2026-11-11T16:36:14.2515175Z [36;1m      "$opam_parent" >&2[0m
+2026-11-11T16:36:14.2515416Z [36;1m    return 1[0m
+2026-11-11T16:36:14.2515617Z [36;1m  fi[0m
+2026-11-11T16:36:14.2515872Z [36;1m  if [ "${OPAM_BIN##*/}" != opam-2.5.2-x86_64-linux ] || \[0m
+2026-11-11T16:36:14.2516243Z [36;1m    [ -L "$OPAM_BIN" ] || [ ! -f "$OPAM_BIN" ]; then[0m
+2026-11-11T16:36:14.2517009Z [36;1m    printf 'error: refusing to clean invalid opam asset: %s\n' \[0m
+2026-11-11T16:36:14.2517374Z [36;1m      "$OPAM_BIN" >&2[0m
+2026-11-11T16:36:14.2517663Z [36;1m    return 1[0m
+2026-11-11T16:36:14.2517865Z [36;1m  fi[0m
+2026-11-11T16:36:14.2518059Z [36;1m  rm -- "$OPAM_BIN"[0m
+2026-11-11T16:36:14.2518299Z [36;1m  rmdir -- "$opam_parent"[0m
+2026-11-11T16:36:14.2518535Z [36;1m}[0m
+2026-11-11T16:36:14.2518733Z [36;1mtrap cleanup_opam_asset EXIT[0m
+2026-11-11T16:36:14.2519007Z [36;1m[0m
+2026-11-11T16:36:14.2519275Z [36;1mbash artifact/ci_apt.sh libgtk2.0-dev ocaml pkg-config[0m
+2026-11-11T16:36:14.2519778Z [36;1mOPAM_BIN=$(sh artifact/python-run.sh artifact/formal_tool_asset.py --asset opam-2.5.2)[0m
+2026-11-11T16:36:14.2520284Z [36;1msudo install -m 0755 "$OPAM_BIN" /usr/local/bin/opam[0m
+2026-11-11T16:36:14.2520828Z [36;1mcleanup_opam_asset[0m
+2026-11-11T16:36:14.2521060Z [36;1mOPAM_BIN=[0m
+2026-11-11T16:36:14.2521298Z [36;1mtest "$(opam --version)" = "2.5.2"[0m
+2026-11-11T16:36:14.2521628Z [36;1mopam init -y --disable-sandboxing --no-setup[0m
+2026-11-11T16:36:14.2521945Z [36;1mopam install -y proverif.2.05[0m
+2026-11-11T16:36:14.2522412Z [36;1mtrap - EXIT[0m
+2026-11-11T16:36:14.2572994Z shell: /usr/bin/bash -e {0}
+2026-11-11T16:36:14.2573254Z env:
+2026-11-11T16:36:14.2573460Z   CARGO_TERM_COLOR: always
+2026-11-11T16:36:14.2573712Z   RUSTFLAGS: -D warnings
+2026-11-11T16:36:14.2573947Z   CARGO_NET_RETRY: 10
+2026-11-11T16:36:14.2574179Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-11T16:36:14.2574426Z ##[endgroup]
+2026-11-11T16:36:14.3780241Z APT source: https://mirrors.edge.kernel.org/ubuntu; suite=resolute; architecture=amd64
+2026-11-11T16:36:15.3067602Z Get:1 https://mirrors.edge.kernel.org/ubuntu resolute InRelease [136 kB]
+2026-11-11T16:36:15.4132013Z Get:2 https://mirrors.edge.kernel.org/ubuntu resolute-updates InRelease [137 kB]
+2026-11-11T16:36:15.4505733Z Get:3 https://mirrors.edge.kernel.org/ubuntu resolute-security InRelease [137 kB]
+2026-11-11T16:36:15.4861978Z Get:4 https://mirrors.edge.kernel.org/ubuntu resolute-backports InRelease [137 kB]
+2026-11-11T16:36:15.5253252Z Get:5 https://mirrors.edge.kernel.org/ubuntu resolute/main amd64 Packages [1480 kB]
+2026-11-11T16:36:15.8118171Z Get:6 https://mirrors.edge.kernel.org/ubuntu resolute/main amd64 c-n-f Metadata [32.4 kB]
+2026-11-11T16:36:15.8715355Z Get:7 https://mirrors.edge.kernel.org/ubuntu resolute/restricted amd64 Packages [152 kB]
+2026-11-11T16:36:15.9067405Z Get:8 https://mirrors.edge.kernel.org/ubuntu resolute/restricted amd64 c-n-f Metadata [388 B]
+2026-11-11T16:36:15.9417675Z Get:9 https://mirrors.edge.kernel.org/ubuntu resolute/universe amd64 Packages [16.0 MB]
+2026-11-11T16:36:16.3377899Z Get:10 https://mirrors.edge.kernel.org/ubuntu resolute/universe amd64 c-n-f Metadata [313 kB]
+2026-11-11T16:36:16.3747047Z Get:11 https://mirrors.edge.kernel.org/ubuntu resolute/multiverse amd64 Packages [290 kB]
+2026-11-11T16:36:16.4104581Z Get:12 https://mirrors.edge.kernel.org/ubuntu resolute/multiverse amd64 c-n-f Metadata [8276 B]
+2026-11-11T16:36:17.1942451Z Get:13 https://mirrors.edge.kernel.org/ubuntu resolute-updates/main amd64 Packages [868 kB]
+2026-11-11T16:36:17.4789212Z Get:14 https://mirrors.edge.kernel.org/ubuntu resolute-updates/main amd64 c-n-f Metadata [5756 B]
+2026-11-11T16:36:17.5384797Z Get:15 https://mirrors.edge.kernel.org/ubuntu resolute-updates/restricted amd64 Packages [602 kB]
+2026-11-11T16:36:17.6505894Z Get:16 https://mirrors.edge.kernel.org/ubuntu resolute-updates/restricted amd64 c-n-f Metadata [392 B]
+2026-11-11T16:36:17.6857137Z Get:17 https://mirrors.edge.kernel.org/ubuntu resolute-updates/universe amd64 Packages [389 kB]
+2026-11-11T16:36:17.7218356Z Get:18 https://mirrors.edge.kernel.org/ubuntu resolute-updates/universe amd64 c-n-f Metadata [4704 B]
+2026-11-11T16:36:17.7699533Z Get:19 https://mirrors.edge.kernel.org/ubuntu resolute-updates/multiverse amd64 Packages [21.0 kB]
+2026-11-11T16:36:17.9222127Z Get:20 https://mirrors.edge.kernel.org/ubuntu resolute-updates/multiverse amd64 c-n-f Metadata [256 B]
+2026-11-11T16:36:18.0561993Z Get:21 https://mirrors.edge.kernel.org/ubuntu resolute-security/main amd64 Packages [717 kB]
+2026-11-11T16:36:18.0941050Z Get:22 https://mirrors.edge.kernel.org/ubuntu resolute-security/main amd64 c-n-f Metadata [4616 B]
+2026-11-11T16:36:18.5023482Z Get:23 https://mirrors.edge.kernel.org/ubuntu resolute-security/restricted amd64 Packages [583 kB]
+2026-11-11T16:36:18.5682177Z Get:24 https://mirrors.edge.kernel.org/ubuntu resolute-security/restricted amd64 c-n-f Metadata [396 B]
+2026-11-11T16:36:18.8015377Z Get:25 https://mirrors.edge.kernel.org/ubuntu resolute-security/universe amd64 Packages [211 kB]
+2026-11-11T16:36:19.1581090Z Get:26 https://mirrors.edge.kernel.org/ubuntu resolute-security/universe amd64 c-n-f Metadata [3552 B]
+2026-11-11T16:36:19.3662718Z Get:27 https://mirrors.edge.kernel.org/ubuntu resolute-security/multiverse amd64 Packages [20.0 kB]
+2026-11-11T16:36:19.4033061Z Get:28 https://mirrors.edge.kernel.org/ubuntu resolute-security/multiverse amd64 c-n-f Metadata [120 B]
+2026-11-11T16:36:19.4400755Z Get:29 https://mirrors.edge.kernel.org/ubuntu resolute-backports/main amd64 c-n-f Metadata [112 B]
+2026-11-11T16:36:19.5497931Z Get:30 https://mirrors.edge.kernel.org/ubuntu resolute-backports/restricted amd64 c-n-f Metadata [120 B]
+2026-11-11T16:36:19.5843052Z Get:31 https://mirrors.edge.kernel.org/ubuntu resolute-backports/universe amd64 Packages [3136 B]
+2026-11-11T16:36:19.6188141Z Get:32 https://mirrors.edge.kernel.org/ubuntu resolute-backports/universe amd64 c-n-f Metadata [116 B]
+2026-11-11T16:36:19.6807178Z Get:33 https://mirrors.edge.kernel.org/ubuntu resolute-backports/multiverse amd64 c-n-f Metadata [120 B]
+2026-11-11T16:36:19.9002899Z Fetched 22.2 MB in 5s (4849 kB/s)
+2026-11-11T16:36:20.4865191Z Reading package lists...
+2026-11-11T16:36:20.8672159Z Reading package lists...
+2026-11-11T16:36:21.0757650Z Building dependency tree...
+2026-11-11T16:36:21.1159634Z Reading state information...
+2026-11-11T16:36:21.2208813Z Solving dependencies...
+2026-11-11T16:36:21.3041675Z The following additional packages will be installed:
+2026-11-11T16:36:21.3042686Z   autopoint brotli bsdextrautils bsdutils bzip2 bzip2-doc debhelper
+2026-11-11T16:36:21.3043696Z   dh-autoreconf dh-strip-nondeterminism dwz eject fdisk fontconfig
+2026-11-11T16:36:21.3044625Z   fontconfig-config gettext gir1.2-atk-1.0 gir1.2-freedesktop
+2026-11-11T16:36:21.3045572Z   gir1.2-freedesktop-dev gir1.2-gdkpixbuf-2.0 gir1.2-girepository-3.0
+2026-11-11T16:36:21.3046860Z   gir1.2-glib-2.0-dev gir1.2-gly-2 gir1.2-harfbuzz-0.0 gir1.2-pango-1.0
+2026-11-11T16:36:21.3047773Z   girepository-tools glycin-loaders glycin-thumbnailers
+2026-11-11T16:36:21.3048668Z   gnome-accessibility-themes gnome-themes-extra gnome-themes-extra-data
+2026-11-11T16:36:21.3049544Z   gtk2-engines-pixbuf ibus-gtk intltool-debian ledit libarchive-cpio-perl
+2026-11-11T16:36:21.3050456Z   libarchive-zip-perl libatk1.0-dev libblkid-dev libbrotli-dev libbz2-dev
+2026-11-11T16:36:21.3051345Z   libcairo-gobject2 libcairo-script-interpreter2 libcairo2 libcairo2-dev
+2026-11-11T16:36:21.3052272Z   libcamlp-streams-ocaml libcompiler-libs-ocaml-dev libdatrie-dev libdatrie1
+2026-11-11T16:36:21.3053170Z   libdebhelper-perl libfdisk1 libfile-stripnondeterminism-perl
+2026-11-11T16:36:21.3054023Z   libfontconfig-dev libfontconfig1 libfreetype-dev libfribidi-dev libfribidi0
+2026-11-11T16:36:21.3054928Z   libgail-common libgail18t64 libgdk-pixbuf-2.0-0 libgdk-pixbuf-2.0-dev
+2026-11-11T16:36:21.3055690Z   libgdk-pixbuf2.0-bin libgio-2.0-dev libgio-2.0-dev-bin libglib2.0-dev
+2026-11-11T16:36:21.3056226Z   libglib2.0-dev-bin libglycin-2-dev libgraphite2-dev libgtk2.0-0t64
+2026-11-11T16:36:21.3056974Z   libgtk2.0-bin libgtk2.0-common libharfbuzz-cairo0 libharfbuzz-dev
+2026-11-11T16:36:21.3057539Z   libharfbuzz-gobject0 libharfbuzz-icu0 libharfbuzz-subset0 libharfbuzz0b
+2026-11-11T16:36:21.3058099Z   libibus-1.0-5 libice-dev libice6 liblcms2-dev libmail-sendmail-perl
+2026-11-11T16:36:21.3058620Z   libmount-dev libpango-1.0-0 libpango1.0-dev libpangocairo-1.0-0
+2026-11-11T16:36:21.3059335Z   libpangoft2-1.0-0 libpangoxft-1.0-0 libpixman-1-0 libpixman-1-dev
+2026-11-11T16:36:21.3060139Z   libpkgconf7 libpng-dev libpng-tools librsvg2-common libseccomp-dev
+2026-11-11T16:36:21.3060980Z   libseccomp2 libselinux-dev libselinux1 libsepol-dev libsepol2 libsm-dev
+2026-11-11T16:36:21.3061875Z   libsm6 libstdlib-ocaml libstdlib-ocaml-dev libsys-hostname-long-perl
+2026-11-11T16:36:21.3062708Z   libsysprof-capture-4-dev libthai-dev libthai0 libx11-dev libx11-xcb1
+2026-11-11T16:36:21.3063339Z   libxau-dev libxau6 libxcb-dri3-0 libxcb-glx0 libxcb-present0 libxcb-randr0
+2026-11-11T16:36:21.3063842Z   libxcb-render0 libxcb-render0-dev libxcb-shm0 libxcb-shm0-dev libxcb-sync1
+2026-11-11T16:36:21.3064320Z   libxcb-xfixes0 libxcb1 libxcb1-dev libxcomposite-dev libxcomposite1
+2026-11-11T16:36:21.3065096Z   libxcursor-dev libxcursor1 libxdamage-dev libxdamage1 libxdmcp-dev libxdmcp6
+2026-11-11T16:36:21.3065610Z   libxext-dev libxext6 libxfixes-dev libxfixes3 libxft-dev libxft2 libxi-dev
+2026-11-11T16:36:21.3066106Z   libxi6 libxinerama-dev libxinerama1 libxml2-dev libxml2-utils libxrandr-dev
+2026-11-11T16:36:21.3067064Z   libxrandr2 libxrender-dev libxrender1 login mount native-architecture
+2026-11-11T16:36:21.3067545Z   ocaml-base ocaml-interp ocaml-man pango1.0-tools pkgconf pkgconf-bin
+2026-11-11T16:36:21.3068022Z   po-debconf util-linux util-linux-extra uuid-dev uuid-runtime x11proto-dev
+2026-11-11T16:36:21.3068414Z   xorg-sgml-doctools xtrans-dev
+2026-11-11T16:36:21.3068672Z Suggested packages:
+2026-11-11T16:36:21.3068969Z   dh-make gettext-doc libasprintf-dev libgettextpo-dev gnulib-l10n
+2026-11-11T16:36:21.3069419Z   libcairo2-doc ocaml-findlib libdatrie-doc freetype2-doc libglib2.0-doc
+2026-11-11T16:36:21.3069904Z   libgraphite2-utils gvfs libgtk2.0-doc libice-doc libpango1.0-doc seccomp
+2026-11-11T16:36:21.3070378Z   libsm-doc libthai-doc libx11-doc libxcb-doc libxext-doc ocaml-doc
+2026-11-11T16:36:21.3070759Z   elpa-tuareg graphicsmagick libmail-box-perl
+2026-11-11T16:36:21.4202544Z The following NEW packages will be installed:
+2026-11-11T16:36:21.4203314Z   autopoint bzip2-doc debhelper dh-autoreconf dh-strip-nondeterminism dwz
+2026-11-11T16:36:21.4203913Z   gettext gir1.2-atk-1.0 gir1.2-freedesktop gir1.2-freedesktop-dev
+2026-11-11T16:36:21.4204469Z   gir1.2-gdkpixbuf-2.0 gir1.2-glib-2.0-dev gir1.2-gly-2 gir1.2-harfbuzz-0.0
+2026-11-11T16:36:21.4205067Z   gir1.2-pango-1.0 girepository-tools gnome-accessibility-themes
+2026-11-11T16:36:21.4205635Z   gnome-themes-extra gnome-themes-extra-data gtk2-engines-pixbuf ibus-gtk
+2026-11-11T16:36:21.4206244Z   intltool-debian ledit libarchive-cpio-perl libarchive-zip-perl libatk1.0-dev
+2026-11-11T16:36:21.4207322Z   libblkid-dev libbrotli-dev libbz2-dev libcairo-script-interpreter2
+2026-11-11T16:36:21.4208154Z   libcairo2-dev libcamlp-streams-ocaml libcompiler-libs-ocaml-dev
+2026-11-11T16:36:21.4208991Z   libdatrie-dev libdebhelper-perl libfile-stripnondeterminism-perl
+2026-11-11T16:36:21.4209864Z   libfontconfig-dev libfreetype-dev libfribidi-dev libgail-common libgail18t64
+2026-11-11T16:36:21.4210839Z   libgdk-pixbuf-2.0-dev libgdk-pixbuf2.0-bin libgio-2.0-dev libgio-2.0-dev-bin
+2026-11-11T16:36:21.4211767Z   libglib2.0-dev libglib2.0-dev-bin libglycin-2-dev libgraphite2-dev
+2026-11-11T16:36:21.4212510Z   libgtk2.0-0t64 libgtk2.0-bin libgtk2.0-common libgtk2.0-dev
+2026-11-11T16:36:21.4213278Z   libharfbuzz-cairo0 libharfbuzz-dev libharfbuzz-gobject0 libharfbuzz-icu0
+2026-11-11T16:36:21.4214060Z   libharfbuzz-subset0 libibus-1.0-5 libice-dev liblcms2-dev
+2026-11-11T16:36:21.4214809Z   libmail-sendmail-perl libmount-dev libpango1.0-dev libpangoxft-1.0-0
+2026-11-11T16:36:21.4215661Z   libpixman-1-dev libpng-dev libpng-tools librsvg2-common libseccomp-dev
+2026-11-11T16:36:21.4216719Z   libselinux-dev libsepol-dev libsm-dev libstdlib-ocaml libstdlib-ocaml-dev
+2026-11-11T16:36:21.4217714Z   libsys-hostname-long-perl libsysprof-capture-4-dev libthai-dev libx11-dev
+2026-11-11T16:36:21.4218696Z   libxau-dev libxcb-render0-dev libxcb-shm0-dev libxcb1-dev libxcomposite-dev
+2026-11-11T16:36:21.4219612Z   libxcursor-dev libxdamage-dev libxdmcp-dev libxext-dev libxfixes-dev
+2026-11-11T16:36:21.4220448Z   libxft-dev libxi-dev libxinerama-dev libxml2-utils libxrandr-dev
+2026-11-11T16:36:21.4221292Z   libxrender-dev native-architecture ocaml ocaml-base ocaml-interp ocaml-man
+2026-11-11T16:36:21.4222158Z   pango1.0-tools po-debconf uuid-dev x11proto-dev xorg-sgml-doctools
+2026-11-11T16:36:21.4222767Z   xtrans-dev
+2026-11-11T16:36:21.4225243Z The following packages will be DOWNGRADED:
+2026-11-11T16:36:21.4226182Z   brotli bsdextrautils bsdutils bzip2 eject fdisk fontconfig fontconfig-config
+2026-11-11T16:36:21.4227319Z   gir1.2-girepository-3.0 glycin-loaders glycin-thumbnailers libcairo-gobject2
+2026-11-11T16:36:21.4228106Z   libcairo2 libdatrie1 libfdisk1 libfontconfig1 libfribidi0
+2026-11-11T16:36:21.4229279Z   libgdk-pixbuf-2.0-0 libharfbuzz0b libice6 libpango-1.0-0 libpangocairo-1.0-0
+2026-11-11T16:36:21.4230084Z   libpangoft2-1.0-0 libpixman-1-0 libpkgconf7 libseccomp2 libselinux1
+2026-11-11T16:36:21.4230866Z   libsepol2 libsm6 libthai0 libx11-xcb1 libxau6 libxcb-dri3-0 libxcb-glx0
+2026-11-11T16:36:21.4231861Z   libxcb-present0 libxcb-randr0 libxcb-render0 libxcb-shm0 libxcb-sync1
+2026-11-11T16:36:21.4232678Z   libxcb-xfixes0 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxdmcp6
+2026-11-11T16:36:21.4233457Z   libxext6 libxfixes3 libxft2 libxi6 libxinerama1 libxml2-dev libxrandr2
+2026-11-11T16:36:21.4234201Z   libxrender1 login mount pkg-config pkgconf pkgconf-bin util-linux
+2026-11-11T16:36:21.4234753Z   util-linux-extra uuid-runtime
+2026-11-11T16:36:21.4681555Z E: Packages were downgraded and -y was used without --allow-downgrades.
+2026-11-11T16:36:21.4682504Z 0 upgraded, 106 newly installed, 61 downgraded, 0 to remove and 51 not upgraded.
+2026-11-11T16:36:21.4930163Z ##[error]Process completed with exit code 100.
+2026-11-11T16:36:21.5128662Z Post job cleanup.
+2026-11-11T16:36:21.5974590Z [command]/usr/bin/git version
+2026-11-11T16:36:21.6023149Z git version 2.56.0
+2026-11-11T16:36:21.6062692Z Temporarily overriding HOME='/home/runner/work/_temp/244f96fd-0fa9-452b-b6e7-8019b11c4697' before making global git config changes
+2026-11-11T16:36:21.6063693Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-11T16:36:21.6068429Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-11T16:36:21.6107478Z Removing SSH command configuration
+2026-11-11T16:36:21.6112842Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-11T16:36:21.6183293Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-11T16:36:21.6503359Z Removing HTTP extra header
+2026-11-11T16:36:21.6509644Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-11T16:36:21.6553265Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-11T16:36:21.6872376Z Removing includeIf entries pointing to credentials config files
+2026-11-11T16:36:21.6878777Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-11T16:36:21.6915101Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-11T16:36:21.7391871Z Cleaning up orphan processes

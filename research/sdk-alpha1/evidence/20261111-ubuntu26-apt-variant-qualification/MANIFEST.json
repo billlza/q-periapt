@@ -1,0 +1,157 @@
+{
+  "schema": 1,
+  "directory": "research/sdk-alpha1/evidence/20261111-ubuntu26-apt-variant-qualification",
+  "parent_commit": "7b82b487fba9b70f66ae3d38e909a0ed194a2ee5",
+  "production_source_commit": "96e9a63cf8359b130003cd851008a7ce3649aea7",
+  "prior_failure_packet": {
+    "directory": "research/sdk-alpha1/evidence/20261111-ubuntu26-apt-architecture-variants",
+    "manifest_sha256": "e9c713fee4d5338a6fcda7ec44f4a57bf85f9830d0941c6e9b39c32dc0d94a3f",
+    "unchanged": true
+  },
+  "files": [
+    {
+      "path": "API_SNAPSHOT.json",
+      "bytes": 5249,
+      "sha256": "4a59c9689034e05ff3d9b4685d2f0522d6c04a9de60494822e5e31f2085855a6",
+      "git_blob": "df6a0bd114c3bf7481e8a0f6c52df8bb421467d7"
+    },
+    {
+      "path": "ARTIFACTS.json",
+      "bytes": 928,
+      "sha256": "a8bfb0423769aad52bca1cb3d76629deff6d218723611fd9469ed4b57399f709",
+      "git_blob": "455be2864c5115269a036817b97f972fa8af1e67"
+    },
+    {
+      "path": "FIFTH_FAILURE.json",
+      "bytes": 7109,
+      "sha256": "9193de03275ee89132aa905ed47f8a24564eb1c3747acd2412fdbeb125297a8e",
+      "git_blob": "4f491ad8a32931dcf505d02cb8c04861aa70318f"
+    },
+    {
+      "path": "READBACK_VERIFICATION.json",
+      "bytes": 2490,
+      "sha256": "d45d0e12d7202d804f515ac2475c83c0cd8e135f325fcbd8397a9074ae01dddd",
+      "git_blob": "fb19dd35444956de459540057b70ba5852091c1f"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5944,
+      "sha256": "66b60e2addcfd8f97ecf985b97dda545163b033da9e95c89d7d9ecc1619a6d18",
+      "git_blob": "237c8504de3f64c84468d87677aef98484827b7c"
+    },
+    {
+      "path": "SOURCE_BINDING.json",
+      "bytes": 3244,
+      "sha256": "a13606be7aa47b704ff4ed27ddabe10137dcbdf34378f0131b269f3111e32444",
+      "git_blob": "531ac4d17eae8ade98a6ee08cd43c3b79d68bdbd"
+    },
+    {
+      "path": "VERIFICATION_EXECUTION.json",
+      "bytes": 535,
+      "sha256": "a8b306d423ae7b5ce223f9958c705452ea15eaaf9ac4f80b6948f51633ba49b5",
+      "git_blob": "d78e4b6ff810ad62963d2c001079387be321b541"
+    },
+    {
+      "path": "VERIFY_READBACK.py",
+      "bytes": 7830,
+      "sha256": "0d9f110f27e422a716652ad144dab253e56792f4ced2a73a121bd04704fbced6",
+      "git_blob": "317be47d28f6c3db24834c6e2e6e9066ba7b6c86"
+    },
+    {
+      "path": "ZIP_MEMBERS.json",
+      "bytes": 1698,
+      "sha256": "ff30a31bc621016235ae888d0a41ac05f8eacea58103d45965f65946ce44e92b",
+      "git_blob": "b7f4e919bbbbc0cdb4c42ef120d0cf4ad0334d38"
+    },
+    {
+      "path": "artifact/apt-install.log",
+      "bytes": 63773,
+      "sha256": "02e6bdeb3621c600cc58be19fb87c95f892425dbc5dcc3f74edf1cfa5ce9a004",
+      "git_blob": "41d77991b572abc36df06f101e19f92183f2b23a"
+    },
+    {
+      "path": "artifact/apt-time.txt",
+      "bytes": 19,
+      "sha256": "7de48ba79cf329d62d7b76ec6f9ad949c34ae3bd1b8f2d111e23843f7300f456",
+      "git_blob": "f24134e7d4ec04679f195397f4393d821395a6d3"
+    },
+    {
+      "path": "artifact/formal-dependency-consumers.log",
+      "bytes": 2570,
+      "sha256": "28d2ce92152c0b9981b026b6c9ca5c5e8cf4e3b0b93d0e1cc6678f22c2ef5a93",
+      "git_blob": "86627863faabf53118d5123acbf921450fa81408"
+    },
+    {
+      "path": "artifact/installed-after.tsv",
+      "bytes": 43373,
+      "sha256": "26e0fd928414a1e804b8f3583fa62591f452598814dbec97085ec1776d68d09d",
+      "git_blob": "9570105f5d53c8ebfcedb3ce1b255702286efb01"
+    },
+    {
+      "path": "artifact/installed-before.tsv",
+      "bytes": 38174,
+      "sha256": "b21ae06212f8ce6bd6a95cf57a1279afa93ce7fef569887ea63cce2b268cfe0a",
+      "git_blob": "b0c6e8a7c756c255394ad37e9f30e27994bcc300"
+    },
+    {
+      "path": "artifact/native-cross-consumers.log",
+      "bytes": 1055,
+      "sha256": "9a281be0bed9dbca32c8ff4bb917eaed2ef7bb2024f0a8ca42c5fa588abd77b0",
+      "git_blob": "22791a0562db312f96716215382bc04c8966c9e4"
+    },
+    {
+      "path": "artifact/openssl-consumer.log",
+      "bytes": 1751,
+      "sha256": "058bdeb089d8ff8b685afb248b600b9310a4163df8d5581c12dd2bb9b443236a",
+      "git_blob": "1e9a1f2a744b6312b95c4c72e1f551a5287d3c43"
+    },
+    {
+      "path": "artifact/package-transition.json",
+      "bytes": 6787,
+      "sha256": "e73c015e18bad34f6062735d29c1f2e067012818f2506240b434347d588d4a6c",
+      "git_blob": "e8abade0e6ed41ef8ac5fce82ea61b6e60baaf4a"
+    },
+    {
+      "path": "artifact/runner-architecture.txt",
+      "bytes": 592,
+      "sha256": "c6a19d7584cea1df2aaf04426c55124807a73cffca9bf730c7313925c4ce1613",
+      "git_blob": "7b22f4c811a4b9b539e1ae575d14aebf545830a8"
+    },
+    {
+      "path": "artifact/source.txt",
+      "bytes": 82,
+      "sha256": "da65b3a851c73569779ecc397bbeb630386e4ccfe9999fac0d9a2670865aa700",
+      "git_blob": "dba39e19c958d80a6a573e1a24c64b7e50bf7db7"
+    },
+    {
+      "path": "artifact.zip",
+      "bytes": 38191,
+      "sha256": "5b14796db2e16db53f3e6bce200a7570ea8dc7afcd8635795b5f559cd649f746",
+      "git_blob": "8f527104a6060ba3bc048374683abdd622f4da47"
+    },
+    {
+      "path": "fifth-failure.log",
+      "bytes": 43199,
+      "sha256": "fb7c0e9e8e155e7aeb357aad9cf4b8a8d6fd7a1fb36a69c9b9cc1df716e090bf",
+      "git_blob": "3f8f63fc0056bdb4e36baaa1b7a2fb2d1df99dd8"
+    },
+    {
+      "path": "job-130667389723.log",
+      "bytes": 136548,
+      "sha256": "8f38c59b9cf219ad692f6443a4601eb7696fc18f599ee35fd92adf5672362680",
+      "git_blob": "5fb230ea636c89a9932cd62330ef3bd52c2f5329"
+    },
+    {
+      "path": "verification.log",
+      "bytes": 2174,
+      "sha256": "124ae3bf5e2794a78d8dce68f2f7ecf431a4517188c851e71409841bf6a85ac7",
+      "git_blob": "d4f5c5d9175a27e6bc8082d8bd9a310a260b3fd3"
+    },
+    {
+      "path": "workflow.yml",
+      "bytes": 7186,
+      "sha256": "c49ed954c3473b906961b941ffaa0b29f45569bca1320a06a46be81b2b67914c",
+      "git_blob": "0598e84b1dc0a02dc81675ba53cf28a691e5f49b"
+    }
+  ]
+}

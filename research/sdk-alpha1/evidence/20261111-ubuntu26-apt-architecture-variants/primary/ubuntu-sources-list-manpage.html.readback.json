@@ -1,0 +1,20 @@
+{
+  "url": "https://manpages.ubuntu.com/manpages/resolute/man5/sources.list.5.html",
+  "started_utc": "2026-11-11T16:49:05.620800+00:00",
+  "completed_utc": "2026-11-11T16:49:11.856007+00:00",
+  "http_status": 200,
+  "bytes": 45422,
+  "sha256": "4a1c766b16529faa0872bfab3b4db7e4d725bc6fc702dead59ada3010dc378e4",
+  "headers": {
+    "content-security-policy": "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline' https://assets.ubuntu.com; img-src 'self' data: https://assets.ubuntu.com; font-src 'self' https://assets.ubuntu.com https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    "content-type": "text/html; charset=utf-8",
+    "referrer-policy": "strict-origin-when-cross-origin",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "date": "Wed, 11 Nov 2026 16:49:11 GMT",
+    "x-envoy-upstream-service-time": "1721",
+    "server": "envoy",
+    "connection": "close",
+    "transfer-encoding": "chunked"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "observed_exit_code": 0,
+  "command": [
+    "python3",
+    "VERIFY_READBACK.py"
+  ],
+  "script_sha256": "0d9f110f27e422a716652ad144dab253e56792f4ced2a73a121bd04704fbced6",
+  "report_sha256": "d45d0e12d7202d804f515ac2475c83c0cd8e135f325fcbd8397a9074ae01dddd",
+  "stdout_sha256": "124ae3bf5e2794a78d8dce68f2f7ecf431a4517188c851e71409841bf6a85ac7",
+  "receipt_written_utc": "2026-11-11T17:00:10.602573+00:00",
+  "scope": "Pure existing-file readback; no APT install, compiler, consumer, test suite, or CI execution."
+}

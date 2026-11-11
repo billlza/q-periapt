@@ -1,0 +1,2156 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta property="og:title" content="Ubuntu 26.04 LTS summary" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://documentation.ubuntu.com/release-notes/26.04/summary-for-lts-users/" />
+<meta property="og:site_name" content="Ubuntu release notes" />
+<meta property="og:description" content="If you’re upgrading from Ubuntu 24.04 LTS (Noble Numbat), you receive the changes that happened in all the interim releases between Ubuntu 24.04 LTS and 26.04 LTS, as well as the most recent change..." />
+<meta property="og:image" content="https://assets.ubuntu.com/v1/cc828679-docs_illustration.svg" />
+<meta property="og:image:alt" content="Ubuntu release notes" />
+<meta name="description" content="If you’re upgrading from Ubuntu 24.04 LTS (Noble Numbat), you receive the changes that happened in all the interim releases between Ubuntu 24.04 LTS and 26.04 LTS, as well as the most recent change..." />
+
+    <meta property="article:modified_time" content="2026-10-14T13:54:17+00:00" />
+<link rel="alternate" type="text/markdown" href="index.html.md">
+<link rel="describedby" href="llms.txt"><link rel="index" title="Index" href="../../genindex/"><link rel="search" title="Search" href="../../search/"><link rel="next" title="Ubuntu 26.04 LTS changes since 25.10" href="../changes-since-previous-interim/"><link rel="prev" title="Ubuntu 26.04 LTS release notes" href="../">
+        <link rel="canonical" href="https://documentation.ubuntu.com/release-notes/26.04/summary-for-lts-users/">
+
+    <link rel="shortcut icon" href="../../_static/favicon.png"><!-- Generated with Sphinx 7.4.7 and Furo 2025.12.19 -->
+        <title>Ubuntu 26.04 LTS summary - Ubuntu release notes</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/config-options.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/contributors.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/related-links.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/terminal.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/youtube.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=022106c6" />
+    <link rel="stylesheet" type="text/css" href="../../_static/header.css?v=a8078839" />
+    <link rel="stylesheet" type="text/css" href="../../_static/github_issue_links.css?v=3d761185" />
+    <link rel="stylesheet" type="text/css" href="../../_static/furo_colors.css?v=4cd1adcf" />
+    
+<script async type="text/javascript" src="/_/static/javascript/readthedocs-addons.js"></script><meta name="readthedocs-project-slug" content="canonical-release-notes" /><meta name="readthedocs-version-slug" content="latest" /><meta name="readthedocs-resolver-filename" content="/26.04/summary-for-lts-users/" /><meta name="readthedocs-http-status" content="200" /></head>
+  <body>
+    <header id="header" class="p-navigation">
+
+  <div class="p-navigation__nav" role="menubar">
+
+    <ul class="p-navigation__links" role="menu">
+
+      <li>
+        
+        <a class="p-logo" href="https://ubuntu.com" aria-current="page">
+          <img src="../../_static/tag.png" alt="Logo" class="p-logo-image">
+          <div class="p-logo-text p-heading--4">Ubuntu release notes
+          </div>
+        </a>
+        
+      </li>
+
+      <li class="nav-ubuntu-com">
+        
+        <a href="https://ubuntu.com" class="p-navigation__link">ubuntu.com</a>
+        
+      </li>
+
+      <li class="nav-dropdown">
+        <a href="#" class="p-navigation__link nav-more-links"
+           id="more-resources-toggle"
+           aria-haspopup="true"
+           aria-expanded="false">
+          Ubuntu documentation
+        </a>
+        <ul class="more-links-dropdown" aria-labelledby="more-resources-toggle">
+          
+          <li>
+            <a href="https://documentation.ubuntu.com/desktop/" class="p-navigation__sub-link p-dropdown__link">Ubuntu Desktop</a>
+          </li>
+          
+          <li>
+            <a href="https://ubuntu.com/server/docs/" class="p-navigation__sub-link p-dropdown__link">Ubuntu Server</a>
+          </li>
+          
+          <li>
+            <a href="https://documentation.ubuntu.com/wsl/latest/" class="p-navigation__sub-link p-dropdown__link">Ubuntu on WSL</a>
+          </li>
+          
+          <li>
+            <a href="https://documentation.ubuntu.com/ubuntu-for-developers/" class="p-navigation__sub-link p-dropdown__link">Ubuntu for developers</a>
+          </li>
+          
+          <li>
+            <a href="https://documentation.ubuntu.com/project/" class="p-navigation__sub-link p-dropdown__link">Ubuntu project</a>
+          </li>
+          
+          <li>
+            <a href="https://documentation.ubuntu.com/pro/" class="p-navigation__sub-link p-dropdown__link">Ubuntu Pro</a>
+          </li>
+          
+        </ul>
+      </li>
+
+    </ul>
+  </div>
+</header>
+   
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../"><div class="brand">Ubuntu release notes</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../">
+  
+  <span class="sidebar-brand-text">Ubuntu release notes</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search/" role="search">
+    <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+    <input type="submit" value="Go">
+    <input type="hidden" name="check_keywords" value="yes">
+    <input type="hidden" name="area" value="default">
+  </form>
+  <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Supported LTS releases</span></p>
+<ul class="current">
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../">26.04 LTS (Resolute Raccoon)</a><input aria-label="Toggle navigation of 26.04 LTS (Resolute Raccoon)" checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul class="current">
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Summary for LTS users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../changes-since-previous-interim/">Changes since 25.10</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../1/">26.04.1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../schedule/">Release schedule</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../24.04/">24.04 LTS (Noble Numbat)</a><input aria-label="Toggle navigation of 24.04 LTS (Noble Numbat)" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../24.04/5/">24.04.5</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../24.04/4/">24.04.4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../24.04/3/">24.04.3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../24.04/2/">24.04.2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../24.04/1/">24.04.1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../24.04/schedule/">Release schedule</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../22.04/">22.04 LTS (Jammy Jellyfish)</a><input aria-label="Toggle navigation of 22.04 LTS (Jammy Jellyfish)" class="toctree-checkbox" id="toctree-checkbox-3" name="toctree-checkbox-3" role="switch" type="checkbox"/><label for="toctree-checkbox-3"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../22.04/5/">22.04.5</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../22.04/4/">22.04.4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../22.04/3/">22.04.3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../22.04/2/">22.04.2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../22.04/1/">22.04.1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../22.04/schedule/">Release schedule</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Supported interim releases</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../26.10/">26.10 (Stonking Stingray)</a><input aria-label="Toggle navigation of 26.10 (Stonking Stingray)" class="toctree-checkbox" id="toctree-checkbox-4" name="toctree-checkbox-4" role="switch" type="checkbox"/><label for="toctree-checkbox-4"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../26.10/schedule/">Release schedule</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Currently in development</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../27.04/">27.04 (Tenacious T-Rex)</a><input aria-label="Toggle navigation of 27.04 (Tenacious T-Rex)" class="toctree-checkbox" id="toctree-checkbox-5" name="toctree-checkbox-5" role="switch" type="checkbox"/><label for="toctree-checkbox-5"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../27.04/schedule/">Release schedule</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Other releases</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../future/">Future releases</a><input aria-label="Toggle navigation of Future releases" class="toctree-checkbox" id="toctree-checkbox-6" name="toctree-checkbox-6" role="switch" type="checkbox"/><label for="toctree-checkbox-6"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../28.04/schedule/">28.04 (V V)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../27.10/schedule/">27.10 (U U)</a></li>
+</ul>
+</li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../archive/">Older releases</a><input aria-label="Toggle navigation of Older releases" class="toctree-checkbox" id="toctree-checkbox-7" name="toctree-checkbox-7" role="switch" type="checkbox"/><label for="toctree-checkbox-7"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../25.10/">25.10 (Questing Quokka)</a><input aria-label="Toggle navigation of 25.10 (Questing Quokka)" class="toctree-checkbox" id="toctree-checkbox-8" name="toctree-checkbox-8" role="switch" type="checkbox"/><label for="toctree-checkbox-8"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../25.10/schedule/">Release schedule</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../25.04/">25.04 (Plucky Puffin)</a><input aria-label="Toggle navigation of 25.04 (Plucky Puffin)" class="toctree-checkbox" id="toctree-checkbox-9" name="toctree-checkbox-9" role="switch" type="checkbox"/><label for="toctree-checkbox-9"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../25.04/schedule/">Release schedule</a></li>
+</ul>
+</li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../24.10/">24.10 (Oracular Oriole)</a><input aria-label="Toggle navigation of 24.10 (Oracular Oriole)" class="toctree-checkbox" id="toctree-checkbox-10" name="toctree-checkbox-10" role="switch" type="checkbox"/><label for="toctree-checkbox-10"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../24.10/schedule/">Release schedule</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../23.10/">23.10 (Mantic Minotaur)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../23.04/">23.04 (Lunar Lobster)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../22.10/">22.10 (Kinetic Kudu)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../21.10/">21.10 (Impish Indri)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../21.04/">21.04 (Hirsute Hippo)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../20.10/">20.10 (Groovy Gorilla)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../20.04/">20.04 LTS (Focal Fossa)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../19.10/">19.10 (Eoan Ermine)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../19.04/">19.04 (Disco Dingo)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../18.10/">18.10 (Cosmic Cuttlefish)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../18.04/">18.04 LTS (Bionic Beaver)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../17.10/">17.10 (Artful Aardvark)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../17.04/">17.04 (Zesty Zapus)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../16.10/">16.10 (Yakkety Yak)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../16.04/">16.04 LTS (Xenial Xerus)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../15.10/">15.10 (Wily Werewolf)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../15.04/">15.04 (Vivid Vervet)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../14.10/">14.10 (Utopic Unicorn)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../14.04/">14.04 LTS (Trusty Tahr)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../13.10/">13.10 (Saucy Salamander)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../13.04/">13.04 (Raring Ringtail)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../12.10/">12.10 (Quantal Quetzal)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../12.04/">12.04 LTS (Precise Pangolin)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../11.10/">11.10 (Oneiric Ocelot)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../11.04/">11.04 (Natty Narwhal)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../10.10/">10.10 (Maverick Meerkat)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../10.04/">10.04 LTS (Lucid Lynx)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../9.10/">9.10 (Karmic Koala)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../9.04/">9.04 (Jaunty Jackalope)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../8.10/">8.10 (Intrepid Ibex)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../8.04/">8.04 LTS (Hardy Heron)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../7.10/">7.10 (Gutsy Gibbon)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../6.06/">6.06 LTS (Dapper Drake)</a></li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contribute/">Contribute to release notes</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="edit-this-page">
+  <a class="muted-link" href="https://github.com/ubuntu/ubuntu-release-notes/edit/main/docs/26.04/summary-for-lts-users.md" title="Contribute to this page">
+    <svg><use href="#svg-pencil"></use></svg>
+    <span class="visually-hidden">Contribute to this page</span>
+  </a>
+</div><div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="ubuntu-26-04-lts-summary">
+<span id="id1"></span><h1>Ubuntu 26.04 LTS summary<a class="headerlink" href="#ubuntu-26-04-lts-summary" title="Link to this heading">¶</a></h1>
+<p>If you’re upgrading <strong>from Ubuntu 24.04 LTS (Noble Numbat)</strong>, you receive the changes that happened in all the interim releases between Ubuntu 24.04 LTS and 26.04 LTS, as well as the most recent changes since Ubuntu 25.10.</p>
+<p>For details, see the complete interim release notes: <a class="reference internal" href="../../24.10/#ubuntu-24-10-release-notes"><span class="std std-ref">24.10</span></a>, <a class="reference internal" href="../../25.04/#ubuntu-25-04-release-notes"><span class="std std-ref">25.04</span></a> and <a class="reference internal" href="../../25.10/#ubuntu-25-10-release-notes"><span class="std std-ref">25.10</span></a>. Finally, review the latest <a class="reference internal" href="../changes-since-previous-interim/#ubuntu-26-04-lts-changes-since-25-10"><span class="std std-ref">Ubuntu 26.04 LTS changes since 25.10</span></a>.</p>
+<p>The following is an overview of the major changes.</p>
+<section id="desktop">
+<h2>Desktop<a class="headerlink" href="#desktop" title="Link to this heading">¶</a></h2>
+<section id="updated-applications">
+<h3>Updated applications<a class="headerlink" href="#updated-applications" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Firefox 🔥🦊 has been updated <a class="reference external" href="https://www.firefox.com/en-US/firefox/150.0/releasenotes/">to version 150</a>.</p></li>
+<li><p>LibreOffice 📚 has been updated from version 24.2 <a class="reference external" href="https://wiki.documentfoundation.org/ReleaseNotes/25.8">to 25.8</a>.</p></li>
+<li><p>Thunderbird 🌩️🐦 has been updated <a class="reference external" href="https://blog.thunderbird.net/2025/07/welcome-to-thunderbird-140-eclipse/">to version 140 “Eclipse”</a>.</p></li>
+<li><p>GNU Image Manipulation Program 🖼️ has received a major update from version 2.10 <a class="reference external" href="https://www.gimp.org/news/2025/03/16/gimp-3-0-released/">via 3.0</a> to <a class="reference external" href="https://www.gimp.org/news/2026/03/14/gimp-3-2-released/">3.2</a>.</p></li>
+</ul>
+</section>
+<section id="gnome-50">
+<h3>GNOME 50<a class="headerlink" href="#gnome-50" title="Link to this heading">¶</a></h3>
+<p>The GNOME desktop environment has been updated to version 50. Notable changes since GNOME 46 found in Ubuntu 24.04 LTS include the following:</p>
+<p class="rubric">From GNOME 47</p>
+<ul class="simple">
+<li><p>Support for small screens has been enhanced. Dialog windows are also more usable on narrow screens.</p></li>
+<li><p>Screen recording can be hardware-accelerated.</p></li>
+<li><p>Application rendering is now more responsive on slower devices.</p></li>
+<li><p>Remote login sessions persist if you disconnect.</p></li>
+<li><p>The file selection dialog is now based on the Files app, enabling more features.</p></li>
+<li><p>The Files app improves the navigation of network resources and other locations. It also shows more information on your search progress.</p></li>
+<li><p>Accessibility settings add the <em>Activate windows on hover</em> option.</p></li>
+<li><p>Keyboard settings show a preview of your keyboard layout in the add dialog.</p></li>
+<li><p>Power settings add new suspend timers for mobile devices.</p></li>
+<li><p>The Web app can automatically fill forms, comes with a redesigned bookmarks sidebar and provides a privacy report.</p></li>
+<li><p>In the Calendar app, the event details popover has been redesigned.</p></li>
+</ul>
+<p class="rubric">From GNOME 48</p>
+<ul class="simple">
+<li><p>Notifications are now grouped by application to prevent the list from getting too long.</p></li>
+<li><p>GNOME now includes the <a class="reference external" href="https://discourse.ubuntu.com/t/triple-buffering-a-debrief/56314">triple buffering</a> feature from Ubuntu, improving responsiveness.</p></li>
+<li><p>Certain core GNOME components now use less CPU and memory.</p></li>
+<li><p>The image viewer now supports simple image editing.</p></li>
+<li><p>Digital Wellbeing features are now available, including screen time limits and break reminders.</p></li>
+<li><p>A new battery health preservation option is available.</p></li>
+<li><p>The Calendar app now supports managing events across multiple timezones.</p></li>
+<li><p>High Dynamic Range (HDR) output is now available for displays that support it.</p></li>
+<li><p>The design of the Text Editor app has been improved.</p></li>
+<li><p>Apps can now set up system-wide keyboard shortcuts.</p></li>
+<li><p>New windows are now placed in the center of the screen by default.</p></li>
+<li><p>Screen reader shortcuts, such as the <kbd class="kbd docutils literal notranslate">CapsLock</kbd> Orca modifier, now function correctly in the Wayland session.</p></li>
+</ul>
+<p class="rubric">From GNOME 49</p>
+<ul class="simple">
+<li><p>The calendar app is now fully accessible when using the keyboard.</p></li>
+<li><p>The Web app improves ad-blocking, estimates page reading time, enhances security options and improves search.</p></li>
+<li><p>The remote desktop solution now supports multi-touch input for touch screens, relative mouse input for gaming, and extended virtual monitors.</p></li>
+<li><p>Media playback controls are now displayed on the lock screen.</p></li>
+<li><p>The accessibility menu is now easier to find on the login screen.</p></li>
+</ul>
+<p class="rubric">From GNOME 50</p>
+<ul class="simple">
+<li><p>Parental control options have been enhanced.</p></li>
+<li><p>The Orca screen reader has been significantly improved.</p></li>
+<li><p>A new Reduced Motion option enables you to reduce interface animations.</p></li>
+<li><p>The annotation feature in the Document Viewer app has been modernized.</p></li>
+<li><p>The Files app brings better performance and reliability, as well as a more refined user interface.</p></li>
+<li><p>The Calendar app introduces an attendee list feature and comes with a more polished event management interface.</p></li>
+<li><p>Date &amp; Time settings enable you to set the first day of the week.</p></li>
+<li><p>Sound settings more clearly distinguish between input and output.</p></li>
+<li><p>The GNOME remote desktop solution enables hardware acceleration to improve performance. It also provides a more stable experience with NVIDIA drivers, scales HiDPI displays correctly and enables you to use your webcam from a remote connection.</p></li>
+<li><p>Variable Refresh Rate (VRR) and Fractional Scaling Support have been improved.</p></li>
+<li><p>The mouse cursor now operates smoothly at the maximum frame rate even if a game or professional app is running at a lower frame rate.</p></li>
+<li><p>The desktop is now smoother with NVIDIA drivers.</p></li>
+<li><p>Color management has been updated to the latest Wayland standard.</p></li>
+<li><p>You can now record or screen-share monitors displaying High Dynamic range (HDR) content.</p></li>
+</ul>
+<p class="rubric">Other major highlights</p>
+<ul class="simple">
+<li><p>You can now set an application to start automatically after login in <span class="menuselection">Settings ‣ Apps</span>.</p></li>
+<li><p>Fractional scaling is now enabled by default. Fractional scaling factors have been optimized so as to minimize blur.</p></li>
+<li><p>The default monospace font size has been reduced to match the default user interface font size. The monospace font is used in terminals and similar applications.</p></li>
+<li><p>The <a class="reference external" href="https://apps.gnome.org/Sysprof/">Sysprof</a> app is installed by default as a new system utility. This makes it easier to discover performance issues in your apps.</p></li>
+</ul>
+<p>For details, see the upstream release notes: <a class="reference external" href="https://release.gnome.org/47/">GNOME 47</a>, <a class="reference external" href="https://release.gnome.org/48/">GNOME 48</a>, <a class="reference external" href="https://release.gnome.org/49/">GNOME 49</a> and <a class="reference external" href="https://release.gnome.org/50/">GNOME 50</a>.</p>
+</section>
+<section id="added-a-gnome-shell-search-provider-for-snap-applications">
+<h3>Added a GNOME Shell search provider for snap applications<a class="headerlink" href="#added-a-gnome-shell-search-provider-for-snap-applications" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+<p>The GNOME Shell global search gained the ability to search for the available snap applications that match the search criteria.</p>
+<p>This feature can be disabled in the Search panel of the Settings app.</p>
+</section>
+<section id="added-a-gnome-shell-search-provider-for-web-search">
+<h3>Added a GNOME Shell search provider for web search<a class="headerlink" href="#added-a-gnome-shell-search-provider-for-web-search" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+<p>You can now initiate a web search with your default browser from the GNOME Shell global search in the overview.</p>
+<p>This feature can be disabled in the Search panel of the Settings app.</p>
+</section>
+<section id="accessibility-improvements-and-fixes">
+<h3>Accessibility improvements and fixes<a class="headerlink" href="#accessibility-improvements-and-fixes" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+<p>On top of the upstream improvements, the Ubuntu extensions have been improved to better address various accessibility requirements.</p>
+</section>
+<section id="yaru-theme-updates">
+<h3>Yaru theme updates<a class="headerlink" href="#yaru-theme-updates" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+<p>The <a class="reference external" href="https://github.com/ubuntu/yaru">Yaru theme</a> has moved closer to the looks of the upstream GNOME theme. It has also received many icon updates.</p>
+</section>
+<section id="improved-integration-with-snap-applications">
+<h3>Improved integration with snap applications<a class="headerlink" href="#improved-integration-with-snap-applications" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+<p>Snap applications using <a class="reference external" href="https://flatpak.github.io/xdg-desktop-portal/">XDG Desktop Portals</a> are now better integrated into the desktop. Users can fully manage their access permissions and reach resources outside of the application’s confinement in a natural way.</p>
+<p>In particular:</p>
+<ul class="simple">
+<li><p>It’s possible to open files or directories located in any path of the system with other desktop applications. For example, it’s possible to open any file regardless of its location with the file manager using a snap application. This applies both to opening the file explicitly and using drag-and-drop.</p></li>
+<li><p>It’s possible to use Camera, Notification, USB and other XDG Desktop portals.</p></li>
+<li><p>Snap application portal permissions can be controlled in GNOME Settings.</p></li>
+</ul>
+</section>
+<section id="new-document-viewer">
+<h3>New document viewer<a class="headerlink" href="#new-document-viewer" title="Link to this heading">¶</a></h3>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 25.04.</span></p>
+</div>
+<p>The Document Viewer app for viewing PDFs is now provided by Papers instead of Evince. Papers started with the Evince codebase but it has been updated to use GTK4 and partially rewritten in Rust.</p>
+</section>
+<section id="new-image-viewer">
+<h3>New image viewer<a class="headerlink" href="#new-image-viewer" title="Link to this heading">¶</a></h3>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 25.10.</span></p>
+</div>
+<p>The Image Viewer app is now provided by <a class="reference external" href="https://apps.gnome.org/Loupe/">Loupe</a> instead of Eye of GNOME (EOG). Loupe is written in Rust and powered by the <a class="reference external" href="https://gitlab.gnome.org/GNOME/glycin">Glycin</a> library.</p>
+</section>
+<section id="new-terminal-emulator">
+<h3>New terminal emulator<a class="headerlink" href="#new-terminal-emulator" title="Link to this heading">¶</a></h3>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 25.10.</span></p>
+</div>
+<p>The Terminal app is now provided by <a class="reference external" href="https://gitlab.gnome.org/chergert/ptyxis/-/blob/main/README.md?ref_type=heads">Ptyxis</a> instead of GNOME Terminal.</p>
+<p>Some of its major features:</p>
+<ul class="simple">
+<li><p>Quick access to containers through <code class="docutils literal notranslate"><span class="pre">podman</span></code>, <code class="docutils literal notranslate"><span class="pre">toolbox</span></code> or <code class="docutils literal notranslate"><span class="pre">distrobox</span></code></p></li>
+<li><p>Session-save to restore tabs in their directory as well as their container after re-opening the app</p></li>
+<li><p>Light and dark theme support with color palettes that extend into the window itself</p></li>
+</ul>
+</section>
+<section id="new-system-monitor">
+<h3>New system monitor<a class="headerlink" href="#new-system-monitor" title="Link to this heading">¶</a></h3>
+<p>The <a class="reference external" href="https://apps.gnome.org/Resources/">Resources</a> app now replaces the System Monitor app and the Power Statistics app in the GNOME environment.</p>
+<p>Resources enable you to monitor the utilization of your system resources, including the CPU, memory, GPU, network and storage and power usage. Compared to System Monitor, it comes with the following enhancements:</p>
+<ul class="simple">
+<li><p>It groups processes into apps.</p></li>
+<li><p>It tracks GPU usage, including video encoder and decoder usage.</p></li>
+<li><p>It tracks Neural Processing Unit (NPU) usage.</p></li>
+<li><p>It tracks hardware statistics like CPU, GPU and memory clock frequency.</p></li>
+<li><p>It features a modern and accessible interface based on GTK 4 and <code class="docutils literal notranslate"><span class="pre">libadwaita</span></code>.</p></li>
+<li><p>The app is written in the Rust programming language.</p></li>
+</ul>
+</section>
+<section id="new-default-video-player">
+<h3>New default video player<a class="headerlink" href="#new-default-video-player" title="Link to this heading">¶</a></h3>
+<p>The default video player is now <a class="reference external" href="https://apps.gnome.org/Showtime/">Showtime</a>, replacing Totem.</p>
+</section>
+<section id="new-video-and-audio-thumbnailers">
+<h3>New video and audio thumbnailers<a class="headerlink" href="#new-video-and-audio-thumbnailers" title="Link to this heading">¶</a></h3>
+<p>Previously, video and audio thumbnails were generated by the Totem video thumbnailer. Now, the <a class="reference external" href="https://salsa.debian.org/gnome-team/gst-thumbnailers"><code class="docutils literal notranslate"><span class="pre">gst-thumbnailers</span></code></a> project handles the same functionality.</p>
+<p>The new thumbnailers are written using the Rust GStreamer bindings and rely on the <a class="reference external" href="https://gitlab.gnome.org/GNOME/glycin">Glycin</a> library for image handling. They do a better job at finding “interesting” frames than the previous Totem thumbnailers.</p>
+</section>
+<section id="tracker-miners-updated-to-localsearch">
+<h3>Tracker Miners updated to LocalSearch<a class="headerlink" href="#tracker-miners-updated-to-localsearch" title="Link to this heading">¶</a></h3>
+<p>The Tracker Miners indexer has been renamed to LocalSearch. See the <a class="reference external" href="https://blogs.gnome.org/carlosg/2024/07/14/goodbye-tracker-hello-tinysparql-and-localsearch/">upstream announcement</a>. Ubuntu 26.04 LTS ships a substantial update of this tool from version 3.8.2 to 3.11.</p>
+<p>For LocalSearch to be able to index audio files, video files, ISO files and certain zip-compressed office files, you need to select <span class="guilabel">Install third-party software for graphics and Wi-Fi hardware and additional media formats</span> during the Ubuntu installation. You can also install the extractors manually after installation with the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>localsearch-extractor-<span class="o">{</span>ffmpeg,iso,office<span class="o">}</span>
+</pre></div>
+</div>
+</section>
+<section id="wayland-session">
+<h3>Wayland session<a class="headerlink" href="#wayland-session" title="Link to this heading">¶</a></h3>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 25.10.</span></p>
+</div>
+<p>The <em>Ubuntu Desktop</em> session now runs only on the Wayland back end, because GNOME Shell can <a class="reference external" href="https://discourse.ubuntu.com/t/ubuntu-25-10-drops-support-for-gnome-on-xorg/62538">no longer run as an X.org session</a>.</p>
+<p>You can still run applications developed for X.org through the XWayland compatibility layer.</p>
+<p>Other desktop sessions, such as <a class="reference external" href="https://kde.org/">KDE on X11</a>, <a class="reference external" href="https://www.xfce.org/">Xfce</a>, <a class="reference external" href="https://mate-desktop.org/">MATE</a>, <a class="reference external" href="https://i3wm.org/"><code class="docutils literal notranslate"><span class="pre">i3</span></code></a> and many others, can still be launched using an X.org session.</p>
+<p>Machines using Nvidia graphics now fully support Wayland.</p>
+</section>
+<section id="software-updates-app">
+<h3>Software &amp; Updates app<a class="headerlink" href="#software-updates-app" title="Link to this heading">¶</a></h3>
+<p>Ubuntu Desktop no longer includes the Software &amp; Updates settings app by default. For more details, see <a class="reference external" href="https://discourse.ubuntu.com/t/why-we-re-saying-goodbye-to-software-updates/76783">the Discourse announcement</a>.</p>
+<p>The app is still available in the Ubuntu repository and it’s been updated to use the GTK 4 toolkit.</p>
+<p>You can install the app manually with the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>software-properties-gtk
+</pre></div>
+</div>
+</section>
+<section id="nvidia-drivers">
+<h3>NVIDIA drivers<a class="headerlink" href="#nvidia-drivers" title="Link to this heading">¶</a></h3>
+<p>You can install NVIDIA drivers as follows:</p>
+<ul class="simple">
+<li><p>The fastest way to get a driver is: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">ubuntu-drivers</span> <span class="pre">install</span> <span class="pre">--recommended</span></code></p></li>
+<li><p>The supported way to get the latest driver is: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">ubuntu-drivers</span> <span class="pre">install</span> <span class="pre">nvidia:595</span></code></p></li>
+<li><p>You can get back the old GUI with: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt</span> <span class="pre">install</span> <span class="pre">software-properties-gtk</span></code></p></li>
+<li><p>The only drivers Ubuntu supports officially are those installed by the above methods.</p></li>
+</ul>
+</section>
+<section id="app-center-enhancements">
+<h3>App Center enhancements<a class="headerlink" href="#app-center-enhancements" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 24.10.</span></p>
+</div>
+<p>The App Center now includes improvements, including:</p>
+<ul class="simple">
+<li><p>Installs in progress</p></li>
+<li><p>Improved self-update handling</p></li>
+<li><p>Messaging for running snaps</p></li>
+<li><p>Direct uninstall of snaps from the manage page</p></li>
+<li><p>Scrolling support for touch screens</p></li>
+<li><p>Third party Deb installation</p></li>
+</ul>
+</section>
+<section id="security-center">
+<h3>Security Center<a class="headerlink" href="#security-center" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 24.10.</span></p>
+</div>
+<p>A new Security Center is included. It features the ability to easily enable or disable a new experimental <a class="reference external" href="https://discourse.ubuntu.com/t/ubuntu-desktop-s-24-10-dev-cycle-part-5-introducing-permissions-prompting/47963/1">permissions prompting</a> feature for Home directory permissions.</p>
+</section>
+<section id="permission-prompting">
+<h3>Permission prompting<a class="headerlink" href="#permission-prompting" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 24.10.</span></p>
+</div>
+<p>Prompting is also supported by an additional seeded snap, <code class="docutils literal notranslate"><span class="pre">prompting-client</span></code>, for permissions prompt handling.</p>
+</section>
+<section id="better-power-optimization">
+<h3>Better power optimization<a class="headerlink" href="#better-power-optimization" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 24.10.</span></p>
+</div>
+<p>Power Profiles Manager <a class="reference external" href="https://gitlab.freedesktop.org/upower/power-profiles-daemon/-/releases/#0.23">has been improved and optimized</a> to support better newer hardware features (especially AMD), can now support multiple optimization drivers and is now battery-aware to automatically increase the optimization levels when running on battery only.</p>
+</section>
+<section id="performance-improvements-in-windows-games">
+<h3>Performance improvements in Windows games<a class="headerlink" href="#performance-improvements-in-windows-games" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+<p>A new NTSYNC driver that emulates WinNT sync primitives is available, delivering better performance potential for Windows games running on Wine and Proton (Steam Play).</p>
+</section>
+<section id="new-arm64-desktop-image">
+<h3>New ARM64 Desktop image<a class="headerlink" href="#new-arm64-desktop-image" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+<p>There is now an official generic ARM64 Desktop ISO targeting VMs, ACPI + EFI platforms and Snapdragon based WoA devices.</p>
+<p>Initial hardware enablement work for the Snapdragon X Elite platform is included in the Desktop ISO.</p>
+</section>
+<section id="dual-boot-enhancements">
+<h3>Dual boot enhancements<a class="headerlink" href="#dual-boot-enhancements" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+<p>Improved dual boot user experience, with a focus on BitLocker protected Windows systems:</p>
+<ul class="simple">
+<li><p>Added the option to install Ubuntu alongside existing BitLocker partitions if enough unallocated  space (or a sufficiently large and resizable partition) is available</p></li>
+<li><p>Made encrypted installations and other ‘advanced options’ available for dual boot scenarios</p></li>
+</ul>
+</section>
+<section id="jpeg-xl-support">
+<h3>JPEG XL support<a class="headerlink" href="#jpeg-xl-support" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+<p>The JPEG XL format is now supported without needing to install any additional packages</p>
+</section>
+<section id="va-api-accelerated-video-encoding-and-decoding-by-default">
+<h3>VA-API accelerated video encoding and decoding by default<a class="headerlink" href="#va-api-accelerated-video-encoding-and-decoding-by-default" title="Link to this heading">¶</a></h3>
+<p>By default, hardware-accelerated video encoding and decoding are now provided for AMD and Intel users via the Video Acceleration API (VA-API).</p>
+</section>
+<section id="updated-optional-media-codecs">
+<h3>Updated optional media codecs<a class="headerlink" href="#updated-optional-media-codecs" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>The additional packages that you can enable during the Ubuntu installation have been updated. The updated package set now includes the non-free AAC codec for supported Bluetooth headsets.</p>
+<p>To install these codecs, select <span class="guilabel">Install third-party software for graphics and Wi-Fi hardware and additional media formats</span> in the Ubuntu installer.</p>
+</section>
+<section id="new-update-notifications">
+<h3>New update notifications<a class="headerlink" href="#new-update-notifications" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>When system updates are available, the Software Updater window no longer pops up unprompted, stealing the keyboard focus. Instead, a notification shows up with options to open the Software Updater or to install all updates directly.</p>
+<p>An icon in the system tray reminds you that updates are available even after dismissing the notification. It also provides a quick way to apply all the updates or inspect them in the Software Updater.</p>
+</section>
+<section id="installer-accessibility">
+<h3>Installer accessibility<a class="headerlink" href="#installer-accessibility" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>The Ubuntu installer has received plenty of accessibility fixes for screen reader users.</p>
+</section>
+<section id="ubuntu-insights">
+<h3>Ubuntu Insights<a class="headerlink" href="#ubuntu-insights" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p><a class="reference external" href="https://github.com/ubuntu/ubuntu-insights">Ubuntu Insights</a> is being developed as a replacement for <a class="reference external" href="https://github.com/ubuntu/ubuntu-report">Ubuntu Report</a> and gives you more control over the non-personally identifying system metrics that you choose to share with Canonical. The metrics collection is opt-in.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Any consent that you previously granted to Ubuntu Report will not be carried over to Ubuntu Insights.</p>
+</div>
+</section>
+<section id="prelogin-and-postsession-scripts-have-been-removed">
+<h3><code class="docutils literal notranslate"><span class="pre">PreLogin</span></code> and <code class="docutils literal notranslate"><span class="pre">PostSession</span></code> scripts have been removed<a class="headerlink" href="#prelogin-and-postsession-scripts-have-been-removed" title="Link to this heading">¶</a></h3>
+<div class="versionremoved">
+<p><span class="versionmodified removed">Removed in version 26.04.</span></p>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">PreLogin</span></code> and <code class="docutils literal notranslate"><span class="pre">PostSession</span></code> scripts have been removed from GNOME as part of the X11 code cleanup. These scripts are used in corporate environments, for example to synchronize the user’s home directory on login to a server and logout from a server, or to clean up sensitive data after logout.</p>
+<p>To work around the issue, you can reimplement the behavior of the removed scripts using <em class="manpage"><a class="manpage reference external" href="https://manpages.ubuntu.com/manpages/resolute/en/man5/pam.conf.5.html">PAM session modules</a></em>. For example, the actions that you were invoking from the GDM <code class="docutils literal notranslate"><span class="pre">PreLogin</span></code>, <code class="docutils literal notranslate"><span class="pre">PostLogin</span></code>, <code class="docutils literal notranslate"><span class="pre">PreSession</span></code> or <code class="docutils literal notranslate"><span class="pre">PostSession</span></code> scripts can be invoked from the <em class="manpage"><a class="manpage reference external" href="https://manpages.ubuntu.com/manpages/resolute/en/man8/pam_exec.8.html">pam_exec(8)</a></em> module instead.</p>
+<p>For details, see <a class="reference external" href="https://bugs.launchpad.net/ubuntu-release-notes/+bug/2144783">the Ubuntu bug</a> and <a class="reference external" href="https://gitlab.gnome.org/GNOME/gdm/-/issues/1059">the upstream issue</a>.</p>
+</section>
+</section>
+<section id="server">
+<h2>Server<a class="headerlink" href="#server" title="Link to this heading">¶</a></h2>
+<section id="openssh">
+<h3>OpenSSH<a class="headerlink" href="#openssh" title="Link to this heading">¶</a></h3>
+<p>The upgrade from Ubuntu 24.04 LTS, which had OpenSSH 1:9.6p1, to OpenSSH 1:10.2p1 includes major changes. Note the following:</p>
+<ul class="simple">
+<li><p>Deprecation warning for SHA1 SSHFP DNS records</p></li>
+<li><p>Add a warning when the connection negotiates a non-post quantum key agreement algorithm.</p></li>
+<li><p>Removes support for the weak DSA signature algorithm.</p></li>
+<li><p>New <code class="docutils literal notranslate"><span class="pre">PerSourcePenalties</span></code> option that will penalise client addresses that for some reason do not complete authentication. New in version 9.8.</p></li>
+<li><p>Support for a new hybrid post-quantum key exchange algorithm, called “mlkem768x25519-sha256”. Described in <a class="reference external" href="https://datatracker.ietf.org/doc/html/draft-kampanakis-curdle-ssh-pq-ke-03">https://datatracker.ietf.org/doc/html/draft-kampanakis-curdle-ssh-pq-ke-03</a>, it’s available by default. New in version 9.8.</p></li>
+<li><p>New match option invalid-user, which can be used when the target username is not valid</p></li>
+<li><p>New <code class="docutils literal notranslate"><span class="pre">sshd.service</span></code> alias to <code class="docutils literal notranslate"><span class="pre">ssh.service</span></code>. Both names can now be used in <code class="docutils literal notranslate"><span class="pre">systemctl</span></code> commands.</p></li>
+<li><p>New binary packages called <code class="docutils literal notranslate"><span class="pre">openssh-client-gssapi</span></code> and <code class="docutils literal notranslate"><span class="pre">openssh-server-gssapi</span></code>. This is in preparation for a future split of the GSSAPI authentication mechanism into separate packages in the near future. For now, they just pull in their non-gssapi counterparts, if installed. See <a class="reference external" href="https://lists.debian.org/debian-devel/2024/04/msg00044.html">https://lists.debian.org/debian-devel/2024/04/msg00044.html</a> for the detailed plan.</p></li>
+<li><p>Host DSA keys are no longer generated.</p></li>
+<li><p>Starting with 1:9.6p1-3ubuntu17, openssh server no longer reads <code class="docutils literal notranslate"><span class="pre">~/.pam_environment</span></code> of the target system upon login. See <a class="reference external" href="https://bugs.launchpad.net/ubuntu/+source/openssh/+bug/2059859/">LP: #2059859</a> for details.</p></li>
+</ul>
+<p>For full upstream release notes for all releases, please consult <a class="reference external" href="https://www.openssh.org/releasenotes.html">https://www.openssh.org/releasenotes.html</a></p>
+</section>
+<section id="chrony">
+<h3>Chrony<a class="headerlink" href="#chrony" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Chrony is now used as the default time daemon replacing <code class="docutils literal notranslate"><span class="pre">systemd-timesyncd</span></code> for new installations.</p>
+<p>To migrate existing systems after the upgrade to Ubuntu 26.04 LTS, use the following commands:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>apt-mark<span class="w"> </span>auto<span class="w"> </span>systemd-timesyncd
+apt<span class="w"> </span>install<span class="w"> </span>chrony
+</pre></div>
+</div>
+</li>
+<li><p>NTS (authenticated &amp; encrypted NTP) by default uses Ubuntu time servers.</p></li>
+<li><p>Ubuntu’s NTP servers are defined in a <a class="reference external" href="https://discourse.ubuntu.com/t/improving-chrony-time-source-configuration-in-ubuntu/47850">new snippet</a> in <code class="docutils literal notranslate"><span class="pre">/etc/chrony/sources.d/ubuntu-ntp-pools.sources</span></code>.</p>
+<p>If you edited <code class="docutils literal notranslate"><span class="pre">/etc/chrony/chrony.conf</span></code>, ensure that the servers defined in <code class="docutils literal notranslate"><span class="pre">/etc/chrony/sources.d/ubuntu-ntp-pools.sources</span></code> are not used twice.</p>
+</li>
+<li><p>Specific release notes since Chrony version 4.5, which was found in Ubuntu 24.04 LTS, are at <a class="reference external" href="https://chrony-project.org/news.html#_27_aug_2025_chrony_4_8_released">https://chrony-project.org/news.html#_27_aug_2025_chrony_4_8_released</a>.</p></li>
+</ul>
+</section>
+<section id="clamav">
+<h3>ClamAV<a class="headerlink" href="#clamav" title="Link to this heading">¶</a></h3>
+<p>Updated to 1.4.3 with many new features</p>
+<ul class="simple">
+<li><p>Scanning attachments found in Microsoft OneNote section files</p></li>
+<li><p>Extracting Universal Disk Format (UDF) partitions</p></li>
+<li><p>Extracting embedded images in HTML CSS <code class="docutils literal notranslate"><span class="pre">&lt;style&gt;</span></code> blocks</p></li>
+<li><p>Extracting <code class="docutils literal notranslate"><span class="pre">alz</span></code> and <code class="docutils literal notranslate"><span class="pre">lha</span></code>/<code class="docutils literal notranslate"><span class="pre">lzh</span></code> archives</p></li>
+<li><p>Toggle for image fuzzy hashing</p></li>
+<li><p>Improvements for VBA extraction in office documents</p></li>
+<li><p>Custom clean file cache size with <code class="docutils literal notranslate"><span class="pre">--cache-size</span></code> (uses more RAM)</p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">systemd.timer</span></code> unit for running <code class="docutils literal notranslate"><span class="pre">freshclam</span></code></p></li>
+<li><p>Better limit handling for large files</p></li>
+<li><p>Client certificates for authentication to a private Freshclam mirror</p></li>
+<li><p>Virus database minimal age</p></li>
+</ul>
+<p>For complete details of all changes leading up to 1.4.3, please see the upstream release notes at <a class="reference external" href="https://blog.clamav.net/">https://blog.clamav.net/</a>.</p>
+</section>
+<section id="django">
+<h3>Django<a class="headerlink" href="#django" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>Django has been updated to the latest LTS release 5.2 from 4.2, which includes many new features and bug fixes. All Django middleware provided in Ubuntu has also been updated to be compatible with the new version. See the <a class="reference external" href="https://docs.djangoproject.com/en/5.2/releases/5.0/">5.0 release notes</a> for features and updates added with the major version change and the <a class="reference external" href="https://docs.djangoproject.com/en/5.2/releases/5.2/">5.2 release notes</a> for the changes made leading up to the LTS release.</p>
+</section>
+<section id="php">
+<h3>PHP<a class="headerlink" href="#php" title="Link to this heading">¶</a></h3>
+<p>PHP was updated to version 8.5. Among other enhancements and bugfixes, the highlighted changes since Ubuntu Noble 24.04 are:</p>
+<ul class="simple">
+<li><p>Property hooks</p></li>
+<li><p>Asymmetric visibility</p></li>
+<li><p>Updated DOM API</p></li>
+<li><p>A new URI Extension</p></li>
+<li><p>The Pipe Operator</p></li>
+<li><p>Clone With functionality</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">#[\NoDiscard]</span></code> Attribute</p></li>
+<li><p>Closures and First-Class Callables in Constant Expressions</p></li>
+<li><p>Persistent <code class="docutils literal notranslate"><span class="pre">cURL</span></code> Share Handles</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">array_first()</span></code> and <code class="docutils literal notranslate"><span class="pre">array_last()</span></code> functions</p></li>
+</ul>
+<p>For more details, breaking changes and other features, see the upstream release notes:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.php.net/releases/8.4/en.php">PHP 8.4</a></p></li>
+<li><p><a class="reference external" href="https://www.php.net/releases/8.5/en.php">PHP 8.5</a></p></li>
+</ul>
+</section>
+<section id="dovecot">
+<h3>Dovecot<a class="headerlink" href="#dovecot" title="Link to this heading">¶</a></h3>
+<p>Updated to 2.4.2. Version 2.4 introduced many changes to the Dovecot configuration format!</p>
+<p>Coming from Ubuntu 24.04 LTS, please follow <a class="reference external" href="https://doc.dovecot.org/2.4.2/installation/upgrade/2.3-to-2.4.html">dovecot’s 2.3 upgrade documentation</a>.</p>
+<p>When you’re coming from other versions, follow <a class="reference external" href="https://doc.dovecot.org/2.4.2/installation/upgrade/overview.html">the upgrade overview</a>.</p>
+</section>
+<section id="openldap">
+<h3>OpenLDAP<a class="headerlink" href="#openldap" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+<p>The OpenLDAP packages are now built against OpenSSL instead of GnuTLS. The
+upstream release notes can be found
+<a class="reference external" href="https://www.openldap.org/software/release/announce.html">here</a>.</p>
+<p>If you have configured a custom cipher suite, note that:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">olcTLSCipherSuite</span></code> (slapd) and <code class="docutils literal notranslate"><span class="pre">TLS_CIPHER_SUITE</span></code> (ldap.conf) now take an
+OpenSSL cipher list (see <a class="reference external" href="https://manpages.ubuntu.com/manpages/resolute/en/man1/openssl-ciphers.1.html">openssl-ciphers(1)</a>),
+not a GnuTLS priority string. A leftover GnuTLS string (for example
+<code class="docutils literal notranslate"><span class="pre">NORMAL:%COMPAT</span></code>) will prevent <code class="docutils literal notranslate"><span class="pre">slapd</span></code> from starting after the upgrade, and
+will break TLS for LDAP client tools once the client host itself is upgraded.
+Remove the setting or replace it with an OpenSSL cipher list.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TLS_CRLFILE</span></code> is accepted but ignored; use <code class="docutils literal notranslate"><span class="pre">TLS_CRLCHECK</span></code> (with
+<code class="docutils literal notranslate"><span class="pre">TLS_CACERTDIR</span></code>) instead.</p></li>
+<li><p>If no CA certificates are configured, the system default trust store is now
+loaded automatically.</p></li>
+</ul>
+<p>If you have customized <code class="docutils literal notranslate"><span class="pre">/etc/apparmor.d/usr.sbin.slapd</span></code>, the upgrade will keep
+your version of the profile. <code class="docutils literal notranslate"><span class="pre">slapd</span></code> now runs as a systemd <code class="docutils literal notranslate"><span class="pre">Type=notify</span></code>
+service; your customized profile needs the rule <code class="docutils literal notranslate"><span class="pre">&#64;{run}/systemd/notify</span> <span class="pre">w,</span></code>
+(present in the packaged profile) or <code class="docutils literal notranslate"><span class="pre">slapd</span></code> will fail to start with a timeout.</p>
+</section>
+<section id="postfix">
+<h3>Postfix<a class="headerlink" href="#postfix" title="Link to this heading">¶</a></h3>
+<p>Specific release notes for major version releases since Ubuntu 24.04 LTS (Noble Numbat) are:</p>
+<ul class="simple">
+<li><p>3.9.0: <a class="reference external" href="https://www.postfix.org/announcements/postfix-3.9.0.html">https://www.postfix.org/announcements/postfix-3.9.0.html</a></p></li>
+<li><p>3.10.0: <a class="reference external" href="https://www.postfix.org/announcements/postfix-3.10.0.html">https://www.postfix.org/announcements/postfix-3.10.0.html</a></p></li>
+</ul>
+<p>A noteworthy change in the packaging of Postfix is that <strong>by default it is no longer installed in a <code class="docutils literal notranslate"><span class="pre">chroot</span></code>, and only limited <code class="docutils literal notranslate"><span class="pre">chroot</span></code> support is available from now on</strong>.</p>
+</section>
+<section id="rabbitmq">
+<h3>RabbitMQ<a class="headerlink" href="#rabbitmq" title="Link to this heading">¶</a></h3>
+<p>RabbitMQ is not directly upgradable due to feature flags. To mitigate this, some manual steps are needed. For more information please read <a class="reference external" href="https://discourse.ubuntu.com/t/ubuntu-server-gazette-issue-12-upgrading-rabbitmq-across-ubuntu-releases/77271">https://discourse.ubuntu.com/t/ubuntu-server-gazette-issue-12-upgrading-rabbitmq-across-ubuntu-releases/77271</a>.</p>
+</section>
+<section id="samba">
+<h3>Samba<a class="headerlink" href="#samba" title="Link to this heading">¶</a></h3>
+<p>Samba has been updated to the new upstream 4.23 version. Changes since Ubuntu Noble 24.04:</p>
+<ul class="simple">
+<li><p>SMB3 Unix Extensions enabled by default</p></li>
+<li><p>NetBios is disabled by default in the configuration file /etc/samba/smb.conf for fresh installs</p></li>
+<li><p>SMB3 Directory Leases</p></li>
+<li><p>Netlogon Ping over LDAP and LDAPS</p></li>
+<li><p>Experimental Himmelblaud Authentication in Samba</p></li>
+<li><p>AD DC schema upgrade and provision performance improvements</p></li>
+<li><p>LDAP TLS/SASL <a class="reference external" href="https://www.samba.org/samba/history/samba-4.20.3.html">channel binding support</a></p></li>
+<li><p>Group Managed Service Accounts</p></li>
+<li><p>Samba can now claim Functional Level 2012R2 support</p></li>
+<li><p>Some Samba public libraries made private by default</p></li>
+<li><p>Samba AD will rotate expired passwords on smartcard-required accounts</p></li>
+<li><p>Automatic keytab update after machine password change</p></li>
+</ul>
+<p>Removed features:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">nmbd</span> <span class="pre">proxy</span> <span class="pre">logon</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cldap</span> <span class="pre">port</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fruit:posix_rename</span></code></p></li>
+</ul>
+<p>Packaging changes when upgrading from Ubuntu Noble 24.04:</p>
+<ul class="simple">
+<li><p>samba-vfs-modules: the VFS modules from this package were moved to the samba package, with the exception of the Ceph module, which got its own package: samba-vfs-ceph. The samba-vfs-modules package is now just a transitional package, and it can be safely removed after the release upgrade.</p></li>
+<li><p>samba-vfs-modules-extra: this package used to contain the GlusterFS VFS module. This module was moved to a new package called samba-vfs-glusterfs, and samba-vfs-modules-extra became a transitional package. It can also be safely removed after the release upgrade.</p></li>
+<li><p>The dumpmscat binary is no longer built</p></li>
+</ul>
+<p>Samba upstream release notes since Ubuntu 24.04 LTS (Noble Numbat):</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.samba.org/samba/history/samba-4.20.0.html">https://www.samba.org/samba/history/samba-4.20.0.html</a></p></li>
+<li><p><a class="reference external" href="https://www.samba.org/samba/history/samba-4.21.0.html">https://www.samba.org/samba/history/samba-4.21.0.html</a></p></li>
+<li><p><a class="reference external" href="https://www.samba.org/samba/history/samba-4.22.0.html">https://www.samba.org/samba/history/samba-4.22.0.html</a></p></li>
+<li><p><a class="reference external" href="https://www.samba.org/samba/history/samba-4.23.0.html">https://www.samba.org/samba/history/samba-4.23.0.html</a></p></li>
+</ul>
+<section id="samba-on-i386">
+<h4>Samba on i386<a class="headerlink" href="#samba-on-i386" title="Link to this heading">¶</a></h4>
+<p>Samba version 4.21.x added a dependency to the python3-samba package: python3-cryptography. Unfortunately, python3-cryptography was last built for i386 for Ubuntu Bionic 18.04, and is no longer available for that architecture, making this new dependency unsatisfiable.</p>
+<p>For Ubuntu Plucky 25.04 and later, the python3-samba package is no longer built for i386. Please see <a class="reference external" href="https://bugs.launchpad.net/ubuntu/+source/samba/+bug/2099895">LP: #2099895</a> for details. The main consequence is that the samba-tool script (part of that package) is no longer available for i386.</p>
+</section>
+<section id="upgrading-an-ad-dc-from-previous-ubuntu-releases">
+<h4>Upgrading an AD/DC from previous Ubuntu releases<a class="headerlink" href="#upgrading-an-ad-dc-from-previous-ubuntu-releases" title="Link to this heading">¶</a></h4>
+<p>If you have deployed a Samba Active Directory Domain Controller <em>without</em> having installed the <code class="docutils literal notranslate"><span class="pre">samba-ad-dc</span></code> package, you should install it before doing a release upgrade to Ubuntu 26.04 LTS (Resolute Raccoon). If <code class="docutils literal notranslate"><span class="pre">samba-ad-dc</span></code> is not installed prior to the release upgrade, the Active Directory Domain Controller functionality will not work on the upgraded system due to many missing components.</p>
+<p>See <a class="reference external" href="https://bugs.launchpad.net/ubuntu/+source/samba/+bug/2101838">LP: #2101838</a> for more information</p>
+</section>
+</section>
+<section id="squid">
+<h3>Squid<a class="headerlink" href="#squid" title="Link to this heading">¶</a></h3>
+<p>Squid was updated to upstream version 7.2. Coming from version 6, this major release focuses on cleanup rather than new functionality: upstream added no new configuration directives, and several long-standing but dead or deprecated features and tools were removed (see the removed functionality section). The few functional additions are limited to details such as:</p>
+<ul class="simple">
+<li><p>Add <code class="docutils literal notranslate"><span class="pre">%byte{value}</span></code> <code class="docutils literal notranslate"><span class="pre">logformat</span></code> code for logging or sending any byte position of a message.</p></li>
+<li><p>Honor the <code class="docutils literal notranslate"><span class="pre">buffered_logs</span> <span class="pre">off</span></code> setting in the <code class="docutils literal notranslate"><span class="pre">udp</span></code> <code class="docutils literal notranslate"><span class="pre">access_log</span></code> module.</p></li>
+<li><p>Support no-digest X509 certificate keys such as ML-DSA/EdDSA.</p></li>
+</ul>
+<p>Numerous crash, memory-safety and security fixes are also included in this major release.</p>
+<p>Some long-standing configuration options and tools were removed in Squid 7. A proxy whose <code class="docutils literal notranslate"><span class="pre">squid.conf</span></code> still uses any of the removed directives below will fail to start after the upgrade, with a <code class="docutils literal notranslate"><span class="pre">FATAL</span></code> message in the cache log:</p>
+<ul class="simple">
+<li><p>Ident protocol (RFC 1413) support was removed. The <code class="docutils literal notranslate"><span class="pre">ident</span></code> and <code class="docutils literal notranslate"><span class="pre">ident_regex</span></code> ACL types, the <code class="docutils literal notranslate"><span class="pre">ident_lookup_access</span></code> and <code class="docutils literal notranslate"><span class="pre">ident_timeout</span></code> directives, and the <code class="docutils literal notranslate"><span class="pre">%ui</span></code> <code class="docutils literal notranslate"><span class="pre">logformat</span></code> / <code class="docutils literal notranslate"><span class="pre">%IDENT</span></code> external ACL codes are rejected at startup. Remove every Ident usage from your configuration before upgrading; in custom <code class="docutils literal notranslate"><span class="pre">logformat</span></code> definitions, replace <code class="docutils literal notranslate"><span class="pre">%ui</span></code> with <code class="docutils literal notranslate"><span class="pre">-</span></code>, which is what the built-in <code class="docutils literal notranslate"><span class="pre">common</span></code> and <code class="docutils literal notranslate"><span class="pre">combined</span></code> formats now log in that position.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">mcast_miss_addr</span></code>, <code class="docutils literal notranslate"><span class="pre">mcast_miss_ttl</span></code>, <code class="docutils literal notranslate"><span class="pre">mcast_miss_port</span></code>, and <code class="docutils literal notranslate"><span class="pre">mcast_miss_encode_key</span></code> directives were removed and are equally rejected at startup.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">cache_object://</span></code> URL scheme was removed. The cache manager is now reached over plain HTTP at <code class="docutils literal notranslate"><span class="pre">http://&lt;proxy&gt;:3128/squid-internal-mgr/&lt;section&gt;</span></code>.</p></li>
+<li><p>Edge Side Includes (ESI) protocol support was removed. A configuration using the <code class="docutils literal notranslate"><span class="pre">esi_parser</span></code> directive still parses, so no startup failure occurs, but the directive is obsolete and the feature no longer has any effect.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">ntlm_smb_lm_auth</span></code> helper is no longer shipped (this also resolves CVE-2025-21311). A configuration referencing it still parses, so NTLM authentication only breaks at runtime. NTLM authenticating proxies must switch to Samba’s <code class="docutils literal notranslate"><span class="pre">ntlm_auth</span></code> helper (<code class="docutils literal notranslate"><span class="pre">--helper-protocol=squid-2.5-ntlmssp</span></code>) or drop the NTLM scheme.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">squidclient</span></code>, <code class="docutils literal notranslate"><span class="pre">squid-cgi</span></code>, and <code class="docutils literal notranslate"><span class="pre">squid-purge</span></code> packages are no longer provided, as the tools were removed upstream. The release upgrader will remove an installed <code class="docutils literal notranslate"><span class="pre">squidclient</span></code>; use <code class="docutils literal notranslate"><span class="pre">curl</span></code> against the cache manager URL above instead.</p></li>
+</ul>
+<p>The <code class="docutils literal notranslate"><span class="pre">squid-openssl</span></code> package no longer conflicts with <code class="docutils literal notranslate"><span class="pre">squid</span></code> and is instead an addon installed alongside it. <code class="docutils literal notranslate"><span class="pre">/usr/sbin/squid</span></code> has become an alternatives symlink managed by both flavors. Any existing <code class="docutils literal notranslate"><span class="pre">squid-openssl</span></code> installation is upgraded automatically with all behavior preserved (including ssl-bump). The only visible effects are the <code class="docutils literal notranslate"><span class="pre">squid.conf</span></code> conffile prompt during the upgrade and the new symlink.</p>
+<p>Any configurations that relied on the former <code class="docutils literal notranslate"><span class="pre">Conflicts</span></code> relationship (e.g co-installation guards in Puppet or Ansible) should be adjusted accordingly.</p>
+<p>For a list of all changes and fixes, please check the <a class="reference external" href="https://github.com/squid-cache/squid/releases">upstream releases page</a>.</p>
+</section>
+<section id="sssd">
+<h3>SSSD<a class="headerlink" href="#sssd" title="Link to this heading">¶</a></h3>
+<p>SSSD has been updated to version 2.12.</p>
+<p>SSSD now runs under user <code class="docutils literal notranslate"><span class="pre">sssd</span></code> (instead of <code class="docutils literal notranslate"><span class="pre">root</span></code>). Make sure that <code class="docutils literal notranslate"><span class="pre">sssd</span></code> can still access secrets or integrations from its new user.</p>
+<p>The implicit files provider and domain was removed: see <a class="reference external" href="https://sssd.io/docs/files-provider-deprecation.html">https://sssd.io/docs/files-provider-deprecation.html</a>.</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://sssd.io/release-notes/sssd-2.10.0.html">https://sssd.io/release-notes/sssd-2.10.0.html</a></p></li>
+<li><p><a class="reference external" href="https://sssd.io/release-notes/sssd-2.11.0.html">https://sssd.io/release-notes/sssd-2.11.0.html</a></p></li>
+<li><p><a class="reference external" href="https://sssd.io/release-notes/sssd-2.12.0.html">https://sssd.io/release-notes/sssd-2.12.0.html</a></p></li>
+</ul>
+</section>
+<section id="strace">
+<h3>strace<a class="headerlink" href="#strace" title="Link to this heading">¶</a></h3>
+<p><a class="reference external" href="https://strace.io/"><code class="docutils literal notranslate"><span class="pre">strace</span></code></a> now supports colored output (configurable with <code class="docutils literal notranslate"><span class="pre">--color=...</span></code>, <code class="docutils literal notranslate"><span class="pre">STRACE_COLORS=...</span></code> and <code class="docutils literal notranslate"><span class="pre">NO_COLOR=1</span></code>).</p>
+<p><img alt="Sample colored output" src="../../_images/strace-color.png" /></p>
+</section>
+<section id="haproxy">
+<h3>HAProxy<a class="headerlink" href="#haproxy" title="Link to this heading">¶</a></h3>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 26.04.</span></p>
+</div>
+<p>HAProxy was updated to the latest upstream LTS release, 3.2, which introduces performance and efficiency improvements, faster and more reliable QUIC protocol support, and more. For further details on this new release, please check the HAProxy 3.2 <a class="reference external" href="https://www.mail-archive.com/haproxy&#64;formilux.org/msg45917.html">upstream announcement</a>.</p>
+<p>For users coming from HAProxy 2, breaking changes include detection of accidental multiple commands sent to the Runtime API, rejecting the enabled keyword for dynamic servers, stricter parsing of non-standard URIs and renaming of <code class="docutils literal notranslate"><span class="pre">tune.ssl.ocsp-update</span></code> to <code class="docutils literal notranslate"><span class="pre">tune.ocsp-update</span></code>.</p>
+<p>You can learn more at <a class="reference external" href="https://www.haproxy.com/blog/announcing-haproxy-3-0">Announcing HAProxy 3.0</a>. A complete list of changes is available in the <a class="reference external" href="https://www.haproxy.org/download/3.0/src/CHANGELOG">upstream changelog</a>.</p>
+</section>
+<section id="documentdb">
+<h3>DocumentDB<a class="headerlink" href="#documentdb" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+<p>DocumentDB is now available in Ubuntu, starting with version 0.108-0. It is a powerful, scalable, MongoDB compatible open-source document database built for modern applications, built on PostgreSQL. For more information see <a class="reference external" href="https://documentdb.io/">documentdb.io</a>.</p>
+</section>
+<section id="mysql">
+<h3>MySQL<a class="headerlink" href="#mysql" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+<p>MySQL was updated from 8.0 to 8.4 LTS, starting with 8.4.8 in Ubuntu 26.04 LTS. This is MySQL’s first official long term support release, including various internal improvements, new features, and some important configuration changes.</p>
+<p>Upstream release notes are available in the <a class="reference external" href="https://dev.mysql.com/doc/relnotes/mysql/8.4/en/">Mysql 8.4 documentation library</a>. For more information about the transition from MySQL 8.0 to 8.4, see the <a class="reference external" href="https://dev.mysql.com/doc/refman/8.4/en/mysql-nutshell.html">MySQL 8.4 overview</a>.</p>
+<p>Due to upstream policy, support for 32-bit MySQL Server has been removed. However, Ubuntu will continue to provide a MySQL client and client library for 8.4 on armhf and i386.</p>
+<p>MySQL 8.4 also deprecates the <code class="docutils literal notranslate"><span class="pre">mysql_native_password</span></code> plugin, and accounts authenticated with this method will be <strong>locked out by default</strong>. To avoid this, you have two options:</p>
+<p>The recommended option is to swap authentication for each affected user to <code class="docutils literal notranslate"><span class="pre">caching_sha2_password</span></code>. You can do this with the following command.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ALTER</span> <span class="n">USER</span> <span class="s1">'user'</span><span class="o">@</span><span class="s1">'host'</span> <span class="n">IDENTIFIED</span> <span class="n">WITH</span> <span class="n">caching_sha2_password</span> <span class="n">BY</span> <span class="s1">'password'</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Note that this will <strong>fully reset</strong> the user’s password to the one entered above, so it will be used for authentication of this user in the future.</p>
+<p>If you still require <code class="docutils literal notranslate"><span class="pre">mysql_native_password</span></code>, the other option is to enable it explicitly in your mysqld configuration. To do this, add the following entry under <code class="docutils literal notranslate"><span class="pre">[mysqld]</span></code> to <code class="docutils literal notranslate"><span class="pre">/etc/mysql/mysql.conf.d/mysqld.cnf</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mysql_native_password</span><span class="o">=</span><span class="n">ON</span>
+</pre></div>
+</div>
+<p>With this no passwords will need to be reset. However, this method will no longer work in future Ubuntu releases, which will provide MySQL 9.7+.</p>
+</section>
+<section id="mysql-shell">
+<h3>MySQL Shell<a class="headerlink" href="#mysql-shell" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+<p>MySQL Shell was updated from major version 8.0 to 8.4 to coincide with MySQL 8.4. It adds support for MySQL 8.4 servers, and provides additional improvements for interacting with MySQL 8.0 servers. For a list of features, see the <a class="reference external" href="https://dev.mysql.com/doc/mysql-shell/8.4/en/">MySQL Shell 8.4 documentation</a>. Release notes for MySQL Shell 8.4 can be found <a class="reference external" href="https://dev.mysql.com/doc/relnotes/mysql-shell/8.4/en/">here</a>.</p>
+</section>
+<section id="postgresql">
+<h3>PostgreSQL<a class="headerlink" href="#postgresql" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+<p>PostgreSQL was updated to version 18. This new version improves performance for workloads of all sizes through a new I/O subsystem that has demonstrated up to 3× performance improvements when reading from storage, and also increases the number of queries that can use indexes. This release makes major-version upgrades less disruptive, accelerating upgrade times and reducing the time required to reach expected performance after an upgrade completes. Developers also benefit from PostgreSQL 18 features, including virtual generated columns that compute values at query time, and the database-friendly <code class="docutils literal notranslate"><span class="pre">uuidv7()</span></code> function that provides better indexing and read performance for UUIDs. PostgreSQL 18 makes it easier to integrate with single-sign on (SSO) systems with support for OAuth 2.0 authentication.</p>
+<p>For further information, check the <a class="reference external" href="https://www.postgresql.org/about/news/postgresql-18-released-3142/">upstream release announcement</a> and the <a class="reference external" href="https://www.postgresql.org/docs/18/release-18.html">upstream release notes</a>.</p>
+</section>
+<section id="valkey">
+<h3>Valkey<a class="headerlink" href="#valkey" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+<p>Valkey was updated to version 9.0, starting with 9.0.3. This includes various features and improvements beyond 8.x, such as atomic slot migrations and hash field expiration.</p>
+<p>For more information on the new version, see the <a class="reference external" href="https://valkey.io/blog/introducing-valkey-9/">Valkey 9 blog post</a>. Release notes are available on the <a class="reference external" href="https://github.com/valkey-io/valkey/releases">Valkey project GitHub</a>.</p>
+</section>
+<section id="container-stacks">
+<h3>Container stacks<a class="headerlink" href="#container-stacks" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>For the <code class="docutils literal notranslate"><span class="pre">containerd</span></code> and <code class="docutils literal notranslate"><span class="pre">runc</span></code> packages, we established a pattern to either keep the regular updates to the latest version or to opt for slower, more stable updates throughout the time the release is active. For more please read <a class="reference external" href="https://discourse.ubuntu.com/t/ubuntu-server-gazette-issue-8-containers-steady-paths-for-agile-stacks/68680">Ubuntu Server Gazette - Issue 8 - Containers: Steady paths for agile stacks</a>.</p>
+</section>
+<section id="virtualization-stack">
+<h3>Virtualization stack<a class="headerlink" href="#virtualization-stack" title="Link to this heading">¶</a></h3>
+<p>A stack as active as that of <code class="docutils literal notranslate"><span class="pre">qemu</span></code>, <code class="docutils literal notranslate"><span class="pre">libvirt</span></code>, <code class="docutils literal notranslate"><span class="pre">edk2</span></code>, and <code class="docutils literal notranslate"><span class="pre">seabios</span></code> had too
+many great new features and fixes to list them all. The upgrades between each
+interim release like <a class="reference internal" href="../../24.10/#libvirt-24-10"><span class="std std-ref">libvirt&#64;24.10</span></a>,
+<a class="reference internal" href="../../25.04/#qemu-25-04"><span class="std std-ref">qemu&#64;25.10</span></a>, or <a class="reference internal" href="../../25.10/#edk2-25-10"><span class="std std-ref">edk2&#64;25.10</span></a>
+are already so huge they can only cover a selected high-level summary.
+Each version adds various new emulated instructions, new CPU types and
+virtualized platforms, which would be beyond the scope of release notes.
+Here are just a few to motivate you to check out all the other
+per-release changes and the related upstream announcements.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+<ul class="simple">
+<li><p>libvirt: Better firmware selection</p></li>
+<li><p>libvirt More statistics for block devices on QEMU domains</p></li>
+<li><p>libvirt: Support for NUMA affinity of PCI devices</p></li>
+<li><p>libvirt+qemu: Support for NVIDIA Multi-Instance GPU (MIG) configurations</p></li>
+<li><p>qemu: Hyper-V host model mode</p></li>
+<li><p>qemu: The HPET device does not take the big QEMU lock anymore</p></li>
+<li><p>qemu: Support for loading multiple x509 cert+key identities (for transition to post-quantum cryptography)</p></li>
+</ul>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+<p>The Ubuntu 26.04 LTS (Resolute) release introduces a new Hardware Enablement (HWE)
+virtualization stack, which will be continuously updated to align with the
+latest versions delivered in upcoming interim releases.</p>
+<p>This virtualization stack is delivered like the <a class="reference external" href="https://canonical-kernel-docs.readthedocs-hosted.com/reference/hwe-kernels/">HWE kernel</a>.
+Using them together is recommended but not a strict requirement.</p>
+<p>This allows the user to benefit from the latest capabilities of
+the virtualization stack while otherwise staying on the well established
+Ubuntu LTS.</p>
+<p>This virt-hwe stack is composed of the following source packages:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">qemu-hwe</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">libvirt-hwe</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">seabios-hwe</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">edk2-hwe</span></code></p></li>
+</ul>
+<p>Initially those are mostly identical to the base packages, but twice a year
+they will move to a newer release and become stable once they match the following
+Ubuntu LTS release.
+They generally resolve the same dependencies as the base stack and are therefore
+interchangeable but mutually exclusive to each other.</p>
+<p>The tool <code class="docutils literal notranslate"><span class="pre">ubuntu_virt_helper</span></code> assists administrators in switching between
+the two stacks.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<ul class="simple">
+<li><p>libvirt: ppc64 POWER11 processor support</p></li>
+<li><p>libvirt: Control over QEMU TLS priority strings</p></li>
+<li><p>libvirt: Support for NVMe disks</p></li>
+<li><p>libvirt: Support for AMD IOMMU device</p></li>
+<li><p>libvirt+qemu+edk2: Support for Intel TDX</p></li>
+<li><p>qemu: Support for the <a class="reference external" href="https://riscv.org/blog/risc-v-rva23-a-major-milestone/">RVA23 Profile</a></p></li>
+<li><p>qemu: Support for s390x generation 17 mainframe CPUs</p></li>
+<li><p>qemu: Support for true <code class="docutils literal notranslate"><span class="pre">virtio-scsi</span></code> multiqueue</p></li>
+</ul>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+<ul class="simple">
+<li><p>libvirt: Zero block detection for non-shared-storage migration</p></li>
+<li><p>libvirt: Support for versioned qemu CPU models</p></li>
+<li><p>libvirt+qemu+edk2: Support for AMD <code class="docutils literal notranslate"><span class="pre">SEV-SNP</span></code></p></li>
+<li><p>qemu: Support for RISC-V privilege 1.13 spec</p></li>
+<li><p>qemu: Support for MTE on ARM KVM-based VMs</p></li>
+</ul>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 24.10.</span></p>
+</div>
+<ul class="simple">
+<li><p>qemu: <code class="docutils literal notranslate"><span class="pre">virtio-blk</span></code> device has gained true multiqueue support where different queues of a single disk can be processed by different I/O threads. This can improve scalability in cases where the guest submitted enough I/O to saturate the host CPU running a single I/O thread processing the virtio-blk requests. Multiple I/O threads can be configured using the new <code class="docutils literal notranslate"><span class="pre">iothread-vq-mapping</span></code> property.</p></li>
+<li><p>qemu: Support for emulating various new RISC-V instructions like the <code class="docutils literal notranslate"><span class="pre">Zacas</span></code>, <code class="docutils literal notranslate"><span class="pre">Zaamo</span></code>, <code class="docutils literal notranslate"><span class="pre">Zalrsc</span></code>, and <code class="docutils literal notranslate"><span class="pre">Ztso</span></code> extensions</p></li>
+<li><p>libvirt: Support for clusters in CPU topology.</p></li>
+<li><p>libvirt: New <code class="docutils literal notranslate"><span class="pre">dynamicMemslots</span></code> attribute for virtio-mem</p></li>
+</ul>
+</section>
+<section id="high-availability-and-clustering">
+<h3>High availability and clustering<a class="headerlink" href="#high-availability-and-clustering" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>The <strong><code class="docutils literal notranslate"><span class="pre">kpartx-boot</span></code></strong> package has been discontinued to align with Debian. Originally introduced to support <code class="docutils literal notranslate"><span class="pre">dmraid</span></code> booting, its functionality is preserved, as the <code class="docutils literal notranslate"><span class="pre">kpartx</span></code> package now includes everything previously provided by <code class="docutils literal notranslate"><span class="pre">kpartx-boot</span></code>.</p>
+<div class="versionremoved">
+<p><span class="versionmodified removed">Removed in version 24.10.</span></p>
+</div>
+</li>
+<li><p>The <strong><code class="docutils literal notranslate"><span class="pre">dmraid</span></code></strong> package has been removed. The rationale for its removal is outlined in bug <a class="reference external" href="https://bugs.launchpad.net/bugs/2073677">LP#2073677</a>, primarily due to its removal from Debian unstable and minimal upstream support. If you require this functionality, consider using alternatives like <code class="docutils literal notranslate"><span class="pre">mdadm</span></code>.</p>
+<div class="versionremoved">
+<p><span class="versionmodified removed">Removed in version 24.10.</span></p>
+</div>
+</li>
+<li><p>Pacemaker was updated to version 3. All new features and breaking changes are described in the <a class="reference external" href="https://projects.clusterlabs.org/w/projects/pacemaker/pacemaker_3.0_changes/">upstream release notes</a>.</p></li>
+</ul>
+</section>
+<section id="installer">
+<h3>Installer<a class="headerlink" href="#installer" title="Link to this heading">¶</a></h3>
+<p>The Subiquity installer has been updated. See the Subiquity release notes on GitHub:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/canonical/subiquity/releases/tag/24.08.1">24.08.1</a></p></li>
+<li><p><a class="reference external" href="https://github.com/canonical/subiquity/releases/tag/24.10.1">24.10.1</a></p></li>
+<li><p><a class="reference external" href="https://github.com/canonical/subiquity/releases/tag/25.04">25.04</a></p></li>
+<li><p><a class="reference external" href="https://github.com/canonical/subiquity/releases/tag/25.10">25.10</a></p></li>
+<li><p><a class="reference external" href="https://github.com/canonical/subiquity/releases/26.04">26.04</a></p></li>
+</ul>
+</section>
+</section>
+<section id="wsl">
+<h2>WSL<a class="headerlink" href="#wsl" title="Link to this heading">¶</a></h2>
+<section id="id2">
+<h3>Ubuntu Insights<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<p><a class="reference external" href="https://github.com/ubuntu/ubuntu-insights">Ubuntu Insights</a> is introduced as a successor to <a class="reference external" href="https://github.com/ubuntu/ubuntu-report">Ubuntu Report</a>, providing enhanced user control over the submission of non-personally identifying system metrics to Canonical. This opt-in metrics collection is now integrated into Ubuntu on WSL.</p>
+<p>Users initializing a WSL instance for the first time will be prompted for system metrics collection consent. This consent is persisted on the Windows host, eliminating repeated prompts for subsequent WSL instance setups. Consent management is also available on an individual per-instance basis.</p>
+<p>For additional information on data collection for Ubuntu on WSL, refer to the <a class="reference external" href="https://documentation.ubuntu.com/wsl/latest/explanation/data-collection/">documentation</a>.</p>
+</section>
+<section id="id3">
+<h3>Chrony<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 25.10.</span></p>
+</div>
+<p>Ubuntu on WSL follows the platform-wide migration from <code class="docutils literal notranslate"><span class="pre">systemd-timesyncd</span></code> to <code class="docutils literal notranslate"><span class="pre">chrony</span></code> for network time synchronization that was implemented during the 25.10 cycle. Further details on this change in the WSL context are provided in the <a class="reference external" href="https://documentation.ubuntu.com/wsl/latest/explanation/time-sync/">documentation on time synchronization within WSL</a>.</p>
+</section>
+<section id="systemd-binfmt-service">
+<h3>systemd-binfmt.service<a class="headerlink" href="#systemd-binfmt-service" title="Link to this heading">¶</a></h3>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 25.10.</span></p>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">Binfmt</span></code> miscellaneous registrations are integral to Windows binary interoperability within WSL. Previously, the <code class="docutils literal notranslate"><span class="pre">systemd-binfmt.service</span></code> unit was disabled to mitigate against various potential issues. As of WSL 2.5.7, this system override is no longer necessary because the platform now incorporates a robust fix utilizing <code class="docutils literal notranslate"><span class="pre">systemd</span> <span class="pre">generators</span></code>.</p>
+<p>Users relying on <code class="docutils literal notranslate"><span class="pre">systemd-binfmt.service</span></code> to apply new registrations when installing packages, for example, will now find it works without compromising the binary interoperability. To learn more, please check out <a class="reference external" href="https://documentation.ubuntu.com/wsl/stable/explanation/binfmt/">our docs about <code class="docutils literal notranslate"><span class="pre">binfmt</span></code></a>.</p>
+</section>
+<section id="user-setup">
+<h3>User setup<a class="headerlink" href="#user-setup" title="Link to this heading">¶</a></h3>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 25.10.</span></p>
+</div>
+<p>Enhancements were implemented for Windows username processing during the initial WSL instance setup:</p>
+<ul class="simple">
+<li><p>Addressed an issue that resulted in the erroneous removal of uppercase letters from the Windows username before generating the suggested Linux username. See <a class="reference external" href="https://bugs.launchpad.net/ubuntu/+source/wsl-setup/+bug/2122047">LP: #2122047</a>.</p></li>
+<li><p>Resolved failures occurring when the Windows username included non-ASCII characters. See <a class="reference external" href="https://bugs.launchpad.net/ubuntu/+source/wsl-setup/+bug/2118617">LP: #2118617</a>.</p></li>
+</ul>
+</section>
+<section id="ubuntu-pro-for-wsl-version-1-0-released">
+<h3>Ubuntu Pro for WSL version 1.0 released<a class="headerlink" href="#ubuntu-pro-for-wsl-version-1-0-released" title="Link to this heading">¶</a></h3>
+<p><strong>Ubuntu Pro for WSL</strong> is a dedicated Windows application that streamlines the management of Ubuntu Pro subscriptions across WSL instances.</p>
+<p>For individual users, it eliminates the necessity of manually attaching each new Ubuntu instance to Ubuntu Pro for access to security benefits. For enterprise deployments, the application provides automated Pro-attachment and registration with Landscape, facilitating large-scale device fleet management.</p>
+<p>Documentation and download resources are available in <a class="reference external" href="https://documentation.ubuntu.com/wsl/stable/tutorials/getting-started-with-up4w">the documentation</a> and <a class="reference external" href="https://ubuntu.com/wsl/organizations">the download page</a>.</p>
+</section>
+</section>
+<section id="development">
+<h2>Development<a class="headerlink" href="#development" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>GCC 🐄 has been updated from version 14 to 15.2, <code class="docutils literal notranslate"><span class="pre">binutils</span></code> from 2.42 to 2.46, and <code class="docutils literal notranslate"><span class="pre">glibc</span></code> from 2.39 to 2.43.</p></li>
+<li><p>Python 🐍 has been updated from version 3.12 to 3.14.</p></li>
+<li><p>LLVM 🐉 has been updated from version 18 to 21.</p></li>
+<li><p>Rust 🦀 has been updated from version 1.75 to 1.93, while 1.91 and 1.92 are also available.</p></li>
+<li><p>Golang 🐀 has been updated from version 1.22 to 1.25.</p></li>
+<li><p>Zig ⚡ is now available in Ubuntu. It defaults to version 0.14.1.</p></li>
+<li><p>OpenJDK has been updated from version 21 to 25, while LTS versions 8, 11, 17, 21 are also available. OpenJDK 26, and OpenJDK 27 previews are also included.</p></li>
+<li><p>Ubuntu Toolchains has a new <a class="reference external" href="https://ubuntu.com/toolchains">homepage</a>.</p></li>
+</ul>
+<section id="openjdk-25-and-tck-certification">
+<h3>OpenJDK 25 and TCK certification<a class="headerlink" href="#openjdk-25-and-tck-certification" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>OpenJDK 25 package is available and is TCK (Technology Compatibility Kit) certified on AMD64, ARM64, S390X, PPC64EL. The Java TCK is the most comprehensive test suite that covers all aspects of Java SE specification including language features, libraries and APIs. This guarantees interoperability and conformance to standard. OpenJDK 21 and 17 are also TCK certified.</p>
+</section>
+<section id="openjdk-crac">
+<h3>OpenJDK CRaC<a class="headerlink" href="#openjdk-crac" title="Link to this heading">¶</a></h3>
+<p>OpenJDK CRaC (Co-ordinated Restore at Checkpoint) packages for versions 25, 21, and 17 are available on AMD64.</p>
+</section>
+<section id="spring-snaps">
+<h3>Spring® snaps<a class="headerlink" href="#spring-snaps" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+<p>We are excited to announce the <a class="reference external" href="https://snapcraft.io/devpack-for-spring">devpack-for-spring</a> snap and a set of Spring® <a class="reference external" href="https://snapcraft.io/devpack-for-spring-manifest">content snaps</a> that will serve as development tools for Spring® projects.</p>
+<p>Developers can now quickly build Ubuntu ROCK images for their Java applications using the <a class="reference external" href="https://github.com/rockcrafters/java-rockcraft-plugins">Gradle and Maven plugins for Rockcraft</a>.</p>
+</section>
+<section id="graalvm-snap">
+<h3>GraalVM snap<a class="headerlink" href="#graalvm-snap" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+<p>GraalVM Community Edition for JDK versions 21, 24 and 25 is now available as a <a class="reference external" href="https://snapcraft.io/graalvm-jdk">snap</a>. Java developers now have a choice to build and deploy their applications with standard OpenJDK, with OpenJDK CRaC or as a GraalVM native image.</p>
+</section>
+<section id="net-10">
+<h3>.NET 10<a class="headerlink" href="#net-10" title="Link to this heading">¶</a></h3>
+<p>.NET 10 is now available in the Ubuntu archive for the <code class="docutils literal notranslate"><span class="pre">amd64</span></code>, <code class="docutils literal notranslate"><span class="pre">arm64</span></code>, <code class="docutils literal notranslate"><span class="pre">s390x</span></code>, and <code class="docutils literal notranslate"><span class="pre">ppc64el</span></code> architectures.</p>
+</section>
+<section id="net-snap">
+<h3>.NET snap<a class="headerlink" href="#net-snap" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 24.10.</span></p>
+</div>
+<p>We are excited to introduce the new and improved <a class="reference external" href="https://snapcraft.io/dotnet">.NET Snap</a>, allowing developers to seamlessly install any supported version of .NET on any Ubuntu system.</p>
+</section>
+<section id="powershell-snap-on-more-architectures">
+<h3>PowerShell snap on more architectures<a class="headerlink" href="#powershell-snap-on-more-architectures" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>Support for the PowerShell snap has been expanded to include the <code class="docutils literal notranslate"><span class="pre">arm64</span></code>, <code class="docutils literal notranslate"><span class="pre">s390x</span></code>, and <code class="docutils literal notranslate"><span class="pre">ppc64el</span></code> architectures, broadening its availability across platforms.</p>
+</section>
+</section>
+<section id="enterprise">
+<h2>Enterprise<a class="headerlink" href="#enterprise" title="Link to this heading">¶</a></h2>
+<section id="authd">
+<h3>authd<a class="headerlink" href="#authd" title="Link to this heading">¶</a></h3>
+<p><a class="reference external" href="https://github.com/ubuntu/authd">authd</a>, Ubuntu’s cloud authentication solution, is now available from an official Ubuntu repository and has a range of new features. Changes since 24.04 are detailed below:</p>
+<ul class="simple">
+<li><p>authd can be installed directly from the Ubuntu archive (universe). For more information <a class="reference external" href="https://discourse.ubuntu.com/t/authd-enters-the-ubuntu-archive-in-26-04-lts/78193">read the blog</a></p></li>
+<li><p>The new <a class="reference external" href="https://snapcraft.io/authd-google">Google broker</a> supports authentication through Google IAM</p></li>
+<li><p>Device registration is supported when authenticating with Microsoft Entra ID</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">authctl</span></code> is provided as a command line tool for managing authd</p></li>
+<li><p>A generic OpenID Connect (OIDC) broker for authd is available. For more information <a class="reference external" href="https://ubuntu.com/blog/more-identity-providers-ubuntu-generic-broker">read the blog</a></p></li>
+<li><p>Device ownership support lets you automatically assign a device owner and restrict login access</p></li>
+<li><p>A new setting allows you to enforce an access check with the identity provider during login</p></li>
+<li><p>New pages on <a class="reference external" href="https://documentation.ubuntu.com/authd/stable-docs/explanation/security/">security</a>, <a class="reference external" href="https://documentation.ubuntu.com/authd/stable-docs/reference/#deployment">deployment</a>, and <a class="reference external" href="https://documentation.ubuntu.com/authd/stable-docs/reference/cli/">authctl</a> were added to the <a class="reference external" href="https://documentation.ubuntu.com/authd/stable-docs/">docs</a></p></li>
+</ul>
+</section>
+<section id="adsys">
+<h3>ADSys<a class="headerlink" href="#adsys" title="Link to this heading">¶</a></h3>
+<p>The Active Directory Group Policy client for Ubuntu has been updated since 24.04 to:</p>
+<ul class="simple">
+<li><p>Fix invalid headers for newer polkit versions</p></li>
+<li><p>Allow searching GPO list by <code class="docutils literal notranslate"><span class="pre">userPrincipalName</span></code></p></li>
+<li><p>Include a new <a class="reference external" href="https://documentation.ubuntu.com/adsys/latest/tutorial/getting-started/">tutorial</a> and <a class="reference external" href="https://documentation.ubuntu.com/adsys/latest/reference/glossary/">glossary</a></p></li>
+</ul>
+</section>
+</section>
+<section id="cloud">
+<h2>Cloud<a class="headerlink" href="#cloud" title="Link to this heading">¶</a></h2>
+<p>On all cloud providers, <code class="docutils literal notranslate"><span class="pre">AMD64</span></code> based images are now built with <code class="docutils literal notranslate"><span class="pre">AMD64v3</span></code> by default. This effort begins with 26.04 Resolute Racoon images and will continue with future releases.</p>
+<section id="google-cloud">
+<h3>Google Cloud<a class="headerlink" href="#google-cloud" title="Link to this heading">¶</a></h3>
+<p>All Resolute 26.04 images are now built with <code class="docutils literal notranslate"><span class="pre">AMD64v3</span></code> by default. However, this means that the following CPU platforms available on <code class="docutils literal notranslate"><span class="pre">N1</span></code> machine types are no longer supported:</p>
+<ul class="simple">
+<li><p>Intel Ivy Bridge</p></li>
+<li><p>Intel Sandy Bridge</p></li>
+</ul>
+<p>Automatic in-place upgrades to Ubuntu Pro will be fixed in <a class="reference external" href="https://github.com/canonical/ubuntu-pro-client/pull/3532">ubuntu-pro-client</a> (to be included in the next point release)</p>
+</section>
+<section id="amazon-web-services-aws">
+<h3>Amazon Web Services (AWS)<a class="headerlink" href="#amazon-web-services-aws" title="Link to this heading">¶</a></h3>
+<p>This transition impacts several Previous Generation Instance families. While AWS maintains these for legacy optimizations, they do not meet the microarchitecture requirements for Resolute Raccoon.</p>
+<p>The following instance families are no longer supported starting with version 26.04:</p>
+<ul class="simple">
+<li><p>General Purpose: M1, M2, M3, M4</p></li>
+<li><p>Compute Optimized: C1, C3, C4</p></li>
+<li><p>Memory Optimized: R3, R4</p></li>
+<li><p>Storage/Accelerated: I2, G3, P2, P3, P3dn</p></li>
+</ul>
+<p>Learn more about the <a class="reference external" href="https://docs.aws.amazon.com/ec2/latest/instancetypes/pg.html">AWS Previous Generation Instances</a> to identify migration paths to current-generation instances</p>
+</section>
+</section>
+<section id="security">
+<h2>Security<a class="headerlink" href="#security" title="Link to this heading">¶</a></h2>
+<section id="new-apparmor-sandboxing-profiles">
+<h3>New AppArmor sandboxing profiles<a class="headerlink" href="#new-apparmor-sandboxing-profiles" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+<p>As part of a profile writing effort to improve overall system security, the AppArmor package now includes many new profiles for applications. This improved sandboxing can help mitigate the impact of any exploit in the confined applications.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header">
+<span class="sd-summary-text">Report bugs</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<p class="sd-card-text">These profiles may cause breakage for unanticipated uses of those applications, and we encourage users to file a bug on <a class="reference external" href="https://bugs.launchpad.net/ubuntu/+source/apparmor/+filebug">Launchpad</a> for AppArmor-induced breakage in common use cases. When AppArmor denies an action, it usually generates a log entry describing the denial, which will help us investigate the bug, but which can also be used to add additional rules for customization or to work around the denials. AppArmor log entries can be read in the auditd logs, if auditd is installed, or in the <code class="docutils literal notranslate"><span class="pre">syslog</span></code> otherwise. <a class="reference external" href="https://gitlab.com/apparmor/apparmor/-/wikis/denial_quick_guide">This page</a> describes how the information contained in the denial log can be used to update a local override.</p>
+</div>
+</details></section>
+<section id="tpm-backed-full-disk-encryption">
+<h3>TPM-backed full-disk encryption<a class="headerlink" href="#tpm-backed-full-disk-encryption" title="Link to this heading">¶</a></h3>
+<p>You can now secure your Ubuntu Desktop installation using TPM-backed full-disk encryption (TPM/FDE).</p>
+<p>With TPM/FDE, the encryption keys for your disk are automatically generated and stored safely in your computer’s Trusted Platform Module (TPM). Your disk unlocks automatically at boot when the TPM verifies that your system hasn’t been tampered with. Optionally, you can add a PIN or passphrase for an extra layer of security.</p>
+<p>For a complete description of TPM/FDE features, refer to <a class="reference external" href="https://documentation.ubuntu.com/desktop/en/26.04/explanation/hardware-backed-disk-encryption/">Hardware-backed disk encryption</a> in the Ubuntu Desktop documentation.</p>
+<p>You can enable TPM/FDE during the Ubuntu installation. See <a class="reference external" href="https://documentation.ubuntu.com/desktop/en/26.04/how-to/encrypt-your-disk-with-tpm/">Encrypt your disk with TPM</a>.</p>
+<p>Some limitations remain: see <a class="reference internal" href="../changes-since-previous-interim/#resolute-tpm-fde-limitations"><span class="std std-ref">Limitations of TPM-backed full disk encryption</span></a>.</p>
+</section>
+<section id="post-quantum-cryptography-support">
+<h3>Post-quantum cryptography support<a class="headerlink" href="#post-quantum-cryptography-support" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>The OpenSSL library comes with several notable updates since Ubuntu 24.04:</p>
+<ul class="simple">
+<li><p>QUIC client and server support</p></li>
+<li><p>Support for post-quantum cryptography (PQC) algorithms (ML-KEM, ML-DSA and SLH-DSA)</p></li>
+<li><p>Broader EVP coverage</p></li>
+<li><p>Various performance improvements</p></li>
+</ul>
+<p>For more information, see <a class="reference external" href="https://discourse.ubuntu.com/t/post-quantum-support-in-the-upcoming-26-04-lts/76840">Post Quantum Support in the upcoming 26.04 LTS</a>.</p>
+</section>
+<section id="intel-trusted-domain-extensions-tdx-host-support">
+<h3>Intel® Trusted Domain Extensions (TDX) host support<a class="headerlink" href="#intel-trusted-domain-extensions-tdx-host-support" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>Intel® Trusted Domain Extensions (TDX) is a hardware-based confidential computing technology that isolates virtual machines into secure Trusted Domains (TDs). TDX protects guest workloads from the hypervisor, host OS, and other VMs by encrypting memory and enforcing strong, hardware-level isolation.</p>
+<p>TDX is designed for cloud and virtualized environments where workload confidentiality must be preserved in shared, multi-tenant infrastructure.</p>
+<p>Benefits for the user:</p>
+<ul class="simple">
+<li><p>Isolated multi-tenant compute: Ensures VM memory and data remain confidential even in shared cloud environments.</p></li>
+<li><p>Secure cloud migration: Enables customers to move sensitive workloads from on-premises environments to the cloud with confidence.</p></li>
+<li><p>Reduced data-breach risk: Hardware-based isolation significantly limits attack surface exposure.</p></li>
+</ul>
+<p>Supported use cases:</p>
+<ul class="simple">
+<li><p>Confidential cloud workloads</p></li>
+<li><p>Secure telco and enterprise virtual machines</p></li>
+<li><p>Financial and healthcare secure workloads</p></li>
+</ul>
+<p>Ubuntu supports Intel TDX for both host and guest operating systems. Guest support is available from Ubuntu 24.04 LTS onwards, while host support began with Ubuntu 25.10.</p>
+<p>To learn how to use Intel TDX, see <a class="reference external" href="https://ubuntu.com/server/docs/how-to/virtualisation/intel-tdx/">Confidential Computing with Intel Trust Domain Extensions (TDX)</a>.</p>
+</section>
+<section id="cargo-auditable">
+<h3>cargo-auditable<a class="headerlink" href="#cargo-auditable" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>Rust packages built on Launchpad now have opt-in support for <a class="reference external" href="https://github.com/ubuntu/ubuntu-release-notes">cargo-auditable</a>.
+If enabled, binaries will include JSON-formatted metadata in a header section of the binary expressing the dependencies used to compile the binary.
+If a CVE is discovered in a popular Rust crate, this dependency metadata lets users and sysadmins immediately check if a binary is compromised.</p>
+<p>For details, see the <a class="reference external" href="https://documentation.ubuntu.com/project/contributors/language-specific/rust/cargo-auditable/">Ubuntu project documentation</a>.</p>
+</section>
+</section>
+<section id="ai-ml-support">
+<h2>AI/ML support<a class="headerlink" href="#ai-ml-support" title="Link to this heading">¶</a></h2>
+<section id="the-dpc-compiler-and-related-packages-are-now-available">
+<h3>The DPC++ compiler and related packages are now available<a class="headerlink" href="#the-dpc-compiler-and-related-packages-are-now-available" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+<p>Intel’s open-source oneAPI DPC++ compiler for building <a class="reference external" href="https://www.khronos.org/sycl/">SYCL</a> code is now available in the Ubuntu Archive. The compiler runtime includes adapters for running on Intel GPU hardware.</p>
+<p>The following related packages are also now available from the Ubuntu archive:</p>
+<ul class="simple">
+<li><p>DPC++ library (oneDPL), which provides a high-productivity API for developers</p></li>
+<li><p>Deep Neural Network Library (oneDNN) built with the <code class="docutils literal notranslate"><span class="pre">dpclang-6</span></code> compiler for running on Intel GPUs</p></li>
+</ul>
+<p>These tools provide support for AI workloads on Intel GPU hardware. Note that users need to be in the <code class="docutils literal notranslate"><span class="pre">render</span></code> group in order to leverage Intel GPUs with these packages.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header">
+<span class="sd-summary-text">Installation</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<ul>
+<li><p class="sd-card-text">Install the compiler and the library:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>dpclang-6
+sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>onedpl-headers
+</pre></div>
+</div>
+</li>
+<li><p class="sd-card-text">Install the oneDNN development package and the oneDNN runtime:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>libdnnl-sycl-dev
+sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>libdnnl-sycl3
+</pre></div>
+</div>
+</li>
+</ul>
+</div>
+</details><p>Additional components from Intel’s oneAPI stack will be added to the Ubuntu archive in the future.</p>
+</section>
+<section id="the-nvidia-cuda-toolkit-is-now-available">
+<h3>The NVIDIA CUDA toolkit is now available<a class="headerlink" href="#the-nvidia-cuda-toolkit-is-now-available" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+<p>Application developers and system administrators can now install the NVIDIA CUDA parallel computing platform from the Ubuntu Archives.</p>
+<p>For application developers targeting Ubuntu systems, this new distribution model means they can simply declare the CUDA runtime, while Ubuntu manages its installation and compatibility across a wide range of supported NVIDIA hardware. This ensures that CUDA will be more accessible and integrated into a widely-used and trusted Linux distribution.</p>
+<p>To install CUDA, use the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>cuda-toolkit
+</pre></div>
+</div>
+<p>To learn more, see <a class="reference external" href="https://canonical.com/blog/canonical-announces-it-will-support-and-distribute-nvidia-cuda-in-ubuntu">Canonical announces it will support and distribute NVIDIA CUDA in Ubuntu</a>.</p>
+</section>
+<section id="the-amd-rocm-libraries-are-now-available">
+<h3>The AMD ROCm libraries are now available<a class="headerlink" href="#the-amd-rocm-libraries-are-now-available" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+<p>The Ubuntu Universe repository now includes AMD ROCm software version 7.1.0. These libraries provide back-end infrastructure to support AI training and inference on AMD GPU hardware, as well as machine learning and high performance computing functionality.</p>
+<p>The ROCm libraries are regularly tested in Canonical’s CI/CD processes. In addition to <code class="docutils literal notranslate"><span class="pre">autopkgtests</span></code>, several user-space applications are also tested including <code class="docutils literal notranslate"><span class="pre">llama.cpp</span></code>, <code class="docutils literal notranslate"><span class="pre">pytorch</span></code>, Blender and Lemonade Server.</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header">
+<span class="sd-summary-text">Supported hardware</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<p class="sd-card-text">Currently only some hardware architectures are supported and integrated in Canonical’s CI/CD tests but others will be added over time:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p class="sd-card-text">GFX ISA</p></th>
+<th class="head"><p class="sd-card-text">Hardware Family</p></th>
+<th class="head"><p class="sd-card-text">CI Status</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">gfx908</span></code></p></td>
+<td><p class="sd-card-text">Instinct™ MI-100</p></td>
+<td><p class="sd-card-text">YES</p></td>
+</tr>
+<tr class="row-odd"><td><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">gfx90a</span></code></p></td>
+<td><p class="sd-card-text">Instinct MI-210, MI-250</p></td>
+<td><p class="sd-card-text"></p></td>
+</tr>
+<tr class="row-even"><td><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">gfx942</span></code></p></td>
+<td><p class="sd-card-text">Instinct MI-300, MI-325</p></td>
+<td><p class="sd-card-text"></p></td>
+</tr>
+<tr class="row-odd"><td><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">gfx1030</span></code></p></td>
+<td><p class="sd-card-text">Navi21 / Radeon™  RX6900 Series, Pro V620</p></td>
+<td><p class="sd-card-text"></p></td>
+</tr>
+<tr class="row-even"><td><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">gfx1100</span></code></p></td>
+<td><p class="sd-card-text">Navi31 / Radeon RX7900 Series</p></td>
+<td><p class="sd-card-text"></p></td>
+</tr>
+<tr class="row-odd"><td><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">gfx1101</span></code></p></td>
+<td><p class="sd-card-text">Navi32 / Radeon RX7700 Series</p></td>
+<td><p class="sd-card-text"></p></td>
+</tr>
+<tr class="row-even"><td><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">gfx1151</span></code></p></td>
+<td><p class="sd-card-text">Strix Halo / Ryzen AI MAX 300 Series (Radeon 8040S, 8050S, 8060S)</p></td>
+<td><p class="sd-card-text">YES</p></td>
+</tr>
+<tr class="row-odd"><td><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">gfx1200</span></code></p></td>
+<td><p class="sd-card-text">Navi48 / Radeon RX9060</p></td>
+<td><p class="sd-card-text"></p></td>
+</tr>
+<tr class="row-even"><td><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">gfx1201</span></code></p></td>
+<td><p class="sd-card-text">Navi44 / Radeon RX 9070XT, AI PRO R9700</p></td>
+<td><p class="sd-card-text">YES</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="sd-card-text">Note that currently, <a class="reference internal" href="../changes-since-previous-interim/#resolute-gfx908-blender-tests-issue"><span class="std std-ref">AMD ROCm fails Blender tests on gfx908</span></a>.</p>
+</div>
+</details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header">
+<span class="sd-summary-text">ROCm libraries</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<p class="sd-card-text">The following individual ROCm libraries are included, listed by source package name:</p>
+<table class="hlist"><tr><td><ul class="simple">
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">amdsmi</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">hipblas</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">hipblas-common</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">hipblaslt</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">hipcub</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">hipfft</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">hipify</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">hiprand</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">hipsolver</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">hipsparse</span></code></p></li>
+</ul>
+</td><td><ul class="simple">
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">miopen</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">pkg-rocm-tools</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rccl</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocblas</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocalution</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocm-cmake</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocm-core</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocdbgapi</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocfft</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocm-hipamd</span></code></p></li>
+</ul>
+</td><td><ul class="simple">
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocminfo</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocm-llvm</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocm-smi-lib</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocprim</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocr-runtime</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocrand</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocsolver</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocsparse</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rocthrust</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">roctracer</span></code></p></li>
+</ul>
+</td></tr></table>
+</div>
+</details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header">
+<span class="sd-summary-text">Install the ROCm software stack</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<p class="sd-card-text">Two meta-packages are available, depending on your use case and needs. In most scenarios, you don’t have to install these packages directly: the individual libraries can be installed as dependencies of end-user applications as needed.</p>
+<ul>
+<li><p class="sd-card-text">Install the complete ROCm software stack, including binaries and header files:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>apt<span class="w"> </span>install<span class="w"> </span>rocm
+</pre></div>
+</div>
+<p class="sd-card-text">This is a large set of packages that is most suitable for benchmarking, testing or other scenarios where the full suite of functionality is required and installation size is not a concern.</p>
+</li>
+<li><p class="sd-card-text">Install only the development libraries and header files for developing ROCm-enabled applications:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>apt<span class="w"> </span>install<span class="w"> </span>rocm-dev
+</pre></div>
+</div>
+</li>
+</ul>
+</div>
+</details><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header">
+<span class="sd-summary-text">Install the Lemonade Server</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<p class="sd-card-text">Lemonade Server is a local inference server that includes comprehensive support for AMD GPU, NPU, and CPU hardware and standards-compliant APIs for front-end applications to use, similar to Ollama.</p>
+<p class="sd-card-text">Install the back end:</p>
+<ul>
+<li><p class="sd-card-text">Using snap:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>snap<span class="w"> </span>install<span class="w"> </span>lemonade-server
+</pre></div>
+</div>
+</li>
+<li><p class="sd-card-text">Using Deb:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>apt<span class="w"> </span>install<span class="w"> </span>lemonade-server
+</pre></div>
+</div>
+</li>
+</ul>
+<p class="sd-card-text">Install the Lemonade front-end application:</p>
+<ul>
+<li><p class="sd-card-text">Using snap:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>snap<span class="w"> </span>install<span class="w"> </span>lemonade-desktop
+</pre></div>
+</div>
+</li>
+<li><p class="sd-card-text">Using Deb:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>apt<span class="w"> </span>install<span class="w"> </span>lemonade-desktop
+</pre></div>
+</div>
+</li>
+</ul>
+<p class="sd-card-text">For details, see the Lemonade Server home page: <a class="reference external" href="https://lemonade-server.ai/">https://lemonade-server.ai/</a>.</p>
+</div>
+</details><p>For more information on ROCm, see <a class="reference external" href="https://rocm.docs.amd.com/en/docs-7.1.0/about/release-notes.html">ROCm 7.1.0 release notes</a>.</p>
+</section>
+</section>
+<section id="hardware-support">
+<h2>Hardware support<a class="headerlink" href="#hardware-support" title="Link to this heading">¶</a></h2>
+<section id="nvidia-dynamic-boost">
+<h3>NVIDIA Dynamic Boost<a class="headerlink" href="#nvidia-dynamic-boost" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+<p>This release enabled NVIDIA Dynamic Boost by default on supported laptops with NVIDIA GPUs.</p>
+<p>NVIDIA Dynamic Boost is a feature of the NVIDIA drivers that dynamically shifts power between CPU and GPU depending on the workload on the system. While gaming, this allows extracting more performance by granting more power to the GPU.</p>
+<p>Dynamic Boost will be active only when the laptop is powered by AC and there is enough load on the GPU. It will not be engaged when the system is running on battery.</p>
+<p>For more details refer to <a class="reference external" href="https://download.nvidia.com/XFree86/Linux-x86_64/570.133.07/README/dynamicboost.html">NVIDIA’s documentation</a>.</p>
+</section>
+<section id="support-for-new-intel-integrated-and-discrete-gpus">
+<h3>Support for new Intel® integrated and discrete GPUs<a class="headerlink" href="#support-for-new-intel-integrated-and-discrete-gpus" title="Link to this heading">¶</a></h3>
+<p>This release brings full support for the following Intel® Arc™ “Battlemage” and “Celestial” GPUs:</p>
+<ul class="simple">
+<li><p>Integrated:</p>
+<ul>
+<li><p>Intel® Core™ Ultra Xe2 and Xe3</p></li>
+</ul>
+</li>
+<li><p>Discrete:</p>
+<ul>
+<li><p>Intel® Arc™ 5 B570 and B580</p></li>
+<li><p>Intel® Arc™ Pro B50, B60, B65, and B70</p></li>
+</ul>
+</li>
+</ul>
+<p>Moreover, the following features are also included:</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+<ul class="simple">
+<li><p>Improved GPU and CPU ray tracing rendering performance in applications with Intel Embree support, such as Blender (v4.2+). Ray tracing hardware acceleration on the GPU improves frame rendering by 20-30%, due to a 2-4x speed-up for the ray tracing component.</p></li>
+<li><p>Full hardware accelerated video encoding of AVC, JPEG, HEVC, and AV1 on “Battlemage” devices.</p></li>
+<li><p>Introduction of the new CCS optimization in Intel® Compute Runtime.</p></li>
+<li><p>Enable debugging support for Intel Xe GPUs.</p></li>
+<li><p>oneAPI Level Zero Ray Tracing improves AI/ML workload speeds via Embree on SYCL</p></li>
+</ul>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<dl class="simple myst">
+<dt>Via the <a class="reference external" href="https://launchpad.net/ubuntu/+source/linux">Linux kernel</a> version 6.17</dt><dd><ul class="simple">
+<li><p>Initial support for Intel’s next-gen client platform codenamed Panther Lake.</p></li>
+<li><p>Enhanced IOMMU and PCIe subsystem for improved GPU virtualization and passthrough.</p></li>
+<li><p>Improved multi-GPU configuration support for Intel hardware.</p></li>
+</ul>
+</dd>
+<dt>Via <a class="reference external" href="https://launchpad.net/ubuntu/+source/mesa">Mesa</a> version 25.2.3</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">VK_KHR_shader_bfloat16</span></code> enabled in Intel ANV Vulkan driver for Battlemage and Panther Lake (GFX125+).</p></li>
+<li><p>Completed OpenCL 2.0 coarse grain buffer SVM support in Iris driver.</p></li>
+<li><p>Improved color fast-clear handling and multi-engine surface usage for Intel Vulkan (ANV) driver.</p></li>
+</ul>
+</dd>
+<dt>Via <a class="reference external" href="https://launchpad.net/ubuntu/+source/intel-media-driver"><code class="docutils literal notranslate"><span class="pre">intel-media-driver</span></code></a> version 25.3.0</dt><dd><ul class="simple">
+<li><p>Panther Lake Upstream decoding and VP9 encoding support.</p></li>
+</ul>
+</dd>
+<dt>Via <a class="reference external" href="https://launchpad.net/ubuntu/+source/intel-compute-runtime"><code class="docutils literal notranslate"><span class="pre">intel-compute-runtime</span></code></a> version 25.31</dt><dd><ul class="simple">
+<li><p>Enabling a Level Zero device unified shared memory (USM) pool as a performance change.</p></li>
+<li><p>A performance-minded change for Xe2 graphics to ensure Level Zero events are always allocated in the local device memory.</p></li>
+</ul>
+</dd>
+<dt>Via <a class="reference external" href="https://launchpad.net/ubuntu/+source/level-zero"><code class="docutils literal notranslate"><span class="pre">level-zero</span></code></a> version 1.24</dt><dd><ul class="simple">
+<li><p>Update Level Zero Loader and Headers to support v1.13.1 of L0 Spec</p></li>
+</ul>
+</dd>
+<dt>Via <a class="reference external" href="https://launchpad.net/ubuntu/+source/level-zero-gpu-raytracing"><code class="docutils literal notranslate"><span class="pre">level-zero-raytracing</span></code></a> version 1.1.0</dt><dd><ul class="simple">
+<li><p>Ray Tracing Acceleration Structure (RTAS) Extensions</p></li>
+</ul>
+</dd>
+</dl>
+</section>
+<section id="suspend-with-nvidia">
+<h3>Suspend with Nvidia<a class="headerlink" href="#suspend-with-nvidia" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>Suspend-resume support is now enabled in the proprietary Nvidia driver so as to prevent corruption and freezes when waking an Nvidia desktop.</p>
+</section>
+<section id="arm-desktop-platforms">
+<h3>ARM desktop platforms<a class="headerlink" href="#arm-desktop-platforms" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">linux-generic</span></code> kernel for ARM64 provides broader compatibility for ARM64 desktop platforms that utilize UEFI for booting (<a class="reference external" href="https://bugs.launchpad.net/ubuntu/+source/linux-signed/+bug/2121352">LP#2121352</a>).</p>
+</section>
+<section id="a-new-boot-layout-for-raspberry-pi">
+<h3>A new boot layout for Raspberry Pi<a class="headerlink" href="#a-new-boot-layout-for-raspberry-pi" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 26.04.</span></p>
+</div>
+<p>A new layout of the boot partition is introduced to enhance the reliability of the boot process (<a class="reference external" href="https://launchpad.net/bugs/2116266">LP: #2116266</a>). This will automatically “test” new boot assets written to the boot partition before committing them as the current “known good” set. See the <a class="reference external" href="https://discourse.ubuntu.com/t/call-for-testing-a-b-boot-on-raspberry-pi/64173">call for testing</a> for more information, or <a class="reference external" href="https://waldorf.waveform.org.uk/2025/pull-yourself-up-by-your-bootstraps.html">the blog post</a> covering the feature for the full details (including advice on how to opt-out of this feature, where required). The <em class="manpage"><a class="manpage reference external" href="https://manpages.ubuntu.com/manpages/resolute/en/man1/piboot-try.1.html">piboot-try(1)</a></em> man-page may also be consulted for advanced operations.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Please note that, due to the new boot process, the boot firmware on your Pi <em>must</em> be up to date.</p>
+<dl class="simple myst">
+<dt>For Pi 3, 3+, CM3+, and Zero 2W</dt><dd><p>No action required, the boot firmware is in the image itself.</p>
+</dd>
+<dt>For Pi 4, 400, CM4</dt><dd><p>Your boot firmware <em>must</em> be dated no earlier than <strong>2022-11-25</strong>.</p>
+</dd>
+<dt>For Pi 5, 500, CM5</dt><dd><p>Your boot firmware <em>must</em> be dated no earlier than <strong>2025-02-11</strong>.</p>
+</dd>
+</dl>
+<p>To check, run <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">rpi-eeprom-update</span></code>. If your firmware is dated earlier, using Ubuntu 24.04 LTS (Noble Numbat) or later, run <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">rpi-eeprom-update</span> <span class="pre">-a</span></code> and reboot.</p>
+</div>
+</section>
+<section id="raspberry-pi-is-based-on-the-minimal-image">
+<h3>Raspberry Pi is based on the minimal image<a class="headerlink" href="#raspberry-pi-is-based-on-the-minimal-image" title="Link to this heading">¶</a></h3>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 25.10.</span></p>
+</div>
+<p>The Ubuntu desktop images for Raspberry Pi are now based upon the <code class="docutils literal notranslate"><span class="pre">desktop-minimal</span></code> seed rather than <code class="docutils literal notranslate"><span class="pre">desktop</span></code> (<a class="reference external" href="https://launchpad.net/bugs/2103808">LP: #2103808</a>). This greatly reduces the default set of applications installed on the images (saving approximately 777MB of space on the uncompressed image, and thus on user’s systems).</p>
+<details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header">
+<span class="sd-summary-text">The list of applications removed from the image</span><span class="sd-summary-state-marker sd-summary-chevron-right"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-right" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.72 18.78a.75.75 0 0 1 0-1.06L14.44 12 8.72 6.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l6.25 6.25a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<ul class="simple">
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">deja-dup</span></code> (backup service)</p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">file-roller</span></code> (archive handler)</p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">gnome-calendar</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">gnome-snapshot</span></code> (camera application)</p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">libreoffice-*</span></code></p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">remmina</span></code> (remote desktop client)</p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">rhythmbox</span></code> (music player)</p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">shotwell</span></code> (photo catalogue)</p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">simple-scan</span></code> (flat-bed scanner application)</p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">thunderbird</span></code> (email client)</p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">showtime</span></code> (video player)</p></li>
+<li><p class="sd-card-text"><code class="docutils literal notranslate"><span class="pre">transmission-gtk</span></code> (bittorrent client)</p></li>
+</ul>
+</div>
+</details><p>The applications mentioned above will <em>not</em> be automatically removed for upgraders as the <code class="docutils literal notranslate"><span class="pre">ubuntu-desktop</span></code> meta-package remains manually installed in this circumstance. If you wish to remove these applications (in bulk), you may do so with:</p>
+<div class="terminal docutils container">
+<div class="input docutils container">
+<div class="prompt docutils container">
+<code class="docutils literal notranslate"><span class="pre">$</span> </code></div>
+<span class="command"><code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt</span> <span class="pre">purge</span> <span class="pre">ubuntu-desktop</span> <span class="pre">--autoremove</span></code></span></div>
+</div>
+<p>If you wish to keep specific applications, simply “install” them with <code class="docutils literal notranslate"><span class="pre">apt</span></code> first. This marks them as “manually installed”, excluding them from automatic removal.</p>
+</section>
+<section id="swap-is-created-with-cloud-init-on-raspberry-pi">
+<h3>Swap is created with <code class="docutils literal notranslate"><span class="pre">cloud-init</span></code> on Raspberry Pi<a class="headerlink" href="#swap-is-created-with-cloud-init-on-raspberry-pi" title="Link to this heading">¶</a></h3>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 25.10.</span></p>
+</div>
+<p>The creation of the swap file on the desktop images is now handled by <a class="reference external" href="https://cloudinit.readthedocs.io/en/latest/"><code class="docutils literal notranslate"><span class="pre">cloud-init</span></code></a> (<a class="reference external" href="https://launchpad.net/bugs/2116275">LP: #2116275</a>). You may customize the size of the swap file by editing <code class="docutils literal notranslate"><span class="pre">user-data</span></code> on the boot partition prior to first boot (commented examples are included in the image).</p>
+</section>
+<section id="new-risc-v-requirements">
+<span id="resolute-new-risc-v-requirements"></span><h3>New RISC-V requirements<a class="headerlink" href="#new-risc-v-requirements" title="Link to this heading">¶</a></h3>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 25.10.</span></p>
+</div>
+<p>The RISC-V version of Ubuntu 26.04 LTS only supports hardware that implements the RVA23S64 ISA profile. You can’t run Ubuntu 26.04 LTS on systems that don’t satisfy this requirement. Ubuntu 24.04 LTS continues to support boards with the earlier RVA20 processor cores.</p>
+<p>As of April 2026, no RVA23S64 hardware is available yet. The only supported RISC-V platform is the QEMU virtualization with the <code class="docutils literal notranslate"><span class="pre">-cpu</span> <span class="pre">rva23s64</span></code> CPU profile.</p>
+</section>
+<section id="ibm-z-requirements-raised-to-z15">
+<h3>IBM Z requirements raised to z15<a class="headerlink" href="#ibm-z-requirements-raised-to-z15" title="Link to this heading">¶</a></h3>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 26.04.</span></p>
+</div>
+<p>On the IBM Z (s390x) architecture, Ubuntu 26.04 LTS now requires the z15 architectural level at minimum. As a result, you can’t install Ubuntu 26.04 LTS on IBM Z generation z14 (LinuxONE II) or older.</p>
+<p>The performance on IBM Z generation z15 (LinuxONE III) and newer has improved.</p>
+<p>For more information, refer to the following release notes:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../changes-since-previous-interim/#ibm-z15-level"><span class="std std-ref">IBM Z and LinuxONE (s390x)</span></a></p></li>
+<li><p><a class="reference internal" href="../changes-since-previous-interim/#ibm-z14-support-removed"><span class="std std-ref">Ubuntu no longer supports IBM Z generations z14 or older</span></a></p></li>
+</ul>
+</section>
+</section>
+<section id="common-changes">
+<h2>Common changes<a class="headerlink" href="#common-changes" title="Link to this heading">¶</a></h2>
+<section id="sudo-rs">
+<h3><code class="docutils literal notranslate"><span class="pre">sudo-rs</span></code><a class="headerlink" href="#sudo-rs" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">sudo-rs</span></code> tool is now the default <code class="docutils literal notranslate"><span class="pre">sudo</span></code> provider.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">sudo</span></code> tool (the original <code class="docutils literal notranslate"><span class="pre">sudo</span></code> maintained by Todd C. Miller) has been renamed to <code class="docutils literal notranslate"><span class="pre">sudo.ws</span></code>. Additionally, the <code class="docutils literal notranslate"><span class="pre">sudo-ldap</span></code> package has been removed: please switch to using LDAP authentication via PAM.</p>
+<p>See <a class="reference external" href="https://documentation.ubuntu.com/server/how-to/security/user-management/#sudo-rs">Ubuntu Server Docs</a> for configuring your default <code class="docutils literal notranslate"><span class="pre">sudo</span></code> provider and for the differences between <code class="docutils literal notranslate"><span class="pre">sudo-rs</span></code> and <code class="docutils literal notranslate"><span class="pre">sudo.ws</span></code>.</p>
+</section>
+<section id="rust-coreutils">
+<span id="resolute-rust-coreutils"></span><h3><code class="docutils literal notranslate"><span class="pre">rust-coreutils</span></code><a class="headerlink" href="#rust-coreutils" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>The core utilities of the operating system are now provided by the <a class="reference external" href="https://launchpad.net/ubuntu/+source/rust-coreutils"><code class="docutils literal notranslate"><span class="pre">rust-coreutils</span></code></a> package. Among other things, this brings significant performance improvements, such as in the <code class="docutils literal notranslate"><span class="pre">base64</span></code> tool.</p>
+<p>Because <code class="docutils literal notranslate"><span class="pre">rust-coreutils</span></code> are not fully compatible yet, we continue to provide the classic GNU utilities as well. These are accessed by running <code class="docutils literal notranslate"><span class="pre">gnu</span></code> prefixed to the desired command. For example:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>gnuls
+</pre></div>
+</div>
+<p>Alternatively, you can switch between the two sets of utilities by running the following commands:</p>
+<p>To switch to GNU coreutils:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>sudo apt install coreutils-from-gnu coreutils-from-uutils- --allow-remove-essential
+</pre></div>
+</div>
+<p>To switch back to rust-coreutils:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>sudo apt install coreutils-from-uutils coreutils-from-gnu- --allow-remove-essential
+</pre></div>
+</div>
+<p>Because of unresolved bugs, the <code class="docutils literal notranslate"><span class="pre">cp</span></code>, <code class="docutils literal notranslate"><span class="pre">mv</span></code>, and <code class="docutils literal notranslate"><span class="pre">rm</span></code> utilities are still from GNU in <code class="docutils literal notranslate"><span class="pre">rust-coreutils</span></code>.
+For more information, see <a class="reference external" href="https://discourse.ubuntu.com/t/an-update-on-rust-coreutils/80773">An update on rust-coreutils</a>.</p>
+</section>
+<section id="architecture-variants-and-amd64v3">
+<h3>Architecture variants and <code class="docutils literal notranslate"><span class="pre">amd64v3</span></code><a class="headerlink" href="#architecture-variants-and-amd64v3" title="Link to this heading">¶</a></h3>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>Ubuntu now has the ability balance hardware compatibility and fuller utilization of modern hardware by building multiple versions or “variants” of a package. The first variant we are introducing is <code class="docutils literal notranslate"><span class="pre">amd64v3</span></code>, which is optimized for the <code class="docutils literal notranslate"><span class="pre">x86-64-v3</span></code> <a class="reference external" href="https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels">microarchitecture level</a>.</p>
+<p>For maximum compatibility, this variant is opt-in by default. If you are running on compatible hardware (and if your AMD64 machine was built in the last 10 years or so, you probably are) you can upgrade to <code class="docutils literal notranslate"><span class="pre">amd64v3</span></code> packages with the following commands:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s1">'APT::Architecture-Variants "amd64v3";'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>/etc/apt/apt.conf.d/99enable-amd64v3
+sudo<span class="w"> </span>apt<span class="w"> </span>update
+sudo<span class="w"> </span>apt<span class="w"> </span>upgrade
+</pre></div>
+</div>
+<p>For details, see the announcement: <a class="reference external" href="https://discourse.ubuntu.com/t/introducing-architecture-variants-amd64v3-now-available-in-ubuntu-25-10/71312">Introducing architecture variants: amd64v3 now available in Ubuntu 25.10</a>.</p>
+</section>
+<section id="linux-kernel-7-0">
+<h3>Linux kernel 7.0<a class="headerlink" href="#linux-kernel-7-0" title="Link to this heading">¶</a></h3>
+<p>For users running the GA generic stack, the Linux kernel has been updated from version 6.8 to 7.0. For users running the Hardware Enablement (HWE) stack, the Linux kernel has been updated from version 6.17 (25.10 backport) to 7.0.</p>
+<ul>
+<li><p>Crash dumps are now <a class="reference external" href="https://documentation.ubuntu.com/server/how-to/software/kernel-crash-dump/#kdump-enabled-by-default">enabled by default</a> for desktop and server installations.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 24.10.</span></p>
+</div>
+</li>
+<li><p>Kernel developers can now make use of a <a class="reference external" href="https://canonical.com/blog/crafting-new-linux-schedulers-with-sched-ext-rust-and-ubuntu">new scheduling system</a>, <code class="docutils literal notranslate"><span class="pre">sched_ext</span></code>, which provides a mechanism to implement scheduling policies as eBPF programs. This enables developers to defer scheduling decisions to standard user-space programs and implement fully functional hot-swappable Linux schedulers, using any language, tool, library, or resource accessible in user-space.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+</li>
+<li><p>After the generic kernel gained the ability to <a class="reference external" href="https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2051342">tune responsiveness at boot time</a>, the <code class="docutils literal notranslate"><span class="pre">linux-lowlatency</span></code> binary package has been retired in favor of a combination of <code class="docutils literal notranslate"><span class="pre">linux-generic</span></code> and a new user-space <code class="docutils literal notranslate"><span class="pre">lowlatency-kernel</span></code> package, responsible of tuning the GRUB command line.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+</li>
+<li><p>The RISC-V kernel supports only architectures compliant with the RVA23S64 ISA profile.</p>
+<p>For details, see <a class="reference internal" href="#resolute-new-risc-v-requirements"><span class="std std-ref">New RISC-V requirements</span></a>.</p>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 25.10.</span></p>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">linux-generic</span></code> for arm64 provides via <code class="docutils literal notranslate"><span class="pre">stubble</span></code> broader compatibility for arm64 desktop platforms that utilize UEFI for booting (<a class="reference external" href="https://bugs.launchpad.net/ubuntu/+source/linux-signed/+bug/2121352">LP: #2121352</a>).</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+</li>
+<li><p>Upstream Linux kernel 7.0 delivers improved support for Intel® Core™ Ultra Series 3 processors (codenamed Panther Lake), introducing targeted optimizations for Intel Xe3 integrated graphics and the integrated NPU (Neural Processing Unit).</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+</li>
+<li><p>Integrated IgH EtherCAT module and Generic driver (<a class="reference external" href="https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2138621">LP: #2138621</a>). These modules provide real-time performance for industrial EtherCAT networks.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+</li>
+<li><p>The real-time linux kernel is available in the main archive (outside of Ubuntu Pro) in 26.04. Following the <code class="docutils literal notranslate"><span class="pre">PREEMPT_RT</span></code> patches being upstreamed, the 26.04 release of the real-time kernel is available for free for anyone to use.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+</li>
+<li><p>Kernel Livepatch now supports the ARM64 architecture.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+</li>
+<li><p>DOCA-OFED 26.01 kernel modules are available for the Ubuntu generic and select derivative kernels.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 26.04.</span></p>
+</div>
+</li>
+</ul>
+</section>
+<section id="systemd-259">
+<h3><code class="docutils literal notranslate"><span class="pre">systemd</span></code> 259<a class="headerlink" href="#systemd-259" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">systemd</span></code> service manager has been updated from version 255 to 259.</p>
+<ul>
+<li><p>Ubuntu 26.04 LTS is the last release that supports System V service scripts compatibility in <code class="docutils literal notranslate"><span class="pre">systemd</span></code>. Migrate your legacy System V scripts to native <code class="docutils literal notranslate"><span class="pre">systemd</span></code> unit files.</p></li>
+<li><p>Support for <code class="docutils literal notranslate"><span class="pre">cgroup</span></code> version 1 (<code class="docutils literal notranslate"><span class="pre">legacy</span></code> and <code class="docutils literal notranslate"><span class="pre">hybrid</span></code> hierarchies) has been removed. For details, see <a class="reference internal" href="../changes-since-previous-interim/#cgroup-v1-removed"><span class="std std-ref">cgroup v1 support has been removed</span></a>.</p>
+<div class="versionremoved">
+<p><span class="versionmodified removed">Removed in version 26.04.</span></p>
+</div>
+</li>
+<li><p>Ubuntu now comes with the upstream <code class="docutils literal notranslate"><span class="pre">tmp.mount</span></code> unit by default. As a result, the <code class="docutils literal notranslate"><span class="pre">/tmp</span></code> directory is now a <code class="docutils literal notranslate"><span class="pre">tmpfs</span></code> file system by default.</p>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 24.10.</span></p>
+</div>
+</li>
+</ul>
+</section>
+<section id="netplan-1-2">
+<h3>Netplan 1.2<a class="headerlink" href="#netplan-1-2" title="Link to this heading">¶</a></h3>
+<p>The Netplan network manager has been updated from version 1.0 to 1.2.</p>
+<ul>
+<li><p>Netplan introduces a custom <code class="docutils literal notranslate"><span class="pre">systemd-networkd-wait-online</span></code> logic, waiting for link-local addresses and one routable interface, as described in the <a class="reference external" href="https://discourse.ubuntu.com/t/spec-definition-of-an-online-system/27838">specification</a>.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 24.10.</span></p>
+</div>
+</li>
+<li><p>Besides improvements to the <code class="docutils literal notranslate"><span class="pre">embedded-switch-mode</span></code> setting for SR-IOV devices, Netplan introduces a parser flag to skip broken configurations and fixes for ProtonVPN and Microsoft Azure Linux.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 24.10.</span></p>
+</div>
+</li>
+<li><p>Adding support for <code class="docutils literal notranslate"><span class="pre">wpa-psk-sha256</span></code> WiFis and allowing to configure <strong>routing-policy</strong> on the NetworkManager backend (LP: <a class="reference external" href="https://launchpad.net/bugs/2086544">#2086544</a>).</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.04.</span></p>
+</div>
+</li>
+<li><p>Adds support non-standard OVS setups, e.g. inside snap environments.</p>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+</li>
+</ul>
+</section>
+<section id="package-management-apt-3">
+<h3>Package Management: APT 3<a class="headerlink" href="#package-management-apt-3" title="Link to this heading">¶</a></h3>
+<p>APT has been updated from version 2.7 to 3.1.</p>
+<p>The new dependency solver is now automatically used if the classic solver cannot find a solution to either find a solution or add more context to the failure, and in other cases to <a class="reference external" href="https://discourse.ubuntu.com/t/evaluating-the-new-apt-solver-in-25-04/55618">evaluate its performance</a>.</p>
+<p>APT has switched from GnuTLS and gcrypt to the OpenSSL library for TLS connections and file hashing, which should improve compatibility and reduces the footprint of minimal installations.</p>
+<p>An automatic pager has been added to <code class="docutils literal notranslate"><span class="pre">apt(8)</span></code> for commands such as show and list, similar to <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">log</span></code> and <code class="docutils literal notranslate"><span class="pre">journalctl</span></code>.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">apt-key</span></code> command has been removed. Signature verification now makes direct use of <code class="docutils literal notranslate"><span class="pre">gpgv</span></code>. Some packages and system administration scripts may need adjustment for managing keys directly, advice can be found in the <code class="docutils literal notranslate"><span class="pre">apt-secure(8)</span></code> manual page.</p>
+<section id="history-management-in-apt">
+<h4>History management in APT<a class="headerlink" href="#history-management-in-apt" title="Link to this heading">¶</a></h4>
+<div class="versionadded">
+<p><span class="versionmodified added">Added in version 25.10.</span></p>
+</div>
+<p>APT now provides an interface for viewing and manipulating its command history.</p>
+<ul>
+<li><p><strong>List</strong> changes:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ apt history-list
+ID   Command line             Date and Time          Action    Changes
+
+0    install cowsay           2026-04-23  17:00:00   Install   1
+1    upgrade                  2026-04-23  18:15:00   Upgrade   25
+2    build-dep .              2026-04-24  18:30:00   Install   4
+</pre></div>
+</div>
+</li>
+<li><p><strong>Inspect</strong> changes:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ apt history-info 0
+Transaction ID: 0
+Start time: 2026-04-23  17:00:00
+End time: 2026-04-23  17:00:05
+Requested by: raccoon (1000)
+Command line: apt install cowsay
+Packages changed:
+    Install cowsay:amd64 (3.03+dfsg2-8build1)
+</pre></div>
+</div>
+</li>
+<li><p><strong>Undo</strong> changes:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ sudo apt history-undo 0
+REMOVING:
+cowsay
+
+Summary:
+Upgrading: 0, Installing: 0, Removing: 1, Not Upgrading: 0
+Freed space: 89.1 kB
+
+Continue? [Y/n]
+</pre></div>
+</div>
+</li>
+<li><p><strong>Redo</strong> changes:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ sudo apt history-redo 0
+cowsay is already the newest version (3.03+dfsg2-8build1).
+Summary:
+Upgrading: 0, Installing: 0, Removing: 0, Not Upgrading: 0
+</pre></div>
+</div>
+</li>
+<li><p><strong>Rollback</strong> to a specific change:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ sudo apt history-rollback 1
+REMOVING:
+libtext-unidecode-perl  tex-common  texinfo  texinfo-lib
+
+Summary:
+Upgrading: 0, Installing: 0, Removing: 4, Not Upgrading: 0
+Freed space: 8119 kB
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+</section>
+<section id="the-pkcon-command-has-been-removed">
+<h3>The <code class="docutils literal notranslate"><span class="pre">pkcon</span></code> command has been removed<a class="headerlink" href="#the-pkcon-command-has-been-removed" title="Link to this heading">¶</a></h3>
+<div class="versionremoved">
+<p><span class="versionmodified removed">Removed in version 26.04.</span></p>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">pkcon</span></code> command, a command-line utility for managing Debian packages, distributed as part of PackageKit, was dropped in Ubuntu 26.04.</p>
+<p>A new command-line utility from PackageKit is available as <code class="docutils literal notranslate"><span class="pre">pkgcli</span></code> with equivalent functionality.</p>
+<p>PackageKit is pre-installed in both Ubuntu Desktop and Ubuntu Server.</p>
+<p>See <a class="reference external" href="https://bugs.launchpad.net/ubuntu/+source/packagekit/+bug/2150176">LP: #2150176</a> for more information.</p>
+<p>For the full list of changes, see the <a class="reference external" href="https://github.com/PackageKit/PackageKit/blob/main/NEWS">upstream changelog</a>.</p>
+</section>
+<section id="dracut">
+<h3>Dracut<a class="headerlink" href="#dracut" title="Link to this heading">¶</a></h3>
+<div class="versionchanged">
+<p><span class="versionmodified changed">Changed in version 25.10.</span></p>
+</div>
+<p>Ubuntu now uses Dracut as its default initial ramdisk infrastructure, replacing <code class="docutils literal notranslate"><span class="pre">initramfs-tools</span></code>. Dracut uses <code class="docutils literal notranslate"><span class="pre">systemd</span></code> in the initial ramdisk and supports new features like Bluetooth and NVM Express over Fabrics (NVMe-oF).</p>
+<p>The original <code class="docutils literal notranslate"><span class="pre">initramfs-tools</span></code> remains supported and you can switch between the two implementations if required.</p>
+<p>For details about the switch, see <a class="reference external" href="https://discourse.ubuntu.com/t/spec-switch-to-dracut/54776">the specification</a>.</p>
+</section>
+</section>
+<section id="more-details">
+<h2>More details<a class="headerlink" href="#more-details" title="Link to this heading">¶</a></h2>
+<p>You can find the <a class="reference internal" href="../changes-since-previous-interim/#resolute-known-issues"><span class="std std-ref">Known issues</span></a> in this release on a separate page.</p>
+<p>For a complete list of changes in Ubuntu 26.04 LTS, refer to the following documents, depending on the Ubuntu release that you’re upgrading from:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../../24.10/#ubuntu-24-10-release-notes"><span class="std std-ref">Ubuntu 24.10 release notes</span></a></p></li>
+<li><p><a class="reference internal" href="../../25.04/#ubuntu-25-04-release-notes"><span class="std std-ref">Ubuntu 25.04 release notes</span></a></p></li>
+<li><p><a class="reference internal" href="../../25.10/#ubuntu-25-10-release-notes"><span class="std std-ref">Ubuntu 25.10 release notes</span></a></p></li>
+<li><p><a class="reference internal" href="../changes-since-previous-interim/#ubuntu-26-04-lts-changes-since-25-10"><span class="std std-ref">Ubuntu 26.04 LTS changes since 25.10</span></a></p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+   
+
+<div class="related-pages">
+  
+  
+    
+  
+  
+  
+</div>
+<div class="bottom-of-page">
+  <div class="left-details">
+    <div class="copyright">
+        &copy; 2026 Canonical Ltd.
+    </div><div class="license">
+        This page is licensed under <a href="https://github.com/ubuntu/ubuntu-release-notes/blob/main/LICENSE">CC-BY-SA-3.0</a>
+      </div><div class="last-updated">
+      Last updated on Oct 14, 2026</div>
+  </div>
+  <div>
+   
+  </div>
+  <div class="right-details">
+  </div>
+</div>
+
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+<div class="toc-sticky toc-scroll">
+   
+    <div class="toc-title-container">
+      <span class="toc-title">
+       Contents
+      </span>
+    </div>
+    <div class="toc-tree-container">
+      <div class="toc-tree">
+        <ul>
+<li><a class="reference internal" href="#">Ubuntu 26.04 LTS summary</a><ul>
+<li><a class="reference internal" href="#desktop">Desktop</a><ul>
+<li><a class="reference internal" href="#updated-applications">Updated applications</a></li>
+<li><a class="reference internal" href="#gnome-50">GNOME 50</a></li>
+<li><a class="reference internal" href="#added-a-gnome-shell-search-provider-for-snap-applications">Added a GNOME Shell search provider for snap applications</a></li>
+<li><a class="reference internal" href="#added-a-gnome-shell-search-provider-for-web-search">Added a GNOME Shell search provider for web search</a></li>
+<li><a class="reference internal" href="#accessibility-improvements-and-fixes">Accessibility improvements and fixes</a></li>
+<li><a class="reference internal" href="#yaru-theme-updates">Yaru theme updates</a></li>
+<li><a class="reference internal" href="#improved-integration-with-snap-applications">Improved integration with snap applications</a></li>
+<li><a class="reference internal" href="#new-document-viewer">New document viewer</a></li>
+<li><a class="reference internal" href="#new-image-viewer">New image viewer</a></li>
+<li><a class="reference internal" href="#new-terminal-emulator">New terminal emulator</a></li>
+<li><a class="reference internal" href="#new-system-monitor">New system monitor</a></li>
+<li><a class="reference internal" href="#new-default-video-player">New default video player</a></li>
+<li><a class="reference internal" href="#new-video-and-audio-thumbnailers">New video and audio thumbnailers</a></li>
+<li><a class="reference internal" href="#tracker-miners-updated-to-localsearch">Tracker Miners updated to LocalSearch</a></li>
+<li><a class="reference internal" href="#wayland-session">Wayland session</a></li>
+<li><a class="reference internal" href="#software-updates-app">Software &amp; Updates app</a></li>
+<li><a class="reference internal" href="#nvidia-drivers">NVIDIA drivers</a></li>
+<li><a class="reference internal" href="#app-center-enhancements">App Center enhancements</a></li>
+<li><a class="reference internal" href="#security-center">Security Center</a></li>
+<li><a class="reference internal" href="#permission-prompting">Permission prompting</a></li>
+<li><a class="reference internal" href="#better-power-optimization">Better power optimization</a></li>
+<li><a class="reference internal" href="#performance-improvements-in-windows-games">Performance improvements in Windows games</a></li>
+<li><a class="reference internal" href="#new-arm64-desktop-image">New ARM64 Desktop image</a></li>
+<li><a class="reference internal" href="#dual-boot-enhancements">Dual boot enhancements</a></li>
+<li><a class="reference internal" href="#jpeg-xl-support">JPEG XL support</a></li>
+<li><a class="reference internal" href="#va-api-accelerated-video-encoding-and-decoding-by-default">VA-API accelerated video encoding and decoding by default</a></li>
+<li><a class="reference internal" href="#updated-optional-media-codecs">Updated optional media codecs</a></li>
+<li><a class="reference internal" href="#new-update-notifications">New update notifications</a></li>
+<li><a class="reference internal" href="#installer-accessibility">Installer accessibility</a></li>
+<li><a class="reference internal" href="#ubuntu-insights">Ubuntu Insights</a></li>
+<li><a class="reference internal" href="#prelogin-and-postsession-scripts-have-been-removed"><code class="docutils literal notranslate"><span class="pre">PreLogin</span></code> and <code class="docutils literal notranslate"><span class="pre">PostSession</span></code> scripts have been removed</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#server">Server</a><ul>
+<li><a class="reference internal" href="#openssh">OpenSSH</a></li>
+<li><a class="reference internal" href="#chrony">Chrony</a></li>
+<li><a class="reference internal" href="#clamav">ClamAV</a></li>
+<li><a class="reference internal" href="#django">Django</a></li>
+<li><a class="reference internal" href="#php">PHP</a></li>
+<li><a class="reference internal" href="#dovecot">Dovecot</a></li>
+<li><a class="reference internal" href="#openldap">OpenLDAP</a></li>
+<li><a class="reference internal" href="#postfix">Postfix</a></li>
+<li><a class="reference internal" href="#rabbitmq">RabbitMQ</a></li>
+<li><a class="reference internal" href="#samba">Samba</a></li>
+<li><a class="reference internal" href="#squid">Squid</a></li>
+<li><a class="reference internal" href="#sssd">SSSD</a></li>
+<li><a class="reference internal" href="#strace">strace</a></li>
+<li><a class="reference internal" href="#haproxy">HAProxy</a></li>
+<li><a class="reference internal" href="#documentdb">DocumentDB</a></li>
+<li><a class="reference internal" href="#mysql">MySQL</a></li>
+<li><a class="reference internal" href="#mysql-shell">MySQL Shell</a></li>
+<li><a class="reference internal" href="#postgresql">PostgreSQL</a></li>
+<li><a class="reference internal" href="#valkey">Valkey</a></li>
+<li><a class="reference internal" href="#container-stacks">Container stacks</a></li>
+<li><a class="reference internal" href="#virtualization-stack">Virtualization stack</a></li>
+<li><a class="reference internal" href="#high-availability-and-clustering">High availability and clustering</a></li>
+<li><a class="reference internal" href="#installer">Installer</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#wsl">WSL</a><ul>
+<li><a class="reference internal" href="#id2">Ubuntu Insights</a></li>
+<li><a class="reference internal" href="#id3">Chrony</a></li>
+<li><a class="reference internal" href="#systemd-binfmt-service">systemd-binfmt.service</a></li>
+<li><a class="reference internal" href="#user-setup">User setup</a></li>
+<li><a class="reference internal" href="#ubuntu-pro-for-wsl-version-1-0-released">Ubuntu Pro for WSL version 1.0 released</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#development">Development</a><ul>
+<li><a class="reference internal" href="#openjdk-25-and-tck-certification">OpenJDK 25 and TCK certification</a></li>
+<li><a class="reference internal" href="#openjdk-crac">OpenJDK CRaC</a></li>
+<li><a class="reference internal" href="#spring-snaps">Spring® snaps</a></li>
+<li><a class="reference internal" href="#graalvm-snap">GraalVM snap</a></li>
+<li><a class="reference internal" href="#net-10">.NET 10</a></li>
+<li><a class="reference internal" href="#net-snap">.NET snap</a></li>
+<li><a class="reference internal" href="#powershell-snap-on-more-architectures">PowerShell snap on more architectures</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#enterprise">Enterprise</a><ul>
+<li><a class="reference internal" href="#authd">authd</a></li>
+<li><a class="reference internal" href="#adsys">ADSys</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cloud">Cloud</a><ul>
+<li><a class="reference internal" href="#google-cloud">Google Cloud</a></li>
+<li><a class="reference internal" href="#amazon-web-services-aws">Amazon Web Services (AWS)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#security">Security</a><ul>
+<li><a class="reference internal" href="#new-apparmor-sandboxing-profiles">New AppArmor sandboxing profiles</a></li>
+<li><a class="reference internal" href="#tpm-backed-full-disk-encryption">TPM-backed full-disk encryption</a></li>
+<li><a class="reference internal" href="#post-quantum-cryptography-support">Post-quantum cryptography support</a></li>
+<li><a class="reference internal" href="#intel-trusted-domain-extensions-tdx-host-support">Intel® Trusted Domain Extensions (TDX) host support</a></li>
+<li><a class="reference internal" href="#cargo-auditable">cargo-auditable</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ai-ml-support">AI/ML support</a><ul>
+<li><a class="reference internal" href="#the-dpc-compiler-and-related-packages-are-now-available">The DPC++ compiler and related packages are now available</a></li>
+<li><a class="reference internal" href="#the-nvidia-cuda-toolkit-is-now-available">The NVIDIA CUDA toolkit is now available</a></li>
+<li><a class="reference internal" href="#the-amd-rocm-libraries-are-now-available">The AMD ROCm libraries are now available</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#hardware-support">Hardware support</a><ul>
+<li><a class="reference internal" href="#nvidia-dynamic-boost">NVIDIA Dynamic Boost</a></li>
+<li><a class="reference internal" href="#support-for-new-intel-integrated-and-discrete-gpus">Support for new Intel® integrated and discrete GPUs</a></li>
+<li><a class="reference internal" href="#suspend-with-nvidia">Suspend with Nvidia</a></li>
+<li><a class="reference internal" href="#arm-desktop-platforms">ARM desktop platforms</a></li>
+<li><a class="reference internal" href="#a-new-boot-layout-for-raspberry-pi">A new boot layout for Raspberry Pi</a></li>
+<li><a class="reference internal" href="#raspberry-pi-is-based-on-the-minimal-image">Raspberry Pi is based on the minimal image</a></li>
+<li><a class="reference internal" href="#swap-is-created-with-cloud-init-on-raspberry-pi">Swap is created with <code class="docutils literal notranslate"><span class="pre">cloud-init</span></code> on Raspberry Pi</a></li>
+<li><a class="reference internal" href="#new-risc-v-requirements">New RISC-V requirements</a></li>
+<li><a class="reference internal" href="#ibm-z-requirements-raised-to-z15">IBM Z requirements raised to z15</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#common-changes">Common changes</a><ul>
+<li><a class="reference internal" href="#sudo-rs"><code class="docutils literal notranslate"><span class="pre">sudo-rs</span></code></a></li>
+<li><a class="reference internal" href="#rust-coreutils"><code class="docutils literal notranslate"><span class="pre">rust-coreutils</span></code></a></li>
+<li><a class="reference internal" href="#architecture-variants-and-amd64v3">Architecture variants and <code class="docutils literal notranslate"><span class="pre">amd64v3</span></code></a></li>
+<li><a class="reference internal" href="#linux-kernel-7-0">Linux kernel 7.0</a></li>
+<li><a class="reference internal" href="#systemd-259"><code class="docutils literal notranslate"><span class="pre">systemd</span></code> 259</a></li>
+<li><a class="reference internal" href="#netplan-1-2">Netplan 1.2</a></li>
+<li><a class="reference internal" href="#package-management-apt-3">Package Management: APT 3</a></li>
+<li><a class="reference internal" href="#the-pkcon-command-has-been-removed">The <code class="docutils literal notranslate"><span class="pre">pkcon</span></code> command has been removed</a></li>
+<li><a class="reference internal" href="#dracut">Dracut</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#more-details">More details</a></li>
+</ul>
+</li>
+</ul>
+
+      </div>
+    </div>
+   
+    
+  </div>
+
+    </aside>
+  </div>
+</div><script src="../../_static/jquery.js?v=5d32c60e"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+    <script src="../../_static/documentation_options.js?v=a5603611"></script>
+    <script src="../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=25066c07"></script>
+    <script src="../../_static/config-options.js"></script>
+    <script src="../../_static/contributors.js"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script src="../../_static/header-nav.js?v=e117ad08"></script>
+    <script src="../../_static/github_issue_links.js?v=355d2de4"></script>
+    
+<script>
+  const github_url = "https://github.com/ubuntu/ubuntu-release-notes";
+  const feedback_link = "";
+</script>
+</body>
+</html>

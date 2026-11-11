@@ -1,0 +1,143 @@
+{
+  "schema": 1,
+  "repository": "billlza/q-periapt",
+  "initial_readback_started_utc": "2026-11-11 16:53:41 UTC",
+  "job_readback_utc": "2026-11-11 16:54:50 UTC",
+  "terminal_api_readback_utc": "2026-11-11 16:54:59 UTC",
+  "run": {
+    "id": 43062177678,
+    "name": "Ubuntu APT variant qualification",
+    "event": "push",
+    "status": "completed",
+    "conclusion": "success",
+    "head_branch": "diagnostic/ubuntu-apt-variants",
+    "head_sha": "6fa6291f7e2c68a98bcf739b2eea72a59bd165bc",
+    "path": ".github/workflows/ubuntu-apt-variants.yml",
+    "run_attempt": 1,
+    "created_at": "2026-11-11T16:49:57Z",
+    "run_started_at": "2026-11-11T16:49:57Z",
+    "updated_at": "2026-11-11T16:54:09Z",
+    "html_url": "https://github.com/billlza/q-periapt/actions/runs/43062177678"
+  },
+  "jobs": {
+    "total_count": 1,
+    "jobs": [
+      {
+        "id": 130667389723,
+        "run_id": 43062177678,
+        "workflow_name": "Ubuntu APT variant qualification",
+        "head_branch": "diagnostic/ubuntu-apt-variants",
+        "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/43062177678",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTD-aVc8AAAAebGIjGw",
+        "head_sha": "6fa6291f7e2c68a98bcf739b2eea72a59bd165bc",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/130667389723",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/43062177678/job/130667389723",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-11-11T16:49:58Z",
+        "started_at": "2026-11-11T16:50:02Z",
+        "completed_at": "2026-11-11T16:54:08Z",
+        "name": "ubuntu-variants",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-11T16:50:02Z",
+            "completed_at": "2026-11-11T16:50:03Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-11T16:50:03Z",
+            "completed_at": "2026-11-11T16:52:57Z"
+          },
+          {
+            "name": "Record source, configured variants, and installed versions",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-11T16:52:57Z",
+            "completed_at": "2026-11-11T16:52:58Z"
+          },
+          {
+            "name": "Install all four previously failing dependency sets",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-11T16:52:58Z",
+            "completed_at": "2026-11-11T16:53:59Z"
+          },
+          {
+            "name": "Compile and execute Memcheck and RISC-V consumers",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-11T16:53:59Z",
+            "completed_at": "2026-11-11T16:54:00Z"
+          },
+          {
+            "name": "Exercise formal-tool build dependencies",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-11T16:54:00Z",
+            "completed_at": "2026-11-11T16:54:01Z"
+          },
+          {
+            "name": "Compile and execute the existing OpenSSL consumer after installation",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-11-11T16:54:01Z",
+            "completed_at": "2026-11-11T16:54:03Z"
+          },
+          {
+            "name": "Verify clean source",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-11-11T16:54:03Z",
+            "completed_at": "2026-11-11T16:54:06Z"
+          },
+          {
+            "name": "Retain installed-version and execution evidence",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-11-11T16:54:06Z",
+            "completed_at": "2026-11-11T16:54:07Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 18,
+            "started_at": "2026-11-11T16:54:07Z",
+            "completed_at": "2026-11-11T16:54:07Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 19,
+            "started_at": "2026-11-11T16:54:07Z",
+            "completed_at": "2026-11-11T16:54:07Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/130667389723",
+        "labels": [
+          "ubuntu-26.04"
+        ],
+        "runner_id": 1000089350,
+        "runner_name": "GitHub Actions 1000089350",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      }
+    ]
+  }
+}
