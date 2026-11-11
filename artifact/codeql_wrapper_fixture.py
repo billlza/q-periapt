@@ -20,7 +20,7 @@ import zipfile
 
 sys.dont_write_bytecode = True
 
-PRODUCTION_COMMIT = "951b8dcaebc11223bf01c79c1c4c3a20349be989"
+PRODUCTION_COMMIT = "b5185165283880527a54289b47397fde78ddf553"
 EVIDENCE_COMMIT = "99340939848d290191651ab306d1b5edc0f59df2"
 EVIDENCE = "research/sdk-alpha1/evidence/"
 FIXTURE_PACKET = EVIDENCE + "20261111-summary-projection-fixture/"
@@ -390,7 +390,10 @@ def main():
                                                   stdio_prefix=None, capture_invocation=True)
             observed = {name: observations[name] for name in plan.OBSERVATION_FIELDS}
             save(evidence / "EVALUATOR_OBSERVATIONS.json", observed)
-            plan.validate_observations(observed, context.pack, queries, memory["heap_mb"])
+            completion = evaluator_logs.read_completion_receipt(evidence / "analyze.stderr", queries)
+            save(evidence / "QUERY_COMPLETIONS.json", completion)
+            plan.validate_observations(observed, context.pack, queries, memory["heap_mb"],
+                                       completion=completion)
             results_root = run.configuration.database / "results/codeql/rust-queries"
             expected_results = {str(Path(name).with_suffix(".bqrs")) for name in queries}
             found = {path.relative_to(results_root).as_posix() for path in results_root.rglob("*.bqrs")}
@@ -433,6 +436,7 @@ def main():
             "summary_plan": context.before, "query_memory": memory, "query_threads": 4,
             "analysis_supervisor_seconds": 600, "precompiled_query_loads": 39,
             "implicit_compilations": 0, "fresh_bqrs_count": 39,
+            "query_completion_evidence": completion,
             "sarif": identity(sarif_path), "summary_decoded": identity(evidence / "decode-summary.stdout"),
             "summary_semantic_sha256": canonical(summary), "summary_values": values,
             "retained_all_baseline_equal": True, "retained_baselines_rerun": False,

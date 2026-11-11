@@ -134,13 +134,8 @@ def validate_loads(record: dict, expected: list[str]) -> None:
             "candidate evaluation did not load exactly the 39 admitted precompiled queries")
 
 
-class QueryCompletionSink:
-    """Retain stderr first, then display bounded progress for an admitted suite.
-
-    The caller supplies the 39 relative query paths from its validated manifest.
-    This is display-only evidence: completion receipts, output inventories and
-    failure propagation remain the responsibility of the existing caller.
-    """
+class _QueryCompletions:
+    """One bounded parser for live progress and retained completion evidence."""
 
     MAX_LINE_BYTES = 1024
     _COMPLETION = re.compile(
@@ -149,9 +144,8 @@ class QueryCompletionSink:
         rb"\] Evaluation done; writing results to ([^\r\n]+\.bqrs)\."
     )
 
-    def __init__(self, write, query_paths):
-        require(callable(write), "query progress requires the original stderr sink")
-        expected = set()
+    def __init__(self, query_paths, *, strict=False, on_progress=None):
+        expected = {}
         for relative in query_paths:
             require(len(expected) < 39, "query progress requires exactly 39 query paths")
             require(isinstance(relative, str) and relative.startswith("queries/")
@@ -163,19 +157,16 @@ class QueryCompletionSink:
             require(len(encoded) <= 512, "query progress path exceeds its bound")
             result = b"codeql/rust-queries/" + encoded[:-3] + b".bqrs"
             require(result not in expected, "query progress query paths must be unique")
-            expected.add(result)
+            expected[result] = relative
         require(len(expected) == 39, "query progress requires exactly 39 query paths")
-        self._write = write
         self._expected = expected
+        self._strict = strict
+        self._on_progress = on_progress
         self._seen = set()
         self._pending = bytearray()
         self._discarding = False
 
     def __call__(self, block: bytes) -> None:
-        # The supervisor applies its existing total-byte limit before this
-        # callback. Preserve every original byte before observing the chunk;
-        # real sink or console I/O failures retain that supervisor's error path.
-        self._write(block)
         offset = 0
         while offset < len(block):
             newline = block.find(b"\n", offset)
@@ -199,11 +190,73 @@ class QueryCompletionSink:
             line = line[:-1]
         match = self._COMPLETION.fullmatch(line)
         if match is None or int(match[1]) > 39:
+            require(not self._strict or b"Evaluation done; writing results to " not in line,
+                    "malformed query completion message")
             return
         result = match[2]
         if result not in self._expected or result in self._seen:
+            require(not self._strict, "unknown or duplicate query completion")
             return
         # Reconstruct the count from distinct admitted completion messages.
         # A repeated, reordered or inflated raw counter cannot jump this count.
         self._seen.add(result)
-        print(f"CodeQL query completions observed: {len(self._seen)}/39", flush=True)
+        if self._on_progress is not None:
+            self._on_progress(len(self._seen))
+
+    def finish(self) -> list[str]:
+        if self._pending and not self._discarding:
+            self._observe_line(bytes(self._pending))
+        require(self._seen == self._expected.keys(),
+                "retained stderr does not complete exactly the 39 admitted queries")
+        return sorted(self._expected[result] for result in self._seen)
+
+
+def read_completion_receipt(path: Path, query_paths, *, maximum_bytes=16 * 1024**2,
+                            seconds=30) -> dict:
+    """Bind every distinct completion to one bounded snapshot of original stderr.
+
+    The CLI's stderr progress stream can contain completion messages absent
+    from its internal evaluator log. Keep the latter's observations intact and
+    require the complete admitted query set from this independently retained
+    stream. Publication calls this same reader on the uploaded original bytes.
+    """
+    deadline = time.monotonic() + seconds
+    completions = _QueryCompletions(query_paths, strict=True)
+
+    def capture(block: bytes) -> None:
+        require(time.monotonic() <= deadline, "query completion read exceeded its bound")
+        completions(block)
+
+    snapshot = consume_regular_snapshot(path, maximum=maximum_bytes,
+                                        label="query completion stderr", consume=capture)
+    queries = completions.finish()
+    require(time.monotonic() <= deadline, "query completion read exceeded its bound")
+    return {"schema": 1, "source": path.name, "bytes": snapshot.size,
+            "sha256": snapshot.sha256, "queries": queries}
+
+
+class QueryCompletionSink:
+    """Retain stderr first, then display bounded progress for an admitted suite.
+
+    Completion admission rereads the original stderr independently; a displayed
+    count alone never creates a completion or publication receipt.
+    """
+
+    MAX_LINE_BYTES = _QueryCompletions.MAX_LINE_BYTES
+    _COMPLETION = _QueryCompletions._COMPLETION
+
+    def __init__(self, write, query_paths):
+        require(callable(write), "query progress requires the original stderr sink")
+        self._write = write
+        self._completions = _QueryCompletions(query_paths, on_progress=self._display)
+
+    @staticmethod
+    def _display(count: int) -> None:
+        print(f"CodeQL query completions observed: {count}/39", flush=True)
+
+    def __call__(self, block: bytes) -> None:
+        # The supervisor applies its existing total-byte limit before this
+        # callback. Retain every original byte before parsing or console output;
+        # either I/O failure keeps the supervisor's original failure behavior.
+        self._write(block)
+        self._completions(block)

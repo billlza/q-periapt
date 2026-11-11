@@ -14,3 +14,6 @@ LICENSES/continuity-services/** -text -whitespace
 
 # This source-bound vendor patch includes significant unified-diff context spaces.
 artifact/codeql_summary_projection.patch -text -whitespace
+
+# Retained CLI output is a byte-bound regression input.
+artifact/codeql-fixtures/*.stderr -text

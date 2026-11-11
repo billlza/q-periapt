@@ -49,6 +49,7 @@ jobs:
           path: |
             ${{ runner.temp }}/qperiapt-wrapper-source.txt
             ${{ runner.temp }}/qperiapt-codeql-wrapper-fixture/evidence/**
+            ${{ runner.temp }}/qperiapt-codeql-wrapper-fixture/database/results/**
             ${{ runner.temp }}/qperiapt-codeql-wrapper-fixture/extract-logs/**
             ${{ runner.temp }}/qperiapt-codeql-wrapper-fixture/database-extracted/log/**
             ${{ runner.temp }}/qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator/**
