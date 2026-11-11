@@ -6,7 +6,9 @@ export GITHUB_SHA=${1:?expected source commit}
 [[ $GITHUB_SHA =~ ^[0-9a-f]{40}$ ]]
 test "${SLURM_CPUS_PER_TASK:?}" = 4
 test "${SLURM_MEM_PER_NODE:?}" = 65536
-staging=${SLURM_SUBMIT_DIR:?}
+# --chdir selects the execution directory; SLURM_SUBMIT_DIR is the client cwd.
+staging=$(pwd -P)
+test -d "$staging/source/artifact"
 result_directory="$staging/results/$SLURM_JOB_ID"
 mkdir -p "$result_directory"
 node_workspace=$(mktemp -d "/tmp/qperiapt-codeql.$SLURM_JOB_ID.XXXXXXXX")
