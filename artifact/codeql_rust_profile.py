@@ -18,6 +18,7 @@ import codeql_consumer_context as consumers
 from codeql_compiler_sources import collect_compiled_sources
 import codeql_rust_quality as quality
 import codeql_rust_plan as analysis_plan
+import codeql_evaluator_logs as evaluator_logs
 from codeql_target_coverage import MacroProfile, parse_macro_calls, validate_active_macro_coverage
 from evidence_io import parse_strict_json_bytes
 from git_provenance import run_git_bytes
@@ -89,7 +90,8 @@ class ProfileRun:
             self.evidence.mkdir(parents=True)
 
     def command(self, label: str, argv: list[str], *, cwd: Path | None = None, seconds=900,
-                timeout_policy: TimeoutPolicy = TimeoutPolicy.STANDARD, stdin_fd: int | None = None):
+                timeout_policy: TimeoutPolicy = TimeoutPolicy.STANDARD, stdin_fd: int | None = None,
+                progress_queries: dict | None = None):
         started = time.monotonic()
         record = {"argv": argv, "cwd": str(cwd or self.root), "maximum_seconds": seconds,
                   "invoked_at_utc": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
@@ -111,7 +113,9 @@ class ProfileRun:
                 print(f"{label} invoked at {record['invoked_at_utc']} (bound {seconds}s)", flush=True)
                 result = capture_output(argv, timeout_seconds=seconds, maximum_stdout_bytes=32 * 1024**2,
                                         maximum_stderr_bytes=16 * 1024**2, environment=self.environment,
-                                        stdout_sink=stdout.write, stderr_sink=stderr.write,
+                                        stdout_sink=stdout.write,
+                                        stderr_sink=(evaluator_logs.QueryCompletionSink(stderr.write, progress_queries)
+                                                     if progress_queries is not None else stderr.write),
                                         timeout_policy=timeout_policy,
                                         **({"stdin_fd": stdin_fd} if stdin_fd is not None else {}))
         except BoundedProcessError as exc:
@@ -353,7 +357,7 @@ def validate_linux_query_memory(record: object, profile: str) -> None:
                 "Linux evaluator memory record differs from its resolved allocation")
 
 
-def analysis_memory_arguments(run: ProfileRun, profile: str) -> list[str]:
+def analysis_memory_arguments(run: ProfileRun, profile: str, *, qlconfig: Path | None = None) -> list[str]:
     sdk.require(analysis_host(profile) == run.configuration.platform,
                 "analysis memory profile belongs to a different host")
     arguments = [f"--ram={run.configuration.ram_mb}"]
@@ -363,7 +367,9 @@ def analysis_memory_arguments(run: ProfileRun, profile: str) -> list[str]:
         arguments.append(f"--off-heap-ram={LINUX_OFF_HEAP_RAM_MB}")
         resolved = parse_strict_json_bytes(run.command("resolve-analysis-ram", [
             str(run.codeql), "resolve", "ram", "--dataset=" + str(run.configuration.database / "db-rust"),
-            *arguments, "--format=json"]), label="Linux evaluator memory resolution")
+            *arguments, "--format=json",
+            *(["--qlconfig-file=" + str(qlconfig)] if qlconfig is not None else [])]),
+            label="Linux evaluator memory resolution")
         sdk.write_json(run.evidence / "QUERY_MEMORY.json", linux_query_memory(resolved, profile))
     return arguments
 
@@ -417,7 +423,8 @@ def analyze(run: ProfileRun, query_pack: Path, *, summary_plan_mode: str = "none
     validate_query_inventory(inventory, expected)
     sdk.write_json(run.evidence / "QUERY_INVENTORY.json", inventory)
     sarif = run.evidence / "results.sarif"
-    memory_arguments = analysis_memory_arguments(run, profile["profile"])
+    memory_arguments = analysis_memory_arguments(
+        run, profile["profile"], qlconfig=context.root / "qlconfig.yml" if context is not None else None)
     command = ([str(run.codeql), "database", "analyze", str(run.configuration.database), str(suite),
                              "--format=sarif-latest", "--output=" + str(sarif),
                              f"--threads={run.configuration.threads}", *memory_arguments,
@@ -427,7 +434,8 @@ def analyze(run: ProfileRun, query_pack: Path, *, summary_plan_mode: str = "none
         command = analysis_plan.analysis_command(context, run.configuration.database, run.evidence,
                                                   profile["profile"], memory_arguments)
     with analysis_plan.guard(run, context) if context is not None else contextlib.nullcontext():
-        run.command("analyze", command, seconds=18000, timeout_policy=TimeoutPolicy.LONG_ANALYSIS)
+        run.command("analyze", command, seconds=18000, timeout_policy=TimeoutPolicy.LONG_ANALYSIS,
+                    progress_queries=inventory)
     results = {}
     for relative in inventory:
         path = run.configuration.database / "results/codeql/rust-queries" / Path(relative).with_suffix(".bqrs")

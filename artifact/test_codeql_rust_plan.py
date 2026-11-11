@@ -1,4 +1,4 @@
-"""Production projection boundary tests; all external commands are simulated."""
+"""Projection boundaries with simulated CodeQL commands and one real stdin child."""
 from __future__ import annotations
 
 from contextlib import ExitStack
@@ -28,6 +28,8 @@ def write(path: Path, data: bytes) -> None:
     path.write_bytes(data)
 
 
+@unittest.skipUnless(os.name == "posix" and hasattr(os, "geteuid"),
+                     "private runtime ownership, mode and descriptor admission require POSIX")
 class ProductionProjectionTests(unittest.TestCase):
     def setUp(self) -> None:
         temporary = tempfile.TemporaryDirectory()
@@ -128,6 +130,7 @@ class ProductionProjectionTests(unittest.TestCase):
         if label == "resolve-suite":
             return json.dumps([str(self.pack / name) for name in self.queries]).encode()
         if label == "resolve-analysis-ram":
+            self.assertIn("--qlconfig-file=" + str(self.private_root / "qlconfig.yml"), argv)
             return b'["-J-Xmx3356M", "--off-heap-ram=9329"]'
         self.assertEqual(label, "analyze")
         self.assertEqual(argv[1:3], ["database", "analyze"])
@@ -314,6 +317,9 @@ class ProductionProjectionTests(unittest.TestCase):
 
         self.assertEqual(plan.extract_runtime(self.archive, destination, command), destination / "codeql")
 
+    @unittest.skipUnless(os.name == "posix" and all(hasattr(os, name) for name in
+                         ("geteuid", "waitid", "P_PID", "WEXITED", "WNOHANG", "WNOWAIT")),
+                         "descriptor subprocess supervision requires POSIX waitid")
     def test_archive_descriptor_meets_the_real_bounded_child_contract_and_is_cleaned(self) -> None:
         destination = self.root / "tool"
         observed = []
@@ -363,6 +369,22 @@ class ProductionProjectionTests(unittest.TestCase):
 
 
 class FixedProductionIdentityTests(unittest.TestCase):
+    def test_controlled_environment_keeps_explicit_inputs_without_a_home_override(self) -> None:
+        inherited = {"HOME": "/inherited/home", "PATH": "/unadmitted/bin",
+                     "CODEQL_DIST": "/wrong", "CODEQL_JAVA_HOME": "/wrong/java",
+                     "JAVA_TOOL_OPTIONS": "unadmitted", "LD_PRELOAD": "/wrong.so",
+                     "RUNNER_TRACKING_ID": "fixture", "GITHUB_RUN_ID": "123",
+                     "GITHUB_RUN_ATTEMPT": "2", "CODEQL_EXPECTED_COMMIT": "a" * 40}
+        temporary = Path("private-temporary")
+        actual = plan.controlled_environment(inherited, temporary)
+        self.assertEqual(actual, {
+            "PATH": "/usr/bin:/bin", "TMPDIR": str(temporary),
+            "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "TZ": "UTC",
+            "RUNNER_TRACKING_ID": "fixture", "GITHUB_RUN_ID": "123",
+            "GITHUB_RUN_ATTEMPT": "2", "CODEQL_EXPECTED_COMMIT": "a" * 40,
+        })
+        self.assertEqual(inherited["HOME"], "/inherited/home")
+
     def test_fixed_production_identity_requires_the_stage34_manifest_and_compiler_key(self) -> None:
         identity = plan.expected_identity()
         self.assertEqual(identity["manifest_sha256"], plan.PRODUCTION_MANIFEST_SHA256)

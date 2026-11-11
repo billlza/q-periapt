@@ -458,7 +458,8 @@ def query_command(codeql: Path, database: Path, root: Path, profile: str,
             "--output=" + str(root / "results"), "--", str(database / "db-rust"), "path:" + str(root / "frozen.qls")]
 
 
-def run_queries(command: list[str], evidence: Path, environment: dict, seconds: int = EVALUATION_SECONDS) -> dict:
+def run_queries(command: list[str], evidence: Path, environment: dict, seconds: int = EVALUATION_SECONDS,
+                *, progress_queries: dict | None = None) -> dict:
     start = time.monotonic()
     report = {"command": command, "returncode": None, "stopped": None}
     sampler = None
@@ -473,7 +474,10 @@ def run_queries(command: list[str], evidence: Path, environment: dict, seconds: 
                 (evidence / "query.stderr").open("xb", buffering=0) as stderr:
             result = capture_output(command, timeout_seconds=seconds, timeout_policy=TimeoutPolicy.LONG_ANALYSIS,
                                     maximum_stdout_bytes=32 * 1024**2, maximum_stderr_bytes=16 * 1024**2,
-                                    stdout_sink=stdout.write, stderr_sink=stderr.write, environment=environment)
+                                    stdout_sink=stdout.write,
+                                    stderr_sink=(evaluator_logs.QueryCompletionSink(stderr.write, progress_queries)
+                                                 if progress_queries is not None else stderr.write),
+                                    environment=environment)
         report["returncode"] = result.returncode
         return report
     except BoundedProcessError as error:
@@ -841,7 +845,7 @@ def evaluate(codeql: Path, bundle: Path, output: Path, profile: str,
         require(not any((root / "results").iterdir()), "query output is not fresh")
         phase = "evaluate"
         try:
-            report["evaluation"] = run_queries(command, evidence, environment)
+            report["evaluation"] = run_queries(command, evidence, environment, progress_queries=queries)
         finally:
             # The bounded process supervisor has already stopped/reaped children.
             try:

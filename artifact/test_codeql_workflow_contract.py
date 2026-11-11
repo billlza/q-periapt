@@ -80,6 +80,7 @@ class CodeQLWorkflowContractTests(unittest.TestCase):
     def test_both_summary_workers_receive_the_same_projection_capsule_and_mode(self) -> None:
         workflow = self.read("codeql-summary-control.yml")
         runtime_files = {
+            "artifact/codeql_evaluator_logs.py",
             "artifact/codeql_summary_projection.py",
             "artifact/codeql_summary_projection.json",
             "artifact/codeql_summary_projection_dependencies.json.gz",
@@ -99,6 +100,7 @@ class CodeQLWorkflowContractTests(unittest.TestCase):
                 self.assertNotIn("continue-on-error:", job)
         evaluate = mapping(workflow, "evaluate", 2)
         self.assertIn("artifact/test_codeql_summary_projection.py", evaluate)
+        self.assertIn("artifact/test_codeql_progress.py", evaluate)
         self.assertRegex(evaluate, r"run: sh artifact/python-run.sh -m unittest -v [^\n]+ test_codeql_summary_projection\n")
 
     def test_summary_comparison_keeps_both_fresh_complete_results_and_failure_evidence(self) -> None:

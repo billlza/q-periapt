@@ -208,7 +208,8 @@ jobs:
           sh artifact/python-run.sh -m unittest -v \
             test_codeql_rust_quality test_codeql_consumer_context \
             test_codeql_target_coverage test_codeql_compiler_sources \
-            test_codeql_cargo_metadata test_codeql_rust_profile test_codeql_rust_publication test_codeql_rust_transfer
+            test_codeql_cargo_metadata test_codeql_rust_profile test_codeql_rust_publication test_codeql_rust_transfer \
+            test_codeql_rust_plan test_codeql_progress
       - uses: github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
         id: rust_codeql
         with:
@@ -245,6 +246,7 @@ jobs:
           path: |
             ${{ runner.temp }}/qperiapt-codeql-database/rust/log/**
             ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/evidence/analyze.*
+            ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/analysis-plan/evaluator/**
           if-no-files-found: error
           retention-days: 14
       - name: Bundle the completed or partial database
@@ -309,7 +311,8 @@ jobs:
           sh artifact/python-run.sh -m unittest -v \
             test_codeql_rust_quality test_codeql_consumer_context \
             test_codeql_target_coverage test_codeql_compiler_sources \
-            test_codeql_cargo_metadata test_codeql_rust_profile test_codeql_rust_publication test_codeql_rust_transfer
+            test_codeql_cargo_metadata test_codeql_rust_profile test_codeql_rust_publication test_codeql_rust_transfer \
+            test_codeql_rust_plan test_codeql_progress
       - uses: github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
         id: rust_codeql
         with:
@@ -432,6 +435,7 @@ jobs:
           path: |
             ${{ runner.temp }}/qperiapt-codeql-database/rust/log/**
             ${{ runner.temp }}/qperiapt-codeql-macos/evidence/analyze.*
+            ${{ runner.temp }}/qperiapt-codeql-macos/analysis-plan/evaluator/**
           if-no-files-found: error
           retention-days: 14
       - name: Bundle the completed or partial macOS-origin database

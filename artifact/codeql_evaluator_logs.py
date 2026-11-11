@@ -132,3 +132,78 @@ def validate_loads(record: dict, expected: list[str]) -> None:
     require(isinstance(observed, list) and all(isinstance(item, str) for item in observed)
             and sorted(observed) == sorted(expected) and record.get("query_compilations") == 0,
             "candidate evaluation did not load exactly the 39 admitted precompiled queries")
+
+
+class QueryCompletionSink:
+    """Retain stderr first, then display bounded progress for an admitted suite.
+
+    The caller supplies the 39 relative query paths from its validated manifest.
+    This is display-only evidence: completion receipts, output inventories and
+    failure propagation remain the responsibility of the existing caller.
+    """
+
+    MAX_LINE_BYTES = 1024
+    _COMPLETION = re.compile(
+        rb"\[([1-9][0-9]?)/39 eval "
+        rb"(?:[0-9]{1,6}(?:\.[0-9]{1,3})?(?:ms|h|m|s)){1,3}"
+        rb"\] Evaluation done; writing results to ([^\r\n]+\.bqrs)\."
+    )
+
+    def __init__(self, write, query_paths):
+        require(callable(write), "query progress requires the original stderr sink")
+        expected = set()
+        for relative in query_paths:
+            require(len(expected) < 39, "query progress requires exactly 39 query paths")
+            require(isinstance(relative, str) and relative.startswith("queries/")
+                    and relative.endswith(".ql") and "\\" not in relative
+                    and all(part not in ("", ".", "..") for part in relative.split("/"))
+                    and all(ord(character) >= 32 and ord(character) != 127 for character in relative),
+                    "query progress requires canonical relative query paths")
+            encoded = relative.encode("utf-8")
+            require(len(encoded) <= 512, "query progress path exceeds its bound")
+            result = b"codeql/rust-queries/" + encoded[:-3] + b".bqrs"
+            require(result not in expected, "query progress query paths must be unique")
+            expected.add(result)
+        require(len(expected) == 39, "query progress requires exactly 39 query paths")
+        self._write = write
+        self._expected = expected
+        self._seen = set()
+        self._pending = bytearray()
+        self._discarding = False
+
+    def __call__(self, block: bytes) -> None:
+        # The supervisor applies its existing total-byte limit before this
+        # callback. Preserve every original byte before observing the chunk;
+        # real sink or console I/O failures retain that supervisor's error path.
+        self._write(block)
+        offset = 0
+        while offset < len(block):
+            newline = block.find(b"\n", offset)
+            end = len(block) if newline < 0 else newline
+            if not self._discarding:
+                if len(self._pending) + end - offset > self.MAX_LINE_BYTES:
+                    self._pending.clear()
+                    self._discarding = True
+                else:
+                    self._pending.extend(block[offset:end])
+            if newline < 0:
+                return
+            if not self._discarding:
+                self._observe_line(bytes(self._pending))
+            self._pending.clear()
+            self._discarding = False
+            offset = end + 1
+
+    def _observe_line(self, line: bytes) -> None:
+        if line.endswith(b"\r"):
+            line = line[:-1]
+        match = self._COMPLETION.fullmatch(line)
+        if match is None or int(match[1]) > 39:
+            return
+        result = match[2]
+        if result not in self._expected or result in self._seen:
+            return
+        # Reconstruct the count from distinct admitted completion messages.
+        # A repeated, reordered or inflated raw counter cannot jump this count.
+        self._seen.add(result)
+        print(f"CodeQL query completions observed: {len(self._seen)}/39", flush=True)

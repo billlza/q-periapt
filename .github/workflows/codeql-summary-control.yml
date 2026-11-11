@@ -44,7 +44,9 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             artifact/codeql_summary_control.py
+            artifact/codeql_evaluator_logs.py
             artifact/test_codeql_summary_control.py
+            artifact/test_codeql_progress.py
             artifact/test_codeql_summary_archive_input.py
             artifact/codeql_process_resources.py
             artifact/test_codeql_process_resources.py
@@ -68,7 +70,7 @@ jobs:
             artifact/python_bootstrap.py
       - name: Check exact inputs, fresh results and strict paired comparison
         timeout-minutes: 2
-        run: sh artifact/python-run.sh -m unittest -v test_codeql_summary_control test_codeql_summary_archive_input test_codeql_process_resources test_codeql_summary_plan test_codeql_summary_projection
+        run: sh artifact/python-run.sh -m unittest -v test_codeql_summary_control test_codeql_summary_archive_input test_codeql_process_resources test_codeql_summary_plan test_codeql_progress test_codeql_summary_projection
       - name: Install the authenticated Rust CLI 2.27.2 bundle
         timeout-minutes: 12
         run: |
@@ -120,6 +122,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             artifact/codeql_summary_control.py
+            artifact/codeql_evaluator_logs.py
             artifact/codeql_process_resources.py
             artifact/codeql_summary_plan.py
             artifact/codeql_summary_dynamic_plan.json

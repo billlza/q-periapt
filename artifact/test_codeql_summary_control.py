@@ -833,7 +833,7 @@ class PartialResultRetentionTests(unittest.TestCase):
         script = "from pathlib import Path;import sys,time;p=Path(sys.argv[1]);p.parent.mkdir(parents=True);p.write_bytes(b'synthetic child BQRS');print('evaluator output',flush=True);"
         script += "time.sleep(60)" if timeout else "sys.exit(7)"
         real_run = control.run_queries
-        def run(command, evidence, environment):
+        def run(command, evidence, environment, *, progress_queries=None):
             return real_run([sys.executable, "-c", script, str(source)], evidence, environment, 1 if timeout else 5)
         with patch.dict(os.environ, {"RUNNER_TEMP": str(self.root)}), \
                 patch.object(control, "prepare_database", return_value=(output / "database", {})), \
