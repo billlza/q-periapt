@@ -2,29 +2,62 @@
 
 use super::*;
 
-/// A failed `create` must not leave the `O_CREAT|O_EXCL` leaf behind: the next
-/// attempt would get `EEXIST`, and the `create = false` path rejects the
-/// zero-length leftover, so one transient failure would brick provisioning
-/// permanently.
-///
-/// Ignored by default because it manipulates the process-wide `umask`, which
-/// would make any sibling test that creates a private file flaky when the suite
-/// runs in parallel. Run it deliberately:
-///
-/// ```text
-/// cargo test -p q-periapt-policy-agent -- --ignored --test-threads=1
-/// ```
-///
-/// Verified in both directions when the unlink was added: without it this fails
-/// with `failed create left .../brick.redb behind`.
+/// A failed admission retains the reserved inode and refuses both reopening and
+/// replacement. Unlinking a mutable name could delete another writer's file.
+/// Run the real restrictive-umask case in a child so the normal parallel suite
+/// exercises this boundary without changing any sibling test's creation mode.
 #[test]
-#[ignore = "manipulates the process-wide umask; run with --test-threads=1"]
-fn failed_private_file_create_leaves_no_leaf_behind() -> TestResult {
+fn failed_private_file_admission_preserves_reserved_leaf() -> TestResult {
     use rustix::fs::Mode;
     use rustix::process::umask;
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
-    let directory = TestDirectory::new()?;
-    let path = directory.join("brick.redb");
+    const CHILD_ROOT: &str = "Q_PERIAPT_TEST_PRIVATE_FILE_UMASK_ROOT";
+    const TEST_NAME: &str =
+        "tests::durable_store::failed_private_file_admission_preserves_reserved_leaf";
+    let Some(root) = std::env::var_os(CHILD_ROOT) else {
+        let directory = TestDirectory::new()?;
+        let mut child = Command::new(std::env::current_exe()?)
+            .args(["--exact", TEST_NAME, "--test-threads=1"])
+            .env(CHILD_ROOT, directory.path())
+            .spawn()?;
+        let deadline = Instant::now() + Duration::from_secs(30);
+        let waited = (|| -> io::Result<std::process::ExitStatus> {
+            loop {
+                if let Some(status) = child.try_wait()? {
+                    return Ok(status);
+                }
+                if Instant::now() >= deadline {
+                    return Err(io::Error::other("private-file child exceeded its deadline"));
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
+        })();
+        let status = match waited {
+            Ok(status) => status,
+            Err(error) => {
+                let killed = child.kill();
+                let reaped = child.wait();
+                return Err(io::Error::other(format!(
+                    "{error}; child cleanup: kill={killed:?}, reap={reaped:?}"
+                ))
+                .into());
+            }
+        };
+        assert!(status.success(), "private-file child failed: {status}");
+        // A mistyped test filter must not turn a zero-test child into success.
+        assert!(directory.join("reserved.redb").is_file());
+        return Ok(());
+    };
+    let arguments: Vec<_> = std::env::args().collect();
+    assert!(arguments
+        .windows(2)
+        .any(|pair| pair == ["--exact", TEST_NAME]));
+    assert!(arguments
+        .iter()
+        .any(|argument| argument == "--test-threads=1"));
+    let root = PathBuf::from(root);
+    let path = root.join("reserved.redb");
     // umask 0o200 strips the owner-write bit, so O_CREAT yields mode 0400 and
     // the exact-mode check rejects it after the leaf already exists.
     let previous = umask(Mode::WUSR);
@@ -34,14 +67,35 @@ fn failed_private_file_create_leaves_no_leaf_behind() -> TestResult {
         matches!(outcome, Err(PrivateFileError)),
         "expected the exact-mode check to reject a 0400 leaf"
     );
-    assert!(
-        !path.exists(),
-        "failed create left {path:?} behind; provisioning would be bricked"
-    );
-    // A retry under a sane umask must now succeed.
+    let original = fs::symlink_metadata(&path)?;
+    assert!(original.file_type().is_file());
+    assert_eq!(original.permissions().mode() & 0o7777, 0o400);
+    assert_eq!(original.len(), 0);
+    for create in [false, true] {
+        assert!(matches!(
+            open_private_file(&path, create),
+            Err(PrivateFileError)
+        ));
+        let retained = fs::symlink_metadata(&path)?;
+        assert_eq!(
+            (
+                retained.dev(),
+                retained.ino(),
+                retained.mode(),
+                retained.len()
+            ),
+            (
+                original.dev(),
+                original.ino(),
+                original.mode(),
+                original.len()
+            )
+        );
+    }
+    // A fresh name is still usable after the child's original umask is restored.
     drop(
-        open_private_file(&path, true)
-            .map_err(|_| io::Error::other("retry after a cleaned-up failure must succeed"))?,
+        open_private_file(&root.join("fresh.redb"), true)
+            .map_err(|_| io::Error::other("fresh private-file admission must succeed"))?,
     );
     Ok(())
 }

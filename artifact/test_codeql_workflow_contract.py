@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import os
 import re
 import subprocess
 import tempfile
@@ -69,6 +70,15 @@ class CodeQLWorkflowContractTests(unittest.TestCase):
         patterns = [line.strip() for line in sparse[1].splitlines()]
         self.assertEqual(patterns, ["/*", "!/research/sdk-alpha1/evidence/**/*.zip",
                                     "/research/sdk-alpha1/evidence/**/"])
+        self.assertEqual(analysis.count("      - uses: actions/checkout@"), 1)
+        checkout = analysis[analysis.index("      - uses: actions/checkout@"):]
+        checkout = checkout.split("\n      - ", 1)[0]
+        environment = mapping(checkout, "env", 8)
+        entries = re.findall(r"^          (GIT_CONFIG_[A-Z0-9_]+): (.+)$",
+                             environment, re.MULTILINE)
+        checkout_environment = {key: json.loads(value) if value.startswith('"') else value
+                                for key, value in entries}
+        self.assertEqual(len(entries), len(checkout_environment))
         # Rust's producer/importer/publisher check every tracked byte and reject
         # skip-worktree. Keep their full checkout and provenance contract intact.
         for name in ("rust", "rust-macos-prepare", "rust-macos-analyze", "rust-publication"):
@@ -96,29 +106,35 @@ class CodeQLWorkflowContractTests(unittest.TestCase):
         omitted = {"research/sdk-alpha1/evidence/top.zip",
                    "research/sdk-alpha1/evidence/old/run.zip",
                    "research/sdk-alpha1/evidence/archive.zip/nested/run.zip"}
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+        for ignore_case in ("false", "true"):
+            with self.subTest(repository_ignore_case=ignore_case), \
+                    tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
 
-            def git(*arguments: str) -> str:
-                return subprocess.run(["git", "-C", str(root), *arguments], check=True,
-                                      capture_output=True, text=True, timeout=10).stdout
+                def git(*arguments: str, checkout: bool = False) -> str:
+                    environment = {**os.environ, **checkout_environment} if checkout else None
+                    return subprocess.run(["git", "-C", str(root), *arguments], check=True,
+                                          capture_output=True, text=True, timeout=10,
+                                          env=environment).stdout
 
-            git("init", "-q")
-            for relative in kept | omitted:
-                path = root / relative
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text("fixture\n", encoding="utf-8")
-            git("add", "--all")
-            tree = git("write-tree").strip()
-            git("config", "core.sparseCheckout", "true")
-            git("config", "core.sparseCheckoutCone", "false")
-            (root / ".git/info/sparse-checkout").write_text("\n".join(patterns) + "\n")
-            git("read-tree", "-mu", tree)
-            self.assertEqual({path for path in kept | omitted if (root / path).is_file()}, kept)
-            self.assertEqual(set(git("ls-files").splitlines()), kept | omitted)
-            skipped = {record[2:] for record in git("ls-files", "-t").splitlines()
-                       if record.startswith("S ")}
-            self.assertEqual(skipped, omitted)
+                git("init", "-q")
+                for relative in kept | omitted:
+                    path = root / relative
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text("fixture\n", encoding="utf-8")
+                git("add", "--all")
+                tree = git("write-tree").strip()
+                git("config", "core.ignoreCase", ignore_case)
+                self.assertEqual(git("config", "--get", "core.ignoreCase").strip(), ignore_case)
+                git("config", "core.sparseCheckout", "true")
+                git("config", "core.sparseCheckoutCone", "false")
+                (root / ".git/info/sparse-checkout").write_text("\n".join(patterns) + "\n")
+                git("read-tree", "-mu", tree, checkout=True)
+                self.assertEqual({path for path in kept | omitted if (root / path).is_file()}, kept)
+                self.assertEqual(set(git("ls-files").splitlines()), kept | omitted)
+                skipped = {record[2:] for record in git("ls-files", "-t").splitlines()
+                           if record.startswith("S ")}
+                self.assertEqual(skipped, omitted)
 
     def test_retained_auxiliary_diagnostics_require_an_explicit_dispatch(self) -> None:
         for filename in ("codeql-memory-control.yml", "codeql-log-recovery.yml"):

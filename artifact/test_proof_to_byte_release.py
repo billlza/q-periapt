@@ -101,6 +101,14 @@ EXPECTED_CHECKOUT_GIT_ENV = (
     "          GIT_CONFIG_KEY_0: init.defaultBranch\n"
     "          GIT_CONFIG_VALUE_0: main\n"
 )
+EXPECTED_SPARSE_CHECKOUT_GIT_ENV = (
+    "        env:\n"
+    '          GIT_CONFIG_COUNT: "2"\n'
+    "          GIT_CONFIG_KEY_0: init.defaultBranch\n"
+    "          GIT_CONFIG_VALUE_0: main\n"
+    "          GIT_CONFIG_KEY_1: core.ignoreCase\n"
+    '          GIT_CONFIG_VALUE_1: "false"\n'
+)
 EXPECTED_CHECKOUT_PROVENANCE_STEP = (
     "      - name: Verify checkout provenance\n"
     "        env:\n"
@@ -5779,12 +5787,20 @@ with _temporary_release_test_directories(parents):
             source = path.read_text(encoding="utf-8")
             checkout_steps = extract_action_steps(source, PINNED_CHECKOUT_ACTION)
             self.assertTrue(checkout_steps, path.name)
+            sparse_checkouts = 0
             for step in checkout_steps:
                 with self.subTest(workflow=path.name, checkout_step=step[:80]):
-                    self.assertEqual(step.count(EXPECTED_CHECKOUT_GIT_ENV), 1)
+                    sparse = path == CODEQL_WORKFLOW and "          sparse-checkout-cone-mode: false\n" in step
+                    sparse_checkouts += int(sparse)
+                    expected = EXPECTED_SPARSE_CHECKOUT_GIT_ENV if sparse else EXPECTED_CHECKOUT_GIT_ENV
+                    self.assertEqual(step.count(expected), 1)
                     self.assertEqual(step.count("        env:\n"), 1)
+            self.assertEqual(sparse_checkouts, 1 if path == CODEQL_WORKFLOW else 0)
+            self.assertEqual(source.count('GIT_CONFIG_COUNT: "1"'), len(checkout_steps) - sparse_checkouts)
+            self.assertEqual(source.count('GIT_CONFIG_COUNT: "2"'), sparse_checkouts)
+            for setting in ("GIT_CONFIG_KEY_1: core.ignoreCase", 'GIT_CONFIG_VALUE_1: "false"'):
+                self.assertEqual(source.count(setting), sparse_checkouts)
             for setting in (
-                'GIT_CONFIG_COUNT: "1"',
                 "GIT_CONFIG_KEY_0: init.defaultBranch",
                 "GIT_CONFIG_VALUE_0: main",
             ):
