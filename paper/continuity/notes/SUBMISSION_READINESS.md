@@ -102,16 +102,27 @@ unresolved references or overfull boxes. Pages 2-119 retain the preceding
 reading copy's complete layout text. The reviewed title page, introduction,
 declarations and final page have clear, unclipped layout.
 
-## Remaining submission inputs
+## Confirmed author declarations and final assembly
 
-The concrete author inputs are the funding and financial/non-financial
-interest declarations, the final author contribution/responsibility wording,
-and approval of the assembled submission. The current data/code and
-preparation disclosures have been reviewed and retained. The declaration
-facts have not been inferred from the author's affiliation. Once provided,
-they can be assembled under the publisher's requested Declarations heading.
-This completes the planned review of the current research exposition; these
-remaining inputs concern submission metadata and author attestation.
+On 11 November 2026, Ziang Li confirmed that this research received no funding,
+that he has no financial or non-financial competing interests relevant to
+the work, and that he completed its conception, formal models and proofs,
+implementation, experiments, analysis and manuscript preparation. These facts
+are now included under the Declarations heading and in
+`author-metadata.json`. The sole author remains Ziang Li. The existing
+data/code availability and preparation disclosures are retained.
+
+The updated reading copy has 120 pages. Its independently compiled nine-file
+source export has identical complete plain and layout text, 48 embedded fonts,
+and no unresolved references or overfull boxes. Pages 1--98 retain the preceding
+reading copy's layout text. Declaration fidelity, source preservation and
+document verification are recorded in
+`artifacts/editorial-review/author-declarations/`.
+
+The planned research exposition and editorial passes are complete, and the
+author-specific declaration inputs are complete. The remaining author action
+is review and approval of the assembled submission package. Possible future
+manuscript reviews will be recorded when they occur.
 
 The current text's claims determine its experimental scope. A new baseline is
 needed if a new comparative claim depends on it; broader performance tuning,
@@ -121,7 +132,8 @@ interfaces remain separate research opportunities.
 The existing **17–24 November 2026** submission-manuscript planning window
 is retained as the planning reference from the 10 November checkpoint.
 Its allocated editorial passes are now complete; it does not restart a new
-five-to-ten-day work period. Final assembly follows the author inputs above.
+five-to-ten-day work period. Final assembly incorporates the confirmed
+declarations above.
 A newly identified defect in the central argument would require revising
 that estimate. A journal
 acceptance decision follows external review and has no fixed date in this

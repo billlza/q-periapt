@@ -47,6 +47,7 @@ jobs:
             artifact/codeql_evaluator_logs.py
             artifact/test_codeql_summary_control.py
             artifact/test_codeql_progress.py
+            artifact/codeql-fixtures/rust-analyze-2.27.2.stderr
             artifact/test_codeql_summary_archive_input.py
             artifact/codeql_process_resources.py
             artifact/test_codeql_process_resources.py

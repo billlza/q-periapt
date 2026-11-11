@@ -51,6 +51,14 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
+          # Keep all analysis sources; historical evidence ZIPs are not build inputs.
+          # Rust jobs retain full checkout for their strict whole-tree provenance gate.
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/research/sdk-alpha1/evidence/**/*.zip
+            /research/sdk-alpha1/evidence/**/
 
       - name: Set up canonical Rust toolchain
         if: matrix.language == 'java-kotlin' || matrix.language == 'swift'

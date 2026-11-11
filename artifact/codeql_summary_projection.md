@@ -1,11 +1,16 @@
-# Stage3 and Stage4 read-target projection
+# Stage3 and Stage4 projected forward closure
 
 The `projection` mode gives the full Rust SummaryStats query an explicit,
 source-bound compiled plan. Within each of the Stage3 and Stage4 forward
-recursions, it carries the six columns consumed by the next forward state. The
-original eleven-column read relation is reconstructed after each closure for its
-complete downstream consumers, including reverse traversal and PathGraph. The source patch retains
+recursions, the read-target relation carries the six columns consumed by the
+next forward state. The original eleven-column read relation is reconstructed
+after each closure from the unchanged full join for its complete downstream
+consumers, including reverse traversal and PathGraph. The source patch retains
 the original join, both type checks, and both access-path branches.
+In the same two stages, their singleton `Unit` type permits the candidate and
+filtering layers to be fused into a five-column forward closure. The typed
+interface reconstructs Unit by an exact singleton embedding, preserving every
+original six- and seven-column consumer.
 
 The retained-database controller exposes three explicit modes:
 
@@ -13,10 +18,10 @@ The retained-database controller exposes three explicit modes:
 | --- | --- | --- | --- |
 | `none` (default) | Original official QLX | Original official source | `none` |
 | `all` | Existing fixed join-order capsule | Original official source | `all` |
-| `projection` | Fixed Stage3+Stage4 target-projection capsule | One declared vendor patch | `all` |
+| `projection` | Fixed Stage3+Stage4 projection and state-fusion capsule | One declared vendor patch | `all` |
 
 `projection` is an admission mode, not a new CodeQL command-line value. Its
-compiler input key is `6a7530eb694360655ab8331a895c9fcd`. Both retained-database allocation arms use
+compiler input key is `c327768d3f383933ff70cd941341916b`. Both retained-database allocation arms use
 the same capsule and patch. The comparison command must select `projection`
 explicitly; reports from other modes cannot be substituted even though `all`
 and `projection` have the same evaluator join option.
@@ -28,10 +33,12 @@ official Rust CLI 2.27.2 bundle, all 39 root-query identities, the original
 compiled-query inventory, the projected inventory, and the complete capsule.
 Its digest is independently fixed in the installer. The capsule contains the
 full SummaryStats QLX and its 15 referenced stages. Its SHA-256 is
-`5b17fb41cd3c59fea564ec4e9cb49ef586c0ad06ccc3f2445e46b7b5ca8430cb`.
+`35ab9955321008fb55e436c78b38725370fd5930885635e43ed093ab672fc6d3`.
 
-These pins identify the Stage3+Stage4 product. The earlier Stage4-only capsule
-has a different compiler key, source inventory and compiled-query inventory;
+These pins identify the Stage3+Stage4 projection with five-column Unit
+forward-state fusion. The earlier Stage4-only, Stage3+Stage4 projection and
+six-column fusion capsules have different
+compiler keys, source inventories and compiled-query inventories;
 the current admission checks distinguish those products even though their
 controller mode is named `projection`.
 
@@ -161,6 +168,49 @@ recursive layer and the complete eleven-column relation outside it. Both later
 equivalence and the intended compiled structure. Runtime completion and resource
 measurements are obtained from the explicitly selected evaluation and retained
 in its report.
+
+## Unit forward-state fusion
+
+Stage3 and Stage4 both set `Typ = Unit`. In these instantiations, the two type
+positions of `fwdFlow1` necessarily contain the same unique value. The candidate
+copies the complete `fwdFlow0` body and its original outer filtering conjunction
+into `fwdFlowUnit/5`, with the type existentially quantified inside the body.
+The `fwdFlow/6` interface is inlined and reconstructs the singleton type at its
+consumers. The original seven-column `fwdFlow1` interface retains the exact
+equal-type embedding. Other stages use `fwdFlowTyped/6` for the original typed
+projection and retain their original candidate and filtering bodies.
+
+For each selected stage, let `u` denote its unique Unit value. The map
+`E(F5) = {(n,c,s,u,a,v) | (n,c,s,a,v) in F5}` is an order isomorphism onto the
+typed forward states. The inlined interface implements `F6 = E(F5)`; the
+seven-column interface implements
+`fwdFlow1(n,c,s,t0,t,a,v) = (t0 = t and fwdFlow(n,c,s,t,a,v))`.
+Substitution in every consumer and the complete candidate/filter equation
+preserves the least fixed point. In particular, the two forward type-flow
+consumers retain their positive recursive feedback, and the Graph consumer
+retains its original signature.
+
+Every `getNodeTyp` call stays in its original branch, retaining its node/type
+admissibility test even though the result type is a singleton. The stored-type
+option is retained: `None` and `Some(Unit)` remain distinct. The argument retains
+all branch, access-path, cast, clear and context guards; it does not depend on
+equal observed row counts or on matching iteration schedules.
+
+The final official 2.27.2 compilation used explicit join mode `all`, empty private
+caches, no default compilation caches or global QL configuration, 4,096 MB, two
+threads, and a 180-second deadline. It completed in 69.90 seconds with maximum
+child RSS 3,030,264 KiB. Its optimized RA contains a recursive `fwdFlowUnit/5`
+in each selected stage and no `fwdFlow/6`, `fwdFlowTyped/6`, `fwdFlow0/7` or
+`fwdFlow1/7` entity or reference there. The selected stages retain their
+recursive read target and complete downstream read relation. Recursive deltas
+and previous-iteration exclusion use five arguments. The generated argument
+projection drops its type column, and typed consumers reconstruct Unit locally;
+their existing typed auxiliary relations remain available. Stage2, Stage5
+and Stage6 retain their original intermediate state relations and typed
+projection under the internal name `fwdFlowTyped/6`. The final compiler input key is
+`c327768d3f383933ff70cd941341916b`; the source and capsule digests above bind
+that plan. Complete query-result
+and workload timing comparisons use the existing full 39-query workflow.
 
 ## Maintenance and verification
 

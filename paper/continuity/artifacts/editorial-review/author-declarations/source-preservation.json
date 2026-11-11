@@ -1,0 +1,1863 @@
+{
+  "schema": "qperiapt/joc-source-preservation/v1",
+  "recorded_at_utc": "2026-11-11T18:44:27+00:00",
+  "baseline_commit": "87fee58926f8b849a142018efb6d7502cbad673f",
+  "baseline_paper_tree": "dae7ffda4ed5431a69b17167e1aad4268d64192a",
+  "status": "passed",
+  "scope": "40 canonical top-level TeX modules, excluding generated joc-submission.tex; current author metadata and declaration bodies",
+  "module_count": 40,
+  "whole_file_identical": 39,
+  "changed_modules": [
+    "declarations.tex"
+  ],
+  "permitted_edit": "Add the author-confirmed Funding, Competing interests and Author contributions paragraphs; group the existing disclosure bodies under Declarations; update confirmation comments without asserting final submission approval.",
+  "complete_permitted_edit_verified": true,
+  "module_inventory_identical": true,
+  "module_label_sequences_identical": true,
+  "totals": {
+    "formal_statements": {
+      "baseline": 57,
+      "integrated": 57,
+      "identical": 57,
+      "changed": 0
+    },
+    "proofs": {
+      "baseline": 52,
+      "integrated": 52,
+      "identical": 52,
+      "changed": 0
+    },
+    "display_environments": {
+      "baseline": 60,
+      "integrated": 60,
+      "identical": 60,
+      "changed": 0
+    },
+    "bracket_displays": {
+      "baseline": 108,
+      "integrated": 108,
+      "identical": 108,
+      "changed": 0
+    }
+  },
+  "display_total": 168,
+  "formal_blocks_byte_identical": true,
+  "extraction_patterns": {
+    "formal_statements": "\\\\begin\\{(theorem|lemma|proposition|corollary|definition|remark)\\}(.*?)\\\\end\\{\\1\\}",
+    "proofs": "\\\\begin\\{(proof)\\}(.*?)\\\\end\\{\\1\\}",
+    "display_environments": "\\\\begin\\{(equation\\*?|align\\*?|gather\\*?|multline\\*?)\\}(.*?)\\\\end\\{\\1\\}",
+    "bracket_displays": "\\\\\\[.*?\\\\\\]"
+  },
+  "ordered_block_hash_method": "SHA-256 of compact JSON arrays of individual block SHA-256 digests, in source order; actual block byte lists were also compared directly.",
+  "author_identity": {
+    "baseline_sha256": "a4654fb096735dd2277cf4251ad37866fe00b3a8333a5e6731155308ad495ec8",
+    "integrated_sha256": "f8804e0627b9509830905091b2a5aa27f2b7de1fb4c65563e93c2765bf8c4d87",
+    "original_fields_unchanged": true,
+    "author_count_baseline": 1,
+    "author_count_integrated": 1,
+    "authors": [
+      {
+        "given_name": "Ziang",
+        "family_name": "Li",
+        "display_name": "Ziang Li",
+        "native_name": "李子昂",
+        "corresponding": true,
+        "email": "2403871950@qq.com",
+        "alternative_email": "bhmq03@durham.ac.uk",
+        "affiliation": "Department of Engineering, Durham University, Durham, United Kingdom"
+      }
+    ],
+    "main_tex_byte_identical": true
+  },
+  "declaration_fidelity": {
+    "author_confirmation_date": "2026-11-11",
+    "funding": "This research received no funding.",
+    "competing_interests": "The author declares no financial or non-financial competing interests relevant to this work.",
+    "author_contributions": "Ziang Li conceived the study, developed the formal models and proofs, implemented the system, conducted the experiments, analysed the results, and wrote and revised the manuscript.",
+    "metadata_matches_confirmed_facts": true,
+    "existing_disclosure_bodies": {
+      "Data and code availability": {
+        "baseline_sha256": "2b5661479a8e7aec5555d484cf2df1316e24993355c6ddf914401b5dc446e289",
+        "integrated_sha256": "2b5661479a8e7aec5555d484cf2df1316e24993355c6ddf914401b5dc446e289",
+        "bytes": 339,
+        "byte_identical": true
+      },
+      "AI-assisted preparation": {
+        "baseline_sha256": "acc9b7849c5d7da4f533f34e7995696c223ac67d20d3d4fd4e84599032459816",
+        "integrated_sha256": "acc9b7849c5d7da4f533f34e7995696c223ac67d20d3d4fd4e84599032459816",
+        "bytes": 294,
+        "byte_identical": true
+      }
+    },
+    "future_reviewers_added_as_authors_or_acknowledged": false,
+    "final_submission_approval": "pending review of the assembled submission"
+  },
+  "verification_activity": {
+    "source_and_metadata_comparisons": true,
+    "manuscript_build_executed": false,
+    "mathematical_experiments_executed": false,
+    "generated_submission_included_in_module_counts": false
+  },
+  "modules": [
+    {
+      "path": "acquisition-nonadditivity.tex",
+      "baseline_sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+      "integrated_sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+      "baseline_bytes": 2722,
+      "integrated_bytes": 2722,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 1,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "14480ea80c563840fd99b9f04e5214faf9841a3b7b5129a1400f77803d27df8a",
+          "integrated_ordered_hashes_sha256": "14480ea80c563840fd99b9f04e5214faf9841a3b7b5129a1400f77803d27df8a"
+        },
+        "proofs": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "f654ed801e4c34af576557a2ac8b7b133bb6de3192c2ec2484be1421d338be61",
+          "integrated_ordered_hashes_sha256": "f654ed801e4c34af576557a2ac8b7b133bb6de3192c2ec2484be1421d338be61"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 5,
+          "integrated": 5,
+          "identical": 5,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "e37dac962451101b39fc0ee6e8fa692b588d742cc9c0fec4d11de41895734a20",
+          "integrated_ordered_hashes_sha256": "e37dac962451101b39fc0ee6e8fa692b588d742cc9c0fec4d11de41895734a20"
+        }
+      }
+    },
+    {
+      "path": "artifact-map.tex",
+      "baseline_sha256": "c97c63162e301538bdb656dd81955c4be23ae2db56a761382d9d9eef9244d6fd",
+      "integrated_sha256": "c97c63162e301538bdb656dd81955c4be23ae2db56a761382d9d9eef9244d6fd",
+      "baseline_bytes": 29631,
+      "integrated_bytes": 29631,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 14,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "bootstrap-authentication.tex",
+      "baseline_sha256": "9622e924761b46033821a5207f2539e31f2af3452d884a2705101c9c2ff679f1",
+      "integrated_sha256": "9622e924761b46033821a5207f2539e31f2af3452d884a2705101c9c2ff679f1",
+      "baseline_bytes": 25198,
+      "integrated_bytes": 25198,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 15,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 7,
+          "integrated": 7,
+          "identical": 7,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "44a053748177b05e4ae821dd8f86175ae2b27fc6b9d3bc86be0c49b0ea5017b9",
+          "integrated_ordered_hashes_sha256": "44a053748177b05e4ae821dd8f86175ae2b27fc6b9d3bc86be0c49b0ea5017b9"
+        },
+        "proofs": {
+          "baseline": 6,
+          "integrated": 6,
+          "identical": 6,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4cb37706a62c0077d8137fe929c127d4f8c77c32693e3c0d675d62c32c16f6d4",
+          "integrated_ordered_hashes_sha256": "4cb37706a62c0077d8137fe929c127d4f8c77c32693e3c0d675d62c32c16f6d4"
+        },
+        "display_environments": {
+          "baseline": 7,
+          "integrated": 7,
+          "identical": 7,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "d0b5c0b99100a8f80fe20a422b7f586ea7503610bd1c4f2a4f4f23464121dc9b",
+          "integrated_ordered_hashes_sha256": "d0b5c0b99100a8f80fe20a422b7f586ea7503610bd1c4f2a4f4f23464121dc9b"
+        },
+        "bracket_displays": {
+          "baseline": 4,
+          "integrated": 4,
+          "identical": 4,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "9fe427689e8eadf75a05a8371d062dc595bc4ba2676b09c0aa4deefa614b6473",
+          "integrated_ordered_hashes_sha256": "9fe427689e8eadf75a05a8371d062dc595bc4ba2676b09c0aa4deefa614b6473"
+        }
+      }
+    },
+    {
+      "path": "bootstrap-entry.tex",
+      "baseline_sha256": "c97d14ab80160319d2d87f563f349566961e3f585ef4604417b8c87cce02af2e",
+      "integrated_sha256": "c97d14ab80160319d2d87f563f349566961e3f585ef4604417b8c87cce02af2e",
+      "baseline_bytes": 6346,
+      "integrated_bytes": 6346,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 4,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4634a064fb1dd3af1af9dd29a9749a6f69ac039b35086a78441df43c8e1cb67d",
+          "integrated_ordered_hashes_sha256": "4634a064fb1dd3af1af9dd29a9749a6f69ac039b35086a78441df43c8e1cb67d"
+        },
+        "proofs": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "b6f6c6965a30b58842d43ab9d7079dedef08e3821c5aa4681a2ca39755773f50",
+          "integrated_ordered_hashes_sha256": "b6f6c6965a30b58842d43ab9d7079dedef08e3821c5aa4681a2ca39755773f50"
+        },
+        "display_environments": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "e4cee28a70e4d5f0dded3168179416a66a27d809a514c3bcff952dc11bb79dc1",
+          "integrated_ordered_hashes_sha256": "e4cee28a70e4d5f0dded3168179416a66a27d809a514c3bcff952dc11bb79dc1"
+        },
+        "bracket_displays": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "fc199bd58afc624b1fcb2f451cce7cdd752a210c43c9228966178f3c3bbe9081",
+          "integrated_ordered_hashes_sha256": "fc199bd58afc624b1fcb2f451cce7cdd752a210c43c9228966178f3c3bbe9081"
+        }
+      }
+    },
+    {
+      "path": "bootstrap-initial-source.tex",
+      "baseline_sha256": "f20c4944424d6ff5ac9fff6513eda5faaea265c135d3b71d2cd4fd45b9b95812",
+      "integrated_sha256": "f20c4944424d6ff5ac9fff6513eda5faaea265c135d3b71d2cd4fd45b9b95812",
+      "baseline_bytes": 16502,
+      "integrated_bytes": 16502,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 10,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 4,
+          "integrated": 4,
+          "identical": 4,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "9292c7130fc95c88d3fb0933154416cc33e124c95762bbf3db806e8fadb573cc",
+          "integrated_ordered_hashes_sha256": "9292c7130fc95c88d3fb0933154416cc33e124c95762bbf3db806e8fadb573cc"
+        },
+        "proofs": {
+          "baseline": 4,
+          "integrated": 4,
+          "identical": 4,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "91eeb4adfb992ba4ca4d527797dd584d256ed9c477495cabc638b17cd2dd9876",
+          "integrated_ordered_hashes_sha256": "91eeb4adfb992ba4ca4d527797dd584d256ed9c477495cabc638b17cd2dd9876"
+        },
+        "display_environments": {
+          "baseline": 5,
+          "integrated": 5,
+          "identical": 5,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "9650908247f963dfe4882fa4ad8525ea0ba0e3f82dfe4bb0eb1d81e556b22953",
+          "integrated_ordered_hashes_sha256": "9650908247f963dfe4882fa4ad8525ea0ba0e3f82dfe4bb0eb1d81e556b22953"
+        },
+        "bracket_displays": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "755688ad483ce40888ea6367840c457025be8f0ffd1c5a7942a09c4be4cdf293",
+          "integrated_ordered_hashes_sha256": "755688ad483ce40888ea6367840c457025be8f0ffd1c5a7942a09c4be4cdf293"
+        }
+      }
+    },
+    {
+      "path": "candidate-local-accounting.tex",
+      "baseline_sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "integrated_sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "baseline_bytes": 8953,
+      "integrated_bytes": 8953,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 6,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "e3acd6be0b0fe60ebf06c8c7e34c30df156bcd2f383e9446eb9a92d5f84c9a46",
+          "integrated_ordered_hashes_sha256": "e3acd6be0b0fe60ebf06c8c7e34c30df156bcd2f383e9446eb9a92d5f84c9a46"
+        },
+        "proofs": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "0fb9c6219e7ab6df7100029e61ba2be28a6bd9bf1f947eed67f077c1199ccb0c",
+          "integrated_ordered_hashes_sha256": "0fb9c6219e7ab6df7100029e61ba2be28a6bd9bf1f947eed67f077c1199ccb0c"
+        },
+        "display_environments": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "2a64494ae698daff891f54e060c8e78650966104176bc200e85f43917855eb45",
+          "integrated_ordered_hashes_sha256": "2a64494ae698daff891f54e060c8e78650966104176bc200e85f43917855eb45"
+        },
+        "bracket_displays": {
+          "baseline": 8,
+          "integrated": 8,
+          "identical": 8,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "2a36bc6629abf7aa26a75416da1924782f1f0e45917eb423e48341931957f583",
+          "integrated_ordered_hashes_sha256": "2a36bc6629abf7aa26a75416da1924782f1f0e45917eb423e48341931957f583"
+        }
+      }
+    },
+    {
+      "path": "chain-prefix-continuation.tex",
+      "baseline_sha256": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
+      "integrated_sha256": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
+      "baseline_bytes": 10384,
+      "integrated_bytes": 10384,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 5,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "c1c88ebef14ec7219a7bcb858f2f21c0542a41aba6c48acd490a290de9195765",
+          "integrated_ordered_hashes_sha256": "c1c88ebef14ec7219a7bcb858f2f21c0542a41aba6c48acd490a290de9195765"
+        },
+        "proofs": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "f39e662258e5f2ff5b4f66d8c938801fb6d3a8727be6445de663153b86b4ef80",
+          "integrated_ordered_hashes_sha256": "f39e662258e5f2ff5b4f66d8c938801fb6d3a8727be6445de663153b86b4ef80"
+        },
+        "display_environments": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "f5ea701bcd4c6623cb120370af684463ea22b4f4214d888ef68cc0048fe2c2ab",
+          "integrated_ordered_hashes_sha256": "f5ea701bcd4c6623cb120370af684463ea22b4f4214d888ef68cc0048fe2c2ab"
+        },
+        "bracket_displays": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "ec5f8eb496f6190558e80d22328ca30f86d3460e44043a84a31c3ff30203bf12",
+          "integrated_ordered_hashes_sha256": "ec5f8eb496f6190558e80d22328ca30f86d3460e44043a84a31c3ff30203bf12"
+        }
+      }
+    },
+    {
+      "path": "common-virtual-accounting.tex",
+      "baseline_sha256": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
+      "integrated_sha256": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
+      "baseline_bytes": 4589,
+      "integrated_bytes": 4589,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 4,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "d5b3ff05c4aa4c7f4260963b5f4000795817b77f6085852e02ef3dd54bcad67c",
+          "integrated_ordered_hashes_sha256": "d5b3ff05c4aa4c7f4260963b5f4000795817b77f6085852e02ef3dd54bcad67c"
+        },
+        "proofs": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "fd473903cb04dfe58ea4036379263079f3213c75a977efdcc82461f313e56c70",
+          "integrated_ordered_hashes_sha256": "fd473903cb04dfe58ea4036379263079f3213c75a977efdcc82461f313e56c70"
+        },
+        "display_environments": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "1eb0e5aab686309d2dd5288df9e410dde77fd4bce082cb10ca056f60306a3258",
+          "integrated_ordered_hashes_sha256": "1eb0e5aab686309d2dd5288df9e410dde77fd4bce082cb10ca056f60306a3258"
+        },
+        "bracket_displays": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "54ffc24c83aa58e7d8539dc930d6a7ea26803f8cda7366acdd43c0d9fd09e9c2",
+          "integrated_ordered_hashes_sha256": "54ffc24c83aa58e7d8539dc930d6a7ea26803f8cda7366acdd43c0d9fd09e9c2"
+        }
+      }
+    },
+    {
+      "path": "computational-roadmap.tex",
+      "baseline_sha256": "26533cacec6b94b4b6cf0b83778aa538e7ba0f690c2f6b42409524dd3464db76",
+      "integrated_sha256": "26533cacec6b94b4b6cf0b83778aa538e7ba0f690c2f6b42409524dd3464db76",
+      "baseline_bytes": 7912,
+      "integrated_bytes": 7912,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 3,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "confirmation-traffic.tex",
+      "baseline_sha256": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
+      "integrated_sha256": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
+      "baseline_bytes": 9959,
+      "integrated_bytes": 9959,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 5,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "d1d6573b496bf555cee82f5bc3cea94c85c5ab683fd635dcca33902bd98f963d",
+          "integrated_ordered_hashes_sha256": "d1d6573b496bf555cee82f5bc3cea94c85c5ab683fd635dcca33902bd98f963d"
+        },
+        "proofs": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "256e894c773ac946d74eb792b817f519a70d35ab8b32ebbc9ca8879027e6827f",
+          "integrated_ordered_hashes_sha256": "256e894c773ac946d74eb792b817f519a70d35ab8b32ebbc9ca8879027e6827f"
+        },
+        "display_environments": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "87431164b3f5640e1d3de8a35a90673e37dabc482fbb0b59a0febea1065d4e56",
+          "integrated_ordered_hashes_sha256": "87431164b3f5640e1d3de8a35a90673e37dabc482fbb0b59a0febea1065d4e56"
+        },
+        "bracket_displays": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "d68449d1b097656af257993be642710af16ee47de75ebfe59968f224a4a7e4ad",
+          "integrated_ordered_hashes_sha256": "d68449d1b097656af257993be642710af16ee47de75ebfe59968f224a4a7e4ad"
+        }
+      }
+    },
+    {
+      "path": "construction.tex",
+      "baseline_sha256": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
+      "integrated_sha256": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
+      "baseline_bytes": 5913,
+      "integrated_bytes": 5913,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 5,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "d9ac3610261c55cbd1195cba875119e2af7f15ba973d7891bdc71ed03e3e7866",
+          "integrated_ordered_hashes_sha256": "d9ac3610261c55cbd1195cba875119e2af7f15ba973d7891bdc71ed03e3e7866"
+        },
+        "bracket_displays": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "ef44fa4ef3e4bbf2c0d1a44ed7d1f4aa99e8fc31f5777147658b250f6fbb2eb6",
+          "integrated_ordered_hashes_sha256": "ef44fa4ef3e4bbf2c0d1a44ed7d1f4aa99e8fc31f5777147658b250f6fbb2eb6"
+        }
+      }
+    },
+    {
+      "path": "contextbound-connection.tex",
+      "baseline_sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+      "integrated_sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+      "baseline_bytes": 16401,
+      "integrated_bytes": 16401,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 7,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "c40a081c50fca621b099232a8867f3832638b46ecb341c9f606145e331befb9a",
+          "integrated_ordered_hashes_sha256": "c40a081c50fca621b099232a8867f3832638b46ecb341c9f606145e331befb9a"
+        },
+        "proofs": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "1afe0f844ea8af8c4e2b212e6a63003187f318c8e94c8e87d7363f04e340456b",
+          "integrated_ordered_hashes_sha256": "1afe0f844ea8af8c4e2b212e6a63003187f318c8e94c8e87d7363f04e340456b"
+        },
+        "display_environments": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "26246d5a844759927b2432214ab406357ed781210600c7e485e28b3c8f533bf1",
+          "integrated_ordered_hashes_sha256": "26246d5a844759927b2432214ab406357ed781210600c7e485e28b3c8f533bf1"
+        },
+        "bracket_displays": {
+          "baseline": 4,
+          "integrated": 4,
+          "identical": 4,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "020f99c8843e0f2c2c315569a624c984119bdbaa1a399d06e645728a4ab30886",
+          "integrated_ordered_hashes_sha256": "020f99c8843e0f2c2c315569a624c984119bdbaa1a399d06e645728a4ab30886"
+        }
+      }
+    },
+    {
+      "path": "declarations.tex",
+      "baseline_sha256": "6cffd05abd8352442c9dc5349bc5fd9a3a49eb85d3d295955ce3ded022c80771",
+      "integrated_sha256": "f5bd2d2e1433dd8ae1fc19ce8a871eb9a663518a54b70d62cdc994cab4fbaf2a",
+      "baseline_bytes": 935,
+      "integrated_bytes": 1371,
+      "whole_file_identical": false,
+      "label_sequence_identical": true,
+      "label_count": 0,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "discussion.tex",
+      "baseline_sha256": "4042b5a6d3d04f28db062abad7a9022ced67c4313702402d85bfbaf06224e7ca",
+      "integrated_sha256": "4042b5a6d3d04f28db062abad7a9022ced67c4313702402d85bfbaf06224e7ca",
+      "baseline_bytes": 8370,
+      "integrated_bytes": 8370,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 1,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "39cbbf13a9f623e50db5ed79774e33573210f4ebb1977f2277acc88b176d727a",
+          "integrated_ordered_hashes_sha256": "39cbbf13a9f623e50db5ed79774e33573210f4ebb1977f2277acc88b176d727a"
+        }
+      }
+    },
+    {
+      "path": "established-results.tex",
+      "baseline_sha256": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
+      "integrated_sha256": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
+      "baseline_bytes": 6127,
+      "integrated_bytes": 6127,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 3,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "a8415c0ad4851b263db1572158cc26b2c248d2dd911f1e7e5fa52d3ee78d031b",
+          "integrated_ordered_hashes_sha256": "a8415c0ad4851b263db1572158cc26b2c248d2dd911f1e7e5fa52d3ee78d031b"
+        },
+        "proofs": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "b5af7058d08c23ec0cd7c351074d50f73bad853386338ea83a3ff18e58b0526a",
+          "integrated_ordered_hashes_sha256": "b5af7058d08c23ec0cd7c351074d50f73bad853386338ea83a3ff18e58b0526a"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "c932efcdc71810ee48ceeb25671dc479063dfd7a5da56fd5d1faafb32ec65695",
+          "integrated_ordered_hashes_sha256": "c932efcdc71810ee48ceeb25671dc479063dfd7a5da56fd5d1faafb32ec65695"
+        }
+      }
+    },
+    {
+      "path": "evaluation.tex",
+      "baseline_sha256": "77a783600c6a0a48a2969c7baa2110eb69f7686b9068441ba181f49f20c30dfe",
+      "integrated_sha256": "77a783600c6a0a48a2969c7baa2110eb69f7686b9068441ba181f49f20c30dfe",
+      "baseline_bytes": 10443,
+      "integrated_bytes": 10443,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 5,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "guarded-provenance.tex",
+      "baseline_sha256": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+      "integrated_sha256": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+      "baseline_bytes": 8980,
+      "integrated_bytes": 8980,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 3,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "3cf13f97a292c4ada7e75a4488345a4367f05382e96b3f6c1d63bff5d68cbe89",
+          "integrated_ordered_hashes_sha256": "3cf13f97a292c4ada7e75a4488345a4367f05382e96b3f6c1d63bff5d68cbe89"
+        },
+        "proofs": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "af0441b5bb3cb0c4f6200552c7d3f63e8a4897c5399bc7e03dd632c8ed9c3146",
+          "integrated_ordered_hashes_sha256": "af0441b5bb3cb0c4f6200552c7d3f63e8a4897c5399bc7e03dd632c8ed9c3146"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 4,
+          "integrated": 4,
+          "identical": 4,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "521c4a3e81de89c1988d09d23a48cdd64ffd702967fec2b9cb4f7d1dd38a0045",
+          "integrated_ordered_hashes_sha256": "521c4a3e81de89c1988d09d23a48cdd64ffd702967fec2b9cb4f7d1dd38a0045"
+        }
+      }
+    },
+    {
+      "path": "introduction.tex",
+      "baseline_sha256": "18129e1d1a935a69ea34f6239e09b59fa01b3e209dd810f396220fe67cb432a1",
+      "integrated_sha256": "18129e1d1a935a69ea34f6239e09b59fa01b3e209dd810f396220fe67cb432a1",
+      "baseline_bytes": 10114,
+      "integrated_bytes": 10114,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 1,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "joint-continuation.tex",
+      "baseline_sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+      "integrated_sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+      "baseline_bytes": 17987,
+      "integrated_bytes": 17987,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 8,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "1aacfd619bd0bf2b2a4fde719361d6a6865fb579e45e9f721e21d2ddd14a6635",
+          "integrated_ordered_hashes_sha256": "1aacfd619bd0bf2b2a4fde719361d6a6865fb579e45e9f721e21d2ddd14a6635"
+        },
+        "proofs": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "e62e85f0984eecf92db8e1e4ef17e6f781ce115dd234d0be288705e166c8a176",
+          "integrated_ordered_hashes_sha256": "e62e85f0984eecf92db8e1e4ef17e6f781ce115dd234d0be288705e166c8a176"
+        },
+        "display_environments": {
+          "baseline": 4,
+          "integrated": 4,
+          "identical": 4,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "c00e625c743a147e106c97264a949c8df8b7ed480bd58bc7fc02beeac2f27219",
+          "integrated_ordered_hashes_sha256": "c00e625c743a147e106c97264a949c8df8b7ed480bd58bc7fc02beeac2f27219"
+        },
+        "bracket_displays": {
+          "baseline": 9,
+          "integrated": 9,
+          "identical": 9,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "55b88e52af6cb343eca2b47b454de2af083c13fc8b28e5addf94c63794da789d",
+          "integrated_ordered_hashes_sha256": "55b88e52af6cb343eca2b47b454de2af083c13fc8b28e5addf94c63794da789d"
+        }
+      }
+    },
+    {
+      "path": "joint-primitive-bounds.tex",
+      "baseline_sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+      "integrated_sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+      "baseline_bytes": 10663,
+      "integrated_bytes": 10663,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 10,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "cec41dc0b156c79b68190207774b63e357885677b2365efd4de850f7f498843e",
+          "integrated_ordered_hashes_sha256": "cec41dc0b156c79b68190207774b63e357885677b2365efd4de850f7f498843e"
+        },
+        "proofs": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "0a870a11fa739c2b6fea75742789db756fb74dfc8a3c81434e695a1d509b7108",
+          "integrated_ordered_hashes_sha256": "0a870a11fa739c2b6fea75742789db756fb74dfc8a3c81434e695a1d509b7108"
+        },
+        "display_environments": {
+          "baseline": 4,
+          "integrated": 4,
+          "identical": 4,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "fe785945635e9f01cf33a0be586413e026d1f2afd6098b58f373240a1790f388",
+          "integrated_ordered_hashes_sha256": "fe785945635e9f01cf33a0be586413e026d1f2afd6098b58f373240a1790f388"
+        },
+        "bracket_displays": {
+          "baseline": 11,
+          "integrated": 11,
+          "identical": 11,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "99d7eca79a43f0e5e5a17955a2de12f68542a8a75d071371b4a145b6fcb63581",
+          "integrated_ordered_hashes_sha256": "99d7eca79a43f0e5e5a17955a2de12f68542a8a75d071371b4a145b6fcb63581"
+        }
+      }
+    },
+    {
+      "path": "kem-ordinary-bridge.tex",
+      "baseline_sha256": "871a4a3a0a8744f0288a5a9c8adee47dd8738d0c341f333a8ed465d7fafd025f",
+      "integrated_sha256": "871a4a3a0a8744f0288a5a9c8adee47dd8738d0c341f333a8ed465d7fafd025f",
+      "baseline_bytes": 6546,
+      "integrated_bytes": 6546,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 3,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4da72e328ff5a3162bead823a4c348691ad6951c222db56185e046cc8c9bcc79",
+          "integrated_ordered_hashes_sha256": "4da72e328ff5a3162bead823a4c348691ad6951c222db56185e046cc8c9bcc79"
+        },
+        "proofs": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "5769f3314dd44096ab34d079a5e2d31daea6bb8b9de0c7b16e5ea324e8ca6f7e",
+          "integrated_ordered_hashes_sha256": "5769f3314dd44096ab34d079a5e2d31daea6bb8b9de0c7b16e5ea324e8ca6f7e"
+        },
+        "display_environments": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "ffffc903f3647f062fcc664db48f8089459792b84e6f386852fae8e64ac5a4dc",
+          "integrated_ordered_hashes_sha256": "ffffc903f3647f062fcc664db48f8089459792b84e6f386852fae8e64ac5a4dc"
+        },
+        "bracket_displays": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "0cb609b08bb03ae467fb6d978f03ab068f26ad418305a581aadb3cbed4097e3a",
+          "integrated_ordered_hashes_sha256": "0cb609b08bb03ae467fb6d978f03ab068f26ad418305a581aadb3cbed4097e3a"
+        }
+      }
+    },
+    {
+      "path": "live-core-instantiation.tex",
+      "baseline_sha256": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+      "integrated_sha256": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+      "baseline_bytes": 5679,
+      "integrated_bytes": 5679,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 4,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "595f4c1d1c29d88c1e70081d5850496a100a2c3da1f5e442c8dacb39e68a7f63",
+          "integrated_ordered_hashes_sha256": "595f4c1d1c29d88c1e70081d5850496a100a2c3da1f5e442c8dacb39e68a7f63"
+        },
+        "proofs": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "86cd46bfeca5cd4d1e306dc7041f3211a536f302021d5384a0e41bbdcfa9df04",
+          "integrated_ordered_hashes_sha256": "86cd46bfeca5cd4d1e306dc7041f3211a536f302021d5384a0e41bbdcfa9df04"
+        },
+        "display_environments": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "ca81dfc17b198eb6f53ff3b9ba31c9860152ab68635c228cc298d600ea05d08c",
+          "integrated_ordered_hashes_sha256": "ca81dfc17b198eb6f53ff3b9ba31c9860152ab68635c228cc298d600ea05d08c"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "main.tex",
+      "baseline_sha256": "f252a221b6b6af5803d720ac1aebb225a2ca8b2c665cb9e95a786a3cdfe4d17f",
+      "integrated_sha256": "f252a221b6b6af5803d720ac1aebb225a2ca8b2c665cb9e95a786a3cdfe4d17f",
+      "baseline_bytes": 4316,
+      "integrated_bytes": 4316,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 0,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "matched-opportunities.tex",
+      "baseline_sha256": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",
+      "integrated_sha256": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",
+      "baseline_bytes": 6653,
+      "integrated_bytes": 6653,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 1,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "matched-opportunity-tables.tex",
+      "baseline_sha256": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
+      "integrated_sha256": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
+      "baseline_bytes": 1986,
+      "integrated_bytes": 1986,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 2,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "multiple-root-entry.tex",
+      "baseline_sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+      "integrated_sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+      "baseline_bytes": 8584,
+      "integrated_bytes": 8584,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 6,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "85a585261a18e8d423f9a0fe5306f6e9bc9be70ccdc01811e8f5a5b5cda2fa0d",
+          "integrated_ordered_hashes_sha256": "85a585261a18e8d423f9a0fe5306f6e9bc9be70ccdc01811e8f5a5b5cda2fa0d"
+        },
+        "proofs": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "d74fd9096f75015a0c232c1530b0ab3134b5d2a070d8caea51a52930398c16d8",
+          "integrated_ordered_hashes_sha256": "d74fd9096f75015a0c232c1530b0ab3134b5d2a070d8caea51a52930398c16d8"
+        },
+        "display_environments": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "8f9566bb7dd2bac217dd3449b6948fb6bebf75e43ca6a54c08ccc33a1c5f3125",
+          "integrated_ordered_hashes_sha256": "8f9566bb7dd2bac217dd3449b6948fb6bebf75e43ca6a54c08ccc33a1c5f3125"
+        },
+        "bracket_displays": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "963aa8b79f7cedf1a0ea936fe84b7184cc8cac36400396c1a9366b62e5825003",
+          "integrated_ordered_hashes_sha256": "963aa8b79f7cedf1a0ea936fe84b7184cc8cac36400396c1a9366b62e5825003"
+        }
+      }
+    },
+    {
+      "path": "native-authentication.tex",
+      "baseline_sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+      "integrated_sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+      "baseline_bytes": 13617,
+      "integrated_bytes": 13617,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 6,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "b8cd6505574a4c35cef0b0724d974ec6b53ea3fec5f922f9353d3cb7c62b67e7",
+          "integrated_ordered_hashes_sha256": "b8cd6505574a4c35cef0b0724d974ec6b53ea3fec5f922f9353d3cb7c62b67e7"
+        },
+        "proofs": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "e311d1fc11787217320036346c0da674fe37600d77f01840c983415466d39dc4",
+          "integrated_ordered_hashes_sha256": "e311d1fc11787217320036346c0da674fe37600d77f01840c983415466d39dc4"
+        },
+        "display_environments": {
+          "baseline": 4,
+          "integrated": 4,
+          "identical": 4,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "16ff7190bfa31edab9fa9991607348eb35c9bf5100a29be7dce3b517f43fd537",
+          "integrated_ordered_hashes_sha256": "16ff7190bfa31edab9fa9991607348eb35c9bf5100a29be7dce3b517f43fd537"
+        },
+        "bracket_displays": {
+          "baseline": 4,
+          "integrated": 4,
+          "identical": 4,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "ddb4ac6ac37696f9e6a7fc13b595c20f44419c3c37f6a2ce4409bd374929e7e8",
+          "integrated_ordered_hashes_sha256": "ddb4ac6ac37696f9e6a7fc13b595c20f44419c3c37f6a2ce4409bd374929e7e8"
+        }
+      }
+    },
+    {
+      "path": "native-chain-composition.tex",
+      "baseline_sha256": "e4fda73318c6f16a672f7efde4f0c3659587f23f1a082e20e52e5d149007c04e",
+      "integrated_sha256": "e4fda73318c6f16a672f7efde4f0c3659587f23f1a082e20e52e5d149007c04e",
+      "baseline_bytes": 15290,
+      "integrated_bytes": 15290,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 7,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "7582e2ec4dd48e9c137e4fabb0a733aefd275083a63479a195732c1d7a9eb776",
+          "integrated_ordered_hashes_sha256": "7582e2ec4dd48e9c137e4fabb0a733aefd275083a63479a195732c1d7a9eb776"
+        },
+        "proofs": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "3fb2a4f0bf355e12f22a1fac9d50918fa122b6f87fcb796eccb7c3944fcbcf90",
+          "integrated_ordered_hashes_sha256": "3fb2a4f0bf355e12f22a1fac9d50918fa122b6f87fcb796eccb7c3944fcbcf90"
+        },
+        "display_environments": {
+          "baseline": 4,
+          "integrated": 4,
+          "identical": 4,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "37d7757258fc3324df03fb95a37b6cc81062920e1688815ff36d6d7200215b34",
+          "integrated_ordered_hashes_sha256": "37d7757258fc3324df03fb95a37b6cc81062920e1688815ff36d6d7200215b34"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "native-correspondence.tex",
+      "baseline_sha256": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
+      "integrated_sha256": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
+      "baseline_bytes": 5624,
+      "integrated_bytes": 5624,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 2,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "opaque-rendering.tex",
+      "baseline_sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+      "integrated_sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+      "baseline_bytes": 11335,
+      "integrated_bytes": 11335,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 4,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "59fe857637144fc34918d9ac8b093174bfa2d7d9e544ec63face147574637840",
+          "integrated_ordered_hashes_sha256": "59fe857637144fc34918d9ac8b093174bfa2d7d9e544ec63face147574637840"
+        },
+        "proofs": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "5b056f06122abde0330336b20fcb2d887add0880a1d919e3ccd7e190240ad555",
+          "integrated_ordered_hashes_sha256": "5b056f06122abde0330336b20fcb2d887add0880a1d919e3ccd7e190240ad555"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 6,
+          "integrated": 6,
+          "identical": 6,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "384bd3e63f4a4361f2430fe025afba8bdbf7e0358bddbeff4753133c06ab0134",
+          "integrated_ordered_hashes_sha256": "384bd3e63f4a4361f2430fe025afba8bdbf7e0358bddbeff4753133c06ab0134"
+        }
+      }
+    },
+    {
+      "path": "primitive-inputs.tex",
+      "baseline_sha256": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
+      "integrated_sha256": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
+      "baseline_bytes": 4315,
+      "integrated_bytes": 4315,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 1,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 7,
+          "integrated": 7,
+          "identical": 7,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "59453177461ff14adbbd86676f4b432b052485c4387e47eb07dd529e77bf4661",
+          "integrated_ordered_hashes_sha256": "59453177461ff14adbbd86676f4b432b052485c4387e47eb07dd529e77bf4661"
+        }
+      }
+    },
+    {
+      "path": "reference-schedule-table.tex",
+      "baseline_sha256": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9",
+      "integrated_sha256": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9",
+      "baseline_bytes": 1543,
+      "integrated_bytes": 1543,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 1,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "related-work.tex",
+      "baseline_sha256": "79986b07fb2984f048337edb6c06abeb59cda5087fc227cc5bab3fb4a12b71c8",
+      "integrated_sha256": "79986b07fb2984f048337edb6c06abeb59cda5087fc227cc5bab3fb4a12b71c8",
+      "baseline_bytes": 9820,
+      "integrated_bytes": 9820,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 1,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "report-composition.tex",
+      "baseline_sha256": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
+      "integrated_sha256": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
+      "baseline_bytes": 12978,
+      "integrated_bytes": 12978,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 4,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "85d4ed6a951169d1bc0319c3e57091e11e18cc971e8eb4d548cc8ad2628c1d13",
+          "integrated_ordered_hashes_sha256": "85d4ed6a951169d1bc0319c3e57091e11e18cc971e8eb4d548cc8ad2628c1d13"
+        },
+        "proofs": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "8883d92d3d17f1683ac29dad0e951f6cbe04943469e77a3efe144c465be9ac57",
+          "integrated_ordered_hashes_sha256": "8883d92d3d17f1683ac29dad0e951f6cbe04943469e77a3efe144c465be9ac57"
+        },
+        "display_environments": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "95389ff7dc90d5d906c96d5425340530017496e7e48b63959ef650dfcb44d755",
+          "integrated_ordered_hashes_sha256": "95389ff7dc90d5d906c96d5425340530017496e7e48b63959ef650dfcb44d755"
+        },
+        "bracket_displays": {
+          "baseline": 7,
+          "integrated": 7,
+          "identical": 7,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "8391fe5f431ba99a7719e3cd6f200444bf0ca027d0f4ea017d59c95f67e4bb6b",
+          "integrated_ordered_hashes_sha256": "8391fe5f431ba99a7719e3cd6f200444bf0ca027d0f4ea017d59c95f67e4bb6b"
+        }
+      }
+    },
+    {
+      "path": "reservation-signature-bridge.tex",
+      "baseline_sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+      "integrated_sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+      "baseline_bytes": 11624,
+      "integrated_bytes": 11624,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 6,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "54260a5c1f2b7127803b8be3c698c8fc2dde6cdd685a693abb6a5b057ec0fec2",
+          "integrated_ordered_hashes_sha256": "54260a5c1f2b7127803b8be3c698c8fc2dde6cdd685a693abb6a5b057ec0fec2"
+        },
+        "proofs": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "3ce2f045af34b0825f0a78f0d5392422b01df72f89c3c631dc7c3528ac282886",
+          "integrated_ordered_hashes_sha256": "3ce2f045af34b0825f0a78f0d5392422b01df72f89c3c631dc7c3528ac282886"
+        },
+        "display_environments": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "ef3ceba330956173018a67265473ae6e657d5952b5527e24dd22e6b6d2f9e519",
+          "integrated_ordered_hashes_sha256": "ef3ceba330956173018a67265473ae6e657d5952b5527e24dd22e6b6d2f9e519"
+        },
+        "bracket_displays": {
+          "baseline": 4,
+          "integrated": 4,
+          "identical": 4,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "572a308bcc19163df6e591b06738c5429fb0e1a99aaf43b66ee8e7d582273efe",
+          "integrated_ordered_hashes_sha256": "572a308bcc19163df6e591b06738c5429fb0e1a99aaf43b66ee8e7d582273efe"
+        }
+      }
+    },
+    {
+      "path": "retry-readiness-table.tex",
+      "baseline_sha256": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5",
+      "integrated_sha256": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5",
+      "baseline_bytes": 1261,
+      "integrated_bytes": 1261,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 1,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "retry-readiness.tex",
+      "baseline_sha256": "35b1f1aa5eb5be7c306de857bfce361685c8dfc216315fc77149d47e00bbc516",
+      "integrated_sha256": "35b1f1aa5eb5be7c306de857bfce361685c8dfc216315fc77149d47e00bbc516",
+      "baseline_bytes": 4390,
+      "integrated_bytes": 4390,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 1,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "proofs": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "display_environments": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "bracket_displays": {
+          "baseline": 0,
+          "integrated": 0,
+          "identical": 0,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "integrated_ordered_hashes_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "path": "sdk-purpose-connection.tex",
+      "baseline_sha256": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+      "integrated_sha256": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+      "baseline_bytes": 9312,
+      "integrated_bytes": 9312,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 6,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "aa2022dbb98a629a2e72c9c585ff759427c10d31b8d8712b5687ff58d51f6f2b",
+          "integrated_ordered_hashes_sha256": "aa2022dbb98a629a2e72c9c585ff759427c10d31b8d8712b5687ff58d51f6f2b"
+        },
+        "proofs": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "1b13aff2ce1f9f2e89530a0168c5b3b6002139df471d35c41761f469ec644c41",
+          "integrated_ordered_hashes_sha256": "1b13aff2ce1f9f2e89530a0168c5b3b6002139df471d35c41761f469ec644c41"
+        },
+        "display_environments": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "d8806ae8c99c2497a0b9dade5488b17c53945d3ba3c2e7b613f5c888353c583d",
+          "integrated_ordered_hashes_sha256": "d8806ae8c99c2497a0b9dade5488b17c53945d3ba3c2e7b613f5c888353c583d"
+        },
+        "bracket_displays": {
+          "baseline": 3,
+          "integrated": 3,
+          "identical": 3,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "9e5a15f2f4a7f7f0994cb0622c74dd545ac516c18a8f752cfb9795229d327043",
+          "integrated_ordered_hashes_sha256": "9e5a15f2f4a7f7f0994cb0622c74dd545ac516c18a8f752cfb9795229d327043"
+        }
+      }
+    },
+    {
+      "path": "security-model.tex",
+      "baseline_sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+      "integrated_sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+      "baseline_bytes": 30624,
+      "integrated_bytes": 30624,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 12,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 5,
+          "integrated": 5,
+          "identical": 5,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "15201da3fff041abc4b8e91abd0d70e69f55119807bd6be16a46cc8ac9e5aba8",
+          "integrated_ordered_hashes_sha256": "15201da3fff041abc4b8e91abd0d70e69f55119807bd6be16a46cc8ac9e5aba8"
+        },
+        "proofs": {
+          "baseline": 2,
+          "integrated": 2,
+          "identical": 2,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "af66998010c7f2ec4c052a5c3ead7b7e6d0a91e9d9c3c9216c5a0de5ddb41455",
+          "integrated_ordered_hashes_sha256": "af66998010c7f2ec4c052a5c3ead7b7e6d0a91e9d9c3c9216c5a0de5ddb41455"
+        },
+        "display_environments": {
+          "baseline": 4,
+          "integrated": 4,
+          "identical": 4,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "2fda4f98af87adc90e7aadf7cff105fc3116855e510486cec3decfc321acb0c8",
+          "integrated_ordered_hashes_sha256": "2fda4f98af87adc90e7aadf7cff105fc3116855e510486cec3decfc321acb0c8"
+        },
+        "bracket_displays": {
+          "baseline": 6,
+          "integrated": 6,
+          "identical": 6,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "520471581109b6c0cb1ec8828183c0f0b545c6869dd921a1c97f097f5c883f3f",
+          "integrated_ordered_hashes_sha256": "520471581109b6c0cb1ec8828183c0f0b545c6869dd921a1c97f097f5c883f3f"
+        }
+      }
+    },
+    {
+      "path": "source-attribution.tex",
+      "baseline_sha256": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
+      "integrated_sha256": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
+      "baseline_bytes": 12838,
+      "integrated_bytes": 12838,
+      "whole_file_identical": true,
+      "label_sequence_identical": true,
+      "label_count": 6,
+      "blocks": {
+        "formal_statements": {
+          "baseline": 4,
+          "integrated": 4,
+          "identical": 4,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "8aff7eb5e56d778bec330eb6d2cd56a123be4d160f61676517ea7d53431bb0ec",
+          "integrated_ordered_hashes_sha256": "8aff7eb5e56d778bec330eb6d2cd56a123be4d160f61676517ea7d53431bb0ec"
+        },
+        "proofs": {
+          "baseline": 4,
+          "integrated": 4,
+          "identical": 4,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "15fa1364a35cb96e0cb5b78d4efccf75aaa7903b34edfcbc3a08893e2916c1a7",
+          "integrated_ordered_hashes_sha256": "15fa1364a35cb96e0cb5b78d4efccf75aaa7903b34edfcbc3a08893e2916c1a7"
+        },
+        "display_environments": {
+          "baseline": 1,
+          "integrated": 1,
+          "identical": 1,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "7b06b33dd66943d5eb50dd3e9588acd8212df349c40083796561a501357b06ae",
+          "integrated_ordered_hashes_sha256": "7b06b33dd66943d5eb50dd3e9588acd8212df349c40083796561a501357b06ae"
+        },
+        "bracket_displays": {
+          "baseline": 5,
+          "integrated": 5,
+          "identical": 5,
+          "changed": 0,
+          "baseline_ordered_hashes_sha256": "5c85307cafa8564900eda70d5f578c7c09a59dd69f3c8d3276464ac207c23625",
+          "integrated_ordered_hashes_sha256": "5c85307cafa8564900eda70d5f578c7c09a59dd69f3c8d3276464ac207c23625"
+        }
+      }
+    }
+  ]
+}

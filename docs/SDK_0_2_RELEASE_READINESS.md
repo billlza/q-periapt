@@ -2,87 +2,176 @@
 
 Goal: finish the complete 0.2.0 product requirements, including the expanded
 Continuity scope and quality and maintainability review before delivery.
-No release-readiness claim is made until every applicable requirement has
-current-source evidence. The user's latest direction is **retain ABI major 2**.
+Release readiness is evaluated against current-source evidence for each
+applicable requirement. The user's latest direction is **retain ABI major 2**.
 
 ## Current verification and maintenance checkpoint (2026-11-11)
 
 The [current production analysis path](../artifact/codeql_summary_projection.md)
-selects the fixed Stage3 and Stage4 read-target projection for all three Rust
-targets. Each forward recurrence carries its six consumed target columns; the
-complete eleven-column read relation is reconstructed for downstream consumers.
-The complete 39-query suite, source and runtime identities, actual allocation,
-fresh results and target-specific publication checks remain bound together.
+uses the fixed Stage3 and Stage4 read-target projection, forward-state fusion
+and five-column Unit state for all three Rust targets. The forward core stores
+its five varying state fields and reconstructs the singleton type at its typed
+interfaces. The six-column read-target helper retains its original checks;
+the complete eleven-column read relation is reconstructed after each closure
+from the unchanged full join. The complete 39-query suite, source and runtime
+identities, actual allocation, fresh results and target-specific publication
+checks remain bound together.
 
-The [hosted nonempty wrapper](https://github.com/billlza/q-periapt/actions/runs/43048934821)
-qualifies production source `b5185165283880527a54289b47397fde78ddf553` through a
-fresh official-fixture extraction, all 39 precompiled queries, SARIF validation
-and full equality of the 29 decoded `SummaryStats` rows to the retained baseline.
-Extraction took 40.858 seconds and the full analysis command took 71.723 seconds
-on that hosted fixture with the declared 14,000-MB budget and four threads.
-The [earlier three-plan comparison](https://github.com/billlza/q-periapt/tree/99340939848d290191651ab306d1b5edc0f59df2/research/sdk-alpha1/evidence/20261111-summary-stage34-projection)
-also establishes complete equality for the `all`, Stage4 and Stage3/Stage4 plans,
-including 15 active sources and 106 tainted nodes. The final
-[293-control regression](https://github.com/billlza/q-periapt/tree/276fb972a207722e03222b2771236672de4e9145/research/sdk-alpha1/evidence/20261111-codeql-completion-receipt-fix)
-passes in 10.577 seconds on the same production tree.
+The [source and compilation review](https://github.com/billlza/q-periapt/tree/1dd35b683864c2b2b35aa879486e62fd7fdaf0c6/research/sdk-alpha1/evidence/20261111-codeql-unit-forward-state-source)
+binds production source `ed38e305552db2825d90622c130973df87e16d50` to the
+fixed capsule. In each affected stage, the actual optimized relational algebra
+retains one recursive `fwdFlowUnit/5`; its core, delta and deduplication keys
+all have five fields. The separate six- and seven-column forward entities are
+eliminated, and one argument-consumer projection shrinks from four columns to
+three. The type is rebuilt at its local consumers. The proof preserves the
+least fixed point, every candidate branch and filter, node admission,
+None/Some stored-state distinctions and positive recursive type-flow feedback.
+The other stages retain their typed state boundaries. This specialization adds
+19 net vendor-source lines to the earlier fusion. Compilation with the
+production `all` join option and an empty private cache passes in 69.905 seconds.
+The original 39 root queries and other 38 compiled queries retain their bytes;
+2,282 runtime files and 1,175 embedded dependencies are checked before and after
+compilation. The source qualification passes 294 controls in 11.277 seconds.
+After integrating the [completion-boundary repair](https://github.com/billlza/q-periapt/pull/170)
+from SDK source `3b042375`, the [combined implementation](https://github.com/billlza/q-periapt/tree/2e1a1f6b6a9246cb64e10e6ac8017bba3b06a2a8/research/sdk-alpha1/evidence/20261111-codeql-integrated-completion-controls)
+passes 298 controls in 10.642 seconds. That repair rejects completion markers
+hidden anywhere in an oversized stderr line, including across read boundaries,
+while retaining bounded memory and ordinary long diagnostics.
 
-Verification jobs now queue independently by language or Rust target, and the
-ordinary SDK matrix runs once per PR revision. The producer and publisher check
-the complete per-query completion set against the original retained stderr;
-internal logs supply independent query-load, start and allocation observations.
-The shared bounded reader also provides live progress. The extractor explicitly
-loads all 68 authenticated archive snapshots into its file view, and CLI options
-follow the command interfaces supported by the pinned version. Android API 23
-framework discovery uses an exact process query while preserving the existing
+The [same-runner B–A–A–B control](https://github.com/billlza/q-periapt/actions/runs/43087152738)
+compares A = `b5185165` with B = `ed38e305` on four byte-identical copies of
+one freshly extracted database. Each execution uses its own private runtime,
+pack, cache and temporary directory, the original production command and
+allocation resolver, and the same 14,000-MB/four-thread budget. All four
+analyses complete before decoding begins. The [qualification record](https://github.com/billlza/q-periapt/tree/f0e0e4950319973cf202b368c9ad360f0bb6f970/research/sdk-alpha1/evidence/20261111-codeql-same-runner-baab-qualified)
+identifies the original hosted artifact and records the completed independent
+readback: all 156 query results were individually decoded, every query's full
+schema and row multiset agreed, and all four complete 29-row frozen baselines
+matched. Each execution records 39 fresh results, 39 precompiled loads and
+zero compilation.
+
+| Execution order | Plan | Complete 39-query command |
+| --- | --- | ---: |
+| B1 | Five-column Unit forward state | 93.834 s |
+| A2 | Original read projection | 90.380 s |
+| A3 | Original read projection | 89.934 s |
+| B4 | Five-column Unit forward state | 91.237 s |
+
+The original plan averages **90.157 s** and the five-column plan **92.536 s**:
+a measured **2.379 s (2.64%)** increase on this fixture, with **2.80%** higher
+observed process CPU. This integration accepts that measured fixture cost and
+selects the smaller recursive state for native, WASM and macOS qualification.
+The change removes redundant forward-state materialization and narrows its
+recursive keys. The fixed large-database experiments below measure the
+corresponding project-scale running cost. Each source has two timing
+observations in this control. Non-atomic process-tree RSS samples remain in the
+original resource record; their small difference is not a selection criterion.
+
+The diagnostic [source-preparation repair record](https://github.com/billlza/q-periapt/tree/3ecccfc3d4bca918ca54daadf1c24cf1c1ad077f/research/sdk-alpha1/evidence/20261111-codeql-baab-source-preparation)
+retains the preceding 180-second archive timeout before any analysis invocation.
+The driver now prefetches the exact required Git objects in one batch and
+archives the complete fixed artifact subtree. Both hosted archives complete
+in under 0.072 seconds; full source census, identity checks and original
+analysis deadlines are preserved.
+
+The earlier [complete hosted five-column wrapper](https://github.com/billlza/q-periapt/actions/runs/43076555996)
+passes a fresh official-fixture extraction, all 39 precompiled queries, SARIF
+validation and full byte equality of the 29 decoded `SummaryStats` rows to the
+retained baseline. Its [independent readback](https://github.com/billlza/q-periapt/tree/db58329720170632b7cfb98a69e4c9043da84e0e/research/sdk-alpha1/evidence/20261111-codeql-unit-forward-state-wrapper-qualified)
+verifies all 39 fresh result files, their database copies, the 1,357-file
+effective pack, the private runtime and twelve production source bindings.
+The fixture retains 15 active sources and 106 tainted nodes. The preceding
+[six-column fusion readback](https://github.com/billlza/q-periapt/tree/b1580cfa2740a860caa4c9a6e7540303c315b27a/research/sdk-alpha1/evidence/20261111-codeql-forward-fusion-wrapper-qualified)
+retains its own original execution. These separate-host wrapper qualifications
+retain their measured extraction and analysis costs:
+
+| Fixed nonempty fixture plan | Extraction | Complete 39-query command |
+| --- | ---: | ---: |
+| Stage3/Stage4 read projection, source `b5185165` | 40.858 s | 71.723 s |
+| Read projection and six-column state fusion, source `9c0d63d4` | 44.924 s | 86.180 s |
+| Read projection and five-column state fusion, source `ed38e305` | 50.998 s | 94.944 s |
+
+All use the declared 14,000-MB budget and four threads. These independent
+executions establish wrapper and output qualification; the same-runner control
+above supplies the paired plan-selection measurements.
+
+The producer and publisher bind the complete per-query completion set to the
+original retained stderr. Internal logs supply independent query-load, start
+and allocation observations and retain their actual progress-line count. The
+six-column fusion fixture has 39 starts and 38 internal completion messages,
+alongside all 39 stderr completions and all 39 fresh results. The shared bounded
+reader handles this observed logging behavior and provides live progress.
+CLI options follow the interfaces supported by the pinned version. Extraction
+includes all 68 authenticated archive snapshots in its file view while
+preserving the full source and diagnostic checks.
+
+The [non-Rust checkout qualification](https://github.com/billlza/q-periapt/tree/6ebd0e9a50c828e83ec2020163bd3511b39b57cc/research/sdk-alpha1/evidence/20261111-codeql-checkout-qualification)
+passes on source `7c1c1b6f95747b9ccb877b803bd1ad7cee3cdd9d`. Five language
+jobs use a partial clone and precisely omit 542 historical evidence ZIPs,
+whose tracked blobs total 4,787,753,249 bytes. The hosted checkout takes
+15.862 seconds and leaves 100,256,247 bytes of Git object files on disk.
+Every retained path, blob, mode and length matches the complete tree: 7,387
+files, including all 1,241 Rust sources and all 68 authenticated archived
+sources. The four Rust jobs retain full checkout for their whole-tree
+provenance contract. Independent language and target queues prevent one
+platform from holding every language's queue, and the ordinary SDK matrix
+runs once per PR revision.
+
+The [Linux bootstrap qualification](https://github.com/billlza/q-periapt/actions/runs/43057408847)
+passes five jobs on source `251bc2ab4cc488543a5516785f3ac9788b681a0b`:
+Ubuntu 22.04 and 24.04 on x86_64 and ARM64, plus Ubuntu 26.04 on x86_64.
+Each executes the existing CMake/pkg-config/OpenSSL consumer. The authenticated
+protoc download, exact version and imported-schema check take 0.79 seconds on
+Ubuntu 24.04 x86_64; the exported compiler and a real WASM object also pass.
+Cross-toolchain installation takes 42.07 seconds, followed by successful
+AArch64 and RISC-V execution under QEMU. ARM64 installation takes 14.30 seconds
+and the Memcheck consumer reports zero errors. All five source identities and
+25 receipts have independent artifact readback.
+
+Required Ubuntu installs share one small helper with isolated indexes, the
+runner's archive keyring and a six-minute deadline. The
+[Ubuntu 26.04 variant qualification](https://github.com/billlza/q-periapt/actions/runs/43062177678)
+passes on source `96e9a63cf8359b130003cd851008a7ce3649aea7`. The helper
+preserves the runner's configured `amd64v3` selection. All four dependency
+sets install in 59.40 seconds, adding 146 packages while all 1,234 existing
+packages retain their exact versions. Memcheck, RISC-V execution, Graphviz,
+ZIP integrity, OCaml, GTK2 and the existing OpenSSL consumer pass. The archive
+keyring, strict update errors and downgrade refusal remain in force. Android
+API 23 framework discovery also uses an exact process query with the existing
 identity, stability and deadline checks.
 
-The [Linux build bootstrap qualification](https://github.com/billlza/q-periapt/actions/runs/43057408847)
-passes all five jobs on dependency source
-`251bc2ab4cc488543a5516785f3ac9788b681a0b`: Ubuntu 22.04 and 24.04 on x86_64
-and ARM64, plus Ubuntu 26.04 on x86_64. Each compiles and executes the existing
-C/OpenSSL consumer through CMake and pkg-config. On Ubuntu 24.04 x86_64, the
-fixed protoc download, digest/version checks and imported-schema compilation
-take 0.79 seconds; the exported tool and a real WASM object also pass. The
-authenticated cross-toolchain installation takes 42.07 seconds and both
-AArch64 and RISC-V binaries execute successfully under QEMU. On Ubuntu 24.04
-ARM64, installation takes 14.30 seconds and the real Memcheck consumer reports
-zero errors. Independent artifact readback verifies all five source/tree
-identities, archive digests and the complete 25-receipt census.
-
-These changes remove redundant operating-system package refreshes from CodeQL
-preparation and native package-tool checks. Required Ubuntu package installs
-share one small helper with isolated indexes, the runner's Ubuntu archive
-keyring and a six-minute total deadline. The prior SDK cohort's dependency
-failures are retained alongside the original successful preceding checks and
-Canonical's dated DNS outage record. The analysis implementation and fixed
-query plan are identical to the qualified production source above.
-
-The [Ubuntu 26.04 architecture-variant qualification](https://github.com/billlza/q-periapt/actions/runs/43062177678)
-passes on installer source `96e9a63cf8359b130003cd851008a7ce3649aea7`.
-The runner reports native `amd64` and enables `amd64v3` through APT. The
-installer now preserves that configured selection when it writes its isolated
-sources; the earlier explicit base-architecture filter caused APT to refuse
-proposed downgrades in five jobs. With the filter removed, the real signed
-installation of all four dependency sets takes 59.40 seconds and adds 146
-packages. All 1,234 previously installed packages retain their exact versions,
-with no removals or downgrades. Memcheck, compiled RISC-V execution under QEMU,
-Graphviz, ZIP integrity, OCaml, GTK2 and the existing C/OpenSSL consumer pass.
-The archive keyring, strict update errors and six-minute deadline are unchanged.
-
-The [retained fixed-workload benchmark](https://github.com/billlza/q-periapt/tree/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-join-outcome)
-records the earlier `all`-plan long tail: both allocation arms reached their
-five-hour bound with 38 equal fresh results. Its phase and resource evidence
-guided the projection work. The separate
-[Stage4-only follow-up](https://github.com/billlza/q-periapt/actions/runs/43009319450)
-also reaches its five-hour bound in both arms with 38 fresh, semantically equal
-results; `SummaryStats` is the remaining query. The
-[Stage3/Stage4 experiment](https://github.com/billlza/q-periapt/actions/runs/43016694869)
-has begun evaluating the combined projection. Current-source native, WASM and macOS qualification
-provides the next complete target results and turnaround measurements.
+The [original retained workload](https://github.com/billlza/q-periapt/tree/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-join-outcome)
+and [Stage4-only follow-up](https://github.com/billlza/q-periapt/actions/runs/43009319450)
+each reached the five-hour bound in both allocation arms with 38 equal fresh
+results. Their phase, relation and resource records identify the remaining
+`SummaryStats` cost. The Stage4-only logs include three forward-state relations
+of 152,892,493 rows each and extensive cache eviction. The
+[Stage3/Stage4 projection experiment](https://github.com/billlza/q-periapt/actions/runs/43016694869)
+retains its original source and execution. The separate
+[forward-state fusion experiment](https://github.com/billlza/q-periapt/actions/runs/43071289945)
+uses production source `9c0d63d4`, the same retained database and cache, all 39
+queries and the original 2,048/1,536-MB heap allocations within the 14,000-MB
+budget. The [five-column follow-up](https://github.com/billlza/q-periapt/actions/runs/43078185419)
+fixes source `ed38e305` under the same workload and allocation contract.
+Complete 39-result equality and the 38 retained reference results remain the
+admission conditions. The retained workflow now includes the original stderr
+fixture required by the real-log regression. Its original 178 checks pass
+under that exact sparse input set; after the completion-boundary repair,
+the six preflight modules account for 182 successful checks in the combined
+298-control run. Native, WASM and macOS jobs each require their own
+current-source completion and publication receipts.
 
 The [SDK performance record](SDK_PERFORMANCE.md) reports measured compiled C
 and Swift boundary-operation costs. This checkpoint records the completion,
 observability and resource cost of maintaining those implementations.
+
+The canonical JoC manuscript is also synchronized to
+[`6c5b3afd`](https://github.com/billlza/q-periapt/commit/6c5b3afd1c3db68bf438f71b38676f342d71b8e4),
+with paper subtree `13c51a46e5e3e8535f34a9d6bbaad6b458cda775`.
+It adds the confirmed author declarations and retains all 57 formal blocks,
+52 proofs and 168 displayed-math groups. The 120-page reading copy and the
+independent nine-file source export have identical complete plain and layout
+text; the original verification records accompany the exact paper subtree.
 
 ## Completed hosted checkpoint (2026-11-07)
 
