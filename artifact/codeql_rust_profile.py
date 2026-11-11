@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -89,7 +90,11 @@ class ProfileRun:
     def command(self, label: str, argv: list[str], *, cwd: Path | None = None, seconds=900,
                 timeout_policy: TimeoutPolicy = TimeoutPolicy.STANDARD):
         started = time.monotonic()
-        record = {"argv": argv, "cwd": str(cwd or self.root), "maximum_seconds": seconds}
+        record = {"argv": argv, "cwd": str(cwd or self.root), "maximum_seconds": seconds,
+                  "invoked_at_utc": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+                  "source_commit": self.environment.get("CODEQL_EXPECTED_COMMIT"),
+                  "run_id": self.environment.get("GITHUB_RUN_ID"),
+                  "run_attempt": self.environment.get("GITHUB_RUN_ATTEMPT")}
         try:
             # Stream bounded diagnostics into fresh evidence files while the
             # child runs. A timeout still fails, with the emitted query progress
@@ -97,6 +102,11 @@ class ProfileRun:
             with (self.evidence / (label + ".stdout")).open("xb") as stdout, \
                     (self.evidence / (label + ".stderr")).open("xb") as stderr, \
                     contextlib.chdir(cwd or self.root):
+                # This receipt precedes the supervisor call, so a killed worker
+                # still records which command was invoked and when. It is not
+                # a completion receipt or the subprocess's exact deadline.
+                sdk.write_json(self.evidence / (label + ".started.json"), record)
+                print(f"{label} invoked at {record['invoked_at_utc']} (bound {seconds}s)", flush=True)
                 result = capture_output(argv, timeout_seconds=seconds, maximum_stdout_bytes=32 * 1024**2,
                                         maximum_stderr_bytes=16 * 1024**2, environment=self.environment,
                                         stdout_sink=stdout.write, stderr_sink=stderr.write,
@@ -105,10 +115,12 @@ class ProfileRun:
             sdk.write_json(self.evidence / (label + ".json"), {
                 **record, "completed": False, "boundary": exc.kind, "reason": str(exc),
                 "cleanup_ambiguous": exc.cleanup_ambiguous, "elapsed_seconds": time.monotonic() - started,
+                "finished_at_utc": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
             })
             raise
         sdk.write_json(self.evidence / (label + ".json"), {
             **record, "returncode": result.returncode, "elapsed_seconds": time.monotonic() - started,
+            "finished_at_utc": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
         })
         sdk.require(result.returncode == 0, "command failed: " + label)
         sdk.require(re.search(rb"(?im)^\s*(?:warning|error|fatal)\b", result.stderr) is None,

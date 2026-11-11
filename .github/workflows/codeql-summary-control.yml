@@ -4,25 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       summary_plan_mode:
-        description: Full SummaryStats plan (all selects the fixed experimental capsule)
+        description: Full SummaryStats plan (all and projection select fixed experimental capsules)
         type: choice
-        options: [none, all]
+        required: true
+        options: [none, all, projection]
         default: none
+  # Updating this dedicated ref is an explicit experiment request. Keep this
+  # entry point while dispatch is unavailable to the publishing client; normal
+  # candidate pushes and pull requests never start retained-database experiments.
   push:
-    branches: [diagnostic/codeql-summary-cache, diagnostic/codeql-summary-joins]
-    paths:
-      - .github/workflows/codeql-summary-control.yml
-      - artifact/codeql_summary_control.py
-      - artifact/test_codeql_summary_control.py
-      - artifact/codeql_process_resources.py
-      - artifact/test_codeql_process_resources.py
-      - artifact/codeql_summary_plan.py
-      - artifact/test_codeql_summary_plan.py
-      - artifact/codeql_summary_dynamic_plan.json
-      - artifact/codeql-summary-dynamic-plan.zip
+    branches: [diagnostic/codeql-summary-projection]
 
 env:
-  SUMMARY_PLAN_MODE: ${{ (github.event_name == 'push' && github.ref_name == 'diagnostic/codeql-summary-joins' && 'all') || (github.event_name == 'workflow_dispatch' && inputs.summary_plan_mode) || 'none' }}
+  SUMMARY_PLAN_MODE: ${{ (github.event_name == 'push' && github.ref_name == 'diagnostic/codeql-summary-projection' && 'projection') || inputs.summary_plan_mode }}
 
 permissions:
   contents: read
@@ -51,12 +45,20 @@ jobs:
           sparse-checkout: |
             artifact/codeql_summary_control.py
             artifact/test_codeql_summary_control.py
+            artifact/test_codeql_summary_archive_input.py
             artifact/codeql_process_resources.py
             artifact/test_codeql_process_resources.py
             artifact/codeql_summary_plan.py
             artifact/test_codeql_summary_plan.py
             artifact/codeql_summary_dynamic_plan.json
             artifact/codeql-summary-dynamic-plan.zip
+            artifact/codeql_summary_projection.py
+            artifact/test_codeql_summary_projection.py
+            artifact/codeql_summary_projection.json
+            artifact/codeql_summary_projection_dependencies.json.gz
+            artifact/codeql_summary_projection.patch
+            artifact/codeql-summary-projection-plan.zip
+            artifact/codeql-summary-projection-plan.LICENSE
             artifact/codeql_log_recovery.py
             artifact/codeql_rust_queries.json
             artifact/bounded_process.py
@@ -66,7 +68,7 @@ jobs:
             artifact/python_bootstrap.py
       - name: Check exact inputs, fresh results and strict paired comparison
         timeout-minutes: 2
-        run: sh artifact/python-run.sh -m unittest -v test_codeql_summary_control test_codeql_process_resources test_codeql_summary_plan
+        run: sh artifact/python-run.sh -m unittest -v test_codeql_summary_control test_codeql_summary_archive_input test_codeql_process_resources test_codeql_summary_plan test_codeql_summary_projection
       - name: Install the authenticated Rust CLI 2.27.2 bundle
         timeout-minutes: 12
         run: |
@@ -122,6 +124,12 @@ jobs:
             artifact/codeql_summary_plan.py
             artifact/codeql_summary_dynamic_plan.json
             artifact/codeql-summary-dynamic-plan.zip
+            artifact/codeql_summary_projection.py
+            artifact/codeql_summary_projection.json
+            artifact/codeql_summary_projection_dependencies.json.gz
+            artifact/codeql_summary_projection.patch
+            artifact/codeql-summary-projection-plan.zip
+            artifact/codeql-summary-projection-plan.LICENSE
             artifact/codeql_log_recovery.py
             artifact/codeql_rust_queries.json
             artifact/bounded_process.py

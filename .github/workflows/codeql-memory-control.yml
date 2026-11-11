@@ -1,13 +1,6 @@
 name: CodeQL evaluator control
 
 on:
-  push:
-    branches: [lza/sdk-020-alpha1]
-    paths:
-      - .github/workflows/codeql-memory-control.yml
-      - artifact/codeql_memory_control.py
-      - artifact/codeql_memory_queries.json
-      - artifact/test_codeql_memory_control.py
   workflow_dispatch:
 
 permissions:

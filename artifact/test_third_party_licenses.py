@@ -126,7 +126,7 @@ class ThirdPartyLicenseTests(unittest.TestCase):
             directory.mkdir()
             (directory / "Cargo.toml").write_text(
                 f'[package]\nname = "{name}"\nversion = "{version}"\n', encoding="utf-8")
-            (directory / "LICENSE").write_text(f"Synthetic {name} license\n", encoding="utf-8")
+            (directory / "LICENSE").write_bytes(f"Synthetic {name} license\n".encode("utf-8"))
             extra_packages.append({"id": name, "name": name, "version": version,
                 "source": self.source, "license": "MIT", "license_file": None,
                 "manifest_path": str(directory / "Cargo.toml")})

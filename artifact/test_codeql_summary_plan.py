@@ -235,7 +235,7 @@ class CandidateResultAdmissionTests(unittest.TestCase):
                                 evidence, environment, 1)
             with patch.dict(os.environ, {"RUNNER_TEMP": str(root)}), \
                     patch.object(control, "prepare_database", return_value=(output / "database", {})), \
-                    patch.object(control, "admit_tool", return_value=(queries, {}, QUERY_HASHES, COMPILED_HASHES, control.SOURCE_ALLOCATION)), \
+                    patch.object(control, "admit_tool", return_value=(queries, valid_report("heap-2048")["tool_identity"], QUERY_HASHES, COMPILED_HASHES, control.SOURCE_ALLOCATION)), \
                     patch.object(control, "sha", side_effect=digest), \
                     patch.object(plan, "install", return_value=plan.expected_identity()), \
                     patch.object(plan, "validate", side_effect=FileNotFoundError("missing candidate stage")), \

@@ -6,6 +6,25 @@ for the 0.2.0 work. The inspected product source is
 below names the implementation boundary it covers. Remaining review items are
 kept separate from completed observations.
 
+## Verification turnaround and maintenance cost
+
+Maintenance includes the time and resources needed to obtain complete analysis
+results. The [2026-11-11 fixed-workload CodeQL readback](https://github.com/billlza/q-periapt/blob/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-join-outcome/README.md)
+records two hosted full-summary attempts on the retained database for source
+`56f191f04a57806869b8a03078ee4d27ffe900ab`. Both exhausted their five-hour bound
+with 38 of 39 fresh query results. Independent decoding establishes equality
+of all 38 completed results to their references and between the two arms. The
+remaining full `SummaryStats` computation is therefore a specific open
+engineering issue, and its completion cost belongs in this maintainability
+review alongside the implementation boundaries below.
+
+The retained timeout diagnostics and complete partial-result readback make the
+failure reproducible and preserve completed analysis work. The
+[projection prototype](https://github.com/billlza/q-periapt/blob/8befa0f52c2c260fc72ca40e931fc20bd2af5b52/research/sdk-alpha1/evidence/20261111-summary-target-projection/README.md)
+addresses the wide recursive read relation identified by the evaluator logs.
+Its source argument and compiled plan are available for review; complete
+runtime results under the fixed workload and budget govern its adoption.
+
 ## Android account-root integration
 
 The account-root adapter is now in the main sources. JNI dispatch is 126 lines;
