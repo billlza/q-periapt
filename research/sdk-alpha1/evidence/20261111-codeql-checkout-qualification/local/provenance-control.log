@@ -1,0 +1,6 @@
+test_assume_unchanged_and_skip_worktree_are_rejected (test_git_provenance.GitProvenanceTests.test_assume_unchanged_and_skip_worktree_are_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.056s
+
+OK
