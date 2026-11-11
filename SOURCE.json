@@ -1,0 +1,10 @@
+{
+  "base": "6d55b2eab651538eb3c9f09df131beb16a01a1f3",
+  "files": {
+    "artifact/ci_apt.sh": "86917b43b993ced1da10d9ce65fb9b0799961e0dc489581d926bf6902ca99212",
+    "artifact/test_ci_apt.py": "9fa061d6c6044d24de9a4ebf83cdae03f0a0c0975bb9839c3fa988080394e096",
+    "artifact/python-run.sh": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255",
+    "artifact/python-env.sh": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49",
+    "artifact/python_bootstrap.py": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe"
+  }
+}

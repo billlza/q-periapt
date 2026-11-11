@@ -1,0 +1,73 @@
+name: Authenticated APT mirror failover qualification
+
+on:
+  push:
+    branches: [diagnostic/apt-mirror-failover-20261111]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-22.04, ubuntu-24.04, ubuntu-latest, ubuntu-22.04-arm]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up canonical artifact Python
+        id: python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - name: Verify source and shell
+        run: |
+          mkdir -p target/apt-qualification
+          git rev-parse HEAD > target/apt-qualification/commit.txt
+          cat /etc/os-release > target/apt-qualification/os-release.txt
+          dpkg --print-architecture > target/apt-qualification/architecture.txt
+          sha256sum artifact/ci_apt.sh artifact/test_ci_apt.py > target/apt-qualification/sources.sha256
+          bash -n artifact/ci_apt.sh
+          shellcheck -x artifact/ci_apt.sh
+      - name: Exercise real APT mirror outages and authentication rejection
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          sh artifact/python-run.sh -m unittest -v test_ci_apt 2>&1 | tee target/apt-qualification/tests.log
+      - name: Install and execute actual build dependencies
+        shell: bash
+        run: |
+          dpkg-query -W -f='${Package}\t${Version}\n' > target/apt-qualification/packages-before.txt
+          packages=(valgrind graphviz unzip)
+          if [[ $(uname -m) == x86_64 ]]; then
+            packages+=(qemu-user gcc-aarch64-linux-gnu gcc-riscv64-linux-gnu)
+          fi
+          bash artifact/ci_apt.sh "${packages[@]}" 2>&1 | tee target/apt-qualification/install.log
+          dpkg-query -W -f='${Package}\t${Version}\n' > target/apt-qualification/packages-after.txt
+          printf 'int main(void) { return 0; }\n' > target/apt-qualification/probe.c
+          cc target/apt-qualification/probe.c -o target/apt-qualification/probe
+          valgrind --error-exitcode=99 target/apt-qualification/probe 2>&1 | tee target/apt-qualification/memcheck.log
+          printf 'digraph G { a -> b }\n' | dot -Tsvg > target/apt-qualification/probe.svg
+          test -s target/apt-qualification/probe.svg
+          unzip -v > target/apt-qualification/unzip.txt
+          if [[ $(uname -m) == x86_64 ]]; then
+            aarch64-linux-gnu-gcc target/apt-qualification/probe.c -o target/apt-qualification/arm64
+            qemu-aarch64 -L /usr/aarch64-linux-gnu target/apt-qualification/arm64
+            riscv64-linux-gnu-gcc target/apt-qualification/probe.c -o target/apt-qualification/riscv64
+            qemu-riscv64 -L /usr/riscv64-linux-gnu target/apt-qualification/riscv64
+          fi
+      - name: Preserve qualification logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: apt-qualification-${{ matrix.runner }}
+          path: target/apt-qualification/
+          if-no-files-found: error
+          retention-days: 14

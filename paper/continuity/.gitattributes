@@ -1,6 +1,0 @@
-# Keep the editable manuscript prominent in the initial paper review.
-sn-jnl.cls linguist-vendored=true
-sn-basic.bst linguist-vendored=true
-joc-basic.bst linguist-vendored=true
-joc-submission.tex linguist-generated=true
-flatten_manifest.json linguist-generated=true

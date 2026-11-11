@@ -1,8 +1,0 @@
-{
-  "upstream_style": "sn-basic.bst",
-  "derived_style": "joc-basic.bst",
-  "change": "Remove the >3-author truncation in format.names; preserve alphabetical sort and natbib labels.",
-  "upstream_sha256": "4b368414cc5593169907933b417aacfdb0ce905866a39bdf55d21aad65e9d46c",
-  "derived_sha256": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
-  "class_modified": false
-}

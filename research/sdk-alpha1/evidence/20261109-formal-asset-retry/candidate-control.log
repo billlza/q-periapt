@@ -1,9 +1,0 @@
-test_http_failure_burst_recovers_with_real_partial_output_cleanup (test_formal_tool_asset.FormalToolAssetTests.test_http_failure_burst_recovers_with_real_partial_output_cleanup) ... test-asset curl status 22; retrying in 15 seconds
-test-asset curl status 22; retrying in 30 seconds
-test-asset curl status 22; retrying in 60 seconds
-ok
-
-----------------------------------------------------------------------
-Ran 1 test in 0.050s
-
-OK

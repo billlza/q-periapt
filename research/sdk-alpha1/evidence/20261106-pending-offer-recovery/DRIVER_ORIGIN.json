@@ -1,6 +1,0 @@
-{
-  "derived_from": "target/continuity-cleanup-causality-20261106/validate.py",
-  "original_sha256": "1a4029c2b5c2642de528f88ae97a6b41005a7dcc0ba30130a1328d4e2426b2a9",
-  "new_sha256": "da58e04787e2a0a9870ca617c4e80559b3832b2bed08f16acfa03813018c94e1",
-  "changes": "New parent/source scope and three selected test names/strict marker expectations; same compiler, feature flags, build separation, source inventory, original component limits, binary checks and full all-target Clippy."
-}
