@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "kind": "qperiapt.codeql_bounded_command_source_review",
+  "reviewer": "dependency_review",
+  "read_only": true,
+  "current_source": {
+    "remote_commit": "4870db5eff0a611973a302f29e94c0992df66cfe",
+    "local_commit": "9847e6714f3089d1dfec04350aa32d1541f07b74",
+    "tree": "7d4ca678175170b6c867240727f3908bc2d7c1f1",
+    "local_tree_equals_remote_tree": true
+  },
+  "retained_scan": {
+    "commit": "834c67183c403fd10d65600252ecbcb950c1af11",
+    "tree": "0f281a963c2bd0e6f203c025a99d507ae73da9c2",
+    "python_zip_sha256": "c664a1e7677f992ed28bd31566ed1d553031408b5504d633f5ff466c6c892023",
+    "python_sarif_sha256": "bef32700243d33be9a3af3f647467b5d98f7208747538ce93ee1b75aeee98b2d",
+    "python_result_count": 1410,
+    "four_language_raw_result_count": 1413,
+    "python_command_injection_result_count": 52,
+    "pr_comparison_gate_count": 519,
+    "pr_comparison_gate_critical": 12,
+    "pr_comparison_gate_high": 507,
+    "count_note": "Raw SARIF results and PR comparison findings are different sets. This receipt does not map the exact12 critical PR findings or dismiss any result."
+  },
+  "finding": {
+    "python_result_index": 1309,
+    "rule_id": "py/command-line-injection",
+    "sink": "artifact/bounded_process.py:356",
+    "source_ids_total": 23,
+    "retained_codeFlows": 4,
+    "new_manual_source_review_ids": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "trace_method": "relatedLocations plus manual current-source caller/argument-contract inspection; retained SARIF contains only4 codeFlows, so no synthetic full SARIF flow was invented."
+  },
+  "generic_runner_contract": "_validated_argv checks nonempty string argv and NUL; _validated_environment validates supplied mapping but None inherits. _start_process uses shell=False and executable=argv[0]. It supplies resource/process supervision, not an executable allowlist, option sanitizer, or sandbox.",
+  "results": [
+    {
+      "source_id": 5,
+      "retained_source": {
+        "path": "artifact/codeql_memory_control.py",
+        "line": 330
+      },
+      "current_source": {
+        "path": "artifact/codeql_memory_control.py",
+        "read_segments": "272–310; 324–336"
+      },
+      "controls_and_contract": "CLI --codeql is an explicit operator-selected tool. It resolves strictly before use; profiles are choices, output resolves under RUNNER_TEMP; evaluation argv is fixed with -- before database/query operands. The current workflow takes the executable path from a pinned setup-codeql action output (codeql-memory-control.yml:36–50).",
+      "bounded_conclusion": "Explicit tool execution; executable trust belongs to the operator/setup action, not the generic runner.",
+      "exploit_executed": false
+    },
+    {
+      "source_id": 6,
+      "retained_source": {
+        "path": "artifact/codeql_summary_control.py",
+        "line": 953
+      },
+      "current_source": {
+        "path": "artifact/codeql_summary_control.py",
+        "read_segments": "389–430; 445–454; 860–912; 965–981"
+      },
+      "controls_and_contract": "CLI chooses tool/archive/output and enumerated profiles. The workflow checks exact archive length and SHA-256 before extracting into a fresh private tool directory (codeql-summary-control.yml:70–97). Query arguments are constructed from fixed flags and bounded output paths. Environment is a small allowlist with fixed PATH.",
+      "bounded_conclusion": "Caller boundary verified. In standalone admit_tool, version is executed at line403 before launcher hash validation at line424; script alone does not authenticate arbitrary executable bytes before their first execution.",
+      "exploit_executed": false
+    },
+    {
+      "source_id": 7,
+      "retained_source": {
+        "path": "artifact/continuity_android_build.py",
+        "line": 430
+      },
+      "current_source": {
+        "path": "artifact/continuity_android_build.py",
+        "read_segments": "130–219; 279–356; 424–430"
+      },
+      "controls_and_contract": "Toolchain/NDK/JDK roots are explicit CLI tool selections resolved strictly. Build source identity is checked against selected commit/tree/tree hash; SDK report is hash-admitted. Command arrays use absolute tool paths and fixed target/compiler options. Ambient compiler/loader overrides are removed; generated paths are absolute. Actual workflow chooses installed Rust sysroot, NDK r29 and setup-java JDK (continuity-android-installed.yml:223–258).",
+      "bounded_conclusion": "No counterexample in source admission and command construction read. Tool identity hashes are observations of the selected installed tools, not an independent authorization root.",
+      "exploit_executed": false
+    },
+    {
+      "source_id": 8,
+      "retained_source": {
+        "path": "artifact/continuity_host_exchange.py",
+        "line": 226
+      },
+      "current_source": {
+        "path": "artifact/continuity_host_exchange.py",
+        "read_segments": "66–143; 175–181; 211–226, plus seven qualify helper entry points"
+      },
+      "controls_and_contract": "Wheel is checked against exact source modules/license/README; pip installs its captured file URI with a hash, no index/deps, isolated interpreter. Output is a fresh private path. Provider/native tools are explicitly selected. Publisher and SDK authority, plus every native path in seven helper entry points, are strictly resolved before placement in fixed Python harness argv. PYTHON/PIP/LD/DYLD ambient variables are stripped.",
+      "bounded_conclusion": "No counterexample in the read entry-to-run constructions. Internal operations of all spawned reference harnesses are not exhaustively traced by this receipt.",
+      "exploit_executed": false
+    },
+    {
+      "source_id": 9,
+      "retained_source": {
+        "path": "artifact/continuity_independent_install.py",
+        "line": 92
+      },
+      "current_source": {
+        "path": "artifact/continuity_independent_install.py",
+        "read_segments": "39–76; 88–93"
+      },
+      "controls_and_contract": "Potentially external wheel bytes are admitted by inspect_wheel before pip: exact closed file inventory, no extra entry-point files, ordinary members, expected module/license bytes and metadata. Captured file URI is percent encoded by Path.as_uri and includes the snapshot hash. Fixed interpreter, -I, --isolated, --no-index, --no-deps, --require-hashes; target and requirements paths are generated absolute paths.",
+      "bounded_conclusion": "Data-to-installation boundary inspected; no command or option injection counterexample found.",
+      "exploit_executed": false
+    },
+    {
+      "source_id": 10,
+      "retained_source": {
+        "path": "artifact/continuity_independent_python_run.py",
+        "line": 437
+      },
+      "current_source": {
+        "path": "artifact/continuity_independent_python_run.py",
+        "read_segments": "90–176; argv constructions through413; main433–440"
+      },
+      "controls_and_contract": "Same closed source-bound wheel admission and isolated fixed interpreter. main strictly resolves both wheel and native before qualify; provider resolves strictly and must be outside checkout. Every run site selects a fixed installed source script or fixed-name driver from a local constant mapping/list; CLI native/provider paths are separate operands. Outputs are generated under fresh absolute roots.",
+      "bounded_conclusion": "No counterexample in parent argv constructions. This receipt does not audit all source-bound child script internals or treat provider-root contents as data-only.",
+      "exploit_executed": false
+    },
+    {
+      "source_id": 11,
+      "retained_source": {
+        "path": "artifact/continuity_package.py",
+        "line": 646
+      },
+      "current_source": {
+        "path": "artifact/continuity_package.py",
+        "read_segments": "286–306; 355–391; 394–523; 550–582; 617–646"
+      },
+      "controls_and_contract": "CLI toolchain is an explicit execution choice, strictly resolved; selected SDK report bytes are bound to expected digest and current workspace before package consumption. Cargo argv uses fixed subcommands/options. Cargo artifact executable must be one owned_connection test from the expected candidate source and resolve inside build/profile/deps before execution. Fresh private roots and cleansed compiler/loader environment are used.",
+      "bounded_conclusion": "Core Rust build/test route inspected with no counterexample. Optional C/Swift/Kotlin/Android downstream helper internals were not fully reviewed in this bounded pass.",
+      "exploit_executed": false
+    },
+    {
+      "source_id": 12,
+      "retained_source": {
+        "path": "artifact/continuity_recovery_proof.py",
+        "line": 258
+      },
+      "current_source": {
+        "path": "artifact/continuity_recovery_proof.py",
+        "read_segments": "44–80; 122–149; 211–249"
+      },
+      "controls_and_contract": "CLI only accepts output and profile choices. Output is canonical fresh path under root/target; certificate source bytes are checked against fixed profile hashes. argv fixes tamarin-prover, heuristic/resource options and output= operand. Repository formal toolchain version admission occurs before replay.",
+      "bounded_conclusion": "No CLI-to-command injection counterexample. PATH selects the operator-installed prover; version validation is not authentication of an adversarial executable.",
+      "exploit_executed": false
+    },
+    {
+      "source_id": 13,
+      "retained_source": {
+        "path": "artifact/fanout_latency_review.py",
+        "line": 171
+      },
+      "current_source": {
+        "path": "artifact/fanout_latency_review.py",
+        "read_segments": "96–110; 166–172"
+      },
+      "controls_and_contract": "Untrusted EXECUTION.json candidate identity must equal explicitly expected_head, which must fullmatch40 lowercase hex characters before git archive. Baseline is fixed; revision placed before a fixed -- and prefix. Archive bytes are parsed under strict path/member bounds; recorded executable paths are compared rather than executed by this reviewer.",
+      "bounded_conclusion": "No revision-option injection counterexample. Ambient git/PATH remain the local review host trust boundary.",
+      "exploit_executed": false
+    },
+    {
+      "source_id": 14,
+      "retained_source": {
+        "path": "artifact/fanout_latency.py",
+        "line": 212
+      },
+      "current_source": {
+        "path": "artifact/fanout_latency.py",
+        "read_segments": "55–79; 94–117; 120–205; 208–213"
+      },
+      "controls_and_contract": "CLI output is fresh under root/target; host must be one of two fixed platform matches before rust-objcopy path construction. Git HEAD is checked40hex; source changes confined to fixed files. Test executable from Cargo JSON must be canonical, single, from expected src/lib.rs and under selected target. Command bodies use fixed options; binary digests are compared around execution.",
+      "bounded_conclusion": "No counterexample in read CLI/command route. Compiler/tool lookup and compilation of the selected repository source are intentional operator execution.",
+      "exploit_executed": false
+    }
+  ],
+  "source_files_sha256": {
+    "artifact/codeql_memory_control.py": "e545c5173dbe653e2151aa1985ae5fae57e7f36f90b2b5ebb4b556e3cc32d39e",
+    "artifact/codeql_summary_control.py": "3b1fd877694557f4c9c82559d97979e197c69899eb5205dbaaa62c3182da888f",
+    "artifact/continuity_android_build.py": "fa2003ea9816f3a6ca42bbe362d6b5d2a988019426d9d8b858db8d115eada478",
+    "artifact/continuity_host_exchange.py": "00b4a2117d7191f413bf41d4fbb461990f1c92399aacbaf600da2c17f5b3e23c",
+    "artifact/continuity_independent_install.py": "f01b6acc202d2449abbe2c529929f3767a31a983e423d644bac08279a0960936",
+    "artifact/continuity_independent_python_run.py": "4f9346ffaf647f5ff3195e26f2e5df6235ef1e52040e1dc35f1cd0c9a831f4fd",
+    "artifact/continuity_package.py": "1e19d5e6d20354dc7407b1981b1e04767e6cc8f9171ea41a25595796f694ed29",
+    "artifact/continuity_recovery_proof.py": "01202321fdef1ca9d4f68791fe9bc106830f7a5f29dce1e0b6dfe40c32880687",
+    "artifact/fanout_latency_review.py": "4b29ef558747bdf4ff2639224a7de2c1e3756ac182079627510eac290203c62a",
+    "artifact/fanout_latency.py": "8225a7d176eb8040fc456461c5c7248458435fe3eead64800091e4267763b4d8",
+    "artifact/bounded_process.py": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+    "artifact/evidence_io.py": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d",
+    "artifact/continuity_independent_python.py": "778b2a13b3f5dbe838cae05259e7aec22fbb1b4764a8992dc15f6a49637ccd0a",
+    "artifact/continuity_host_native_exchange.py": "b69eaebfd8b0c1bfc7fd9565ff01a0e0c4579fe73fb7e6ecbab7f4f68166e421",
+    "artifact/continuity_host_network.py": "f94484a6fd9e918d2d9546cc0354063de64e4ca256c25be74cc0374f36d91edd",
+    "artifact/continuity_host_cli.py": "8109b0c542f83287974432e577d4e016063343aeb31c48a3bb9d2563cc30971f",
+    "artifact/continuity_host_witness.py": "6d172ecfcd4d6d2c438ea6afbf5ff8601a6c121cef43d895d19c68a7476bdada",
+    "artifact/continuity_host_replacement.py": "addc669004a4886e074e976732ea48111903863803bcb3f6ea1e62ae39462b64",
+    "artifact/continuity_host_roster.py": "3c90b58d2e74ff13b6865ae5c63e6a552dd321f4696b3446492175b44af48454",
+    "artifact/continuity_host_account.py": "4eb2061febfca0d5669c235e57387de1f53f1e550610cf628f041cb0f41444e7",
+    ".github/workflows/codeql-summary-control.yml": "7d6f56ea8d8a80fb7dc6baf5df8a3535dbab147c0fd46d4a1f88b23d7be6fcd1",
+    ".github/workflows/codeql-memory-control.yml": "1c1020983666ae438a79fe8cf461df4c3287313b04190e67bc2e1e2789cb0988",
+    ".github/workflows/continuity-android-installed.yml": "9502668c90a05b98727de769e6aab973d1c5d495a032d86aa61d530058c2c992",
+    ".github/workflows/reference-account.yml": "0353941368ec42e2c3be9e64804e4282ebc74a23f39eb5c09abeeea77f909225",
+    ".github/workflows/independent-continuity.yml": "77deed6a5d60af772cd05d80e5e59b1a87ab4c7753005455b412a5a3bc55d833"
+  },
+  "verification": {
+    "executed": "Read git tree identity, parse retained SARIF/ZIP, inspect source and workflow text, compute source/archive SHA-256 only.",
+    "new_tests_executed": 0,
+    "suspect_execution_paths_executed": 0,
+    "source_changes": 0,
+    "remote_mutations": 0,
+    "alerts_dismissed": 0
+  },
+  "conclusion": "No constructive trust-boundary violation found in the exact source-to-command constructions inspected. Explicit tool/native/provider selection is code-execution authority, not untrusted data. Sources8,10,11 retain stated child-helper scope limits; no all-alert or all-caller closure claim.",
+  "follow_up_scope": "Do not add a paper gate. If the SummaryStats admission API is later advertised for hostile tool files, authenticate the launcher and bundle-to-extracted-tool relation before the first version/help invocation; current pinned workflow already authenticates the archive before invoking it."
+}

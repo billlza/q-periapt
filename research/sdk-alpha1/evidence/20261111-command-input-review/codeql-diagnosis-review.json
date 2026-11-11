@@ -1,0 +1,230 @@
+{
+  "schema": 1,
+  "reviewed_utc": "2026-11-11T09:48:16.496694+00:00",
+  "reviewer_task": "/root/codeql_diagnosis",
+  "mode": "bounded read-only static review; no flagged commands executed; no repository edits or remote mutations",
+  "current_published_commit": "4870db5eff0a611973a302f29e94c0992df66cfe",
+  "current_local_commit": "9847e6714f3089d1dfec04350aa32d1541f07b74",
+  "current_tree": "7d4ca678175170b6c867240727f3908bc2d7c1f1",
+  "sarif": {
+    "path": "/workspace/scratch/4b61438fb07b/codeql-final-bounded/python.sarif",
+    "sha256": "bef32700243d33be9a3af3f647467b5d98f7208747538ce93ee1b75aeee98b2d",
+    "result_index": 1309,
+    "rule": "py/command-line-injection",
+    "security_severity": "9.8",
+    "note": "Retained prior scan, not a new4870 scan. No versionControlProvenance in SARIF. Reconciled functions against current tree; do not reuse old coordinates as exact current lines."
+  },
+  "archives": [
+    {
+      "path": "/workspace/scratch/4b61438fb07b/codeql-final-bounded/codeql-python.zip",
+      "sha256": "c664a1e7677f992ed28bd31566ed1d553031408b5504d633f5ff466c6c892023",
+      "source_identity": {
+        "source-identity.txt": "834c67183c403fd10d65600252ecbcb950c1af11\n0f281a963c2bd0e6f203c025a99d507ae73da9c2\n"
+      }
+    }
+  ],
+  "common_sink": {
+    "path": "artifact/bounded_process.py",
+    "lines": "230-237,295-364",
+    "behavior": "argv validation only checks nonempty strings and NUL absence; Popen(args=command, executable=command[0], shell=False). This prevents shell token parsing but does not authenticate executables or make all downstream command options safe."
+  },
+  "origins": [
+    {
+      "origin": 15,
+      "file": "artifact/jvm_sdk_package.py",
+      "sarif_line": 357,
+      "current_lines": "357-374",
+      "source": "JAVA_HOME in invocation environment",
+      "flow": "JAVA_HOME/bin/java and javac -> run(argv) -> bounded_process executable",
+      "controls": "Absolute JAVA_HOME required; PATH java must resolve to selected java; loader/JVM option environment entries removed; versions checked after execution. CI ci.yml:1316-1341 selects JDK25 using setup-java and matching PATH.",
+      "classification": "Explicit operator/build-environment tool selection; no lower-trust network or package-data executable selector identified."
+    },
+    {
+      "origin": 16,
+      "file": "artifact/jvm_sdk_package.py",
+      "sarif_line": 501,
+      "current_lines": "369-389,493-505",
+      "source": "CLI --gradle (default gradle)",
+      "flow": "args.gradle used as argv[0] for version and Gradle build commands",
+      "controls": "List argv, strict dependency-verification setting; exact Gradle version checked after execution. CI ci.yml:1327-1329 selects Gradle9.8.0 and invocation1370 uses default executable.",
+      "classification": "Intentional tool selection by packaging operator; version check is not pre-execution tool authentication."
+    },
+    {
+      "origin": 17,
+      "file": "artifact/policy_maintenance_package.py",
+      "sarif_line": 274,
+      "current_lines": "119-196,266-278",
+      "source": "CLI --toolchain-root, --report, --cargo-home and --output",
+      "flow": "Resolved toolchain/bin/cargo and rustc -> sdk.command -> bounded_process; generated installed binaries also executed",
+      "controls": "Recorded tool hashes, pinned report hash and source identity, fresh output below target/, offline cache config/credentials rejected, compiler/version checked. CI239-263 uses installed rustc1.98.1 sysroot and same-run report.",
+      "classification": "Packaging operator selects toolchain; report/data do not replace executable prefix in examined path."
+    },
+    {
+      "origin": 18,
+      "file": "artifact/sdk_connection_performance.py",
+      "sarif_line": 64,
+      "current_lines": "60-72,100-138",
+      "source": "CLI --output and integer --reconnects",
+      "flow": "Resolved output/bin paths receive copies of freshly built client/server/fixture binaries; those paths become executable argv[0]",
+      "controls": "Output resolved and constrained inside ROOT/target, exclusive creation; reconnects200..1000; freeze writes exclusive regular snapshot and chmod0500; source map checked.",
+      "classification": "Owned build-output path propagation, not a shell string; checked CLI data does not select arbitrary executable content in examined path."
+    },
+    {
+      "origin": 19,
+      "file": "artifact/sdk_installed_connection.py",
+      "sarif_line": 246,
+      "current_lines": "111-125,129-220,240-250",
+      "source": "CLI --toolchain-root, package/report inputs and output",
+      "flow": "Resolved toolchain/bin/cargo,rustc; installed consumer binaries built from verified archive inputs -> bounded_process/loopback harness",
+      "controls": "Tool hashes recorded before/after; archive/report digests and current-source bindings; config-free offline cache; loader/compiler overrides rejected; compiler/sysroot checks; Swift binary path constrained to owned build root. CI1254-1260 chooses rustc1.98.1 sysroot.",
+      "classification": "Installed-package qualification intentionally builds and runs source-bound inputs using operator-selected toolchain."
+    },
+    {
+      "origin": 20,
+      "file": "artifact/test_codeql_rust_profile.py",
+      "sarif_line": 357,
+      "current_lines": "342-396",
+      "source": "Environment construction inside _check_clang_selection (now line358)",
+      "flow": "TemporaryDirectory-owned clang shell stub selected through fixed PATH=bin; ProfileRun.command invokes it",
+      "controls": "Test creates both caller/checkout stub executables itself, mocks codeql/rust identity commands, asserts caller stub selected across cwd changes, and stops preparation through SetupComplete.",
+      "classification": "Controlled regression fixture; SARIF line shifted relative to current source. No attacker-controlled fixture content identified."
+    },
+    {
+      "origin": 21,
+      "file": "research/continuity-identity-candidate/scripts/verify_anchor_vectors.py",
+      "sarif_line": 235,
+      "current_lines": "230-247",
+      "source": "CLI --openssl (also fixtures/output paths)",
+      "flow": "Oracle(..., args.openssl); shared Oracle.command uses [self.openssl,*arguments] -> bounded_process",
+      "controls": "Command tokens are a list; fixture contents are parsed with length/grammar checks and written as data files, not concatenated into executable. CI2766-2779 chooses brew openssl@3/bin/openssl.",
+      "classification": "Independent test-oracle tool explicitly supplied by caller; no executable-authentication claim from argv handling."
+    },
+    {
+      "origin": 22,
+      "file": "research/continuity-identity-candidate/scripts/verify_public_vectors.py",
+      "sarif_line": 385,
+      "current_lines": "83-110,115-152,379-391",
+      "source": "CLI --openssl (also fixtures/output paths)",
+      "flow": "CLI -> Oracle.openssl -> capture_output([openssl,*arguments])",
+      "controls": "Fixed OpenSSL operation and option tokens; public/signature/message inputs written to fixture files. CI2766-2779 supplies selected local OpenSSL.",
+      "classification": "Same explicit test-oracle selection boundary as21; parsed protocol fixture bytes do not become executable selector in examined methods."
+    },
+    {
+      "origin": 23,
+      "file": "artifact/wasm_sdk_package.py",
+      "sarif_line": 328,
+      "current_lines": "175-235,319-344",
+      "source": "CLI --node and --npm-cli in archive-consumption mode",
+      "flow": "Resolved node path argv[0], npm-cli passed as selected script argument; Node later runs fixed shipped consumer tests",
+      "controls": "Runtime input snapshots before/after, Node execPath/version checks, package archive+manifest pins and current-source equality, npm offline --ignore-scripts with empty user/global config. CI990-1004 chooses Node24.0.0 and npm path from setup runtime.",
+      "classification": "Explicit operator-selected runtime/script; hashing and version checks bind observations, not external publisher authentication."
+    }
+  ],
+  "additional_results": [
+    {
+      "sarif_result_index": 1305,
+      "sink": "research/continuity-openssl-peer/tests/account_authority_support.py:101",
+      "finding": "List argv launches sys.executable with fixed account_authority.py test script; CLI implementation/provider paths are intentional test selections. Account_authority.py imports the selected implementation already at setup. No network source identified in inspected parent/child argument construction.",
+      "coverage": "Source parse_args, setup imports and crash() command construction read; entire test subsystem not audited."
+    },
+    {
+      "sarif_result_indices": [
+        1350,
+        1351
+      ],
+      "sink": "artifact/standard_tls_interop.py:44,84",
+      "finding": "Peer/run receive list argv; standard main explicitly selects --openssl and --peer, seals peer into owned0500 file, records tool identities. Readiness parser accepts only127.0.0.1:digits. Shared performance/installed callers read as above.",
+      "coverage": "Helper and standalone main plus9-origin callers inspected; not every callsite in repository."
+    },
+    {
+      "sarif_result_index": 1354,
+      "sink": "artifact/third_party_licenses.py old124/current125",
+      "finding": "shutil.which cargo from invocation PATH, converted to absolute before cwd change; fixed metadata --locked --format-version1 --filter-platform argv and target regex. Caller build environment controls Cargo selection.",
+      "coverage": "_cargo_environment and _cargo_metadata read; no privileged service caller established."
+    }
+  ],
+  "conclusion": "All9 assigned origins traced to explicit local build/test tool selection, a fresh owned build path, or a controlled unit-test fixture. No lower-trust network/protocol-data-to-executable crossing demonstrated in inspected paths. Keep rule and scan enabled; this bounded review is neither a fresh scan nor blanket dismissal of52 findings.",
+  "source_files": {
+    ".github/workflows/ci.yml": {
+      "sha256": "da33a738abeaeae4aa4b9e9205d86e73c5c89e3c947825ff7750bb9317f91df8",
+      "bytes": 166622,
+      "worktree_matches_git": true
+    },
+    "artifact/bounded_process.py": {
+      "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+      "bytes": 51311,
+      "worktree_matches_git": true
+    },
+    "artifact/jvm_sdk_package.py": {
+      "sha256": "39c666c8a78b2c62d820f5bc526a4200de3f5a8fc28f0d9ee720731b26c4359c",
+      "bytes": 30318,
+      "worktree_matches_git": true
+    },
+    "artifact/policy_maintenance_package.py": {
+      "sha256": "8714c53ee075d3bdf21829ce3da3b6659d327a9bd160831623947feaa83edfb4",
+      "bytes": 17188,
+      "worktree_matches_git": true
+    },
+    "artifact/rust_sdk_msrv.py": {
+      "sha256": "3180cde3c6f5e507859935615c96bcd378d1b98c09d1a38fb50c893e4c2efb62",
+      "bytes": 7867,
+      "worktree_matches_git": true
+    },
+    "artifact/sdk_connection_interop.py": {
+      "sha256": "dfbc6f66ee0c262a4b8c405de4a787c556223d7657010a41af1a9e1f1c18eeec",
+      "bytes": 16272,
+      "worktree_matches_git": true
+    },
+    "artifact/sdk_connection_performance.py": {
+      "sha256": "aea25ecc74114f5afe7869f2ff655d14e8f7d158aff7e218a86c0c5ef0f9526e",
+      "bytes": 11833,
+      "worktree_matches_git": true
+    },
+    "artifact/sdk_installed_connection.py": {
+      "sha256": "e201d8f5bd8ba48d45d1f2813ebcd36f0c5f834c86278a1f7b9f358ad146ad71",
+      "bytes": 15647,
+      "worktree_matches_git": true
+    },
+    "artifact/standard_tls_interop.py": {
+      "sha256": "eb148a8b8cf45ef7a1f9e92c99165041e15a266193dd4011b005a5419c034fc0",
+      "bytes": 12089,
+      "worktree_matches_git": true
+    },
+    "artifact/test_codeql_rust_profile.py": {
+      "sha256": "2ad4c6363ebfcc5fb30d3fa37137c7d94afcfa6e4a2784b52b1c29dd2ff5d6b4",
+      "bytes": 44987,
+      "worktree_matches_git": true
+    },
+    "artifact/third_party_licenses.py": {
+      "sha256": "2d7ee6080ef833a35b93247454dbc1ecfe27f3d9ffbdb7f2db24e6a6a35bb6b7",
+      "bytes": 37137,
+      "worktree_matches_git": true
+    },
+    "artifact/wasm_sdk_package.py": {
+      "sha256": "11f38206ff221dcf4e459e546b0b602d8fedf723636f783ddcf2b1bf58978432",
+      "bytes": 19525,
+      "worktree_matches_git": true
+    },
+    "research/continuity-identity-candidate/scripts/verify_anchor_vectors.py": {
+      "sha256": "122f2f411d9cf47ac922d75d7bb2ab6fecf74f0a826ed4695c312b67343ae59b",
+      "bytes": 13881,
+      "worktree_matches_git": true
+    },
+    "research/continuity-identity-candidate/scripts/verify_public_vectors.py": {
+      "sha256": "994c68dd66158fd10852e091fbbaacbe2f164423e6d9242d164148fd040f6aee",
+      "bytes": 28728,
+      "worktree_matches_git": true
+    },
+    "research/continuity-openssl-peer/tests/account_authority.py": {
+      "sha256": "ec3c09376125a2d6ee62b30f371ef352b6ed161f31165b8dd1024893454384eb",
+      "bytes": 18892,
+      "worktree_matches_git": null
+    },
+    "research/continuity-openssl-peer/tests/account_authority_support.py": {
+      "sha256": "e5eb2e67d8ef491979fc214e44bd5e25acc1d74b718d75e074d9a19f0ae49afc",
+      "bytes": 6123,
+      "worktree_matches_git": null
+    }
+  },
+  "working_tree_status": ""
+}
