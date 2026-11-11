@@ -1,0 +1,325 @@
+name: Nonempty Rust wrapper fixture
+
+on:
+  # This dedicated ref requests one isolated small-database validation.
+  push:
+    branches: [diagnostic/codeql-wrapper-fixture]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: codeql-wrapper-fixture-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  wrapper-fixture:
+    name: Full 39-query wrapper and retained SummaryStats equality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        timeout-minutes: 3
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: |
+            artifact
+            .github/workflows
+      - name: Verify the fixture method and workflow contracts
+        timeout-minutes: 1
+        run: |
+          /usr/bin/python3 -I -S -B -c 'import ast, pathlib; ast.parse(pathlib.Path("artifact/codeql_wrapper_fixture.py").read_text(encoding="utf-8"))'
+          git rev-parse HEAD 'HEAD^{tree}' > "$RUNNER_TEMP/qperiapt-wrapper-source.txt"
+          sh artifact/python-run.sh -m unittest -v test_codeql_workflow_contract
+      - name: Read the retained native preparation failure
+        id: retained_native_readback
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RETAINED_PROFILE_ROOT: ${{ runner.temp }}/qperiapt-retained-profile-readback
+        run: |
+          set -eu
+          mkdir -m 700 "$RETAINED_PROFILE_ROOT"
+          curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+            --connect-timeout 15 --max-time 30 \
+            -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            --output "$RETAINED_PROFILE_ROOT/ARTIFACT_API.json" \
+            'https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13846135084'
+          curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+            --connect-timeout 15 --max-time 90 --max-filesize 447332 \
+            -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            --output "$RETAINED_PROFILE_ROOT/profile.zip" \
+            'https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13846135084/zip'
+          /usr/bin/python3 -I -S -B - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path, PurePosixPath
+          import re
+          import stat
+          import zipfile
+          
+          root = Path(os.environ["RETAINED_PROFILE_ROOT"])
+          expected_sha = "abaffd997a607d833ade347c82149ed65ad3fd64262cb06c8755b9637cae482d"
+          expected_head = "1b47a1931cab2a944902316619cdcf479bd64ab0"
+          expected_checkout = "0d781a9ddb77bbb5cc9dce5ed1fc82e2a7eeb9f5"
+          archive = root / "profile.zip"
+          data = archive.read_bytes()
+          if len(data) != 447332 or hashlib.sha256(data).hexdigest() != expected_sha:
+              raise SystemExit("retained profile ZIP identity differs")
+          metadata = json.loads((root / "ARTIFACT_API.json").read_bytes())
+          if (metadata.get("id") != 13846135084
+                  or metadata.get("name") != "codeql-rust-profile-native-1"
+                  or metadata.get("size_in_bytes") != len(data)
+                  or metadata.get("digest") != "sha256:" + expected_sha
+                  or metadata.get("workflow_run", {}).get("id") != 42982431606
+                  or metadata.get("workflow_run", {}).get("head_sha") != expected_head):
+              raise SystemExit("retained profile API identity differs")
+          selected_names = (
+              "Metrics.json", "EXTRACTION_INPUTS.json", "ExtractedPaths.json",
+              "extract.stdout", "extract.stderr", "extract.json",
+          )
+          selected = root / "selected"
+          selected.mkdir()
+          payloads = {}
+          members = []
+          with zipfile.ZipFile(archive) as bundle:
+              infos = bundle.infolist()
+              if not 1 <= len(infos) <= 200 or len({i.filename for i in infos}) != len(infos):
+                  raise SystemExit("retained ZIP member count or uniqueness differs")
+              if sum(i.file_size for i in infos) > 64 * 1024**2:
+                  raise SystemExit("retained ZIP expanded-byte bound exceeded")
+              for item in infos:
+                  path = PurePosixPath(item.filename)
+                  if (path.is_absolute() or ".." in path.parts or str(path) != item.filename.rstrip("/")
+                          or "\\" in item.filename or stat.S_IFMT(item.external_attr >> 16)
+                          not in (0, stat.S_IFREG, stat.S_IFDIR)):
+                      raise SystemExit("retained ZIP contains a noncanonical member")
+                  members.append({"path": item.filename, "bytes": item.file_size,
+                                  "compressed_bytes": item.compress_size, "crc32": f"{item.CRC:08x}"})
+              if "cargo-metadata.jsonl" in bundle.namelist():
+                  selected_names += ("cargo-metadata.jsonl",)
+              for name in selected_names:
+                  info = bundle.getinfo(name)
+                  if info.is_dir() or info.file_size > 16 * 1024**2:
+                      raise SystemExit("retained selected member is not a bounded regular file")
+                  content = bundle.read(info)
+                  (selected / name).write_bytes(content)
+                  payloads[name] = content
+          
+          def rows(name, width):
+              value = json.loads(payloads[name])
+              if (not isinstance(value, list)
+                      or not all(isinstance(row, list) and len(row) == width for row in value)):
+                  raise ValueError("unexpected retained query rows: " + name)
+              return value
+          
+          inputs = json.loads(payloads["EXTRACTION_INPUTS.json"])
+          if (inputs.get("profile") != "native" or inputs.get("source_commit") != expected_checkout
+                  or str(inputs.get("run_id")) != "42982431606"
+                  or str(inputs.get("run_attempt")) != "1"):
+              raise SystemExit("retained extraction source/run identity differs")
+          source = inputs["source_sha256"]
+          if not isinstance(source, dict) or not source or not all(isinstance(path, str) for path in source):
+              raise SystemExit("retained source inventory is malformed")
+          extracted_rows = rows("ExtractedPaths.json", 1)
+          if not all(isinstance(row[0], str) for row in extracted_rows):
+              raise SystemExit("retained extracted paths are malformed")
+          extracted = {row[0] for row in extracted_rows}
+          if len(extracted) != len(extracted_rows):
+              raise SystemExit("retained extracted paths are duplicated")
+          metric_rows = rows("Metrics.json", 2)
+          if not all(isinstance(row[0], str) and type(row[1]) is int for row in metric_rows):
+              raise SystemExit("retained metrics are malformed")
+          metrics = dict(metric_rows)
+          if len(metrics) != len(metric_rows):
+              raise SystemExit("retained metric keys are duplicated")
+          archive_prefix = "paper/continuity/artifacts/bootstrap/"
+          missing, unexpected = sorted(set(source) - extracted), sorted(extracted - set(source))
+          patterns = {
+              "not_loaded_from_manifest": "not included in files loaded from manifest",
+              "not_a_module": "not included as a module",
+              "semantics_unavailable": "semantic analyzer unavailable",
+              "archived_path": archive_prefix,
+          }
+          contexts = {}
+          for name in ("extract.stdout", "extract.stderr"):
+              lines = payloads[name].decode("utf-8", errors="replace").splitlines()
+              hits = {key: [index for index, line in enumerate(lines) if token in line]
+                      for key, token in patterns.items()}
+              diagnostic_hits = [index for index, line in enumerate(lines)
+                                 if re.search(r"\b(?:warning|error|warn)\b", line, re.IGNORECASE)]
+              centers = set(diagnostic_hits).union(*(set(items) for items in hits.values()))
+              indexes = sorted({near for center in centers for near in range(max(0, center - 1),
+                                 min(len(lines), center + 2))})
+              contexts[name] = {
+                  "total_lines": len(lines), "match_counts": {key: len(items) for key, items in hits.items()},
+                  "warning_error_lines": len(diagnostic_hits), "selected_context_line_count": len(indexes),
+                  "context_capped_at_lines": 160,
+                  "contexts": [{"line": index + 1, "text": lines[index]} for index in indexes[:160]],
+              }
+          receipt = {
+              "schema": 1, "kind": "qperiapt.retained_native_profile_readback",
+              "scope": "Read-only analysis of the old native preparation artifact; no old database extraction or query execution",
+              "artifact_id": 13846135084, "artifact_name": metadata["name"],
+              "artifact_bytes": len(data), "artifact_sha256": expected_sha,
+              "run_id": 42982431606, "run_attempt": 1, "job_id": 130412772905,
+              "run_head": expected_head, "actual_checkout_commit": expected_checkout,
+              "source_files": len(source),
+              "archived_source_files": sum(path.startswith(archive_prefix) for path in source),
+              "successfully_extracted_paths": len(extracted),
+              "missing_count": len(missing), "missing": missing,
+              "missing_archived_count": sum(path.startswith(archive_prefix) for path in missing),
+              "unexpected_count": len(unexpected), "unexpected": unexpected,
+              "metrics": metrics, "extraction_command": json.loads(payloads["extract.json"]),
+              "selected_members": {name: {"bytes": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+                                   for name, content in payloads.items()},
+              "stdio_contexts": contexts,
+          }
+          (root / "ZIP_MEMBERS.json").write_text(json.dumps(members, indent=2, sort_keys=True) + "\n")
+          text = json.dumps(receipt, indent=2, sort_keys=True) + "\n"
+          (root / "retained-profile-readback.json").write_text(text)
+          print(text, flush=True)
+          PY
+      - name: Read the retained Android runtime failure
+        id: retained_android_readback
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RETAINED_ANDROID_ROOT: ${{ runner.temp }}/qperiapt-retained-android-readback
+        run: |
+          set -eu
+          mkdir -m 700 "$RETAINED_ANDROID_ROOT"
+          curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+            --connect-timeout 15 --max-time 30 \
+            -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            --output "$RETAINED_ANDROID_ROOT/ARTIFACT_API.json" \
+            'https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13857122005'
+          curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+            --connect-timeout 15 --max-time 90 --max-filesize 182335 \
+            -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            --output "$RETAINED_ANDROID_ROOT/diagnostics.zip" \
+            'https://api.github.com/repos/billlza/q-periapt/actions/artifacts/13857122005/zip'
+          /usr/bin/python3 -I -S -B - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path, PurePosixPath
+          import re
+          import stat
+          import zipfile
+          
+          root = Path(os.environ["RETAINED_ANDROID_ROOT"])
+          expected_sha = "14e0532aa10e451fbf0b3ae71396e0f51791b3e5885fa8699585e9f34133f50f"
+          data = (root / "diagnostics.zip").read_bytes()
+          if len(data) != 182335 or hashlib.sha256(data).hexdigest() != expected_sha:
+              raise SystemExit("retained Android ZIP identity differs")
+          metadata = json.loads((root / "ARTIFACT_API.json").read_bytes())
+          if (metadata.get("id") != 13857122005
+                  or metadata.get("name") != "abi2-android-sdk-020-runtime-api23-4k-x86_64-failure-diagnostics"
+                  or metadata.get("size_in_bytes") != len(data)
+                  or metadata.get("digest") != "sha256:" + expected_sha
+                  or metadata.get("workflow_run", {}).get("id") != 43010024394
+                  or metadata.get("workflow_run", {}).get("head_sha") != "faabcff16fc49e1a99388c68f0991a2bfd64d509"):
+              raise SystemExit("retained Android API identity differs")
+          selected = root / "selected"
+          selected.mkdir()
+          members, copied, excerpts = [], {}, {}
+          with zipfile.ZipFile(root / "diagnostics.zip") as bundle:
+              infos = bundle.infolist()
+              if (not 1 <= len(infos) <= 256 or len({i.filename for i in infos}) != len(infos)
+                      or sum(i.file_size for i in infos) > 64 * 1024**2):
+                  raise SystemExit("retained Android ZIP census exceeds its bounds")
+              for item in infos:
+                  path = PurePosixPath(item.filename)
+                  if (path.is_absolute() or ".." in path.parts or str(path) != item.filename.rstrip("/")
+                          or "\\" in item.filename or stat.S_IFMT(item.external_attr >> 16)
+                          not in (0, stat.S_IFREG, stat.S_IFDIR)):
+                      raise SystemExit("retained Android ZIP contains a noncanonical member")
+                  members.append({"path": item.filename, "bytes": item.file_size,
+                                  "compressed_bytes": item.compress_size, "crc32": f"{item.CRC:08x}"})
+                  lower = item.filename.lower()
+                  text_file = path.suffix.lower() in (".log", ".txt", ".json", ".stdout", ".stderr", ".err")
+                  relevant = (path.name.startswith("adb-")
+                              or any(token in lower for token in ("emulator", "guest", "crash", "logcat", "result")))
+                  if item.is_dir() or not (text_file and relevant):
+                      continue
+                  if item.file_size > 16 * 1024**2:
+                      raise SystemExit("retained Android selected log exceeds its bound")
+                  content = bundle.read(item)
+                  destination = selected / path
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  destination.write_bytes(content)
+                  copied[item.filename] = {"bytes": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+                  lines = content.decode("utf-8", errors="replace").splitlines()
+                  hits = [index for index, line in enumerate(lines)
+                          if re.search(r"framework|ready|timeout|timed out|crash|fatal|panic|killed|broken pipe|offline|unavailable|error|failed",
+                                       line, re.IGNORECASE)]
+                  context = sorted({near for index in hits for near in range(max(0, index - 1),
+                                    min(len(lines), index + 2))})
+                  excerpts[item.filename] = {
+                      "total_lines": len(lines), "diagnostic_match_count": len(hits),
+                      "context_line_count": len(context), "context_cap": 32, "tail_cap": 40,
+                      "line_character_cap": 1024,
+                      "contexts": [{"line": index + 1, "text": lines[index][:1024]} for index in context[:32]],
+                      "tail": [{"line": index + 1, "text": lines[index][:1024]}
+                               for index in range(max(0, len(lines) - 40), len(lines))],
+                  }
+          (root / "ZIP_MEMBERS.json").write_text(json.dumps(members, indent=2, sort_keys=True) + "\n")
+          if not any(PurePosixPath(name).name == "adb-framework-readiness.log" for name in copied):
+              print(json.dumps({"actual_members": members}, sort_keys=True), flush=True)
+              raise SystemExit("retained Android readiness log was not found")
+          receipt = {
+              "schema": 1, "kind": "qperiapt.retained_android_failure_readback",
+              "scope": "Read-only old Android diagnostics; no emulator, adb or application execution",
+              "artifact_id": 13857122005, "artifact_name": metadata["name"],
+              "artifact_bytes": len(data), "artifact_sha256": expected_sha,
+              "run_id": 43010024394, "run_attempt": 1,
+              "run_head": "faabcff16fc49e1a99388c68f0991a2bfd64d509",
+              "selected_members": copied, "log_excerpts": excerpts,
+          }
+          text = json.dumps(receipt, indent=2, sort_keys=True) + "\n"
+          (root / "retained-android-readback.json").write_text(text)
+          print(text, flush=True)
+          PY
+      - name: Extract the frozen fixture and exercise the production analysis path
+        timeout-minutes: 20
+        run: |
+          sh artifact/python-run.sh artifact/codeql_wrapper_fixture.py \
+            --output "$RUNNER_TEMP/qperiapt-codeql-wrapper-fixture"
+      - name: Retain raw diagnostics, results and admission receipts
+        if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-wrapper-fixture-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qperiapt-wrapper-source.txt
+            ${{ runner.temp }}/qperiapt-codeql-wrapper-fixture/evidence/**
+            ${{ runner.temp }}/qperiapt-retained-profile-readback/**
+            ${{ runner.temp }}/qperiapt-retained-android-readback/**
+            ${{ runner.temp }}/qperiapt-codeql-wrapper-fixture/extract-logs/**
+            ${{ runner.temp }}/qperiapt-codeql-wrapper-fixture/database-extracted/log/**
+            ${{ runner.temp }}/qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator/**
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+      - name: Require both retained readbacks to have succeeded
+        if: always()
+        timeout-minutes: 1
+        env:
+          NATIVE_READBACK_OUTCOME: ${{ steps.retained_native_readback.outcome }}
+          ANDROID_READBACK_OUTCOME: ${{ steps.retained_android_readback.outcome }}
+        run: |
+          set -eu
+          test "$NATIVE_READBACK_OUTCOME" = success
+          test "$ANDROID_READBACK_OUTCOME" = success
