@@ -1831,6 +1831,8 @@ exit "$observation_status"
         remaining_calls_per_invocation: tuple[int, ...] | None = None,
         boot_owned_emulator: bool = False,
         transport_recovery_attempted: bool = False,
+        clock_costs: dict[str, int] | None = None,
+        uninstall_durations: tuple[int, ...] = (),
     ) -> tuple[
         subprocess.CompletedProcess[bytes], dict[str, bytes], list[str], int, bool
     ]:
@@ -1878,13 +1880,38 @@ exit "$observation_status"
             signer_sequence.write_text("\n".join(map(str, signer_outcomes)) + "\n", encoding="ascii")
             uninstall_counter = root / "uninstall-count.txt"
             uninstall_counter.write_text("0\n", encoding="ascii")
+            uninstall_duration_sequence = root / "uninstall-duration-sequence.txt"
+            uninstall_duration_sequence.write_text(
+                "\n".join(map(str, uninstall_durations)) + "\n", encoding="ascii"
+            )
+            clock = distribution / "fixture-cleanup-clock.txt"
+            clock.write_text("0\n", encoding="ascii")
             work = root / "work"
             work.mkdir(mode=0o700)
             calls = root / "calls.txt"
             calls.write_text("", encoding="ascii")
             remaining_root = root / "remaining"
             remaining_root.mkdir(mode=0o700)
-            if remaining_calls_per_invocation is None:
+            deadline_function = "monotonic_deadline() { printf '999\\n'; }"
+            time_functions = "advance_fixture_time() { :; }\nsleep() { :; }"
+            if clock_costs is not None:
+                if remaining_calls_per_invocation is not None:
+                    raise AssertionError("the fake clock replaces the call-count clock")
+                if any(type(value) is not int or value < 0 for value in clock_costs.values()):
+                    raise AssertionError("fake-clock costs must be nonnegative integers")
+                deadline_start = producer.index("monotonic_deadline() {")
+                deadline_end = producer.index("\nassert_default_adb_server_absent()", deadline_start)
+                deadline_function = producer[deadline_start:deadline_end]
+                time_functions = """
+monotonic_seconds() { /bin/cat "$FIXTURE_CLOCK"; }
+advance_fixture_time() {
+    fixture_now=$(/bin/cat "$FIXTURE_CLOCK")
+    printf '%s\\n' "$((fixture_now + $1))" >"$FIXTURE_CLOCK"
+}
+sleep() { advance_fixture_time "$1"; }
+""".strip()
+                remaining_function = ""
+            elif remaining_calls_per_invocation is None:
                 remaining_function = f"""
 remaining_bounded_timeout() {{
     query_count=$(/bin/cat "$QUERY_COUNTER")
@@ -1941,7 +1968,9 @@ SIGNER_COUNTER={shlex.quote(str(signer_counter))}
 SIGNER_SEQUENCE={shlex.quote(str(signer_sequence))}
 UNINSTALL_SEQUENCE={shlex.quote(str(uninstall_sequence))}
 UNINSTALL_COUNTER={shlex.quote(str(uninstall_counter))}
+UNINSTALL_DURATION_SEQUENCE={shlex.quote(str(uninstall_duration_sequence))}
 UNINSTALL_SUCCEEDED={shlex.quote(str(root / "uninstall-succeeded"))}
+FIXTURE_CLOCK={shlex.quote(str(clock))}
 CALLS={shlex.quote(str(calls))}
 REMAINING_ROOT={shlex.quote(str(remaining_root))}
 WORK={shlex.quote(str(work))}
@@ -1956,11 +1985,12 @@ ANDROID_BOOT_AVD={1 if boot_owned_emulator else 0}
 DEVICE_KIND={"emulator" if boot_owned_emulator else "physical"}
 EMULATOR_STARTED={1 if boot_owned_emulator else 0}
 SERIAL_SHA256_PREFIX=0123456789ab
-monotonic_deadline() {{ printf '999\n'; }}
+{deadline_function}
 {remaining_function}
-sleep() {{ :; }}
+{time_functions}
 remove_installed_apk_copy() {{ rm -f -- "$installed_apk"; }}
 verify_observed_installed_apk_signer() {{
+    advance_fixture_time {(clock_costs or {}).get('verify-signer', 0)}
     signer_count=$(/bin/cat "$SIGNER_COUNTER")
     signer_count=$((signer_count + 1))
     printf '%s\n' "$signer_count" >"$SIGNER_COUNTER"
@@ -1978,6 +2008,14 @@ android_command() {{
         printf '%s\n' "$uninstall_count" >"$UNINSTALL_COUNTER"
         uninstall_outcome=$(/usr/bin/sed -n "${{uninstall_count}}p" "$UNINSTALL_SEQUENCE")
         if [ -z "$uninstall_outcome" ]; then uninstall_outcome={uninstall_status}; fi
+        uninstall_duration=$(/usr/bin/sed -n "${{uninstall_count}}p" "$UNINSTALL_DURATION_SEQUENCE")
+        if [ -z "$uninstall_duration" ]; then uninstall_duration=0; fi
+        if [ "$uninstall_duration" -gt "$3" ]; then
+            advance_fixture_time "$3"
+            printf 'error: Android bounded command: command timed out after %s seconds\n' "$3" >&2
+            return 2
+        fi
+        advance_fixture_time "$uninstall_duration"
         if [ "$uninstall_outcome" -eq 0 ]; then
             : >"$UNINSTALL_SUCCEEDED"
             printf 'Success\n'
@@ -1987,6 +2025,13 @@ android_command() {{
         return "$uninstall_outcome"
     fi
     if [ "$operation" = observe-installed-apk ]; then
+        observation_duration={(clock_costs or {}).get('observe-installed-apk', 0)}
+        if [ "$observation_duration" -gt "$3" ]; then
+            advance_fixture_time "$3"
+            printf 'retryable:deadline-exhausted\n'
+            return 0
+        fi
+        advance_fixture_time "$observation_duration"
         ownership_count=$(/bin/cat "$OWNERSHIP_COUNTER")
         ownership_count=$((ownership_count + 1))
         printf '%s\n' "$ownership_count" >"$OWNERSHIP_COUNTER"
@@ -2015,6 +2060,13 @@ android_command() {{
         esac
     fi
     test "$operation" = package-state
+    query_duration={(clock_costs or {}).get('package-state', 0)}
+    if [ "$query_duration" -gt "$3" ]; then
+        advance_fixture_time "$3"
+        printf 'retryable:query-timeout\n'
+        return 0
+    fi
+    advance_fixture_time "$query_duration"
     query_count=$(/bin/cat "$QUERY_COUNTER")
     query_count=$((query_count + 1))
     printf '%s\n' "$query_count" >"$QUERY_COUNTER"
@@ -5413,6 +5465,80 @@ exit "$cleanup_status"
         self.assertEqual(calls.count("observe-installed-apk"), 2)
         self.assertEqual(signer_count, 1)
         self.assertFalse(copy_exists)
+
+    def test_cleanup_slow_service_reauthorizes_then_observes_absence(self) -> None:
+        # The second request starts at t=44. The former 45-second window cut
+        # this four-second request to one second and returned status 2 before
+        # any absence observation. Use the producer's actual deadline helpers.
+        result, files, calls, signer_count, copy_exists = self._run_cleanup_observation(
+            ("present", "present", "nonzero", "present", "present", "absent", "absent", "absent"),
+            ownership_outcomes=(f"exact:{'a' * 64}",) * 4,
+            uninstall_outcomes=(1, 0),
+            uninstall_durations=(10, 4),
+            clock_costs={"package-state": 2, "observe-installed-apk": 2, "verify-signer": 6},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        self.assertEqual(calls.count("uninstall-app"), 2)
+        self.assertEqual(calls.count("package-state"), 8)
+        self.assertEqual(signer_count, 2)
+        self.assertFalse(copy_exists)
+        self.assertEqual(files["fixture-cleanup-clock.txt"], b"57\n")
+        timing = files["adb-cleanup-timing.log"].decode()
+        self.assertIn("attempt=2 operation=uninstall timeout_seconds=60\n", timing)
+        self.assertIn("attempt=2 operation=uninstall exit=1\n", timing)
+        self.assertIn("attempt=5 operation=uninstall timeout_seconds=56\n", timing)
+        self.assertIn("attempt=5 operation=uninstall exit=0\n", timing)
+        self.assertTrue(files["adb-package-state-observation.log"].endswith(
+            b"attempt=8 state=absent consecutive=3\n"
+        ))
+
+    def test_cleanup_reserves_time_for_three_bounded_absence_observations(self) -> None:
+        result, files, calls, signer_count, _ = self._run_cleanup_observation(
+            ("nonzero",) * 8 + ("present", "present", "absent", "absent", "absent"),
+            ownership_outcomes=(f"exact:{'a' * 64}",) * 2,
+            uninstall_durations=(12,),
+            clock_costs={"package-state": 5, "observe-installed-apk": 10, "verify-signer": 5},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        self.assertEqual(calls.count("uninstall-app"), 1)
+        self.assertEqual(signer_count, 1)
+        self.assertEqual(files["fixture-cleanup-clock.txt"], b"114\n")
+        self.assertIn(
+            b"attempt=10 operation=uninstall timeout_seconds=16\n",
+            files["adb-cleanup-timing.log"],
+        )
+        self.assertTrue(files["adb-package-state-observation.log"].endswith(
+            b"attempt=13 state=absent consecutive=3\n"
+        ))
+
+    def test_cleanup_command_timeout_remains_a_failure_before_absence_readback(self) -> None:
+        result, files, calls, signer_count, _ = self._run_cleanup_observation(
+            ("present", "present", "absent", "absent", "absent"),
+            ownership_outcomes=(f"exact:{'a' * 64}",) * 2,
+            uninstall_durations=(61,),
+            clock_costs={"package-state": 2, "observe-installed-apk": 2, "verify-signer": 6},
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(calls.count("uninstall-app"), 1)
+        self.assertEqual(calls.count("package-state"), 2)
+        self.assertEqual(signer_count, 1)
+        self.assertIn(b"command timed out after 60 seconds", files["adb-uninstall-cleanup.log"])
+        self.assertIn(b"operation=uninstall exit=2\n", files["adb-cleanup-timing.log"])
+        self.assertNotIn(b"state=absent", files["adb-package-state-observation.log"])
+
+    def test_cleanup_present_package_exhausts_one_window_without_repeating_success(self) -> None:
+        result, files, calls, signer_count, _ = self._run_cleanup_observation(
+            ("present",) * 25,
+            ownership_outcomes=(f"exact:{'a' * 64}",) * 2,
+            uninstall_durations=(4,),
+            clock_costs={"package-state": 5, "observe-installed-apk": 2, "verify-signer": 6},
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls.count("uninstall-app"), 1)
+        self.assertEqual(signer_count, 1)
+        self.assertEqual(int(files["fixture-cleanup-clock.txt"]), 120)
+        self.assertIn(b"cleanup outcome is unresolved", result.stderr)
+        self.assertNotIn(b"state=absent", files["adb-package-state-observation.log"])
 
     def test_cleanup_uninstall_preserves_structural_and_signal_failure(self) -> None:
         for status in (2, 129, 130, 143):

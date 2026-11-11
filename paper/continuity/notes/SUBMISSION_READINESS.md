@@ -1,4 +1,4 @@
-# JoC submission readiness — 10 November 2026
+# JoC submission readiness — 11 November 2026
 
 The manuscript has a substantive research basis for a Journal of Cryptology
 submission. Its central contribution is the connection from original
@@ -77,13 +77,41 @@ their document checks. The source audit, focused byte calculations,
 independent integration review and preservation receipts are recorded in
 `artifacts/editorial-review/integrated-consistency/`.
 
-## Focus of the final submission pass
+## Completed journal-facing editorial pass
 
-The final author pass should confirm the closest-work distinctions against
-the retained primary-source audit and assess the title, abstract and
-declarations together as the journal-facing submission. Any resulting prose
-changes should keep each claim attached to its established theorem or retained
-execution.
+The title, abstract, introduction, closest-work distinctions and declarations
+have now been checked together against their source and evidence identities.
+Every abstract claim is mapped to its existing theorem, model or retained
+execution. The original SCKA and Triple Ratchet locators, the Squirrel
+compromise model, the Signal deferred-generation discussion and the five
+state/randomness/adaptive-compromise comparisons support the current
+positioning. Their inspected primary materials and reading coverage are
+recorded in `artifacts/editorial-review/journal-facing/`.
+
+The only manuscript change expands the undefined abbreviation KEM in the
+abstract to key encapsulation, as requested by the JoC abstract instructions.
+The abstract has 234 words and seven keywords. All 57 formal statement blocks,
+52 proofs and 168 displayed-math groups remain byte-identical to canonical
+paper commit `11e113f27d7708474cd55713d4a22cc028f80944`. The manuscript's title,
+closest-work wording, author identity and recorded research results are
+retained.
+
+The rebuilt reading copy remains 119 pages. Its independent nine-file source
+export has identical complete plain and layout text, 48 embedded fonts and no
+unresolved references or overfull boxes. Pages 2-119 retain the preceding
+reading copy's complete layout text. The reviewed title page, introduction,
+declarations and final page have clear, unclipped layout.
+
+## Remaining submission inputs
+
+The concrete author inputs are the funding and financial/non-financial
+interest declarations, the final author contribution/responsibility wording,
+and approval of the assembled submission. The current data/code and
+preparation disclosures have been reviewed and retained. The declaration
+facts have not been inferred from the author's affiliation. Once provided,
+they can be assembled under the publisher's requested Declarations heading.
+This completes the planned review of the current research exposition; these
+remaining inputs concern submission metadata and author attestation.
 
 The current text's claims determine its experimental scope. A new baseline is
 needed if a new comparative claim depends on it; broader performance tuning,
@@ -91,10 +119,11 @@ general computational multi-epoch composition and enlarged acquisition
 interfaces remain separate research opportunities.
 
 The existing **17–24 November 2026** submission-manuscript planning window
-applies to these remaining tasks. It is the **five to ten focused working
-days** allocated from the 10 November checkpoint, including the main-result
-entry, selection-timing and integrated consistency work now completed. A newly identified defect in
-the central argument would require revising that estimate. A journal
+is retained as the planning reference from the 10 November checkpoint.
+Its allocated editorial passes are now complete; it does not restart a new
+five-to-ten-day work period. Final assembly follows the author inputs above.
+A newly identified defect in the central argument would require revising
+that estimate. A journal
 acceptance decision follows external review and has no fixed date in this
 assessment. SDK 0.2.0 release admission proceeds through its own platform
 checks and does not delay a manuscript whose pinned evidence already supports
@@ -106,7 +135,9 @@ its claims.
   depth, originality, potential breadth, scholarship and exposition.
 - [JoC scope](https://link.springer.com/journal/145/aims-and-scope) and
   [submission instructions](https://link.springer.com/journal/145/submission-guidelines),
-  inspected on 10 November 2026.
+  inspected on 10 November and rechecked on 11 November 2026.
+- [Springer journal policies](https://link.springer.com/brands/springer/journal-policies),
+  inspected on 11 November 2026 for author contributions and declarations.
 - `artifacts/editorial-review/submission-readiness/baseline-main-results-review.md`:
   the retained main-result review against canonical commit `4fde4716`; its
   draft-stage work estimate predates the completed integration in this update.

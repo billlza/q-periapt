@@ -41,15 +41,22 @@ CodeQL analysis. Before CodeQL initialization, the same commit must pass
 warnings denied, repository-external target directories, and no repository-local `target` entry.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-174 tracked `.rs` files to be successfully extracted; zero extraction warnings, extraction errors,
-unextracted elements, unresolved source macros, AST/CFG/SSA/data-flow inconsistencies, or source
-format arguments without an expression and data-flow node; and non-vacuous macro and format-argument
-sentinels. The inventory comprises 106 current sources and 68 retained bootstrap
+174 tracked `.rs` files in the database and all 106 current sources to be successfully extracted
+without warnings or unresolved macros. It requires zero extraction errors, unextracted elements,
+AST/CFG/SSA/data-flow inconsistencies, and source format arguments without an expression or
+data-flow node across the complete database. Macro and format-argument sentinels must be nonzero
+within the current sources. The remaining 68 files are retained bootstrap
 proof snapshots. Five exact `SOURCE_PINS.json` digests bind every archived path,
 byte length, SHA-256 and Git blob identity; changed, missing or substituted
 snapshots and Cargo manifests above retained sources fail admission. The
 [archive inventory](artifact/CODEQL_RUST_ARCHIVES.md) records each source commit
-and role. All 174 files retain the existing extraction and macro checks. Path-resolution and type-inference internal-consistency categories are checked for a
+and role. All 174 files remain inputs to the unchanged security queries. Tagged rows from the
+existing metrics query reconcile every extracted path, per-file sentinel count and extraction diagnostic with the global
+metrics. Each authenticated snapshot must have exactly the pinned CLI's warning that the file is
+outside the loaded Cargo manifests. Only that exact tag, message, severity and location is admitted;
+every other warning or error fails. Unresolved macro details must belong to those same snapshots
+and match the global count. Their full Cargo semantics belong to the original source commits
+recorded in the proof packets. Path-resolution and type-inference internal-consistency categories are checked for a
 complete, self-reconciling classification and reported as telemetry rather than required to be
 zero. In particular, duplicate configurations of `wasm_bindgen`-generated `Abi` type mentions can
 produce type-inference telemetry; this is not a claim of complete extractor semantics for that

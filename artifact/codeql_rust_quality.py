@@ -43,6 +43,10 @@ CODEQL_QUERY_THREADS = 4
 CODEQL_QUERY_RAM_MB = 14_000
 MAX_CODEQL_QUERY_DIAGNOSTIC_BYTES = 4 * 1024 * 1024
 MAX_CODEQL_DECODED_JSON_BYTES = 16 * 1024 * 1024
+ARCHIVE_SEMANTICS_MESSAGE = (
+    "semantic analyzer unavailable (not included in files loaded from manifest)"
+)
+ARCHIVE_SEMANTICS_FULL_MESSAGE = ARCHIVE_SEMANTICS_MESSAGE + ": macro expansion will be skipped."
 EXPECTED_METRICS = frozenset(
     {
         "extraction_errors",
@@ -812,6 +816,132 @@ def validate_quality(
         raise CodeQLRustQualityError("type inconsistency categories do not sum to total")
 
 
+def _parse_file_details(
+    rows: Sequence[Sequence[object]],
+) -> dict[str, tuple[int, int]]:
+    details: dict[str, tuple[int, int]] = {}
+    for row in rows:
+        if (len(row) != 3 or not isinstance(row[0], str)
+                or any(type(value) is not int or value < 0 for value in row[1:])):
+            raise CodeQLRustQualityError("file-detail query returned a malformed row")
+        path = next(iter(_parse_extracted_paths([[row[0]]])))
+        if path in details:
+            raise CodeQLRustQualityError("file-detail query contains duplicate paths")
+        details[path] = (row[1], row[2])
+    return details
+
+
+def _parse_extraction_diagnostics(
+    rows: Sequence[Sequence[object]],
+) -> tuple[tuple[str, str, str, str, str, int, int], ...]:
+    details: list[tuple[str, str, str, str, str, int, int]] = []
+    for row in rows:
+        if (len(row) != 7
+                or any(not isinstance(value, str) or not value for value in row[:5])
+                or row[1] not in {"Warning", "Error"}
+                or any(type(value) is not int or value < 1 for value in row[5:])):
+            raise CodeQLRustQualityError("extraction-diagnostic query returned a malformed row")
+        _parse_extracted_paths([[row[0]]])
+        details.append(tuple(row))
+    if len(details) != len(set(details)):
+        raise CodeQLRustQualityError("extraction-diagnostic query contains duplicate rows")
+    return tuple(details)
+
+
+def _parse_quality_rows(
+    rows: Sequence[Sequence[object]],
+) -> tuple[dict[str, int], dict[str, tuple[int, int]],
+           tuple[tuple[str, str, str, str, str, int, int], ...]]:
+    metrics: list[list[object]] = []
+    files: list[list[object]] = []
+    diagnostics: list[list[object]] = []
+    for row in rows:
+        if (len(row) != 7 or not isinstance(row[0], str)
+                or not isinstance(row[1], str)
+                or type(row[2]) is not int or type(row[3]) is not int
+                or any(not isinstance(value, str) for value in row[4:])):
+            raise CodeQLRustQualityError("quality query returned a malformed tagged row")
+        kind, name, first, second, tag, message, full_message = row
+        if kind in {"metric", "file"}:
+            if tag or message or full_message or (kind == "metric" and second != 0):
+                raise CodeQLRustQualityError("quality query returned unexpected row fields")
+            if kind == "metric":
+                metrics.append([name, first])
+            else:
+                files.append([name, first, second])
+        elif kind in {"Warning", "Error"}:
+            diagnostics.append([name, kind, tag, message, full_message, first, second])
+        else:
+            raise CodeQLRustQualityError(f"quality query returned an unknown row kind: {kind}")
+    return (_parse_metrics(metrics), _parse_file_details(files),
+            _parse_extraction_diagnostics(diagnostics))
+
+
+def validate_current_and_archive_quality(
+    tracked: frozenset[str],
+    extracted: frozenset[str],
+    metrics: Mapping[str, int],
+    files: Mapping[str, tuple[int, int]],
+    diagnostics: Sequence[tuple[str, str, str, str, str, int, int]],
+    unresolved: Sequence[tuple[str, int, int, str]],
+) -> None:
+    """Qualify all source bytes and the current Cargo compilation separately.
+
+    The original queries still analyze the complete database. A frozen partial
+    export has no Cargo semantic context: the sole admitted diagnostic is bound
+    to the reviewed file bytes and the exact CLI 2.26.2 diagnostic, not a path
+    prefix or an unrestricted warning/macro allowance.
+    """
+    try:
+        archived = validate_archive_inventory(REPOSITORY_ROOT, tracked)
+    except (OSError, EvidenceIOError, ValueError) as exc:
+        raise CodeQLRustQualityError(f"cannot validate archived Rust sources: {exc}") from exc
+    if not archived <= tracked:
+        raise CodeQLRustQualityError("archive inventory is outside tracked Rust sources")
+    current = tracked - archived
+    if files.keys() != tracked:
+        raise CodeQLRustQualityError("all extracted path set differs from tracked Rust sources")
+    if metrics["extracted_files"] != len(tracked):
+        raise CodeQLRustQualityError("extracted file metric differs from the complete inventory")
+    for index, name in enumerate(("source_macro_calls", "source_format_args")):
+        if sum(values[index] for values in files.values()) != metrics[name]:
+            raise CodeQLRustQualityError(f"per-file {name} count differs from its metric")
+    for severity, name in (("Error", "extraction_errors"), ("Warning", "extraction_warnings")):
+        if sum(row[1] == severity for row in diagnostics) != metrics[name]:
+            raise CodeQLRustQualityError(f"{name} detail count differs from its metric")
+    archive_warnings: set[str] = set()
+    for path, severity, tag, message, full_message, line, column in diagnostics:
+        if (path not in archived or severity != "Warning" or tag != "semantics"
+                or message != ARCHIVE_SEMANTICS_MESSAGE
+                or full_message != ARCHIVE_SEMANTICS_FULL_MESSAGE
+                or (line, column) != (1, 1)
+                or path in archive_warnings):
+            raise CodeQLRustQualityError(f"unqualified extraction diagnostic at {path}")
+        archive_warnings.add(path)
+    if archive_warnings != archived:
+        raise CodeQLRustQualityError("archive semantic-context diagnostic inventory differs")
+    validate_unresolved_detail_count(metrics["unresolved_source_macro_calls"], unresolved)
+    unresolved_by_path: dict[str, int] = {}
+    for path, _line, _column, _text in unresolved:
+        if path not in archived:
+            raise CodeQLRustQualityError(f"unresolved current-source macro at {path}")
+        unresolved_by_path[path] = unresolved_by_path.get(path, 0) + 1
+    for path, count in unresolved_by_path.items():
+        if count > files[path][0]:
+            raise CodeQLRustQualityError(f"unresolved macro count exceeds all macros at {path}")
+    current_metrics = dict(metrics)
+    current_metrics.update({
+        "extracted_files": len(current),
+        "extraction_warnings": metrics["extraction_warnings"] - len(archive_warnings),
+        "unresolved_source_macro_calls": 0,
+        "source_macro_calls": sum(files[path][0] for path in current),
+        "source_format_args": sum(files[path][1] for path in current),
+    })
+    # Every other zero metric, internal consistency equation and current-source
+    # sentinel is checked by the unchanged strict gate.
+    validate_quality(current, extracted, current_metrics)
+
+
 def main() -> None:
     try:
         require_repository_target_absent()
@@ -838,7 +968,7 @@ def main() -> None:
                 extracted = _parse_extracted_paths(
                     _decode_query(bindings, paths_bqrs)
                 )
-                metrics = _parse_metrics(
+                metrics, files, diagnostics = _parse_quality_rows(
                     _decode_query(bindings, metrics_bqrs)
                 )
                 unresolved = _parse_unresolved_macros(
@@ -870,7 +1000,9 @@ def main() -> None:
                     )
                 else:
                     raise
-        validate_quality(tracked, extracted, metrics)
+        validate_current_and_archive_quality(
+            tracked, extracted, metrics, files, diagnostics, unresolved
+        )
         require_repository_target_absent()
         require_clean_checkout(expected_commit)
     except OSError as exc:
@@ -890,6 +1022,10 @@ def main() -> None:
     print(
         "CODEQL_RUST_DATABASE_QUALITY_PASS "
         f"tracked_rs={len(tracked)} "
+        f"current_rs={EXPECTED_CURRENT_RUST_SOURCE_COUNT} "
+        f"pinned_archive_rs={EXPECTED_ARCHIVED_RUST_SOURCE_COUNT} "
+        f"archive_semantics_warnings={len(diagnostics)} "
+        f"archive_unresolved_macros={len(unresolved)} "
         f"source_macro_calls={metrics['source_macro_calls']} "
         f"source_format_args={metrics['source_format_args']}"
     )

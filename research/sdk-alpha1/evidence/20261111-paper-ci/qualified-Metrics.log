@@ -1,0 +1,10 @@
+Resolving data extensions.
+Finished resolving data extensions.
+Error retrieving qlpack commit hash from Git repository
+Loading data extensions.
+Finished loading data extensions.
+Compiling query plan for /workspace/scratch/4b61438fb07b/codeql-paper-fix/artifact/codeql-rust-quality/Metrics.ql.
+[1/1] Found in cache: /workspace/scratch/4b61438fb07b/codeql-paper-fix/artifact/codeql-rust-quality/Metrics.ql.
+Starting evaluation of qperiapt/codeql-rust-quality/Metrics.ql.
+[1/1 eval 29.2s] Evaluation done; writing results to /workspace/scratch/4b61438fb07b/codeql-validation-tool/qualified-Metrics.bqrs.
+Shutting down query evaluator.

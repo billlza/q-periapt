@@ -2,7 +2,7 @@
   "schema": "qperiapt-joc-single-source/1",
   "input_entry": "main.tex",
   "output": "joc-submission.tex",
-  "output_sha256": "30d7c5a7cd02e03b579640cabc7db2400d8e4ddd1271b5cdd9e724607e0ead22",
+  "output_sha256": "ba7792aae36adbac534b766f1aa95506415b2dc5db9962e1a8dd9dd408a6e4db",
   "inputs": {
     "acquisition-nonadditivity.tex": {
       "sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
@@ -93,8 +93,8 @@
       "bytes": 5679
     },
     "main.tex": {
-      "sha256": "37436cf32b029d325faed36eb76211b2fbb4de829ccfb6b464a239a7a21e04b9",
-      "bytes": 4302
+      "sha256": "f252a221b6b6af5803d720ac1aebb225a2ca8b2c665cb9e95a786a3cdfe4d17f",
+      "bytes": 4316
     },
     "matched-opportunities.tex": {
       "sha256": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",

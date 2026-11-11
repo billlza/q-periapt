@@ -1387,7 +1387,13 @@ cleanup_android_app() {
 	fi
 	ANDROID_APP_CLEANUP_INVOCATION=$((ANDROID_APP_CLEANUP_INVOCATION + 1))
 	cleanup_invocation=$ANDROID_APP_CLEANUP_INVOCATION
-	cleanup_deadline=$(monotonic_deadline 45) || return 1
+	# Ownership observations and a recovering package service consume this same
+	# window. Allow a full 60-second uninstall after up to 40 seconds of that
+	# work, and reserve the final 20 seconds for the three absence observations
+	# (each bounded by five seconds, with one-second intervals). Never refresh
+	# either deadline after an unknown request outcome.
+	cleanup_deadline=$(monotonic_deadline 120) || return 1
+	cleanup_uninstall_deadline=$((cleanup_deadline - 20))
 	required_absent_observations=3
 	if [ "${ANDROID_APP_INSTALL_CONFIRMED:-0}" != "1" ]; then
 		required_absent_observations=8
@@ -1493,21 +1499,29 @@ cleanup_android_app() {
 					if [ "$cleanup_ownership_consecutive_exact" -eq 2 ]; then
 						ANDROID_APP_INSTALL_CONFIRMED=1
 						required_absent_observations=3
-						if ! uninstall_timeout=$(remaining_bounded_timeout "$cleanup_deadline" 60); then
-							printf 'error: Android cleanup deadline expired before owned uninstall\n' >&2
+						if ! uninstall_timeout=$(remaining_bounded_timeout "$cleanup_uninstall_deadline" 60); then
+							printf 'error: Android cleanup uninstall window expired before an owned request; preserving the absence-observation reserve\n' >&2
 							return 1
 						fi
 						ANDROID_APP_UNINSTALL_PATH_SHA256=$OWNERSHIP_SAMPLE_PATH_SHA256
+						printf 'phase=cleanup invocation=%s attempt=%s operation=uninstall timeout_seconds=%s\n' \
+							"$cleanup_invocation" "$attempt" "$uninstall_timeout" \
+							>>"$DIST/adb-cleanup-timing.log" || return 2
 						ANDROID_APP_UNINSTALL_REQUESTED=1
 						if android_command uninstall-app \
 							--timeout-seconds "$uninstall_timeout" \
 							>>"$DIST/adb-uninstall-cleanup.log" 2>&1; then
 							printf 'phase=cleanup invocation=%s attempt=%s uninstall=request-returned-zero\n' \
 								"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
+							printf 'phase=cleanup invocation=%s attempt=%s operation=uninstall exit=0\n' \
+								"$cleanup_invocation" "$attempt" >>"$DIST/adb-cleanup-timing.log" || return 2
 						else
 							uninstall_status=$?
 							printf 'phase=cleanup invocation=%s attempt=%s uninstall=unknown-or-failed\n' \
 								"$cleanup_invocation" "$attempt" >>"$PACKAGE_OBSERVATION_LOG"
+							printf 'phase=cleanup invocation=%s attempt=%s operation=uninstall exit=%s\n' \
+								"$cleanup_invocation" "$attempt" "$uninstall_status" \
+								>>"$DIST/adb-cleanup-timing.log" || return "$uninstall_status"
 							case "$uninstall_status" in
 								2 | 129 | 130 | 143) return "$uninstall_status" ;;
 							esac
@@ -2565,7 +2579,8 @@ if cleanup_android_app; then
 	:
 else
 	app_cleanup_status=$?
-	printf 'error: run-owned Android smoke app cleanup failed\n' >&2
+	printf 'error: run-owned Android smoke app cleanup failed (exit=%s); see %s and %s\n' \
+		"$app_cleanup_status" "$DIST/adb-uninstall-cleanup.log" "$DIST/adb-cleanup-timing.log" >&2
 	exit "$app_cleanup_status"
 fi
 

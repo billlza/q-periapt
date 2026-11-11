@@ -159,9 +159,10 @@ class CodeQLRustQualityTests(unittest.TestCase):
         root = pathlib.Path(__file__).resolve().parent.parent
         guide = " ".join((root / "ARTIFACT.md").read_text(encoding="utf-8").split())
         expected = codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT
+        current = codeql_rust_quality.EXPECTED_CURRENT_RUST_SOURCE_COUNT
         self.assertIn(
             f"requires the exact path set of all {expected} tracked `.rs` files "
-            "to be successfully extracted",
+            f"in the database and all {current} current sources to be successfully extracted",
             guide,
         )
 
@@ -1572,6 +1573,172 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 "repository-local target must be absent",
             ):
                 codeql_rust_quality.require_repository_target_absent(root)
+
+
+class CodeQLArchiveQualificationTests(unittest.TestCase):
+    current = frozenset({"crates/a/src/lib.rs", "crates/b/src/lib.rs"})
+    archive = "paper/continuity/artifacts/bootstrap/ack/source/old.rs"
+
+    def evidence(self):
+        tracked = self.current | {self.archive}
+        metrics = clean_metrics(len(tracked))
+        metrics.update({
+            "successfully_extracted_files": len(self.current),
+            "extraction_warnings": 1,
+            "source_macro_calls": 9,
+            "unresolved_source_macro_calls": 2,
+        })
+        files = {
+            "crates/a/src/lib.rs": (4, 2),
+            "crates/b/src/lib.rs": (3, 1),
+            self.archive: (2, 0),
+        }
+        diagnostics = [(
+            self.archive, "Warning", "semantics",
+            codeql_rust_quality.ARCHIVE_SEMANTICS_MESSAGE,
+            codeql_rust_quality.ARCHIVE_SEMANTICS_FULL_MESSAGE, 1, 1,
+        )]
+        unresolved = [(self.archive, 2, 1, "assert!..."), (self.archive, 3, 1, "vec!...")]
+        return [tracked, self.current, metrics, files, diagnostics, unresolved]
+
+    def qualify(self, evidence):
+        with mock.patch.object(
+            codeql_rust_quality, "validate_archive_inventory",
+            return_value=frozenset({self.archive}),
+        ) as inventory:
+            codeql_rust_quality.validate_current_and_archive_quality(*evidence)
+        inventory.assert_called_once_with(codeql_rust_quality.REPOSITORY_ROOT, evidence[0])
+
+    def test_observed_partial_archive_and_clean_current_sources_pass(self):
+        self.qualify(self.evidence())
+
+    def test_all_extracted_paths_must_include_every_current_and_archive_file(self):
+        for missing in self.current | {self.archive}:
+            evidence = self.evidence()
+            del evidence[3][missing]
+            with self.subTest(missing=missing), self.assertRaisesRegex(
+                codeql_rust_quality.CodeQLRustQualityError, "all extracted path set differs"
+            ):
+                self.qualify(evidence)
+        evidence = self.evidence()
+        evidence[3]["paper/continuity/artifacts/bootstrap/ack/source/substitute.rs"] = evidence[3].pop(self.archive)
+        with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "all extracted path set differs"):
+            self.qualify(evidence)
+
+    def test_current_source_success_and_zero_macros_remain_required(self):
+        evidence = self.evidence()
+        evidence[1] = frozenset({"crates/a/src/lib.rs"})
+        with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "successfully extracted path set differs"):
+            self.qualify(evidence)
+        evidence = self.evidence()
+        evidence[5][0] = ("crates/a/src/lib.rs", 2, 1, "assert!...")
+        with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "unresolved current-source macro"):
+            self.qualify(evidence)
+
+    def test_each_diagnostic_field_is_bound_and_other_warnings_fail(self):
+        for index, value in (
+            (0, "crates/a/src/lib.rs"), (2, "parse_error"),
+            (3, "semantic analyzer unavailable (no manifest found)"),
+            (4, "different full diagnostic"), (5, 2), (6, 2),
+        ):
+            evidence = self.evidence()
+            row = list(evidence[4][0])
+            row[index] = value
+            evidence[4][0] = tuple(row)
+            with self.subTest(index=index), self.assertRaisesRegex(
+                codeql_rust_quality.CodeQLRustQualityError, "unqualified extraction diagnostic"
+            ):
+                self.qualify(evidence)
+        evidence = self.evidence()
+        row = list(evidence[4][0])
+        row[1] = "Error"
+        evidence[4][0] = tuple(row)
+        evidence[2].update(extraction_warnings=0, extraction_errors=1)
+        with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "unqualified extraction diagnostic"):
+            self.qualify(evidence)
+
+    def test_missing_duplicate_or_unexpected_diagnostics_fail(self):
+        evidence = self.evidence()
+        evidence[4] = []
+        evidence[2]["extraction_warnings"] = 0
+        with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "diagnostic inventory differs"):
+            self.qualify(evidence)
+        evidence = self.evidence()
+        evidence[4] *= 2
+        evidence[2]["extraction_warnings"] = 2
+        with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "unqualified extraction diagnostic"):
+            self.qualify(evidence)
+
+    def test_global_counts_must_reconcile_with_details(self):
+        for name in ("source_macro_calls", "source_format_args", "extraction_warnings", "extraction_errors", "unresolved_source_macro_calls"):
+            evidence = self.evidence()
+            evidence[2][name] += 1
+            with self.subTest(metric=name), self.assertRaises(codeql_rust_quality.CodeQLRustQualityError):
+                self.qualify(evidence)
+        evidence = self.evidence()
+        evidence[3][self.archive] = (1, 0)
+        evidence[2]["source_macro_calls"] -= 1
+        with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "exceeds all macros"):
+            self.qualify(evidence)
+
+    def test_archive_counts_cannot_supply_current_source_sentinels(self):
+        for index, name in ((0, "source_macro_calls"), (1, "source_format_args")):
+            evidence = self.evidence()
+            for path in self.current:
+                row = list(evidence[3][path])
+                row[index] = 0
+                evidence[3][path] = tuple(row)
+            if index == 1:
+                evidence[3][self.archive] = (2, 3)
+            evidence[2][name] = sum(row[index] for row in evidence[3].values())
+            self.assertGreater(evidence[2][name], 0)
+            with self.subTest(sentinel=name), self.assertRaisesRegex(
+                codeql_rust_quality.CodeQLRustQualityError, "sentinel must be nonzero"
+            ):
+                self.qualify(evidence)
+
+    def test_original_zero_quality_metrics_remain_failures(self):
+        for name in codeql_rust_quality.ZERO_METRICS - {"extraction_warnings", "extraction_errors", "unresolved_source_macro_calls"}:
+            evidence = self.evidence()
+            evidence[2][name] = 1
+            with self.subTest(metric=name), self.assertRaisesRegex(
+                codeql_rust_quality.CodeQLRustQualityError, f"{name} must be zero"
+            ):
+                self.qualify(evidence)
+
+    def test_tagged_parser_rejects_ambiguous_rows_and_preserves_all_details(self):
+        evidence = self.evidence()
+        metrics, files, diagnostics = evidence[2:5]
+        rows = [["metric", name, value, 0, "", "", ""] for name, value in metrics.items()]
+        rows += [["file", path, counts[0], counts[1], "", "", ""] for path, counts in files.items()]
+        rows += [[severity, path, line, column, tag, message, full] for path, severity, tag, message, full, line, column in diagnostics]
+        self.assertEqual(codeql_rust_quality._parse_quality_rows(rows), (metrics, files, tuple(diagnostics)))
+        for extra in (
+            ["Other", "file.rs", 1, 1, "", "", ""],
+            ["metric", "new", True, 0, "", "", ""],
+            ["metric", "new", 1, 0, "unread", "", ""],
+            ["file", "../escape.rs", 1, 0, "", "", ""],
+            ["file", "a.rs", -1, 0, "", "", ""],
+            ["Warning", self.archive, 0, 1, "semantics", "short", "full"],
+            rows[0], rows[-1], rows[-2],
+        ):
+            with self.subTest(row=extra), self.assertRaises(codeql_rust_quality.CodeQLRustQualityError):
+                codeql_rust_quality._parse_quality_rows([*rows, extra])
+
+    def test_real_pinned_inventory_preserves_all_174_sources(self):
+        tracked = codeql_rust_quality.tracked_rust_paths()
+        archived = codeql_rust_quality.validate_archive_inventory(codeql_rust_quality.REPOSITORY_ROOT, tracked)
+        current = tracked - archived
+        files = {path: (1, 0) for path in archived} | {path: (0, 0) for path in current}
+        files[sorted(current)[0]] = (7, 3)
+        metrics = clean_metrics(len(tracked))
+        metrics.update(successfully_extracted_files=len(current), extraction_warnings=len(archived),
+                       source_macro_calls=len(archived) + 7, unresolved_source_macro_calls=len(archived))
+        diagnostics = tuple((path, "Warning", "semantics", codeql_rust_quality.ARCHIVE_SEMANTICS_MESSAGE,
+                             codeql_rust_quality.ARCHIVE_SEMANTICS_FULL_MESSAGE, 1, 1) for path in sorted(archived))
+        unresolved = tuple((path, 2, 1, "assert!...") for path in sorted(archived))
+        codeql_rust_quality.validate_current_and_archive_quality(tracked, current, metrics, files, diagnostics, unresolved)
+        self.assertEqual((len(tracked), len(current), len(archived)), (174, 106, 68))
 
 
 if __name__ == "__main__":

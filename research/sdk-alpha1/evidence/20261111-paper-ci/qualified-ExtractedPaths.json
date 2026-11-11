@@ -1,0 +1,6 @@
+{"#select":{"columns":[
+   {"kind":"String"}]
+ ,"tuples":[
+   ["crates/probe/src/lib.rs"]
+  ,["crates/probe/src/helper.rs"]]
+ }}

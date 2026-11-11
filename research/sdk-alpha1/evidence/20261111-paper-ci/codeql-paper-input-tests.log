@@ -1,0 +1,18 @@
+test_capture_and_verify_use_the_exact_stable_bytes (test_proof_to_byte_inputs.ProofToByteInputsTests.test_capture_and_verify_use_the_exact_stable_bytes) ... ok
+test_change_between_complete_captures_is_rejected (test_proof_to_byte_inputs.ProofToByteInputsTests.test_change_between_complete_captures_is_rejected) ... ok
+test_expected_map_must_have_exact_keys_and_digests (test_proof_to_byte_inputs.ProofToByteInputsTests.test_expected_map_must_have_exact_keys_and_digests) ... ok
+test_group_or_world_writable_input_is_rejected (test_proof_to_byte_inputs.ProofToByteInputsTests.test_group_or_world_writable_input_is_rejected) ... ok
+test_live_map_is_exact_unique_and_self_covering (test_proof_to_byte_inputs.ProofToByteInputsTests.test_live_map_is_exact_unique_and_self_covering) ... ok
+test_non_owner_metadata_is_rejected_on_posix (test_proof_to_byte_inputs.ProofToByteInputsTests.test_non_owner_metadata_is_rejected_on_posix) ... ok
+test_noncanonical_and_duplicate_paths_fail_before_success (test_proof_to_byte_inputs.ProofToByteInputsTests.test_noncanonical_and_duplicate_paths_fail_before_success) ... ok
+test_per_file_and_aggregate_byte_limits_fail_closed (test_proof_to_byte_inputs.ProofToByteInputsTests.test_per_file_and_aggregate_byte_limits_fail_closed) ... ok
+test_read_failure_is_typed_and_does_not_leak_descriptors (test_proof_to_byte_inputs.ProofToByteInputsTests.test_read_failure_is_typed_and_does_not_leak_descriptors) ... ok
+test_release_notes_state_the_installed_map_size (test_proof_to_byte_inputs.ProofToByteInputsTests.test_release_notes_state_the_installed_map_size) ... ok
+test_repository_root_must_not_resolve_through_a_symlink (test_proof_to_byte_inputs.ProofToByteInputsTests.test_repository_root_must_not_resolve_through_a_symlink) ... ok
+test_symlink_directory_fifo_and_hardlink_inputs_are_rejected (test_proof_to_byte_inputs.ProofToByteInputsTests.test_symlink_directory_fifo_and_hardlink_inputs_are_rejected) ... ok
+test_windows_mode_bits_are_not_treated_as_posix_permissions (test_proof_to_byte_inputs.ProofToByteInputsTests.test_windows_mode_bits_are_not_treated_as_posix_permissions) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.022s
+
+OK
