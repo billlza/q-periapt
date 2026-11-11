@@ -462,7 +462,8 @@ class FixedProductionIdentityTests(unittest.TestCase):
         self.assertEqual(identity["manifest_sha256"], plan.PRODUCTION_MANIFEST_SHA256)
         self.assertEqual(identity["compiler_inputs_digest"], plan.STAGE34_COMPILER_KEY)
         for previous_key in ("70fcc50bc6a1479b6fc92e9f1d624e0e",
-                             "6a7530eb694360655ab8331a895c9fcd"):
+                             "6a7530eb694360655ab8331a895c9fcd",
+                             "0ee092250be1b05f03b994a868d639cc"):
             with self.subTest(previous_key=previous_key):
                 changed = dict(identity, compiler_inputs_digest=previous_key)
                 with patch.object(plan.projection, "expected_identity", return_value=changed):
