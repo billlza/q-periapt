@@ -150,7 +150,8 @@ class ProcessResourceSampler:
                       "peak_sampled_tree_rss_bytes": None, "peak_sampled_roots_rss_bytes": None,
                       "observed_process_cpu_seconds": 0.0, "sampler_cpu_seconds": 0.0,
                       "sampling_wall_seconds": 0.0, "max_sample_span_seconds": 0.0,
-                      "proc_read_errors": 0, "io_unavailable": 0, "partial_censuses": 0,
+                      "proc_read_errors": 0, "proc_processes_vanished": 0,
+                      "io_unavailable": 0, "partial_censuses": 0,
                       "shutdown_complete": False,
                       "interval_seconds": interval_seconds,
                       "limits": {"census_processes": MAX_CENSUS_PROCESSES,
@@ -173,7 +174,7 @@ class ProcessResourceSampler:
     def _census(self) -> tuple[dict[int, dict], dict]:
         deadline = time.monotonic() + SCAN_SECONDS
         census = {}
-        notes = {"read_errors": 0, "complete": True, "limit": None}
+        notes = {"read_errors": 0, "vanished_processes": 0, "complete": True, "limit": None}
         seen = 0
         with os.scandir(self.proc_root) as entries:
             for entry in entries:
@@ -189,6 +190,11 @@ class ProcessResourceSampler:
                 pid = int(entry.name)
                 try:
                     census[pid] = self._stat(pid)
+                except (FileNotFoundError, ProcessLookupError):
+                    # procfs is non-atomic: a listed process may exit before its
+                    # stat file is opened or read. Record this lifecycle race;
+                    # permission, I/O and malformed-data failures remain errors.
+                    notes["vanished_processes"] += 1
                 except (OSError, ValueError):
                     notes["read_errors"] += 1
         notes["processes_seen"] = seen
@@ -206,8 +212,15 @@ class ProcessResourceSampler:
             self.clock_ticks = os.sysconf("SC_CLK_TCK")
             self.controller = identity(self._stat(os.getpid()))
             census, notes = self._census()
+            self.state["initial_census"] = notes
+            self.state["proc_processes_vanished"] += notes["vanished_processes"]
             if not notes["complete"] or notes["read_errors"]:
                 raise SamplingError("incomplete_initial_census")
+            controller_record = census.get(self.controller[0])
+            if controller_record is None:
+                raise SamplingError("controller_not_in_initial_census")
+            if identity(controller_record) != self.controller:
+                raise SamplingError("controller_identity_changed")
             self.excluded_roots = {identity(record) for record in census.values()
                                    if record["ppid"] == self.controller[0]}
             descriptor = os.open(self.evidence / "PROCESS_RESOURCES.jsonl",
@@ -233,6 +246,7 @@ class ProcessResourceSampler:
             # Retain errors and any identity contradiction already observed;
             # only an otherwise clean interrupted census can be discarded.
             self.state["proc_read_errors"] += notes["read_errors"]
+            self.state["proc_processes_vanished"] += notes["vanished_processes"]
             self.state["partial_censuses"] += 1
             if self.controller[0] in census and identity(census[self.controller[0]]) != self.controller:
                 raise SamplingError("controller_identity_changed")
@@ -284,6 +298,7 @@ class ProcessResourceSampler:
                 self.state["samples"] += 1
                 self.state["output_bytes"] += len(encoded)
                 self.state["proc_read_errors"] += sample["census"]["read_errors"]
+                self.state["proc_processes_vanished"] += sample["census"]["vanished_processes"]
                 self.state["partial_censuses"] += not sample["census"]["complete"]
                 self.state["io_unavailable"] += sum(row["io"] is None for row in sample["processes"])
                 self.state["max_sample_span_seconds"] = max(self.state["max_sample_span_seconds"], sample["span_seconds"])
