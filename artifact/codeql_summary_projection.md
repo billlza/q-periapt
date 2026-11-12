@@ -2,8 +2,9 @@
 
 The `projection` mode gives the full Rust SummaryStats query an explicit,
 source-bound compiled plan. Within each of the Stage3 and Stage4 forward
-recursions, the read-target relation carries the six columns consumed by the
-next forward state. The original eleven-column read relation is reconstructed
+recursions, a private read-target helper denotes the six columns consumed by
+the next forward state. It is inlined into the consumer so that the complete
+unfiltered target relation does not require a separate recursive table. The original eleven-column read relation is reconstructed
 after each closure from the unchanged full join for its complete downstream
 consumers, including reverse traversal and PathGraph. The source patch retains
 the original join, both type checks, and both access-path branches.
@@ -21,7 +22,7 @@ The retained-database controller exposes three explicit modes:
 | `projection` | Fixed Stage3+Stage4 projection and state-fusion capsule | One declared vendor patch | `all` |
 
 `projection` is an admission mode, not a new CodeQL command-line value. Its
-compiler input key is `c327768d3f383933ff70cd941341916b`. Both retained-database allocation arms use
+compiler input key is `fcbc88b667fe0122ca51593e2594a017`. Both retained-database allocation arms use
 the same capsule and patch. The comparison command must select `projection`
 explicitly; reports from other modes cannot be substituted even though `all`
 and `projection` have the same evaluator join option.
@@ -33,10 +34,11 @@ official Rust CLI 2.27.2 bundle, all 39 root-query identities, the original
 compiled-query inventory, the projected inventory, and the complete capsule.
 Its digest is independently fixed in the installer. The capsule contains the
 full SummaryStats QLX and its 15 referenced stages. Its SHA-256 is
-`35ab9955321008fb55e436c78b38725370fd5930885635e43ed093ab672fc6d3`.
+`060522ee09abd85424c0355e5c4a5e8186a9740b9d3b472fe557fca41ea96ba5`.
 
 These pins identify the Stage3+Stage4 projection with five-column Unit
-forward-state fusion. The earlier Stage4-only, Stage3+Stage4 projection and
+forward-state fusion, bound guard evaluation and an inlined read-target join.
+The earlier Stage4-only, Stage3+Stage4 projection and
 six-column fusion capsules have different
 compiler keys, source inventories and compiled-query inventories;
 the current admission checks distinguish those products even though their
@@ -76,9 +78,10 @@ a partially installed pack must be discarded and restored from the bundle.
 After the supervised evaluator stops, the controller rechecks both the full
 query inventory and the projection's source/capsule closure. A secondary
 integrity failure is retained alongside the original evaluator failure. A
-successful result requires exactly the 39 admitted precompiled queries, zero
-implicit compilation, all 39 fresh results, equality with the retained 38
-results, and full semantic equality between allocation arms. Source and plan
+successful individual evaluation requires exactly the 39 admitted precompiled
+queries, zero implicit compilation, all 39 fresh results and equality with the
+retained 38 results. A paired comparison additionally requires full semantic
+equality between its two allocation arms. Source and plan
 admission do not change the result comparison or resource budget.
 
 Select the mode in the existing controller:
@@ -161,9 +164,11 @@ the other stages retain the original read path. Stage2 is unchanged, and the
 Stage3 argument preserves the exported relations used as Stage4 inputs. The same
 argument therefore applies to Stage4 with those preserved inputs.
 
-The frozen candidate compiled successfully with the official CLI, and its
-optimized RA places the six-column helper within each selected stage's forward
-recursive layer and the complete eleven-column relation outside it. Both later
+The earlier projected capsule compiled successfully with the official CLI.
+Its optimized RA placed the six-column helper within each selected stage's
+forward recursive layer and the complete eleven-column relation outside it.
+The current capsule inlines that helper while retaining the downstream full
+relation. Both later
 `readStepFwd` consumers retain the complete relation. These establish source
 equivalence and the intended compiled structure. Runtime completion and resource
 measurements are obtained from the explicitly selected evaluation and retained
@@ -196,7 +201,9 @@ option is retained: `None` and `Some(Unit)` remain distinct. The argument retain
 all branch, access-path, cast, clear and context guards; it does not depend on
 equal observed row counts or on matching iteration schedules.
 
-The final official 2.27.2 compilation used explicit join mode `all`, empty private
+The earlier five-column capsule
+`c327768d3f383933ff70cd941341916b` used official 2.27.2 compilation with explicit
+join mode `all`, empty private
 caches, no default compilation caches or global QL configuration, 4,096 MB, two
 threads, and a 180-second deadline. It completed in 69.90 seconds with maximum
 child RSS 3,030,264 KiB. Its optimized RA contains a recursive `fwdFlowUnit/5`
@@ -207,10 +214,42 @@ and previous-iteration exclusion use five arguments. The generated argument
 projection drops its type column, and typed consumers reconstruct Unit locally;
 their existing typed auxiliary relations remain available. Stage2, Stage5
 and Stage6 retain their original intermediate state relations and typed
-projection under the internal name `fwdFlowTyped/6`. The final compiler input key is
-`c327768d3f383933ff70cd941341916b`; the source and capsule digests above bind
-that plan. Complete query-result
-and workload timing comparisons use the existing full 39-query workflow.
+projection under the internal name `fwdFlowTyped/6`. Those measurements identify
+the earlier capsule, not the current compiler key and capsule pinned above.
+Complete query-result and workload timing comparisons use the existing full
+39-query workflow.
+
+## Bound guards and read-target inlining
+
+The current plan factors the unchanged outer `PrevStage::revFlow`, `filter`,
+and cast-compatibility conjunction into `unitForwardGuard`. Its four arguments
+are bound before late inlining. Substituting the helper body at its call site
+recovers the earlier filtering conjunction exactly. No guard, access-path branch,
+call context or stored-type distinction is removed.
+
+The six-column `fwdFlowReadTarget` helper now uses `pragma[inline]` instead of
+`pragma[nomagic]`. Its body and both consumers are unchanged. In the positive
+system above this substitutes `P(H(X))` directly into `G`; it eliminates an
+auxiliary relation without changing the least fixed point on `X`. The full
+`fwdFlowRead` relation remains available to downstream consumers. This change
+is motivated by the retained workload producing tens of millions of read-target
+rows per iteration before the forward consumer applies its filters and removes
+duplicates.
+
+The current official 2.27.2 compilation used the same private caches, empty QL
+configuration, two threads, 4,096-MB compiler heap and 180-second bound, with
+`--warnings=error`. It completed successfully and retained all 15 stages and
+all 39 root queries; the other 38 compiled queries are unchanged. The optimized
+RA contains no separate `fwdFlowReadTarget` entity or reference.
+
+The [nonempty wrapper fixture](https://github.com/billlza/q-periapt/actions/runs/43140345710)
+loaded all 39 precompiled queries, performed zero implicit compilations, produced
+39 fresh results and passed the runtime and capsule checks. The complete decoded
+SummaryStats result is byte-identical to the retained fixture baseline
+(`f05f212ce3a9847d01191fb595c9a154aac94a83e33faf6fdc7f85dbb19b259e`).
+This fixture does not establish full-project runtime. Large-database and current
+native, WASM and macOS-origin completion remain required; incomplete or timed-out
+runs cannot issue successful analysis or publication receipts.
 
 ## Maintenance and verification
 
