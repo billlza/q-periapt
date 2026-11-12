@@ -33,7 +33,7 @@ jobs:
           set -eu
           /usr/bin/python3 -I -S -B -c 'import ast, pathlib; ast.parse(pathlib.Path("artifact/codeql_wrapper_fixture.py").read_text(encoding="utf-8"))'
           git rev-parse HEAD 'HEAD^{tree}' > "$RUNNER_TEMP/qperiapt-wrapper-source.txt"
-          sh artifact/python-run.sh -m unittest -v test_codeql_workflow_contract
+          sh artifact/python-run.sh -m unittest -v test_codeql_workflow_contract test_codeql_summary_control test_codeql_summary_archive_input test_codeql_process_resources test_codeql_summary_plan test_codeql_progress test_codeql_summary_projection
       - name: Extract the frozen fixture and exercise the production analysis path
         timeout-minutes: 20
         run: |
