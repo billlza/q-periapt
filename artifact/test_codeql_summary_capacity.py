@@ -60,6 +60,27 @@ class CapacityProfileTests(unittest.TestCase):
         with self.assertRaisesRegex(control.ControlError, "comparison report identity differs"):
             control.compare_reports(valid_report("heap-2048"), report)
 
+    def test_cpu_control_keeps_every_argument_except_threads(self):
+        baseline = control.configuration("memory-120000")
+        candidate = control.configuration("memory-120000-threads-16")
+        self.assertEqual(candidate, baseline | {"threads": 16})
+        commands = [control.query_command(Path("/tool/codeql"), Path("/case/database"),
+                                         Path("/case"), profile, "projection")
+                    for profile in ("memory-120000", "memory-120000-threads-16")]
+        fixed = lambda command: [arg for arg in command if not arg.startswith("--threads=")]
+        self.assertEqual(fixed(commands[0]), fixed(commands[1]))
+        self.assertIn("--threads=4", commands[0])
+        self.assertIn("--threads=16", commands[1])
+        for profile in ("heap-2048", "heap-1536", "memory-56000", "memory-120000"):
+            self.assertEqual(control.configuration(profile)["threads"], 4)
+
+    def test_cpu_control_cannot_impersonate_the_hosted_comparison(self):
+        report = valid_report("heap-1536")
+        report["profile"] = "memory-120000-threads-16"
+        report["configuration"] = control.configuration(report["profile"])
+        with self.assertRaisesRegex(control.ControlError, "comparison report identity differs"):
+            control.compare_reports(valid_report("heap-2048"), report)
+
     def test_capacity_result_cannot_impersonate_the_hosted_comparison(self):
         report = valid_report("heap-1536")
         report["profile"] = "memory-56000"
