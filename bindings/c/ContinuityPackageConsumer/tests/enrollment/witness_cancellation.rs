@@ -82,11 +82,19 @@ impl Pause {
         Ok(Release(Arc::clone(self)))
     }
     pub(super) fn now(&self) -> Result<u64> {
-        if self
-            .remaining
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| n.checked_sub(1))
-            == Ok(1)
-        {
+        let mut remaining = self.remaining.load(Ordering::Acquire);
+        while remaining != 0 {
+            match self.remaining.compare_exchange_weak(
+                remaining,
+                remaining - 1,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => break,
+                Err(observed) => remaining = observed,
+            }
+        }
+        if remaining == 1 {
             let marker = self
                 .marker
                 .lock()

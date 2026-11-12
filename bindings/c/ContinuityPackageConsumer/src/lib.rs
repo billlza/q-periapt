@@ -276,12 +276,21 @@ static CALLS: AtomicUsize = AtomicUsize::new(0);
 struct CallPermit;
 impl CallPermit {
     fn reserve() -> Result<Self> {
-        CALLS
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |current| {
-                (current < MAX_CALLS).then(|| current + 1)
-            })
-            .map_err(|_| failure(4))?;
-        Ok(Self)
+        let mut current = CALLS.load(Ordering::Acquire);
+        loop {
+            if current >= MAX_CALLS {
+                return Err(failure(4));
+            }
+            match CALLS.compare_exchange_weak(
+                current,
+                current + 1,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => return Ok(Self),
+                Err(observed) => current = observed,
+            }
+        }
     }
 }
 impl Drop for CallPermit {

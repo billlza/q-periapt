@@ -10,6 +10,13 @@ use std::{
 };
 
 const VALUE: &[u8] = b"original unpublished private fixture";
+const PROCESS_STEP_TIMEOUT: Duration = Duration::from_secs(15);
+const CLEANUP_CUTS: [Step; 4] = [
+    Step::IntentCommitted,
+    Step::EntryRemoved,
+    Step::PayloadSynced,
+    Step::ReceiptCommitted,
+];
 
 fn read_intent(path: &Path) -> io::Result<Option<Vec<u8>>> {
     match fs::read(path) {
@@ -563,38 +570,60 @@ impl Drop for ChildGuard {
 // of these new open descriptions between fork and close-on-exec. Public Busy
 // results remain untouched; there is no retry or weakened assertion here.
 fn isolated_case(name: &str, flag: &str, marker: &str) -> bool {
+    isolated_case_with_children(name, flag, marker, 0)
+}
+
+fn isolated_case_with_children(name: &str, flag: &str, marker: &str, child_steps: u32) -> bool {
     if let Some(value) = std::env::var_os(flag) {
         assert_eq!(value, "1");
         return true;
     }
+    // Each serial child owns a readiness deadline. The supervisor must allow
+    // all of those windows plus setup/recovery, rather than racing the first.
+    let timeout = PROCESS_STEP_TIMEOUT * (child_steps + 1);
+    let mut diagnostics = tempfile::tempfile().expect("fixture diagnostics");
     let mut child = ChildGuard(
         Command::new(std::env::current_exe().expect("test binary"))
             .args(["--exact", name, "--nocapture"])
             .env(flag, "1")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::from(
+                diagnostics.try_clone().expect("diagnostic writer"),
+            ))
             .spawn()
             .expect("isolated fixture"),
     );
-    let deadline = Instant::now() + Duration::from_secs(15);
+    let deadline = Instant::now() + timeout;
     let status = loop {
         if let Some(status) = child.0.try_wait().expect("fixture status") {
-            break status;
+            break Some(status);
         }
-        assert!(Instant::now() < deadline, "isolated fixture deadline");
+        if Instant::now() >= deadline
+            || diagnostics.metadata().expect("diagnostic size").len() > 1024 * 1024
+        {
+            child.0.kill().expect("fixture kill");
+            child.0.wait().expect("fixture reap");
+            break None;
+        }
         std::thread::sleep(Duration::from_millis(5));
     };
     let mut stderr = Vec::new();
-    child
-        .0
-        .stderr
-        .take()
-        .expect("stderr")
+    // A file cannot backpressure the child or wait for an inherited pipe writer
+    // to close. Preserve bounded diagnostics even when the supervisor expires.
+    diagnostics
+        .seek(SeekFrom::Start(0))
+        .expect("diagnostic rewind");
+    diagnostics
         .take(1024 * 1024 + 1)
         .read_to_end(&mut stderr)
         .expect("stderr read");
     assert!(stderr.len() <= 1024 * 1024, "bounded fixture diagnostics");
     let stderr = String::from_utf8(stderr).expect("fixture diagnostic encoding");
+    assert!(
+        status.is_some(),
+        "isolated fixture deadline after {timeout:?}: {stderr}"
+    );
+    let status = status.expect("fixture exit status");
     assert!(status.success(), "isolated fixture failed: {stderr}");
     assert_eq!(
         stderr.lines().filter(|line| *line == marker).count(),
@@ -633,9 +662,9 @@ fn cleanup_process_child() {
 #[cfg(unix)]
 #[test]
 fn inherited_open_description_remains_an_owner_after_parent_close() {
-    if !isolated_case(
+    if !isolated_case_with_children(
         "filesystem::maintenance::attempt::tests::inherited_open_description_remains_an_owner_after_parent_close",
-        "QPERIAPT_MANAGED_INHERITED_ISOLATED", "MANAGED_INHERITED_COMPLETE") {return;}
+        "QPERIAPT_MANAGED_INHERITED_ISOLATED", "MANAGED_INHERITED_COMPLETE", 1) {return;}
     let temp = test_directory::directory().expect("directory");
     let path = abandoned(temp.path(), false);
     let file = open_private_file(&path.join(PAYLOAD), false).expect("payload");
@@ -658,7 +687,7 @@ fn inherited_open_description_remains_an_owner_after_parent_close() {
             .spawn()
             .expect("inherited owner"),
     );
-    let deadline = Instant::now() + Duration::from_secs(15);
+    let deadline = Instant::now() + PROCESS_STEP_TIMEOUT;
     while !temp.path().join("cleanup-ready").exists() {
         assert!(child.0.try_wait().expect("status").is_none());
         assert!(Instant::now() < deadline);
@@ -688,14 +717,9 @@ fn inherited_open_description_remains_an_owner_after_parent_close() {
 
 #[test]
 fn actual_cleanup_process_cuts_recover_original_receipts() {
-    if !isolated_case("filesystem::maintenance::attempt::tests::actual_cleanup_process_cuts_recover_original_receipts", "QPERIAPT_MANAGED_CASE_ISOLATED", "MANAGED_CASE_COMPLETE:actual_cleanup_process_cuts_recover_original_receipts") { return; }
+    if !isolated_case_with_children("filesystem::maintenance::attempt::tests::actual_cleanup_process_cuts_recover_original_receipts", "QPERIAPT_MANAGED_CASE_ISOLATED", "MANAGED_CASE_COMPLETE:actual_cleanup_process_cuts_recover_original_receipts", u32::try_from(CLEANUP_CUTS.len()).expect("cut count")) { return; }
 
-    for stage in [
-        Step::IntentCommitted,
-        Step::EntryRemoved,
-        Step::PayloadSynced,
-        Step::ReceiptCommitted,
-    ] {
+    for stage in CLEANUP_CUTS {
         let temp = test_directory::directory().expect("directory");
         let path = abandoned(temp.path(), true);
         let mut child = ChildGuard(
@@ -712,7 +736,7 @@ fn actual_cleanup_process_cuts_recover_original_receipts() {
                 .spawn()
                 .expect("cleanup process"),
         );
-        let deadline = Instant::now() + Duration::from_secs(15);
+        let deadline = Instant::now() + PROCESS_STEP_TIMEOUT;
         while !temp.path().join("cleanup-ready").exists() {
             assert!(
                 child.0.try_wait().expect("child status").is_none(),
