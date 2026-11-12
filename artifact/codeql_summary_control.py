@@ -456,8 +456,6 @@ def query_command(codeql: Path, database: Path, root: Path, profile: str,
     return [str(codeql), "execute", "queries", f"-J-Xmx{heap}M", f"--off-heap-ram={native}", "-J-XX:+PrintFlagsFinal",
             "--threads=4", "--threat-model=local", "--warnings=show", "--dynamic-join-order-mode=" + join_mode,
             "--no-rerun", "--verbosity=progress", "--evaluator-log-level=5",
-            "--evaluator-log=" + str(root / "evidence/evaluator-events.jsonl"),
-            "--evaluator-log-minify", "--tuple-counting",
             "--common-caches=" + str(root / "cache"), "--logdir=" + str(root / "evidence/evaluator"),
             "--output=" + str(root / "results"), "--", str(database / "db-rust"), "path:" + str(root / "frozen.qls")]
 

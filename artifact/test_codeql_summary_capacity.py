@@ -27,12 +27,15 @@ class CapacityProfileTests(unittest.TestCase):
         self.assertIn("-J-Xmx4096M", commands[1])
         self.assertIn("--off-heap-ram=50595", commands[1])
 
-    def test_structured_events_are_retained_with_explicit_tuple_counts(self):
+    def test_retained_control_keeps_the_baseline_logging_budget(self):
         command = control.query_command(Path("/tool/codeql"), Path("/case/database"),
                                         Path("/case"), "memory-56000", "projection")
-        self.assertIn("--evaluator-log=/case/evidence/evaluator-events.jsonl", command)
-        self.assertIn("--evaluator-log-minify", command)
-        self.assertIn("--tuple-counting", command)
+        self.assertNotIn("--tuple-counting", command)
+        self.assertNotIn("--evaluator-log-minify", command)
+        self.assertFalse(any(arg.startswith("--evaluator-log=") for arg in command))
+        self.assertIn("--logdir=/case/evidence/evaluator", command)
+        self.assertEqual(control.MAX_EVALUATOR_LOG_BYTES, 2 * 1024**3)
+        self.assertEqual(control.MAX_EVALUATOR_TOTAL_BYTES, 4 * 1024**3)
 
     def test_observed_allocation_must_match_the_capacity_profile(self):
         observation = {"schema": 1, "max_heap_bytes_observed": [4096 * 1024**2],
