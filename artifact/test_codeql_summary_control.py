@@ -199,7 +199,7 @@ class FixedConfigurationTests(unittest.TestCase):
             self.assertIn("--common-caches=/case/cache", command)
             self.assertIn("path:/case/frozen.qls", command)
             self.assertFalse(any("sarif" in value.lower() for value in command))
-        self.assertEqual({sum(allocation) for allocation in control.PROFILES.values()}, {12691, 54691})
+        self.assertEqual({sum(allocation) for allocation in control.PROFILES.values()}, {12691, 54691, 118691})
         self.assertEqual(control.configuration("memory-56000")["requested_ram_mb"], 56000)
         self.assertEqual(control.RAM_MB - 12691, 1309)
 
