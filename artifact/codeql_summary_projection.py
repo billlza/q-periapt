@@ -24,14 +24,14 @@ from evidence_io import parse_strict_json_bytes, read_regular_snapshot
 
 
 MANIFEST = Path(__file__).with_name("codeql_summary_projection.json")
-MANIFEST_SHA256 = "aff9e8e5138909da53acc5f75c774e7bb31e1f0d4281546015f6ffb3ae4f9a6d"
+MANIFEST_SHA256 = "ffdfb959f58c124b8cf6fcf8403d67ffcad88daa9079b07324e9ca76913d482f"
 CAPSULE = Path(__file__).with_name("codeql-summary-projection-plan.zip")
 PATCH = Path(__file__).with_name("codeql_summary_projection.patch")
 DEPENDENCIES = Path(__file__).with_name("codeql_summary_projection_dependencies.json.gz")
 QUERY_MANIFEST = Path(__file__).with_name("codeql_rust_queries.json")
-COMPILER_INPUTS_DIGEST = "fcbc88b667fe0122ca51593e2594a017"
-COMPILED_INVENTORY_SHA256 = "05ad87c50bd75afc23cdc425e70128b7b6f16f26908fa35fed42e80f31d138d4"
-PLAN_SHA256 = "0c7f6af923a661310e801c7cf8990288c7c8edb9de5fb3027a1d5cb79afb7a03"
+COMPILER_INPUTS_DIGEST = "35df363e9ecc113bc3fd8ecb0dbba75c"
+COMPILED_INVENTORY_SHA256 = "c4d8ff365b8f1565e1d37ad2e08a3e5e408f7daf96c125fcc4933cbb16cd6d5f"
+PLAN_SHA256 = "125b249140c7eadab1e0d44bfc05be51f2a431d84533047dfb6e897a7552a9f6"
 DEPENDENCY_PATH = "codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll"
 PATCH_PATH = "codeql/dataflow/internal/DataFlowImpl.qll"
 PLAN_PATH = capsule.PLAN_PATH
