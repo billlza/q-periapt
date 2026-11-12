@@ -41,7 +41,8 @@ CLI_VERSION = "2.27.2"
 QUERY_VERSION = "0.1.44"
 # The extra profile is an isolated capacity experiment, never a production receipt.
 PROFILES = {"heap-2048": (2048, 10643), "heap-1536": (1536, 11155),
-            "memory-56000": (4096, 50595), "memory-120000": (4096, 114595), "memory-120000-threads-16": (4096, 114595)}
+            "memory-56000": (4096, 50595), "memory-120000": (4096, 114595), "memory-120000-threads-16": (4096, 114595),
+            "memory-240000-threads-16": (4096, 234595)}
 RAM_MB = 14000
 RESERVED_MB = 1309
 THREADS = 4
@@ -667,7 +668,7 @@ def validate_observations(record: dict, profile: str) -> None:
 def configuration(profile: str) -> dict:
     heap, native = PROFILES[profile]
     return {"requested_ram_mb": heap + native + RESERVED_MB, "heap_mb": heap, "native_mb": native,
-            "reserved_mb": RESERVED_MB, "threads": 16 if profile == "memory-120000-threads-16" else THREADS,
+            "reserved_mb": RESERVED_MB, "threads": 16 if profile in ("memory-120000-threads-16", "memory-240000-threads-16") else THREADS,
             "deadline_seconds": EVALUATION_SECONDS}
 
 

@@ -179,7 +179,8 @@ class FixedConfigurationTests(unittest.TestCase):
     def test_only_two_memory_arguments_change_between_profiles(self):
         self.assertEqual(control.PROFILES, {"heap-2048": (2048, 10643), "heap-1536": (1536, 11155),
                                            "memory-56000": (4096, 50595), "memory-120000": (4096, 114595),
-                                            "memory-120000-threads-16": (4096, 114595)})
+                                            "memory-120000-threads-16": (4096, 114595),
+                                            "memory-240000-threads-16": (4096, 234595)})
         self.assertEqual(control.RAM_MB, 14000)
         self.assertEqual(control.THREADS, 4)
         self.assertEqual(control.EVALUATION_SECONDS, 18000)
@@ -200,7 +201,7 @@ class FixedConfigurationTests(unittest.TestCase):
             self.assertIn("--common-caches=/case/cache", command)
             self.assertIn("path:/case/frozen.qls", command)
             self.assertFalse(any("sarif" in value.lower() for value in command))
-        self.assertEqual({sum(allocation) for allocation in control.PROFILES.values()}, {12691, 54691, 118691})
+        self.assertEqual({sum(allocation) for allocation in control.PROFILES.values()}, {12691, 54691, 118691, 238691})
         self.assertEqual(control.configuration("memory-56000")["requested_ram_mb"], 56000)
         self.assertEqual(control.RAM_MB - 12691, 1309)
 
@@ -1134,7 +1135,8 @@ class SummaryAllocationEvidenceTests(unittest.TestCase):
             self.assertGreater(native, 9329)
             self.assertEqual(heap + native + control.RESERVED_MB,
                              {"heap-2048": 14000, "heap-1536": 14000,
-                              "memory-56000": 56000, "memory-120000": 120000, "memory-120000-threads-16": 120000}[profile])
+                              "memory-56000": 56000, "memory-120000": 120000, "memory-120000-threads-16": 120000,
+                              "memory-240000-threads-16": 240000}[profile])
             self.assertIn("-J-XX:+PrintFlagsFinal", control.query_command(
                 Path("/tool/codeql"), Path("/case/database"), Path("/case"), profile))
 

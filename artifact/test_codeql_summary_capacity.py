@@ -74,6 +74,28 @@ class CapacityProfileTests(unittest.TestCase):
         for profile in ("heap-2048", "heap-1536", "memory-56000", "memory-120000"):
             self.assertEqual(control.configuration(profile)["threads"], 4)
 
+    def test_240000_profile_changes_only_native_memory_at_same_cpu_count(self):
+        baseline = control.configuration("memory-120000-threads-16")
+        larger = control.configuration("memory-240000-threads-16")
+        self.assertEqual(larger, baseline | {"requested_ram_mb": 240000, "native_mb": 234595})
+        commands = [control.query_command(Path("/tool/codeql"), Path("/case/database"),
+                                         Path("/case"), profile, "projection")
+                    for profile in ("memory-120000-threads-16", "memory-240000-threads-16")]
+        fixed = lambda command: [arg for arg in command if not arg.startswith("--off-heap-ram=")]
+        self.assertEqual(fixed(commands[0]), fixed(commands[1]))
+        self.assertIn("--off-heap-ram=234595", commands[1])
+        observation = {"schema": 1, "max_heap_bytes_observed": [4096 * 1024**2],
+                       "off_heap_mb_observed": [234595], "evaluator_start_lines": 1,
+                       "pause_count": 0, "eviction_pause_count": 0}
+        control.validate_observations(observation, "memory-240000-threads-16")
+        with self.assertRaises(control.ControlError):
+            control.validate_observations(observation, "memory-120000-threads-16")
+        report = valid_report("heap-1536")
+        report["profile"] = "memory-240000-threads-16"
+        report["configuration"] = larger
+        with self.assertRaisesRegex(control.ControlError, "comparison report identity differs"):
+            control.compare_reports(valid_report("heap-2048"), report)
+
     def test_cpu_control_cannot_impersonate_the_hosted_comparison(self):
         report = valid_report("heap-1536")
         report["profile"] = "memory-120000-threads-16"
