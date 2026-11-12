@@ -1,0 +1,58 @@
+name: Nonempty Rust inline-read wrapper fixture
+
+on:
+  # This dedicated ref requests one isolated small-database validation.
+  push:
+    branches: [codex/codeql-inline-read-state-20261112]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-wrapper-fixture-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  wrapper-fixture:
+    name: Full 39-query wrapper and retained SummaryStats equality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        timeout-minutes: 3
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: |
+            artifact
+            .github/workflows
+      - name: Verify the fixture method and workflow contracts
+        timeout-minutes: 1
+        run: |
+          set -eu
+          /usr/bin/python3 -I -S -B -c 'import ast, pathlib; ast.parse(pathlib.Path("artifact/codeql_wrapper_fixture.py").read_text(encoding="utf-8"))'
+          git rev-parse HEAD 'HEAD^{tree}' > "$RUNNER_TEMP/qperiapt-wrapper-source.txt"
+          sh artifact/python-run.sh -m unittest -v test_codeql_workflow_contract
+      - name: Extract the frozen fixture and exercise the production analysis path
+        timeout-minutes: 20
+        run: |
+          set -eu
+          sh artifact/python-run.sh artifact/codeql_wrapper_fixture.py \
+            --output "$RUNNER_TEMP/qperiapt-codeql-wrapper-fixture"
+      - name: Retain raw diagnostics, results and admission receipts
+        if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-wrapper-fixture-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qperiapt-wrapper-source.txt
+            ${{ runner.temp }}/qperiapt-codeql-wrapper-fixture/evidence/**
+            ${{ runner.temp }}/qperiapt-codeql-wrapper-fixture/database/results/**
+            ${{ runner.temp }}/qperiapt-codeql-wrapper-fixture/extract-logs/**
+            ${{ runner.temp }}/qperiapt-codeql-wrapper-fixture/database-extracted/log/**
+            ${{ runner.temp }}/qperiapt-codeql-wrapper-fixture/analysis-plan/evaluator/**
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
