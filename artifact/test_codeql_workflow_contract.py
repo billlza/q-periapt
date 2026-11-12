@@ -298,11 +298,23 @@ class CodeQLWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("continue-on-error:", job)
         validation = steps.index("artifact/codeql_rust_publication.py")
         uploads = list(re.finditer(r"uses: github/codeql-action/upload-sarif@", steps))
-        self.assertEqual(len(uploads), 3)
+        self.assertEqual(len(uploads), 4)
         self.assertTrue(all(upload.start() > validation for upload in uploads))
-        for category in ("/language:rust", "/language:rust/target:wasm", "/language:rust/target:macos"):
+        for category in ("/language:rust", "/language:rust/target:wasm", "/language:rust/target:macos",
+                         "/language:rust/target:windows"):
             self.assertEqual(len(re.findall(r"^          category: " + re.escape(category) + "$",
                                            steps, re.MULTILINE)), 1)
+
+    def test_windows_profile_uses_real_cross_tools_and_the_same_complete_query_gate(self) -> None:
+        job = mapping(self.read("codeql.yml"), "rust", 2)
+        self.assertIn("- profile: windows\n            runner: ubuntu-24.04\n"
+                      "            bundle: linux64\n            rust_target: x86_64-pc-windows-gnu", job)
+        self.assertIn("targets: ${{ matrix.rust_target }}", job)
+        self.assertIn("if: matrix.profile == 'windows'", job)
+        self.assertIn("gcc-mingw-w64-x86-64-posix binutils-mingw-w64-x86-64", job)
+        self.assertNotIn("continue-on-error:", job)
+        self.assertEqual(job.count('codeql_rust_profile.py analyze --profile "$RUST_PROFILE"'), 1)
+        self.assertEqual(job.count("--summary-plan-mode official"), 1)
 
 
 if __name__ == "__main__":

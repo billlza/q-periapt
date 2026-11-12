@@ -202,9 +202,15 @@ jobs:
           - profile: native
             runner: ubuntu-24.04
             bundle: linux64
+            rust_target: wasm32-unknown-unknown
           - profile: wasm
             runner: ubuntu-24.04
             bundle: linux64
+            rust_target: wasm32-unknown-unknown
+          - profile: windows
+            runner: ubuntu-24.04
+            bundle: linux64
+            rust_target: x86_64-pc-windows-gnu
     env:
       RUST_PROFILE: ${{ matrix.profile }}
       CODEQL_EXPECTED_COMMIT: ${{ github.sha }}
@@ -216,7 +222,13 @@ jobs:
         with:
           toolchain: 1.99.0
           components: rust-src
-          targets: wasm32-unknown-unknown
+          targets: ${{ matrix.rust_target }}
+      - name: Install Windows cross compiler
+        if: matrix.profile == 'windows'
+        timeout-minutes: 5
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends gcc-mingw-w64-x86-64-posix binutils-mingw-w64-x86-64
       - name: Prepare fixed native protobuf compiler
         if: matrix.profile == 'native'
         timeout-minutes: 3
@@ -578,6 +590,11 @@ jobs:
         with:
           category: /language:rust/target:macos
           sarif_file: ${{ runner.temp }}/qperiapt-rust-publication/macos.sarif
+          wait-for-processing: true
+      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+        with:
+          category: /language:rust/target:windows
+          sarif_file: ${{ runner.temp }}/qperiapt-rust-publication/windows.sarif
           wait-for-processing: true
       - name: Retain paired coverage result
         if: always()

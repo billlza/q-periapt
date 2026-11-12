@@ -23,14 +23,15 @@ from codeql_rust_profile import ProfileRun, compiler_commands, extract_database,
 def sarif(profile="native"):
     return {"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "CodeQL", "semanticVersion": "2.27.4"}},
              "automationDetails": {"id": {"native": "/language:rust/", "wasm": "/language:rust/target:wasm/",
-                                           "macos": "/language:rust/target:macos/"}[profile]},
+                                           "macos": "/language:rust/target:macos/",
+                                           "windows": "/language:rust/target:windows/"}[profile]},
              "invocations": [{"executionSuccessful": True}], "results": []}]}
 
 
 class RustProfileTests(unittest.TestCase):
     def test_native_category_preserves_main_identity_without_accepting_other_targets(self) -> None:
         expected = {"native": "/language:rust", "wasm": "/language:rust/target:wasm",
-                    "macos": "/language:rust/target:macos"}
+                    "macos": "/language:rust/target:macos", "windows": "/language:rust/target:windows"}
         for name, category in expected.items():
             with self.subTest(profile=name):
                 self.assertEqual(profile_module.sarif_category(name), category)
@@ -44,7 +45,7 @@ class RustProfileTests(unittest.TestCase):
             validate_sarif(sarif(), "unreviewed")
 
     def test_linux_memory_policy_uses_the_actual_dataset_and_preserves_the_total_request(self) -> None:
-        for profile in ("native", "wasm", "macos"):
+        for profile in profile_module.TARGETS:
             with self.subTest(profile=profile), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
@@ -82,7 +83,7 @@ class RustProfileTests(unittest.TestCase):
                    ["-J-Xmx0M", "--off-heap-ram=9329"],
                    ["-J-Xmx03072M", "--off-heap-ram=9329"],
                    ["-J-Xmx3072M", "--off-heap-ram=9329", "--threads=1"]]
-        for profile in ("native", "wasm", "macos"):
+        for profile in profile_module.TARGETS:
             for resolution in invalid:
                 with self.subTest(profile=profile, resolution=resolution), tempfile.TemporaryDirectory() as temporary:
                     root = Path(temporary)
@@ -94,7 +95,7 @@ class RustProfileTests(unittest.TestCase):
                     self.assertFalse((run.evidence / "ANALYSIS.json").exists())
 
     def test_linux_memory_resolution_failure_preserves_failed_state(self) -> None:
-        for profile in ("native", "wasm", "macos"):
+        for profile in profile_module.TARGETS:
             with self.subTest(profile=profile), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 run = ProfileRun(root, root / "run", Path(sys.executable), {})
@@ -105,7 +106,7 @@ class RustProfileTests(unittest.TestCase):
                 self.assertFalse((run.evidence / "ANALYSIS.json").exists())
 
     def test_linux_allocation_record_is_an_exact_typed_profile_description(self) -> None:
-        for profile in ("native", "wasm", "macos"):
+        for profile in profile_module.TARGETS:
             receipt = profile_module.linux_query_memory(["-J-Xmx3072M", "--off-heap-ram=9329"], profile)
             profile_module.validate_linux_query_memory(receipt, profile)
             for key, value in (("schema", True), ("heap_mb", 3072.0), ("requested_ram_mb", 15000),
@@ -483,10 +484,20 @@ class RustProfileTests(unittest.TestCase):
                           "spqr", "whole-kem", "continuity-c", "sdk-rust"})
         for label, relative in (("independent-peer", "research/continuity-openssl-peer/native"),
                                 ("reference-account", "research/continuity-reference-app")):
-            self.assertIn((label, root / relative, ["--all-targets", "--all-features"]), native)
+            self.assertIn((label, root / relative, ["check", "--all-targets", "--all-features"]), native)
             self.assertNotIn(label, {name for name, _cwd, _args in wasm})
         with self.assertRaisesRegex(ValueError, "unknown"):
             compiler_commands(root, "unexpected")
+
+    def test_windows_profile_compiles_real_test_harnesses_for_platform_macro_coverage(self) -> None:
+        commands = {label: args for label, _cwd, args in compiler_commands(Path("/source"), "windows")}
+        self.assertEqual(set(commands), {"host-store", "engine-unit", "engine-connection", "continuity-c-unit"})
+        self.assertEqual(commands["host-store"], ["check", "-p", "q-periapt-host-store", "--all-targets"])
+        self.assertEqual(commands["engine-connection"], ["check", "--test", "owned_connection", "--all-features"])
+        for name in ("engine-unit", "continuity-c-unit"):
+            self.assertEqual(commands[name], ["test", "--no-run", "--lib", "--all-features"])
+        self.assertEqual(profile_module.TARGETS["windows"], "x86_64-pc-windows-gnu")
+        self.assertEqual(profile_module.profile_host("windows"), "linux")
 
     def test_workspace_lock_inventory_rejects_missing_added_and_substituted_roots(self) -> None:
         expected = profile_module.WORKSPACE_LOCKFILES

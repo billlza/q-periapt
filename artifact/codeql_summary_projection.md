@@ -104,7 +104,7 @@ compiled bytes; it performs no compilation or download of its own.
 ## Current production analysis
 
 The SDK workflow selects the unmodified official CodeQL 2.27.4 / Rust query
-pack 0.1.46 for native, WASM and macOS-origin Rust databases. The projection
+pack 0.1.46 for native, WASM, macOS-origin and Windows GNU Rust databases. The projection
 experiments above remain pinned to their separate 2.27.2 query manifest. Compilation and extraction retain their
 existing platform tools and source-coverage checks. Linux native preparation
 authenticates the fixed protoc 3.21.12 release by size and SHA-256, verifies its
@@ -112,8 +112,10 @@ version and compiles a schema with a standard protobuf import before exporting
 the tool paths. WASM preparation compiles an object with the runner's existing
 clang; profile preparation then records the selected compiler path and checks
 its WASM target support.
-These target-specific steps use the required tools directly without refreshing
-the operating-system package index. Each Linux analysis worker
+The Windows cross-target worker installs MinGW and records its target and version.
+It compiles the Windows storage, engine and C-consumer test contexts before
+extraction; the unchanged macro coverage validator requires these expansions
+alongside the other profiles. Each Linux analysis worker
 downloads the fixed 98,269,325-byte official Rust archive, verifies its digest,
 and passes it to `codeql_rust_profile.py analyze --summary-plan-mode official`.
 The production command uses the existing 14,000-MB budget, 9,329 MB outside the
@@ -146,7 +148,7 @@ CodeQL jobs queue by language or Rust target. A new PR run cancels its
 superseded workflow cohort and target jobs. Other events use independent outer
 workflow groups and retain each target's running job. A delayed platform job
 does not reserve every language's queue for those events. Publication
-still requires completed native, WASM and macOS results from its own workflow
+still requires completed native, WASM, macOS and Windows results from its own workflow
 and source revision.
 
 The one-off integration and nonempty-fixture workflows belong to their

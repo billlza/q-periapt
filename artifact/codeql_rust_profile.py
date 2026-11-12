@@ -26,7 +26,7 @@ import rust_sdk_profile as sdk
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {"native": "x86_64-unknown-linux-gnu", "wasm": "wasm32-unknown-unknown",
-           "macos": "aarch64-apple-darwin"}
+           "macos": "aarch64-apple-darwin", "windows": "x86_64-pc-windows-gnu"}
 VERSION = "2.27.4"
 QUERY_VERSION = "0.1.46"
 # The extractor overrides RUSTUP_TOOLCHAIN with 1.99.0. Match it for both
@@ -143,18 +143,28 @@ def compiler_commands(root: Path, profile: str):
     sdk.require(profile in TARGETS, "unknown Rust analysis profile")
     if profile == "wasm":
         return [
-            ("browser", root, ["-p", "q-periapt-sdk-wasm", "--features", "browser-continuity"]),
-            ("wasm-tests", root, ["-p", "q-periapt-wasm", "--tests", "--all-features"]),
+            ("browser", root, ["check", "-p", "q-periapt-sdk-wasm", "--features", "browser-continuity"]),
+            ("wasm-tests", root, ["check", "-p", "q-periapt-wasm", "--tests", "--all-features"]),
+        ]
+    if profile == "windows":
+        # These owners contain the Windows-only storage, key and C-facade
+        # branches. Build real unit-test binaries so cfg(test) is enabled;
+        # execution stays with the existing native Windows acceptance jobs.
+        return [
+            ("host-store", root, ["check", "-p", "q-periapt-host-store", "--all-targets"]),
+            ("engine-unit", root / consumers.CANDIDATE, ["test", "--no-run", "--lib", "--all-features"]),
+            ("engine-connection", root / consumers.CANDIDATE, ["check", "--test", "owned_connection", "--all-features"]),
+            ("continuity-c-unit", root / consumers.CONSUMERS["continuity-c"], ["test", "--no-run", "--lib", "--all-features"]),
         ]
     return [
-        ("workspace", root, ["--workspace", "--all-targets", "--features",
+        ("workspace", root, ["check", "--workspace", "--all-targets", "--features",
                               "q-periapt-sdk/sealed-operations,q-periapt-cli/policy-store-migration"]),
-        ("engine", root / consumers.CANDIDATE, ["--all-targets", "--all-features"]),
-        ("independent-peer", root / "research/continuity-openssl-peer/native", ["--all-targets", "--all-features"]),
-        ("reference-account", root / "research/continuity-reference-app", ["--all-targets", "--all-features"]),
-        ("spqr", root / "research/continuity-spqr-reference", ["--all-targets"]),
-        ("whole-kem", root / "research/continuity-whole-kem-reference", ["--all-targets"]),
-        *[(label, root / path, ["--all-targets", "--all-features"])
+        ("engine", root / consumers.CANDIDATE, ["check", "--all-targets", "--all-features"]),
+        ("independent-peer", root / "research/continuity-openssl-peer/native", ["check", "--all-targets", "--all-features"]),
+        ("reference-account", root / "research/continuity-reference-app", ["check", "--all-targets", "--all-features"]),
+        ("spqr", root / "research/continuity-spqr-reference", ["check", "--all-targets"]),
+        ("whole-kem", root / "research/continuity-whole-kem-reference", ["check", "--all-targets"]),
+        *[(label, root / path, ["check", "--all-targets", "--all-features"])
           for label, path in consumers.CONSUMERS.items()],
     ]
 
@@ -287,6 +297,17 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
         targets = run.command("clang-targets", [clang, "--print-targets"])
         sdk.require(b"wasm32" in targets, "clang does not support the WASM target")
         run.environment["CC_wasm32_unknown_unknown"] = clang
+    elif profile == "windows":
+        compiler = shutil.which("x86_64-w64-mingw32-gcc-posix")
+        archiver = shutil.which("x86_64-w64-mingw32-ar")
+        sdk.require(compiler is not None and archiver is not None, "Windows analysis requires MinGW")
+        compiler, archiver = str(Path(compiler).absolute()), str(Path(archiver).absolute())
+        target = run.command("windows-c-target", [compiler, "-dumpmachine"]).decode().strip()
+        sdk.require(target == "x86_64-w64-mingw32", "Windows C compiler target differs")
+        run.command("windows-c-version", [compiler, "--version"])
+        run.environment.update(CC_x86_64_pc_windows_gnu=compiler,
+                               AR_x86_64_pc_windows_gnu=archiver,
+                               CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=compiler)
     install_metadata_adapter(run, sysroot, run.configuration.compiler_host)
     locks = tracked_lockfiles(run.root)
     lock_hashes = {path: sdk.snapshot(run.root / path).sha256 for path in locks}
@@ -297,7 +318,7 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
     compiled = {}
     with prepared_consumers(run):
         for label, cwd, options in compiler_commands(run.root, profile):
-            argv = ["cargo", "+" + COMPILER, "check", *options, "--target", TARGETS[profile],
+            argv = ["cargo", "+" + COMPILER, *options, "--target", TARGETS[profile],
                     "--locked", "--offline", "--message-format=json-render-diagnostics"]
             stdout = run.command("compile-" + label, argv, cwd=cwd)
             compiled.update(collect_compiled_sources(run.root, cwd, stdout, source))

@@ -48,9 +48,15 @@ def _depfile_candidates(filenames: list[str], kinds: list[str]) -> set[Path]:
         if "custom-build" in kinds:
             candidates.update(artifact.parent.glob("*.d"))
         else:
-            stem = artifact.stem if artifact.suffix in (".rmeta", ".rlib", ".a", ".so", ".dylib") else artifact.name
-            if artifact.suffix in (".rmeta", ".rlib", ".a", ".so", ".dylib") and stem.startswith("lib"):
-                stem = stem[3:]
+            if artifact.name.endswith(".dll.a"):
+                # MinGW's import library and its DLL share the crate depfile.
+                stem = artifact.name.removesuffix(".dll.a").removeprefix("lib")
+            elif artifact.suffix in (".exe", ".dll"):
+                stem = artifact.stem
+            else:
+                stem = artifact.stem if artifact.suffix in (".rmeta", ".rlib", ".a", ".so", ".dylib") else artifact.name
+                if artifact.suffix in (".rmeta", ".rlib", ".a", ".so", ".dylib") and stem.startswith("lib"):
+                    stem = stem[3:]
             candidates.add(artifact.with_name(stem + ".d"))
     if not candidates or len(candidates) > 16:
         raise CodeQLRustQualityError("Cargo artifact has no bounded depfile candidates")

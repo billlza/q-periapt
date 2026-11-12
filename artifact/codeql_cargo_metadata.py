@@ -1,4 +1,4 @@
-"""Preserve host build dependencies when CodeQL requests WASM-filtered metadata.
+"""Preserve host build dependencies in CodeQL's cross-target metadata.
 
 Only the metadata dependency graph changes. Compilation arguments, cfg values,
 standard streams and Cargo's exit status pass through without modification.
@@ -36,9 +36,12 @@ def rewrite_metadata(arguments: list[str], host: str, roots: list[Path], cwd: Pa
             if manifest is not None:
                 raise ValueError("duplicate analysis manifest option")
             manifest = value
-    target = "wasm32-unknown-unknown"
-    if target not in filters:
+    cross_targets = {"wasm32-unknown-unknown", "x86_64-pc-windows-gnu"} & set(filters)
+    if not cross_targets:
         return list(arguments)
+    if len(cross_targets) != 1:
+        raise ValueError("unexpected cross-target metadata filter set")
+    target = next(iter(cross_targets))
     if filters not in ([target], [target, host]):
         raise ValueError("unexpected cross-target metadata filter set")
     location = Path(manifest) if manifest is not None else Path("Cargo.toml")

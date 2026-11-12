@@ -46,6 +46,22 @@ class CompilerSourceTests(unittest.TestCase):
         result = self.success()
         self.assertEqual(set(result), {"crates/example/src/lib.rs", "crates/example/src/enabled.rs"})
 
+    def test_windows_test_executable_uses_its_actual_depfile(self) -> None:
+        self.artifact["filenames"] = [str(self.target / "example-123.exe")]
+        self.assertEqual(set(self.success()), {"crates/example/src/lib.rs", "crates/example/src/enabled.rs"})
+        self.depfile.rename(self.target / "unrelated.d")
+        with self.assertRaisesRegex(CodeQLRustQualityError, "depfile"):
+            self.success()
+
+    def test_windows_dll_and_import_library_bind_the_same_crate_depfile(self) -> None:
+        self.artifact["target"]["kind"] = ["rlib", "cdylib"]
+        self.artifact["filenames"] = [str(self.target / name) for name in
+                                      ("libexample-123.rlib", "example-123.dll", "libexample-123.dll.a")]
+        self.assertEqual(set(self.success()), {"crates/example/src/lib.rs", "crates/example/src/enabled.rs"})
+        self.artifact["filenames"].append(str(self.target / "other.dll"))
+        with self.assertRaisesRegex(CodeQLRustQualityError, "depfile"):
+            self.success()
+
     def test_cargo_workspace_cwd_is_required_for_relative_dependencies(self) -> None:
         with self.assertRaisesRegex(CodeQLRustQualityError, "dependencies"):
             collect_compiled_sources(self.root, self.root,

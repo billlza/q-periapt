@@ -251,7 +251,7 @@ def prepare(run, archive: Path) -> AnalysisContext:
 
 def analysis_command(context: AnalysisContext, database: Path, evidence: Path,
                      profile: str, memory_arguments: list[str]) -> list[str]:
-    require(profile in ("native", "wasm", "macos"), "unknown official analysis profile")
+    require(profile in ("native", "wasm", "macos", "windows"), "unknown official analysis profile")
     require(memory_arguments == ["--ram=14000", "--off-heap-ram=9329"],
             "official analysis memory policy differs")
     category = "/language:rust" if profile == "native" else "/language:rust/target:" + profile
@@ -435,7 +435,7 @@ def validate_publication(directory: Path, analysis: dict, *, expected_mode: str 
     tool.update(codeql_sha256=LAUNCHER_SHA256, runtime_inventory_sha256=canonical_sha(runtime["files"]))
     require(record["tool"] == tool, "published private runtime identity differs")
     profile = analysis.get("profile")
-    require(profile in ("native", "wasm", "macos"), "unknown published official profile")
+    require(profile in ("native", "wasm", "macos", "windows"), "unknown published official profile")
     configuration = quality.hosted_configuration("linux")
     output = configuration.runner_temp / ("qperiapt-codeql-" + profile)
     root = output / "analysis-plan"

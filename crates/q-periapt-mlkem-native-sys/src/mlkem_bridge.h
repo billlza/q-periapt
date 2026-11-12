@@ -33,11 +33,16 @@ enum
   QPN_MLKEM1024_CIPHERTEXT_BYTES = MLKEM1024_CIPHERTEXTBYTES
 };
 
-#if defined(__GNUC__) || defined(__clang__)
+/* COFF exports are selected by the final DLL link, not ELF visibility. */
+#if !defined(_WIN32) && (defined(__GNUC__) || defined(__clang__))
 #define QPN_MLKEM_BRIDGE_HIDDEN __attribute__((visibility("hidden")))
-#define QPN_MLKEM_BRIDGE_MUST_CHECK __attribute__((warn_unused_result))
 #else
 #define QPN_MLKEM_BRIDGE_HIDDEN
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define QPN_MLKEM_BRIDGE_MUST_CHECK __attribute__((warn_unused_result))
+#else
 #define QPN_MLKEM_BRIDGE_MUST_CHECK
 #endif
 

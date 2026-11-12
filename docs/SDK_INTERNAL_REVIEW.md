@@ -17,6 +17,12 @@ all 39 decoded results matched the larger-memory run. The
 also includes positive and negative `?` return/callback cases and compilation
 of all four custom quality queries. These checks do not themselves establish
 current-source hosted qualification.
+On source `b31c3fff`, all three existing hosted profiles completed the full suite:
+native in 582.250 seconds, WASM in 275.843 seconds and macOS-origin in 379.425 seconds.
+Their independent profile validators passed, but paired publication rejected 769
+Windows-only macro entities with no compiled peer. This is a coverage gap, not
+a successful cohort. The added Windows GNU cross-target profile must complete
+the same full suite and unchanged paired macro checks before publication can pass.
 The runtime, query-pack, complete-query and paired-publication checks remain
 active. The earlier projection experiments below are historical evidence.
 

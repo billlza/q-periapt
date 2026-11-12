@@ -31,13 +31,13 @@ def latest_profile_directories(parent: Path, attempt: int) -> dict[str, Path]:
     entries = list(parent.iterdir())
     sdk.require(len(entries) <= 100, "too many profile artifacts")
     for path in entries:
-        match = re.fullmatch(r"codeql-rust-profile-(native|wasm|macos)-([1-9][0-9]*)", path.name)
+        match = re.fullmatch(r"codeql-rust-profile-(native|wasm|macos|windows)-([1-9][0-9]*)", path.name)
         sdk.require(match is not None and path.is_dir() and not path.is_symlink(), "unexpected profile artifact")
         name, generation = match[1], int(match[2])
         sdk.require(generation <= attempt, "profile artifact is from a future run attempt")
         if name not in selected or generation > selected[name][0]:
             selected[name] = (generation, path)
-    sdk.require(set(selected) == set(TARGETS), "Linux, WASM and macOS artifacts are all required")
+    sdk.require(set(selected) == set(TARGETS), "Linux, WASM, macOS and Windows artifacts are all required")
     # A failed newer artifact is never replaced by an older successful result.
     return {name: item[1] for name, item in selected.items()}
 

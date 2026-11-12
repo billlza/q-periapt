@@ -35,6 +35,16 @@ class CargoMetadataTests(unittest.TestCase):
         args = ["metadata", "--filter-platform=wasm32-unknown-unknown", "--manifest-path=Cargo.toml"]
         self.assertEqual(self.rewrite(args), [*args, "--filter-platform", self.host])
 
+    def test_windows_metadata_keeps_host_build_dependencies_without_changing_compilation(self) -> None:
+        args = ["metadata", "--filter-platform=x86_64-pc-windows-gnu", "--manifest-path=Cargo.toml"]
+        rewritten = [*args, "--filter-platform", self.host]
+        self.assertEqual(self.rewrite(args), rewritten)
+        self.assertEqual(self.rewrite(rewritten), rewritten)
+        build = ["test", "--no-run", "--lib", "--target", "x86_64-pc-windows-gnu"]
+        self.assertEqual(self.rewrite(build), build)
+        with self.assertRaisesRegex(ValueError, "filter set"):
+            self.rewrite([*args, "--filter-platform", "wasm32-unknown-unknown"])
+
     def test_missing_manifest_preserves_cargo_failure_boundary(self) -> None:
         self.assertFalse((self.root / "Cargo.toml").exists())
         self.assertEqual(self.rewrite(self.arguments)[-2:], ["--filter-platform", self.host])

@@ -24,7 +24,7 @@ class RustPublicationTests(unittest.TestCase):
         self.root = self.base / "source"
         (self.root / "src").mkdir(parents=True)
         self.sources = {}
-        for name in ("native", "web", "macos"):
+        for name in ("native", "web", "macos", "windows"):
             path = self.root / "src" / (name + ".rs")
             path.write_text("pub fn operation() {}\n")
             self.sources[path.relative_to(self.root).as_posix()] = self.digest(path)
@@ -35,15 +35,15 @@ class RustPublicationTests(unittest.TestCase):
         shutil.copyfile(original / "codeql_rust_queries.json", self.root / "artifact/codeql_rust_queries.json")
         self.inventory = self.read(self.root / "artifact/codeql_rust_queries.json")["queries"]
         self.paths = {}
-        for name, own in (("native", "native"), ("wasm", "web"), ("macos", "macos")):
+        for name, own in (("native", "native"), ("wasm", "web"), ("macos", "macos"), ("windows", "windows")):
             directory = self.artifacts / ("codeql-rust-profile-" + name + "-1")
             directory.mkdir()
             metrics = {key: 0 for key in quality.EXPECTED_METRICS}
-            metrics.update(extracted_files=3, successfully_extracted_files=3,
-                           source_macro_calls=3, unresolved_source_macro_calls=2, source_format_args=1)
+            metrics.update(extracted_files=4, successfully_extracted_files=4,
+                           source_macro_calls=4, unresolved_source_macro_calls=3, source_format_args=1)
             rows = [[f"src/{own}.rs", 3, 5, "format!...", "expanded", "code", {"label": "format!..."}],
                     *[[f"src/{other}.rs", 3, 5, "format!...", "unresolved", "code", {"label": "format!..."}]
-                      for other in ("native", "web", "macos") if other != own]]
+                      for other in ("native", "web", "macos", "windows") if other != own]]
             self.write(directory / "MacroCalls.json", rows)
             self.write(directory / "ExtractedPaths.json", [[path] for path in sorted(self.sources)])
             self.write(directory / "Metrics.json", list(map(list, metrics.items())))
@@ -155,7 +155,7 @@ class RustPublicationTests(unittest.TestCase):
                                wraps=publication.plan.validate_publication) as validator, \
                 mock.patch.object(publication.plan, "expected_identity") as identity:
             output = self.publish()
-        self.assertEqual(validator.call_count, 3)
+        self.assertEqual(validator.call_count, 4)
         for name, call in zip(publication.TARGETS, validator.call_args_list):
             self.assertEqual(call.args[0], self.paths[name])
             self.assertEqual(call.kwargs, {"expected_mode": "none"})
@@ -172,7 +172,7 @@ class RustPublicationTests(unittest.TestCase):
                 mock.patch.object(publication.plan, "expected_identity",
                                   return_value={"manifest_sha256": "f" * 64}):
             output = self.publish("--summary-plan-mode", "official")
-        self.assertEqual(validator.call_count, 3)
+        self.assertEqual(validator.call_count, 4)
         for name, call in zip(publication.TARGETS, validator.call_args_list):
             self.assertEqual(call.args[0], self.paths[name])
             self.assertEqual(call.args[1]["schema"], 3)
@@ -218,11 +218,11 @@ class RustPublicationTests(unittest.TestCase):
             with self.subTest(profile=name), self.assertRaises(ValueError):
                 self.validate(name)
 
-    def test_all_three_completed_profiles_are_required(self) -> None:
+    def test_all_four_completed_profiles_are_required(self) -> None:
         selected = publication.latest_profile_directories(self.artifacts, 1)
         self.assertEqual(selected, self.paths)
         result = validate_macro_profiles([self.validate(name) for name in publication.TARGETS])
-        self.assertEqual(result[publication.TARGETS["native"]]["inactive_with_compiled_peer"], 2)
+        self.assertEqual(result[publication.TARGETS["native"]]["inactive_with_compiled_peer"], 3)
         for name, path in self.paths.items():
             parked = self.base / "parked"
             path.rename(parked)
@@ -235,13 +235,13 @@ class RustPublicationTests(unittest.TestCase):
     def test_workflow_uploads_each_profile_once_with_its_strict_category(self) -> None:
         workflow = (publication.ROOT / ".github/workflows/codeql.yml").read_text()
         publication_job = workflow.split("\n  rust-publication:\n", 1)[1]
-        uploads = re.findall(r"category: (\S+)\n\s+sarif_file: [^\n]+/(native|wasm|macos)\.sarif", publication_job)
+        uploads = re.findall(r"category: (\S+)\n\s+sarif_file: [^\n]+/(native|wasm|macos|windows)\.sarif", publication_job)
         self.assertEqual(uploads, [("/language:rust", "native"), ("/language:rust/target:wasm", "wasm"),
-                                   ("/language:rust/target:macos", "macos")])
+                                   ("/language:rust/target:macos", "macos"), ("/language:rust/target:windows", "windows")])
 
     def test_rebinding_sarif_digest_cannot_change_a_profiles_category(self) -> None:
         categories = {"native": "/language:rust/", "wasm": "/language:rust/target:wasm/",
-                      "macos": "/language:rust/target:macos/"}
+                      "macos": "/language:rust/target:macos/", "windows": "/language:rust/target:windows/"}
         for name, expected in categories.items():
             directory = self.paths[name]
             self.assertEqual(self.validate(name).target, publication.TARGETS[name])
@@ -259,7 +259,7 @@ class RustPublicationTests(unittest.TestCase):
             self.write(directory / "ANALYSIS.json", analysis)
 
     def test_linux_requires_its_bound_actual_memory_resolution(self) -> None:
-        for name in ("native", "wasm", "macos"):
+        for name in publication.TARGETS:
             with self.subTest(profile=name):
                 directory = self.paths[name]
                 original = self.read(directory / "QUERY_MEMORY.json")
@@ -290,6 +290,10 @@ class RustPublicationTests(unittest.TestCase):
     def test_linux_and_wasm_cannot_certify_macos_only_code(self) -> None:
         with self.assertRaisesRegex(ValueError, "compiled peer"):
             validate_macro_profiles([self.validate("native"), self.validate("wasm")])
+
+    def test_linux_wasm_and_macos_cannot_certify_windows_only_code(self) -> None:
+        with self.assertRaisesRegex(ValueError, "compiled peer"):
+            validate_macro_profiles([self.validate(name) for name in ("native", "wasm", "macos")])
 
     def test_extraction_diagnostics_cannot_replace_a_completed_profile(self) -> None:
         directory = self.paths["macos"]
@@ -485,7 +489,7 @@ class RustPublicationTests(unittest.TestCase):
         rows[0][4] = "unresolved"
         self.write(directory / "MacroCalls.json", rows)
         profile = self.read(directory / "PROFILE.json")
-        profile["metrics"]["unresolved_source_macro_calls"] = 3
+        profile["metrics"]["unresolved_source_macro_calls"] = 4
         self.write(directory / "Metrics.json", list(map(list, profile["metrics"].items())))
         profile["macro_census_sha256"] = self.digest(directory / "MacroCalls.json")
         self.rebind_profile("native", profile)

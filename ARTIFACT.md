@@ -37,15 +37,22 @@ uses fixed platform paths or an explicit absolute `QPERIAPT_PYTHON`, never a PAT
 
 ## Rust CodeQL analysis boundary
 
-Rust analysis now has separate native Linux, Apple Silicon macOS and
-`wasm32-unknown-unknown` jobs. All select the explicit CodeQL 2.27.4 bundle and Rust 1.99.0 sysroot, compile the
+Rust analysis has separate native Linux, Apple Silicon macOS,
+`wasm32-unknown-unknown` and `x86_64-pc-windows-gnu` jobs. All select the explicit CodeQL 2.27.4 bundle and Rust 1.99.0 sysroot, compile the
 actual target with warnings denied, and extract the complete tracked Rust source
 inventory. Per-job Cargo homes and build directories stay outside the checkout.
 The analysis compiler and sysroot match the toolchain selected internally by
 the extractor; a procedural-macro version mismatch fails the quality gate.
-The WASM metadata adapter adds the host platform only to Cargo's filtered metadata
+The cross-target metadata adapter adds the host platform only to Cargo's filtered metadata
 request, preserving host build dependencies; compilation arguments, cfg values,
 standard streams and exit codes remain unchanged.
+
+The Windows GNU profile runs on Linux with MinGW. It compiles the storage library,
+the engine's library tests and connection integration target, and the C consumer's
+library tests. Real test binaries enable Windows `cfg(test)` modules; they are not
+executed on Linux. Native Windows MSVC CI retains runtime and installed-SDK
+acceptance. The additional profile supplies actual compiler and macro expansion
+evidence for Windows-only branches that no Linux, WASM or macOS peer can cover.
 
 Each full-suite analysis has a 360-minute job bound and a 300-minute process bound.
 The macOS extraction runs first in a separate, 120-minute preparation job. Its
@@ -61,7 +68,7 @@ compilations. It does not install the archived 2.27.2 projection patch.
 The pinned suite includes both `SummaryStats` and `SummaryStatsReduced`;
 the reduced result cannot replace a missing full result. Completed SARIF and
 quality records are retained without upload by the
-analysis jobs. A separate job verifies all three profiles before publication. Reruns
+analysis jobs. A separate job requires all four complete profiles before publication. Reruns
 may use a completed profile from an earlier attempt of the same workflow run and
 source commit; a newer incomplete profile never falls back to an older result.
 The selected attempts remain explicit in the paired receipt.
