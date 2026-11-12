@@ -13,7 +13,7 @@
        }
  
        module Stage<StageParam Param> implements StageSig {
-@@ -539,27 +545,165 @@
+@@ -539,27 +545,141 @@
           * argument in a call, and if so, `summaryCtx` records the
           * corresponding parameter position and access path of that argument.
           */
@@ -39,32 +39,8 @@
 +        // Typ is the singleton Unit in exactly the two selected stages. Keep its
 +        // node/type guards at their original branch positions while omitting it
 +        // from the recursive representation; stored still distinguishes None/Some.
-+        private newtype TUnitForwardState =
-+          TUnitForwardStateValue(Nd node, Cc cc, Ap ap, TypOption stored) {
-+            exists(SummaryCtx summaryCtx |
-+              fwdFlowUnitCandidate(node, cc, summaryCtx, ap, stored)
-+            )
-+          }
-+
-+        // The constructor is an injective encoding of all four state fields.
-+        // Only states witnessed by the unchanged candidate equation are admitted.
 +        pragma[nomagic]
-+        private predicate fwdFlowUnitPacked(TUnitForwardState state, SummaryCtx summaryCtx) {
-+          exists(Nd node, Cc cc, Ap ap, TypOption stored |
-+            fwdFlowUnitCandidate(node, cc, summaryCtx, ap, stored) and
-+            state = TUnitForwardStateValue(node, cc, ap, stored)
-+          )
-+        }
-+
-+        pragma[inline]
 +        private predicate fwdFlowUnit(
-+          Nd node, Cc cc, SummaryCtx summaryCtx, Ap ap, TypOption stored
-+        ) {
-+          fwdFlowUnitPacked(TUnitForwardStateValue(node, cc, ap, stored), summaryCtx)
-+        }
-+
-+        pragma[inline]
-+        private predicate fwdFlowUnitCandidate(
 +          Nd node, Cc cc, SummaryCtx summaryCtx, Ap ap, TypOption stored
 +        ) {
 +          Param::fuseUnitForwardState() and
@@ -191,7 +167,7 @@
              )
            )
          }
-@@ -616,7 +760,11 @@
+@@ -616,7 +736,11 @@
            )
            or
            // read
@@ -204,7 +180,7 @@
            apa = getApprox(ap)
            or
            // flow into a callable without summary context
-@@ -841,6 +989,30 @@
+@@ -841,6 +965,30 @@
              fwdFlow(node1, cc, summaryCtx, t, ap, stored) and
              apc = getHeadContent(ap) and
              readStepCand0(node1, apc, c, node2)
@@ -235,29 +211,7 @@
            )
          }
  
-@@ -1229,8 +1401,20 @@
-           fwdFlowIsEntered(call, arg, cc, ccc, summaryCtx, innerSummaryCtx)
-         }
- 
--        pragma[nomagic]
-+        // In the Unit stages, let the caller combine this join with its final
-+        // target node and guards before materializing the next forward state.
-+        pragma[inline]
-         private predicate fwdFlowThrough(
-+          Call call, Cc cc, SummaryCtx summaryCtx, Typ t, Ap ap, TypOption stored, RetNd ret
-+        ) {
-+          if Param::fuseUnitForwardState()
-+          then fwdFlowThrough0(call, _, cc, _, summaryCtx, t, ap, stored, ret, _)
-+          else fwdFlowThroughMaterialized(call, cc, summaryCtx, t, ap, stored, ret)
-+        }
-+
-+        // Keep the original materialized relation in every other stage.
-+        pragma[nomagic]
-+        private predicate fwdFlowThroughMaterialized(
-           Call call, Cc cc, SummaryCtx summaryCtx, Typ t, Ap ap, TypOption stored, RetNd ret
-         ) {
-           fwdFlowThrough0(call, _, cc, _, summaryCtx, t, ap, stored, ret, _)
-@@ -2849,6 +3033,10 @@
+@@ -2849,6 +2997,10 @@
      private module Stage3Param implements MkStage<Stage2>::StageParam {
        private module PrevStage = Stage2;
  
@@ -268,7 +222,7 @@
        class Typ = Unit;
  
        class Ap = ApproxAccessPathFront;
-@@ -2957,6 +3145,10 @@
+@@ -2957,6 +3109,10 @@
  
      private module Stage4Param implements MkStage<Stage3>::StageParam {
        private module PrevStage = Stage3;

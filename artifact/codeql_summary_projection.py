@@ -24,14 +24,14 @@ from evidence_io import parse_strict_json_bytes, read_regular_snapshot
 
 
 MANIFEST = Path(__file__).with_name("codeql_summary_projection.json")
-MANIFEST_SHA256 = "ffdfb959f58c124b8cf6fcf8403d67ffcad88daa9079b07324e9ca76913d482f"
+MANIFEST_SHA256 = "2a18d33d9607ab23253c21d855a86717a5a62962a58c484291def27ad7432a18"
 CAPSULE = Path(__file__).with_name("codeql-summary-projection-plan.zip")
 PATCH = Path(__file__).with_name("codeql_summary_projection.patch")
 DEPENDENCIES = Path(__file__).with_name("codeql_summary_projection_dependencies.json.gz")
 QUERY_MANIFEST = Path(__file__).with_name("codeql_rust_queries.json")
-COMPILER_INPUTS_DIGEST = "35df363e9ecc113bc3fd8ecb0dbba75c"
-COMPILED_INVENTORY_SHA256 = "c4d8ff365b8f1565e1d37ad2e08a3e5e408f7daf96c125fcc4933cbb16cd6d5f"
-PLAN_SHA256 = "125b249140c7eadab1e0d44bfc05be51f2a431d84533047dfb6e897a7552a9f6"
+COMPILER_INPUTS_DIGEST = "0981ba38c55592f0a63bb73d25a219bd"
+COMPILED_INVENTORY_SHA256 = "5a142da1b8ad8af3a5e2e60c91700408dda1e6ca31982ca321e6518bf2fdc50f"
+PLAN_SHA256 = "7816a3c84ad46c7b750f8e0b8ca1c96b5d941e5de1e5e593b7e11910e44b5c80"
 DEPENDENCY_PATH = "codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll"
 PATCH_PATH = "codeql/dataflow/internal/DataFlowImpl.qll"
 PLAN_PATH = capsule.PLAN_PATH
@@ -52,6 +52,7 @@ def manifest() -> dict:
     require(isinstance(value, dict) and type(value.get("schema")) is int and value["schema"] == 1
             and value.get("kind") == "qperiapt.codeql_summary_projection_plan"
             and value.get("mode") == "projection" and value.get("dynamic_join_order_mode") == "all"
+            and value.get("compiler_dynamic_join_order_mode") == "none"
             and value.get("compiler_inputs_digest") == COMPILER_INPUTS_DIGEST
             and value.get("compiled_inventory_sha256") == COMPILED_INVENTORY_SHA256
             and value.get("query_source_sha256") == capsule.SOURCE_SHA256
