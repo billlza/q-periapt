@@ -211,7 +211,29 @@
            )
          }
  
-@@ -2849,6 +2997,10 @@
+@@ -1229,8 +1377,20 @@
+           fwdFlowIsEntered(call, arg, cc, ccc, summaryCtx, innerSummaryCtx)
+         }
+ 
+-        pragma[nomagic]
++        // In the Unit stages, let the caller combine this join with its final
++        // target node and guards before materializing the next forward state.
++        pragma[inline]
+         private predicate fwdFlowThrough(
++          Call call, Cc cc, SummaryCtx summaryCtx, Typ t, Ap ap, TypOption stored, RetNd ret
++        ) {
++          if Param::fuseUnitForwardState()
++          then fwdFlowThrough0(call, _, cc, _, summaryCtx, t, ap, stored, ret, _)
++          else fwdFlowThroughMaterialized(call, cc, summaryCtx, t, ap, stored, ret)
++        }
++
++        // Keep the original materialized relation in every other stage.
++        pragma[nomagic]
++        private predicate fwdFlowThroughMaterialized(
+           Call call, Cc cc, SummaryCtx summaryCtx, Typ t, Ap ap, TypOption stored, RetNd ret
+         ) {
+           fwdFlowThrough0(call, _, cc, _, summaryCtx, t, ap, stored, ret, _)
+@@ -2849,6 +3009,10 @@
      private module Stage3Param implements MkStage<Stage2>::StageParam {
        private module PrevStage = Stage2;
  
@@ -222,7 +244,7 @@
        class Typ = Unit;
  
        class Ap = ApproxAccessPathFront;
-@@ -2957,6 +3109,10 @@
+@@ -2957,6 +3121,10 @@
  
      private module Stage4Param implements MkStage<Stage3>::StageParam {
        private module PrevStage = Stage3;

@@ -125,12 +125,12 @@ class FixedProjectionInputsTests(unittest.TestCase):
         value = projection.manifest()
         inventory, vendor_patch, _ = projection.source_inputs(value)
         self.assertEqual(digest(projection.CAPSULE.read_bytes()),
-                         "060522ee09abd85424c0355e5c4a5e8186a9740b9d3b472fe557fca41ea96ba5")
-        self.assertEqual(digest(vendor_patch), "7ed7b74db41c3184f3607edfb6b7cfdbf479314b6453a8d1ce8f47607845e473")
+                         "5bc8146161df01c59e5f341aa4c6df1ffa0d01306748b9bd250b6685b47cd351")
+        self.assertEqual(digest(vendor_patch), "6b31df517f7b9bc4151403fc186430c2ada338830d017e371f00cfc0d41ef961")
         self.assertEqual(len(inventory["original"]), 1175)
         self.assertEqual({name for name in inventory["original"]
                           if inventory["original"][name] != inventory["candidate"][name]}, {projection.DEPENDENCY_PATH})
-        self.assertEqual(value["compiler_inputs_digest"], "fcbc88b667fe0122ca51593e2594a017")
+        self.assertEqual(value["compiler_inputs_digest"], "2eade5adfceade707275b13623215093")
         self.assertEqual(value["query_source_sha256"], QUERY_HASHES[FULL_SUMMARY])
         self.assertEqual(len(value["query_pack_support_files"]), 9)
         compiled = {**COMPILED_HASHES, FULL_SUMMARY: projection.PLAN_SHA256}
