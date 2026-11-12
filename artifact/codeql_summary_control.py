@@ -39,7 +39,9 @@ import codeql_log_recovery as retained
 
 CLI_VERSION = "2.27.2"
 QUERY_VERSION = "0.1.44"
-PROFILES = {"heap-2048": (2048, 10643), "heap-1536": (1536, 11155)}
+# The extra profile is an isolated capacity experiment, never a production receipt.
+PROFILES = {"heap-2048": (2048, 10643), "heap-1536": (1536, 11155),
+            "memory-56000": (4096, 50595)}
 RAM_MB = 14000
 RESERVED_MB = 1309
 THREADS = 4
@@ -454,6 +456,8 @@ def query_command(codeql: Path, database: Path, root: Path, profile: str,
     return [str(codeql), "execute", "queries", f"-J-Xmx{heap}M", f"--off-heap-ram={native}", "-J-XX:+PrintFlagsFinal",
             "--threads=4", "--threat-model=local", "--warnings=show", "--dynamic-join-order-mode=" + join_mode,
             "--no-rerun", "--verbosity=progress", "--evaluator-log-level=5",
+            "--evaluator-log=" + str(root / "evidence/evaluator-events.jsonl"),
+            "--evaluator-log-minify", "--tuple-counting",
             "--common-caches=" + str(root / "cache"), "--logdir=" + str(root / "evidence/evaluator"),
             "--output=" + str(root / "results"), "--", str(database / "db-rust"), "path:" + str(root / "frozen.qls")]
 
@@ -664,7 +668,7 @@ def validate_observations(record: dict, profile: str) -> None:
 
 def configuration(profile: str) -> dict:
     heap, native = PROFILES[profile]
-    return {"requested_ram_mb": RAM_MB, "heap_mb": heap, "native_mb": native,
+    return {"requested_ram_mb": heap + native + RESERVED_MB, "heap_mb": heap, "native_mb": native,
             "reserved_mb": RESERVED_MB, "threads": THREADS, "deadline_seconds": EVALUATION_SECONDS}
 
 
