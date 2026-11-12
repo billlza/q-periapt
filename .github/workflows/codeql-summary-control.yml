@@ -63,7 +63,7 @@ jobs:
             artifact/codeql-summary-projection-plan.zip
             artifact/codeql-summary-projection-plan.LICENSE
             artifact/codeql_log_recovery.py
-            artifact/codeql_rust_queries.json
+            artifact/codeql-fixtures/rust-queries-2.27.2.json
             artifact/bounded_process.py
             artifact/evidence_io.py
             artifact/python-run.sh
@@ -135,7 +135,7 @@ jobs:
             artifact/codeql-summary-projection-plan.zip
             artifact/codeql-summary-projection-plan.LICENSE
             artifact/codeql_log_recovery.py
-            artifact/codeql_rust_queries.json
+            artifact/codeql-fixtures/rust-queries-2.27.2.json
             artifact/bounded_process.py
             artifact/evidence_io.py
             artifact/python-run.sh

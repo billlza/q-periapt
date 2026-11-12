@@ -21,7 +21,7 @@ from codeql_rust_profile import ProfileRun, compiler_commands, extract_database,
 
 
 def sarif(profile="native"):
-    return {"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "CodeQL", "semanticVersion": "2.27.2"}},
+    return {"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "CodeQL", "semanticVersion": "2.27.4"}},
              "automationDetails": {"id": {"native": "/language:rust/", "wasm": "/language:rust/target:wasm/",
                                            "macos": "/language:rust/target:macos/"}[profile]},
              "invocations": [{"executionSuccessful": True}], "results": []}]}
@@ -366,7 +366,7 @@ class RustProfileTests(unittest.TestCase):
 
             def command(label, argv, **kwargs):
                 if label == "codeql-version":
-                    return b"2.27.2\n"
+                    return b"2.27.4\n"
                 if label == "rust-version":
                     return b"rustc 1.98.1 (48a229cea 2026-09-01)\nhost: x86_64-unknown-linux-gnu\n"
                 if label == "rust-sysroot":
@@ -420,7 +420,7 @@ class RustProfileTests(unittest.TestCase):
                 run = ProfileRun(root, root / "run", Path(sys.executable), {}, host=profile_module.profile_host(name))
                 def command(label, *_args, **_kwargs):
                     return {
-                        "codeql-version": b"2.27.2\n",
+                        "codeql-version": b"2.27.4\n",
                         "rust-version": ("rustc 1.98.1 (48a229cea 2026-09-01)\nhost: " + run.configuration.compiler_host + "\n").encode(),
                         "rust-sysroot": os.fsencode(sysroot),
                     }.get(label, b"compiler output")
@@ -592,7 +592,7 @@ class RustProfileTests(unittest.TestCase):
             with mock.patch.object(profile_module.quality, "require_repository_target_absent"), \
                     mock.patch.object(profile_module.quality, "require_clean_checkout"), \
                     mock.patch.object(profile_module.quality, "tracked_rust_paths", return_value=[]), \
-                    mock.patch.object(run, "command", side_effect=[b"2.27.2\n", compiler]) as command:
+                    mock.patch.object(run, "command", side_effect=[b"2.27.4\n", compiler]) as command:
                 with self.assertRaisesRegex(ValueError, "compiler or host"):
                     profile_module.prepare(run, "macos", "a" * 40)
             self.assertEqual([call.args[0] for call in command.call_args_list], ["codeql-version", "rust-version"])

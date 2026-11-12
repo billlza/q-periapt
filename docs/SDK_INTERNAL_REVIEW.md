@@ -8,8 +8,20 @@ kept separate from completed observations.
 
 ## Verification turnaround and maintenance cost
 
+The current CI configuration uses the unmodified official CodeQL 2.27.4 Rust
+query pack. A retained old macOS database completed all 39 queries in 668.612
+seconds with four threads and a 56,000-MB query budget. This is an isolated
+version feasibility result. The 14,000-MB control completed in 978.288 seconds;
+all 39 decoded results matched the larger-memory run. The
+[recorded validation](../research/sdk-alpha1/evidence/20261112-codeql-official-query-pack/VALIDATION.json)
+also includes positive and negative `?` return/callback cases and compilation
+of all four custom quality queries. These checks do not themselves establish
+current-source hosted qualification.
+The runtime, query-pack, complete-query and paired-publication checks remain
+active. The earlier projection experiments below are historical evidence.
+
 Verification turnaround is part of implementation maintenance. The
-[current production path](../artifact/codeql_summary_projection.md) combines
+[archived 2.27.2 projection path](../artifact/codeql_summary_projection.md) combines
 Stage3/Stage4 read-target projection, forward-state fusion and five-column
 Unit state while retaining all 39 selected queries. In the two stages whose
 type domain is a singleton, the candidate-generation and filtering layers feed

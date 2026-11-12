@@ -304,7 +304,7 @@ class RustTransferTests(unittest.TestCase):
     def test_pending_transfer_only_admits_profile_after_linux_quality_succeeds(self):
         self.import_pending_quality()
         inputs = (self.run.evidence / "EXTRACTION_INPUTS.json").read_bytes()
-        with mock.patch.object(self.run, "command", return_value=b"2.27.2\n"), \
+        with mock.patch.object(self.run, "command", return_value=b"2.27.4\n"), \
                 mock.patch.object(profile_module, "collect_quality", side_effect=self.quality_result):
             profile_module.qualify_macos(self.run, "a" * 40)
         profile = transfer.read_json(self.run.evidence / "PROFILE.json")
@@ -320,7 +320,7 @@ class RustTransferTests(unittest.TestCase):
 
     def test_linux_quality_failure_keeps_pending_extraction_without_profile(self):
         self.import_pending_quality()
-        with mock.patch.object(self.run, "command", return_value=b"2.27.2\n"), \
+        with mock.patch.object(self.run, "command", return_value=b"2.27.4\n"), \
                 mock.patch.object(profile_module, "collect_quality", side_effect=ValueError("query timeout")), \
                 self.assertRaisesRegex(ValueError, "query timeout"):
             profile_module.qualify_macos(self.run, "a" * 40)
@@ -344,7 +344,7 @@ class RustTransferTests(unittest.TestCase):
             # Replace the read-only inode, not its mode, to test receipt binding.
             data = path.read_bytes(); path.unlink(); path.write_bytes(data + b" ")
             return result
-        with mock.patch.object(self.run, "command", return_value=b"2.27.2\n"), \
+        with mock.patch.object(self.run, "command", return_value=b"2.27.4\n"), \
                 mock.patch.object(profile_module, "collect_quality", side_effect=replace), \
                 self.assertRaisesRegex(ValueError, "changed during qualification"):
             profile_module.qualify_macos(self.run, "a" * 40)

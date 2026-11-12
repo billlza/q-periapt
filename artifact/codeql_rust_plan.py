@@ -1,9 +1,9 @@
-"""Opt-in production admission for the fixed Stage3/Stage4 SummaryStats plan.
+"""Production admission for the complete unmodified official Rust query pack.
 
-Extraction keeps its existing hosted tool and target-quality contract. Only an
-explicit projection analysis creates this private runtime; its archive, vendor
-patch, query roots and complete compiled capsule are checked before execution
-and again before its receipt can enter publication. This module does not fetch
+Extraction keeps its existing hosted tool and target-quality contract. Explicit
+official analysis creates a private runtime. Its archive, query roots, libraries
+and complete precompiled pack are checked before execution and again before
+its receipt can enter publication. This module does not fetch
 an archive, compile a query, select a smaller suite or upload SARIF.
 """
 from __future__ import annotations
@@ -21,21 +21,20 @@ import tempfile
 import codeql_evaluator_logs as evaluator_logs
 import codeql_rust_quality as quality
 import codeql_summary_plan as capsule
-import codeql_summary_projection as projection
+import codeql_rust_official as official
 from evidence_io import (consume_regular_snapshot, fresh_output_directory,
                          parse_strict_json_bytes, read_regular_snapshot)
 
 
-MODES = ("none", "projection")
-PRODUCTION_MANIFEST_SHA256 = "aff9e8e5138909da53acc5f75c774e7bb31e1f0d4281546015f6ffb3ae4f9a6d"
-STAGE34_COMPILER_KEY = "fcbc88b667fe0122ca51593e2594a017"
-LAUNCHER_SHA256 = "5010324098d11f9e2d34e0fcf53bb44e40e8e3ffc8aecefe695269b54edaa413"
-PACK_RELATIVE = "qlpacks/codeql/rust-queries/0.1.44"
+MODES = ("none", "official")
+PRODUCTION_MANIFEST_SHA256 = official.MANIFEST_SHA256
+LAUNCHER_SHA256 = "bb3a754e126ed061b5f3356531cd5501872ab3864bd665b2d1afdbf8a67a146d"
+PACK_RELATIVE = "qlpacks/codeql/rust-queries/0.1.46"
 # Derived by streaming the exact authenticated archive, excluding only the
-# target pack whose original/effective identities are admitted by projection.
-RUNTIME_INVENTORY_SHA256 = "1d61c12cb67e01730a1ec5031aefe669035e52290081dc6822333cb5ab861c90"
-RUNTIME_FILE_COUNT = 2282
-RUNTIME_TOTAL_BYTES = 231156107
+# target pack whose complete identity is admitted separately.
+RUNTIME_INVENTORY_SHA256 = "27639f8f9f76ebaba9ec68c2535490ca9634ad6fe023eed4567c0d4afabbb440"
+RUNTIME_FILE_COUNT = 2297
+RUNTIME_TOTAL_BYTES = 231701978
 MAX_RUNTIME_FILES = 5000
 MAX_RUNTIME_BYTES = 512 * 1024**2
 MAX_RUNTIME_FILE_BYTES = 64 * 1024**2
@@ -54,14 +53,13 @@ UNADMITTED_DATABASE_PATHS = (
     "overlay-path-transformer", "working/overlay",
 )
 require = capsule.require
-canonical_sha = projection.canonical_sha
+canonical_sha = official.canonical_sha
 
 
 def expected_identity() -> dict:
-    value = projection.expected_identity()
-    require(value["manifest_sha256"] == PRODUCTION_MANIFEST_SHA256
-            and value["compiler_inputs_digest"] == STAGE34_COMPILER_KEY,
-            "production requires the fixed Stage3/Stage4 projection identity")
+    value = official.expected_identity()
+    require(value["manifest_sha256"] == PRODUCTION_MANIFEST_SHA256,
+            "production requires the fixed official query pack identity")
     return value
 
 
@@ -191,7 +189,7 @@ def admit_database(database: Path) -> dict:
     fields = capsule.database_metadata_fields(metadata.data.decode("utf-8"))
     require(fields.get("overlayBaseDatabase") == ["false"]
             and fields.get("overlayDatabase") == ["false"],
-            "projection analysis requires an explicit non-overlay database")
+            "official analysis requires an explicit non-overlay database")
     source_root = fields.get("sourceLocationPrefix")
     require(isinstance(source_root, list) and len(source_root) == 1 and bool(source_root[0]),
             "analysis database source root is missing or duplicated")
@@ -226,14 +224,14 @@ def prepare(run, archive: Path) -> AnalysisContext:
     database_before = admit_database(run.configuration.database)
     result_root = run.configuration.database / "results/codeql/rust-queries"
     require(not result_root.exists() and not result_root.is_symlink(),
-            "projection analysis requires fresh query results")
+            "official analysis requires fresh query results")
     tool_root = extract_runtime(archive, root / "tool", run.command)
     runtime = runtime_inventory(tool_root)
     codeql = tool_root / "codeql"
     tool = {key: identity[key] for key in
             ("codeql_version", "query_pack", "tool_bundle_bytes", "tool_bundle_sha256")}
     tool.update(codeql_sha256=LAUNCHER_SHA256, runtime_inventory_sha256=canonical_sha(runtime))
-    query_manifest = read_regular_snapshot(projection.QUERY_MANIFEST, maximum=64 * 1024,
+    query_manifest = read_regular_snapshot(official.QUERY_MANIFEST, maximum=64 * 1024,
                                            label="production query manifest")
     capsule.validate_tool_identity(identity, tool, query_manifest_sha256=query_manifest.sha256)
     version = run.command("plan-version", [
@@ -241,8 +239,8 @@ def prepare(run, archive: Path) -> AnalysisContext:
     ]).decode().strip()
     require(version == identity["codeql_version"], "private analysis CodeQL version differs")
     pack = tool_root / PACK_RELATIVE
-    before = projection.install(pack, run.evidence)
-    require(before == identity, "installed production projection identity differs")
+    before = official.admit(pack, run.evidence)
+    require(before == identity, "admitted production official identity differs")
     queries = parse_strict_json_bytes(query_manifest.data, label="production query manifest")["queries"]
     suite = root / "frozen.qls"
     capsule.write_exclusive(suite, frozen_suite(pack, queries))
@@ -253,16 +251,16 @@ def prepare(run, archive: Path) -> AnalysisContext:
 
 def analysis_command(context: AnalysisContext, database: Path, evidence: Path,
                      profile: str, memory_arguments: list[str]) -> list[str]:
-    require(profile in ("native", "wasm", "macos"), "unknown projection analysis profile")
+    require(profile in ("native", "wasm", "macos"), "unknown official analysis profile")
     require(memory_arguments == ["--ram=14000", "--off-heap-ram=9329"],
-            "projection analysis memory policy differs")
+            "official analysis memory policy differs")
     category = "/language:rust" if profile == "native" else "/language:rust/target:" + profile
     return [
         str(context.codeql), "database", "analyze", str(database), str(context.suite),
         "--format=sarif-latest", "--output=" + str(evidence / "results.sarif"),
         "--threads=4", *memory_arguments, "--threat-model=local", "--no-download",
         "--common-caches=" + str(context.root / "cache"), "--sarif-category=" + category,
-        "--dynamic-join-order-mode=all", "--verbosity=progress",
+        "--dynamic-join-order-mode=none", "--verbosity=progress",
         "--logdir=" + str(context.root / "evaluator"),
         "--qlconfig-file=" + str(context.root / "qlconfig.yml"),
     ]
@@ -280,8 +278,8 @@ def guard(run, context: AnalysisContext):
         try:
             require(runtime_inventory(context.codeql.parent) == context.runtime,
                     "analysis runtime changed during evaluation")
-            context.after = projection.validate(context.pack)
-            require(context.after == context.before, "projection plan changed during evaluation")
+            context.after = official.validate(context.pack)
+            require(context.after == context.before, "official plan changed during evaluation")
             context.database_after = admit_database(run.configuration.database)
             require(context.database_after["source_root"] == context.database_before["source_root"],
                     "analysis database source root changed")
@@ -367,8 +365,8 @@ def complete(run, context: AnalysisContext, analysis: dict, command: list[str], 
         label="analysis memory receipt").data, label="analysis memory receipt")
     validate_observations(observations, context.pack, queries, memory["heap_mb"], completion=completion)
     record = {
-        "schema": 2, "kind": "qperiapt.codeql_rust_projection_analysis", "completed": True,
-        "summary_plan_mode": "projection",
+        "schema": 2, "kind": "qperiapt.codeql_rust_official_analysis", "completed": True,
+        "summary_plan_mode": "official",
         **{key: analysis[key] for key in
            ("profile", "target", "source_commit", "run_id", "run_attempt", "query_inventory_sha256")},
         "summary_plan_before": context.before, "summary_plan_after": context.after,
@@ -397,11 +395,11 @@ def validate_publication(directory: Path, analysis: dict, *, expected_mode: str 
                 and "summary_plan_mode" not in analysis and "analysis_plan_sha256" not in analysis
                 and not any(path.name.startswith(("ANALYSIS_PLAN", "SUMMARY_PLAN"))
                             or path.name == RUNTIME_RECEIPT for path in directory.iterdir()),
-                "default production publication contains a projection plan")
+                "default production publication contains an explicit plan")
         return
     require(type(analysis.get("schema")) is int and analysis["schema"] == 3
-            and analysis.get("summary_plan_mode") == "projection",
-            "projection production publication has no explicit plan identity")
+            and analysis.get("summary_plan_mode") == "official",
+            "official production publication has no explicit plan identity")
     snapshot = read_regular_snapshot(directory / PLAN_RECEIPT, maximum=MAX_RECEIPT_BYTES,
                                      label="published analysis plan")
     require(snapshot.sha256 == analysis.get("analysis_plan_sha256"),
@@ -415,14 +413,14 @@ def validate_publication(directory: Path, analysis: dict, *, expected_mode: str 
     }
     require(isinstance(record, dict) and set(record) == keys
             and type(record["schema"]) is int and record["schema"] == 2
-            and record["kind"] == "qperiapt.codeql_rust_projection_analysis"
-            and record["completed"] is True and record["summary_plan_mode"] == "projection"
+            and record["kind"] == "qperiapt.codeql_rust_official_analysis"
+            and record["completed"] is True and record["summary_plan_mode"] == "official"
             and all(record[key] == analysis.get(key) for key in
                     ("profile", "target", "source_commit", "run_id", "run_attempt", "query_inventory_sha256")),
             "published analysis plan schema or workflow identity differs")
     identity = expected_identity()
     require(record["summary_plan_before"] == record["summary_plan_after"] == identity,
-            "published analysis projection identity differs")
+            "published analysis official identity differs")
     runtime_snapshot = read_regular_snapshot(directory / RUNTIME_RECEIPT, maximum=MAX_RECEIPT_BYTES,
                                              label="published analysis runtime")
     require(runtime_snapshot.sha256 == record["runtime_receipt_sha256"],
@@ -437,7 +435,7 @@ def validate_publication(directory: Path, analysis: dict, *, expected_mode: str 
     tool.update(codeql_sha256=LAUNCHER_SHA256, runtime_inventory_sha256=canonical_sha(runtime["files"]))
     require(record["tool"] == tool, "published private runtime identity differs")
     profile = analysis.get("profile")
-    require(profile in ("native", "wasm", "macos"), "unknown published projection profile")
+    require(profile in ("native", "wasm", "macos"), "unknown published official profile")
     configuration = quality.hosted_configuration("linux")
     output = configuration.runner_temp / ("qperiapt-codeql-" + profile)
     root = output / "analysis-plan"
@@ -447,11 +445,11 @@ def validate_publication(directory: Path, analysis: dict, *, expected_mode: str 
     require(record["query_command"] == analysis_command(
         context, configuration.database, output / "evidence", profile,
         ["--ram=14000", "--off-heap-ram=9329"]),
-        "published projection analysis command differs")
+        "published official analysis command differs")
     queries = parse_strict_json_bytes(read_regular_snapshot(
-        projection.QUERY_MANIFEST, maximum=64 * 1024,
-        label="published projection query manifest").data,
-        label="published projection query manifest")["queries"]
+        official.QUERY_MANIFEST, maximum=64 * 1024,
+        label="published official query manifest").data,
+        label="published official query manifest")["queries"]
     require(record["suite_sha256"] == hashlib.sha256(frozen_suite(context.pack, queries)).hexdigest()
             and record["qlconfig_sha256"] == hashlib.sha256(QLCONFIG).hexdigest(),
             "published frozen suite or QL configuration identity differs")

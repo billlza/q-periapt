@@ -38,7 +38,7 @@ uses fixed platform paths or an explicit absolute `QPERIAPT_PYTHON`, never a PAT
 ## Rust CodeQL analysis boundary
 
 Rust analysis now has separate native Linux, Apple Silicon macOS and
-`wasm32-unknown-unknown` jobs. All select the explicit CodeQL 2.27.2 bundle and Rust 1.98.1 sysroot, compile the
+`wasm32-unknown-unknown` jobs. All select the explicit CodeQL 2.27.4 bundle and Rust 1.98.1 sysroot, compile the
 actual target with warnings denied, and extract the complete tracked Rust source
 inventory. Per-job Cargo homes and build directories stay outside the checkout.
 The WASM metadata adapter adds the host platform only to Cargo's filtered metadata
@@ -53,7 +53,10 @@ while giving the full query suite the reviewed Linux memory budget.
 Extraction and active-source quality are checked before running all 39 pinned
 security-extended queries, including full `SummaryStats`. Query text hashes are
 fixed by `artifact/codeql_rust_queries.json`; every expected fresh BQRS result is
-required. The pinned suite includes both `SummaryStats` and `SummaryStatsReduced`;
+required. Official analysis admits the complete unmodified query pack and private
+runtime before and after evaluation, with 39 precompiled loads and zero implicit
+compilations. It does not install the archived 2.27.2 projection patch.
+The pinned suite includes both `SummaryStats` and `SummaryStatsReduced`;
 the reduced result cannot replace a missing full result. Completed SARIF and
 quality records are retained without upload by the
 analysis jobs. A separate job verifies all three profiles before publication. Reruns
@@ -189,7 +192,7 @@ each database within the 14,000-MB total request. The resolved arguments and the
 typed allocation record are bound into the completed analysis.
 Both extraction platforms retain the 1800-second Metrics limit and 300-second limits for other queries and decoding.
 Resource failures block publication. The fixed-path adapter selects the platform's
-CodeQL 2.27.2 toolcache path and workflow database layout, checks file types, requires current-user-owned database
+CodeQL 2.27.4 toolcache path and workflow database layout, checks file types, requires current-user-owned database
 paths without cross-account write permission, and revalidates open path identities
 around queries and decoding. The compiler host is pinned to Linux x86_64 or macOS arm64;
 the macOS analysis does not add Intel Mac support. Each target must complete its own

@@ -27,7 +27,7 @@ EXTRACTED_PATHS_QUERY = QUERY_DIR / "ExtractedPaths.ql"
 METRICS_QUERY = QUERY_DIR / "Metrics.ql"
 UNRESOLVED_MACROS_QUERY = QUERY_DIR / "UnresolvedMacros.ql"
 FIXED_CODEQL_BINARY = pathlib.Path(
-    "/opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/codeql"
+    "/opt/hostedtoolcache/CodeQL/2.27.4/x64/codeql/codeql"
 )
 FIXED_CODEQL_DATABASE = pathlib.Path(
     "/home/runner/work/_temp/qperiapt-codeql-database/rust"
@@ -238,7 +238,7 @@ def hosted_configuration(host: str) -> HostedConfiguration:
         temporary = pathlib.Path("/Users/runner/work/_temp")
         return HostedConfiguration(
             host, "aarch64-apple-darwin",
-            pathlib.Path("/Users/runner/hostedtoolcache/CodeQL/2.27.2/arm64/codeql/codeql"),
+            pathlib.Path("/Users/runner/hostedtoolcache/CodeQL/2.27.4/arm64/codeql/codeql"),
             temporary / "qperiapt-codeql-database/rust", temporary, 2, 5500,
         )
     raise CodeQLRustQualityError("unsupported hosted Rust analysis platform")

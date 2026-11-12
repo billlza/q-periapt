@@ -1598,9 +1598,9 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("targets: wasm32-unknown-unknown", rust)
         self.assertIn(
             "tools: https://github.com/github/codeql-action/releases/download/"
-            "codeql-bundle-v2.27.2/codeql-bundle-${{ matrix.bundle }}.tar.gz", rust)
+            "codeql-bundle-v2.27.4/codeql-bundle-${{ matrix.bundle }}.tar.gz", rust)
         for job, bundle in ((macos_prepare, "osx64"), (macos_analysis, "linux64")):
-            self.assertIn("codeql-bundle-v2.27.2/codeql-bundle-" + bundle + ".tar.gz", job)
+            self.assertIn("codeql-bundle-v2.27.4/codeql-bundle-" + bundle + ".tar.gz", job)
         dependencies = extract_named_workflow_step(macos_prepare, "Install macOS analysis build dependencies")
         self.assertIn('test "$(uname -m)" = arm64', dependencies)
         # Every independently successful target and the coverage validator
@@ -1676,7 +1676,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         for name in ("CODEQL_BINARY", "CODEQL_DATABASE_LOCATIONS", "CODEQL_RUNNER_TEMP"):
             self.assertNotIn('os.environ.get("' + name + '"', quality_source)
         self.assertEqual(str(codeql_rust_quality.FIXED_CODEQL_BINARY),
-                         "/opt/hostedtoolcache/CodeQL/2.27.2/x64/codeql/codeql")
+                         "/opt/hostedtoolcache/CodeQL/2.27.4/x64/codeql/codeql")
         self.assertEqual(str(codeql_rust_quality.FIXED_CODEQL_DATABASE),
                          "/home/runner/work/_temp/qperiapt-codeql-database/rust")
         self.assertEqual(str(codeql_rust_quality.FIXED_RUNNER_TEMP), "/home/runner/work/_temp")
@@ -1735,7 +1735,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         normalized = " ".join(guide.split())
         self.assertIn("## Rust CodeQL analysis boundary", guide)
         self.assertIn("separate native Linux, Apple Silicon macOS and `wasm32-unknown-unknown` jobs", normalized)
-        self.assertIn("CodeQL 2.27.2 bundle and Rust 1.98.1 sysroot", normalized)
+        self.assertIn("CodeQL 2.27.4 bundle and Rust 1.98.1 sysroot", normalized)
         self.assertIn("actual target with warnings denied", normalized)
         self.assertIn(
             f"{codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT} tracked `.rs` files",

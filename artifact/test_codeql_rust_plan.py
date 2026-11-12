@@ -1,4 +1,4 @@
-"""Projection boundaries with simulated CodeQL commands and one real stdin child."""
+"""Official boundaries with simulated CodeQL commands and one real stdin child."""
 from __future__ import annotations
 
 from contextlib import ExitStack
@@ -36,7 +36,7 @@ def replace_fixture(path: Path, data: bytes) -> None:
 
 @unittest.skipUnless(os.name == "posix" and hasattr(os, "geteuid"),
                      "private runtime ownership, mode and descriptor admission require POSIX")
-class ProductionProjectionTests(unittest.TestCase):
+class ProductionOfficialTests(unittest.TestCase):
     def setUp(self) -> None:
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -61,12 +61,12 @@ class ProductionProjectionTests(unittest.TestCase):
             "profile": "native", "target": profile.TARGETS["native"], "source_commit": "a" * 40,
             "run_id": "123", "run_attempt": "1", "active_target_quality_passed": True,
         })
-        self.query_names = json.loads(plan.projection.QUERY_MANIFEST.read_text())["queries"]
+        self.query_names = json.loads(plan.official.QUERY_MANIFEST.read_text())["queries"]
         self.sources = {name: ("// fixture " + name + "\n").encode() for name in self.query_names}
         self.queries = {name: digest(data) for name, data in self.sources.items()}
         self.query_manifest = self.source / "artifact/codeql_rust_queries.json"
         write(self.query_manifest, json.dumps({
-            "codeql_version": "2.27.2", "query_pack": "0.1.44", "queries": self.queries,
+            "codeql_version": "2.27.4", "query_pack": "0.1.46", "queries": self.queries,
         }).encode())
         self.archive = self.root / "fixed.tar.zst"
         self.archive_bytes = b"admitted archive fixture"
@@ -88,11 +88,11 @@ class ProductionProjectionTests(unittest.TestCase):
             RUNTIME_INVENTORY_SHA256=plan.canonical_sha(self.runtime),
             RUNTIME_FILE_COUNT=2, RUNTIME_TOTAL_BYTES=len(self.launcher) + len(self.jar)))
         self.stack.enter_context(patch.object(plan, "expected_identity", return_value=self.identity))
-        self.stack.enter_context(patch.object(plan.projection, "QUERY_MANIFEST", self.query_manifest))
+        self.stack.enter_context(patch.object(plan.official, "QUERY_MANIFEST", self.query_manifest))
         self.install = self.stack.enter_context(patch.object(
-            plan.projection, "install", side_effect=self.install_plan))
+            plan.official, "admit", side_effect=self.install_plan))
         self.validate = self.stack.enter_context(patch.object(
-            plan.projection, "validate", return_value=self.identity))
+            plan.official, "validate", return_value=self.identity))
         self.stack.enter_context(patch.object(profile.quality, "require_clean_checkout"))
         self.stack.enter_context(patch.dict(os.environ, {
             "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "2", "CODEQL_EXPECTED_COMMIT": "a" * 40,
@@ -131,12 +131,12 @@ class ProductionProjectionTests(unittest.TestCase):
                 write((self.pack / name).with_suffix(".qlx"), b"fixed compiled fixture")
             return b""
         if label == "plan-version":
-            # CodeQL 2.27.2 version/RAM commands do not accept pack-manager
+            # CodeQL 2.27.4 version/RAM commands do not accept pack-manager
             # options. The private configuration belongs to query resolution
             # and analysis, whose checks below must keep it attached.
             self.assertEqual(argv, [str(self.private_root / "tool/codeql/codeql"),
                                     "version", "--format=terse"])
-            return b"2.27.2\n"
+            return b"2.27.4\n"
         if label == "resolve-suite":
             self.assertIn("--qlconfig-file=" + str(self.private_root / "qlconfig.yml"), argv)
             return json.dumps([str(self.pack / name) for name in self.queries]).encode()
@@ -199,14 +199,14 @@ class ProductionProjectionTests(unittest.TestCase):
         return b""
 
     def analyze(self) -> dict:
-        profile.analyze(self.run, Path("/old/pack"), summary_plan_mode="projection",
+        profile.analyze(self.run, Path("/old/pack"), summary_plan_mode="official",
                         tool_archive=self.archive)
         return json.loads((self.run.evidence / "ANALYSIS.json").read_text())
 
     def test_full_success_binds_runtime_plan_memory_logs_results_and_publication(self) -> None:
         analysis = self.analyze()
         self.assertEqual(analysis["schema"], 3)
-        self.assertEqual(analysis["summary_plan_mode"], "projection")
+        self.assertEqual(analysis["summary_plan_mode"], "official")
         self.assertEqual(set(analysis["query_result_sha256"]), set(self.queries))
         self.install.assert_called_once_with(self.pack, self.run.evidence)
         self.validate.assert_called_once_with(self.pack)
@@ -214,7 +214,7 @@ class ProductionProjectionTests(unittest.TestCase):
             self.assertNotIn(name, self.run.environment)
         self.assertEqual(self.run.environment["RUNNER_TRACKING_ID"], "fixture-runner")
         self.assertEqual(self.run.environment["PATH"], "/usr/bin:/bin")
-        plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
+        plan.validate_publication(self.run.evidence, analysis, expected_mode="official")
         record = json.loads((self.run.evidence / plan.PLAN_RECEIPT).read_text())
         self.assertEqual(record["schema"], 2)
         self.assertEqual(record["observations"]["query_completions"], 39)
@@ -234,7 +234,7 @@ class ProductionProjectionTests(unittest.TestCase):
         self.assertEqual(record["observations"]["query_completions"], 37)
         self.assertEqual(record["observations"]["query_starts"], 39)
         self.assertEqual(record["completion_stderr"]["queries"], sorted(self.queries))
-        plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
+        plan.validate_publication(self.run.evidence, analysis, expected_mode="official")
 
     def test_missing_stderr_completion_blocks_success_despite_all_internal_messages(self) -> None:
         self.inject = "missing_stderr_completion"
@@ -249,7 +249,7 @@ class ProductionProjectionTests(unittest.TestCase):
         original = stderr.read_bytes()
         stderr.write_bytes(original + b"additional diagnostic bytes\n")
         with self.assertRaisesRegex(ValueError, "completion stderr differs"):
-            plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
+            plan.validate_publication(self.run.evidence, analysis, expected_mode="official")
         stderr.write_bytes(b"\n".join(line for line in original.split(b"\n")
                                      if b"[39/39 eval " not in line))
         record_path = self.run.evidence / plan.PLAN_RECEIPT
@@ -259,15 +259,15 @@ class ProductionProjectionTests(unittest.TestCase):
         replace_fixture(record_path, json.dumps(record).encode())
         analysis["analysis_plan_sha256"] = digest(record_path.read_bytes())
         with self.assertRaisesRegex(ValueError, "exactly the 39 admitted queries"):
-            plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
+            plan.validate_publication(self.run.evidence, analysis, expected_mode="official")
         stderr.unlink()
         with self.assertRaises(ValueError):
-            plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
+            plan.validate_publication(self.run.evidence, analysis, expected_mode="official")
 
     def test_derived_metadata_keeps_both_snapshots_and_stable_source_identity(self) -> None:
         self.inject = "derived_metadata"
         analysis = self.analyze()
-        plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
+        plan.validate_publication(self.run.evidence, analysis, expected_mode="official")
         record = json.loads((self.run.evidence / plan.PLAN_RECEIPT).read_text())
         self.assertNotEqual(record["database_before"]["metadata_sha256"],
                             record["database_after"]["metadata_sha256"])
@@ -309,7 +309,7 @@ class ProductionProjectionTests(unittest.TestCase):
             replace_fixture(path, json.dumps(changed).encode())
             rebound = dict(analysis, analysis_plan_sha256=digest(path.read_bytes()))
             with self.subTest(name=name), self.assertRaises(ValueError):
-                plan.validate_publication(self.run.evidence, rebound, expected_mode="projection")
+                plan.validate_publication(self.run.evidence, rebound, expected_mode="official")
 
     def test_complete_runtime_inventory_is_independently_required_by_publication(self) -> None:
         analysis = self.analyze()
@@ -325,7 +325,7 @@ class ProductionProjectionTests(unittest.TestCase):
         replace_fixture(path, json.dumps(record).encode())
         analysis["analysis_plan_sha256"] = digest(path.read_bytes())
         with self.assertRaisesRegex(ValueError, "complete official"):
-            plan.validate_publication(self.run.evidence, analysis, expected_mode="projection")
+            plan.validate_publication(self.run.evidence, analysis, expected_mode="official")
 
     def test_implicit_compilation_blocks_plan_and_analysis_completion(self) -> None:
         self.inject = "implicit_compile"
@@ -434,7 +434,7 @@ class ProductionProjectionTests(unittest.TestCase):
             plan.admit_database(self.run.configuration.database)
 
     def test_unknown_mode_or_missing_explicit_archive_is_rejected_before_commands(self) -> None:
-        for mode, archive in (("all", self.archive), ("projection", None), ("none", self.archive)):
+        for mode, archive in (("all", self.archive), ("official", None), ("none", self.archive)):
             with self.subTest(mode=mode), self.assertRaisesRegex(ValueError, "explicit fixed tool archive"):
                 profile.analyze(self.run, Path("/old/pack"), summary_plan_mode=mode, tool_archive=archive)
         self.command.assert_not_called()
@@ -457,18 +457,20 @@ class FixedProductionIdentityTests(unittest.TestCase):
         })
         self.assertEqual(inherited["HOME"], "/inherited/home")
 
-    def test_fixed_production_identity_requires_the_stage34_manifest_and_compiler_key(self) -> None:
+    def test_fixed_production_identity_requires_the_official_manifest(self) -> None:
         identity = plan.expected_identity()
         self.assertEqual(identity["manifest_sha256"], plan.PRODUCTION_MANIFEST_SHA256)
-        self.assertEqual(identity["compiler_inputs_digest"], plan.STAGE34_COMPILER_KEY)
-        for previous_key in ("70fcc50bc6a1479b6fc92e9f1d624e0e",
-                             "6a7530eb694360655ab8331a895c9fcd",
-                             "0ee092250be1b05f03b994a868d639cc"):
-            with self.subTest(previous_key=previous_key):
-                changed = dict(identity, compiler_inputs_digest=previous_key)
-                with patch.object(plan.projection, "expected_identity", return_value=changed):
-                    with self.assertRaisesRegex(ValueError, "Stage3/Stage4"):
-                        plan.expected_identity()
+        self.assertEqual(identity["kind"], "qperiapt.codeql_official_query_plan")
+        self.assertEqual((identity["codeql_version"], identity["query_pack"]), ("2.27.4", "0.1.46"))
+        self.assertEqual(identity["query_count"], 39)
+        self.assertNotIn("compiler_inputs_digest", identity)
+        with tempfile.TemporaryDirectory() as temporary:
+            manifest = Path(temporary) / "manifest.json"
+            source = plan.official.MANIFEST.read_bytes()
+            manifest.write_bytes(source.replace(b'"2.27.4"', b'"2.27.2"'))
+            with patch.object(plan.official, "MANIFEST", manifest):
+                with self.assertRaisesRegex(ValueError, "official query plan manifest differs"):
+                    plan.expected_identity()
 
     def test_launcher_only_inventory_cannot_claim_the_official_runtime(self) -> None:
         with self.assertRaisesRegex(ValueError, "complete official"):
@@ -476,7 +478,7 @@ class FixedProductionIdentityTests(unittest.TestCase):
                 "codeql": {"bytes": 1, "sha256": plan.LAUNCHER_SHA256, "mode": 0o755},
             })
 
-    def test_default_publication_does_not_read_projection_assets_or_accept_plan_receipts(self) -> None:
+    def test_default_publication_does_not_read_official_assets_or_accept_plan_receipts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
             with patch.object(plan, "expected_identity") as expected:

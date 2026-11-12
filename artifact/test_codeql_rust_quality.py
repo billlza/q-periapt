@@ -32,7 +32,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
     def test_host_configuration_is_fixed_and_unknown_hosts_are_rejected(self) -> None:
         mac = codeql_rust_quality.hosted_configuration("darwin")
         self.assertEqual(mac.compiler_host, "aarch64-apple-darwin")
-        self.assertEqual(str(mac.codeql), "/Users/runner/hostedtoolcache/CodeQL/2.27.2/arm64/codeql/codeql")
+        self.assertEqual(str(mac.codeql), "/Users/runner/hostedtoolcache/CodeQL/2.27.4/arm64/codeql/codeql")
         self.assertEqual(str(mac.database), "/Users/runner/work/_temp/qperiapt-codeql-database/rust")
         self.assertEqual((mac.threads, mac.ram_mb), (2, 5500))
         with mock.patch.dict(os.environ, {"CODEQL_BINARY": "/untrusted/codeql", "RUNNER_TEMP": "/untrusted"}):

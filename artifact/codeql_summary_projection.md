@@ -1,5 +1,9 @@
 # Stage3 and Stage4 projected forward closure
 
+The projection described below is retained as a fixed 2.27.2 experiment.
+Current CI uses the unmodified official 2.27.4 pack with the same complete
+query and publication gates; see [current production analysis](#current-production-analysis).
+
 The `projection` mode gives the full Rust SummaryStats query an explicit,
 source-bound compiled plan. Within each of the Stage3 and Stage4 forward
 recursions, a private read-target helper denotes the six columns consumed by
@@ -97,10 +101,11 @@ For the paired result, use `compare --summary-plan-mode projection` with the
 existing baseline and candidate report arguments. Installation uses fixed
 compiled bytes; it performs no compilation or download of its own.
 
-## Production analysis
+## Current production analysis
 
-The SDK workflow selects the reviewed projection explicitly for native, WASM
-and macOS-origin Rust databases. Compilation and extraction retain their
+The SDK workflow selects the unmodified official CodeQL 2.27.4 / Rust query
+pack 0.1.46 for native, WASM and macOS-origin Rust databases. The projection
+experiments above remain pinned to their separate 2.27.2 query manifest. Compilation and extraction retain their
 existing platform tools and source-coverage checks. Linux native preparation
 authenticates the fixed protoc 3.21.12 release by size and SHA-256, verifies its
 version and compiles a schema with a standard protobuf import before exporting
@@ -109,14 +114,14 @@ clang; profile preparation then records the selected compiler path and checks
 its WASM target support.
 These target-specific steps use the required tools directly without refreshing
 the operating-system package index. Each Linux analysis worker
-downloads the fixed 98,247,028-byte official Rust archive, verifies its digest,
-and passes it to `codeql_rust_profile.py analyze --summary-plan-mode projection`.
+downloads the fixed 98,269,325-byte official Rust archive, verifies its digest,
+and passes it to `codeql_rust_profile.py analyze --summary-plan-mode official`.
 The production command uses the existing 14,000-MB budget, 9,329 MB outside the
 Java heap, four threads and the single five-hour supervisor.
 
 `codeql_rust_plan.py` restores a private runtime from the authenticated archive
-and installs the same reviewed projection. It binds all 2,282 runtime files
-outside the separately admitted query pack, an empty private QL configuration,
+without modifying query or library bytes. It binds all 2,297 runtime files
+outside the separately admitted 1,353-file official query pack, an empty private QL configuration,
 the complete frozen suite and the database source root. Before publication, the
 producer rechecks those identities and requires exactly 39 precompiled loads,
 39 completed queries, zero implicit compilations and all 39 fresh result files.

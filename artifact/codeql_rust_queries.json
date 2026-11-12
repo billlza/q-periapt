@@ -1,5 +1,5 @@
 {
-  "codeql_version": "2.27.2",
+  "codeql_version": "2.27.4",
   "queries": {
     "queries/diagnostics/AstConsistencyCounts.ql": "c9c8b2a8a1ee980f5b1965f452fa019b039ec5ee7a42799ea7f873665c69db84",
     "queries/diagnostics/CfgConsistencyCounts.ql": "23cb5b92c6a6d2be7726f9606b55ca5fd9daf64cc2fd4e00c5536d14c5543235",
@@ -41,5 +41,5 @@
     "queries/telemetry/DatabaseQualityDiagnostics.ql": "fcabf3dd92b5f7b94b3f94efec87add22652c3200ec4b2a030b83b719ecc445b",
     "queries/telemetry/ExtractorInformation.ql": "e7fee1aef3a5f7cf9992d2cf42667a5d335487fcb524c928bac31431d0bdd81d"
   },
-  "query_pack": "0.1.44"
+  "query_pack": "0.1.46"
 }

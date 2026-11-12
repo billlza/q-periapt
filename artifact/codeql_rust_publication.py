@@ -175,8 +175,8 @@ def main() -> None:
                                   "analysis_sha256": sdk.snapshot(directory / "ANALYSIS.json").sha256}
                            for name, directory in directories.items()}, "macro_coverage": result,
     }
-    if args.summary_plan_mode == "projection":
-        paired.update(summary_plan_mode="projection",
+    if args.summary_plan_mode == "official":
+        paired.update(summary_plan_mode="official",
                       summary_plan_manifest_sha256=plan.expected_identity()["manifest_sha256"])
     sdk.write_json(args.output / "PAIRED_QUALITY.json", paired)
     quality.require_clean_checkout(expected)

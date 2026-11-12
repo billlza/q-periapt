@@ -15,7 +15,7 @@ import codeql_rust_quality as quality
 from evidence_io import consume_regular_snapshot, parse_strict_json_bytes
 import rust_sdk_profile as sdk
 
-VERSION = "2.27.2"
+VERSION = "2.27.4"
 COMPILER = "1.98.1"
 TARGET = "aarch64-apple-darwin"
 MAX_BUNDLE = 2 * 1024**3

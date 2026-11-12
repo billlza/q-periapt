@@ -27,15 +27,14 @@ import rust_sdk_profile as sdk
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {"native": "x86_64-unknown-linux-gnu", "wasm": "wasm32-unknown-unknown",
            "macos": "aarch64-apple-darwin"}
-VERSION = "2.27.2"
-QUERY_VERSION = "0.1.44"
+VERSION = "2.27.4"
+QUERY_VERSION = "0.1.46"
 COMPILER = "1.98.1"
-# The retained WASM database completed the full 39-query suite with more
-# evaluator memory outside the Java heap. Current Linux native and WASM runs
-# both exhausted their five-hour bound in SummaryStats with the default split.
-# CodeQL resolves the remaining heap against each current database and the
-# unchanged 14,000-MB total request. macOS compilation/extraction keeps its
-# native hosted policy; its sealed database uses the same Linux query budget.
+# The official 2.27.4 pack completed all 39 queries on the retained large
+# database with this 14,000-MB split, matching the decoded 56,000-MB results.
+# CodeQL resolves the remaining heap against each current database. macOS
+# compilation/extraction keeps its native hosted policy; its sealed database
+# uses the same Linux query budget.
 LINUX_OFF_HEAP_RAM_MB = 9329
 WORKSPACE_LOCKFILES = (
     "Cargo.lock",
@@ -430,8 +429,8 @@ def analysis_memory_arguments(run: ProfileRun, profile: str) -> list[str]:
 def analyze(run: ProfileRun, query_pack: Path, *, summary_plan_mode: str = "none",
             tool_archive: Path | None = None) -> None:
     sdk.require(summary_plan_mode in analysis_plan.MODES and
-                (tool_archive is not None) == (summary_plan_mode == "projection"),
-                "projection analysis requires its explicit fixed tool archive")
+                (tool_archive is not None) == (summary_plan_mode == "official"),
+                "official analysis requires its explicit fixed tool archive")
     profile_path = run.evidence / "PROFILE.json"
     # Bind the receipt to the same snapshots whose contents are validated.
     profile_snapshot = sdk.snapshot(profile_path)
@@ -460,7 +459,7 @@ def analyze(run: ProfileRun, query_pack: Path, *, summary_plan_mode: str = "none
                     and not (run.evidence / "TRANSFER.json").is_symlink(),
                     "native Linux extraction cannot use a macOS database transfer")
     quality.require_clean_checkout(profile["source_commit"])
-    context = analysis_plan.prepare(run, tool_archive) if summary_plan_mode == "projection" else None
+    context = analysis_plan.prepare(run, tool_archive) if summary_plan_mode == "official" else None
     if context is not None:
         query_pack = context.pack
     suite = query_pack / "codeql-suites/rust-security-extended.qls"
@@ -511,7 +510,7 @@ def analyze(run: ProfileRun, query_pack: Path, *, summary_plan_mode: str = "none
            if profile["profile"] == "macos" else {}),
     }
     if context is not None:
-        analysis.update(summary_plan_mode="projection", analysis_plan_sha256=analysis_plan.complete(
+        analysis.update(summary_plan_mode="official", analysis_plan_sha256=analysis_plan.complete(
             run, context, analysis, command, inventory))
     sdk.write_json(run.evidence / "ANALYSIS.json", analysis)
 
@@ -522,11 +521,11 @@ def main() -> None:
     parser.add_argument("--profile", choices=tuple(TARGETS), required=True)
     parser.add_argument("--summary-plan-mode", choices=analysis_plan.MODES, default="none")
     parser.add_argument("--tool-archive", type=Path,
-                        help="Exact fixed official Rust archive required for opt-in projection analysis")
+                        help="Exact fixed official Rust archive required for opt-in official analysis")
     args = parser.parse_args()
     sdk.require((args.summary_plan_mode == "none" and args.tool_archive is None)
-                or (args.action == "analyze" and args.summary_plan_mode == "projection" and args.tool_archive is not None),
-                "the explicit projection archive is only accepted for analysis")
+                or (args.action == "analyze" and args.summary_plan_mode == "official" and args.tool_archive is not None),
+                "the explicit official archive is only accepted for analysis")
     sdk.require(args.action not in ("export", "import", "qualify") or args.profile == "macos",
                 "only the macOS extraction uses a database transfer")
     host = profile_host(args.profile) if args.action in ("prepare", "export") else analysis_host(args.profile)

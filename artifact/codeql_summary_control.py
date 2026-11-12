@@ -57,7 +57,7 @@ TOOL_BUNDLE_SHA256 = "acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5
 CODEQL_LAUNCHER_SHA256 = "5010324098d11f9e2d34e0fcf53bb44e40e8e3ffc8aecefe695269b54edaa413"
 COMPILED_INVENTORY_SHA256 = "f5d87c717575c9243272e3b1c8abdc1f5f12d93a193ffd2d3b1ba10df6de43d9"
 MANIFEST_SHA256 = "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b"
-QUERY_MANIFEST = Path(__file__).with_name("codeql_rust_queries.json")
+QUERY_MANIFEST = Path(__file__).with_name("codeql-fixtures") / "rust-queries-2.27.2.json"
 SOURCE = {"artifact_id": 13677417145, "artifact_bytes": 288417501,
           "artifact_sha256": "cb0bd89478b9a8d0f635a9ffa2156a06e3fbbf81b0054b8a1a474c045711d43d",
           "source_head": "3254c81066af26cd23a2881198010fb616ce6b7a",

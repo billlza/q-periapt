@@ -21,7 +21,7 @@ from bounded_process import BoundedProcessError
 from evidence_io import EvidenceIOError
 
 
-MANIFEST = json.loads(Path(__file__).with_name("codeql_rust_queries.json").read_text())
+MANIFEST = json.loads((Path(__file__).with_name("codeql-fixtures") / "rust-queries-2.27.2.json").read_text())
 QUERY_HASHES = MANIFEST["queries"]
 FULL_SUMMARY = "queries/summary/SummaryStats.ql"
 REDUCED_SUMMARY = "queries/summary/SummaryStatsReduced.ql"
