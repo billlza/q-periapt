@@ -34,7 +34,7 @@ FIXED_CODEQL_DATABASE = pathlib.Path(
 )
 FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")
 # Keep current compiler inputs and pinned paper snapshots in the full extraction.
-EXPECTED_CURRENT_RUST_SOURCE_COUNT = 1173
+EXPECTED_CURRENT_RUST_SOURCE_COUNT = 1174
 EXPECTED_ARCHIVED_RUST_SOURCE_COUNT = 68
 ARCHIVE_ROOT = "paper/continuity/artifacts/bootstrap"
 EXPECTED_TRACKED_RUST_SOURCE_COUNT = EXPECTED_CURRENT_RUST_SOURCE_COUNT + EXPECTED_ARCHIVED_RUST_SOURCE_COUNT

@@ -2,7 +2,9 @@
 
 The CodeQL source census at integration commit `0e2ca2d79ab0000bed79130cec97b31181e936ea` contains 1241 tracked Rust files: 1173 current sources and the 68 snapshots below. These snapshots preserve the implementation inputs assessed by the proof packets. They are partial source exports with no Cargo manifests, not additional compilation roots.
 
-`codeql_rust_quality.py` pins the exact five `SOURCE_PINS.json` manifests. Each manifest binds every listed file by original path, byte length, SHA-256 and Git blob identity. Inventory admission checks those identities before extraction and again when publication validates current checkout bytes. The complete 1241-file extraction requirement and its zero-diagnostic/integrity checks remain in force.
+The isolated `services/q-periapt-policy-agent/tests/private_file_umask.rs` integration test adds one current source. The live census is now 1242 tracked Rust files: 1174 current sources and the same 68 snapshots. Cargo includes the new test in its existing all-targets compilation.
+
+`codeql_rust_quality.py` pins the exact five `SOURCE_PINS.json` manifests. Each manifest binds every listed file by original path, byte length, SHA-256 and Git blob identity. Inventory admission checks those identities before extraction and again when publication validates current checkout bytes. The complete 1242-file extraction requirement and its zero-diagnostic/integrity checks remain in force.
 
 The raw macro census retains every snapshot entity and its unresolved state. Paired coverage reports their expanded and unresolved counts separately; only current source macros participate in executable target coverage. A snapshot cannot be admitted as a compiler input, cover an active-source failure, or supply the current-source macro sentinel.
 
@@ -27,7 +29,7 @@ extracted all 1,241 tracked files, with zero extraction errors and zero
 unextracted elements. Its 68 warnings came from exactly the 68 snapshots that
 were absent from the loaded Cargo file view; consequently, the successful-file
 census contained 1,173 paths. The explicit file-view input addresses that
-observed omission. The complete 1,241-path equality and zero-warning checks
+observed omission. Complete current-path equality and zero-warning checks
 continue to govern preparation.
 
 The input follows the fixed upstream

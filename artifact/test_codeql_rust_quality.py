@@ -1758,12 +1758,14 @@ class CodeQLRustQualityTests(unittest.TestCase):
         tracked = codeql_rust_quality.tracked_rust_paths()
         pinned = codeql_rust_quality.pinned_archive_sources()
         self.assertEqual(len(pinned), 68)
-        self.assertEqual(len(tracked - pinned.keys()), 1173)
-        self.assertEqual(len(tracked), 1241)
+        self.assertEqual(len(tracked - pinned.keys()), 1174)
+        self.assertEqual(len(tracked), 1242)
+        umask_test = "services/q-periapt-policy-agent/tests/private_file_umask.rs"
+        self.assertIn(umask_test, tracked)
         self.assertEqual(codeql_rust_quality.validate_archive_inventory(codeql_rust_quality.REPOSITORY_ROOT, tracked), frozenset(pinned))
         metrics = clean_metrics(len(tracked))
         codeql_rust_quality.validate_extraction_quality(tracked, tracked, metrics)
-        for relative in pinned:
+        for relative in (*pinned, umask_test):
             with self.subTest(snapshot=relative), self.assertRaisesRegex(
                 codeql_rust_quality.CodeQLRustQualityError, "successfully extracted path set differs"
             ):
@@ -1846,6 +1848,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
     def test_tracked_inventory_still_rejects_missing_or_added_lifecycle_sources(self) -> None:
         tracked = sorted(codeql_rust_quality.tracked_rust_paths())
         required = (
+            "services/q-periapt-policy-agent/tests/private_file_umask.rs",
             "research/continuity-identity-candidate/src/crypto/sdk_policy.rs",
             "research/continuity-identity-candidate/src/crypto/sdk_policy/tests.rs",
             "research/continuity-reference-app/src/auth.rs",

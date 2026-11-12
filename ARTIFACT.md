@@ -145,7 +145,7 @@ The measured overrun motivates a separate 900-second Metrics allowance and the l
 job bound for quality checks and diagnostic retention. Current-source CI remains required.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-1241 tracked `.rs` files to be successfully extracted. This includes 1173 current
+1242 tracked `.rs` files to be successfully extracted. This includes 1174 current
 sources and 68 retained bootstrap proof snapshots, whose exact paths and bytes
 are bound by five pinned `SOURCE_PINS.json` manifests. The
 [archive inventory](artifact/CODEQL_RUST_ARCHIVES.md) identifies every snapshot's
