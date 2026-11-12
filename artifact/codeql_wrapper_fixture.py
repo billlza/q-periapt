@@ -20,7 +20,7 @@ import zipfile
 
 sys.dont_write_bytecode = True
 
-CANDIDATE_COMMIT = "a5c9ee4494afdbbd662ec422ac7906ff0ed12d83"
+CANDIDATE_COMMIT = "3da88fc513366c783643ed0e595f6180b0ebcb61"
 EVIDENCE_COMMIT = "99340939848d290191651ab306d1b5edc0f59df2"
 EVIDENCE = "research/sdk-alpha1/evidence/"
 FIXTURE_PACKET = EVIDENCE + "20261111-summary-projection-fixture/"
