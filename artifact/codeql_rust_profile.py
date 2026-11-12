@@ -29,7 +29,9 @@ TARGETS = {"native": "x86_64-unknown-linux-gnu", "wasm": "wasm32-unknown-unknown
            "macos": "aarch64-apple-darwin"}
 VERSION = "2.27.4"
 QUERY_VERSION = "0.1.46"
-COMPILER = "1.98.1"
+# The extractor overrides RUSTUP_TOOLCHAIN with 1.99.0. Match it for both
+# compilation and the explicit sysroot so its procedural-macro ABI agrees.
+COMPILER = "1.99.0"
 # The official 2.27.4 pack completed all 39 queries on the retained large
 # database with this 14,000-MB split, matching the decoded 56,000-MB results.
 # CodeQL resolves the remaining heap against each current database. macOS
@@ -268,7 +270,7 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
     version = run.command("codeql-version", [str(run.codeql), "version", "--format=terse"]).decode().strip()
     sdk.require(version == VERSION, "unexpected CodeQL version")
     compiler = run.command("rust-version", ["rustc", "+" + COMPILER, "-vV"]).decode()
-    sdk.require(compiler.startswith("rustc 1.98.1 (48a229cea 2026-09-01)\n")
+    sdk.require(compiler.startswith("rustc 1.99.0 (b940084d7 2026-09-28)\n")
                 and f"host: {run.configuration.compiler_host}\n" in compiler, "unexpected analysis compiler or host")
     sysroot = Path(run.command("rust-sysroot", ["rustc", "+" + COMPILER, "--print", "sysroot"]).decode().strip()).resolve(strict=True)
     library = sysroot / "lib/rustlib/src/rust/library"

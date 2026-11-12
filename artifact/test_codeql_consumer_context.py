@@ -107,18 +107,29 @@ class ConsumerContextTests(unittest.TestCase):
     def test_preexisting_input_is_preserved_before_running_cargo(self):
         file = self.root / "already-present"
         file.write_bytes(b"keep")
-        output = self.root / "receipts"
-        with mock.patch.object(context, "git_commit", return_value="a" * 40), \
-             mock.patch.object(context, "run_git_bytes", return_value=b""), \
-             mock.patch.object(context, "allowed_paths", return_value={"already-present"}), \
-             mock.patch.object(sdk, "command") as cargo:
-            with self.assertRaisesRegex(ValueError, "input already exists"):
-                context.prepare(self.root, output, ["1.98.1"])
-        cargo.assert_not_called()
-        self.assertEqual(b"keep", file.read_bytes())
-        state = json.loads((output / "STATE.json").read_text())
-        self.assertFalse(state["prepared"])
-        self.assertTrue(state["cleanup_completed"])
+        for toolchain in ("1.98.1", "1.99.0"):
+            with self.subTest(toolchain=toolchain):
+                output = self.root / ("receipts-" + toolchain)
+                with mock.patch.object(context, "git_commit", return_value="a" * 40), \
+                     mock.patch.object(context, "run_git_bytes", return_value=b""), \
+                     mock.patch.object(context, "allowed_paths", return_value={"already-present"}), \
+                     mock.patch.object(sdk, "command") as cargo:
+                    with self.assertRaisesRegex(ValueError, "input already exists"):
+                        context.prepare(self.root, output, [toolchain])
+                cargo.assert_not_called()
+                self.assertEqual(b"keep", file.read_bytes())
+                state = json.loads((output / "STATE.json").read_text())
+                self.assertFalse(state["prepared"])
+                self.assertTrue(state["cleanup_completed"])
+
+    def test_unknown_or_duplicate_toolchain_fails_before_creating_context(self):
+        for toolchains in ([], ["stable"], ["1.99.0", "1.99.0"]):
+            with self.subTest(toolchains=toolchains), mock.patch.object(sdk, "command") as cargo:
+                output = self.root / "uncreated"
+                with self.assertRaisesRegex(ValueError, "unexpected analysis toolchain"):
+                    context.prepare(self.root, output, toolchains)
+                self.assertFalse(output.exists())
+                cargo.assert_not_called()
 
     def test_workflow_runs_profile_preparation_before_queries_and_publication(self):
         source = (context.ROOT / ".github/workflows/codeql.yml").read_text()

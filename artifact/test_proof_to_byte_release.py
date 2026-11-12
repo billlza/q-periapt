@@ -1593,7 +1593,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             self.assertIn(action.format(action="setup-codeql"), job)
         for job in (rust, macos_prepare):
             self.assertIn(PINNED_CANONICAL_RUST_ACTION, job)
-            self.assertIn("toolchain: 1.98.1", job)
+            self.assertIn("toolchain: 1.99.0", job)
             self.assertIn("components: rust-src", job)
         self.assertIn("targets: wasm32-unknown-unknown", rust)
         self.assertIn(
@@ -1735,7 +1735,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         normalized = " ".join(guide.split())
         self.assertIn("## Rust CodeQL analysis boundary", guide)
         self.assertIn("separate native Linux, Apple Silicon macOS and `wasm32-unknown-unknown` jobs", normalized)
-        self.assertIn("CodeQL 2.27.4 bundle and Rust 1.98.1 sysroot", normalized)
+        self.assertIn("CodeQL 2.27.4 bundle and Rust 1.99.0 sysroot", normalized)
         self.assertIn("actual target with warnings denied", normalized)
         self.assertIn(
             f"{codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT} tracked `.rs` files",

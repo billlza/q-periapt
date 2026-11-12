@@ -214,7 +214,7 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with:
-          toolchain: 1.98.1
+          toolchain: 1.99.0
           components: rust-src
           targets: wasm32-unknown-unknown
       - name: Prepare fixed native protobuf compiler
@@ -342,7 +342,7 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with:
-          toolchain: 1.98.1
+          toolchain: 1.99.0
           components: rust-src
       - name: Install macOS analysis build dependencies
         run: |

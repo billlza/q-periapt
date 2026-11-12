@@ -249,16 +249,16 @@ class CodeQLWorkflowContractTests(unittest.TestCase):
                 groups.extend(group)
         self.assertEqual(len(groups), len(set(groups)))
 
-    def test_all_production_targets_and_publication_use_the_authenticated_projection(self) -> None:
+    def test_all_production_targets_and_publication_use_the_authenticated_official_pack(self) -> None:
         workflow = self.read("codeql.yml")
-        manifest = json.loads((ROOT / "artifact/codeql_summary_projection.json").read_text(encoding="utf-8"))
+        manifest = json.loads((ROOT / "artifact/codeql_rust_official.json").read_text(encoding="utf-8"))
         archive = "$RUNNER_TEMP/codeql-bundle-rust-linux64.tar.zst"
         url = ("https://github.com/github/codeql-action/releases/download/codeql-bundle-v"
                + manifest["codeql_version"] + "/codeql-bundle-rust-linux64.tar.zst")
         for name, source_step in (("rust", "prepare"), ("rust-macos-analyze", "import")):
             with self.subTest(job=name):
                 job = mapping(workflow, name, 2)
-                marker = "      - name: Download the authenticated projection runtime\n"
+                marker = "      - name: Download the authenticated official query runtime\n"
                 self.assertEqual(job.count(marker), 1)
                 download = job.split(marker, 1)[1].split("      - ", 1)[0]
                 self.assertIn("        timeout-minutes: 12\n", download)
@@ -275,17 +275,17 @@ class CodeQLWorkflowContractTests(unittest.TestCase):
                 analysis = job.index("artifact/codeql_rust_profile.py analyze")
                 self.assertLess(job.index("artifact/codeql_rust_profile.py " + source_step), job.index(marker))
                 self.assertLess(job.index(marker), analysis)
-                self.assertEqual(job.count("--summary-plan-mode projection"), 1)
+                self.assertEqual(job.count("--summary-plan-mode official"), 1)
                 self.assertEqual(job.count('--tool-archive "' + archive + '"'), 1)
-                self.assertGreater(job.index("--summary-plan-mode projection"), analysis)
+                self.assertGreater(job.index("--summary-plan-mode official"), analysis)
                 self.assertNotIn("continue-on-error:", job)
                 self.assertIn("/analysis-plan/evaluator/**", job)
         preparation = mapping(workflow, "rust-macos-prepare", 2)
         self.assertNotIn("--summary-plan-mode", preparation)
         self.assertNotIn("--tool-archive", preparation)
         publication = mapping(workflow, "rust-publication", 2)
-        self.assertEqual(publication.count("--summary-plan-mode projection"), 1)
-        self.assertGreater(publication.index("--summary-plan-mode projection"),
+        self.assertEqual(publication.count("--summary-plan-mode official"), 1)
+        self.assertGreater(publication.index("--summary-plan-mode official"),
                            publication.index("artifact/codeql_rust_publication.py"))
 
     def test_rust_publication_waits_for_every_profile_and_validation_before_upload(self) -> None:

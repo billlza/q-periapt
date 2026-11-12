@@ -118,8 +118,10 @@ def check_tree(root: Path, state: dict) -> None:
 
 
 def prepare(root: Path, output: Path, toolchains: list[str], *, environment=None) -> None:
+    # CodeQL 2.27.4 selects 1.99.0 internally. Its compiler, sysroot and
+    # procedural-macro server must use that same toolchain.
     sdk.require(toolchains and len(toolchains) == len(set(toolchains))
-                and set(toolchains) <= {"1.97.0", "1.98.1"}, "unexpected analysis toolchain")
+                and set(toolchains) <= {"1.97.0", "1.98.1", "1.99.0"}, "unexpected analysis toolchain")
     output.mkdir(mode=0o700)
     state = {"commit": git_commit(root), "owned": {}, "consumers": {}, "prepared": False}
     environment = dict(os.environ if environment is None else environment,

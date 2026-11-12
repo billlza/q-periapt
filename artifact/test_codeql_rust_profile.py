@@ -368,7 +368,7 @@ class RustProfileTests(unittest.TestCase):
                 if label == "codeql-version":
                     return b"2.27.4\n"
                 if label == "rust-version":
-                    return b"rustc 1.98.1 (48a229cea 2026-09-01)\nhost: x86_64-unknown-linux-gnu\n"
+                    return b"rustc 1.99.0 (b940084d7 2026-09-28)\nhost: x86_64-unknown-linux-gnu\n"
                 if label == "rust-sysroot":
                     return os.fsencode(sysroot)
                 self.assertEqual(label, "clang-targets")
@@ -421,7 +421,7 @@ class RustProfileTests(unittest.TestCase):
                 def command(label, *_args, **_kwargs):
                     return {
                         "codeql-version": b"2.27.4\n",
-                        "rust-version": ("rustc 1.98.1 (48a229cea 2026-09-01)\nhost: " + run.configuration.compiler_host + "\n").encode(),
+                        "rust-version": ("rustc 1.99.0 (b940084d7 2026-09-28)\nhost: " + run.configuration.compiler_host + "\n").encode(),
                         "rust-sysroot": os.fsencode(sysroot),
                     }.get(label, b"compiler output")
                 def check_quality(actual_run, compiled, sources, profile):
@@ -588,7 +588,7 @@ class RustProfileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ), host="darwin")
-            compiler = b"rustc 1.98.1 (48a229cea 2026-09-01)\nhost: x86_64-apple-darwin\n"
+            compiler = b"rustc 1.99.0 (b940084d7 2026-09-28)\nhost: x86_64-apple-darwin\n"
             with mock.patch.object(profile_module.quality, "require_repository_target_absent"), \
                     mock.patch.object(profile_module.quality, "require_clean_checkout"), \
                     mock.patch.object(profile_module.quality, "tracked_rust_paths", return_value=[]), \

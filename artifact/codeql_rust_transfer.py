@@ -16,7 +16,7 @@ from evidence_io import consume_regular_snapshot, parse_strict_json_bytes
 import rust_sdk_profile as sdk
 
 VERSION = "2.27.4"
-COMPILER = "1.98.1"
+COMPILER = "1.99.0"
 TARGET = "aarch64-apple-darwin"
 MAX_BUNDLE = 2 * 1024**3
 MAX_EXPANDED = 16 * 1024**3

@@ -38,9 +38,11 @@ uses fixed platform paths or an explicit absolute `QPERIAPT_PYTHON`, never a PAT
 ## Rust CodeQL analysis boundary
 
 Rust analysis now has separate native Linux, Apple Silicon macOS and
-`wasm32-unknown-unknown` jobs. All select the explicit CodeQL 2.27.4 bundle and Rust 1.98.1 sysroot, compile the
+`wasm32-unknown-unknown` jobs. All select the explicit CodeQL 2.27.4 bundle and Rust 1.99.0 sysroot, compile the
 actual target with warnings denied, and extract the complete tracked Rust source
 inventory. Per-job Cargo homes and build directories stay outside the checkout.
+The analysis compiler and sysroot match the toolchain selected internally by
+the extractor; a procedural-macro version mismatch fails the quality gate.
 The WASM metadata adapter adds the host platform only to Cargo's filtered metadata
 request, preserving host build dependencies; compilation arguments, cfg values,
 standard streams and exit codes remain unchanged.
