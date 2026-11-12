@@ -1579,9 +1579,13 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn('version --format=terse)" = "2.27.1"', other_languages)
 
         self.assertIn("runs-on: ${{ matrix.runner }}", rust)
-        for entry in ("- profile: native\n            runner: ubuntu-24.04\n            bundle: linux64",
-                      "- profile: wasm\n            runner: ubuntu-24.04\n            bundle: linux64"):
+        for entry in (
+            "- profile: native\n            runner: ubuntu-24.04\n            bundle: linux64\n            rust_target: wasm32-unknown-unknown",
+            "- profile: wasm\n            runner: ubuntu-24.04\n            bundle: linux64\n            rust_target: wasm32-unknown-unknown",
+            "- profile: windows\n            runner: ubuntu-24.04\n            bundle: linux64\n            rust_target: x86_64-pc-windows-gnu",
+        ):
             self.assertIn(entry, rust)
+        self.assertEqual(rust.count("- profile:"), 3)
         self.assertNotIn("- profile: macos", rust)
         self.assertIn("runs-on: macos-26", macos_prepare)
         self.assertIn("runs-on: ubuntu-24.04", macos_analysis)
@@ -1595,7 +1599,10 @@ class BoundVerifierWiringTests(unittest.TestCase):
             self.assertIn(PINNED_CANONICAL_RUST_ACTION, job)
             self.assertIn("toolchain: 1.99.0", job)
             self.assertIn("components: rust-src", job)
-        self.assertIn("targets: wasm32-unknown-unknown", rust)
+        self.assertIn("targets: ${{ matrix.rust_target }}", rust)
+        windows_tools = extract_named_workflow_step(rust, "Install Windows cross compiler")
+        self.assertIn("if: matrix.profile == 'windows'", windows_tools)
+        self.assertIn("gcc-mingw-w64-x86-64-posix binutils-mingw-w64-x86-64", windows_tools)
         self.assertIn(
             "tools: https://github.com/github/codeql-action/releases/download/"
             "codeql-bundle-v2.27.4/codeql-bundle-${{ matrix.bundle }}.tar.gz", rust)
@@ -1657,13 +1664,14 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertIn("artifact/codeql_rust_publication.py", gate)
         self.assertNotIn("        if:", gate)
         uploads = extract_action_steps(publication, action.format(action="upload-sarif"))
-        self.assertEqual(len(uploads), 3)
+        self.assertEqual(len(uploads), 4)
         # Native continues the established main-branch analysis category;
         # the additional targets retain their separate publication identities.
         expected_categories = (
             ("native", "/language:rust"),
             ("wasm", "/language:rust/target:wasm"),
             ("macos", "/language:rust/target:macos"),
+            ("windows", "/language:rust/target:windows"),
         )
         for step, (target, category) in zip(uploads, expected_categories):
             self.assertNotIn("        if:", step)
@@ -1681,12 +1689,31 @@ class BoundVerifierWiringTests(unittest.TestCase):
                          "/home/runner/work/_temp/qperiapt-codeql-database/rust")
         self.assertEqual(str(codeql_rust_quality.FIXED_RUNNER_TEMP), "/home/runner/work/_temp")
 
+    def test_windows_codeql_target_cannot_be_omitted_or_mapped_to_wasm(self) -> None:
+        source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
+        entry = ("          - profile: windows\n            runner: ubuntu-24.04\n"
+                 "            bundle: linux64\n            rust_target: x86_64-pc-windows-gnu\n")
+        mutations = (
+            (entry, ""),
+            ("rust_target: x86_64-pc-windows-gnu", "rust_target: wasm32-unknown-unknown"),
+            ("targets: ${{ matrix.rust_target }}", "targets: wasm32-unknown-unknown"),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            workflow = pathlib.Path(temporary) / "codeql.yml"
+            for original, replacement in mutations:
+                self.assertEqual(source.count(original), 1)
+                workflow.write_text(source.replace(original, replacement, 1), encoding="utf-8")
+                with self.subTest(mutation=original), mock.patch(__name__ + ".CODEQL_WORKFLOW", workflow), \
+                        self.assertRaisesRegex(AssertionError, "not found"):
+                    self.test_rust_codeql_analysis_has_a_fail_closed_database_quality_gate()
+
     def test_rust_codeql_publication_rejects_wrong_target_categories(self) -> None:
         source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
         mutations = (
             ("native category suffix", "/language:rust", "/language:rust/target:native"),
             ("WASM aliases native", "/language:rust/target:wasm", "/language:rust"),
             ("macOS aliases WASM", "/language:rust/target:macos", "/language:rust/target:wasm"),
+            ("Windows aliases macOS", "/language:rust/target:windows", "/language:rust/target:macos"),
         )
         with tempfile.TemporaryDirectory() as temporary:
             workflow = pathlib.Path(temporary) / "codeql.yml"
@@ -1734,7 +1761,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         guide = ARTIFACT_GUIDE.read_text(encoding="utf-8")
         normalized = " ".join(guide.split())
         self.assertIn("## Rust CodeQL analysis boundary", guide)
-        self.assertIn("separate native Linux, Apple Silicon macOS and `wasm32-unknown-unknown` jobs", normalized)
+        self.assertIn("separate native Linux, Apple Silicon macOS, `wasm32-unknown-unknown` and `x86_64-pc-windows-gnu` jobs", normalized)
         self.assertIn("CodeQL 2.27.4 bundle and Rust 1.99.0 sysroot", normalized)
         self.assertIn("actual target with warnings denied", normalized)
         self.assertIn(
@@ -1743,7 +1770,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         for boundary in (
             "all 39 pinned security-extended queries, including full `SummaryStats`",
             "every expected fresh BQRS result is required",
-            "A separate job verifies all three profiles before publication",
+            "A separate job requires all four complete profiles before publication",
             "a newer incomplete profile never falls back to an older result",
             "zero extraction warnings, extraction errors, unextracted elements",
             "complete, self-reconciling telemetry",
