@@ -1,0 +1,194 @@
+{
+  "before_commit": "2131dc4d35e0caabae1ca3be961228f7da9a36da",
+  "observed_failure": {
+    "run": 43247042505,
+    "job": 131282384607,
+    "artifact": 13956789151,
+    "artifact_sha256": "59768c92d5cb318ea3c0c1a3688da2067bd9c9383b6741c826584177be788a0c",
+    "compiler_diagnostic": "deprecated AtomicUsize.fetch_update in the engine test-only FaultBackend.sync_data"
+  },
+  "fix": "Preserve bounded decrement and the exact 1-to-0 fault boundary with compare_exchange_weak, retaining SeqCst order and Rust 1.90 compatibility.",
+  "source": "research/continuity-identity-candidate/src/durable/tests.rs",
+  "source_sha256": "cbb47230ca5eb31148c3872b5fe0539ffe416c6a2609221ad6ef0acc58eb7fda",
+  "linux_compilation": {
+    "job": 1172750,
+    "completed": true,
+    "compiler": "1.99.0",
+    "target": "x86_64-unknown-linux-gnu",
+    "entry_count": 8,
+    "entries": [
+      {
+        "label": "compile-workspace",
+        "command": [
+          "cargo",
+          "check",
+          "--workspace",
+          "--all-targets",
+          "--features",
+          "q-periapt-sdk/sealed-operations,q-periapt-cli/policy-store-migration",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "--locked",
+          "--offline"
+        ],
+        "exit_code": 0,
+        "seconds": 51.06429855991155
+      },
+      {
+        "label": "compile-engine",
+        "command": [
+          "cargo",
+          "check",
+          "--all-targets",
+          "--all-features",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "--locked",
+          "--offline"
+        ],
+        "exit_code": 0,
+        "seconds": 94.5264662373811
+      },
+      {
+        "label": "compile-independent-peer",
+        "command": [
+          "cargo",
+          "check",
+          "--all-targets",
+          "--all-features",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "--locked",
+          "--offline"
+        ],
+        "exit_code": 0,
+        "seconds": 14.77615054603666
+      },
+      {
+        "label": "compile-reference-account",
+        "command": [
+          "cargo",
+          "check",
+          "--all-targets",
+          "--all-features",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "--locked",
+          "--offline"
+        ],
+        "exit_code": 0,
+        "seconds": 32.27297452092171
+      },
+      {
+        "label": "compile-spqr",
+        "command": [
+          "cargo",
+          "check",
+          "--all-targets",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "--locked",
+          "--offline"
+        ],
+        "exit_code": 0,
+        "seconds": 19.048942361958325
+      },
+      {
+        "label": "compile-whole-kem",
+        "command": [
+          "cargo",
+          "check",
+          "--all-targets",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "--locked",
+          "--offline"
+        ],
+        "exit_code": 0,
+        "seconds": 0.49966195225715637
+      },
+      {
+        "label": "compile-continuity-c",
+        "command": [
+          "cargo",
+          "check",
+          "--all-targets",
+          "--all-features",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "--locked",
+          "--offline"
+        ],
+        "exit_code": 0,
+        "seconds": 12.341946737840772
+      },
+      {
+        "label": "compile-sdk-rust",
+        "command": [
+          "cargo",
+          "check",
+          "--all-targets",
+          "--all-features",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "--locked",
+          "--offline"
+        ],
+        "exit_code": 0,
+        "seconds": 2.2340114628896117
+      }
+    ],
+    "result_sha256": "f5dced01eed0feba9f3f174db6a78b43872d8553a599f87e723103958800b75c",
+    "remote_readback_hashes_verified": true,
+    "changed_source_sha256": "cbb47230ca5eb31148c3872b5fe0539ffe416c6a2609221ad6ef0acc58eb7fda",
+    "scope": "Isolated compilation preflight; not extraction, installed-package or release qualification.",
+    "verified_at": "2026-11-12T15:53:13.387724+00:00"
+  },
+  "local_regressions": {
+    "engine-sync-cuts-1991.log": {
+      "sha256": "69309782358362abbff1c01efb666dc9e3a4d34ad7688c4aff137c4a6c8574cd",
+      "passed": true
+    },
+    "engine-final-confirmation-1991.log": {
+      "sha256": "637822258e8e054ac88a95a1a9b691ee26579f92efc73c191deade1651562409",
+      "passed": true
+    },
+    "engine-clippy-1981.log": {
+      "sha256": "97b2d46a69449578adf85ddd8a783e6a4f6c411283888ac65b20b6714c310262",
+      "passed": true
+    }
+  },
+  "prior_wasm_profile": {
+    "workflow_run": 43247042505,
+    "job": 131282385324,
+    "head_commit": "2131dc4d35e0caabae1ca3be961228f7da9a36da",
+    "source_commit": "7e1e09401bd981bf994340150593c88f5accaf90",
+    "head_and_merge_tree_equal": true,
+    "artifact": 13959905117,
+    "artifact_sha256": "d13e19308c736b2f51af1335e3e6c425eaf3fa9d6548d67314f49f32cb4248f2",
+    "publisher_profile_validator_passed": true,
+    "full_query_count": 39,
+    "analysis_seconds": 217.0229538279998,
+    "returncode": 0,
+    "codeql_version": "2.27.4",
+    "compiler": "1.99.0",
+    "query_pack": "0.1.46",
+    "observations": {
+      "evaluator_start_lines": 1,
+      "jvm_heap_mb_arguments": [
+        3362
+      ],
+      "off_heap_mb_observed": [
+        9329
+      ],
+      "query_compilations": 0,
+      "query_completions": 39,
+      "query_starts": 39,
+      "schema": 1
+    },
+    "security_result_count": 586,
+    "scope": "One current-source WASM profile on the 2131dc4d head. The native engine test compatibility followup is not yet committed; native/macOS cohort remains incomplete.",
+    "verified_at": "2026-11-12T15:51:51.836862+00:00"
+  },
+  "remaining": "New-head complete CI and three-target CodeQL cohort publication."
+}

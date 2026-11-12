@@ -506,11 +506,19 @@ impl StorageBackend for FaultBackend {
     }
     fn sync_data(&self) -> io::Result<()> {
         self.count.fetch_add(1, Ordering::SeqCst);
-        let last = self
-            .remaining
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
-            .ok()
-            == Some(1);
+        let mut remaining = self.remaining.load(Ordering::SeqCst);
+        while remaining != 0 {
+            match self.remaining.compare_exchange_weak(
+                remaining,
+                remaining - 1,
+                Ordering::SeqCst,
+                Ordering::SeqCst,
+            ) {
+                Ok(_) => break,
+                Err(observed) => remaining = observed,
+            }
+        }
+        let last = remaining == 1;
         if last && std::env::var_os("QPERIAPT_TRACE_SYNC_FAULT").is_some() {
             eprintln!(
                 "injected sync boundary: {}",
