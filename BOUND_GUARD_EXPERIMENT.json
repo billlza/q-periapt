@@ -1,0 +1,20 @@
+{
+  "source_review": {
+    "baseline_vendor_sha256": "b075351f6095254a2284bf644e61e505dc73d4ee12f36670c01b9adf6e6dc5a7",
+    "candidate_vendor_sha256": "8fc3efab1c177a7f27e2a4eb518a99376928f5e803e8de19ff0d07d93612983d",
+    "guard_body_sha256": "df2855e17a8ad7ab13d93bdbf27bd007a0f188351e9b3d74f18d31eebfec744c",
+    "guard_roundtrip_restores_baseline": true,
+    "root_queries_modified": 0,
+    "change": "Move the identical four-argument guard conjunction into an inline_late predicate with all four inputs bound; selected Stage3 and Stage4 only."
+  },
+  "compiled": {
+    "MANIFEST_SHA256": "a8e321de7eee0554c7f5569bed5631d15ed2cef0282a61c030351c0e77678db9",
+    "COMPILER_INPUTS_DIGEST": "b1a7c8d542307fd09ce7bd5d69c73dad",
+    "COMPILED_INVENTORY_SHA256": "307e0a8eac18f254513c0fd19e81147fe3eb5f5fbced83b50d8a86e517d7eeb9",
+    "PLAN_SHA256": "2bd4da9ce191e0dfa411271cd207efa29ad650aeb5675e55379482b3a29e9ab3",
+    "pack_inventory_files": 1357,
+    "pack_inventory_sha256": "737ee7a6ec766fc384f5ae9ad75420df39524946313aeb087921a013c492ce3a",
+    "capsule_sha256": "939f02a3b4627b4784fec52d75e9a40f93f14b66020444d4423563372d4d7d7c",
+    "capsule_bytes": 620495
+  }
+}

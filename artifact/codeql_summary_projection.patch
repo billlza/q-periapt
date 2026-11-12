@@ -13,7 +13,7 @@
        }
  
        module Stage<StageParam Param> implements StageSig {
-@@ -539,20 +545,104 @@
+@@ -539,27 +545,141 @@
           * argument in a call, and if so, `summaryCtx` records the
           * corresponding parameter position and access path of that argument.
           */
@@ -34,19 +34,15 @@
 +          Nd node, Cc cc, SummaryCtx summaryCtx, Typ t, Ap ap, TypOption stored
 +        ) {
            fwdFlow1(node, cc, summaryCtx, _, t, ap, stored)
-         }
- 
--        private predicate fwdFlow1(
--          Nd node, Cc cc, SummaryCtx summaryCtx, Typ t0, Typ t, Ap ap, TypOption stored
++        }
++
 +        // Typ is the singleton Unit in exactly the two selected stages. Keep its
 +        // node/type guards at their original branch positions while omitting it
 +        // from the recursive representation; stored still distinguishes None/Some.
 +        pragma[nomagic]
 +        private predicate fwdFlowUnit(
 +          Nd node, Cc cc, SummaryCtx summaryCtx, Ap ap, TypOption stored
-         ) {
--          exists(ApApprox apa |
--            fwdFlow0(node, cc, summaryCtx, t0, ap, apa, stored) and
++        ) {
 +          Param::fuseUnitForwardState() and
 +          exists(Typ t, ApApprox apa |
 +            (
@@ -118,23 +114,41 @@
 +                if allowsFieldFlow = false then ap instanceof ApNil else any()
 +              )
 +            ) and
-             PrevStage::revFlow(node, apa) and
--            filter(node, t0, ap, t) and
-+            filter(node, t, ap, t) and
-             (
-               if node instanceof CastingNd
-               then
-@@ -560,6 +650,28 @@
-                 compatibleContainer(getHeadContent(ap), node.getType()) or
-                 topTypeContent(getHeadContent(ap))
-               else any()
-+            )
++            unitForwardGuard(node, t, ap, apa)
 +          )
 +        }
 +
-+        private predicate fwdFlow1(
-+          Nd node, Cc cc, SummaryCtx summaryCtx, Typ t0, Typ t, Ap ap, TypOption stored
-+        ) {
++        // Keep the exact admission checks keyed by an existing candidate state.
++        // Late inlining prevents an unconstrained node/access-path guard product.
++        bindingset[node, t, ap, apa]
++        pragma[inline_late]
++        private predicate unitForwardGuard(Nd node, Typ t, Ap ap, ApApprox apa) {
++          PrevStage::revFlow(node, apa) and
++          filter(node, t, ap, t) and
++          (
++            if node instanceof CastingNd
++            then
++              ap instanceof ApNil or
++              compatibleContainer(getHeadContent(ap), node.getType()) or
++              topTypeContent(getHeadContent(ap))
++            else any()
++          )
+         }
+ 
+         private predicate fwdFlow1(
+           Nd node, Cc cc, SummaryCtx summaryCtx, Typ t0, Typ t, Ap ap, TypOption stored
+         ) {
+-          exists(ApApprox apa |
+-            fwdFlow0(node, cc, summaryCtx, t0, ap, apa, stored) and
+-            PrevStage::revFlow(node, apa) and
+-            filter(node, t0, ap, t) and
+-            (
+-              if node instanceof CastingNd
+-              then
+-                ap instanceof ApNil or
+-                compatibleContainer(getHeadContent(ap), node.getType()) or
+-                topTypeContent(getHeadContent(ap))
+-              else any()
 +          if Param::fuseUnitForwardState()
 +          then t0 = t and fwdFlow(node, cc, summaryCtx, t, ap, stored)
 +          else (
@@ -153,7 +167,7 @@
              )
            )
          }
-@@ -616,7 +728,11 @@
+@@ -616,7 +736,11 @@
            )
            or
            // read
@@ -166,7 +180,7 @@
            apa = getApprox(ap)
            or
            // flow into a callable without summary context
-@@ -841,6 +957,30 @@
+@@ -841,6 +965,30 @@
              fwdFlow(node1, cc, summaryCtx, t, ap, stored) and
              apc = getHeadContent(ap) and
              readStepCand0(node1, apc, c, node2)
@@ -197,7 +211,7 @@
            )
          }
  
-@@ -2849,6 +2989,10 @@
+@@ -2849,6 +2997,10 @@
      private module Stage3Param implements MkStage<Stage2>::StageParam {
        private module PrevStage = Stage2;
  
@@ -208,7 +222,7 @@
        class Typ = Unit;
  
        class Ap = ApproxAccessPathFront;
-@@ -2957,6 +3101,10 @@
+@@ -2957,6 +3109,10 @@
  
      private module Stage4Param implements MkStage<Stage3>::StageParam {
        private module PrevStage = Stage3;
