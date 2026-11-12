@@ -1,0 +1,24 @@
+{
+  "failed_run": 43275648568,
+  "failed_job": 131383520577,
+  "before_commit": "03049cc6b84247dfead4501bd1f5e5a4eaa0ae39",
+  "cause": "SDK 0.2.0 audited source pin still described the pre-COFF bridge header after the reviewed declaration change.",
+  "review_scope": "Only platform-specific visibility declaration and its explanatory comment changed. Function signatures, constants, return-value checking, implementation bodies and CPU/OS admission guards remain byte-identical. No validation is removed.",
+  "old_sdk_header_sha256": "4d4b8db62d555405d3add46af7eb3c46b178b83982e0db1ebdabb650fbe382e1",
+  "new_sdk_header_sha256": "57a8e7bf360c39facc355ab072d8d301ef6c41a5f328a54bfded46785e8d7745",
+  "legacy_015_profile_unchanged": true,
+  "red_green": "Seven source-profile tests failed on the old SDK header pin; all 104 source-profile, publication-contract and SDK-profile tests passed after updating only the 0.2.0 header digest. Existing tests reject every modified, missing or extra source and unchanged legacy-version mixing.",
+  "actual_archive": {
+    "archive_sha256": "4d1569917ad4ee587236438acb63f14ee43f156fcacba07f922a91b29d48ad2d",
+    "archive_bytes": 218851,
+    "package": "q-periapt-mlkem-native-sys",
+    "version": "0.2.0",
+    "file_count": 147,
+    "header_sha256": "57a8e7bf360c39facc355ab072d8d301ef6c41a5f328a54bfded46785e8d7745",
+    "cargo_package_default_verification": true,
+    "full_sdk_archive_validator_passed": true,
+    "scope": "One real Cargo-produced sys-crate archive on macOS; full twelve-crate hosted publication checks remain required."
+  },
+  "test_log_sha256": "5ce5d61adfed4a7ad02320c2041e938db0f9925b57192993e7919684b8e8de00",
+  "full_hosted_ci_required": true
+}

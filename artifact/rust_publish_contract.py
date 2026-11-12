@@ -2701,7 +2701,8 @@ _SDK_020_LOCAL_SOURCE_SHA256 = {
     "src/build_support_tests.rs": "2e0a1370eb78cf9557839e208e4c461940babddea6cc506a1f0214c2914f6c0a",
     "src/lib.rs": "2248aa6ec5f6fb67993cd8454455efc2f214e0e70e2946961dce82386ce77ab6",
     "src/mlkem_bridge.c": "8984b98849b7a11212ce41c93ea1ff83103bc5eece07195e4b1da7ce401f2120",
-    "src/mlkem_bridge.h": "4d4b8db62d555405d3add46af7eb3c46b178b83982e0db1ebdabb650fbe382e1",
+    # COFF declarations retain warn_unused_result without the ELF visibility attribute.
+    "src/mlkem_bridge.h": "57a8e7bf360c39facc355ab072d8d301ef6c41a5f328a54bfded46785e8d7745",
     "src/mlkem_bridge_asm.S": "c658b40e52fa3aebeef74c1c5dd4f56fa3d71d6f52721df9d47d6c1e13d50b7a",
     "src/mlkem_bridge_native.c": "88c9210692994677e8ab077c1a56c9bd8354897085eeec56e25743f46d8781b5",
     "src/mlkem_bridge_portable.c": "6d51c2083fc58fededd279edab804ef9300da0ffe3a4be14178c68aa85e7e623",
