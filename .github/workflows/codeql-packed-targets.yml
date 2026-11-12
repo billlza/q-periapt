@@ -1,0 +1,146 @@
+name: Rust packed-state target qualification
+
+on:
+  push:
+    branches: [codex/codeql-packed-state-targets-20261112]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    concurrency:
+      group: codeql-${{ github.workflow }}-${{ github.ref }}-rust-${{ matrix.profile }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    name: Analyze Rust (${{ matrix.profile }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: native
+            runner: ubuntu-24.04
+            bundle: linux64
+          - profile: wasm
+            runner: ubuntu-24.04
+            bundle: linux64
+    env:
+      RUST_PROFILE: ${{ matrix.profile }}
+      CODEQL_EXPECTED_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: rust-src
+          targets: wasm32-unknown-unknown
+      - name: Prepare fixed native protobuf compiler
+        if: matrix.profile == 'native'
+        timeout-minutes: 3
+        run: sh artifact/python-run.sh artifact/ci_protoc.py
+      - name: Check runner WASM C compiler
+        if: matrix.profile == 'wasm'
+        run: |
+          set -eu
+          command -v clang
+          clang --version
+          printf 'int qperiapt_compiler_check(void) { return 0; }\n' | \
+            clang --target=wasm32-unknown-unknown -x c -c - -o "$RUNNER_TEMP/qperiapt-clang-wasm.o"
+      - name: Check target coverage and publication rejection cases
+        run: |
+          sh artifact/python-run.sh -m unittest -v \
+            test_codeql_rust_quality test_codeql_consumer_context \
+            test_codeql_target_coverage test_codeql_compiler_sources \
+            test_codeql_cargo_metadata test_codeql_rust_profile test_codeql_rust_publication test_codeql_rust_transfer \
+            test_codeql_rust_plan test_codeql_progress
+      - uses: github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+        id: rust_codeql
+        with:
+          tools: https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.2/codeql-bundle-${{ matrix.bundle }}.tar.gz
+          languages: rust
+      - name: Compile and extract the actual target
+        id: rust_prepare
+        # Include compilation/extraction as well as the 30-minute Metrics cap.
+        # The enclosing job retains its independent six-hour deadline.
+        timeout-minutes: 55
+        env:
+          CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
+        run: sh artifact/python-run.sh artifact/codeql_rust_profile.py prepare --profile "$RUST_PROFILE"
+      - name: Download the authenticated projection runtime
+        timeout-minutes: 12
+        run: |
+          set -eu
+          CODEQL_ARCHIVE="$RUNNER_TEMP/codeql-bundle-rust-linux64.tar.zst"
+          curl --fail --location --proto '=https' --proto-redir '=https' \
+            --connect-timeout 30 --max-time 600 --max-filesize 98247028 \
+            --output "$CODEQL_ARCHIVE" \
+            'https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.2/codeql-bundle-rust-linux64.tar.zst'
+          test "$(stat --format='%s' "$CODEQL_ARCHIVE")" = 98247028
+          printf '%s  %s\n' \
+            'acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea' \
+            "$CODEQL_ARCHIVE" | sha256sum --check --strict
+      - name: Run every security-extended query
+        timeout-minutes: 305
+        env:
+          CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
+        run: |
+          sh artifact/python-run.sh artifact/codeql_rust_profile.py analyze --profile "$RUST_PROFILE" \
+            --summary-plan-mode projection \
+            --tool-archive "$RUNNER_TEMP/codeql-bundle-rust-linux64.tar.zst"
+      - name: Retain profile evidence before bundling diagnostics
+        if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-profile-${{ matrix.profile }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/evidence/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Retain Rust query logs independently of the database archive
+        if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-query-logs-${{ matrix.profile }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qperiapt-codeql-database/rust/log/**
+            ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/evidence/analyze.*
+            ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/analysis-plan/evaluator/**
+          if-no-files-found: error
+          retention-days: 14
+      - name: Bundle the completed or partial database
+        if: always()
+        timeout-minutes: 10
+        env:
+          CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
+        run: |
+          diagnostic_dir="$RUNNER_TEMP/qperiapt-codeql-$RUST_PROFILE/diagnostics"
+          mkdir -p "$diagnostic_dir"
+          if test -f "$RUNNER_TEMP/qperiapt-codeql-database/rust/codeql-database.yml"; then
+            "$CODEQL_BINARY" database bundle "$RUNNER_TEMP/qperiapt-codeql-database/rust" \
+              --output="$diagnostic_dir/database.zip" --include-diagnostics --include-results --include-logs
+          else
+            printf '%s\n' 'No database metadata was produced; inspect the profile evidence.' > "$diagnostic_dir/no-database.txt"
+          fi
+      - name: Retain Rust database and consumer diagnostics
+        if: always()
+        timeout-minutes: 10
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: codeql-rust-diagnostics-${{ matrix.profile }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/diagnostics/**
+            ${{ runner.temp }}/qperiapt-codeql-database/rust/log/**
+            ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/consumers/*.json
+            ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/consumers/*.stdout
+            ${{ runner.temp }}/qperiapt-codeql-${{ matrix.profile }}/consumers/*.stderr
+          if-no-files-found: error
+          retention-days: 14
+
