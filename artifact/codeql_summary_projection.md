@@ -137,9 +137,12 @@ completion counts for distinct
 admitted queries as stderr arrives; the original byte stream is retained.
 Completion and publication still depend on the full result receipts.
 
-CodeQL jobs queue by language or Rust target. A delayed platform job therefore
-does not reserve every language's queue. The publication job still requires the
-native, WASM and macOS results from its own workflow and source revision.
+CodeQL jobs queue by language or Rust target. A new PR run cancels its
+superseded workflow cohort and target jobs. Other events use independent outer
+workflow groups and retain each target's running job. A delayed platform job
+does not reserve every language's queue for those events. Publication
+still requires completed native, WASM and macOS results from its own workflow
+and source revision.
 
 The one-off integration and nonempty-fixture workflows belong to their
 diagnostic branches. Ongoing regression coverage uses the existing artifact

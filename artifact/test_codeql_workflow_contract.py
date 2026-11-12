@@ -217,9 +217,16 @@ class CodeQLWorkflowContractTests(unittest.TestCase):
         self.assertIn("if-no-files-found: error", evaluate)
         self.assertIn("if-no-files-found: error", compare)
 
-    def test_production_jobs_queue_independently_without_cancelling_running_analysis(self) -> None:
+    def test_production_replaces_pr_cohorts_and_keeps_other_event_queues_independent(self) -> None:
         workflow = self.read("codeql.yml")
-        self.assertNotIn("concurrency", keys(workflow, 0))
+        cohort = mapping(workflow, "concurrency")
+        self.assertEqual(keys(cohort, 2), {"group", "cancel-in-progress"})
+        self.assertEqual(re.findall(r"^  group: (.+)$", cohort, re.MULTILINE), [
+            "codeql-cohort-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}"
+        ])
+        self.assertEqual(re.findall(r"^  cancel-in-progress: (.+)$", cohort, re.MULTILINE), [
+            "${{ github.event_name == 'pull_request' }}"
+        ])
         expected_groups = {
             "analyze": "analyze-${{ matrix.language }}",
             "rust": "rust-${{ matrix.profile }}",
@@ -237,7 +244,8 @@ class CodeQLWorkflowContractTests(unittest.TestCase):
                 self.assertEqual(keys(concurrency, 6), {"group", "cancel-in-progress"})
                 group = re.findall(r"^      group: (.+)$", concurrency, re.MULTILINE)
                 self.assertEqual(group, ["codeql-${{ github.workflow }}-${{ github.ref }}-" + suffix])
-                self.assertIn("      cancel-in-progress: false\n", concurrency)
+                cancellation = re.findall(r"^      cancel-in-progress: (.+)$", concurrency, re.MULTILINE)
+                self.assertEqual(cancellation, ["${{ github.event_name == 'pull_request' }}"])
                 groups.extend(group)
         self.assertEqual(len(groups), len(set(groups)))
 

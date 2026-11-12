@@ -19,12 +19,16 @@ Removing that push subscription preserves every job and required context,
 the PR merge checkout, and independent checks of the eventual `main` commit.
 Production CodeQL already used the separate PR/main trigger policy.
 
-Production jobs now queue independently by language or Rust target. The key
-contains the workflow and PR/main ref, plus the job and its matrix dimension.
-Each group retains its running analysis and the newest pending revision with
-`cancel-in-progress: false`. An old Swift or macOS wait therefore does not hold
-the Linux language and target queues. The publication dependency still joins
-only the three target results from its own workflow and source revision. See
+Production PR runs replace the superseded workflow cohort, including jobs that
+have not yet reached their dependencies. Other events use a unique outer group
+per run, so they do not reserve every language's queue behind a platform wait.
+Jobs also have separate groups keyed by workflow, ref, job and matrix dimension.
+A replacement PR job cancels older work in its target group, including work
+started before workflow-level replacement was introduced. Pushes to `main`,
+scheduled runs and manual runs retain each target's running job and newest
+pending revision. The publication dependency still joins
+only the three completed target results from its own workflow and source
+revision; a cancelled analysis cannot supply a successful receipt. See
 [job concurrency](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
 
 Updating `diagnostic/codeql-summary-projection` is an explicit request to run

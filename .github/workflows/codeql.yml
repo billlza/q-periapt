@@ -12,11 +12,17 @@ on:
 permissions:
   contents: read
 
+# Cancel the entire superseded PR cohort, including jobs whose dependencies
+# have not finished yet. Other events keep independent workflow admission.
+concurrency:
+  group: codeql-cohort-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   analyze:
     concurrency:
       group: codeql-${{ github.workflow }}-${{ github.ref }}-analyze-${{ matrix.language }}
-      cancel-in-progress: false
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: Analyze (${{ matrix.language }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
@@ -182,7 +188,7 @@ jobs:
   rust:
     concurrency:
       group: codeql-${{ github.workflow }}-${{ github.ref }}-rust-${{ matrix.profile }}
-      cancel-in-progress: false
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: Analyze Rust (${{ matrix.profile }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 360
@@ -317,7 +323,7 @@ jobs:
   rust-macos-prepare:
     concurrency:
       group: codeql-${{ github.workflow }}-${{ github.ref }}-rust-macos-prepare
-      cancel-in-progress: false
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: Prepare Rust (macos)
     runs-on: macos-26
     timeout-minutes: 120
@@ -422,7 +428,7 @@ jobs:
   rust-macos-analyze:
     concurrency:
       group: codeql-${{ github.workflow }}-${{ github.ref }}-rust-macos-analyze
-      cancel-in-progress: false
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: Analyze Rust (macos)
     needs: rust-macos-prepare
     runs-on: ubuntu-24.04
@@ -530,7 +536,7 @@ jobs:
   rust-publication:
     concurrency:
       group: codeql-${{ github.workflow }}-${{ github.ref }}-rust-publication
-      cancel-in-progress: false
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     name: Validate and publish Rust target analyses
     needs: [rust, rust-macos-prepare, rust-macos-analyze]
     runs-on: ubuntu-24.04
