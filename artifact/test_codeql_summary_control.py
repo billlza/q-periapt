@@ -177,7 +177,8 @@ class FixedConfigurationTests(unittest.TestCase):
         self.assertIn(REDUCED_SUMMARY, QUERY_HASHES)
 
     def test_only_two_memory_arguments_change_between_profiles(self):
-        self.assertEqual(control.PROFILES, {"heap-2048": (2048, 10643), "heap-1536": (1536, 11155)})
+        self.assertEqual(control.PROFILES, {"heap-2048": (2048, 10643), "heap-1536": (1536, 11155),
+                                           "memory-56000": (4096, 50595)})
         self.assertEqual(control.RAM_MB, 14000)
         self.assertEqual(control.THREADS, 4)
         self.assertEqual(control.EVALUATION_SECONDS, 18000)
@@ -198,7 +199,8 @@ class FixedConfigurationTests(unittest.TestCase):
             self.assertIn("--common-caches=/case/cache", command)
             self.assertIn("path:/case/frozen.qls", command)
             self.assertFalse(any("sarif" in value.lower() for value in command))
-        self.assertEqual({sum(allocation) for allocation in control.PROFILES.values()}, {12691})
+        self.assertEqual({sum(allocation) for allocation in control.PROFILES.values()}, {12691, 54691})
+        self.assertEqual(control.configuration("memory-56000")["requested_ram_mb"], 56000)
         self.assertEqual(control.RAM_MB - 12691, 1309)
 
     def test_exact_plaintext_inventory_is_accepted(self):
@@ -1129,7 +1131,8 @@ class SummaryAllocationEvidenceTests(unittest.TestCase):
     def test_neither_arm_reruns_the_known_failed_allocation(self):
         for profile, (heap, native) in control.PROFILES.items():
             self.assertGreater(native, 9329)
-            self.assertEqual(heap + native + control.RESERVED_MB, 14000)
+            self.assertEqual(heap + native + control.RESERVED_MB,
+                             56000 if profile == "memory-56000" else 14000)
             self.assertIn("-J-XX:+PrintFlagsFinal", control.query_command(
                 Path("/tool/codeql"), Path("/case/database"), Path("/case"), profile))
 
