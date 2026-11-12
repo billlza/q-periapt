@@ -1,87 +1,87 @@
 {
   "bundled_compiled_inventory_sha256": "f5d87c717575c9243272e3b1c8abdc1f5f12d93a193ffd2d3b1ba10df6de43d9",
   "bundled_plan_sha256": "bc65daf746a13e0d162f0853b3a21eda41ff2d573774e6862983a916c06244a6",
-  "capsule_bytes": 621211,
-  "capsule_sha256": "35ab9955321008fb55e436c78b38725370fd5930885635e43ed093ab672fc6d3",
+  "capsule_bytes": 620555,
+  "capsule_sha256": "060522ee09abd85424c0355e5c4a5e8186a9740b9d3b472fe557fca41ea96ba5",
   "codeql_version": "2.27.2",
-  "compiled_inventory_sha256": "4970ebd41c7d6d6d28e4bc53692312f25624e3e4736b1ff9cf0ea22676308e55",
-  "compiler_inputs_digest": "c327768d3f383933ff70cd941341916b",
+  "compiled_inventory_sha256": "05ad87c50bd75afc23cdc425e70128b7b6f16f26908fa35fed42e80f31d138d4",
+  "compiler_inputs_digest": "fcbc88b667fe0122ca51593e2594a017",
   "dependency_inventory": {
-    "bytes": 117209,
-    "effective_inventory_sha256": "80c10f4a92aded996552ea84195daabb75535f918bb53c3d98e89dc4ce4d11d5",
+    "bytes": 117207,
+    "effective_inventory_sha256": "5128a4c9a93e72169ca836b0681539e4e52dbe5b23ad817ef54c65524241a542",
     "expanded_bytes": 444724,
     "file_count": 1175,
     "path": "codeql_summary_projection_dependencies.json.gz",
     "root": ".codeql/libraries",
-    "sha256": "1a76d5d9eaf26bd931ba9710db92904fa8314b39daeb9d450a1600b8bb44cf95",
+    "sha256": "28522d921e19cf70d654bc30982e5b2bc9f92588032dcec8d4085d5e794923d6",
     "upstream_inventory_sha256": "cc5094dfbf7174718ed834b8f21dd0efb6be55388102009dcd4e9d1795ea48f6"
   },
   "dynamic_join_order_mode": "all",
-  "expanded_bytes": 618414,
+  "expanded_bytes": 617543,
   "files": {
-    ".codeql/precompiled/0e9adfp2fq5q2dasf0agg0urqqb.bytes.qlx": {
-      "bytes": 114516,
-      "sha256": "f7c8c65064b7191d7d9a30e440467543d96a3a6ad0510ae3d15774df2634eb2c"
+    ".codeql/precompiled/16df81ibftud7l68l1p2e6hhvd6.bytes.qlx": {
+      "bytes": 14844,
+      "sha256": "90e41956b3a283f739c9b6820a82f151f87e3078d7082941694c25af84ef1a79"
     },
-    ".codeql/precompiled/1fbab249e1eak2oekdvj3f3mbce.bytes.qlx": {
-      "bytes": 461,
-      "sha256": "0631bda1b745b1c0419c31da4b5ca4dce090f855ce473f4fcf73a8ab7ce1ad8e"
+    ".codeql/precompiled/1a116bqgail2svuilhcconf2bi7.bytes.qlx": {
+      "bytes": 3915,
+      "sha256": "281218b5950a4a4e8850de86621f2df65154c3e9f04ea790ed4cf005a4947ade"
     },
-    ".codeql/precompiled/5a5940l3aositdn2c96rvn8kcb8.bytes.qlx": {
-      "bytes": 64677,
-      "sha256": "934b78e50aea5ffc1bc48a4084793f2032d316315e28aa17fceab29d9b9a95d3"
+    ".codeql/precompiled/1aebd36jo502n28oesspnv3tpr9.bytes.qlx": {
+      "bytes": 3880,
+      "sha256": "e3926d156bee568239c1a996a1c00d75ce87b87ef39e60e7a14a1336c718df7a"
     },
-    ".codeql/precompiled/65d494gd6uborpp2q05fer0lhp9.bytes.qlx": {
-      "bytes": 24338,
-      "sha256": "5f66d329ed997f26b552e1e2f340a83af07b3f9e274b03c45e7d0f9d4d397bf7"
+    ".codeql/precompiled/1c1eb2jmb6tipo9nilm7rbpa0hf.bytes.qlx": {
+      "bytes": 24287,
+      "sha256": "3d8d86b476f13205e421e639916b1240e21d7a12f15a84d3bab86502260bf2b5"
     },
-    ".codeql/precompiled/7a802198gr0odranna0sr8qgfu8.bytes.qlx": {
-      "bytes": 14884,
-      "sha256": "63341d98dfef5ea7cf89935fd1972f7cec06aabd2c441cb46f7cd4dfb112b83e"
+    ".codeql/precompiled/37eccbklok90phfmutj9ttsehje.bytes.qlx": {
+      "bytes": 79827,
+      "sha256": "e10e1474c9d64ddb9f1d83c2e9bbaf0fd9704990b667d59f48167bb7ee52e79e"
     },
-    ".codeql/precompiled/a216b2u8s1pvfllahfuf7mnfc80.bytes.qlx": {
-      "bytes": 7165,
-      "sha256": "32113811e84160e239cf73efd93810bca4ebe9a70e72c2a61fe1cfc55d1557fb"
+    ".codeql/precompiled/46cc80ei1tdec24bdhh0qu999n6.bytes.qlx": {
+      "bytes": 442,
+      "sha256": "194b2470b58beb85d6fad89a6eddd67d1284057a7635a074c51f3033c5445d5b"
     },
-    ".codeql/precompiled/aa441bce0m4d41011a9vkl5s3p3.bytes.qlx": {
-      "bytes": 22303,
-      "sha256": "61aa2679fa620fdd9935dee154b9aef51c7313dc3591c01ce66b49930a5dbe77"
+    ".codeql/precompiled/5bc3da2odofb7qe5omh6em7lvma.bytes.qlx": {
+      "bytes": 64549,
+      "sha256": "ae7d987d58d459b23d25b6856237604c10d30478235f5db6707ed3bf20eb0a2e"
     },
-    ".codeql/precompiled/b0e991q3r4khpng60io7qr03cmd.bytes.qlx": {
-      "bytes": 20227,
-      "sha256": "4cb1e91f4fe21a78a64b3a5298589fa65044098721ba3c0a4e0aef1954e54da9"
+    ".codeql/precompiled/5fc280u4e1dboa04b87qofjhlbe.bytes.qlx": {
+      "bytes": 7144,
+      "sha256": "076008c81b9df686d967d0885dbdc4c94218011ad7d0f912f0264ab1d07a7d06"
     },
-    ".codeql/precompiled/c18a54jv8r1a6n000f5abrg50m3.bytes.qlx": {
-      "bytes": 79933,
-      "sha256": "752e0c8df6f745cc396dfb080c65f0232095c6fc000c4f56e612dc89227eea58"
+    ".codeql/precompiled/68de92rdh7gskhfhmevl01i3of5.bytes.qlx": {
+      "bytes": 33597,
+      "sha256": "77babd025855106380f96943d2e8a9a65030aaefa07870903cfafdd59ec3a80f"
     },
-    ".codeql/precompiled/c3f99ac6r4phohc30b7r952ksl2.bytes.qlx": {
-      "bytes": 8940,
-      "sha256": "ed0c13998aa9d9839602025b30511b7a030c8fe5a6c0e3359a46ea3c3e3103db"
+    ".codeql/precompiled/89d7eeo8ieflv7kmkgql5ti1f12.bytes.qlx": {
+      "bytes": 29482,
+      "sha256": "51c61aa219735a01a20708701e12440f815d1bb892d65ae0c5418344eac5b7b4"
     },
-    ".codeql/precompiled/d2ce409a56trpjtb14ovlras6ud.bytes.qlx": {
-      "bytes": 33645,
-      "sha256": "f299b239ff7b0bfebbce9daaa6ca2fa20fcaa976dbefe5f525aba95272027924"
+    ".codeql/precompiled/99dc65hfjfov2dt8q2k8t7mblr1.bytes.qlx": {
+      "bytes": 8921,
+      "sha256": "ceaa5c1299dc3ae5fc4bc09d3b08c035e46b50696bee41b81e57ece7391b1025"
     },
-    ".codeql/precompiled/e5a830te1sor1hgr2m97bb72ltf.bytes.qlx": {
-      "bytes": 3937,
-      "sha256": "b87af37cfc81acb3772e6dddb079bae701d82a57c5fcc2ae6739f9928973cda2"
+    ".codeql/precompiled/a83cb57552pvjhiuqign208qvpe.bytes.qlx": {
+      "bytes": 114412,
+      "sha256": "ba13710ae87758bd906d4ca594ae6674a67b033af7e49f96aea7a8b508d1a7cb"
     },
-    ".codeql/precompiled/f3baaat56g98ck95u92imoil170.bytes.qlx": {
-      "bytes": 3902,
-      "sha256": "a3ef87599d6fda968a9cd8faa2027ccdae7be0f489cbbeb8fe5249d731f07586"
+    ".codeql/precompiled/b3b64bq1ds8fjukpceufnp5dns0.bytes.qlx": {
+      "bytes": 22228,
+      "sha256": "a5a51e56afb7e4c40e811f4fb78e6f3a7ab5b94d16d4c13e26ba05c214943039"
     },
-    ".codeql/precompiled/fa00895ngnrch3e958i22vv791b.bytes.qlx": {
-      "bytes": 29532,
-      "sha256": "3cf4a10cd0508be43e41464a22c81835f8547d8d68bf45fce01cd8c8f6be9368"
+    ".codeql/precompiled/cae315e659lttnko5f9g31aso13.bytes.qlx": {
+      "bytes": 4588,
+      "sha256": "b2fcb130d2946b83dd723303f8c39845e762bd9c8b7984a87fe030cca869acda"
     },
-    ".codeql/precompiled/fbd120gseg57be2im6r8co1ndkb.bytes.qlx": {
-      "bytes": 4609,
-      "sha256": "221c8a57628fe2e8ff70be98f373337dab30b20a1770545989126275b218e861"
+    ".codeql/precompiled/cd07cbjvktces4mvih2r7pc79g3.bytes.qlx": {
+      "bytes": 20192,
+      "sha256": "05a1a771bf35fa868f1d34fe3911d21a0046b8a0ea5add57fe7160c6dab35af4"
     },
     "queries/summary/SummaryStats.qlx": {
-      "bytes": 185345,
-      "sha256": "960dd13808625feadd9d19474e7b2cd7fcac391050c402602e5c4a094b5576fb"
+      "bytes": 185235,
+      "sha256": "0c7f6af923a661310e801c7cf8990288c7c8edb9de5fb3027a1d5cb79afb7a03"
     }
   },
   "kind": "qperiapt.codeql_summary_projection_plan",
@@ -135,14 +135,14 @@
   "tool_bundle_sha256": "acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea",
   "unchanged_other_compiled_queries": 38,
   "vendor_patch": {
-    "bytes": 8974,
+    "bytes": 9543,
     "dependency_path": "codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll",
     "effective": {
-      "bytes": 144545,
-      "sha256": "b075351f6095254a2284bf644e61e505dc73d4ee12f36670c01b9adf6e6dc5a7"
+      "bytes": 144893,
+      "sha256": "86ae17d3900bdfe4940d2d92c09740d8b75f002fcc58bbcea69e733764218c52"
     },
     "path": "codeql_summary_projection.patch",
-    "sha256": "2e01d15c01f2240d8915fb124865f0d7f81b486929245ba5f61ad0502de06207",
+    "sha256": "7ed7b74db41c3184f3607edfb6b7cfdbf479314b6453a8d1ce8f47607845e473",
     "upstream": {
       "bytes": 138246,
       "sha256": "48abc6ae3a155494379f139d6a71d0d9b27469824e8f2dc5a72ff39a82ce64bf"

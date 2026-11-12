@@ -1,0 +1,11 @@
+{
+  "purpose": "isolated inline-read candidate awaiting full validation",
+  "MANIFEST_SHA256": "aff9e8e5138909da53acc5f75c774e7bb31e1f0d4281546015f6ffb3ae4f9a6d",
+  "COMPILER_INPUTS_DIGEST": "fcbc88b667fe0122ca51593e2594a017",
+  "COMPILED_INVENTORY_SHA256": "05ad87c50bd75afc23cdc425e70128b7b6f16f26908fa35fed42e80f31d138d4",
+  "PLAN_SHA256": "0c7f6af923a661310e801c7cf8990288c7c8edb9de5fb3027a1d5cb79afb7a03",
+  "pack_inventory_files": 1357,
+  "pack_inventory_sha256": "febd97c6ca5375ba9b263ca8e29c56d538f41b7aedafa8296547a99a662f68ae",
+  "capsule_sha256": "060522ee09abd85424c0355e5c4a5e8186a9740b9d3b472fe557fca41ea96ba5",
+  "capsule_bytes": 620555
+}
