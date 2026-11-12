@@ -20,7 +20,7 @@ import zipfile
 
 sys.dont_write_bytecode = True
 
-CANDIDATE_COMMIT = "b0471d334bcfeee7966f1bada59b97c5dc2dfb6e"
+CANDIDATE_COMMIT = "e2ed4e2009f6c9c70ec5d7fcbdc46b933861930c"
 EVIDENCE_COMMIT = "99340939848d290191651ab306d1b5edc0f59df2"
 EVIDENCE = "research/sdk-alpha1/evidence/"
 FIXTURE_PACKET = EVIDENCE + "20261111-summary-projection-fixture/"
@@ -212,7 +212,7 @@ def main():
             source_contract[name] = {"bytes": len(actual), "sha256": sha(actual)}
         save(evidence / "SOURCE_CONTRACT.json", source_contract)
         require(projection.MANIFEST_SHA256 == PLAN_MANIFEST_SHA256
-                and projection.COMPILER_INPUTS_DIGEST == PLAN_KEY, "Through-inline candidate identity differs")
+                and projection.COMPILER_INPUTS_DIGEST == PLAN_KEY, "Packed-state candidate identity differs")
 
         inputs = {}
         for label, relative, expected in (
