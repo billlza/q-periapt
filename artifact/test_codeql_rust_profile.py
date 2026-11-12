@@ -159,8 +159,12 @@ class RustProfileTests(unittest.TestCase):
                 if name == "macos":
                     from test_codeql_rust_transfer import profile_fixture, record_fixture
                     extraction = profile_fixture()
-                    (run.evidence / "PROFILE.json").write_text(json.dumps(extraction))
-                    record = record_fixture(extraction, hashlib.sha256((run.evidence / "PROFILE.json").read_bytes()).hexdigest())
+                    (run.evidence / "EXTRACTION_INPUTS.json").write_text(json.dumps(extraction))
+                    digest = hashlib.sha256((run.evidence / "EXTRACTION_INPUTS.json").read_bytes()).hexdigest()
+                    (run.evidence / "PROFILE.json").write_text(json.dumps(dict(extraction,
+                        active_target_quality_passed=True, extraction_inputs_sha256=digest,
+                        quality_host="linux", quality_threads=4, quality_ram_mb=14000, quality_run_attempt="2")))
+                    record = record_fixture(extraction, digest)
                     (run.evidence / "TRANSFER.json").write_text(json.dumps(record))
                 def command(label, argv, **kwargs):
                     if label == "resolve-suite":
@@ -397,8 +401,8 @@ class RustProfileTests(unittest.TestCase):
         self._check_clang_selection(symlink=True)
 
     def test_extraction_inputs_survive_quality_failure_without_certifying_profile(self) -> None:
-        for passed in (False, True):
-            with self.subTest(passed=passed), tempfile.TemporaryDirectory() as temporary:
+        for name, passed in ((name, passed) for name in ("native", "macos") for passed in (False, True)):
+            with self.subTest(profile=name, passed=passed), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary).resolve()
                 (root / "src").mkdir()
                 data = b"pub fn operation() {}\n"
@@ -413,33 +417,33 @@ class RustProfileTests(unittest.TestCase):
                 (sysroot / "lib/rustlib/src/rust/library").mkdir(parents=True)
                 shutil.copytree(profile_module.ROOT / "artifact/codeql-rust-quality",
                                 root / "artifact/codeql-rust-quality")
-                run = ProfileRun(root, root / "run", Path(sys.executable), {}, host="darwin")
+                run = ProfileRun(root, root / "run", Path(sys.executable), {}, host=profile_module.profile_host(name))
                 def command(label, *_args, **_kwargs):
                     return {
                         "codeql-version": b"2.27.2\n",
-                        "rust-version": b"rustc 1.98.1 (48a229cea 2026-09-01)\nhost: aarch64-apple-darwin\n",
+                        "rust-version": ("rustc 1.98.1 (48a229cea 2026-09-01)\nhost: " + run.configuration.compiler_host + "\n").encode(),
                         "rust-sysroot": os.fsencode(sysroot),
                     }.get(label, b"compiler output")
                 def check_quality(actual_run, compiled, sources, profile):
                     inputs = json.loads((run.evidence / "EXTRACTION_INPUTS.json").read_text())
                     self.assertIs(actual_run, run)
-                    self.assertEqual((compiled, sources, profile), (source, source, "macos"))
+                    self.assertEqual((compiled, sources, profile), (source, source, name))
                     self.assertEqual(inputs["source_sha256"], source)
                     self.assertEqual(inputs["compiled_sources"], source)
                     self.assertEqual(inputs["source_commit"], "a" * 40)
                     self.assertEqual((inputs["run_id"], inputs["run_attempt"]), ("123", "1"))
-                    self.assertEqual((inputs["query_threads"], inputs["query_ram_mb"]), (2, 5500))
+                    self.assertEqual((inputs["query_threads"], inputs["query_ram_mb"]), (run.configuration.threads, run.configuration.ram_mb))
                     self.assertFalse(inputs["active_target_quality_passed"])
                     self.assertFalse(inputs["paired_target_quality_passed"])
                     self.assertFalse((run.evidence / "PROFILE.json").exists())
                     if not passed:
                         raise RuntimeError("quality query timed out")
-                    for name in ("MacroCalls.json", "ExtractedPaths.json"):
-                        (run.evidence / name).write_text("[]\n")
+                    for filename in ("MacroCalls.json", "ExtractedPaths.json"):
+                        (run.evidence / filename).write_text("[]\n")
                     return {"checked": 1}
                 with contextlib.ExitStack() as stack:
                     stack.enter_context(mock.patch.dict(os.environ, GITHUB_RUN_ID="123", GITHUB_RUN_ATTEMPT="1"))
-                    for owner, name, kwargs in (
+                    for owner, attribute, kwargs in (
                         (profile_module.quality, "require_repository_target_absent", {}),
                         (profile_module.quality, "require_clean_checkout", {}),
                         (profile_module.quality, "tracked_rust_paths", {"return_value": source}),
@@ -451,15 +455,17 @@ class RustProfileTests(unittest.TestCase):
                         (profile_module, "extract_database", {}),
                         (profile_module, "collect_quality", {"side_effect": check_quality}),
                     ):
-                        stack.enter_context(mock.patch.object(owner, name, **kwargs))
-                    if passed:
-                        profile_module.prepare(run, "macos", "a" * 40)
+                        stack.enter_context(mock.patch.object(owner, attribute, **kwargs))
+                    if passed or name == "macos":
+                        profile_module.prepare(run, name, "a" * 40)
                     else:
                         with self.assertRaisesRegex(RuntimeError, "quality query timed out"):
-                            profile_module.prepare(run, "macos", "a" * 40)
+                            profile_module.prepare(run, name, "a" * 40)
                 self.assertTrue((run.evidence / "EXTRACTION_INPUTS.json").is_file())
-                self.assertEqual((run.evidence / "PROFILE.json").exists(), passed)
-                if passed:
+                self.assertEqual((run.evidence / "PROFILE.json").exists(), passed and name != "macos")
+                if name == "macos":
+                    self.assertFalse((run.evidence / "MacroCalls.json").exists())
+                if passed and name != "macos":
                     profile = json.loads((run.evidence / "PROFILE.json").read_text())
                     self.assertTrue(profile["active_target_quality_passed"])
                     self.assertEqual(profile["metrics"], {"checked": 1})

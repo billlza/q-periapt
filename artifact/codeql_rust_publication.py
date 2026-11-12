@@ -10,7 +10,7 @@ import codeql_rust_plan as plan
 import codeql_rust_quality as quality
 from codeql_rust_profile import (COMPILER, QUERY_VERSION, ROOT, TARGETS, VERSION,
                                  profile_host, validate_sarif, validate_linux_query_memory)
-from codeql_rust_transfer import validate_transfer_record
+from codeql_rust_transfer import validate_transfer_record, validate_qualified_profile
 from codeql_target_coverage import MacroProfile, parse_macro_calls, validate_active_macro_coverage, validate_macro_profiles
 from evidence_io import parse_strict_json_bytes
 import rust_sdk_profile as sdk
@@ -93,9 +93,12 @@ def validate_profile_artifact(directory: Path, name: str, root: Path,
                     "macOS transfer job-output identity differs")
         sdk.require(analysis.get("transfer_sha256") == sdk.snapshot(transfer).sha256 == anchor,
                     "macOS analysis is not bound to the anchored transfer")
-        validate_transfer_record(read_json(transfer), profile, profile_digest,
+        inputs_snapshot = sdk.snapshot(directory / "EXTRACTION_INPUTS.json")
+        inputs = parse_strict_json_bytes(inputs_snapshot.data, label="publication extraction inputs")
+        validate_transfer_record(read_json(transfer), inputs, inputs_snapshot.sha256,
                                  expected_commit=expected_commit, run_id=run_id,
                                  analysis_attempt=int(generation))
+        validate_qualified_profile(directory, profile, analysis_attempt=int(generation))
     else:
         sdk.require("transfer_sha256" not in analysis and not transfer.exists() and not transfer.is_symlink(),
                     "local Linux profile cannot claim a macOS transfer")

@@ -319,6 +319,10 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
     # Compiler depfiles may not survive a failed quality query. Retain their
     # validated inventory now; only PROFILE.json can admit later analysis.
     sdk.write_json(run.evidence / "EXTRACTION_INPUTS.json", inputs)
+    if profile == "macos":
+        # The native compiler and extractor finish here. The authenticated
+        # database is qualified on Linux before security analysis is admitted.
+        return
     metrics = collect_quality(run, compiled, source, profile)
     quality.require_clean_checkout(expected_commit)
     sdk.write_json(run.evidence / "PROFILE.json", {
@@ -327,6 +331,51 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
         "extracted_paths_sha256": sdk.snapshot(run.evidence / "ExtractedPaths.json").sha256,
         "active_target_quality_passed": True, "paired_target_quality_passed": False,
     })
+
+
+def qualify_macos(run: ProfileRun, expected_commit: str) -> None:
+    """Qualify the authenticated native extraction using the Linux query budget."""
+    from codeql_rust_transfer import validate_transfer_anchor, validate_qualified_profile
+    sdk.require(run.configuration.platform == "linux", "macOS quality requires the Linux query worker")
+    sdk.require(not (run.evidence / "PROFILE.json").exists()
+                and not (run.evidence / "PROFILE.json").is_symlink(), "quality profile must be fresh")
+    attempt = int(os.environ["GITHUB_RUN_ATTEMPT"])
+    transfer = validate_transfer_anchor(run.evidence, expected_commit=expected_commit,
+                                        run_id=os.environ["GITHUB_RUN_ID"], analysis_attempt=attempt)
+    snapshot = sdk.snapshot(run.evidence / "EXTRACTION_INPUTS.json")
+    sdk.require(snapshot.sha256 == transfer["extraction_inputs_sha256"],
+                "extraction inputs changed after transfer admission")
+    inputs = parse_strict_json_bytes(snapshot.data, label="macOS extraction inputs")
+    quality.require_clean_checkout(expected_commit)
+    source = {path: sdk.snapshot(run.root / path, maximum=5 * 1024**2).sha256
+              for path in sorted(quality.tracked_rust_paths(run.root))}
+    compiled = inputs.get("compiled_sources")
+    sdk.require(inputs.get("source_sha256") == source
+                and isinstance(compiled, dict) and compiled and set(compiled) <= source.keys()
+                and all(source[path] == digest for path, digest in compiled.items()),
+                "transferred compiler source identity differs")
+    queries = run.root / "artifact/codeql-rust-quality"
+    sdk.require(inputs.get("quality_queries_sha256") == {
+                    path.name: sdk.snapshot(path).sha256 for path in sorted(queries.glob("*.ql"))}
+                and inputs.get("quality_pack_sha256") == sdk.snapshot(queries / "qlpack.yml").sha256
+                and inputs.get("quality_lock_sha256") == sdk.snapshot(queries / "codeql-pack.lock.yml").sha256,
+                "transferred quality query bytes differ")
+    version = run.command("quality-codeql-version", [str(run.codeql), "version", "--format=terse"])
+    sdk.require(version.decode().strip() == VERSION, "unexpected quality CodeQL version")
+    metrics = collect_quality(run, compiled, source, "macos")
+    quality.require_clean_checkout(expected_commit)
+    sdk.require(sdk.snapshot(run.evidence / "EXTRACTION_INPUTS.json").sha256 == snapshot.sha256,
+                "extraction inputs changed during qualification")
+    profile = {
+        **inputs, "extraction_inputs_sha256": snapshot.sha256,
+        "quality_host": run.configuration.platform, "quality_threads": run.configuration.threads,
+        "quality_ram_mb": run.configuration.ram_mb, "quality_run_attempt": str(attempt),
+        "metrics": metrics, "macro_census_sha256": sdk.snapshot(run.evidence / "MacroCalls.json").sha256,
+        "extracted_paths_sha256": sdk.snapshot(run.evidence / "ExtractedPaths.json").sha256,
+        "active_target_quality_passed": True,
+    }
+    validate_qualified_profile(run.evidence, profile, analysis_attempt=attempt)
+    sdk.write_json(run.evidence / "PROFILE.json", profile)
 
 
 def validate_query_inventory(inventory: dict[str, str], expected: object) -> None:
@@ -402,9 +451,10 @@ def analyze(run: ProfileRun, query_pack: Path, *, summary_plan_mode: str = "none
                 and re.fullmatch(r"[1-9][0-9]*", profile["run_attempt"]) is not None
                 and int(profile["run_attempt"]) <= int(attempt), "analysis workflow identity differs")
     if profile["profile"] == "macos":
-        from codeql_rust_transfer import validate_transfer_anchor
-        validate_transfer_anchor(run.evidence, profile, expected_commit=expected_commit,
+        from codeql_rust_transfer import validate_transfer_anchor, validate_qualified_profile
+        validate_transfer_anchor(run.evidence, expected_commit=expected_commit,
                                  run_id=run_id, analysis_attempt=int(attempt))
+        validate_qualified_profile(run.evidence, profile, analysis_attempt=int(attempt))
     else:
         sdk.require(not (run.evidence / "TRANSFER.json").exists()
                     and not (run.evidence / "TRANSFER.json").is_symlink(),
@@ -468,7 +518,7 @@ def analyze(run: ProfileRun, query_pack: Path, *, summary_plan_mode: str = "none
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "export", "import", "analyze"))
+    parser.add_argument("action", choices=("prepare", "export", "import", "qualify", "analyze"))
     parser.add_argument("--profile", choices=tuple(TARGETS), required=True)
     parser.add_argument("--summary-plan-mode", choices=analysis_plan.MODES, default="none")
     parser.add_argument("--tool-archive", type=Path,
@@ -477,7 +527,7 @@ def main() -> None:
     sdk.require((args.summary_plan_mode == "none" and args.tool_archive is None)
                 or (args.action == "analyze" and args.summary_plan_mode == "projection" and args.tool_archive is not None),
                 "the explicit projection archive is only accepted for analysis")
-    sdk.require(args.action not in ("export", "import") or args.profile == "macos",
+    sdk.require(args.action not in ("export", "import", "qualify") or args.profile == "macos",
                 "only the macOS extraction uses a database transfer")
     host = profile_host(args.profile) if args.action in ("prepare", "export") else analysis_host(args.profile)
     configuration = quality.hosted_configuration(host)
@@ -497,6 +547,9 @@ def main() -> None:
         from codeql_rust_transfer import export_database, import_database
         run = ProfileRun(ROOT, output, configuration.codeql, environment, resume=args.action == "export", host=host)
         (export_database if args.action == "export" else import_database)(run)
+    elif args.action == "qualify":
+        run = ProfileRun(ROOT, output, configuration.codeql, environment, resume=True, host=host)
+        qualify_macos(run, os.environ.get("CODEQL_EXPECTED_COMMIT", ""))
     else:
         run = ProfileRun(ROOT, output, configuration.codeql, environment, resume=True, host=host)
         pack = run.codeql.parent / "qlpacks/codeql/rust-queries" / QUERY_VERSION

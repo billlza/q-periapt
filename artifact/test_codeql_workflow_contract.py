@@ -59,6 +59,23 @@ class CodeQLWorkflowContractTests(unittest.TestCase):
             self.assertEqual(keys(block, 4), {"branches"})
             self.assertIn("branches: [main]", block)
 
+    def test_macos_quality_runs_after_authenticated_import_before_security_queries(self) -> None:
+        workflow = self.read("codeql.yml")
+        origin = mapping(workflow, "rust-macos-prepare", 2)
+        analysis = mapping(workflow, "rust-macos-analyze", 2)
+        self.assertIn('codeql_rust_profile.py prepare --profile "$RUST_PROFILE"', origin)
+        self.assertIn('codeql_rust_profile.py export --profile "$RUST_PROFILE"', origin)
+        self.assertNotIn('codeql_rust_profile.py qualify', origin)
+        self.assertIn('runs-on: ubuntu-24.04', analysis)
+        commands = ['codeql_rust_profile.py ' + action + ' --profile "$RUST_PROFILE"'
+                    for action in ("import", "qualify", "analyze")]
+        self.assertEqual([analysis.count(command) for command in commands], [1, 1, 1])
+        self.assertLess(analysis.index(commands[0]), analysis.index(commands[1]))
+        self.assertLess(analysis.index(commands[1]), analysis.index(commands[2]))
+        qualification = analysis[analysis.index('      - name: Qualify'):].split('\n      - ', 1)[0]
+        self.assertNotIn('continue-on-error', qualification)
+        self.assertNotIn('if:', qualification)
+
     def test_non_rust_checkout_keeps_sources_and_omits_only_historical_zip_files(self) -> None:
         workflow = self.read("codeql.yml")
         analysis = mapping(workflow, "analyze", 2)

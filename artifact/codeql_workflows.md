@@ -52,10 +52,21 @@ from an ordinary SDK or PR branch name.
 | `codeql_rust_profile.py` | Compile and extract each current Rust target, validate active source and macro coverage, resolve the pinned suite, execute all 39 queries, and bind the complete results to source, target, tool, memory policy, and workflow identity. |
 | `codeql_rust_plan.py` | Restore the authenticated private runtime, install the fixed projection, assemble the full analysis command and bind before/after plan, runtime, database and evaluator identities into production receipts. |
 | `codeql_evaluator_logs.py` | Read bounded evaluator logs for production and diagnostic callers, and display distinct admitted query completions while preserving the original stderr bytes. |
-| `codeql_rust_transfer.py` | Seal the native macOS extraction for its Linux query worker, verify the archive and source identities, and exclude previous query results from that transfer. |
+| `codeql_rust_transfer.py` | Seal the pending native macOS extraction for its Linux query worker, verify the archive and source identities, and exclude previous query results and quality receipts from that transfer. |
+
 | `codeql_rust_publication.py` | Validate all three profile receipts, paired target coverage, complete query inventories, and SARIF identities before publishing the established Rust categories. |
 | `codeql_summary_control.py` | Restore the exact retained database and verified cache, run fresh results in both allocation arms, and compare complete semantic results under an explicitly selected plan mode. |
 | `codeql_summary_plan.py` / `codeql_summary_projection.py` | Admit the fixed capsules and verify the effective plan and source/dependency identities. Production and diagnostic callers retain their own execution and result contracts. |
+
+The macOS origin compiles and extracts with its native toolchain, then seals
+`EXTRACTION_INPUTS.json` with quality still pending. Transfer schema 2 binds that
+record and the database to the origin job output. After import, Linux runs the
+unchanged `ExtractedPaths`, `Metrics`, and `MacroCalls` queries with 4 threads and
+14,000 MB. Only successful extraction and active macro coverage checks create
+`PROFILE.json`; it retains the native compiler identity and separately records
+the Linux quality host, budget, attempt, and exact extraction-input digest.
+Security analysis and publication both require that binding. A failed quality
+query leaves the extraction pending and cannot produce an admitted profile.
 
 Production publication depends on successful native, WASM, macOS extraction,
 and macOS analysis jobs. GitHub's [`needs` semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idneeds)

@@ -39,9 +39,9 @@ EXPECTED_ARCHIVED_RUST_SOURCE_COUNT = 68
 ARCHIVE_ROOT = "paper/continuity/artifacts/bootstrap"
 EXPECTED_TRACKED_RUST_SOURCE_COUNT = EXPECTED_CURRENT_RUST_SOURCE_COUNT + EXPECTED_ARCHIVED_RUST_SOURCE_COUNT
 CODEQL_COMMAND_TIMEOUT_SECONDS = 300
-# The whole-program Metrics query exceeded 900 seconds on hosted Apple Silicon;
-# its frozen database completed locally in 670 seconds with the same 2-thread,
-# 5500-MB budget. Keep the extended deadline finite and lighter queries unchanged.
+# Metrics requires a whole-program consistency evaluation. Keep its deadline
+# finite; macOS extraction now reaches this gate on the Linux query worker,
+# while the lighter queries retain their separate 300-second limits.
 CODEQL_METRICS_TIMEOUT_SECONDS = 1800
 CODEQL_QUERY_THREADS = 4
 CODEQL_QUERY_RAM_MB = 14_000

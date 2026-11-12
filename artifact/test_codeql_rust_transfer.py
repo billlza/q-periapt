@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import stat
 import sys
 import tempfile
@@ -14,6 +15,7 @@ from unittest import mock
 import zipfile
 
 from codeql_rust_profile import ProfileRun
+import codeql_rust_profile as profile_module
 import codeql_rust_transfer as transfer
 
 
@@ -22,19 +24,19 @@ def profile_fixture(source=None, *, attempt="1"):
             "source_commit": "a" * 40, "run_id": "123", "run_attempt": attempt,
             "compiler_host": transfer.TARGET, "compiler": transfer.COMPILER,
             "codeql_version": transfer.VERSION, "query_threads": 2, "query_ram_mb": 5500,
-            "active_target_quality_passed": True, "paired_target_quality_passed": False,
+            "active_target_quality_passed": False, "paired_target_quality_passed": False,
             "source_sha256": source or {}}
 
 
 def record_fixture(profile, profile_hash, evidence=None):
-    return {"schema": 1, "profile": "macos", "target": transfer.TARGET,
+    return {"schema": 2, "profile": "macos", "target": transfer.TARGET,
             "source_commit": profile["source_commit"], "run_id": profile["run_id"],
             "origin_attempt": profile["run_attempt"], "origin_host": "darwin",
             "compiler_host": transfer.TARGET, "compiler": transfer.COMPILER,
-            "codeql_version": transfer.VERSION, "profile_sha256": profile_hash,
+            "codeql_version": transfer.VERSION, "extraction_inputs_sha256": profile_hash,
             "database": {"file": "database.zip", "bytes": 100, "sha256": "b" * 64},
             "database_inventory_sha256": "c" * 64, "database_members": 3, "database_expanded_bytes": 200,
-            "evidence": evidence or {name: {"bytes": 100, "sha256": profile_hash if name == "PROFILE.json" else "d" * 64}
+            "evidence": evidence or {name: {"bytes": 100, "sha256": profile_hash if name == "EXTRACTION_INPUTS.json" else "d" * 64}
                                      for name in transfer.REQUIRED_EVIDENCE}}
 
 
@@ -51,10 +53,10 @@ class RustTransferTests(unittest.TestCase):
         self.incoming = self.base / "temporary/qperiapt-codeql-macos-transfer"
         (self.incoming / "evidence").mkdir(parents=True)
         for name in transfer.REQUIRED_EVIDENCE:
-            (self.incoming / "evidence" / name).write_text(json.dumps(self.profile if name == "PROFILE.json" else []))
+            (self.incoming / "evidence" / name).write_text(json.dumps(self.profile if name == "EXTRACTION_INPUTS.json" else []))
         self.archive = self.incoming / "database.zip"
         self.make_archive(self.archive)
-        self.record = record_fixture(self.profile, self.digest(self.incoming / "evidence/PROFILE.json"),
+        self.record = record_fixture(self.profile, self.digest(self.incoming / "evidence/EXTRACTION_INPUTS.json"),
                     {p.name: {"bytes": p.stat().st_size, "sha256": self.digest(p)}
                      for p in (self.incoming / "evidence").iterdir()})
         self.record["database"].update(bytes=self.archive.stat().st_size, sha256=self.digest(self.archive))
@@ -90,7 +92,7 @@ class RustTransferTests(unittest.TestCase):
 
     def check_record(self, record=None, profile=None, *, attempt=2):
         transfer.validate_transfer_record(record or self.record, profile or self.profile,
-            self.digest(self.incoming / "evidence/PROFILE.json"), expected_commit="a" * 40,
+            self.digest(self.incoming / "evidence/EXTRACTION_INPUTS.json"), expected_commit="a" * 40,
             run_id="123", analysis_attempt=attempt)
 
     def unbundle(self, label, argv, **options):
@@ -105,22 +107,23 @@ class RustTransferTests(unittest.TestCase):
     def test_same_run_transfer_allows_retry_without_rewriting_the_origin(self):
         self.check_record(attempt=1)
         self.check_record(attempt=2)
-        original = (self.incoming / "evidence/PROFILE.json").read_bytes()
+        original = (self.incoming / "evidence/EXTRACTION_INPUTS.json").read_bytes()
         with mock.patch.object(self.run, "command", side_effect=self.unbundle) as command:
             transfer.import_database(self.run)
         command.assert_called_once()
-        self.assertEqual((self.run.evidence / "PROFILE.json").read_bytes(), original)
+        self.assertEqual((self.run.evidence / "EXTRACTION_INPUTS.json").read_bytes(), original)
         self.assertEqual(json.loads(original)["run_attempt"], "1")
         self.assertEqual((self.run.evidence / "TRANSFER.json").read_bytes(), (self.incoming / "TRANSFER.json").read_bytes())
         self.assertFalse((self.run.evidence / "ANALYSIS.json").exists())
+        self.assertFalse((self.run.evidence / "PROFILE.json").exists())
         self.assertFalse((self.run.evidence / "results.sarif").exists())
         self.assertTrue((self.run.configuration.database / "db-rust/rust.dbscheme").is_file())
 
     def test_transfer_identity_rejects_mixed_source_host_target_attempt_and_types(self):
-        mutations = [("schema", True), ("profile", "native"), ("target", "wasm32-unknown-unknown"),
+        mutations = [("schema", True), ("schema", 1), ("profile", "native"), ("target", "wasm32-unknown-unknown"),
                      ("source_commit", "b" * 40), ("run_id", "124"), ("origin_attempt", "3"),
                      ("origin_attempt", 1), ("origin_host", "linux"), ("compiler_host", "x86_64-unknown-linux-gnu"),
-                     ("compiler", "1.98.2"), ("codeql_version", "2.27.1"), ("profile_sha256", "e" * 64),
+                     ("compiler", "1.98.2"), ("codeql_version", "2.27.1"), ("extraction_inputs_sha256", "e" * 64),
                      ("database_members", True), ("database_expanded_bytes", 0),
                      ("database_inventory_sha256", "C" * 64), ("extra", 1)]
         for key, value in mutations:
@@ -128,7 +131,7 @@ class RustTransferTests(unittest.TestCase):
                 changed = copy.deepcopy(self.record); changed[key] = value
                 self.check_record(changed)
         for key, value in [("query_threads", True), ("query_ram_mb", 14000),
-                           ("active_target_quality_passed", False), ("paired_target_quality_passed", True)]:
+                           ("active_target_quality_passed", True), ("paired_target_quality_passed", True)]:
             with self.subTest(profile_key=key), self.assertRaises(ValueError):
                 self.check_record(profile=dict(self.profile, **{key: value}))
 
@@ -143,13 +146,13 @@ class RustTransferTests(unittest.TestCase):
                 record = copy.deepcopy(self.record)
                 record["evidence"][name] = {"bytes": 0, "sha256": "d" * 64}
                 self.check_record(record)
-        record = copy.deepcopy(self.record); del record["evidence"]["Metrics.json"]
+        record = copy.deepcopy(self.record); del record["evidence"]["EXTRACTION_INPUTS.json"]
         with self.assertRaises(ValueError):
             self.check_record(record)
 
     def test_anchored_transfer_cannot_import_analysis_plan_evidence(self):
         original = copy.deepcopy(self.record)
-        reserved = ("ANALYSIS_PLAN.json", "ANALYSIS_PLAN_AFTER.json", "ANALYSIS_PLAN_FAILURE.json",
+        reserved = ("PROFILE.json", "Metrics.json", "MacroCalls.json", "ExtractedPaths.json", "ANALYSIS_PLAN.json", "ANALYSIS_PLAN_AFTER.json", "ANALYSIS_PLAN_FAILURE.json",
                     "ANALYSIS_RUNTIME.json", "SUMMARY_PLAN.json", "SUMMARY_PLAN_AFTER.json",
                     "SUMMARY_PLAN_ORIGINAL.qlx", "SUMMARY_PLAN_VENDOR_PATCH.patch",
                     "SUMMARY_PLAN_DEPENDENCIES.json.gz", "plan-version.stdout",
@@ -193,9 +196,10 @@ class RustTransferTests(unittest.TestCase):
         command.assert_not_called()
         self.assertFalse(self.run.configuration.database.exists())
 
-    def test_changed_quality_evidence_stops_before_codeql(self):
-        (self.incoming / "evidence/Metrics.json").write_text("[1]")
-        with mock.patch.object(self.run, "command") as command, self.assertRaisesRegex(ValueError, "file bytes differ"):
+    def test_changed_extraction_evidence_stops_before_codeql(self):
+        path = self.incoming / "evidence/EXTRACTION_INPUTS.json"
+        path.write_text(path.read_text() + " ")
+        with mock.patch.object(self.run, "command") as command, self.assertRaisesRegex(ValueError, "must bind an extraction"):
             transfer.import_database(self.run)
         command.assert_not_called()
 
@@ -212,7 +216,7 @@ class RustTransferTests(unittest.TestCase):
 
     @unittest.skipIf(os.name == "nt", "database transfer executes on macOS and Linux")
     def test_symlinked_transfer_files_fail(self):
-        original = self.incoming / "evidence/Metrics.json"
+        original = self.incoming / "evidence/EXTRACTION_INPUTS.json"
         backup = self.base / "metrics"; original.replace(backup); original.symlink_to(backup)
         with mock.patch.object(self.run, "command") as command, self.assertRaises(ValueError):
             transfer.import_database(self.run)
@@ -261,12 +265,90 @@ class RustTransferTests(unittest.TestCase):
         with mock.patch.object(origin, "command", side_effect=bundle):
             transfer.export_database(origin)
         directory = transfer.transfer_directory(origin.configuration)
-        self.assertEqual((directory / "evidence/PROFILE.json").read_bytes(), (origin.evidence / "PROFILE.json").read_bytes())
+        self.assertEqual((directory / "evidence/EXTRACTION_INPUTS.json").read_bytes(), (origin.evidence / "EXTRACTION_INPUTS.json").read_bytes())
         record = json.loads((directory / "TRANSFER.json").read_text())
         self.assertEqual(record["origin_attempt"], "1")
         self.assertEqual(record["database"]["sha256"], self.digest(directory / "database.zip"))
         with self.assertRaisesRegex(ValueError, "must be fresh"):
             transfer.export_database(origin)
+
+    def import_pending_quality(self):
+        queries = self.root / "artifact/codeql-rust-quality"
+        shutil.copytree(Path(__file__).parent / "codeql-rust-quality", queries)
+        self.profile.update(compiled_sources=self.source,
+            quality_queries_sha256={path.name: self.digest(path) for path in queries.glob("*.ql")},
+            quality_pack_sha256=self.digest(queries / "qlpack.yml"),
+            quality_lock_sha256=self.digest(queries / "codeql-pack.lock.yml"))
+        inputs = self.incoming / "evidence/EXTRACTION_INPUTS.json"
+        inputs.write_text(json.dumps(self.profile))
+        self.record["extraction_inputs_sha256"] = self.digest(inputs)
+        self.record["evidence"]["EXTRACTION_INPUTS.json"] = {
+            "bytes": inputs.stat().st_size, "sha256": self.digest(inputs)}
+        self.write_record()
+        anchor = mock.patch.dict(os.environ, {"CODEQL_TRANSFER_SHA256": self.digest(self.incoming / "TRANSFER.json")})
+        anchor.start(); self.addCleanup(anchor.stop)
+        with mock.patch.object(self.run, "command", side_effect=self.unbundle):
+            transfer.import_database(self.run)
+        self.assertFalse((self.run.evidence / "PROFILE.json").exists())
+
+    def quality_result(self, run, compiled, source, name):
+        self.assertIs(run, self.run)
+        self.assertEqual((compiled, source, name), (self.source, self.source, "macos"))
+        self.assertEqual((run.configuration.platform, run.configuration.threads, run.configuration.ram_mb),
+                         ("linux", 4, 14000))
+        self.assertFalse((run.evidence / "PROFILE.json").exists())
+        for filename in ("Metrics.json", "MacroCalls.json", "ExtractedPaths.json"):
+            (run.evidence / filename).write_text("[]\n")
+        return {"validated_fixture_metric": 1}
+
+    def test_pending_transfer_only_admits_profile_after_linux_quality_succeeds(self):
+        self.import_pending_quality()
+        inputs = (self.run.evidence / "EXTRACTION_INPUTS.json").read_bytes()
+        with mock.patch.object(self.run, "command", return_value=b"2.27.2\n"), \
+                mock.patch.object(profile_module, "collect_quality", side_effect=self.quality_result):
+            profile_module.qualify_macos(self.run, "a" * 40)
+        profile = transfer.read_json(self.run.evidence / "PROFILE.json")
+        self.assertEqual(profile["run_attempt"], "1")
+        self.assertEqual(profile["quality_run_attempt"], "2")
+        self.assertEqual(profile["query_ram_mb"], 5500)
+        self.assertEqual(profile["quality_ram_mb"], 14000)
+        self.assertTrue(profile["active_target_quality_passed"])
+        self.assertEqual((self.run.evidence / "EXTRACTION_INPUTS.json").read_bytes(), inputs)
+        self.assertFalse((self.run.evidence / "ANALYSIS.json").exists())
+        with self.assertRaisesRegex(ValueError, "must be fresh"):
+            profile_module.qualify_macos(self.run, "a" * 40)
+
+    def test_linux_quality_failure_keeps_pending_extraction_without_profile(self):
+        self.import_pending_quality()
+        with mock.patch.object(self.run, "command", return_value=b"2.27.2\n"), \
+                mock.patch.object(profile_module, "collect_quality", side_effect=ValueError("query timeout")), \
+                self.assertRaisesRegex(ValueError, "query timeout"):
+            profile_module.qualify_macos(self.run, "a" * 40)
+        self.assertFalse((self.run.evidence / "PROFILE.json").exists())
+        self.assertFalse(transfer.read_json(self.run.evidence / "EXTRACTION_INPUTS.json")["active_target_quality_passed"])
+
+    def test_quality_query_change_is_rejected_before_evaluation(self):
+        self.import_pending_quality()
+        (self.root / "artifact/codeql-rust-quality/Metrics.ql").write_text("select 0\n")
+        with mock.patch.object(profile_module, "collect_quality") as query, \
+                self.assertRaisesRegex(ValueError, "quality query bytes differ"):
+            profile_module.qualify_macos(self.run, "a" * 40)
+        query.assert_not_called()
+        self.assertFalse((self.run.evidence / "PROFILE.json").exists())
+
+    def test_extraction_replacement_during_quality_does_not_create_profile(self):
+        self.import_pending_quality()
+        def replace(*args):
+            result = self.quality_result(*args)
+            path = self.run.evidence / "EXTRACTION_INPUTS.json"
+            # Replace the read-only inode, not its mode, to test receipt binding.
+            data = path.read_bytes(); path.unlink(); path.write_bytes(data + b" ")
+            return result
+        with mock.patch.object(self.run, "command", return_value=b"2.27.2\n"), \
+                mock.patch.object(profile_module, "collect_quality", side_effect=replace), \
+                self.assertRaisesRegex(ValueError, "changed during qualification"):
+            profile_module.qualify_macos(self.run, "a" * 40)
+        self.assertFalse((self.run.evidence / "PROFILE.json").exists())
 
     def test_archive_rejects_raw_nul_names_before_zipinfo_truncation(self):
         path = self.base / "nul-name.zip"

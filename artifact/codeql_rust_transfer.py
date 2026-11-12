@@ -23,10 +23,10 @@ MAX_EXPANDED = 16 * 1024**3
 MAX_MEMBER = 4 * 1024**3
 MAX_MEMBERS = 100000
 MAX_EVIDENCE = 64 * 1024**2
-REQUIRED_EVIDENCE = {"PROFILE.json", "EXTRACTION_INPUTS.json", "Metrics.json",
-                     "MacroCalls.json", "ExtractedPaths.json"}
+REQUIRED_EVIDENCE = {"EXTRACTION_INPUTS.json"}
 FORBIDDEN_EVIDENCE = {"ANALYSIS.json", "QUERY_INVENTORY.json", "QUERY_MEMORY.json",
-                      "ANALYSIS_RUNTIME.json", "TRANSFER.json", "results.sarif"}
+                      "ANALYSIS_RUNTIME.json", "TRANSFER.json", "results.sarif",
+                      "PROFILE.json", "Metrics.json", "MacroCalls.json", "ExtractedPaths.json"}
 
 
 def read_json(path: Path):
@@ -54,13 +54,13 @@ def _evidence_name(name: object) -> bool:
                 "resolve-analysis-ram.", "transfer-", "ANALYSIS_PLAN", "SUMMARY_PLAN", "plan-")))
 
 
-def validate_transfer_record(record: object, profile: object, profile_sha256: str, *,
+def validate_transfer_record(record: object, profile: object, extraction_inputs_sha256: str, *,
                              expected_commit: str, run_id: str, analysis_attempt: int) -> None:
     keys = {"schema", "profile", "target", "source_commit", "run_id", "origin_attempt", "origin_host",
-            "compiler_host", "compiler", "codeql_version", "profile_sha256", "database",
+            "compiler_host", "compiler", "codeql_version", "extraction_inputs_sha256", "database",
             "database_inventory_sha256", "database_members", "database_expanded_bytes", "evidence"}
     sdk.require(isinstance(record, dict) and set(record) == keys
-                and type(record.get("schema")) is int and record["schema"] == 1,
+                and type(record.get("schema")) is int and record["schema"] == 2,
                 "invalid database transfer schema")
     sdk.require(isinstance(profile, dict) and type(profile.get("schema")) is int and profile["schema"] == 1,
                 "invalid extraction profile for database transfer")
@@ -82,10 +82,10 @@ def validate_transfer_record(record: object, profile: object, profile_sha256: st
                 and type(profile.get("query_threads")) is int and profile["query_threads"] == 2
                 and type(profile.get("query_ram_mb")) is int and profile["query_ram_mb"] == 5500,
                 "database transfer origin host or preparation budget differs")
-    sdk.require(profile.get("active_target_quality_passed") is True
+    sdk.require(profile.get("active_target_quality_passed") is False
                 and profile.get("paired_target_quality_passed") is False
-                and _sha(profile_sha256) and record["profile_sha256"] == profile_sha256,
-                "database transfer is not bound to the successful extraction")
+                and _sha(extraction_inputs_sha256) and record["extraction_inputs_sha256"] == extraction_inputs_sha256,
+                "database transfer must bind an extraction awaiting quality validation")
     database = record["database"]
     sdk.require(isinstance(database, dict) and set(database) == {"file", "bytes", "sha256"}
                 and database["file"] == "database.zip"
@@ -99,7 +99,7 @@ def validate_transfer_record(record: object, profile: object, profile_sha256: st
     sdk.require(isinstance(evidence, dict) and REQUIRED_EVIDENCE <= evidence.keys() and len(evidence) <= 256
                 and all(_evidence_name(name) and _file_record(value, MAX_EVIDENCE)
                         for name, value in evidence.items())
-                and evidence["PROFILE.json"]["sha256"] == profile_sha256,
+                and evidence["EXTRACTION_INPUTS.json"]["sha256"] == extraction_inputs_sha256,
                 "database transfer evidence inventory is invalid")
 
 
@@ -165,7 +165,7 @@ def transfer_directory(configuration) -> Path:
 
 def export_database(run) -> None:
     sdk.require(run.configuration.platform == "darwin", "database export requires the macOS origin")
-    profile_path = run.evidence / "PROFILE.json"
+    profile_path = run.evidence / "EXTRACTION_INPUTS.json"
     profile_file = sdk.snapshot(profile_path)
     profile = parse_strict_json_bytes(profile_file.data, label="macOS extraction profile")
     quality.require_clean_checkout(os.environ.get("CODEQL_EXPECTED_COMMIT", ""))
@@ -187,11 +187,11 @@ def export_database(run) -> None:
         identity = _file_identity(path, maximum=MAX_EVIDENCE)
         _copy_verified(path, output / "evidence" / path.name, identity, maximum=MAX_EVIDENCE)
         files[path.name] = identity
-    record = {"schema": 1, "profile": "macos", "target": TARGET,
+    record = {"schema": 2, "profile": "macos", "target": TARGET,
               "source_commit": profile.get("source_commit"), "run_id": profile.get("run_id"),
               "origin_attempt": profile.get("run_attempt"), "origin_host": "darwin",
               "compiler_host": TARGET, "compiler": COMPILER, "codeql_version": VERSION,
-              "profile_sha256": profile_file.sha256,
+              "extraction_inputs_sha256": profile_file.sha256,
               "database": {"file": "database.zip", **_file_identity(archive)},
               **inventory, "evidence": files}
     validate_transfer_record(record, profile, profile_file.sha256,
@@ -202,18 +202,41 @@ def export_database(run) -> None:
     sdk.write_json(output / "TRANSFER.json", record)
 
 
-def validate_transfer_anchor(directory: Path, profile: dict, *, expected_commit: str,
+def validate_transfer_anchor(directory: Path, *, expected_commit: str,
                              run_id: str, analysis_attempt: int) -> dict:
     value = sdk.snapshot(directory / "TRANSFER.json", maximum=MAX_EVIDENCE)
     expected = os.environ.get("CODEQL_TRANSFER_SHA256", "")
     origin_attempt = os.environ.get("CODEQL_TRANSFER_ATTEMPT", "")
     sdk.require(_sha(expected) and value.sha256 == expected, "database transfer differs from the origin job output")
     record = parse_strict_json_bytes(value.data, label="anchored database transfer")
-    validate_transfer_record(record, profile, sdk.snapshot(directory / "PROFILE.json").sha256,
+    inputs_snapshot = sdk.snapshot(directory / "EXTRACTION_INPUTS.json")
+    profile = parse_strict_json_bytes(inputs_snapshot.data, label="anchored extraction inputs")
+    validate_transfer_record(record, profile, inputs_snapshot.sha256,
                              expected_commit=expected_commit, run_id=run_id, analysis_attempt=analysis_attempt)
     sdk.require(_attempt(origin_attempt) and record["origin_attempt"] == origin_attempt,
                 "database transfer differs from the selected origin attempt")
     return record
+
+
+def validate_qualified_profile(directory: Path, profile: dict, *, analysis_attempt: int) -> None:
+    """Require Linux quality results to extend the exact pending origin record."""
+    snapshot = sdk.snapshot(directory / "EXTRACTION_INPUTS.json")
+    inputs = parse_strict_json_bytes(snapshot.data, label="macOS extraction inputs")
+    sdk.require(isinstance(inputs, dict) and isinstance(profile, dict)
+                and inputs.get("active_target_quality_passed") is False
+                and inputs.get("paired_target_quality_passed") is False
+                and profile.get("active_target_quality_passed") is True
+                and profile.get("extraction_inputs_sha256") == snapshot.sha256
+                and all(profile.get(key) == value for key, value in inputs.items()
+                        if key != "active_target_quality_passed"),
+                "qualified profile differs from its pending extraction inputs")
+    attempt = profile.get("quality_run_attempt")
+    sdk.require(profile.get("quality_host") == "linux"
+                and type(profile.get("quality_threads")) is int and profile["quality_threads"] == 4
+                and type(profile.get("quality_ram_mb")) is int and profile["quality_ram_mb"] == 14000
+                and _attempt(attempt) and _attempt(inputs.get("run_attempt"))
+                and int(inputs["run_attempt"]) <= int(attempt) <= analysis_attempt,
+                "macOS quality host, budget or attempt differs")
 
 
 def import_database(run) -> None:
@@ -226,7 +249,7 @@ def import_database(run) -> None:
                 and value.sha256 == os.environ["CODEQL_TRANSFER_SHA256"],
                 "database transfer differs from the origin job output")
     record = parse_strict_json_bytes(value.data, label="incoming database transfer")
-    profile_file = sdk.snapshot(incoming / "evidence/PROFILE.json")
+    profile_file = sdk.snapshot(incoming / "evidence/EXTRACTION_INPUTS.json")
     profile = parse_strict_json_bytes(profile_file.data, label="transferred extraction profile")
     expected_commit = os.environ.get("CODEQL_EXPECTED_COMMIT", "")
     validate_transfer_record(record, profile, profile_file.sha256, expected_commit=expected_commit,
@@ -260,7 +283,7 @@ def import_database(run) -> None:
     sdk.require(_file_identity(archive) == expected_archive, "database archive changed during import")
     with (run.evidence / "TRANSFER.json").open("xb") as output:
         output.write(value.data)
-    validate_transfer_anchor(run.evidence, profile, expected_commit=expected_commit,
+    validate_transfer_anchor(run.evidence, expected_commit=expected_commit,
                              run_id=os.environ["GITHUB_RUN_ID"],
                              analysis_attempt=int(os.environ["GITHUB_RUN_ATTEMPT"]))
 
@@ -275,7 +298,7 @@ def main() -> None:
     directory = transfer_directory(configuration)
     value = sdk.snapshot(directory / "TRANSFER.json", maximum=MAX_EVIDENCE)
     record = parse_strict_json_bytes(value.data, label="exported transfer identity")
-    profile_file = sdk.snapshot(directory / "evidence/PROFILE.json")
+    profile_file = sdk.snapshot(directory / "evidence/EXTRACTION_INPUTS.json")
     profile = parse_strict_json_bytes(profile_file.data, label="exported extraction profile")
     validate_transfer_record(record, profile, profile_file.sha256,
                              expected_commit=os.environ.get("CODEQL_EXPECTED_COMMIT", ""),

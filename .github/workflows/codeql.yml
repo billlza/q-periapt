@@ -454,6 +454,11 @@ jobs:
         env:
           CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
         run: sh artifact/python-run.sh artifact/codeql_rust_profile.py import --profile "$RUST_PROFILE"
+      - name: Qualify the native macOS extraction on Linux
+        timeout-minutes: 45
+        env:
+          CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
+        run: sh artifact/python-run.sh artifact/codeql_rust_profile.py qualify --profile "$RUST_PROFILE"
       - name: Download the authenticated projection runtime
         timeout-minutes: 12
         run: |

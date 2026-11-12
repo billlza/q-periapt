@@ -64,17 +64,22 @@ class RustPublicationTests(unittest.TestCase):
             self.write(directory / "PROFILE.json", profile)
             self.write(directory / "QUERY_MEMORY.json", linux_query_memory(["-J-Xmx3356M", "--off-heap-ram=9329"], name))
             if name == "macos":
-                self.write(directory / "EXTRACTION_INPUTS.json", dict(profile, active_target_quality_passed=False))
+                inputs = {key: value for key, value in profile.items()
+                          if key not in ("metrics", "macro_census_sha256", "extracted_paths_sha256")}
+                inputs["active_target_quality_passed"] = False
+                self.write(directory / "EXTRACTION_INPUTS.json", inputs)
+                profile.update(extraction_inputs_sha256=self.digest(directory / "EXTRACTION_INPUTS.json"),
+                               quality_host="linux", quality_threads=4, quality_ram_mb=14000, quality_run_attempt="1")
+                self.write(directory / "PROFILE.json", profile)
                 evidence = {leaf: {"bytes": (directory / leaf).stat().st_size,
                                    "sha256": self.digest(directory / leaf)}
-                            for leaf in ("PROFILE.json", "EXTRACTION_INPUTS.json", "Metrics.json",
-                                         "MacroCalls.json", "ExtractedPaths.json")}
+                            for leaf in ("EXTRACTION_INPUTS.json",)}
                 self.write(directory / "TRANSFER.json", {
-                    "schema": 1, "profile": name, "target": publication.TARGETS[name],
+                    "schema": 2, "profile": name, "target": publication.TARGETS[name],
                     "source_commit": "a" * 40, "run_id": "123", "origin_attempt": "1",
                     "origin_host": "darwin", "compiler_host": host.compiler_host,
                     "compiler": publication.COMPILER, "codeql_version": publication.VERSION,
-                    "profile_sha256": self.digest(directory / "PROFILE.json"),
+                    "extraction_inputs_sha256": self.digest(directory / "EXTRACTION_INPUTS.json"),
                     "database": {"file": "database.zip", "bytes": 1024, "sha256": "c" * 64},
                     "database_inventory_sha256": "d" * 64, "database_members": 3,
                     "database_expanded_bytes": 2048, "evidence": evidence,
@@ -350,6 +355,28 @@ class RustPublicationTests(unittest.TestCase):
         original = self.read(self.paths["macos"] / "PROFILE.json")
         self.rebind_profile("macos", dict(original, run_attempt="2"))
         with self.assertRaisesRegex(ValueError, "attempt identity"):
+            self.validate("macos")
+
+    def test_macos_quality_receipt_requires_linux_and_the_pending_extraction(self) -> None:
+        original = self.read(self.paths["macos"] / "PROFILE.json")
+        for key, value in (("quality_host", "darwin"), ("quality_threads", 2),
+                           ("quality_threads", True), ("quality_ram_mb", 5500),
+                           ("quality_run_attempt", "0"), ("quality_run_attempt", "2"),
+                           ("quality_run_attempt", 1), ("extraction_inputs_sha256", "f" * 64),
+                           ("compiled_sources", {})):
+            with self.subTest(key=key):
+                self.rebind_profile("macos", dict(original, **{key: value}))
+                with self.assertRaises(ValueError):
+                    self.validate("macos")
+        self.rebind_profile("macos", original)
+
+    def test_pending_extraction_cannot_be_rewritten_after_qualification(self) -> None:
+        directory = self.paths["macos"]
+        path = directory / "EXTRACTION_INPUTS.json"
+        inputs = self.read(path)
+        inputs["active_target_quality_passed"] = True
+        self.write(path, inputs)
+        with self.assertRaisesRegex(ValueError, "awaiting quality validation"):
             self.validate("macos")
 
     def test_macos_requires_the_prepare_jobs_exact_transfer_anchor(self) -> None:
