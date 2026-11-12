@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+import errno
 import io
 import json
 import os
@@ -94,6 +95,40 @@ class StatAndMembershipTests(unittest.TestCase):
                 resources.read_small(root / "data")
 
 
+class CensusReadTests(unittest.TestCase):
+    def census_with_departure(self, error):
+        sampler = resources.ProcessResourceSampler(Path("."))
+        directory = nullcontext(iter(SimpleNamespace(name=str(pid)) for pid in (1, 2)))
+
+        def read_stat(pid):
+            if pid == 2:
+                raise error
+            return process(pid, 0, 10)
+
+        with patch.object(resources.os, "scandir", return_value=directory), \
+                patch.object(sampler, "_stat", side_effect=read_stat):
+            return sampler._census()
+
+    def test_process_departures_are_counted_without_hiding_read_errors(self):
+        for error in (FileNotFoundError(errno.ENOENT, "process exited"),
+                      ProcessLookupError(errno.ESRCH, "process exited")):
+            with self.subTest(error=type(error).__name__):
+                census, notes = self.census_with_departure(error)
+                self.assertEqual(census, {1: process(1, 0, 10)})
+                self.assertEqual(notes, {"read_errors": 0, "vanished_processes": 1,
+                                        "complete": True, "limit": None, "processes_seen": 2})
+
+    def test_permission_io_and_malformed_stat_failures_remain_errors(self):
+        for error in (PermissionError(errno.EACCES, "access denied"),
+                      OSError(errno.EIO, "read failed"),
+                      resources.SamplingError("malformed_stat_identity")):
+            with self.subTest(error=type(error).__name__):
+                census, notes = self.census_with_departure(error)
+                self.assertEqual(census, {1: process(1, 0, 10)})
+                self.assertEqual((notes["read_errors"], notes["vanished_processes"]), (1, 0))
+                self.assertTrue(notes["complete"])
+
+
 class SamplingShutdownTests(unittest.TestCase):
     def worker(self, census, *, stop: bool = False, error: Exception | None = None):
         sampler = resources.ProcessResourceSampler(Path("."))
@@ -116,7 +151,7 @@ class SamplingShutdownTests(unittest.TestCase):
         return sampler.state
 
     def test_stop_during_census_discards_unfinished_sample(self):
-        state = self.worker(({}, {"read_errors": 0, "complete": False,
+        state = self.worker(({}, {"vanished_processes": 0, "read_errors": 0, "complete": False,
                                   "limit": "stopping", "processes_seen": 0}), stop=True)
         self.assertEqual(state["status"], "stopped")
         self.assertNotIn("failure", state)
@@ -125,13 +160,13 @@ class SamplingShutdownTests(unittest.TestCase):
         for limit in (None, "census_work_limit"):
             for stop in (False, True):
                 with self.subTest(limit=limit, stop=stop):
-                    state = self.worker(({}, {"read_errors": 1, "complete": limit is None,
+                    state = self.worker(({}, {"vanished_processes": 0, "read_errors": 1, "complete": limit is None,
                                               "limit": limit, "processes_seen": 1}), stop=stop)
                     self.assertEqual(state["status"], "partial")
                     self.assertEqual(state["failure"], "controller_not_in_census")
 
     def test_stopping_census_requires_an_actual_stop_request(self):
-        state = self.worker(({}, {"read_errors": 0, "complete": False,
+        state = self.worker(({}, {"vanished_processes": 0, "read_errors": 0, "complete": False,
                                   "limit": "stopping", "processes_seen": 0}))
         self.assertEqual((state["status"], state["failure"]), ("partial", "controller_not_in_census"))
 
@@ -248,6 +283,66 @@ class LiveResourceTests(unittest.TestCase):
             self.assertFalse(receipt["cleanup_ambiguous"])
             self.assertTrue(receipt["resource_observation"]["shutdown_complete"])
             self.assertGreater(receipt["resource_observation"]["samples_with_processes"], 0)
+
+    def test_departing_preexisting_process_does_not_disable_timeout_sampling(self):
+        background = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(20)"])
+        departed = []
+        try:
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                sampler = fast_sampler(root)
+                original_stat = sampler._stat
+
+                def read_after_departure(pid):
+                    if pid == background.pid and not departed:
+                        background.terminate()
+                        background.wait(timeout=5)
+                        try:
+                            original_stat(pid)
+                        except FileNotFoundError as error:
+                            departed.append(error.errno)
+                            raise
+                        self.fail("departed process unexpectedly remained in procfs")
+                    return original_stat(pid)
+
+                with patch.object(control, "ProcessResourceSampler", return_value=sampler), \
+                        patch.object(sampler, "_stat", side_effect=read_after_departure), \
+                        self.assertRaises(BoundedProcessError) as stopped:
+                    control.run_queries([sys.executable, "-c", "import time; time.sleep(20)"],
+                                        root, dict(os.environ), seconds=1)
+                report = json.loads((root / "query.json").read_text())
+                observation = report["resource_observation"]
+                self.assertEqual(departed, [errno.ENOENT])
+                self.assertEqual(stopped.exception.kind, "timeout")
+                self.assertEqual(report["stopped"], "timeout")
+                self.assertFalse(report["cleanup_ambiguous"])
+                self.assertEqual(observation["status"], "stopped", json.dumps(observation))
+                self.assertTrue(observation["shutdown_complete"])
+                self.assertGreater(observation["samples_with_processes"], 0)
+                self.assertGreaterEqual(observation["initial_census"]["vanished_processes"], 1)
+        finally:
+            if background.poll() is None:
+                background.terminate()
+                background.wait(timeout=5)
+
+    def test_initial_census_requires_the_original_controller_identity(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            for missing in (True, False):
+                with self.subTest(missing=missing):
+                    sampler = fast_sampler(Path(temporary))
+                    sampler.page_bytes = os.sysconf("SC_PAGE_SIZE")
+                    controller = sampler._stat(os.getpid())
+                    changed = {**controller, "start_ticks": controller["start_ticks"] + 1}
+                    census = {} if missing else {controller["pid"]: changed}
+                    notes = {"read_errors": 0, "vanished_processes": int(missing),
+                             "complete": True, "limit": None, "processes_seen": 1}
+                    with patch.object(sampler, "_census", return_value=(census, notes)):
+                        sampler.start()
+                    report = sampler.stop()
+                    self.assertEqual(report["status"], "unavailable")
+                    self.assertEqual(report["failure"], "controller_not_in_initial_census"
+                                     if missing else "controller_identity_changed")
+                    self.assertEqual(report["samples"], 0)
 
     def test_count_and_output_limits_stop_only_the_sampler(self):
         for kwargs, reason in [({"max_samples": 1}, "sample_count_limit"),
