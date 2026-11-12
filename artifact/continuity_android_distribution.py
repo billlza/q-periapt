@@ -270,7 +270,9 @@ def verify_native(path: Path, *, role: str, tools: dict, exports: set[str]) -> d
         return result.stdout.decode()
     found = elf.parse_nm_exports(run("llvm-nm", ["-D", "--defined-only", "--format=posix"]), path)
     require(found == (exports if role == "c" else {"JNI_OnLoad"}), "native export set differs")
-    result = run("llvm-readelf", ["-h", "-l", "-d", "-S", "-W"])
+    # Canonical NDK paths can resolve the readelf alias to llvm-readobj, whose
+    # default is LLVM format. Bind the GNU format required by these parsers.
+    result = run("llvm-readelf", ["--elf-output-style=GNU", "-h", "-l", "-d", "-S", "-W"])
     elf.verify_program_headers(result, path); elf.verify_release_sections(result, path)
     soname, needed, tags, values = elf.parse_dynamic_entries(result, path)
     expected = {"libc.so", "libdl.so"} | ({C_LIBRARY} if role == "jni" else set())

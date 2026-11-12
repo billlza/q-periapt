@@ -279,6 +279,26 @@ class DistributionTests(unittest.TestCase):
                 aar.verify_native(path, role="c", tools={name: Path(name) for name in ("llvm-nm", "llvm-readelf")},
                                   exports=self.contract["exports"])
 
+    def test_native_reader_selects_gnu_format_for_the_resolved_readobj_tool(self):
+        # NDK's llvm-readelf is an alias. Resolving that alias changes argv[0]
+        # to llvm-readobj, whose documented default is the LLVM display format.
+        def inspection(argv, **kwargs):
+            if Path(argv[0]).name == "llvm-readobj" and "--elf-output-style=GNU" not in argv:
+                return SimpleNamespace(returncode=0, stderr=b"",
+                    stdout=b"ProgramHeaders [\n  ProgramHeader {\n    Type: PT_LOAD (0x1)\n  }\n]\n")
+            return self.tools(argv, **kwargs)
+        for role, library in (("c", aar.C_LIBRARY), ("jni", aar.JNI_LIBRARY)):
+            for reader in ("llvm-readelf", "llvm-readobj"):
+                with self.subTest(role=role, reader=reader):
+                    path = self.root / library; path.write_bytes(native_bytes())
+                    with mock.patch.object(aar, "capture_output", side_effect=inspection):
+                        result = aar.verify_native(path, role=role,
+                            tools={"llvm-nm": Path("llvm-nm"), "llvm-readelf": Path(reader)},
+                            exports=self.contract["exports"])
+                    self.assertEqual(result["compile_api"], 23)
+                    self.assertEqual(result["ndk"], aar.NDK)
+                    self.assertEqual(result["exports"], len(self.contract["exports"]) if role == "c" else 1)
+
     def test_maven_reader_rejects_rehashed_wrong_coordinates_sources_and_extra_files(self):
         encoded = aar.make_aar(self.selection, self.inputs, self.contract)
         original = aar.maven_files(encoded, self.contract)
