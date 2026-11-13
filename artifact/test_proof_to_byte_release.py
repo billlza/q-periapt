@@ -79,8 +79,8 @@ PINNED_UPLOAD_ARTIFACT_ACTION = (
     "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1"
 )
 PINNED_CODEQL_ACTION = (
-    "github/codeql-action/{action}@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 "
-    "# v4.38.2"
+    "github/codeql-action/{action}@33d7b85da1a04171e211befe2c739303b9a4c066 "
+    "# v4.39.3"
 )
 PINNED_SETUP_JAVA_ACTION = (
     "actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0"
@@ -1576,7 +1576,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertEqual(other_languages.count(action.format(action="init")), 1)
         self.assertEqual(other_languages.count(action.format(action="analyze")), 1)
         self.assertIn("tools: linked", other_languages)
-        self.assertIn('version --format=terse)" = "2.27.1"', other_languages)
+        self.assertIn('version --format=terse)" = "2.27.4"', other_languages)
 
         self.assertIn("runs-on: ${{ matrix.runner }}", rust)
         for entry in (
