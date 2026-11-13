@@ -201,17 +201,20 @@ def verify(directory:Path) -> dict:
 
 
 def dependencies() -> dict:
-    upstream = ref.snapshot(ref.upstream_manifest().with_name("Cargo.lock"),1024*1024)
-    ref.require(hashlib.sha256(upstream).hexdigest() == ref.UPSTREAM_LOCK, "whole-KEM dependency anchor")
+    upstream = ref.upstream_manifest().with_name("Cargo.lock")
+    baseline = ROOT/"research/continuity-spqr-reference/Cargo.lock"
+    anchor = ref.check_lock(upstream,baseline)
+    comparison_lock = ref.snapshot(baseline,1024*1024)
     locked = ref.snapshot(CRATE/"Cargo.lock",1024*1024)
-    def packages(data):
-        return {(p["name"],p["version"],p.get("checksum")) for p in tomllib.loads(data.decode())["package"] if p.get("source","").startswith("registry+")}
-    selected = packages(locked)
-    ref.require(selected <= packages(upstream), "whole-KEM provider versions differ from comparison anchor")
+    selected = ref.registry_packages(locked)
+    ref.require(selected <= ref.registry_packages(comparison_lock), "whole-KEM provider versions differ from comparison anchor")
     metadata = tomllib.loads(locked.decode())["package"]
     ref.require(all(not p.get("source") or p["source"].startswith("registry+") for p in metadata), "whole-KEM unexpected source")
     ref.require(any(p["name"] == "libcrux-ml-kem" and p["version"] == "0.0.8" for p in metadata), "whole-KEM provider pin")
-    return {"registry_packages":len(selected),"lock_sha256":hashlib.sha256(locked).hexdigest(),"comparison_lock_sha256":ref.UPSTREAM_LOCK}
+    return {"registry_packages":len(selected),"lock_sha256":hashlib.sha256(locked).hexdigest(),
+            "comparison_lock_sha256":hashlib.sha256(comparison_lock).hexdigest(),
+            "upstream_lock_sha256":ref.UPSTREAM_LOCK,
+            "comparison_dependency_update":anchor["comparison_dependency_update"]}
 
 
 def comparison(result:dict, baseline:Path, chunk64:Path) -> list[dict]:

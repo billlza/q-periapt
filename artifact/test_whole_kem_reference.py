@@ -1,14 +1,49 @@
 """Independent grammar, public-state and package-boundary controls."""
 import json
 import copy
+import hashlib
 from pathlib import Path
+import tempfile
 import tomllib
 import unittest
+from unittest.mock import patch
 from artifact import whole_kem_reference as whole
 from artifact import spqr_reference as ref
 
 
 class WholeKemTests(unittest.TestCase):
+    def test_provider_selection_is_bound_to_the_qualified_baseline(self):
+        baseline = (whole.ROOT/"research/continuity-spqr-reference/Cargo.lock").read_bytes()
+        control = (whole.CRATE/"Cargo.lock").read_bytes()
+        update = ref.COMPARISON_DEPENDENCY_UPDATE
+        original = baseline.replace(update["comparison"]["version"].encode(), update["upstream"]["version"].encode())
+        original = original.replace(update["comparison"]["checksum"].encode(), update["upstream"]["checksum"].encode())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            upstream = root/"upstream/Cargo.lock"
+            reference = root/"research/continuity-spqr-reference/Cargo.lock"
+            crate = root/"research/continuity-whole-kem-reference"
+            for folder in (upstream.parent, reference.parent, crate): folder.mkdir(parents=True)
+            upstream.write_bytes(original)
+            reference.write_bytes(baseline)
+            (crate/"Cargo.lock").write_bytes(control)
+            with patch.object(whole,"ROOT",root), patch.object(whole,"CRATE",crate), \
+                 patch.object(ref,"UPSTREAM_LOCK",hashlib.sha256(original).hexdigest()), \
+                 patch.object(ref,"upstream_manifest",return_value=upstream.with_name("Cargo.toml")):
+                receipt = whole.dependencies()
+                self.assertEqual(receipt["comparison_lock_sha256"], hashlib.sha256(baseline).hexdigest())
+                self.assertEqual(receipt["upstream_lock_sha256"], hashlib.sha256(original).hexdigest())
+                reference.write_bytes(original)
+                with self.assertRaisesRegex(ref.ReferenceError,"comparison anchor"): whole.dependencies()
+                reference.write_bytes(baseline)
+                for field in ("version","checksum"):
+                    changed = control.replace(update["comparison"][field].encode(), update["upstream"][field].encode())
+                    (crate/"Cargo.lock").write_bytes(changed)
+                    with self.subTest(field=field), self.assertRaisesRegex(ref.ReferenceError,"provider versions"):
+                        whole.dependencies()
+                (crate/"Cargo.lock").write_bytes(control.replace(b'name = "hkdf"',b'name = "unapproved-kdf"'))
+                with self.assertRaisesRegex(ref.ReferenceError,"provider versions"): whole.dependencies()
+
     def test_active_fork_events_bind_both_actual_keys_and_exact_packet_metadata(self):
         row = {"sequence":0,"sender":0,"original_wire":"d10100010000","replacement_wire":"d10100010000",
                "original_message_epoch":0,"replacement_message_epoch":0,"sender_key_sha256":"11"*32,

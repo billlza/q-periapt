@@ -18,6 +18,12 @@ from artifact.evidence_io import EvidenceIOError, parse_strict_json_bytes, read_
 REVISION = "f2589fef855c10f39d72634dab3d14654dd410bf"
 TREE = "7286f31638620152a770f6c4d2e86ac6862a0319"
 UPSTREAM_LOCK = "e130211d61c7875cf5d94e606487a1da51845446e118633b6099e1f2d0303688"
+COMPARISON_DEPENDENCY_UPDATE = {
+    "name": "bytes",
+    "source": "registry+https://github.com/rust-lang/crates.io-index",
+    "upstream": {"version": "1.10.1", "checksum": "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"},
+    "comparison": {"version": "1.12.1", "checksum": "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"},
+}
 SCENARIOS = ("ping_pong", "lossy", "reordered", "duplicates", "asymmetric", "offline_then_exchange", "one_way")
 MESSAGES = 2048
 SEED = 0x5143505153524546
@@ -296,19 +302,30 @@ def verify(directory: Path, *, chunk_bytes: int = 32) -> dict:
             "production_claim_eligible":False}
 
 
+def registry_packages(data: bytes) -> set[tuple]:
+    return {(p["name"],p["version"],p["source"],p.get("checksum"))
+            for p in tomllib.loads(data.decode())["package"]
+            if p.get("source", "").startswith("registry+")}
+
+
 def check_lock(upstream: Path, reference: Path) -> dict:
     old = snapshot(upstream, 1024 * 1024)
     require(hashlib.sha256(old).hexdigest() == UPSTREAM_LOCK, "upstream dependency lock changed")
-    def packages(data):
-        return {(p["name"],p["version"],p.get("checksum")) for p in tomllib.loads(data.decode())["package"]
-                if p.get("source", "").startswith("registry+")}
-    selected = packages(snapshot(reference, 1024 * 1024))
-    require(selected <= packages(old), "reference dependencies differ from upstream lock")
-    lock = tomllib.loads(snapshot(reference, 1024 * 1024).decode())
+    update = COMPARISON_DEPENDENCY_UPDATE
+    before, after = ((update["name"],update[side]["version"],update["source"],update[side]["checksum"])
+                     for side in ("upstream", "comparison"))
+    original = registry_packages(old)
+    require(before in original and after not in original, "comparison dependency update anchor differs")
+    locked = snapshot(reference, 1024 * 1024)
+    selected = registry_packages(locked)
+    require(after in selected and selected <= (original - {before}) | {after},
+            "reference dependencies differ from comparison anchor")
+    lock = tomllib.loads(locked.decode())
     spqr = [p for p in lock["package"] if p["name"] == "spqr"]
     require(len(spqr) == 1 and spqr[0]["version"] == "1.5.1" and spqr[0]["source"] ==
             f"git+https://github.com/signalapp/SparsePostQuantumRatchet?rev={REVISION}#{REVISION}", "upstream source pin differs")
-    return {"upstream_lock_sha256":UPSTREAM_LOCK,"registry_packages":len(selected)}
+    return {"upstream_lock_sha256":UPSTREAM_LOCK,"registry_packages":len(selected),
+            "comparison_dependency_update":update}
 
 
 def command(argv: list[str]) -> str:

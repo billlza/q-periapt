@@ -1,10 +1,12 @@
 """Negative controls for reference byte/accounting evidence and dependency isolation."""
 from pathlib import Path
 import copy
+import hashlib
 import json
 import tempfile
 import tomllib
 import unittest
+from unittest.mock import patch
 
 from artifact.bounded_process import capture_output
 from artifact import spqr_reference as ref
@@ -13,6 +15,38 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReferenceTests(unittest.TestCase):
+    def test_only_exact_bytes_update_can_change_the_comparison_anchor(self):
+        selected = (ROOT/"research/continuity-spqr-reference/Cargo.lock").read_bytes()
+        before = b'version = "1.10.1"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"'
+        after = b'version = "1.12.1"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"'
+        self.assertEqual(selected.count(after), 1)
+        original = selected.replace(after, before)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            upstream, reference = root/"upstream.lock", root/"reference.lock"
+            upstream.write_bytes(original)
+            with patch.object(ref, "UPSTREAM_LOCK", hashlib.sha256(original).hexdigest()):
+                reference.write_bytes(selected)
+                result = ref.check_lock(upstream, reference)
+                self.assertEqual(result["comparison_dependency_update"]["comparison"]["version"], "1.12.1")
+                changed = {
+                    "old bytes": original,
+                    "different version": selected.replace(after, after.replace(b'1.12.1', b'1.12.2')),
+                    "different checksum": selected.replace(after, after.replace(b'fc652a48', b'00000000')),
+                    "different registry": selected.replace(after, after.replace(b'crates.io-index', b'other-index')),
+                    "other provider": selected.replace(b'name = "hkdf"', b'name = "unapproved-kdf"'),
+                    "mixed bytes": selected + b'\n[[package]]\nname = "bytes"\n' + before + b'\n',
+                    "missing bytes": selected.replace(b'[[package]]\nname = "bytes"\n' + after + b'\n', b''),
+                }
+                for name, data in changed.items():
+                    with self.subTest(change=name), self.assertRaisesRegex(ref.ReferenceError, "comparison anchor"):
+                        reference.write_bytes(data)
+                        ref.check_lock(upstream, reference)
+                reference.write_bytes(selected)
+                upstream.write_bytes(original+b"\n")
+                with self.assertRaisesRegex(ref.ReferenceError, "upstream dependency lock changed"):
+                    ref.check_lock(upstream, reference)
+
     def test_wire_accepts_exact_control_and_chunk_shapes(self):
         self.assertEqual(ref.wire_header(bytes.fromhex("01010100")), (1, 1, 0))
         for kind in (1,2,3,5,6):

@@ -9,8 +9,16 @@ the required Continuity implementation, or establish Signal interoperability.
 ## Fixed construction and workload
 
 The upstream implementation and its 32-byte polynomial chunks are unchanged.
-Every registry dependency selected by this driver has the same version and checksum
-as the upstream lock (`e130211d61c7875cf5d94e606487a1da51845446e118633b6099e1f2d0303688`).
+The original upstream lock remains fixed at
+`e130211d61c7875cf5d94e606487a1da51845446e118633b6099e1f2d0303688`.
+The comparison drivers select `bytes 1.12.1` (checksum
+`fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04`)
+in place of upstream's `bytes 1.10.1`. All other registry versions and checksums
+remain in the original upstream lock. `artifact/spqr_reference.py` records and
+checks this exact dependency update; it does not modify the upstream source or
+lock. The 32-byte driver, derived 64-byte driver and whole-KEM control use the
+same selected dependency versions. CI replays their original locked public and
+snapshot corpora, repeated runs and active-disclosure controls under this selection.
 The driver calls `initial_state`, `send` and `recv` and reads public epoch counters
 from its serialized test state. Both sides require version 1 and use the upstream
 25,000-key jump / 2,000-key reorder parameters. The deterministic test seed and
@@ -91,7 +99,7 @@ boundary, not an upstream authentication-bypass claim.
 
 ## Reproduction
 
-With Rust 1.96.1 and an existing `protoc` on PATH, from the repository root:
+With Rust 1.98.1 and an existing `protoc` on PATH, from the repository root:
 
 ```sh
 cargo clippy --manifest-path research/continuity-spqr-reference/Cargo.toml --locked --all-targets -- -D warnings
@@ -108,5 +116,6 @@ license bytes, compiler/protobuf identity and executable hash. CI runs the origi
 upstream tests plus two corpus executions on Linux and macOS, then checks the same
 locked public bytes and snapshot experiments. Hosted results remain evidence for
 their exact source commit. The two added direct oracle dependencies, HKDF and
-incremental ML-KEM, were already in the pinned upstream dependency closure; no
-registry package version or checksum changes.
+incremental ML-KEM, were already in the pinned upstream dependency closure. The
+only registry version and checksum change is the explicitly checked `bytes`
+comparison update described above.
