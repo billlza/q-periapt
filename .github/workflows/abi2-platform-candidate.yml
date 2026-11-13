@@ -147,7 +147,7 @@ jobs:
           QPERIAPT_C_PACKAGE_EXPECTED_MANIFEST_SHA256="$manifest_sha256" \
           QPERIAPT_C_PACKAGE_EXPECTED_CONTRACT_SHA256="$contract_sha256" \
             sh artifact/c-package.sh
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: abi2-candidate-linux-${{ matrix.target }}
           path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.1.5-${{ matrix.target }}.tar.gz
@@ -298,7 +298,7 @@ jobs:
           mkdir -p "$destination"
           install -m 0644 "$source/q-periapt-android-0.1.5.aar" "$destination/"
           install -m 0644 "$source/MANIFEST.json" "$destination/q-periapt-android-0.1.5-MANIFEST.json"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: abi2-candidate-android
           path: target/abi2-platform-candidate/*
@@ -407,7 +407,7 @@ jobs:
             candidate/q-periapt-c-abi2-0.1.5-aarch64-unknown-linux-gnu.tar.gz
             candidate/CANDIDATE_SHA256SUMS
             candidate/ABI2_SOURCE_SECURITY_GATE.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: abi2-platform-release-candidate
           path: candidate/*

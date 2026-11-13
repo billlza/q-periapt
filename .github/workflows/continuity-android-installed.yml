@@ -97,7 +97,7 @@ jobs:
           git diff --exit-code
       - name: Retain native packages and selected public execution evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: continuity-installed-android-${{ matrix.profile }}
           path: |
@@ -257,7 +257,7 @@ jobs:
             --native-package-id continuity-native \
             --output target/continuity-android-build
           git diff --exit-code
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: continuity-android-aar-arm64
