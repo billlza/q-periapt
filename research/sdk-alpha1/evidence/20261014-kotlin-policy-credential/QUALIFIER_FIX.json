@@ -1,0 +1,11 @@
+{
+  "scope": "collector output routing only; completed protocol execution/readback code unchanged",
+  "before": {
+    "policy_credential": "bcb489b13bc3bed496f2725703d734bd25b57a9725de9660bc63465564e37944",
+    "first_configuration": "f783ebe865c28094e49cf0a52ff8714ea2bc06ed9b4f5a31d1721559304d1181"
+  },
+  "after": {
+    "policy_credential": "e756c4269d3130b18bacdfc1b074a9d70eb0d54481ec197611439ebc27e4c7e5",
+    "first_configuration": "e44e53e8086ac34ac025fbacea40d70af304529833d62f85fcd92ae3b7be0524"
+  }
+}

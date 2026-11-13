@@ -1,0 +1,113 @@
+   Compiling libc v0.2.189
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling syn v2.0.119
+    Checking typenum v1.20.1
+    Checking cfg-if v1.0.5
+    Checking subtle v2.6.1
+    Checking rand_core v0.10.1
+   Compiling getrandom v0.4.3
+    Checking cmov v0.5.4
+    Checking ctutils v0.4.2
+   Compiling jobserver v0.1.35
+    Checking const-oid v0.10.2
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.14
+   Compiling cc v1.5.1
+   Compiling version_check v0.9.5
+   Compiling generic-array v0.14.7
+   Compiling autocfg v1.5.1
+   Compiling num-traits v0.2.19
+    Checking cpufeatures v0.3.1
+   Compiling serde_core v1.0.229
+   Compiling cmake v0.1.58
+   Compiling pkg-config v0.3.34
+   Compiling semver v1.0.28
+   Compiling dunce v1.0.5
+   Compiling fs_extra v1.3.0
+   Compiling aws-lc-sys v0.45.0
+   Compiling zeroize_derive v1.5.0
+   Compiling rustc_version v0.4.1
+    Checking block-buffer v0.10.4
+    Checking crypto-common v0.1.7
+    Checking cpufeatures v0.2.17
+    Checking cpubits v0.1.1
+    Checking digest v0.10.7
+   Compiling curve25519-dalek v5.0.0
+    Checking zeroize v1.9.0
+    Checking hybrid-array v0.4.15
+    Checking crypto-common v0.2.2
+    Checking block-buffer v0.12.1
+    Checking digest v0.11.3
+    Checking hmac v0.13.0
+    Checking inout v0.2.2
+    Checking crypto-bigint v0.7.5
+    Checking sponge-cursor v0.1.0
+    Checking keccak v0.2.2
+    Checking ff v0.14.0
+    Checking q-periapt-core v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-core)
+    Checking der v0.8.2
+    Checking keccak v0.1.6
+   Compiling q-periapt-mlkem-native-sys v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-mlkem-native-sys)
+   Compiling ring v0.17.14
+   Compiling syn v3.0.6
+    Checking winnow v1.0.4
+   Compiling aws-lc-rs v1.18.1
+   Compiling serde v1.0.229
+    Checking toml_parser v1.1.3+spec-1.1.0
+   Compiling serde_derive v1.0.229
+    Checking sha3 v0.10.9
+    Checking q-periapt-sig v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-sig)
+    Checking group v0.14.0
+    Checking sha3 v0.12.0
+    Checking cipher v0.5.2
+    Checking universal-hash v0.6.1
+    Checking sha2 v0.10.9
+    Checking serde_spanned v1.1.1
+    Checking toml_datetime v1.1.1+spec-1.1.0
+    Checking base16ct v1.0.0
+    Checking toml_writer v1.1.2+spec-1.1.0
+    Checking rand_core v0.6.4
+    Checking fips204 v0.4.6
+    Checking toml v1.1.6+spec-1.1.0
+    Checking sec1 v0.8.1
+    Checking poly1305 v0.9.1
+    Checking chacha20 v0.10.2
+    Checking x25519-dalek v3.0.0
+    Checking shake v0.1.0
+    Checking aead v0.6.1
+    Checking sha2 v0.11.0
+    Checking getrandom v0.2.17
+    Checking untrusted v0.9.0
+    Checking chacha20poly1305 v0.11.0
+    Checking q-periapt-backends v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-backends)
+    Checking q-periapt-policy v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-policy)
+    Checking elliptic-curve v0.14.1
+    Checking q-periapt-kem v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-kem)
+    Checking primefield v0.14.0
+    Checking hkdf v0.13.0
+    Checking rustls-pki-types v1.15.1
+   Compiling redb v4.3.0
+   Compiling rustix v1.1.5
+   Compiling rustls v0.23.45
+    Checking q-periapt-sdk v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-sdk)
+    Checking wnaf v0.14.1
+    Checking spki v0.8.0
+    Checking rfc6979 v0.6.0
+    Checking signature v3.0.0
+    Checking errno v0.3.14
+    Checking once_cell v1.21.4
+    Checking bitflags v2.13.2
+    Checking log v0.4.34
+    Checking ecdsa v0.17.0
+    Checking primeorder v0.14.0
+    Checking q-periapt-host-store v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-host-store)
+    Checking p256 v0.14.0
+   Compiling maybe-async v0.2.11
+    Checking mio v1.2.3
+    Checking rustls-webpki v0.103.15
+    Checking q-periapt-rustls v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-rustls)
+    Checking q-periapt-continuity-identity-candidate v0.0.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate)
+    Checking q-periapt-continuity-c-consumer v0.0.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-policy-credential-interop/integration-consumer-02)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 35s

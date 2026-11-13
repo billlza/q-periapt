@@ -1,0 +1,158 @@
+{
+  "actual_public_command_records": 36,
+  "archive": {
+    "bytes": 7024604,
+    "path": "q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+    "sha256": "7612477540409b5fe09495767451983fb949151861773603e70162d80e63de01"
+  },
+  "archive_members": 635,
+  "binaries": 5,
+  "binary_bytes": 17293576,
+  "candidate_graph_nodes": 14,
+  "candidate_graph_roles": [
+    "sdk",
+    "engine",
+    "service"
+  ],
+  "capture": {
+    "bytes": 7437203,
+    "path": "CAPTURE.tar.gz",
+    "sha256": "5b90c34596e579f6da9201f172c1ce648bb3f9a3e0acdc059a6c2fcf61bb37bd"
+  },
+  "cargo_package": {
+    "name": "q-periapt-continuity-reference-app",
+    "registry_publish": false,
+    "version": "0.0.0"
+  },
+  "completed": true,
+  "deterministic_archive_reconstruction": {
+    "archive": {
+      "bytes": 7024604,
+      "path": "q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+      "sha256": "7612477540409b5fe09495767451983fb949151861773603e70162d80e63de01"
+    },
+    "completed": true,
+    "executable_paths": [
+      "q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu/bin/q-periapt-continuity-witness",
+      "q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu/bin/q-periapt-native-device",
+      "q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu/bin/q-periapt-policy-publisher",
+      "q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu/bin/q-periapt-prekey-directory",
+      "q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu/bin/q-periapt-sdk-policy-authority"
+    ],
+    "kind": "qperiapt.service_archive_reconstruction",
+    "members": 635,
+    "reconstructed_bytes": 7024604,
+    "reconstructed_sha256": "7612477540409b5fe09495767451983fb949151861773603e70162d80e63de01",
+    "schema_version": 1,
+    "scope": "Reconstruction from independently extracted original artifact; same compiled binary inputs, no second compiler-build claim",
+    "source": {
+      "commit": "e314717842328f6f706d081753b52eb887061d1a",
+      "tree": "de95f4e1e9ac98345eab0b91664e15b78616548d"
+    }
+  },
+  "diagnostic": {
+    "build_completed": true,
+    "copied_binary_readback_completed": true,
+    "formal_package_qualification": false,
+    "receipt_directory": "q-periapt-service-execution-20261110/diagnostic",
+    "source": {
+      "commit": "3085e38565e354ef708e63148a4089015fcc3eec",
+      "tree": "0cc98900c9c4afa056eef017bf39ba8d9ca85bad"
+    }
+  },
+  "directories": 218,
+  "distribution": {
+    "name": "q-periapt-continuity-services",
+    "target": "x86_64-unknown-linux-gnu",
+    "version": "0.2.0"
+  },
+  "formal_account_qualification": false,
+  "full_spec_lock_verified": false,
+  "installed_checks": {
+    "directory_existing_ledger_refused": true,
+    "directory_original_empty_lookup_refused": true,
+    "directory_signer_reopened": true,
+    "private_state_in_archive": false,
+    "protocol_publisher_reopened": true,
+    "sdk_authority_reopened": true,
+    "sdk_original_publication_readback": {
+      "sdk-document": {
+        "bytes": 160,
+        "sha256": "6f6c7dac501552d479186be7efa6359b0fe676ee7e9db73bec9d1fd7c853c578"
+      },
+      "sdk-root": {
+        "bytes": 1952,
+        "sha256": "e141f241f14de5e9ec24c27b2b34812bd6cb883cc922a98e1b3d6909e39bb81f"
+      },
+      "sdk-signature": {
+        "bytes": 3309,
+        "sha256": "358f9244bc354fc793210ca74435eb3a33576944be539d8e2184b479fe486c54"
+      },
+      "sdk-state": {
+        "bytes": 36,
+        "sha256": "04b6f0eba4a12309fe6f7f707f8b42b57bf2625f7dbdef64fe8acd5157eb3428"
+      }
+    },
+    "witness_reopened": true,
+    "wrong_identity_refusals": 3
+  },
+  "kind": "qperiapt.continuity_service_distribution_execution_summary",
+  "original_candidate_manifests": 14,
+  "original_receipts": {
+    "CONTINUITY_SERVICE_ARCHIVE_READBACK.json": {
+      "bytes": 1847,
+      "sha256": "05e3a7ecf998310cae9f1eed3c9c036dacaa78c8e2928e9b62ec5b55c3d863bf"
+    },
+    "CONTINUITY_SERVICE_DISTRIBUTION.json": {
+      "bytes": 573,
+      "sha256": "56f96a7534fdf545e3dd4845cbff93756d8aa10a7d7a61bb9b6526fb2438c3e3"
+    },
+    "CONTINUITY_SERVICE_INSTALLATION.json": {
+      "bytes": 1572,
+      "sha256": "5c6c9339fcd3771808a285e38dccf0da44cb43fd303b4192b9305097d8d8822e"
+    },
+    "CONTINUITY_SERVICE_PACKAGE.json": {
+      "bytes": 15197,
+      "sha256": "66356ebccb80e2f0b55faf991acc34dea17149748527108dea5b3c19ce0cb863"
+    },
+    "CONTINUITY_SERVICE_PACKAGE_GRAPH_READBACK.json": {
+      "bytes": 17855,
+      "sha256": "3560a26476eaf557ebc2e9514d8a4b8085f148c06d0647048c824ff82cff73d3"
+    },
+    "CONTINUITY_SERVICE_PACKAGE_ROW.json": {
+      "bytes": 997,
+      "sha256": "b3490a51745c836cb736eeaa90625414a01866bab5adf532800f5f32f4e17403"
+    }
+  },
+  "prior_attempt": {
+    "archive_emitted": false,
+    "completed": false,
+    "failure": "dependency has no distributable license text: asn1-rs-impl 0.2.0",
+    "receipt": "q-periapt-service-execution-20261110/initial-failure/CONTINUITY_SERVICE_PACKAGE.json",
+    "source": {
+      "commit": "3085e38565e354ef708e63148a4089015fcc3eec",
+      "tree": "0cc98900c9c4afa056eef017bf39ba8d9ca85bad"
+    }
+  },
+  "production_dependency_license_packages": 209,
+  "regular_files": 417,
+  "release_claim_eligible": false,
+  "schema_version": 1,
+  "scope": "Published-source Linux service build, distribution, extracted process checks and real candidate package-graph admission. Coordinated release and existing account/cross-client qualification keep their separate receipts.",
+  "source": {
+    "commit": "e314717842328f6f706d081753b52eb887061d1a",
+    "tree": "de95f4e1e9ac98345eab0b91664e15b78616548d"
+  },
+  "source_binding": {
+    "bytes": 4764,
+    "path": "SOURCE_BINDING.json",
+    "sha256": "62ba0f0222d4032081a830764c36c25673b195d66b015dad900e200bcdecc11c"
+  },
+  "supplemental_upstream_packages": 6,
+  "tests": {
+    "bytes": 17023,
+    "log": "q-periapt-service-execution-20261110/tests/service-published-tests.log",
+    "passed": 90,
+    "sha256": "459f15215ef544053bba9e2fadd9ec7b7b86ea5bc1706b713074ae8f18c028a5"
+  }
+}

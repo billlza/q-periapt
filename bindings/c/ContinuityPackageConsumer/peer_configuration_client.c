@@ -1,0 +1,108 @@
+/* SPDX-License-Identifier: Apache-2.0 OR MIT */
+/* Qualification client only. Public fixtures model independently supplied trust;
+ * the SDK receives owned copies and never receives the fixture directory. */
+#ifndef _WIN32
+#include <sys/mman.h>
+#endif
+_Static_assert(sizeof(qpc_peer_device_v1) == 144, "peer device ABI size");
+_Static_assert(sizeof(qpc_peer_configuration_v1) == 384, "peer configuration ABI size");
+_Static_assert(offsetof(qpc_peer_configuration_v1, initiator) == 16, "peer initiator ABI");
+_Static_assert(offsetof(qpc_peer_configuration_v1, responder) == 160, "peer responder ABI");
+_Static_assert(offsetof(qpc_peer_configuration_v1, directory) == 304, "peer directory ABI");
+_Static_assert(offsetof(qpc_peer_configuration_v1, bundle) == 336, "peer bundle ABI");
+_Static_assert(offsetof(qpc_peer_configuration_v1, tls_name) == 368, "peer TLS name ABI");
+static void peer_config_exact(const char *path, const char *prefix, const char *leaf,
+                              uint8_t *output, size_t length) {
+    char name[128];
+    int n=snprintf(name,sizeof(name),"%s-%s",prefix,leaf);
+    if(n<0 || (size_t)n>=sizeof(name)) fail("peer input name");
+    enrollment_exact(path,name,output,length);
+}
+static void peer_config_device(qpc_peer_device_v1 *device, const char *path,
+                               const char *prefix, uint8_t root[1985]) {
+    *device=(qpc_peer_device_v1){0}; uint8_t counter[8];
+    peer_config_exact(path,prefix,"root",root,1985);
+    device->account.root=root; device->account.root_length=1985;
+    peer_config_exact(path,prefix,"account",device->account.account,32);
+    enrollment_exact(path,"family",device->account.family,32);
+    peer_config_exact(path,prefix,"roster-version",counter,8);
+    device->account.checkpoint.version=enrollment_counter(counter);
+    peer_config_exact(path,prefix,"roster-digest",device->account.checkpoint.digest,32);
+    peer_config_exact(path,prefix,"device",device->device,16);
+    peer_config_exact(path,prefix,"generation",counter,8);
+    device->generation=enrollment_counter(counter);
+}
+static void peer_config_overwrite(void *memory, size_t length) {
+    /* Qualification observes a changed caller allocation after prepare returns.
+     * Volatile stores keep that observation valid under dead-store elimination. */
+    volatile unsigned char *bytes=(volatile unsigned char *)memory;
+    for(size_t index=0;index<length;++index) bytes[index]=0;
+}
+static uint64_t configured_device_peer_open(uint64_t parent,const char *path,
+                                            uint32_t role,const uint8_t *existing) {
+    uint8_t left[1985],right[1985],bundle[65536],certificate[8192],name[128],session[32]={0};
+    qpc_peer_configuration_v1 input={0};
+    input.header=(qpc_configuration_header_v1){sizeof(input),1};
+    input.quality=1; input.role=role;
+    peer_config_device(&input.initiator,path,"initiator",left);
+    peer_config_device(&input.responder,path,"responder",right);
+    enrollment_exact(path,"directory",input.directory,32);
+    input.bundle=(qpc_configuration_blob_v1){bundle,enrollment_read(path,"bootstrap.bundle",bundle,sizeof(bundle))};
+    input.tls_peer=(qpc_configuration_blob_v1){certificate,enrollment_read(path,"tls-peer",certificate,sizeof(certificate))};
+    input.tls_name=(qpc_configuration_blob_v1){name,enrollment_read(path,"tls-peer-name",name,sizeof(name))};
+    if(existing) memcpy(session,existing,sizeof(session));
+    uint64_t handle=0; qpc_error_v1 error;
+    int32_t code=existing ? qpc_peer_v1_prepare_configured_reopen(parent,&input,session,&handle,&error) :
+        qpc_peer_v1_prepare_configured(parent,&input,&handle,&error);
+    require(code,&error);
+    if(!handle) fail("configured peer pending handle");
+    /* All buffers stay live but change before finish; a borrowed-pointer bug
+     * cannot be hidden by unchanged allocator storage. These are public values. */
+    peer_config_overwrite(left,sizeof(left));peer_config_overwrite(right,sizeof(right));
+    peer_config_overwrite(bundle,sizeof(bundle));peer_config_overwrite(certificate,sizeof(certificate));
+    peer_config_overwrite(name,sizeof(name));peer_config_overwrite(session,sizeof(session));
+    peer_config_overwrite(&input,sizeof(input));
+    require(qpc_owner_v1_finish_open(handle,&error),&error);
+    return handle;
+}
+static void peer_config_reject(const void *input) {
+    qpc_error_v1 error;uint64_t handle=99;uint8_t session[32]={1};
+    int32_t code=qpc_peer_v1_prepare_configured(0,input,&handle,&error);
+    record(code,&error);
+    if(code!=QPC_ARGUMENT || handle) fail("short peer configuration admitted");
+    handle=99;
+    code=qpc_peer_v1_prepare_configured_reopen(0,input,session,&handle,&error);
+    record(code,&error);
+    if(code!=QPC_ARGUMENT || handle) fail("short peer reopen configuration admitted");
+}
+static int configured_peer_guard(void) {
+#ifdef _WIN32
+    SYSTEM_INFO system;GetSystemInfo(&system);
+    size_t page=system.dwPageSize;if(!page) fail("page size unavailable");
+    size_t length=page*2;
+    uint8_t *memory=VirtualAlloc(NULL,length,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
+    if(!memory) fail("guard mapping");
+    DWORD previous;
+    if(!VirtualProtect(memory+page,page,PAGE_NOACCESS,&previous)) fail("guard protection");
+#else
+    long page=sysconf(_SC_PAGESIZE);if(page<=0) fail("page size unavailable");
+    size_t length=(size_t)page*2;
+    uint8_t *memory=mmap(NULL,length,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANON,-1,0);
+    if(memory==MAP_FAILED) fail("guard mapping");
+    if(mprotect(memory+page,(size_t)page,PROT_NONE)) fail("guard protection");
+#endif
+    uint32_t *size=(void *)(memory+page-4);*size=4;
+    peer_config_reject(size); /* Only the first four bytes are readable. */
+    qpc_configuration_header_v1 *header=(void *)(memory+page-8);
+    *header=(qpc_configuration_header_v1){8,1};peer_config_reject(header);
+    *header=(qpc_configuration_header_v1){sizeof(qpc_peer_configuration_v1),2};peer_config_reject(header);
+    *header=(qpc_configuration_header_v1){sizeof(qpc_peer_configuration_v1)+8,1};peer_config_reject(header);
+    peer_config_reject(NULL);
+#ifdef _WIN32
+    if(!VirtualFree(memory,0,MEM_RELEASE)) fail("guard unmap");
+#else
+    if(munmap(memory,length)) fail("guard unmap");
+#endif
+    puts("QPC_PEER_CONFIGURATION_HEADER_GUARD_PASS");
+    return 0;
+}

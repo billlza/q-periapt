@@ -1,0 +1,54 @@
+{
+  "source_commit": "fca7a0bcc6f9054dde175afbd0d99864fa281694",
+  "run": 39038905682,
+  "job": 117415938800,
+  "conclusion": "failure",
+  "artifact_id": 12103776254,
+  "artifact_sha256": "b5d26b9670e906b11b1e9d66aed809d13ce129b9b3ec140f410d98e9de9bbb7f",
+  "artifact_members": 161,
+  "instrumentation": {
+    "schema": 1,
+    "status": "pass",
+    "run_id": "5333211993e507d553562bf2cac2f2b6",
+    "test_count": 3,
+    "passed_tests": [
+      "sdkOwnersAndPurposeKeys",
+      "sdkExpertCancellationAndInputSnapshot",
+      "sdkSignedPolicyRevocationAndRecovery"
+    ]
+  },
+  "instrumentation_code": -1,
+  "runtime_page_size_bytes": 16384,
+  "package_path_recovery_observed": true,
+  "cleanup_observation": "First cleanup query saw package present; next byte read returned an incomplete APK; later queries found device unavailable. Terminal clean uninstall/absence was not established.",
+  "scope": "Native SDK three-case instrumentation passed before transport/cleanup failure. Full two-consumer package job remains failed; accepted physical-device cohorts unchanged. Binder exhaustion and guest low-memory activity observed, but final ADB loss root cause is not established. No automatic retry, guest privilege change, test weakening or product modification performed.",
+  "release_claim_eligible": false,
+  "diagnostic_matches": {
+    "5333211993e507d553562bf2cac2f2b6/proof/emulator-recovery-logcat.txt": {
+      "count": 51,
+      "first_matches": [
+        "10-17 14:17:55.069   143   143 I lowmemorykiller: Kill 'com.google.android.documentsui' (3029), uid 10100, oom_score_adj 905 to free 126188kB rss, 0kB swap; reason: min watermark is breached",
+        "10-17 14:17:55.155   143   143 I lowmemorykiller: Kill 'com.google.android.partnersetup' (2726), uid 10128, oom_score_adj 250 to free 121324kB rss, 0kB swap; reason: min watermark is breached even after kill"
+      ]
+    },
+    "5333211993e507d553562bf2cac2f2b6/proof/emulator-state-before.txt": {
+      "count": 1,
+      "first_matches": [
+        "MemTotal:        2532420 kB"
+      ]
+    },
+    "5333211993e507d553562bf2cac2f2b6/proof/emulator-state-recovery.txt": {
+      "count": 1,
+      "first_matches": [
+        "MemTotal:        2532420 kB"
+      ]
+    },
+    "5333211993e507d553562bf2cac2f2b6/proof/emulator.log": {
+      "count": 2,
+      "first_matches": [
+        "[   83.670640] binder_alloc: 2700: binder_alloc_buf size 1056768 failed, no address space",
+        "[   91.067651] binder_alloc: 2700: binder_alloc_buf size 1056768 failed, no address space"
+      ]
+    }
+  }
+}

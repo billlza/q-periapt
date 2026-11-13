@@ -1,0 +1,210 @@
+{
+  "Apple_archive_sha256": "cdcaa7252597a75af49895ec6f0aac7e972c9230477e1ada8d8bd8899ae7e4f5",
+  "C_exports": 157,
+  "C_unit_tests": 58,
+  "Kotlin_unit_tests": 78,
+  "Swift_09_driver_terminal_status": "not retained; verify-swift-10 independently checked every archive member plus successful build/link command receipts",
+  "Swift_unit_tests": 77,
+  "cohort_policy": "All successful and failed cohorts are sealed; use fresh identities, storage and outputs for future runs",
+  "created_utc": "2026-10-14T20:26:39.437059+00:00",
+  "final_source_documentation_only_changes": [
+    "bindings/android/ContinuityPackageConsumer/README.md",
+    "bindings/c/ContinuityPackageConsumer/README.md",
+    "bindings/kotlin/ContinuityPackageConsumer/README.md",
+    "bindings/swift/ContinuityPackageConsumer/README.md"
+  ],
+  "foreign_process_calls": 27,
+  "installed_archives": {
+    "Kotlin": "8d57a3f32048f706820f601d0a41fb831e96094d54fb03bc4c45b041bdaa35c9",
+    "Swift": "e90d91031f9e987b699c35bcbe3cf654c7caa0be421dd473f18bcc877a569c5d"
+  },
+  "package_inventory_tests": 75,
+  "physical_boundary": {
+    "completed": true,
+    "devices": {
+      "ipad": {
+        "app_sha256": "6e2566c0f15c624ba61e6ccd9fb19486c294462ef3c4276f99df27926b41bca1",
+        "archive_sha256": "cdcaa7252597a75af49895ec6f0aac7e972c9230477e1ada8d8bd8899ae7e4f5",
+        "completed": true,
+        "exit_code": 0,
+        "hardware": {
+          "cpuType": {
+            "name": "arm64e",
+            "subType": -2147483646,
+            "type": 16777228
+          },
+          "deviceType": "iPad",
+          "marketingName": "iPad Pro 11-inch (M4)",
+          "productType": "iPad16,3",
+          "reality": "physical"
+        },
+        "launch_receipt_sha256": "154ea9e2ce4f5cebb78597fbaa27747b84182cc99933d53a6cab9dfba600b1ae",
+        "scope": "Packaged native ABI and cancelled-owner physical boundary probe; positive physical recovery remains separate",
+        "software": {
+          "bootState": "booted",
+          "developerModeStatus": "enabled",
+          "osBuildUpdate": "24A446",
+          "osVersionNumber": "27.0.1"
+        },
+        "transport": "wired"
+      },
+      "iphone": {
+        "app_sha256": "6e2566c0f15c624ba61e6ccd9fb19486c294462ef3c4276f99df27926b41bca1",
+        "archive_sha256": "cdcaa7252597a75af49895ec6f0aac7e972c9230477e1ada8d8bd8899ae7e4f5",
+        "completed": true,
+        "exit_code": 0,
+        "hardware": {
+          "cpuType": {
+            "name": "arm64e",
+            "subType": -2147483646,
+            "type": 16777228
+          },
+          "deviceType": "iPhone",
+          "marketingName": "iPhone 16 Pro",
+          "productType": "iPhone17,1",
+          "reality": "physical"
+        },
+        "launch_receipt_sha256": "0b1de7ecb4d13cabcba94d5196f3f68694dc940445cd550a65cfc12a9f01c091",
+        "scope": "Packaged native ABI and cancelled-owner physical boundary probe; positive physical recovery remains separate",
+        "software": {
+          "bootState": "booted",
+          "developerModeStatus": "enabled",
+          "osBuildUpdate": "24A437",
+          "osVersionNumber": "27.0"
+        },
+        "transport": "localNetwork"
+      }
+    },
+    "existing_device_storage_opened": false,
+    "fresh_application": true,
+    "positive_physical_pending_write_recovery": false,
+    "release_claim_eligible": false
+  },
+  "publication_performed": false,
+  "pushed": false,
+  "qualified_implementation_unchanged": true,
+  "release_claim_eligible": false,
+  "remaining": [
+    "Android positive recovery through public ContinuityConfiguration and ART",
+    "positive mobile pending-write recovery and lifecycle composition",
+    "new binding pending-write process/storage/cancellation fault matrix",
+    "permanent installed-qualifier integration of this positive recovery workload",
+    "CI and CodeQL for this source commit",
+    "independent engine/host qualification",
+    "PCS and full release admission"
+  ],
+  "required_terminal_checks": [
+    "native-all-tests-04",
+    "native-all-clippy-04",
+    "swift-tests-03",
+    "kotlin-tests-03",
+    "java-main-02",
+    "java-tests-02",
+    "jni-syntax-02",
+    "jni-PendingWriteBridgeProbe-03",
+    "jni-BridgeProbe-03",
+    "flow-run-08",
+    "swift-flow-run-10",
+    "kotlin-flow-run-14",
+    "native-msrv-check-15",
+    "native-format-21",
+    "final-diff-21",
+    "source-gate-25"
+  ],
+  "retained_failed_attempts": [
+    "source-layout metadata failed before isolated installed-layout correction",
+    "C flow-07 rejected an unread capture reply under warnings-as-errors; flow-08 explicitly asserts reply tags",
+    "linked-worktree inventory check rejected main .git-file provenance; real-clone controls passed after exact new test-count fixture correction",
+    "Kotlin driver-11 passed build/tests then rejected unsupported report profile; driver-12 rejected checkout dependency cache; driver-13 uses isolated cache and strict closure verifier",
+    "Apple consumer-16 applied provisioning profile to Swift package library target; consumer-19 uses unsigned compile and separately verified offline app signing"
+  ],
+  "runs": [
+    {
+      "case": "unapplied",
+      "completed": true,
+      "foreign_process_calls": 5,
+      "language": "C",
+      "original_metadata_sha256": "7f659df67fd246d104bfdeac840b4f12723d62bf94a12e133952715e2b9abe1c",
+      "original_proposal_sha256": "6d96bc91ed91e7015d60ccfdb96f7eb184cb0a664fe30a159188b09b9d0cae36"
+    },
+    {
+      "case": "applied",
+      "completed": true,
+      "foreign_process_calls": 4,
+      "language": "C",
+      "original_metadata_sha256": "135e93da61a73d9ffc5c82e3e831e7ec8decc5674f5bee86429a7911864dc4a9",
+      "original_proposal_sha256": "a580254642b3e1f92bb8cf73e6360d30dbc771907ec9942410c216c14406e176"
+    },
+    {
+      "case": "unapplied",
+      "completed": true,
+      "foreign_process_calls": 5,
+      "language": "Swift",
+      "original_metadata_sha256": "3fe2372c4186ba6b764ec138d7ec80724470ad5608eef9d329ae1fc5799957af",
+      "original_proposal_sha256": "2c4356f2262810b3561bd27b6da3008d90cb29b8af5ea50b6ac8cf3992106a42"
+    },
+    {
+      "case": "applied",
+      "completed": true,
+      "foreign_process_calls": 4,
+      "language": "Swift",
+      "original_metadata_sha256": "228e0ce4612be247786d2f548c6ea9b39848321742ffd040f3ed0b45b7d9a888",
+      "original_proposal_sha256": "eaa9dfc9374cb7e21a205a1985f43805baa0babe80d44d739d04b5ae5d9b2418"
+    },
+    {
+      "case": "unapplied",
+      "completed": true,
+      "foreign_process_calls": 5,
+      "language": "Kotlin",
+      "original_metadata_sha256": "60a9d09e1cc909c9a20e1f8a308c39f6a6f0800ba51718284dc12cf6ad9cd021",
+      "original_proposal_sha256": "3ae3a5a7f86e210b88f74d3c87710ff87e5670cbc155d18de4bcd998ca3f9c77"
+    },
+    {
+      "case": "applied",
+      "completed": true,
+      "foreign_process_calls": 4,
+      "language": "Kotlin",
+      "original_metadata_sha256": "66df721b810d772be07e55812475d4702988d56ea06790bedae4634f9310b259",
+      "original_proposal_sha256": "5bf131af8702ed00f1de9a4ecd91d7ac3b769620a6bdd7eb3c9cf7aa83314013"
+    }
+  ],
+  "scope": "Original pending publication retirement, actual installed C/Swift/Kotlin consumers, same engine and host, signed TCP, real-clock protocol policy expiry; iOS physical checks cover ABI rejection and owner cancellation only",
+  "source_commit": "54643b11791543c97d6def45d123f7655d9593e3",
+  "source_files": {
+    "ARTIFACT.md": "a0d3010af3c4b628fd0e5131bd066c86f905d9bbe7682eacdd888ef73f4e5ac6",
+    "artifact/codeql_rust_quality.py": "41a807458b9aaa2dd5b9dd7c74db24fc1b745dbdbfc4a6e6234455a13bfd6dbe",
+    "artifact/continuity_c_consumer.py": "89579d85a527ba7fb1737a360efb42422c6f78f98347f129edcfc39c5481d23c",
+    "artifact/continuity_kotlin_consumer.py": "e09212c0f64e5316eb82fd2764482fb28d70faaed6b6d76b41521c0562816c87",
+    "artifact/continuity_swift_consumer.py": "11bab37ce789cadd2be346a77777f9dbeb0ef8c2909809fe1d8cb80603a615fa",
+    "artifact/test_codeql_rust_quality.py": "9f35ddb2a2629c5e4bede8ce02b1212801ef7f88afa50457bf1b64c13df3a3e5",
+    "artifact/test_continuity_c_consumer.py": "3f1fbbad203e68550893367de6b7efd5a2a1026533f9e0fbdfa229e362287ba8",
+    "artifact/test_continuity_kotlin_consumer.py": "7537b51275c07c595f2b522073ea9be657ea752c8846aae9b1a936ca86618f1f",
+    "artifact/test_continuity_swift_consumer.py": "170347a624c514a41e6b1b5dd038f47f029264f81dcdc78a81aaff56bc22e640",
+    "bindings/android/ContinuityPackageConsumer/README.md": "ad951682f7bb5c21c405d1f757e886b701fd7265748c4c09220c04f6bdb63499",
+    "bindings/android/ContinuityPackageConsumer/jni/bridge.h": "eb73a41425252758e04f19e2b37dfab356f6ad2cb55e778675bc64cd0fe1828c",
+    "bindings/android/ContinuityPackageConsumer/jni/continuity_jni.c": "13ae1da7a492b1a2c151e85755ac35d6702ab6c683644abe5524e5d73805b707",
+    "bindings/android/ContinuityPackageConsumer/jni/pending_recovery.c": "4ae046d055dd26091b796e1a8a9cc319ea53ae600988e231aabb1e2974f240ca",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/ContinuityEnrollment.java": "46002267a22b0c9955c27556fffc38da4affc443d0409fd062414a06debdfacf",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/Native.java": "514f53f3587bf652036ac7db3bf12c6c60377133eae9e563616482d54c212fbb",
+    "bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/PendingWriteRecoveryRequest.java": "b3e1614e1486180e360a9960c1650039d2dfe44d17decd34f1dd871109d298a4",
+    "bindings/android/ContinuityPackageConsumer/src/test/java/BridgeProbe.java": "a030e2b8a047a060b30468aca4ae3523ef3d2b638326bab566836be321362c9f",
+    "bindings/android/ContinuityPackageConsumer/src/test/java/PendingWriteBridgeProbe.java": "c6992cc92b601dee615d6094940e4b6e3e30bdc85dedccb332654b1577a7437d",
+    "bindings/c/ContinuityPackageConsumer/README.md": "e1cac3ac61a6d5e8c141ccc4ae8dd8c4b4d30f21f3b075519f527bb31193ed0b",
+    "bindings/c/ContinuityPackageConsumer/qpc_owner.h": "7d523a7c76ca76da86bad2f5e79e367de25eda2f3b47baf3aae804c6b63aaf17",
+    "bindings/c/ContinuityPackageConsumer/src/enrollment.rs": "6924fffb9d9d2f0c575530476716d1d367dec0629df2d48caeed6ea1b399c4b6",
+    "bindings/c/ContinuityPackageConsumer/src/enrollment/pending_recovery.rs": "41ead800cab50bf2b4ec6b06932d202c4eb34e6109b4dad35d9695bb416f45d7",
+    "bindings/c/ContinuityPackageConsumer/src/witness.rs": "f74084310895916dba80a6b694a5624acd2a62175313ec79d62fad357fb53545",
+    "bindings/kotlin/ContinuityPackageConsumer/README.md": "f503178b1f5ea8b145134ca81fe387e61db1da4f32dc4853fe8f39d292aefd08",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Enrollment.kt": "1851b87ab330bddddd52ce776066c7e71cee44bc1c8e28e5d4108cc23fec99a9",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Native.kt": "5abe845981027cf55fe608dc721c9257bf2b9bbe9a4fce86cf70bea01ae16008",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/PendingWriteRecovery.kt": "cd9e293962d7b1fceb43b72bdcb25ddec4a84cd3716ae51a62cbf51fc9e18f90",
+    "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/PendingWriteRecoveryNative.kt": "ca3279eaf35b8c1b27785f7bef63806328d550b457e5a6b532abc5544a3a8cef",
+    "bindings/kotlin/ContinuityPackageConsumer/src/test/kotlin/dev/qperiapt/continuity/PendingWriteRecoveryTests.kt": "080738d736a520871d379f865b33f15de8c85a94c742b89a9a6d3cb4fd78b428",
+    "bindings/swift/ContinuityPackageConsumer/README.md": "d3095468b35b1e9e3493f3ae83c34272cdcb5b981d501b9f159556442e865baa",
+    "bindings/swift/ContinuityPackageConsumer/Sources/QPeriaptContinuity/Enrollment.swift": "4a1890cae702fe36202fcbf13f54bc47fd1c750892ba64f2b4de829b716835ca",
+    "bindings/swift/ContinuityPackageConsumer/Sources/QPeriaptContinuity/PendingWriteRecovery.swift": "27fd530c828d67650d980d4199bef85b6d0a4b0f4ca30e6071848da9b52627a1",
+    "bindings/swift/ContinuityPackageConsumer/Tests/QPeriaptContinuityTests/PendingWriteRecoveryTests.swift": "6c2b69b224c19bbaf52b9913ac9f338cd877e9bee4979fd31013176dd01e2955"
+  },
+  "successful_recovery_cohorts": 6,
+  "tracked_Rust_sources": 677
+}

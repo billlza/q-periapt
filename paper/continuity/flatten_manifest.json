@@ -1,0 +1,172 @@
+{
+  "schema": "qperiapt-joc-single-source/1",
+  "input_entry": "main.tex",
+  "output": "joc-submission.tex",
+  "output_sha256": "3295d88faabd40263eaa9ec1631e04e5ebd1b8e66a8c92a1d7b145ed263805bf",
+  "inputs": {
+    "acquisition-nonadditivity.tex": {
+      "sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+      "bytes": 2722
+    },
+    "artifact-map.tex": {
+      "sha256": "c97c63162e301538bdb656dd81955c4be23ae2db56a761382d9d9eef9244d6fd",
+      "bytes": 29631
+    },
+    "bootstrap-authentication.tex": {
+      "sha256": "9622e924761b46033821a5207f2539e31f2af3452d884a2705101c9c2ff679f1",
+      "bytes": 25198
+    },
+    "bootstrap-entry.tex": {
+      "sha256": "c97d14ab80160319d2d87f563f349566961e3f585ef4604417b8c87cce02af2e",
+      "bytes": 6346
+    },
+    "bootstrap-initial-source.tex": {
+      "sha256": "f20c4944424d6ff5ac9fff6513eda5faaea265c135d3b71d2cd4fd45b9b95812",
+      "bytes": 16502
+    },
+    "candidate-local-accounting.tex": {
+      "sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "bytes": 8953
+    },
+    "chain-prefix-continuation.tex": {
+      "sha256": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
+      "bytes": 10384
+    },
+    "common-virtual-accounting.tex": {
+      "sha256": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
+      "bytes": 4589
+    },
+    "computational-roadmap.tex": {
+      "sha256": "26533cacec6b94b4b6cf0b83778aa538e7ba0f690c2f6b42409524dd3464db76",
+      "bytes": 7912
+    },
+    "confirmation-traffic.tex": {
+      "sha256": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
+      "bytes": 9959
+    },
+    "construction.tex": {
+      "sha256": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
+      "bytes": 5913
+    },
+    "contextbound-connection.tex": {
+      "sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+      "bytes": 16401
+    },
+    "declarations.tex": {
+      "sha256": "f5bd2d2e1433dd8ae1fc19ce8a871eb9a663518a54b70d62cdc994cab4fbaf2a",
+      "bytes": 1371
+    },
+    "discussion.tex": {
+      "sha256": "4042b5a6d3d04f28db062abad7a9022ced67c4313702402d85bfbaf06224e7ca",
+      "bytes": 8370
+    },
+    "established-results.tex": {
+      "sha256": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
+      "bytes": 6127
+    },
+    "evaluation.tex": {
+      "sha256": "77a783600c6a0a48a2969c7baa2110eb69f7686b9068441ba181f49f20c30dfe",
+      "bytes": 10443
+    },
+    "guarded-provenance.tex": {
+      "sha256": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+      "bytes": 8980
+    },
+    "introduction.tex": {
+      "sha256": "18129e1d1a935a69ea34f6239e09b59fa01b3e209dd810f396220fe67cb432a1",
+      "bytes": 10114
+    },
+    "joint-continuation.tex": {
+      "sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+      "bytes": 17987
+    },
+    "joint-primitive-bounds.tex": {
+      "sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+      "bytes": 10663
+    },
+    "kem-ordinary-bridge.tex": {
+      "sha256": "871a4a3a0a8744f0288a5a9c8adee47dd8738d0c341f333a8ed465d7fafd025f",
+      "bytes": 6546
+    },
+    "live-core-instantiation.tex": {
+      "sha256": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+      "bytes": 5679
+    },
+    "main.tex": {
+      "sha256": "f252a221b6b6af5803d720ac1aebb225a2ca8b2c665cb9e95a786a3cdfe4d17f",
+      "bytes": 4316
+    },
+    "matched-opportunities.tex": {
+      "sha256": "c4be207bddd208179b0e3576e67c5218ab006269818a8f3a6ca01abc56225726",
+      "bytes": 6653
+    },
+    "matched-opportunity-tables.tex": {
+      "sha256": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
+      "bytes": 1986
+    },
+    "multiple-root-entry.tex": {
+      "sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+      "bytes": 8584
+    },
+    "native-authentication.tex": {
+      "sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+      "bytes": 13617
+    },
+    "native-chain-composition.tex": {
+      "sha256": "e4fda73318c6f16a672f7efde4f0c3659587f23f1a082e20e52e5d149007c04e",
+      "bytes": 15290
+    },
+    "native-correspondence.tex": {
+      "sha256": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
+      "bytes": 5624
+    },
+    "opaque-rendering.tex": {
+      "sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+      "bytes": 11335
+    },
+    "primitive-inputs.tex": {
+      "sha256": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
+      "bytes": 4315
+    },
+    "reference-schedule-table.tex": {
+      "sha256": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9",
+      "bytes": 1543
+    },
+    "related-work.tex": {
+      "sha256": "79986b07fb2984f048337edb6c06abeb59cda5087fc227cc5bab3fb4a12b71c8",
+      "bytes": 9820
+    },
+    "report-composition.tex": {
+      "sha256": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
+      "bytes": 12978
+    },
+    "reservation-signature-bridge.tex": {
+      "sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+      "bytes": 11624
+    },
+    "retry-readiness-table.tex": {
+      "sha256": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5",
+      "bytes": 1261
+    },
+    "retry-readiness.tex": {
+      "sha256": "35b1f1aa5eb5be7c306de857bfce361685c8dfc216315fc77149d47e00bbc516",
+      "bytes": 4390
+    },
+    "sdk-purpose-connection.tex": {
+      "sha256": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+      "bytes": 9312
+    },
+    "security-model.tex": {
+      "sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+      "bytes": 30624
+    },
+    "source-attribution.tex": {
+      "sha256": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
+      "bytes": 12838
+    }
+  },
+  "figure": "figures/confirmation-cut.pdf",
+  "bibliography": "references.bib",
+  "class": "sn-jnl.cls",
+  "bibliography_style": "joc-basic.bst"
+}

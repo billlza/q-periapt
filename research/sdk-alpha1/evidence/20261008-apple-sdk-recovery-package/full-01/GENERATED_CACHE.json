@@ -1,0 +1,11 @@
+{
+  "original": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source/.build",
+  "retained_at": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-apple-current/full-01/unexpected-swiftpm-cache",
+  "files": {
+    ".buildSystem_debug": "cd1ba1c9604b794d71cd3cb482cc02e4c16bdea56c361333fabe801a74db2b90",
+    "CACHEDIR.TAG": "61833598201b8d9bb6a18003b6be9fd00ae014cfbd583253c1f23b746bf035d1"
+  },
+  "status_before": "?? .build/\n",
+  "status_after": "",
+  "cause": "Actual isolated Swift6.4 compute-checksum reproduction creates this cache; moved only these verified files after failed qualification"
+}

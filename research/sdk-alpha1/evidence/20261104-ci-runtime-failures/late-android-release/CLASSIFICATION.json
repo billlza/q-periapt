@@ -1,0 +1,45 @@
+{
+  "actual_checkout": "59bde0fd1a268de4d0e183c33bf3fc5e09c9be97",
+  "android_jni_started": false,
+  "classification": "existing P0 exact-count acceptance defect in macOS C/OpenSSL prerequisite",
+  "closure": "Already prepared local P0 correction and affected regressions; hosted corrected-candidate qualification remains pending until the effective wave ends.",
+  "emulator_failure": false,
+  "hosted_count_reason": "The rejected private server report and negotiation trace were not exported by the old collector. The archived native command passed, followed by the old exact-count validator failure.",
+  "hosted_observed_count": null,
+  "job_id": 126489776722,
+  "job_name": "continuity-installed-android-release",
+  "job_url": "https://github.com/billlza/q-periapt/actions/runs/41791861104/job/126489776722",
+  "metadata_head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+  "native_command_receipt": {
+    "argv": [
+      "/private/var/folders/y3/p6x0rn5562l5qyxy7x6jqrsc0000gn/T/qperiapt-continuity-package-_c0zea7f/build/release/deps/witness-869294d1c5c0fc98",
+      "--exact",
+      "openssl::native_c_owners_and_openssl_witness_reconcile_revoked_cleanup",
+      "--nocapture"
+    ],
+    "cwd": "/private/var/folders/y3/p6x0rn5562l5qyxy7x6jqrsc0000gn/T/qperiapt-continuity-package-_c0zea7f/c-consumer",
+    "returncode": 0
+  },
+  "native_test_passed": true,
+  "new_wave_started": false,
+  "observed_utc": "2026-11-04T22:37:55.367589+00:00",
+  "old_exact_expectation": 142,
+  "original_artifact": {
+    "bytes": 47614735,
+    "id": 13367958301,
+    "members": 17722,
+    "sha256": "75ff00efb06f1c20bbfd4bc0156c28ff5cf8af9b6747fa618e9d18a55061261d"
+  },
+  "physical_device_claim": false,
+  "raw_artifact_retained_locally": true,
+  "rerun_performed": false,
+  "retained_selected_members": [
+    "CONTINUITY_PACKAGE.json",
+    "C_CONSUMER.json",
+    "c-witness-openssl-server-release.json",
+    "c-witness-openssl-server-release.stdout",
+    "c-witness-openssl-server-release.stderr"
+  ],
+  "run_id": 41791861104,
+  "workflow_mutated": false
+}

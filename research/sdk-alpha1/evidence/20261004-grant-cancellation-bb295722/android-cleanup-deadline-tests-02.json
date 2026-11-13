@@ -1,0 +1,22 @@
+{
+  "completed": true,
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "discover",
+    "-s",
+    "artifact",
+    "-p",
+    "test_android_bounded_command.py"
+  ],
+  "cwd": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-lifecycle-integration",
+  "test_count": 191,
+  "log_sha256": "822e2f6e2ae49bbe2d968f6d2d1f4c3f10afb092ee84ed6fa48e748d6acd6d5e",
+  "source_hashes": {
+    "artifact/android_bounded_command.py": "7b785165d3a560b926b8cb685f531aaa2894c70013726c59fa93961b196d21d1",
+    "artifact/test_android_bounded_command.py": "1f4e517675be9aebfab2090e5c35997a98b07d546401c844a10792eb63c27bda"
+  },
+  "scope": "Deadline-only package-state observations remain inconclusive; mixed structural/security errors remain fatal; does not fix emulator offline"
+}

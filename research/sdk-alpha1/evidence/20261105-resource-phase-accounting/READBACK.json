@@ -1,0 +1,394 @@
+{
+  "cases": {
+    "witness-01": {
+      "limits": "Observed service-handler intervals and framed Witness bytes; no ordinary-send cost, throughput, CPU allocation, TCP/TLS overhead, stationary tail guarantee or current-source performance qualification.",
+      "phase_boundary": "Mutex-protected snapshot after first Capacity closes sender, before server Reopen and both original-owner reopens.",
+      "phases": {
+        "reopen_repeated_refusal_replay_delivery_and_close": {
+          "exchanges": 2661,
+          "framed_bytes": 19534401,
+          "handle_ns": 6572311139,
+          "kinds": {
+            "admit-authority/authority-current": {
+              "exchanges": 3,
+              "framed_bytes": 22023,
+              "handle_ns": 3400041,
+              "observed_handle_p50_ns": 1197458,
+              "observed_handle_p95_ns": 1257416,
+              "read_ns": 81958,
+              "write_ns": 27000
+            },
+            "advance/advanced": {
+              "exchanges": 377,
+              "framed_bytes": 2767557,
+              "handle_ns": 3601227663,
+              "observed_handle_p50_ns": 9540667,
+              "observed_handle_p95_ns": 10483333,
+              "read_ns": 12121667,
+              "write_ns": 4931420
+            },
+            "query/current": {
+              "exchanges": 2281,
+              "framed_bytes": 16744821,
+              "handle_ns": 2967683435,
+              "observed_handle_p50_ns": 1220250,
+              "observed_handle_p95_ns": 1925417,
+              "read_ns": 78093685,
+              "write_ns": 22564013
+            }
+          },
+          "read_ns": 90297310,
+          "write_ns": 27522433
+        },
+        "through_first_capacity_refusal": {
+          "exchanges": 1276,
+          "framed_bytes": 9367116,
+          "handle_ns": 4020704441,
+          "kinds": {
+            "admit-authority/authority-current": {
+              "exchanges": 4,
+              "framed_bytes": 29364,
+              "handle_ns": 4859083,
+              "observed_handle_p50_ns": 1134625,
+              "observed_handle_p95_ns": 1316708,
+              "read_ns": 167957,
+              "write_ns": 43999
+            },
+            "advance/advanced": {
+              "exchanges": 283,
+              "framed_bytes": 2077503,
+              "handle_ns": 2716511996,
+              "observed_handle_p50_ns": 9595542,
+              "observed_handle_p95_ns": 10612458,
+              "read_ns": 10299504,
+              "write_ns": 4568004
+            },
+            "query/current": {
+              "exchanges": 989,
+              "framed_bytes": 7260249,
+              "handle_ns": 1299333362,
+              "observed_handle_p50_ns": 1222334,
+              "observed_handle_p95_ns": 1954416,
+              "read_ns": 36153190,
+              "write_ns": 10355978
+            }
+          },
+          "read_ns": 46620651,
+          "write_ns": 14967981
+        }
+      },
+      "total": {
+        "exchanges": 3937,
+        "framed_bytes": 28901517,
+        "handle_ns": 10593015580,
+        "kinds": {
+          "admit-authority/authority-current": {
+            "exchanges": 7,
+            "framed_bytes": 51387,
+            "handle_ns": 8259124,
+            "observed_handle_p50_ns": 1197458,
+            "observed_handle_p95_ns": 1316708,
+            "read_ns": 249915,
+            "write_ns": 70999
+          },
+          "advance/advanced": {
+            "exchanges": 660,
+            "framed_bytes": 4845060,
+            "handle_ns": 6317739659,
+            "observed_handle_p50_ns": 9564042,
+            "observed_handle_p95_ns": 10547209,
+            "read_ns": 22421171,
+            "write_ns": 9499424
+          },
+          "query/current": {
+            "exchanges": 3270,
+            "framed_bytes": 24005070,
+            "handle_ns": 4267016797,
+            "observed_handle_p50_ns": 1220708,
+            "observed_handle_p95_ns": 1932625,
+            "read_ns": 114246875,
+            "write_ns": 32919991
+          }
+        },
+        "read_ns": 136917961,
+        "readonly_exchanges": 3277,
+        "write_ns": 42490414
+      }
+    },
+    "witness-02": {
+      "limits": "Observed service-handler intervals and framed Witness bytes; no ordinary-send cost, throughput, CPU allocation, TCP/TLS overhead, stationary tail guarantee or current-source performance qualification.",
+      "phase_boundary": "Mutex-protected snapshot after first Capacity closes sender, before server Reopen and both original-owner reopens.",
+      "phases": {
+        "reopen_repeated_refusal_replay_delivery_and_close": {
+          "exchanges": 2661,
+          "framed_bytes": 19534401,
+          "handle_ns": 6624736155,
+          "kinds": {
+            "admit-authority/authority-current": {
+              "exchanges": 3,
+              "framed_bytes": 22023,
+              "handle_ns": 3351542,
+              "observed_handle_p50_ns": 1132209,
+              "observed_handle_p95_ns": 1148875,
+              "read_ns": 95292,
+              "write_ns": 25209
+            },
+            "advance/advanced": {
+              "exchanges": 377,
+              "framed_bytes": 2767557,
+              "handle_ns": 3657522017,
+              "observed_handle_p50_ns": 9654292,
+              "observed_handle_p95_ns": 10903791,
+              "read_ns": 13019169,
+              "write_ns": 5135459
+            },
+            "query/current": {
+              "exchanges": 2281,
+              "framed_bytes": 16744821,
+              "handle_ns": 2963862596,
+              "observed_handle_p50_ns": 1202625,
+              "observed_handle_p95_ns": 1949000,
+              "read_ns": 78284471,
+              "write_ns": 22770422
+            }
+          },
+          "read_ns": 91398932,
+          "write_ns": 27931090
+        },
+        "through_first_capacity_refusal": {
+          "exchanges": 1276,
+          "framed_bytes": 9367116,
+          "handle_ns": 4029165989,
+          "kinds": {
+            "admit-authority/authority-current": {
+              "exchanges": 4,
+              "framed_bytes": 29364,
+              "handle_ns": 6182667,
+              "observed_handle_p50_ns": 1479667,
+              "observed_handle_p95_ns": 1822208,
+              "read_ns": 172290,
+              "write_ns": 65332
+            },
+            "advance/advanced": {
+              "exchanges": 283,
+              "framed_bytes": 2077503,
+              "handle_ns": 2710619003,
+              "observed_handle_p50_ns": 9596958,
+              "observed_handle_p95_ns": 10521667,
+              "read_ns": 9756925,
+              "write_ns": 4206662
+            },
+            "query/current": {
+              "exchanges": 989,
+              "framed_bytes": 7260249,
+              "handle_ns": 1312364319,
+              "observed_handle_p50_ns": 1231875,
+              "observed_handle_p95_ns": 2050792,
+              "read_ns": 36639741,
+              "write_ns": 10697259
+            }
+          },
+          "read_ns": 46568956,
+          "write_ns": 14969253
+        }
+      },
+      "total": {
+        "exchanges": 3937,
+        "framed_bytes": 28901517,
+        "handle_ns": 10653902144,
+        "kinds": {
+          "admit-authority/authority-current": {
+            "exchanges": 7,
+            "framed_bytes": 51387,
+            "handle_ns": 9534209,
+            "observed_handle_p50_ns": 1148875,
+            "observed_handle_p95_ns": 1822208,
+            "read_ns": 267582,
+            "write_ns": 90541
+          },
+          "advance/advanced": {
+            "exchanges": 660,
+            "framed_bytes": 4845060,
+            "handle_ns": 6368141020,
+            "observed_handle_p50_ns": 9613833,
+            "observed_handle_p95_ns": 10746125,
+            "read_ns": 22776094,
+            "write_ns": 9342121
+          },
+          "query/current": {
+            "exchanges": 3270,
+            "framed_bytes": 24005070,
+            "handle_ns": 4276226915,
+            "observed_handle_p50_ns": 1210125,
+            "observed_handle_p95_ns": 1973000,
+            "read_ns": 114924212,
+            "write_ns": 33467681
+          }
+        },
+        "read_ns": 137967888,
+        "readonly_exchanges": 3277,
+        "write_ns": 42900343
+      }
+    }
+  },
+  "framed_exchange_bytes": 7341,
+  "input_members": {
+    "build-03/OBSERVER_BUILD.json": {
+      "bytes": 2707,
+      "sha256": "43febe7aa75f3d46d954138d494ed40caef4c94376eb8d1cd732890fb64a50a5"
+    },
+    "qualified-observer/tests/journal_capacity.rs": {
+      "bytes": 16108,
+      "sha256": "abda284be09fb2ea56c29c4cf0776e8624a438cea59439b51c679577f9b739a8"
+    },
+    "qualified-observer/tests/observer_io.rs": {
+      "bytes": 5530,
+      "sha256": "b8f6c8cdfafbe0c3f46fbfc254775305e6c8c9c9a478481896bf481c04fa40c2"
+    },
+    "witness-01/RESULT.json": {
+      "bytes": 970898,
+      "sha256": "92fe0e4b01d304375c0caf94c5bb93aef702e4b98a83c510b73b94a829fc4bc4"
+    },
+    "witness-02/RESULT.json": {
+      "bytes": 970618,
+      "sha256": "cbde6f14cc599cab17abd374cf57c8494c4029a0384b71888ceade5131121062"
+    }
+  },
+  "negative_controls": [
+    {
+      "case": "witness-01",
+      "mutation": "wrong_prefix_index",
+      "rejected": true
+    },
+    {
+      "case": "witness-01",
+      "mutation": "wrong_prefix_bytes",
+      "rejected": true
+    },
+    {
+      "case": "witness-01",
+      "mutation": "wrong_total_bytes",
+      "rejected": true
+    },
+    {
+      "case": "witness-01",
+      "mutation": "wrong_prefix_sum",
+      "rejected": true
+    },
+    {
+      "case": "witness-01",
+      "mutation": "wrong_full_sum",
+      "rejected": true
+    },
+    {
+      "case": "witness-01",
+      "mutation": "missing_row",
+      "rejected": true
+    },
+    {
+      "case": "witness-01",
+      "mutation": "wrong_reply",
+      "rejected": true
+    },
+    {
+      "case": "witness-01",
+      "mutation": "boolean_tag",
+      "rejected": true
+    },
+    {
+      "case": "witness-01",
+      "mutation": "negative_time",
+      "rejected": true
+    },
+    {
+      "case": "witness-01",
+      "mutation": "unknown_field",
+      "rejected": true
+    },
+    {
+      "case": "witness-01",
+      "mutation": "unclosed_worker",
+      "rejected": true
+    },
+    {
+      "case": "witness-02",
+      "mutation": "wrong_prefix_index",
+      "rejected": true
+    },
+    {
+      "case": "witness-02",
+      "mutation": "wrong_prefix_bytes",
+      "rejected": true
+    },
+    {
+      "case": "witness-02",
+      "mutation": "wrong_total_bytes",
+      "rejected": true
+    },
+    {
+      "case": "witness-02",
+      "mutation": "wrong_prefix_sum",
+      "rejected": true
+    },
+    {
+      "case": "witness-02",
+      "mutation": "wrong_full_sum",
+      "rejected": true
+    },
+    {
+      "case": "witness-02",
+      "mutation": "missing_row",
+      "rejected": true
+    },
+    {
+      "case": "witness-02",
+      "mutation": "wrong_reply",
+      "rejected": true
+    },
+    {
+      "case": "witness-02",
+      "mutation": "boolean_tag",
+      "rejected": true
+    },
+    {
+      "case": "witness-02",
+      "mutation": "negative_time",
+      "rejected": true
+    },
+    {
+      "case": "witness-02",
+      "mutation": "unknown_field",
+      "rejected": true
+    },
+    {
+      "case": "witness-02",
+      "mutation": "unclosed_worker",
+      "rejected": true
+    }
+  ],
+  "observed_utc": "2026-11-05T22:00:24.967425+00:00",
+  "original_capsule_sha256": "60fb59b6d6b55a7f964cdbdc6ac3e28b5f185033fffce6c0be8b17c5aa19832e",
+  "original_observer_binary_sha256": "73271b3a8fca2bcad2119b1dd248a61cecfcfd9c6cc457b1d211b0ffac1972c2",
+  "original_observer_source_commit": "539845d573ac0af5fe104aabed2f96a86f9eac8b",
+  "scope": "Further accounting of two historical installed-engine observations; no current artifact promotion, frozen budget, device/energy result, new cryptographic wire verification or altered native gate.",
+  "source_commit": "21e00e9c3cfd193b9f51491888347f583620dfe0",
+  "source_inputs": {
+    "research/continuity-identity-candidate/src/anchor.rs": {
+      "bytes": 55568,
+      "identical_at_current_readback": true,
+      "sha256": "f7075af51796451d4796036241fab5ddd6b1068293b1fe4c2e3c7e2412df3e3b"
+    },
+    "research/continuity-identity-candidate/src/anchor/store/commands.rs": {
+      "bytes": 5632,
+      "identical_at_current_readback": true,
+      "sha256": "fd63df0595baa22e041ffbbb8e953e2a7080139878563321288bc9a4886786e2"
+    },
+    "research/continuity-identity-candidate/src/crypto.rs": {
+      "bytes": 18994,
+      "identical_at_current_readback": true,
+      "sha256": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4"
+    }
+  },
+  "tag_byte_offset": 204,
+  "workloads_rerun": false
+}

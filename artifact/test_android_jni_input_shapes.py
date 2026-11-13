@@ -57,7 +57,7 @@ class AndroidJniInputShapeTests(unittest.TestCase):
             )
             self.assertEqual(
                 (executed.returncode, executed.stdout, executed.stderr),
-                (0, "JNI_INPUT_SHAPES_PASS cases=193\n", ""),
+                (0, "JNI_INPUT_SHAPES_PASS cases=193\nSDK_JNI_INPUT_SHAPES_PASS cases=80\n", ""),
             )
 
     def test_binding_length_constants_match_the_existing_abi_contract(self) -> None:

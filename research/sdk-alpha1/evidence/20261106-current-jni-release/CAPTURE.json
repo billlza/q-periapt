@@ -1,0 +1,17 @@
+{
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "profile": "release",
+  "members": 16107,
+  "bytes": 63245373,
+  "sha256": "925e2b530291cb1eddb89b32fb7f466d1896a6a3796b2b904cd09644e47bfae2",
+  "source_inputs": 1401,
+  "jni_harness_tests_passed": 67,
+  "public_outcome_fields_replayed": 20,
+  "all_seven_native_binary_bytes_retained": true,
+  "all_members_reread": true,
+  "whole_debug_release_aggregate": false,
+  "art_executed": false,
+  "physical_device_executed": false,
+  "release_claim_eligible": false,
+  "scope": "Current completed Release installed host JNI partition; source, actual archive/native/JAR/test-class identities, 20 original public readbacks and preserved diagnostic enum failure. No Debug join, native replay from capsule or Android runtime claim."
+}

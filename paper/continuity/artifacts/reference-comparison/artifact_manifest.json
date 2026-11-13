@@ -1,0 +1,50 @@
+{
+  "schema": "qperiapt-artifact-manifest/1",
+  "scope": "Exact retained artifact bytes; the manifest excludes itself.",
+  "files": {
+    "README.md": {
+      "bytes": 2144,
+      "sha256": "3468d1d04f63d1f680ea6d589994a6ac062cdd978137b7efe4e687445c2d35f3"
+    },
+    "analysis.json": {
+      "bytes": 96963,
+      "sha256": "630b067f08f4170570c534f2105b95cdcf0f6e0a40b8350d30dba35c6cca82a2"
+    },
+    "analyze_reference.py": {
+      "bytes": 9358,
+      "sha256": "a9c1edfa04c9f6a738d34f84a45bd37617cd0894c224766a6ab4e4b84aaf59a5"
+    },
+    "reference_comparison_review.json": {
+      "bytes": 2841,
+      "sha256": "3f55cdda5fe691662bed1df159a545fbdbb0fe1001d7e1e8e2aab5a3d25fa398"
+    },
+    "reference_comparison_review.md": {
+      "bytes": 2791,
+      "sha256": "f1ea2b0c7ebb7bdf1792740107a92233963ec2879b8c3bd4b4488fd3fbd5bc32"
+    },
+    "review_reference_comparison.py": {
+      "bytes": 11138,
+      "sha256": "9e026ee44bd5db0ca3cc17f0970e0e8402edbe901220c6a17cce0df17dcd3e13"
+    },
+    "source_identity.json": {
+      "bytes": 1477,
+      "sha256": "a72e66891d5d9c7a8a8ac6a9d7bd9f79b08fd957aa70d4f126b5a58b74e16d63"
+    },
+    "sources/spqr32-snapshots.json": {
+      "bytes": 16201,
+      "sha256": "572dc536d61ae23ed4aa367b1b62a3cd2e164c491e60880e766f67e49422d033"
+    },
+    "sources/spqr32-traces.json": {
+      "bytes": 5073,
+      "sha256": "2df62d39ffcd2cd0cd3365eb3648532791b009da8c8713eb170196985fed639b"
+    },
+    "sources/spqr64-corpus.json": {
+      "bytes": 22829,
+      "sha256": "aee184c8415594d58692ee2d63419f741a703aaacfbfff69a6471e68fd19250e"
+    },
+    "sources/whole-kem-corpus.json": {
+      "bytes": 77339,
+      "sha256": "dd01c8d7a39f9c0486079b9b5b313248bd709badfa333f6ca24d1406d940de88"
+    }
+  }
+}

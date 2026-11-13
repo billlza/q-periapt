@@ -1,0 +1,341 @@
+..FEEEEFFFF.................E...................................F.................................................{"failure":"unavailable","operation":"installed-apk-path","output_bytes":28,"output_sha256":"2a2e06dda1ae2acbe1033dcf61f4b747c2e7f81128c427437349ddf4589046b8","returncode":1,"stage":"before-copy"}
+.......{"failure":"unavailable","operation":"installed-apk-path","output":"path command failed\n","output_bytes":20,"output_sha256":"324069bc3ddc4b164f9f485945a6aec61112a2af6e6dba3a3705c28900867462","returncode":1,"stage":"before-copy"}
+{"failure":"unavailable","operation":"installed-apk-path","output":"path command failed\n","output_bytes":20,"output_sha256":"324069bc3ddc4b164f9f485945a6aec61112a2af6e6dba3a3705c28900867462","returncode":1,"stage":"before-copy"}
+{"failure":"unavailable","operation":"installed-apk-path","output":"path command failed\n","output_bytes":20,"output_sha256":"324069bc3ddc4b164f9f485945a6aec61112a2af6e6dba3a3705c28900867462","returncode":1,"stage":"before-copy"}
+{"failure":"unavailable","operation":"installed-apk-path","output":"path command failed\n","output_bytes":20,"output_sha256":"324069bc3ddc4b164f9f485945a6aec61112a2af6e6dba3a3705c28900867462","returncode":1,"stage":"before-copy"}
+{"failure":"unavailable","operation":"installed-apk-path","output_bytes":20,"output_sha256":"324069bc3ddc4b164f9f485945a6aec61112a2af6e6dba3a3705c28900867462","returncode":1,"stage":"before-copy"}
+{"failure":"unavailable","operation":"installed-apk-path","output_bytes":20,"output_sha256":"324069bc3ddc4b164f9f485945a6aec61112a2af6e6dba3a3705c28900867462","returncode":1,"stage":"before-copy"}
+{"failure":"unavailable","operation":"installed-apk-path","output_bytes":20,"output_sha256":"324069bc3ddc4b164f9f485945a6aec61112a2af6e6dba3a3705c28900867462","returncode":1,"stage":"before-copy"}
+{"failure":"unavailable","operation":"installed-apk-path","output_bytes":20,"output_sha256":"324069bc3ddc4b164f9f485945a6aec61112a2af6e6dba3a3705c28900867462","returncode":1,"stage":"before-copy"}
+............E.........................{"failure":"unavailable","operation":"package-state","output_bytes":64,"output_sha256":"7e5211e8f6e8c7c96e088d2977a61d031a7d27d1bb9f8f001f07eead6aef6add","remote_returncode":7,"returncode":0,"stage":"observation"}
+{"failure":"unavailable","operation":"package-state","output_bytes":98,"output_sha256":"cb28a0b3471fcae7bfb9e3b8d2135226d8f8a39c0846b144f9bde9d7dc775c54","remote_returncode":9,"returncode":0,"stage":"observation"}
+.{"failure":"malformed","operation":"package-state","output_bytes":0,"output_sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":63,"output_sha256":"36276a002292ebb691c03dea8bae4568f3b3b0fe45419739b60b80be69f0bea6","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":64,"output_sha256":"c2f7c424bcaf0d1c51b898d19e1f3c665adc3c43efd39e199cf42ad0b831821d","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":65,"output_sha256":"3116fe22bd35ee261d2f7d1552a3266fe4d651570b28195de1fe761e7f6b228d","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":66,"output_sha256":"1084929212b065fc6034b5f9913cbb21a1452f76b54bb0b3a91570622418f3e3","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":65,"output_sha256":"5f7014f6556c01d21ea51f11e0034bbd56060c2d721dd630a2669fb104140e3e","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":80,"output_sha256":"79b297932058c24bfdc9f6f9a7642cff459788b351c29f417b0759483ebfed48","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":128,"output_sha256":"2955b4287f76a0803601eef16cf10200a7e7dda1dde4ff841d2d16e7cbd2ad93","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":65,"output_sha256":"13a3cbdca61e5949f0cefe6d66da09baa44c673e4e718ff16fd8ba66a3859a23","returncode":0,"stage":"observation"}
+..........{"failure":"malformed","operation":"package-state","output_bytes":10,"output_sha256":"72317e4329e39b772846ef7358eefee8d8569baa89b1f06da6627683e621653d","returncode":0,"stage":"observation"}
+.{"failure":"malformed","operation":"package-state","output_bytes":97,"output_sha256":"0d5e47c9c573778a91ac38c2b9abdfb3553aa8580bf57bd09a540ba8f0cb344c","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":99,"output_sha256":"bcbed62ed1897323fd44422cd9b339f149234b3cc770ac2ae99f0c5f84ff45a1","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":99,"output_sha256":"681c33a5d8948d70637fe0c6888ff97fbca0575a333bcc53cac5183477d7f815","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":91,"output_sha256":"111af2b62c019ef3c4ff889e562a86eaeb0c3dc9b890a084f9bca25d08674e64","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":98,"output_sha256":"7be5c69210bba082eec2d73579b0adfa640a29df57e719de29cd7649c89707c3","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":100,"output_sha256":"25c80dba4a70cea0975a3e21b831bf021f5004dd7efee826cf6d093960b76eb7","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":101,"output_sha256":"b3be6aa6669a29219c1a260ef8035ad28fac3e1dc13b45fad4773c3a4b5f83e2","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":127,"output_sha256":"4eed8e5ec70d75623a4aa72468cd43f13a6cfd77aaedf91caba26ad644063a60","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":99,"output_sha256":"17334532f3d16aecb0e4b98137f22a1b67fa9d80bb9e07ad6153729c96bb6bed","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":99,"output_sha256":"474a4e37240bdc107f40477708510c3e1ff0633948c222a5888e8e2b26256cff","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":99,"output_sha256":"2623f561b3edad8ddc2002d81c3b00df451d66b65d1aa97d004a6b0d187360de","returncode":0,"stage":"observation"}
+{"failure":"malformed","operation":"package-state","output_bytes":65,"output_sha256":"4e02c1962bc5134b41333cb22f1585321e032d8717dd1515ce4c8588c2fe05e5","returncode":0,"stage":"observation"}
+.......F...........................EFF.FEEE......................ss....E.............................................................................................s.....................................
+======================================================================
+ERROR: test_activation_failures_close_fd_and_keep_durable_recovery_state (test_android_bounded_command.AndroidBoundedCommandTests.test_activation_failures_close_fd_and_keep_durable_recovery_state) (boundary='listen')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 2960, in test_activation_failures_close_fd_and_keep_durable_recovery_state
+    state._write_owned_runtime_receipt(payload)
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/android_runtime_state.py", line 3402, in _write_owned_runtime_receipt
+    raise AndroidRuntimeStateError(
+android_runtime_state.AndroidRuntimeStateError: an owned runtime recovery receipt already exists
+
+======================================================================
+ERROR: test_activation_failures_close_fd_and_keep_durable_recovery_state (test_android_bounded_command.AndroidBoundedCommandTests.test_activation_failures_close_fd_and_keep_durable_recovery_state) (boundary='ready-before')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 2960, in test_activation_failures_close_fd_and_keep_durable_recovery_state
+    state._write_owned_runtime_receipt(payload)
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/android_runtime_state.py", line 3402, in _write_owned_runtime_receipt
+    raise AndroidRuntimeStateError(
+android_runtime_state.AndroidRuntimeStateError: an owned runtime recovery receipt already exists
+
+======================================================================
+ERROR: test_activation_failures_close_fd_and_keep_durable_recovery_state (test_android_bounded_command.AndroidBoundedCommandTests.test_activation_failures_close_fd_and_keep_durable_recovery_state) (boundary='ready-after')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 2960, in test_activation_failures_close_fd_and_keep_durable_recovery_state
+    state._write_owned_runtime_receipt(payload)
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/android_runtime_state.py", line 3402, in _write_owned_runtime_receipt
+    raise AndroidRuntimeStateError(
+android_runtime_state.AndroidRuntimeStateError: an owned runtime recovery receipt already exists
+
+======================================================================
+ERROR: test_activation_failures_close_fd_and_keep_durable_recovery_state (test_android_bounded_command.AndroidBoundedCommandTests.test_activation_failures_close_fd_and_keep_durable_recovery_state) (boundary='exec')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 2960, in test_activation_failures_close_fd_and_keep_durable_recovery_state
+    state._write_owned_runtime_receipt(payload)
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/android_runtime_state.py", line 3402, in _write_owned_runtime_receipt
+    raise AndroidRuntimeStateError(
+android_runtime_state.AndroidRuntimeStateError: an owned runtime recovery receipt already exists
+
+======================================================================
+ERROR: test_client_wait_rebinds_exact_concurrent_activation_ready_receipt (test_android_bounded_command.AndroidBoundedCommandTests.test_client_wait_rebinds_exact_concurrent_activation_ready_receipt)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 3198, in test_client_wait_rebinds_exact_concurrent_activation_ready_receipt
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+PermissionError: [Errno 1] Operation not permitted
+
+======================================================================
+ERROR: test_live_private_adb_socket_without_snapshot_fails_closed (test_android_bounded_command.AndroidBoundedCommandTests.test_live_private_adb_socket_without_snapshot_fails_closed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 6855, in test_live_private_adb_socket_without_snapshot_fails_closed
+    endpoint = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+PermissionError: [Errno 1] Operation not permitted
+
+======================================================================
+ERROR: test_sealed_socket_directory_allows_connect_but_blocks_replacement (test_android_bounded_command.AndroidBoundedCommandTests.test_sealed_socket_directory_allows_connect_but_blocks_replacement)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 3669, in test_sealed_socket_directory_allows_connect_but_blocks_replacement
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+PermissionError: [Errno 1] Operation not permitted
+
+======================================================================
+ERROR: test_sigkill_activation_windows_recover_offline_and_idempotently (test_android_bounded_command.AndroidBoundedCommandTests.test_sigkill_activation_windows_recover_offline_and_idempotently) (boundary='bound')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 3298, in test_sigkill_activation_windows_recover_offline_and_idempotently
+    state._write_owned_runtime_receipt(
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/android_runtime_state.py", line 3402, in _write_owned_runtime_receipt
+    raise AndroidRuntimeStateError(
+android_runtime_state.AndroidRuntimeStateError: an owned runtime recovery receipt already exists
+
+======================================================================
+ERROR: test_sigkill_activation_windows_recover_offline_and_idempotently (test_android_bounded_command.AndroidBoundedCommandTests.test_sigkill_activation_windows_recover_offline_and_idempotently) (boundary='listening')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 3298, in test_sigkill_activation_windows_recover_offline_and_idempotently
+    state._write_owned_runtime_receipt(
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/android_runtime_state.py", line 3402, in _write_owned_runtime_receipt
+    raise AndroidRuntimeStateError(
+android_runtime_state.AndroidRuntimeStateError: an owned runtime recovery receipt already exists
+
+======================================================================
+ERROR: test_sigkill_activation_windows_recover_offline_and_idempotently (test_android_bounded_command.AndroidBoundedCommandTests.test_sigkill_activation_windows_recover_offline_and_idempotently) (boundary='ready')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 3298, in test_sigkill_activation_windows_recover_offline_and_idempotently
+    state._write_owned_runtime_receipt(
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/android_runtime_state.py", line 3402, in _write_owned_runtime_receipt
+    raise AndroidRuntimeStateError(
+android_runtime_state.AndroidRuntimeStateError: an owned runtime recovery receipt already exists
+
+======================================================================
+ERROR: test_private_adb_socket_requires_owned_directory_and_exact_socket_leaf (test_android_device_proof.AndroidAdbIdentityTests.test_private_adb_socket_requires_owned_directory_and_exact_socket_leaf)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_device_proof.py", line 1212, in test_private_adb_socket_requires_owned_directory_and_exact_socket_leaf
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+PermissionError: [Errno 1] Operation not permitted
+
+======================================================================
+FAIL: test_activation_failures_close_fd_and_keep_durable_recovery_state (test_android_bounded_command.AndroidBoundedCommandTests.test_activation_failures_close_fd_and_keep_durable_recovery_state) (boundary='bind')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 3003, in test_activation_failures_close_fd_and_keep_durable_recovery_state
+    self.assertIs(observed.exception.__cause__, failure)
+AssertionError: PermissionError(1, 'Operation not permitted') is not OSError('activation bind')
+
+======================================================================
+FAIL: test_activation_never_replaces_existing_endpoint (test_android_bounded_command.AndroidBoundedCommandTests.test_activation_never_replaces_existing_endpoint)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/android_bounded_command.py", line 3272, in exec_server
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+PermissionError: [Errno 1] Operation not permitted
+
+The above exception was the direct cause of the following exception:
+
+android_bounded_command.AndroidCommandError: cannot start the owned adb server: [Errno 1] Operation not permitted
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 3037, in test_activation_never_replaces_existing_endpoint
+    self.assertRaisesRegex(commands.AndroidCommandError, "already exists"),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "already exists" does not match "cannot start the owned adb server: [Errno 1] Operation not permitted"
+
+======================================================================
+FAIL: test_activation_post_ready_replacement_never_execs_or_removes_replacement (test_android_bounded_command.AndroidBoundedCommandTests.test_activation_post_ready_replacement_never_execs_or_removes_replacement) (replacement_kind='receipt')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/android_bounded_command.py", line 3272, in exec_server
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+PermissionError: [Errno 1] Operation not permitted
+
+The above exception was the direct cause of the following exception:
+
+android_bounded_command.AndroidCommandError: cannot start the owned adb server: [Errno 1] Operation not permitted
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 3096, in test_activation_post_ready_replacement_never_execs_or_removes_replacement
+    self.assertRaisesRegex(
+AssertionError: "changed before exec|identity or mode changed" does not match "cannot start the owned adb server: [Errno 1] Operation not permitted"
+
+======================================================================
+FAIL: test_activation_post_ready_replacement_never_execs_or_removes_replacement (test_android_bounded_command.AndroidBoundedCommandTests.test_activation_post_ready_replacement_never_execs_or_removes_replacement) (replacement_kind='socket')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/android_bounded_command.py", line 3272, in exec_server
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+PermissionError: [Errno 1] Operation not permitted
+
+The above exception was the direct cause of the following exception:
+
+android_bounded_command.AndroidCommandError: cannot start the owned adb server: [Errno 1] Operation not permitted
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 3096, in test_activation_post_ready_replacement_never_execs_or_removes_replacement
+    self.assertRaisesRegex(
+AssertionError: "changed before exec|identity or mode changed" does not match "cannot start the owned adb server: [Errno 1] Operation not permitted"
+
+======================================================================
+FAIL: test_activation_post_ready_replacement_never_execs_or_removes_replacement (test_android_bounded_command.AndroidBoundedCommandTests.test_activation_post_ready_replacement_never_execs_or_removes_replacement) (replacement_kind='directory')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/android_bounded_command.py", line 3272, in exec_server
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+PermissionError: [Errno 1] Operation not permitted
+
+The above exception was the direct cause of the following exception:
+
+android_bounded_command.AndroidCommandError: cannot start the owned adb server: [Errno 1] Operation not permitted
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 3096, in test_activation_post_ready_replacement_never_execs_or_removes_replacement
+    self.assertRaisesRegex(
+AssertionError: "changed before exec|identity or mode changed" does not match "cannot start the owned adb server: [Errno 1] Operation not permitted"
+
+======================================================================
+FAIL: test_emulator_server_disables_automatic_scanning (test_android_bounded_command.AndroidBoundedCommandTests.test_emulator_server_disables_automatic_scanning)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/android_bounded_command.py", line 3272, in exec_server
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+PermissionError: [Errno 1] Operation not permitted
+
+The above exception was the direct cause of the following exception:
+
+android_bounded_command.AndroidCommandError: cannot start the owned adb server: [Errno 1] Operation not permitted
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 1250, in test_emulator_server_disables_automatic_scanning
+    self.assertRaisesRegex(RuntimeError, "exec boundary"),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "exec boundary" does not match "cannot start the owned adb server: [Errno 1] Operation not permitted"
+
+======================================================================
+FAIL: test_private_listener_survives_real_exec_and_all_references_close_on_exit (test_android_bounded_command.AndroidBoundedCommandTests.test_private_listener_survives_real_exec_and_all_references_close_on_exit)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 3380, in test_private_listener_survives_real_exec_and_all_references_close_on_exit
+    self.assertEqual(os.read(read_fd, 4096), b"INHERITED_READY\n")
+AssertionError: b'CHILD_ERROR AndroidCommandError: cannot s[58 chars]ed\n' != b'INHERITED_READY\n'
+
+======================================================================
+FAIL: test_server_exec_durably_advances_receipt_before_fd_close_and_exec (test_android_bounded_command.AndroidBoundedCommandTests.test_server_exec_durably_advances_receipt_before_fd_close_and_exec)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/android_bounded_command.py", line 3272, in exec_server
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+PermissionError: [Errno 1] Operation not permitted
+
+The above exception was the direct cause of the following exception:
+
+android_bounded_command.AndroidCommandError: cannot start the owned adb server: [Errno 1] Operation not permitted
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 2950, in test_server_exec_durably_advances_receipt_before_fd_close_and_exec
+    self.assertRaisesRegex(RuntimeError, "exec boundary"),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "exec boundary" does not match "cannot start the owned adb server: [Errno 1] Operation not permitted"
+
+======================================================================
+FAIL: test_server_exec_uses_only_capability_owned_identity (test_android_bounded_command.AndroidBoundedCommandTests.test_server_exec_uses_only_capability_owned_identity)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/android_bounded_command.py", line 3272, in exec_server
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+PermissionError: [Errno 1] Operation not permitted
+
+The above exception was the direct cause of the following exception:
+
+android_bounded_command.AndroidCommandError: cannot start the owned adb server: [Errno 1] Operation not permitted
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 2874, in test_server_exec_uses_only_capability_owned_identity
+    self.assertRaisesRegex(RuntimeError, "exec boundary"),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "exec boundary" does not match "cannot start the owned adb server: [Errno 1] Operation not permitted"
+
+======================================================================
+FAIL: test_sigkill_activation_windows_recover_offline_and_idempotently (test_android_bounded_command.AndroidBoundedCommandTests.test_sigkill_activation_windows_recover_offline_and_idempotently) (boundary='intent')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-android-readiness/artifact/test_android_bounded_command.py", line 3306, in test_sigkill_activation_windows_recover_offline_and_idempotently
+    self.assertEqual(os.read(read_fd, 4096), f"BARRIER {boundary}\n".encode())
+AssertionError: b'CHILD_ERROR AndroidCommandError: cannot s[58 chars]ed\n' != b'BARRIER intent\n'
+
+----------------------------------------------------------------------
+Ran 365 tests in 18.792s
+
+FAILED (failures=10, errors=11, skipped=3)
+ANDROID_ADB_LOOPBACK_ABSENCE_PASS ports=5037,5586
+ANDROID_PRIVATE_ADB_SOCKET_ABSENT_PASS
+123:1000:456:789
+123:1000:456:789
+ANDROID_DEVICE_PROOF_PUBLISH_PASS
+ANDROID_DEVICE_PROOF_VERIFY_PASS
+PROOF_TO_BYTE_SELECTED_PROOF_MANIFEST_PASS section=android_runtime sha256=ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff

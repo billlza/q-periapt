@@ -40,7 +40,15 @@ class ProofToByteInputsTests(unittest.TestCase):
 
     def test_live_map_is_exact_unique_and_self_covering(self) -> None:
         mapping = inputs.PROOF_TO_BYTE_INPUT_PATHS
-        self.assertEqual(249, len(mapping))
+        self.assertEqual(256, len(mapping))
+        self.assertEqual(
+            "crates/q-periapt-cli/src/scanner.rs",
+            mapping["qperiapt_cli_scanner_sha256"],
+        )
+        self.assertEqual(
+            "crates/q-periapt-cli/src/scanner/tests.rs",
+            mapping["qperiapt_cli_scanner_tests_sha256"],
+        )
         self.assertEqual(len(mapping), len(set(mapping.values())))
         self.assertEqual(
             "artifact/test_proof_to_byte_inputs.py",

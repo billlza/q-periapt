@@ -1,0 +1,50 @@
+Building for debugging...
+[Computing dependencies]
+[Pre-planning 1 / 299]
+[Planning deferred tasks]
+[69 / 154]
+[71 / 156] QPeriaptHybrid
+[81 / 204]
+[86 / 204]
+[91 / 204]
+[92 / 204]
+[96 / 204]
+[98 / 204]
+[102 / 204]
+[106 / 204]
+[108 / 204]
+[109 / 204]
+[119 / 204] QPeriaptHybrid
+[137 / 204]
+[140 / 205]
+[142 / 207]
+[148 / 213] QPeriaptConnectionProbe-product
+[158 / 213] QPeriaptConnectionProbeTests-product
+[158 / 213] QPeriaptHybrid
+[165 / 214] QPeriaptSDK
+[172 / 215]
+[172 / 215] QPeriaptPathProbe-product
+/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/bindings/swift/Package.swift: QPeriaptPathProbe-product: ld: warning: search path '../../target/release' not found
+[174 / 215] QPeriaptConnectionProbe-product
+/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/bindings/swift/Package.swift: QPeriaptConnectionProbe-product: ld: warning: search path '../../target/release' not found
+[178 / 215] QPeriaptConnectionProbe-product
+[183 / 216] QPeriaptHybridTests-product
+[193 / 254]
+[199 / 254]
+[202 / 254]
+[205 / 254]
+[207 / 254] QPeriaptConnectionProbeTests-product
+[209 / 257]
+[210 / 257]
+[213 / 257]
+[214 / 257]
+[224 / 257] QPeriaptConnectionProbeTests-product
+[239 / 257] QPeriaptConnectionProbeTests-product
+[243 / 257] QPeriaptSDKTests-product
+/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/bindings/swift/Package.swift: QPeriaptHybridTests-product: ld: warning: search path '../../target/release' not found
+[245 / 257] QPeriaptHybridTests-product
+/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/bindings/swift/Package.swift: QPeriaptConnectionProbeTests-product: ld: warning: search path '../../target/release' not found
+/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/bindings/swift/Package.swift: QPeriaptSDKTests-product: ld: warning: search path '../../target/release' not found
+[253 / 257] QPeriaptSDKTests-product
+Build complete! (11.55秒)
+error: Process '/Applications/Xcode.app/Contents/Developer/usr/bin/xctest /Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/swift-01/build/out/Products/Debug/QPeriaptSDKTests.xctest' exited with unexpected signal code 10

@@ -1,0 +1,310 @@
+{
+  "source_commit": "62e316f773f37a0c5d3757fc163ce89b7770b16c",
+  "status": "Focused native checks and fresh archive-bound C Debug/Release passed; full native suite and CI pending",
+  "release_claim_eligible": false,
+  "platform": "macOS arm64; no Intel Mac scope",
+  "commits": {
+    "msrv_clippy": "ffbff5981f2775986415930a26dc67dee2dec0f6",
+    "owner_stack": "e2834d43a77c46b0a2700ddd0fc149eb0e0089b8",
+    "managed_c": "62e316f773f37a0c5d3757fc163ce89b7770b16c"
+  },
+  "changes": [
+    "DeviceService owns its private ServiceOwners through one Box; public signatures, storage and drop order preserved",
+    "C registry uses existing native account-authority engine, bounded owner table and pending-owner admission",
+    "Versioned C inputs read only the size header before full structure access",
+    "C witness failures include the case label",
+    "Canonical C qualifier includes actual installed registry caller and exact export/test set"
+  ],
+  "native_validation": {
+    "installation_tests": 66,
+    "doc_tests": 17,
+    "strict_clippy": [
+      "1.90.0 all targets and features",
+      "1.98.1 all targets and features"
+    ],
+    "full_suite": "running; current source has 920 native unit tests"
+  },
+  "C_validation": {
+    "prior_component_installed_debug_and_release": "46 admission tests and actual compiled C caller passed on prior native representation",
+    "fresh_candidate_archive": {
+      "sha256": "d3d56431eb55f480135920c4aa2ec0657659560fda4bcb89b2382baf73358073",
+      "bytes": 1331064,
+      "members": 406
+    },
+    "fresh_archive_C_unit_tests": 46,
+    "fresh_installed_profiles": "Debug and Release passed actual registry caller, 46 admission tests each and original default-pthread restoration",
+    "managed_traffic_qualified": false,
+    "Swift_Kotlin_managed_registry_qualified": false,
+    "fresh_archive_strict_msrv_clippy": "Rust 1.90.0 all targets passed; source unchanged",
+    "fresh_profiles": {
+      "debug": {
+        "completed": true,
+        "exact_mapping": true,
+        "options_copied": true,
+        "short_header_refused": true,
+        "pending_closed_code": 202,
+        "same_registry_reopen": true,
+        "managed_enrollment_constructed": true,
+        "traffic_qualified": false,
+        "release_claim_eligible": false,
+        "scope": "Compiled C caller, installed native engine, registry lifecycle and deferred enrollment; no managed traffic or other language qualification",
+        "executable_sha256": "3983c37cf565248e5108e9b26874ecc2ddee61994720622600ee31611e374198",
+        "source_sha256": "b597825cffd36778766fcc9b01e90533fe91e521ac14fd4058cd9762c5f7adc9",
+        "header_sha256": "4661bebcbec9220de87533a84aef8f0801ee226ed2f527dca741bf8fadaf9d85",
+        "library_sha256": "6725280a20d02b6f78c5886b5745c9a872fef83fd578ddd3e3343e80b2a652cd",
+        "restoration_opening": {
+          "schema_version": 1,
+          "language": "C",
+          "session": "ae88a126e10c77bb05573da115716e72891b77913fd0c3fd504716ccde1a9abc",
+          "local_role": 2,
+          "tcp_cancel_ms": 86,
+          "tls_cancel_ms": 99,
+          "tcp_exchanges": 106,
+          "pre_cancel_cases": 3,
+          "snapshot_open_cases": 4,
+          "missing_witness_refused": true,
+          "wrong_pin_refused": true,
+          "bad_signature_refused": true,
+          "failed_handles_closed": true,
+          "same_session_reopened": true,
+          "release_claim_eligible": false,
+          "public_readbacks": {
+            "c-restore-opening-public-result.json": "d56ffb2ae7f07471af5272f60e5a2a8a0761468942858034add28ad7de767ca4",
+            "initiator/restore-selected-session": "b54d6ce3adf920faa68f9723d792d52ddc8c6d9a901692e22ec1f9931f611e46",
+            "responder/restore-selected-session": "b54d6ce3adf920faa68f9723d792d52ddc8c6d9a901692e22ec1f9931f611e46",
+            "responder/witness-id": "4ff4b43b4b27f127057397d0d4ac7cf04ddaff2b87d0349131aa306c051e1a70",
+            "responder/witness-public": "50fe5b46d12d7a0e12e972d4cc6fec9a55bf7b399c4882995f94ab8160076b85",
+            "restore-opening-witness-transcript": "b353e6ae371109398dfab575829fc76dc0529cf9b8613b58396f9118c90c2c93",
+            "responder/witness-cancelled-prefix": "b9fb4c3ecdf53468bfbc8a34f1ca74dbcfa211c61a81bb384f49b3a4517539e0",
+            "responder/restore-opening-tcp-held": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+            "responder/restore-opening-tls-held": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+            "responder/restore-opening-tls-closed": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+            "responder/restore-opening-tls-client-hello": "f37d5d526a76bcf2919c973d68e194922999c16da16656dde9cde0b472f2e69f"
+          },
+          "command_logs": {
+            "responder/witness-restore-opening-missing.stdout": "1008c8a80619121a498d1d8bff0865fb1dce88b521309ac008924fdc72636a67",
+            "responder/witness-restore-opening-missing.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-wrong-pin.stdout": "dec5777c81cab53222eeaa1e13c16bb160c6a70b89bd6a5c9f1d31cf0cc41831",
+            "responder/witness-restore-opening-wrong-pin.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-bad-signature.stdout": "639d21b77960700cedf346ca8eb076ce3755b8f6e9fe50735d94a955d40261dc",
+            "responder/witness-restore-opening-bad-signature.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-local-pre.stdout": "c3e5b017d443e66d09a5d5016c9e86b532592c3a2bb874e62da00a18fe598fea",
+            "responder/witness-restore-opening-local-pre.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tcp-pre.stdout": "c3e5b017d443e66d09a5d5016c9e86b532592c3a2bb874e62da00a18fe598fea",
+            "responder/witness-restore-opening-tcp-pre.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tls-pre.stdout": "c3e5b017d443e66d09a5d5016c9e86b532592c3a2bb874e62da00a18fe598fea",
+            "responder/witness-restore-opening-tls-pre.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tcp-ready.stdout": "d13e7b78e63059795c23e6da1277a0ce6bb3760140654e36e29cb423815cfdfe",
+            "responder/witness-restore-opening-tcp-ready.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tcp-reopen.stdout": "d13e7b78e63059795c23e6da1277a0ce6bb3760140654e36e29cb423815cfdfe",
+            "responder/witness-restore-opening-tcp-reopen.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tcp-cancel.stdout": "e8f89fe836ac94871d43b0bde187402b264dd5d304ed9ff41b7b3f68844c59b9",
+            "responder/witness-restore-opening-tcp-cancel.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tls-ready.stdout": "d13e7b78e63059795c23e6da1277a0ce6bb3760140654e36e29cb423815cfdfe",
+            "responder/witness-restore-opening-tls-ready.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tls-reopen.stdout": "d13e7b78e63059795c23e6da1277a0ce6bb3760140654e36e29cb423815cfdfe",
+            "responder/witness-restore-opening-tls-reopen.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tls-cancel.stdout": "19694f92a54a1f00153673fd43e319ad03e0f442a106b86302a838a42b86aaa5",
+            "responder/witness-restore-opening-tls-cancel.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "initiator/witness-restore-bootstrap-client.stdout": "c3f2eafc5b439d63206e75589fbc9699850a1af314bc55766437b6671203d9a9",
+            "responder/witness-restore-bootstrap-server.stdout": "6eb4d3e558ea03393be7e37a6bfdb159873f90e37724c11235899992341a00fd",
+            "initiator/witness-restore-bootstrap-client.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-bootstrap-server.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "scope": "same-host installed C explicit responder-session restoration; required signed TCP and mutual-TLS witness; partial reply and stalled handshake cancellation; advertisement expiry qualified separately"
+        }
+      },
+      "release": {
+        "completed": true,
+        "exact_mapping": true,
+        "options_copied": true,
+        "short_header_refused": true,
+        "pending_closed_code": 202,
+        "same_registry_reopen": true,
+        "managed_enrollment_constructed": true,
+        "traffic_qualified": false,
+        "release_claim_eligible": false,
+        "scope": "Compiled C caller, installed native engine, registry lifecycle and deferred enrollment; no managed traffic or other language qualification",
+        "executable_sha256": "818f21c116ee1b08e1538684af3387ced56d85477f75e937157d0d9b814ae1a9",
+        "source_sha256": "b597825cffd36778766fcc9b01e90533fe91e521ac14fd4058cd9762c5f7adc9",
+        "header_sha256": "4661bebcbec9220de87533a84aef8f0801ee226ed2f527dca741bf8fadaf9d85",
+        "library_sha256": "70334a8c9f5274d2d9ea3a2b3bccf86807e66046fa032ff01b4b1a4bc6b1c296",
+        "restoration_opening": {
+          "schema_version": 1,
+          "language": "C",
+          "session": "2a0202622fd2befbefee2b27afa77af599212f0e4b2511c744f8ffa72874f7b3",
+          "local_role": 2,
+          "tcp_cancel_ms": 89,
+          "tls_cancel_ms": 84,
+          "tcp_exchanges": 106,
+          "pre_cancel_cases": 3,
+          "snapshot_open_cases": 4,
+          "missing_witness_refused": true,
+          "wrong_pin_refused": true,
+          "bad_signature_refused": true,
+          "failed_handles_closed": true,
+          "same_session_reopened": true,
+          "release_claim_eligible": false,
+          "public_readbacks": {
+            "c-restore-opening-public-result.json": "e021b8241ab7ebdd46bc75f9c423454fb6539ecfd10c06cac0ce03755d44b886",
+            "initiator/restore-selected-session": "348f463464426502b3bf816d93c3e6f231fe909136428e3bf41ef4be07f55b0f",
+            "responder/restore-selected-session": "348f463464426502b3bf816d93c3e6f231fe909136428e3bf41ef4be07f55b0f",
+            "responder/witness-id": "cac74c724e7747bf6aeb9c967e24e26dabfde9b6f292c6482f392fd31132be3d",
+            "responder/witness-public": "7141a04c3d062002572013ccbb4597fcf9e2325172887acf97c7f56fe37d8f88",
+            "restore-opening-witness-transcript": "6eedf2bbc93fdf89b6dc5e8889fae864300cb382ac90b5c475d74a49fd1da774",
+            "responder/witness-cancelled-prefix": "e445bcd6e21d3237ddfadb1e828ce030f3c909df7187930e6f392a33696145e7",
+            "responder/restore-opening-tcp-held": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+            "responder/restore-opening-tls-held": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+            "responder/restore-opening-tls-closed": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+            "responder/restore-opening-tls-client-hello": "19bc08f924e131926506f6c9d1d68e021397f33286be57d3104e3b4aaf0dc45e"
+          },
+          "command_logs": {
+            "responder/witness-restore-opening-missing.stdout": "1008c8a80619121a498d1d8bff0865fb1dce88b521309ac008924fdc72636a67",
+            "responder/witness-restore-opening-missing.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-wrong-pin.stdout": "dec5777c81cab53222eeaa1e13c16bb160c6a70b89bd6a5c9f1d31cf0cc41831",
+            "responder/witness-restore-opening-wrong-pin.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-bad-signature.stdout": "639d21b77960700cedf346ca8eb076ce3755b8f6e9fe50735d94a955d40261dc",
+            "responder/witness-restore-opening-bad-signature.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-local-pre.stdout": "c3e5b017d443e66d09a5d5016c9e86b532592c3a2bb874e62da00a18fe598fea",
+            "responder/witness-restore-opening-local-pre.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tcp-pre.stdout": "c3e5b017d443e66d09a5d5016c9e86b532592c3a2bb874e62da00a18fe598fea",
+            "responder/witness-restore-opening-tcp-pre.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tls-pre.stdout": "c3e5b017d443e66d09a5d5016c9e86b532592c3a2bb874e62da00a18fe598fea",
+            "responder/witness-restore-opening-tls-pre.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tcp-ready.stdout": "d13e7b78e63059795c23e6da1277a0ce6bb3760140654e36e29cb423815cfdfe",
+            "responder/witness-restore-opening-tcp-ready.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tcp-reopen.stdout": "d13e7b78e63059795c23e6da1277a0ce6bb3760140654e36e29cb423815cfdfe",
+            "responder/witness-restore-opening-tcp-reopen.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tcp-cancel.stdout": "d900b86b9cc939694ee767e3174cc0ab665cebce07afd9c0b0798442d0a23193",
+            "responder/witness-restore-opening-tcp-cancel.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tls-ready.stdout": "d13e7b78e63059795c23e6da1277a0ce6bb3760140654e36e29cb423815cfdfe",
+            "responder/witness-restore-opening-tls-ready.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tls-reopen.stdout": "d13e7b78e63059795c23e6da1277a0ce6bb3760140654e36e29cb423815cfdfe",
+            "responder/witness-restore-opening-tls-reopen.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-opening-tls-cancel.stdout": "e91e8a1db915445a0fb6740d0232743218f261b1ee9c5d7185e98747c7af43b6",
+            "responder/witness-restore-opening-tls-cancel.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "initiator/witness-restore-bootstrap-client.stdout": "39f70d3b4c389696a7dd4fa65949a9be50cd3209a21e92f3b9af3f229d4124b9",
+            "responder/witness-restore-bootstrap-server.stdout": "addcfefb7780df50a6a61089b492000c416ff4d9ab9bdaa48307271f243d0a5b",
+            "initiator/witness-restore-bootstrap-client.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "responder/witness-restore-bootstrap-server.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "scope": "same-host installed C explicit responder-session restoration; required signed TCP and mutual-TLS witness; partial reply and stalled handshake cancellation; advertisement expiry qualified separately"
+        }
+      }
+    },
+    "inputs_unchanged": true,
+    "fresh_archive_strict_clippy": "Rust 1.90.0 and 1.98.1 all targets passed; source unchanged"
+  },
+  "stack": {
+    "observed_default_pthread_stack_bytes": 536576,
+    "native_reopen_frame": {
+      "before": 100912,
+      "after": 56080
+    },
+    "C_activation_reopen_frame": {
+      "before": 121136,
+      "after": 42736
+    },
+    "selected_two_frame_reduction_bytes": 123232,
+    "method": "arm64 llvm-objdump prologues, stack probe loop and saved register frame; recorded native binary hashes",
+    "scope": "Two selected nested frames only, not complete high-water stack, RSS, throughput or energy",
+    "diagnostic_runs": {
+      "misconfigured_evidence_parent": "restore-red-01 rejected PrivateFileError before C; excluded from defect evidence",
+      "unchanged_default_worker": "restore-red-02 SIGBUS during restore-opening-tcp-cancel",
+      "only_increased_worker_stack": "restore-stack-control-01 passed on unchanged native library",
+      "boxed_native_owner_default_stack": "restore-box-green-01 passed",
+      "boxed_native_owner_release_default_stack": "restore-box-release-01 passed"
+    },
+    "runtime_change": "DeviceService keeps private ServiceOwners in Option<Box<...>>; same close and field drop order, one extra bounded heap allocation per service; no public signature, storage or protocol change",
+    "warnings": "Initial amended-package green was diagnostic only; fresh verified archive now independently passes both profiles",
+    "fresh_archive_frames": {
+      "library_sha256": "6725280a20d02b6f78c5886b5745c9a872fef83fd578ddd3e3343e80b2a652cd",
+      "functions": {
+        "DeviceInstallation14reopen_session": {
+          "frame_bytes": 56080,
+          "symbol": "__RINvMs3_NtNtCs4MKHmOGq0yz_39q_periapt_continuity_identity_candidate12installation6reopenNtB8_18DeviceInstallation14reopen_sessionNtNtB8_9admission21InstallationAdmissionECshgaZoQMnI69_31q_periapt_continuity_c_consumer"
+        },
+        "Activation6reopen": {
+          "frame_bytes": 42736,
+          "symbol": "__RINvMs_NtCshgaZoQMnI69_31q_periapt_continuity_c_consumer5ownerNtB5_10Activation6reopenNCNvMs0_B5_NtB5_5Owner4open0EB7_"
+        }
+      }
+    }
+  },
+  "maintenance": {
+    "scope": "Current source function spans; no SDK throughput measurement",
+    "functions": [
+      {
+        "path": "artifact/continuity_c_consumer.py",
+        "function": "_qualify_c",
+        "line": 406,
+        "lines": 422,
+        "sha256": "2294e12721d6a95b6f5742c60b6ba8561855b735b6deda601e89b1188fb93437"
+      },
+      {
+        "path": "artifact/continuity_kotlin_consumer.py",
+        "function": "qualify_kotlin",
+        "line": 390,
+        "lines": 400,
+        "sha256": "018b2bc8141777708370c8ddd8d5b3d8cb3a79ad7422430d37185c88ac21e369"
+      },
+      {
+        "path": "artifact/rust_publish_contract.py",
+        "function": "validate_rust_package_contract_transcript",
+        "line": 1847,
+        "lines": 486,
+        "sha256": "42f1385fba51fcf8fab1b922eebd53d15193b3001dc3c799547aee718249b06f"
+      }
+    ],
+    "verified_additional_findings": [
+      {
+        "path": "bindings/kotlin/ContinuityPackageConsumer/src/main/kotlin/dev/qperiapt/continuity/Native.kt",
+        "line": 24,
+        "file_lines": 1631,
+        "observation": "Layouts, symbol descriptors and domain marshalling are concentrated in one internal native boundary",
+        "recommendation": "Extract domain marshalling after common error/arena/symbol primitives; preserve one lifetime/error boundary and internal handles",
+        "sha256": "156eb901e43408b5fd73655cbeb381322e929c2034cf969ece28beb49809b41e",
+        "current_source_verified_unchanged": true
+      },
+      {
+        "path": "services/q-periapt-policy-agent/src/service/lease.rs",
+        "file_lines": 2001,
+        "largest_function_lines": 154,
+        "observation": "Long file is already cohesive around one exclusive lease state machine with bounded reconciliation. Optional internal module split can improve navigation, but length alone does not justify changing its ordering or safety checks",
+        "sha256": "d6e3e1e5be1691fa7da6de1744d8c456b9abcfa41b28bfc9d7a1e7289cf7417a",
+        "current_source_verified_unchanged": true
+      }
+    ],
+    "current_change": "New C registry phase lives in a 55-line dedicated qualifier, called by the existing coordinator; no broad refactoring of frozen qualification paths.",
+    "scope_limit": "This update rechecks named current functions and byte-identical prior findings; it is not a fresh whole-repository complexity census."
+  },
+  "CI": {
+    "published_head": "88f3a8e4d8a1646cfc88efe76e7300d1316b4752",
+    "push_run": 38083319148,
+    "success_jobs": 47,
+    "failure_jobs": {
+      "114304546410": "Rust 1.90 nonminimal_bool reproduced and fixed",
+      "114306088863": "shared C restoration SIGBUS before Kotlin phase",
+      "114306088873": "shared C restoration SIGBUS before Swift phase"
+    },
+    "codeql_run": 38083326184,
+    "state": "5 language jobs succeeded; Rust remains in progress; preserve terminal diagnostics before a push"
+  },
+  "not_claimed": [
+    "complete full installed C/Swift/Kotlin pipeline",
+    "new throughput, peak RSS, tail latency or energy results",
+    "complete managed account replacement controller",
+    "0.2.0 release readiness"
+  ],
+  "focused_capture": {
+    "sha256": "132524bb16092722dc5af70a2e81c146e4323a9f7c7c920b0ab695a79fdb9bae",
+    "bytes": 777391,
+    "members": 145
+  },
+  "source_gate": "Passed on clean full checkout 62e316f773f37a0c5d3757fc163ce89b7770b16c; release_claim_eligible=false",
+  "installed_capture": {
+    "sha256": "fe5c36b6ffc6c85150808d5e6b55a834f57b5af872ec57460e171f7836c33267",
+    "bytes": 2116435,
+    "members": 170
+  }
+}

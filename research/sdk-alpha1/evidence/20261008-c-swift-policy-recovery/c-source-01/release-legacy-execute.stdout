@@ -1,0 +1,6 @@
+Q-Periapt ABI 2 product C smoke
+metadata ................................ PASS
+overflowing input regions ................ PASS
+signed policy / ABI1 hard cut ........... PASS
+OS-random product roundtrip / atomicity .. PASS
+ALL PASS

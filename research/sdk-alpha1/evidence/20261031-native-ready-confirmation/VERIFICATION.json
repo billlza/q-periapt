@@ -1,0 +1,230 @@
+{
+  "base_commit": "4ae5f77ad6e81dce956be24511d7f5e429924bde",
+  "protocol": "QPCNET02",
+  "tls_binding_version": 2,
+  "source_sha256": {
+    "research/continuity-identity-candidate/src/bootstrap.rs": "f72bce264806a900affe2cac33beb449e77aeaa45e6e264549eaa0f2ece7a286",
+    "research/continuity-identity-candidate/src/bootstrap/classical_alias_tests.rs": "f467926fa30356e512ce0fffdd76ec7e50eb9d3ed1d55af191a33d768349c6c7",
+    "research/continuity-identity-candidate/src/crypto.rs": "68ecaaf2b77b0b21461ec8194a1d8a037de33e240452ddc05d3c630076cd5a4c",
+    "research/continuity-identity-candidate/src/crypto/classical_compromise_tests.rs": "f67240721bcb626d990f50b27b35d60c67a7e5691da94dfc8103555e63fc4ad2",
+    "research/continuity-identity-candidate/src/connection_transport.rs": "3a281af812678ad51e8ad0098552328b372f8c11bcbdd6ec18a3b59bfb1b6afd",
+    "research/continuity-identity-candidate/src/connection_transport/client.rs": "ba2ab431988b88a53a1a5d4ea2808aedf3f1265e8715ffa9b6343cff02047735",
+    "research/continuity-identity-candidate/src/connection_transport/server.rs": "6fb0a72131bc372e00072d8e4f4b0ada24e53d9c1ab8d58793a4f25732a64118",
+    "research/continuity-identity-candidate/src/connection_transport/codec.rs": "b02432e637f3e9bfa1ae3fe75c2e6674203b85b423856603db737a2f76888034",
+    "research/continuity-identity-candidate/src/connection_transport/confirmation_tests.rs": "9be97fae4440aa7f73b4f34b501c725c358d3dc2050cf5497e0247699eae11ff",
+    "research/continuity-identity-candidate/src/contract.rs": "48d003f506c2b90146f97f0c37a9dca4785923b3f58c4eeed0de224f54231164",
+    "research/continuity-identity-candidate/src/session_exchange.rs": "884550c68f460ec523bc611c95d10f8854203a75f7abc72ea6250c76c089976e",
+    "research/continuity-identity-candidate/src/session_exchange/tcp.rs": "04887f9f49dc59230ae5c63f14cf0a59e868b8579e133a9c7638401ef08473b2",
+    "research/continuity-identity-candidate/src/session_exchange/tests.rs": "30b72ea31d1632fd5e264c58894144e31cfcc5b65c368dcb3645486b54c8b4f4"
+  },
+  "original_native_false_success_reproduced": true,
+  "red_rejection_regression_failed_before_fix": true,
+  "selected_tests": [
+    {
+      "command": 0,
+      "tests_passed": 1,
+      "ignored": 0,
+      "argv": [
+        "cargo",
+        "+1.98.1",
+        "test",
+        "--locked",
+        "--manifest-path",
+        "research/continuity-identity-candidate/Cargo.toml",
+        "--features",
+        "control-tls,connection-tls,anchor-tls",
+        "--lib",
+        "-j",
+        "2",
+        "bootstrap::classical_alias_tests::",
+        "--",
+        "--nocapture",
+        "--test-threads=2"
+      ]
+    },
+    {
+      "command": 1,
+      "tests_passed": 3,
+      "ignored": 0,
+      "argv": [
+        "cargo",
+        "+1.98.1",
+        "test",
+        "--locked",
+        "--manifest-path",
+        "research/continuity-identity-candidate/Cargo.toml",
+        "--features",
+        "control-tls,connection-tls,anchor-tls",
+        "--lib",
+        "-j",
+        "2",
+        "connection_transport::confirmation_tests::",
+        "--",
+        "--nocapture",
+        "--test-threads=2"
+      ]
+    },
+    {
+      "command": 2,
+      "tests_passed": 3,
+      "ignored": 0,
+      "argv": [
+        "cargo",
+        "+1.98.1",
+        "test",
+        "--locked",
+        "--manifest-path",
+        "research/continuity-identity-candidate/Cargo.toml",
+        "--features",
+        "control-tls,connection-tls,anchor-tls",
+        "--lib",
+        "-j",
+        "2",
+        "native_transport::socket::tests::",
+        "--",
+        "--nocapture",
+        "--test-threads=2"
+      ]
+    },
+    {
+      "command": 3,
+      "tests_passed": 9,
+      "ignored": 0,
+      "argv": [
+        "cargo",
+        "+1.98.1",
+        "test",
+        "--locked",
+        "--manifest-path",
+        "research/continuity-identity-candidate/Cargo.toml",
+        "--features",
+        "control-tls,connection-tls,anchor-tls",
+        "--lib",
+        "-j",
+        "2",
+        "durable::messages::tests::control_tls::",
+        "--",
+        "--nocapture",
+        "--test-threads=2"
+      ]
+    },
+    {
+      "command": 4,
+      "tests_passed": 13,
+      "ignored": 0,
+      "argv": [
+        "cargo",
+        "+1.98.1",
+        "test",
+        "--locked",
+        "--manifest-path",
+        "research/continuity-identity-candidate/Cargo.toml",
+        "--features",
+        "control-tls,connection-tls,anchor-tls",
+        "--lib",
+        "-j",
+        "2",
+        "durable::messages::tests::connection_tls::",
+        "--",
+        "--nocapture",
+        "--test-threads=2"
+      ]
+    },
+    {
+      "command": 5,
+      "tests_passed": 19,
+      "ignored": 0,
+      "argv": [
+        "cargo",
+        "+1.98.1",
+        "test",
+        "--locked",
+        "--manifest-path",
+        "research/continuity-identity-candidate/Cargo.toml",
+        "--features",
+        "control-tls,connection-tls,anchor-tls",
+        "--lib",
+        "-j",
+        "2",
+        "session_exchange::tests::",
+        "--",
+        "--nocapture",
+        "--test-threads=2"
+      ]
+    },
+    {
+      "command": 6,
+      "tests_passed": 1,
+      "ignored": 0,
+      "argv": [
+        "cargo",
+        "+1.98.1",
+        "test",
+        "--locked",
+        "--manifest-path",
+        "research/continuity-identity-candidate/Cargo.toml",
+        "--features",
+        "control-tls,connection-tls,anchor-tls",
+        "--test",
+        "owned_connection",
+        "-j",
+        "2",
+        "owned_services_connect_restart_rekey_and_reconcile_unknown_delivery",
+        "--",
+        "--exact",
+        "--nocapture"
+      ]
+    }
+  ],
+  "selected_tests_passed": 49,
+  "ignored": 0,
+  "all_final_local_checks_passed": true,
+  "warnings_denied": true,
+  "static_feature_configurations": [
+    "control-tls,connection-tls,anchor-tls",
+    "control-tls",
+    "connection-tls"
+  ],
+  "working_index_preserved": true,
+  "new_ci_wave_started": false,
+  "final_installed_package_qualified": false,
+  "full_PQ_proof": false,
+  "main_symbolic_model_changed": false,
+  "authentication_model_search": "timeout, no verified new theorem",
+  "directory_scope": "B required; implementation and qualification pending",
+  "goal_complete": false,
+  "baseline_reproduction_patch_sha256": "6aa1627ebdbd1805191e2e4fc7c517e0bfdbbca66050b288e175e09e9403a129",
+  "raw_capture_archive": {
+    "file": "Q-periapt-native-ready-confirmation.zip",
+    "bytes": 249930,
+    "sha256": "7407764cf0b31e14b9e651f8592972593b02c66c2b1044e9083f8b383f95be92",
+    "members": 93
+  },
+  "baseline_tests": {
+    "native-ready-alias-01": {
+      "base_commit": "4ae5f77ad6e81dce956be24511d7f5e429924bde",
+      "test": "connection_transport::ready_alias_probe::native_establish_accepts_public_ready_after_classical_reply_alias",
+      "passed": true,
+      "elapsed_seconds": 24.295140542002628,
+      "stdout_sha256": "c36e0a65743d34b592dae91c9a905c4d3efc35bce30b089ecd076494a67b91eb",
+      "stderr_sha256": "18d541a2d5b5d0d7736a2a2af7b709bfc70ed20b48c601cbf806300d2f878d55",
+      "driver_sha256": "e0beaaaefbc614f2278767e9e7e781f1fff051e30bb0602d9af2446ce2be158d",
+      "scope": "Real native TLS carrier and durable journals. The adversarial carrier has the configured TLS peer key and the classical device signing component, with an honest PQ/KEM responder oracle. Not a quantum computation or installed-package qualification."
+    },
+    "bootstrap-classical-alias-01": {
+      "base_commit": "4ae5f77ad6e81dce956be24511d7f5e429924bde",
+      "test": "bootstrap::alias_tests::classical_signature_alias_preserves_reply_authentication_but_final_rejects_root_split",
+      "passed": true,
+      "elapsed_seconds": 28.98341529100435,
+      "stdout_sha256": "a0c99700be728af2a650fcfdd87655ca64ac1b69a8c4ddf2877c4bab19617763",
+      "stderr_sha256": "42d1b27dc7aa4c1022937992dda8b0bd648c4ca5361cfa5c72354a74999eb546",
+      "driver_sha256": "8b1d26fe113a88c8977df45d324f3a39507e1262ef551c0d2a9ee86d8da2f283",
+      "scope": "Real volatile bootstrap with only the responder fixture classical signing component given to the alias generator. Not a quantum computation or installed-session qualification."
+    }
+  },
+  "baseline_reproduction_archive": {
+    "file": "BASELINE_REPRODUCTION.zip",
+    "sha256": "01566c06b849b03063355108f28519e804ff148ddb5775cb139d261b0d0de956",
+    "bytes": 5263
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "source_commit": "5f7548fa67fce424ea58943a707861a5e15d9aec",
+  "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source",
+  "started_utc": "2026-10-13T05:59:57.649623+00:00",
+  "phase": "failed",
+  "completed": false,
+  "live_producer": false,
+  "commands": [
+    {
+      "argv": [
+        "sh",
+        "artifact/python-run.sh",
+        "artifact/rust_sdk_profile.py",
+        "--output",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source/target/qualification-5f7548fa/sdk"
+      ],
+      "cwd": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-20261013/gate-source",
+      "label": "sdk-package",
+      "aggregate_timeout_seconds": 10800,
+      "pid": 76463,
+      "returncode": 1
+    }
+  ],
+  "failure": "RuntimeError('sdk-package failed; inspect its retained stderr')",
+  "finished_utc": "2026-10-13T06:00:00.569490+00:00"
+}

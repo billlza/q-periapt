@@ -1,0 +1,315 @@
+{
+  "schema": "qperiapt-wording-precision-semantic-review/1",
+  "status": "PASS",
+  "reviewer": "independent proof_review agent",
+  "date_utc": "2026-11-08",
+  "scope": "Targeted semantic review of the final wording diff and exact before/after snapshots; separate from the SDK theorem freeze. No build review or execution test was requested or performed.",
+  "diff": {
+    "path": "/workspace/scratch/83c4961eae79/native_root_review/wording_precision.diff",
+    "sha256": "8b5b3f3ca87d5237f6865b4edc368a17ffb0ea1e185b60c69e4156e344edc3e6",
+    "bytes": 11217,
+    "file_count": 8,
+    "hunk_count": 13,
+    "logical_edits": 14
+  },
+  "files": [
+    {
+      "file": "candidate-local-accounting.tex",
+      "before": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/before/candidate-local-accounting.tex",
+        "sha256": "4a38c6bb00c70f2611c2395aec754c0af6b8231a8e3f94e027cf1a17b657865d",
+        "bytes": 8913
+      },
+      "after": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/after/candidate-local-accounting.tex",
+        "sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+        "bytes": 8953
+      },
+      "integrated_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/candidate-local-accounting.tex",
+      "after_matches_integrated": true,
+      "formal_statement_count": 3,
+      "formal_statement_bytes_equal": true,
+      "display_math_count": 9,
+      "display_math_bytes_equal": true,
+      "inline_math_bytes_equal": true,
+      "labels_equal": true
+    },
+    {
+      "file": "construction.tex",
+      "before": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/before/construction.tex",
+        "sha256": "0bc19554764a4029df2375722a20397dd5b45bb71d133ecbf5f49b017099a9f9",
+        "bytes": 5915
+      },
+      "after": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/after/construction.tex",
+        "sha256": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
+        "bytes": 5913
+      },
+      "integrated_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/construction.tex",
+      "after_matches_integrated": true,
+      "formal_statement_count": 0,
+      "formal_statement_bytes_equal": true,
+      "display_math_count": 2,
+      "display_math_bytes_equal": true,
+      "inline_math_bytes_equal": true,
+      "labels_equal": true
+    },
+    {
+      "file": "guarded-provenance.tex",
+      "before": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/before/guarded-provenance.tex",
+        "sha256": "f7b36ef86bdd4733af0b882c9f192e52ad40ef041ae22046e63e1584e2c897ca",
+        "bytes": 8973
+      },
+      "after": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/after/guarded-provenance.tex",
+        "sha256": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+        "bytes": 8980
+      },
+      "integrated_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/guarded-provenance.tex",
+      "after_matches_integrated": true,
+      "formal_statement_count": 2,
+      "formal_statement_bytes_equal": true,
+      "display_math_count": 4,
+      "display_math_bytes_equal": true,
+      "inline_math_bytes_equal": true,
+      "labels_equal": true
+    },
+    {
+      "file": "joint-continuation.tex",
+      "before": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/before/joint-continuation.tex",
+        "sha256": "d6c980912918b309c33f4c9f8116d6835dd521be639d5c866b198496a9dd3bcb",
+        "bytes": 17988
+      },
+      "after": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/after/joint-continuation.tex",
+        "sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+        "bytes": 17987
+      },
+      "integrated_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/joint-continuation.tex",
+      "after_matches_integrated": true,
+      "formal_statement_count": 3,
+      "formal_statement_bytes_equal": true,
+      "display_math_count": 13,
+      "display_math_bytes_equal": true,
+      "inline_math_bytes_equal": true,
+      "labels_equal": true
+    },
+    {
+      "file": "joint-primitive-bounds.tex",
+      "before": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/before/joint-primitive-bounds.tex",
+        "sha256": "728694d237734b071496d355c13c359825aef219d918ed54810f97d2457e9dbd",
+        "bytes": 10654
+      },
+      "after": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/after/joint-primitive-bounds.tex",
+        "sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+        "bytes": 10663
+      },
+      "integrated_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/joint-primitive-bounds.tex",
+      "after_matches_integrated": true,
+      "formal_statement_count": 2,
+      "formal_statement_bytes_equal": true,
+      "display_math_count": 15,
+      "display_math_bytes_equal": true,
+      "inline_math_bytes_equal": true,
+      "labels_equal": true
+    },
+    {
+      "file": "opaque-rendering.tex",
+      "before": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/before/opaque-rendering.tex",
+        "sha256": "178f6ab0c486b053d9f8447ca09bce60ab5d5cb35bbc7a0ac881d2fb138f64fe",
+        "bytes": 11320
+      },
+      "after": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/after/opaque-rendering.tex",
+        "sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+        "bytes": 11335
+      },
+      "integrated_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/opaque-rendering.tex",
+      "after_matches_integrated": true,
+      "formal_statement_count": 3,
+      "formal_statement_bytes_equal": true,
+      "display_math_count": 6,
+      "display_math_bytes_equal": true,
+      "inline_math_bytes_equal": true,
+      "labels_equal": true
+    },
+    {
+      "file": "report-composition.tex",
+      "before": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/before/report-composition.tex",
+        "sha256": "3f1a5922e095d154433caf2e92673018796de4c629a0fa7a7bc16edfc2ab9186",
+        "bytes": 13062
+      },
+      "after": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/after/report-composition.tex",
+        "sha256": "b5c46a2c69bcb7d9dee8d460cdc55bf8ec8b691d612e8d33ccef1679408b45d3",
+        "bytes": 13071
+      },
+      "integrated_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/report-composition.tex",
+      "after_matches_integrated": true,
+      "formal_statement_count": 2,
+      "formal_statement_bytes_equal": true,
+      "display_math_count": 8,
+      "display_math_bytes_equal": true,
+      "inline_math_bytes_equal": true,
+      "labels_equal": true
+    },
+    {
+      "file": "security-model.tex",
+      "before": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/before/security-model.tex",
+        "sha256": "9d79088958d146971df8eaf9df983d6fabdfa033ce5de259d753f6d5f89cd0e6",
+        "bytes": 30597
+      },
+      "after": {
+        "path": "/workspace/scratch/83c4961eae79/native_root_review/wording/after/security-model.tex",
+        "sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+        "bytes": 30624
+      },
+      "integrated_path": "/workspace/scratch/646fb6c54bf4/q-periapt-paper/paper/continuity/security-model.tex",
+      "after_matches_integrated": true,
+      "formal_statement_count": 5,
+      "formal_statement_bytes_equal": true,
+      "display_math_count": 10,
+      "display_math_bytes_equal": true,
+      "inline_math_bytes_equal": true,
+      "labels_equal": true
+    }
+  ],
+  "checks": [
+    {
+      "id": "W01",
+      "file": "candidate-local-accounting.tex",
+      "topic": "Retrospective attribution and quantum prefix",
+      "status": "PASS",
+      "reason": "The final index remains a retrospective score attribution, while online monitors use only the available classical ledger. The final wording explicitly retains native quantum-state transformations and oracle access up to the local stop; it asserts no equality between divergent post-stop continuations."
+    },
+    {
+      "id": "W02",
+      "file": "construction.tex",
+      "topic": "Asymmetric confirmation counterexample",
+      "status": "PASS",
+      "reason": "The same exposed epoch and retained-input derivation witness remain. Each endpoint keeps its own confirmation counter, so the counterexample and the proposed bound it refutes are unchanged."
+    },
+    {
+      "id": "W03",
+      "file": "guarded-provenance.tex",
+      "topic": "Actual-key identities",
+      "status": "PASS",
+      "reason": "Equal actual key bytes still define one equivalence class across API objects. This is the guarded-readability key identity, and it does not merge the distinct owner/liveness records used in the SDK correspondence."
+    },
+    {
+      "id": "W04",
+      "file": "joint-continuation.tex",
+      "topic": "Entire hybrid regeneration",
+      "status": "PASS",
+      "reason": "Each hybrid generates all outputs from its own root and subsequent schedule. The joint continuation, all downstream uses and the full-query accounting retain their original scopes."
+    },
+    {
+      "id": "W05",
+      "file": "joint-primitive-bounds.tex",
+      "topic": "Terminal-test access",
+      "status": "PASS",
+      "reason": "The hidden value remains accessed through its stated primitive interfaces and, together with the private tables, remains internal throughout terminal testing. Initial oracle/key/auxiliary independence and counted preparation are unchanged; the terminal test gains no raw hidden-value channel."
+    },
+    {
+      "id": "W06",
+      "file": "opaque-rendering.tex",
+      "topic": "Equality from explicit nonces",
+      "status": "PASS",
+      "reason": "The final sentence permits coincident private blocks and ciphertext components while assigning complete-image separation to their explicit distinct nonces. This precisely matches the proof and avoids asserting that fixed-key/nonce encryption may fail plaintext injectivity."
+    },
+    {
+      "id": "W07",
+      "file": "report-composition.tex",
+      "topic": "Immutable report key and transcript",
+      "status": "PASS",
+      "reason": "Copy, retry, failed-after-commit and crash/resume retain each report key and its immutable original transcript. The selected row is still queried on its original message, with recomputation counts and actual durable state preserved."
+    },
+    {
+      "id": "W08",
+      "file": "security-model.tex",
+      "topic": "Entropy origin and sampling",
+      "status": "PASS",
+      "reason": "Independence remains an assumption at the original sampling event. Retained tapes and exact retries preserve that origin, while the following unchanged sentences count failed draws and distinguish fresh origins despite coincident public outputs."
+    },
+    {
+      "id": "W09",
+      "file": "security-model.tex",
+      "topic": "Immutable record subject",
+      "status": "PASS",
+      "reason": "The subject remains the session represented by the record version. An enclosing-journal write, including a sibling-session write, preserves that subject; preparation/save and new-version rules remain unchanged."
+    },
+    {
+      "id": "W10",
+      "file": "security-model.tex",
+      "topic": "Hash/MAC record-acquisition paths",
+      "status": "PASS",
+      "reason": "The empty path set refers to the public hash/MAC constructor output in the typed recipe model. It does not erase other intact records in an enclosing aggregate, and public outputs, statuses and ordinary cryptographic work remain present."
+    },
+    {
+      "id": "W11",
+      "file": "security-model.tex",
+      "topic": "Attribution separate from eligibility",
+      "status": "PASS",
+      "reason": "Attr remains a source/authentication obligation and its failure may occur on an eligible run. The unchanged eligibility formula and residual accounting therefore continue to charge attribution failure instead of silently filtering it away."
+    },
+    {
+      "id": "W12",
+      "file": "security-model.tex",
+      "topic": "Acquisition time and readability",
+      "status": "PASS",
+      "reason": "Protected record bytes enter the acquisition ledger when obtained; readability remains a separately evaluated set that can grow after key disclosure. The eligibility test still concerns original saved versions in C_T and does not wait for decryption."
+    },
+    {
+      "id": "W13",
+      "file": "security-model.tex",
+      "topic": "Adaptive target selection",
+      "status": "PASS",
+      "reason": "The selector chooses from the observed interaction. The retained adjacent conditions still identify the challenge accepted logical send, prohibit moving its test bit, and recompute selection and eligibility within each comparison."
+    },
+    {
+      "id": "W14",
+      "file": "security-model.tex",
+      "topic": "Reservation event and endpoint counters",
+      "status": "PASS",
+      "reason": "A pre-cut reservation remains pre-cut after delayed computation or receipt. The explicit eligibility reference retains the original reservation-time inequalities and each endpoint retains its separate counter."
+    },
+    {
+      "id": "W15",
+      "file": "all eight files",
+      "topic": "Exact mathematical preservation",
+      "status": "PASS",
+      "reason": "All 20 formal definition/theorem/lemma/corollary/proposition blocks and 67 display-math blocks are byte-identical. Inline math and labels also match, and all final snapshots exactly match their integrated manuscript files."
+    }
+  ],
+  "check_count": 15,
+  "resolved_findings": [
+    {
+      "topic": "Opaque ciphertext language",
+      "resolution": "Replaced the ambiguous claim about non-injective encryption maps with coincident ciphertext components and separation by explicit nonces.",
+      "status": "RESOLVED"
+    },
+    {
+      "topic": "Quantum prefix scope",
+      "resolution": "Specified retention of the native quantum-state transformations and oracle-query interface up to the local stop.",
+      "status": "RESOLVED"
+    }
+  ],
+  "unresolved_findings": [],
+  "preservation_summary": {
+    "formal_statements_byte_identical": 20,
+    "display_math_blocks_byte_identical": 67,
+    "inline_math_equal_in_all_files": true,
+    "labels_equal_in_all_files": true,
+    "snapshots_equal_integrated_files": true,
+    "conditions_quantifiers_interfaces_budgets_preserved": true,
+    "mathematical_freeze_modified_by_review": false
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "pdf_sha256": "86ac540369405c31c22a1cc0710cfdc97e95e4b99aa47f7a713f1223823cbb07",
+  "pdf_pages": 86,
+  "reviewed_page_range": [
+    1,
+    86
+  ],
+  "reviewed_page_count": 86,
+  "method": "Visual inspection of six supplied contact-sheet images in two passes (pages 1–48, then 49–86), at the recorded image resolutions. This checks page-level layout and integrity, not small-text word-by-word accuracy. No rendering or document edits performed.",
+  "inputs": [
+    {
+      "path": "/workspace/scratch/084f6c1d017a/visual-final/contact-01.jpg",
+      "pages": [
+        1,
+        16
+      ],
+      "page_count": 16,
+      "pixel_dimensions": [
+        1560,
+        2320
+      ],
+      "bytes": 682778,
+      "sha256": "f43ee3de9828763b62c01e1b7cbc352e0e68242c950d9997abd33c5998bb9539"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/visual-final/contact-02.jpg",
+      "pages": [
+        17,
+        32
+      ],
+      "page_count": 16,
+      "pixel_dimensions": [
+        1560,
+        2320
+      ],
+      "bytes": 685739,
+      "sha256": "3ef3e5f95b0b14a0669fd64b0d05225b0083354df635763fd5fc1ec81ce12803"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/visual-final/contact-03.jpg",
+      "pages": [
+        33,
+        48
+      ],
+      "page_count": 16,
+      "pixel_dimensions": [
+        1560,
+        2320
+      ],
+      "bytes": 687071,
+      "sha256": "14792d525feca3b12ef411ce908bf7fc8cf037eb2b52bb785ad9ccddf99265d4"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/visual-final/contact-04.jpg",
+      "pages": [
+        49,
+        64
+      ],
+      "page_count": 16,
+      "pixel_dimensions": [
+        1560,
+        2320
+      ],
+      "bytes": 700015,
+      "sha256": "0b2361eed684961aafcfd61d1070a8af6bfaae2b3137102e8e6097b38e669cd5"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/visual-final/contact-05.jpg",
+      "pages": [
+        65,
+        80
+      ],
+      "page_count": 16,
+      "pixel_dimensions": [
+        1560,
+        2320
+      ],
+      "bytes": 695405,
+      "sha256": "0f5cb48f7560793b218716fa6a8cb6685e0b3355a8fbd018d76e209f4527c295"
+    },
+    {
+      "path": "/workspace/scratch/084f6c1d017a/visual-final/contact-06.jpg",
+      "pages": [
+        81,
+        86
+      ],
+      "page_count": 6,
+      "pixel_dimensions": [
+        1560,
+        2320
+      ],
+      "bytes": 271684,
+      "sha256": "95c7a2c4e47624a888629903799961e278cbc841a5dc7ef69224549824a477d3"
+    }
+  ],
+  "findings": {
+    "clipped_content_observed": false,
+    "overlapping_text_observed": false,
+    "unexpected_blank_pages_observed": false,
+    "page_order_and_numbering_consistent": true,
+    "text_tables_equations_and_figure_within_page_area": true,
+    "consistent_body_margins_and_footer_positions": true
+  },
+  "notes": [
+    "Title and abstract page, dense theorem/proof pages, tables on pages 7, 10 and 33, and the diagram on page 9 retain clean separation and readable structure.",
+    "Variable white space at page bottoms is consistent with the manuscript ragged-bottom layout; no unintended empty page was observed.",
+    "Pages 49–86 preserve clean equation, theorem/proof, table, bibliography and appendix separation. No cropped blocks, text overlap, numbering discontinuity or unexpected blank page was observed.",
+    "The empty grey cells after page 86 are unused contact-sheet grid positions, not additional PDF pages."
+  ],
+  "issues": [],
+  "scope": "All 86 pages at contact-sheet resolution only. Root performs the detailed changed-page inspections, including pages 56, 57, 68, 69 and 79. Source recompilation and font checks were not repeated.",
+  "review_passes": [
+    {
+      "pages": [
+        1,
+        48
+      ],
+      "status": "passed"
+    },
+    {
+      "pages": [
+        49,
+        86
+      ],
+      "status": "passed"
+    }
+  ]
+}

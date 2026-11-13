@@ -1,0 +1,38 @@
+{
+  "CLASSIFICATION.json": {
+    "bytes": 5939,
+    "sha256": "902a6166a0510fa5d2e7eee91d1683c7e9a8a800c13f59fa8e2fba3f8477fa8a"
+  },
+  "capture/CHANGES.json": {
+    "bytes": 2816,
+    "sha256": "d9d193aac0d4296dd957a2f442433bbe996d5e20585defa16e0f3848eed6b939"
+  },
+  "capture/CI_STATUS.json": {
+    "bytes": 1893590,
+    "sha256": "84d09254044e6fe0ca999e706c74670f56cfa8590fa176d260242f7176c26fdc"
+  },
+  "capture/job-126449257926.log": {
+    "bytes": 63575,
+    "sha256": "59bb9a2750561344454aafc0e64f66b8f249522c2cf1b1774a861a12571f2ee3"
+  },
+  "capture/job-126449257992.log": {
+    "bytes": 67348,
+    "sha256": "2be4863e8ee08b257be7ed42dd992c1e48e3d5f32e68c2970fe62d432d45c5a4"
+  },
+  "capture/job-126449258002.log": {
+    "bytes": 65324,
+    "sha256": "bcc6b00e2ecb4068ee08515d544ee8e64315c07a2d273d1cca2fcbd70a3f682d"
+  },
+  "capture/job-126456505946.log": {
+    "bytes": 62620,
+    "sha256": "815e795faacc65f081cb333402de48e48149aea38bcfd1f62a6afb779c35c3ca"
+  },
+  "capture/job-126456505984.log": {
+    "bytes": 62947,
+    "sha256": "72223afa2d28996eefe83f4aa5c3e83b3dd7c9d1cc37c37088c480fb34e2ea22"
+  },
+  "capture/seal.py": {
+    "bytes": 5347,
+    "sha256": "71cc2ebe0a7d6561f3e3ec1324995b97b274586623d7255cd17360eb4803c845"
+  }
+}

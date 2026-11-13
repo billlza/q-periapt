@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-08T20:54:25.224465+00:00",
+  "base_commit": "61577327b2d74d61d23eb39465a382ec8cc49a6d",
+  "source_inputs": {
+    "source/docs/continuity/PREKEY_PUBLICATION_CONTRACT.md": "0e25c369c3ea48c60d1e457787b97771a797653b08fe82d597a0d7f627bd55ef",
+    "source/research/continuity-identity-candidate/src/durable/prekeys/tests.rs": "627726e16c3a8837f351fe8a9b6ac168acf7e3bd5532e0610d070c25ca47ab0d"
+  },
+  "checks": {
+    "publication-boundary-debug-02": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--all-features",
+        "--lib",
+        "publication_boundary",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 10.663781541865319,
+      "public_readback": {
+        "same-intent-after-reopen": {
+          "body_equal": true,
+          "wire_equal": false,
+          "all_proofs_equal": true,
+          "files": {
+            "second-proof-3.bin": {
+              "bytes": 1278,
+              "sha256": "f551da3d8d6ebc78f364d138287894feb1b622d709c2e507dd0abd55420c1b5f"
+            },
+            "second-proof-2.bin": {
+              "bytes": 126,
+              "sha256": "ceb94427c588cea7e274e0548cf56c33362f5835e5ac1356a65dde44f6708958"
+            },
+            "second-proof-0.bin": {
+              "bytes": 126,
+              "sha256": "00f9729272de3e99600036507c0f95e95761ed0a8d44698fcbd198df09cd4939"
+            },
+            "second-proof-1.bin": {
+              "bytes": 1278,
+              "sha256": "04c66ea1a6f712b403523d410474b4071c91551406145bfa87db92e0da0b9743"
+            },
+            "second-manifest.bin": {
+              "bytes": 3667,
+              "sha256": "1bcb422c7d4bf0e3534c97efc8767697329c2bf093b164587d9cbf2b1cc2be14"
+            },
+            "first-manifest.bin": {
+              "bytes": 3667,
+              "sha256": "3766b779a953da4bd6d73aef553cbc360ac35b3368d0de28104f395d580b226c"
+            },
+            "first-proof-2.bin": {
+              "bytes": 126,
+              "sha256": "ceb94427c588cea7e274e0548cf56c33362f5835e5ac1356a65dde44f6708958"
+            },
+            "first-proof-3.bin": {
+              "bytes": 1278,
+              "sha256": "f551da3d8d6ebc78f364d138287894feb1b622d709c2e507dd0abd55420c1b5f"
+            },
+            "first-proof-1.bin": {
+              "bytes": 1278,
+              "sha256": "04c66ea1a6f712b403523d410474b4071c91551406145bfa87db92e0da0b9743"
+            },
+            "first-proof-0.bin": {
+              "bytes": 126,
+              "sha256": "00f9729272de3e99600036507c0f95e95761ed0a8d44698fcbd198df09cd4939"
+            }
+          }
+        },
+        "same-epoch-different-intent": {
+          "body_equal": false,
+          "wire_equal": false,
+          "all_proofs_equal": false,
+          "files": {
+            "second-proof-3.bin": {
+              "bytes": 126,
+              "sha256": "2d5bb3b175d143e4856187deea82f3e46a9c15cd6ea9f9cb47dc70d55b8ada35"
+            },
+            "second-proof-2.bin": {
+              "bytes": 1278,
+              "sha256": "ebfcf53c66f6328001482bc56842175f83b1ca4ededb9c081ae551b48132d3d4"
+            },
+            "second-proof-0.bin": {
+              "bytes": 126,
+              "sha256": "69e9c5316c5532cab3cc4e8d104d19f98b74c3fd5def778268d0f7e5730d818c"
+            },
+            "second-proof-1.bin": {
+              "bytes": 1278,
+              "sha256": "9f11a841e1fe4deff753f7231cb1969afd2698ee5fb125658109c0d173483b33"
+            },
+            "second-manifest.bin": {
+              "bytes": 3667,
+              "sha256": "29c7152fd2139314000ac6c7cefaad8558a77b7739f71e83b5033b70e38321ec"
+            },
+            "first-manifest.bin": {
+              "bytes": 3667,
+              "sha256": "e2b4fad01396b59534040c88f731485085378bc3ffde6968536083e66575bb21"
+            },
+            "first-proof-2.bin": {
+              "bytes": 1278,
+              "sha256": "47f32a5d89f32e3eb3481d59dc70bae5f67bd5a4fd2159650045e647cc02731b"
+            },
+            "first-proof-3.bin": {
+              "bytes": 126,
+              "sha256": "dd4d1a591038ed0021fb28b84f4dbec04d48c0986790b21bc584dfd947698a81"
+            },
+            "first-proof-1.bin": {
+              "bytes": 1278,
+              "sha256": "afd3b00059a9437cb07100b800a79d262421151491e6f75487796194260f1092"
+            },
+            "first-proof-0.bin": {
+              "bytes": 126,
+              "sha256": "55469a0700e5eca2d8a70081ed58324ed27d724e135489d2f70bdb4a6a3c84f1"
+            }
+          }
+        }
+      }
+    },
+    "publication-boundary-release-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--all-features",
+        "--release",
+        "--lib",
+        "publication_boundary",
+        "--",
+        "--nocapture"
+      ],
+      "returncode": 0,
+      "seconds": 157.67817637510598,
+      "public_readback": {
+        "same-intent-after-reopen": {
+          "body_equal": true,
+          "wire_equal": false,
+          "all_proofs_equal": true,
+          "files": {
+            "second-proof-3.bin": {
+              "bytes": 126,
+              "sha256": "30add6eabcabb444d345fc4a25c177124fad205a0d08642081affdf5b06cdbd3"
+            },
+            "second-proof-2.bin": {
+              "bytes": 126,
+              "sha256": "84cf3ef0b5b05a6b44c76a162832445836d52c9be5cb222d3e6c76513af87c39"
+            },
+            "second-proof-0.bin": {
+              "bytes": 1278,
+              "sha256": "f72b30aaa3345ec147d7a62de42ba29bcdd154a41a64aab216e5b2125cc46491"
+            },
+            "second-proof-1.bin": {
+              "bytes": 1278,
+              "sha256": "807c26d08b9b8189d97ca5a2e4f767488aab8dfdcde8ef7f057b6d2340d84af6"
+            },
+            "second-manifest.bin": {
+              "bytes": 3667,
+              "sha256": "d8e6ae9bc04c95f08d46dd377de3fdebbfb542265682781860b05b7775f5db41"
+            },
+            "first-manifest.bin": {
+              "bytes": 3667,
+              "sha256": "20f2fc41ae3ec4cd1638c0fb9c0c2aede7c202675971bd3ac324bf0448ad98eb"
+            },
+            "first-proof-2.bin": {
+              "bytes": 126,
+              "sha256": "84cf3ef0b5b05a6b44c76a162832445836d52c9be5cb222d3e6c76513af87c39"
+            },
+            "first-proof-3.bin": {
+              "bytes": 126,
+              "sha256": "30add6eabcabb444d345fc4a25c177124fad205a0d08642081affdf5b06cdbd3"
+            },
+            "first-proof-1.bin": {
+              "bytes": 1278,
+              "sha256": "807c26d08b9b8189d97ca5a2e4f767488aab8dfdcde8ef7f057b6d2340d84af6"
+            },
+            "first-proof-0.bin": {
+              "bytes": 1278,
+              "sha256": "f72b30aaa3345ec147d7a62de42ba29bcdd154a41a64aab216e5b2125cc46491"
+            }
+          }
+        },
+        "same-epoch-different-intent": {
+          "body_equal": false,
+          "wire_equal": false,
+          "all_proofs_equal": false,
+          "files": {
+            "second-proof-3.bin": {
+              "bytes": 126,
+              "sha256": "c4c846125571a77656997bcd20520ae01a831be10d3407c7acea08f4743ff896"
+            },
+            "second-proof-2.bin": {
+              "bytes": 126,
+              "sha256": "41bee012ff9e8ed14eb9e53a34d2a4dec8dfd061a10c8955ae72f4154d334641"
+            },
+            "second-proof-0.bin": {
+              "bytes": 1278,
+              "sha256": "03d422b69b6c720bcc6a12e79173922ee116eb0674803ef5740f763ff3c25c1c"
+            },
+            "second-proof-1.bin": {
+              "bytes": 1278,
+              "sha256": "337665c7f35bc75c795ed3009f10cb08369c109745ac6e9515a81923c71235f8"
+            },
+            "second-manifest.bin": {
+              "bytes": 3667,
+              "sha256": "66c91bbbcdd0bd22a7daebc01f0990eb37b1b4fa712656108e47341a01212f87"
+            },
+            "first-manifest.bin": {
+              "bytes": 3667,
+              "sha256": "d639d7a43d3ec4cd2ef2b312f5c5d10bf79d39d2f058aa9d9f90a57399703b4f"
+            },
+            "first-proof-2.bin": {
+              "bytes": 126,
+              "sha256": "7542495d1652214ef218cd119d4b9a8f0d6ad814829eb8dfa79541bb89b55e16"
+            },
+            "first-proof-3.bin": {
+              "bytes": 126,
+              "sha256": "136c73abc12153f2f9657273e68bde5d3bab1e7b360350994b9f1b7642104da9"
+            },
+            "first-proof-1.bin": {
+              "bytes": 1278,
+              "sha256": "8ce4ae0986d582e965b8a78cef7e3bbfa30d3b7125118d40badaa9a29be491c2"
+            },
+            "first-proof-0.bin": {
+              "bytes": 1278,
+              "sha256": "49eb404417bc83e28ef6979b9cfe043c14481a373e74eafdcbad8f99ef9d8b66"
+            }
+          }
+        }
+      }
+    },
+    "publication-boundary-clippy-01": {
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-features",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "returncode": 0,
+      "seconds": 10.590706042014062
+    }
+  },
+  "captures": {
+    "file": "CAPTURES.zip",
+    "sha256": "566924ec7352d29b2f1c101463d801513289f07fe3124d02e97329a7283841a9",
+    "bytes": 191906,
+    "members": 58
+  },
+  "scope": "Actual SDK prekey inventory close/reopen and real hybrid signatures in Debug/Release, with fixed logical time 150. Public envelopes and all member proofs are retained and independently byte-compared; native tests verify signatures. This is a composition-boundary experiment in one process, not a publisher implementation, distribution proof, crash-process qualification or vulnerability claim.",
+  "publication_owner_implemented": false,
+  "release_claim_eligible": false,
+  "contract_clarified_at": "2026-10-08T20:57:00.703175+00:00"
+}

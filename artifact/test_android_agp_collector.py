@@ -38,6 +38,27 @@ def build_arguments(root: pathlib.Path, output_root: pathlib.Path) -> list[str]:
 
 
 class CollectorCliTests(unittest.TestCase):
+    def test_sdk_script_rejects_an_unspecified_or_wrong_target_before_the_lane(self):
+        environment = dict(os.environ)
+        environment.update(
+            QPERIAPT_ANDROID_CONSUMER_PROFILE="agp_sdk_full_release",
+            QPERIAPT_ANDROID_RELEASE_MODE="1",
+            QPERIAPT_ANDROID_BOOT_AVD="1",
+            QPERIAPT_ANDROID_EXPECT_DEVICE_KIND="emulator",
+            QPERIAPT_ALLOW_DIRTY_ANDROID_DEVICE="0",
+        )
+        for abi in ("", "armeabi-v7a", "x86"):
+            with self.subTest(abi=abi):
+                result = subprocess.run(
+                    ["/bin/sh", str(ROOT / "artifact/android-device-smoke.sh")],
+                    cwd=ROOT,
+                    env={**environment, "QPERIAPT_ANDROID_EXPECT_ABI": abi},
+                    capture_output=True, text=True, timeout=15, check=False,
+                )
+                self.assertEqual((result.returncode, result.stdout), (1, ""))
+                self.assertEqual(result.stderr.strip(),
+                    "error: SDK AGP verification requires an explicit arm64-v8a or x86_64 target")
+
     def invoke(self, module: str, arguments: list[str], *, environment=None):
         return subprocess.run(
             [
@@ -109,6 +130,10 @@ class CollectorCliTests(unittest.TestCase):
             for module, arguments in (
                 ("android_agp_build.py", build_arguments(other, other)),
                 ("android_agp_consumer.py", verify),
+                ("android_agp_consumer.py", [
+                    "verify-export" if item == "verify" else
+                    "--directory" if item == "--proof" else item for item in verify
+                ]),
                 ("android_maintenance_bundle.py", maintenance),
             ):
                 with self.subTest(module=module):

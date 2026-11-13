@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-08T19:50:20.005895+00:00",
+  "base_commit": "726061fe8d388fcf26b938c116014e88452ad02b",
+  "source_inputs": {
+    "research/continuity-identity-candidate/tests/owned_connection/replacement.rs": "0f9d6a6cd587d108ecabe29584ebc341ead409b7eaef72adcc7421dea2afb7b8",
+    "research/continuity-identity-candidate/tests/owned_connection/retirement.rs": "deeedb1907a2c1d32a6eb0357078c1a4b296f42ede0d2a71e55762998caba8e3",
+    "artifact/continuity_device_retirement.py": "cb2a192033b353c9c579446dc67de06cb46ab6fbbbb99dddd819b4cbaad25eae",
+    "artifact/test_continuity_device_retirement.py": "00a412fd8a59ecc8623ee41c5a65896adcb0d7d7b65f4763c1be2c50f780cad7",
+    "bindings/c/ContinuityPackageConsumer/README.md": "bcf7f36fe210e6ce56f11a3360ceb1f6dc752c8e34dee6eebb7c9e7576e4eb98",
+    "bindings/swift/ContinuityPackageConsumer/README.md": "5ed9d4a4e3e9f2864e37498ca612cb328a59507adfadb26e3c745ea879dabad1",
+    "bindings/kotlin/ContinuityPackageConsumer/README.md": "f5f3ae276eef5ae512d7486739324821f49813527f5d3f0d647a12ff1ab646e6"
+  },
+  "profiles": [
+    {
+      "label": "successor-c-debug-qualified",
+      "language": "C",
+      "profile": "debug",
+      "collector": null,
+      "seconds": 18.532070624874905,
+      "binaries": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/successor-build/debug/deps/retirement-4867cbdc44d5245f": "e4c2cb548063b9d377790c82cca8080e720b3b9a3d1775427c2611ea9d7f3eb3",
+        "/private/tmp/qperiapt-continuity-package-de8re33u/c-installed-debug/qpc-c-client": "7e44848d4bbe67cad1e6281ec5b5b7a166652214bb695daeb1caaaaaad212854",
+        "/private/tmp/qperiapt-continuity-package-de8re33u/c-installed-debug/libq_periapt_continuity_c_consumer.dylib": "758a1086477bd45fbd777159af9cabad24e4ed91f364027aed1d95543b3f0518"
+      },
+      "successor_processes": 10,
+      "cleanup_processes": 8
+    },
+    {
+      "label": "successor-swift-debug-qualified",
+      "language": "Swift",
+      "profile": "debug",
+      "collector": null,
+      "seconds": 17.53365937480703,
+      "binaries": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/successor-build/debug/deps/retirement-4867cbdc44d5245f": "e4c2cb548063b9d377790c82cca8080e720b3b9a3d1775427c2611ea9d7f3eb3",
+        "/private/tmp/qperiapt-continuity-package-de8re33u/swift-installed-debug/.build/out/Products/Debug/ContinuityClient": "b5663bd54f3c249711e18f8f0c60802d987c3b2d306580633fd95a3b0d895796",
+        "/private/tmp/qperiapt-continuity-package-de8re33u/swift-installed-debug/native/lib/libq_periapt_continuity_c_consumer.dylib": "758a1086477bd45fbd777159af9cabad24e4ed91f364027aed1d95543b3f0518"
+      },
+      "successor_processes": 10,
+      "cleanup_processes": 8
+    },
+    {
+      "label": "successor-kotlin-debug-serial-qualified",
+      "language": "Kotlin",
+      "profile": "debug",
+      "collector": "serial",
+      "seconds": 19.16207408416085,
+      "binaries": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/successor-build/debug/deps/retirement-4867cbdc44d5245f": "e4c2cb548063b9d377790c82cca8080e720b3b9a3d1775427c2611ea9d7f3eb3",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/client-debug-serial": "ed3ce8db696dc1e6aa60e676b725332bafcbc376e9f0db85309d6982e4b2e5c2",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/debug/libq_periapt_continuity_c_consumer.dylib": "758a1086477bd45fbd777159af9cabad24e4ed91f364027aed1d95543b3f0518",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "32f11a05ec9a175742331ff4ed3e5756788d7aab24c9008d6834bf525995821a",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+      },
+      "successor_processes": 10,
+      "cleanup_processes": 8
+    },
+    {
+      "label": "successor-kotlin-debug-g1-qualified",
+      "language": "Kotlin",
+      "profile": "debug",
+      "collector": "g1",
+      "seconds": 13.816726583987474,
+      "binaries": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/successor-build/debug/deps/retirement-4867cbdc44d5245f": "e4c2cb548063b9d377790c82cca8080e720b3b9a3d1775427c2611ea9d7f3eb3",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/client-debug-g1": "d66f2cf56728978a05583ee0445259484854f8fb31070eabd86f73f28d92107b",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/debug/libq_periapt_continuity_c_consumer.dylib": "758a1086477bd45fbd777159af9cabad24e4ed91f364027aed1d95543b3f0518",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "32f11a05ec9a175742331ff4ed3e5756788d7aab24c9008d6834bf525995821a",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+      },
+      "successor_processes": 10,
+      "cleanup_processes": 8
+    },
+    {
+      "label": "successor-c-release-qualified",
+      "language": "C",
+      "profile": "release",
+      "collector": null,
+      "seconds": 9.059395208954811,
+      "binaries": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/successor-build/release/deps/retirement-657ef92a299440b0": "745f33fa8920f9909f35b623ed1e885c20449839688dfa64f49e15a5c90e1ced",
+        "/private/tmp/qperiapt-continuity-package-de8re33u/c-installed-release/qpc-c-client": "ba45d31199a02125846c5f52a0bdd873b4ac9de82398cc8e02e22422d5477bf8",
+        "/private/tmp/qperiapt-continuity-package-de8re33u/c-installed-release/libq_periapt_continuity_c_consumer.dylib": "8a7fa618f092d4f6b3beca8b291d6a8724850cbdcd1f0b1262a2f356228969d1"
+      },
+      "successor_processes": 10,
+      "cleanup_processes": 8
+    },
+    {
+      "label": "successor-swift-release-qualified",
+      "language": "Swift",
+      "profile": "release",
+      "collector": null,
+      "seconds": 9.35529883299023,
+      "binaries": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/successor-build/release/deps/retirement-657ef92a299440b0": "745f33fa8920f9909f35b623ed1e885c20449839688dfa64f49e15a5c90e1ced",
+        "/private/tmp/qperiapt-continuity-package-de8re33u/swift-installed-release/.build/out/Products/Release/ContinuityClient": "d30bec90b360e9874d6cde5cc1046bbb397e7d964d0e30ef3b177f379f801f32",
+        "/private/tmp/qperiapt-continuity-package-de8re33u/swift-installed-release/native/lib/libq_periapt_continuity_c_consumer.dylib": "8a7fa618f092d4f6b3beca8b291d6a8724850cbdcd1f0b1262a2f356228969d1"
+      },
+      "successor_processes": 10,
+      "cleanup_processes": 8
+    },
+    {
+      "label": "successor-kotlin-release-serial-qualified",
+      "language": "Kotlin",
+      "profile": "release",
+      "collector": "serial",
+      "seconds": 14.485751874977723,
+      "binaries": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/successor-build/release/deps/retirement-657ef92a299440b0": "745f33fa8920f9909f35b623ed1e885c20449839688dfa64f49e15a5c90e1ced",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/client-release-serial": "47bab7d55b717e8c3acba426724ecd4710879095fa3c02660a43dc6e10e90e46",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/release/libq_periapt_continuity_c_consumer.dylib": "8a7fa618f092d4f6b3beca8b291d6a8724850cbdcd1f0b1262a2f356228969d1",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "32f11a05ec9a175742331ff4ed3e5756788d7aab24c9008d6834bf525995821a",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+      },
+      "successor_processes": 10,
+      "cleanup_processes": 8
+    },
+    {
+      "label": "successor-kotlin-release-g1-qualified",
+      "language": "Kotlin",
+      "profile": "release",
+      "collector": "g1",
+      "seconds": 25.47422754112631,
+      "binaries": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/successor-build/release/deps/retirement-657ef92a299440b0": "745f33fa8920f9909f35b623ed1e885c20449839688dfa64f49e15a5c90e1ced",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/client-release-g1": "bd98aacf9661ac1296b387a581dae1db2d8c38cf5f2f362b080300debacabcf3",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/native/release/libq_periapt_continuity_c_consumer.dylib": "8a7fa618f092d4f6b3beca8b291d6a8724850cbdcd1f0b1262a2f356228969d1",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "32f11a05ec9a175742331ff4ed3e5756788d7aab24c9008d6834bf525995821a",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/tmp/qperiapt-retired-kotlin-2szehpi1/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "696b3708c266badebb92649068db48961e011a79c1e23bf4a87d428f876890d6"
+      },
+      "successor_processes": 10,
+      "cleanup_processes": 8
+    }
+  ],
+  "native_regression": {
+    "command": [
+      "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/foreign-device-retirement-current/successor-build/debug/deps/retirement-4867cbdc44d5245f",
+      "--exact",
+      "fixture::owned_services_connect_restart_rekey_and_reconcile_unknown_delivery",
+      "--nocapture"
+    ],
+    "returncode": 0,
+    "seconds": 44.79081812500954,
+    "binary_sha256": "e4c2cb548063b9d377790c82cca8080e720b3b9a3d1775427c2611ea9d7f3eb3",
+    "binary_unchanged": true
+  },
+  "artifact_tests": 24,
+  "msrv": "1.90.0",
+  "canonical_rust": "1.98.1",
+  "codeql_retention": {
+    "checked_at": "2026-10-08T19:37:01.678846+00:00",
+    "run": 37818005530,
+    "job": 113451493235,
+    "head": "15819e5146710a47f063f7403b77bbdd3f6c69ac",
+    "required_steps": [
+      "Analyze",
+      "Verify Rust CodeQL checkout after analysis",
+      "Verify Rust CodeQL database quality",
+      "Upload quality-gated Rust CodeQL results",
+      "Post Analyze",
+      "Post Initialize CodeQL"
+    ],
+    "conclusion": "success",
+    "completed_at": "2026-10-08T19:20:18Z",
+    "artifact_id": 11573127756,
+    "artifact_sha256": "sha256:214a2050a3bbe84e9f6b7fe60f24621babb9ba52af79179a5c94954d6ad5aa0e",
+    "artifact_bytes": 476946944,
+    "artifact_expires_at": "2026-10-15T19:18:00Z",
+    "remote_retained": true,
+    "downloaded": false,
+    "new_sarif_disposition_complete": false
+  },
+  "captures": {
+    "file": "CAPTURES.zip",
+    "sha256": "6efd46111ea89a3576014bdab8ac5f1393cb3e53f960d2a688017aba83120444",
+    "bytes": 1004779,
+    "members": 629
+  },
+  "observed_setup_failures": [
+    "The initial fixture had no TLS inputs before public activation: configuration 500, not witness refusal.",
+    "A refused activation persisted Activating. Calling prepare again failed Protocol(State); recovery must retain the original genesis. A separate single-exchange carrier now asserts the exact Scope refusal against the same real witness store, without weakening normal witness errors.",
+    "Strict Clippy rejected nine dynamic indexing/slicing sites. Exact slice patterns and a fixed-width request buffer removed them; no lint was suppressed."
+  ],
+  "scope": "New development harness with previously qualified C/Swift consumers and private Maven Kotlin consumers; existing public enrollment APIs, shared native protocol engine, macOS arm64. Ten foreign successor processes plus eight foreign cleanup processes per profile. Independent account issuance/witness commit, successor prekeys and fresh-generation traffic remain native Rust. Current full archive qualification, independent protocol implementation, physical/minimum-OS coverage and complete foreign replacement remain separate.",
+  "publication_performed": false,
+  "release_claim_eligible": false
+}

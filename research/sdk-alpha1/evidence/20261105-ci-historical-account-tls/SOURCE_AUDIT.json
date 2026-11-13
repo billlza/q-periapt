@@ -1,0 +1,65 @@
+{
+  "android_named_artifact": {
+    "all_member_crc_checks_passed": true,
+    "bytes": 32122337,
+    "downloaded": true,
+    "full_container_in_capsule": false,
+    "full_container_retained_locally": "target/continuity-historical-queue-closeout/artifact-13401893480.zip",
+    "id": 13401893480,
+    "members": 7675,
+    "selected_members_in_capsule": true,
+    "sha256": "14c44eec973c539125f1ff75c4f872a2a000073071ce6a0156180953fc51d4ff"
+  },
+  "c_account_tls_census_expected_by_old_checker": {
+    "C": 121,
+    "Kotlin": 126,
+    "Swift": 127
+  },
+  "captured_utc": "2026-11-05T09:49:57.135859+00:00",
+  "coverage_completed": false,
+  "coverage_downloaded_partitions": 6,
+  "foreign_named_failures_stop_at_c_account_tls": true,
+  "hosted_actual_phase_counts_available": false,
+  "missing_public_phase_reason": "Pinned exporter invokes full verification before exporting selected public files; verification raised.",
+  "native_test_in_downloaded_artifact": {
+    "filtered": 8,
+    "passed": 1,
+    "returncode": 0,
+    "runtime_seconds": 9.58
+  },
+  "newly_read_failure_jobs": [
+    126268252580,
+    126266162426,
+    127156928118
+  ],
+  "pull_request_checkout": "ea0a9c08d00356266c8ec23c6848b3bd0097f15b",
+  "pull_request_run": 41724563802,
+  "push_head": "7e3a89faf2c79cd9111128b06e41d3ef503f063c",
+  "push_run": 41724505316,
+  "ready_to_push": false,
+  "release_claim_eligible": false,
+  "remaining_active_jobs_in_latest_snapshot": [
+    {
+      "id": 126266162501,
+      "name": "continuity-installed-android-release",
+      "started_at": "2026-11-05T08:54:14Z",
+      "status": "in_progress"
+    }
+  ],
+  "remote_mutation_performed": false,
+  "source_scope": "Older same-branch queue occupants, separate from the twelve terminal current-head runs.",
+  "swift_named_artifact": {
+    "downloaded": false,
+    "id": 13403870843,
+    "upload_reported_bytes": 32124394,
+    "upload_reported_sha256": "3b9fb64257fa91c842d13ab1c3c26d74b41b24cbbdac190c244ecb43c87159b0"
+  },
+  "workflow_audit": {
+    "abi_platform_candidate_trigger": "explicit named tags only",
+    "ci_registry_publication_operation": "dry-run",
+    "files": 16,
+    "focused_android_trigger_paths_unchanged_in_both_updates": true,
+    "scope": "Source and trigger review for the prepared two branch refspecs; no tag, release or package publication authorization.",
+    "source_commit": "ff072bd66b1f5d3bdbb80171ee39bad15cbc3c20"
+  }
+}

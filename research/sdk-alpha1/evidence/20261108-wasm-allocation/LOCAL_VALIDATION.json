@@ -1,0 +1,32 @@
+{
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-m",
+    "unittest",
+    "-v",
+    "test_codeql_rust_profile",
+    "test_codeql_rust_publication",
+    "test_codeql_rust_quality",
+    "test_codeql_target_coverage"
+  ],
+  "errors": 0,
+  "failures": 0,
+  "git_layout": "Independent filesystem copy of the existing sparse checkout and its real .git directory.",
+  "initial_layout_observation": "An earlier linked-worktree run retained the existing .git-directory rejection in four provenance tests; the full suite was rerun in the separate directory-based Git checkout.",
+  "query_manifest_sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b",
+  "returncode": 0,
+  "schema": 1,
+  "skipped": 0,
+  "source_base_commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+  "source_files_sha256": {
+    "artifact/codeql_rust_profile.py": "158387463e19848b678d469f8d5c1151b1485d80d0d70b62189eecd440bc56d4",
+    "artifact/codeql_rust_publication.py": "680632ba39148e1e4aa738536eeacb658524cfaf24510783bb38dca85cbf1d90",
+    "artifact/test_codeql_rust_profile.py": "0582e74cc38a989c63cad37c3c86149ec3c97b2a0e48688ea9ea27a873022951",
+    "artifact/test_codeql_rust_publication.py": "d4f8e772abb18191a579bb1abe1762c62b6726ef75e100b8c5d53d2a20fae5b2"
+  },
+  "stderr_sha256": "0ccef6a9a7e88eb170bc9ca747a9e355c6556ee0c5f6a7d769ca70a0651d7d32",
+  "stdout_sha256": "8f36f033f59e00c34165e1d34f708438d3e2c6b2a6fba7287d0fa91394df4cad",
+  "tests": 98,
+  "validation_checkout": "/workspace/scratch/084f6c1d017a/qperiapt-ci-memory-checkout"
+}

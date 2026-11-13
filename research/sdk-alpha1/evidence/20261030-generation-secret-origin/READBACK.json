@@ -1,0 +1,12 @@
+{
+  "all_member_bytes_equal": true,
+  "all_original_35_queries_unchanged": true,
+  "archive_bytes": 112939,
+  "archive_sha256": "9df4eefd5d08098018cba24565b89671c7292bd250dcf8e4c82fc3600e25dd92",
+  "joint_replay_inventory_verified": true,
+  "main_multi_epoch_secrecy_verified": false,
+  "members_verified": 14,
+  "operational_prefix_unchanged": true,
+  "origin_verified": true,
+  "release_claim_eligible": false
+}

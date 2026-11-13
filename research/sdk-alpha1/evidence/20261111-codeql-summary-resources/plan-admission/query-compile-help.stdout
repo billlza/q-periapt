@@ -1,0 +1,287 @@
+Usage: codeql query compile [OPTIONS] -- [<file>...]
+Compile or check QL code.
+
+Compile one or more queries. Usually the main outcome of this command is that
+the compiled version of the query is written to a compilation cache where it
+will be found when the query is later executed. Other output options are mostly
+for debugging.
+
+      [<file>...]            [Mandatory] Queries to compile. Each argument is
+                               one of:
+                             * A .ql file to compile.
+                             * A directory which will be searched recursively
+                               for .ql files.
+                             * A .qls file that defines a particular set of
+                               queries.
+                             * The basename of a "well-known" .qls file
+                               exported by one of the installed QL packs.
+      --[no-]allow-library-packs
+                             [Wizards only!] Allow suite files to reference
+                               library packs.
+  -n, --check-only           Just check that the QL is valid and print any
+                               errors; do not actually optimize and store a
+                               query plan. This can be much faster than a full
+                               compilation.
+      --ql-check-only        [Wizards only!] Run a subset of QL validity checks
+                               and print any errors; do not actually optimize
+                               and store a query plan. This can be much faster
+                               than a full compilation.
+      --hash-only            [Wizards only!] Just compute the compilation-cache
+                               key for each of the queries and write them to
+                               standard output; don't actually compile
+                               anything. Most useful together with -q
+      --[no-]precompile      [Advanced] Save each compiled query as a binary .
+                               qlx file next to the .ql source.
+                             This is only supposed to be used while preparing a
+                               query pack for distribution  (in which case it
+                               is used automatically by codeql pack publish).
+                               Once the .qlx files exist, later commands that
+                               execute queries may ignore changes to the QL
+                               source in favor of the precompiled version.
+                             Some rarely used compilation options are
+                               incompatible with this and will lead to a
+                               run-time error.
+      --[no-]dump-dil        [Advanced] Print the optimized DIL intermediate
+                               representation to standard output while
+                               compiling.
+                             When JSON output is selected, the DIL will be
+                               represented as an array of single-line strings,
+                               with some wrapping to identify which query is
+                               being compiled.
+  -k, --[no-]keep-going      Keep going with compilation even if an error is
+                               found.
+      --[no-]dump-ra         [Advanced] Print the optimized RA query plan to
+                               standard output while compiling.
+                             When JSON output is selected, the RA will be
+                               represented as an array of single-line strings,
+                               with some wrapping to identify which query is
+                               being compiled.
+      --[no-]dump-qlo        [Wizards only!] Dump the compiled query as a
+                               binary QLO file next to each QL file.
+      --[no-]include-dil-in-qlo
+                             [Wizards only!] Include DIL in the dumped QLO.
+      --format=<fmt>         Select output format, either text (default) or
+                               json.
+  -j, --threads=<num>        Use this many threads to compile queries.
+                             Defaults to 1. You can pass 0 to use one thread
+                               per core on the machine, or -N to leave N cores
+                               unused (except still use at least one thread).
+  -M, --ram=<MB>             Set total amount of RAM the compiler should be
+                               allowed to use.
+QL variant and compiler control options:
+      --allow-experimental=<feature>[,<feature>...]
+                             [Wizards only!] Allow the use of an experimental
+                               QL language feature whose compatibility with
+                               earlier or later releases of the CodeQL CLI
+                               cannot be reliably expected. The selection of
+                               features governed by this option is not
+                               documented, as the option is only expected to be
+                               used by the internal teams developing the
+                               features.
+                             This option is required when queries that use the
+                               feature are being published in a query pack; in
+                               all other cases, omitting the option merely
+                               produces a compiler warning.
+      --dynamic-join-order-mode=<dynamicJoinMode>
+                             [Wizards only!] Enable the dynamic join ordering
+                               experimental feature. This feature is
+                               experimental and a work in progress and may be
+                               removed or changed in future releases.
+      --warnings=<mode>      How to handle warnings from the QL compiler. One
+                               of:
+                             hide: Suppress warnings.
+                             show (default): Print warnings but continue with
+                               compilation.
+                             error: Treat warnings as errors.
+      --no-debug-info        Don't emit source location info in RA for
+                               debugging.
+      --no-dil-debug-types   [Wizards only!] Don't emit debug types in
+                               pretty-printed DIL.
+      --[no-]dil-constants   [Wizards only!] Emit constant tuple sets in
+                               pretty-printed DIL.
+      --[no-]fast-compilation
+                             [Deprecated] [Advanced] Omit particularly slow
+                               optimization steps.
+      --no-release-compatibility
+                             [Advanced] Use the newest compiler features, at
+                               the cost of portability.
+                             From time to time, new QL language features and
+                               evaluator optimizations will be supported by the
+                               QL evaluator a few releases before they are
+                               enabled by default in the QL compiler. This
+                               helps ensure that the performance you experience
+                               when developing queries in the newest CodeQL
+                               release can be matched by slightly older
+                               releases that may still be in use for Code
+                               Scanning or CI integrations.
+                             If you do not care about your queries being
+                               compatible with other (earlier or later) CodeQL
+                               releases, you can sometimes achieve a small
+                               amount of extra performance by using this flag
+                               to enable recent improvements in the compiler
+                               early.
+                             In releases where there are no recent improvements
+                               to enable, this option silently does nothing.
+                               Thus it is safe to set it once and for all in
+                               your global CodeQL config file.
+      --[no-]local-checking  Only perform initial checks on the part of the QL
+                               source that is used.
+      --no-metadata-verification
+                             Don't check embedded query metadata in QLDoc
+                               comments for validity.
+      --no-to-string         [Wizards only!] Don't generate code to render all
+                               result columns as strings.
+      --no-get-url           [Wizards only!] Don't generate code to render URL
+                               for result columns with locations.
+      --no-fake-url          [Wizards only!] Don't generate code to give a fake
+                               URL for results that do not have them.
+      --no-default-to-string [Wizards only!] Don't generate code to give a
+                               default toString for results that do not have
+                               them.
+      --no-parallel-compilation
+                             [Wizards only!] Disable parallel compilation.
+                               (Should never be necessary, but who knows? It's
+                               a pretty recent feature).
+      --compilation-cache-size=<MB>
+                             [Advanced] Override the default maximum size for a
+                               compilation cache directory.
+      --fail-on-ambiguous-relation-name
+                             [Advanced] Fail compilation if an ambiguous
+                               relation name is generated during compilation.
+Options to set up compilation environment:
+      --search-path=<dir>[:<dir>...]
+                             A list of directories under which QL packs may be
+                               found. Each directory can either be a QL pack
+                               (or bundle of packs containing a .codeqlmanifest.
+                               json file at the root) or the immediate parent
+                               of one or more such directories.
+                             If the path contains more than one directory,
+                               their order defines precedence between them:
+                               when a pack name that must be resolved is
+                               matched in more than one of the directory trees,
+                               the one given first wins.
+                             Pointing this at a checkout of the open-source
+                               CodeQL repository ought to work when querying
+                               one of the languages that live there.
+                             If you have checked out the CodeQL repository as a
+                               sibling of the unpacked CodeQL toolchain, you
+                               don't need to give this option; such sibling
+                               directories will always be searched for QL packs
+                               that cannot be found otherwise. (If this default
+                               does not work, it is strongly recommended to set
+                               up --search-path once and for all in a per-user
+                               configuration file).
+      --additional-packs=<dir>[:<dir>...]
+                             If this list of directories is given, they will be
+                               searched for packs before the ones in
+                               --search-path. The order between these doesn't
+                               matter; it is an error if a pack name is found
+                               in two different places through this list.
+                             This is useful if you're temporarily developing a
+                               new version of a pack that also appears in the
+                               default path. On the other hand, it is not
+                               recommended to override this option in a config
+                               file; some internal actions will add this option
+                               on the fly, overriding any configured value.
+      --library-path-dependency=<qlpack>
+                             [Wizards only!] Pretend that the named QL pack is
+                               given in the libraryPathDependencies property of
+                               the QL pack that contains the query.
+                             This option exists only to support a few internal
+                               use cases. It is highly improbable that you
+                               actually need it. Please declare your
+                               dependencies in the QL pack itself instead.
+
+
+      --library-path=<dir>[:<dir>...]
+                             [Advanced] An optional list of directories that
+                               will be added to the raw import search path for
+                               QL libraries. This should only be used if you're
+                               using QL libraries that have not been packaged
+                               as QL packs.
+      --full-library-path=<dir>[:<dir>...]
+                             [Wizards only!] A list of directories that give
+                               the full path for QL libraries that will be used
+                               to compile a query. This overrides the entire
+                               default path computation.
+                             This option is internal and unstable; it may stop
+                               working the same way in new versions without
+                               much warning.
+      --dbscheme=<file>      [Advanced] Explicitly define which dbscheme
+                               queries should be compiled against. This should
+                               only be given by callers that are extremely sure
+                               what they're doing.
+      --compilation-cache=<dir>
+                             [Advanced] Specify an additional directory to use
+                               as a compilation cache.
+      --no-default-compilation-cache
+                             [Advanced] Don't use compilation caches in
+                               standard locations such as in the QL pack
+                               containing the query or in the CodeQL toolchain
+                               directory.
+Options for configuring the CodeQL package manager:
+      --qlconfig-file=<qlconfig-file>
+                             [Wizards only!] The path to the qlconfig.yml file
+                               containing configuration.
+      --no-use-global-qlconfig
+                             [Wizards only!] Do not read the shared global
+                               configuration file, and use only local
+                               configuration files.
+      --registries-auth-stdin
+                             Authenticate to GitHub Enterprise Server Container
+                               registries by passing a comma-separated list of
+                               <registry_url>=<token> pairs.
+
+                             For example, you can pass "https://containers.
+                               GHEHOSTNAME1/v2/=TOKEN1,https://containers.
+                               GHEHOSTNAME2/v2/=TOKEN2" to authenticate to two
+                               GitHub Enterprise Server instances.
+
+                             This overrides the CODEQL_REGISTRIES_AUTH and
+                               GITHUB_TOKEN environment variables. If you only
+                               need to authenticate to the github.com Container
+                               registry, you can instead authenticate using the
+                               simpler --github-auth-stdin option.
+      --github-auth-stdin    Authenticate to the github.com Container registry
+                               by passing a github.com GitHub Apps token or
+                               personal access token via standard input.
+
+                             To authenticate to GitHub Enterprise Server
+                               Container registries, pass
+                               --registries-auth-stdin or use the
+                               CODEQL_REGISTRIES_AUTH environment variable.
+
+                             This overrides the GITHUB_TOKEN environment
+                               variable.
+Common options:
+  -h, --help                 Show this help text.
+  -J=<opt>                   [Advanced] Give option to the JVM running the
+                               command.
+                             (Beware that options containing spaces will not be
+                               handled correctly.)
+  -v, --verbose              Incrementally increase the number of progress
+                               messages printed.
+  -q, --quiet                Incrementally decrease the number of progress
+                               messages printed.
+      --verbosity=<level>    [Advanced] Explicitly set the verbosity level to
+                               one of errors, warnings, progress, progress+,
+                               progress++, progress+++. Overrides -v and -q.
+      --logdir=<dir>         [Advanced] Write detailed logs to one or more
+                               files in the given directory, with generated
+                               names that include timestamps and the name of
+                               the running subcommand.
+                             (To write a log file with a name you have full
+                               control over, instead give --log-to-stderr and
+                               redirect stderr as desired.)
+      --[no-]log-to-stderr   [Wizards only!] Print detailed logs to standard
+                               error.
+      --loglevel=<level>     [Wizards only!] Set the logging level of the
+                               detailed logs to one of OFF, ERROR, WARN, INFO,
+                               DEBUG, TRACE, or ALL.
+      --common-caches=<dir>  [Advanced] Controls the location of cached data on
+                               disk that will persist between several runs of
+                               the CLI, such as downloaded QL packs and
+                               compiled query plans. If not set explicitly,
+                               this defaults to a directory named .codeql in
+                               the user's home directory; it will be created if
+                               it doesn't already exist.

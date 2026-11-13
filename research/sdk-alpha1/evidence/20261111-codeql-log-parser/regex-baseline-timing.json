@@ -1,0 +1,65 @@
+[
+  {
+    "pattern": "loaded",
+    "repeat": 2000,
+    "bytes": 20011,
+    "seconds": 0.03424203499980649,
+    "timed_out": false
+  },
+  {
+    "pattern": "loaded",
+    "repeat": 4000,
+    "bytes": 40011,
+    "seconds": 0.06645929800015438,
+    "timed_out": false
+  },
+  {
+    "pattern": "loaded",
+    "repeat": 8000,
+    "bytes": 80011,
+    "seconds": 0.26002303499990376,
+    "timed_out": false
+  },
+  {
+    "pattern": "eviction",
+    "repeat": 2000,
+    "bytes": 2029,
+    "seconds": 0.06958384400013529,
+    "timed_out": false
+  },
+  {
+    "pattern": "eviction",
+    "repeat": 4000,
+    "bytes": 4029,
+    "seconds": 0.29982570200036207,
+    "timed_out": false
+  },
+  {
+    "pattern": "eviction",
+    "repeat": 8000,
+    "bytes": 8029,
+    "seconds": 1.3483472920001986,
+    "timed_out": false
+  },
+  {
+    "pattern": "stage",
+    "repeat": 2000,
+    "bytes": 16013,
+    "seconds": 0.012049523000314366,
+    "timed_out": false
+  },
+  {
+    "pattern": "stage",
+    "repeat": 4000,
+    "bytes": 32013,
+    "seconds": 0.06446946100004425,
+    "timed_out": false
+  },
+  {
+    "pattern": "stage",
+    "repeat": 8000,
+    "bytes": 64013,
+    "seconds": 0.2119792849998703,
+    "timed_out": false
+  }
+]

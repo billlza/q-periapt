@@ -1,0 +1,14 @@
+{
+  "command_scope": "complete test_android_bounded_command",
+  "returncode": 0,
+  "completed": true,
+  "tests": 194,
+  "expected_red": false,
+  "log_sha256": "61008fd7d8cf6553865fecae35265d72836695a6fbdb2eed65fa8d75d03e5bcd",
+  "implementation_base": "4126bb5bc18dbe8c16c331859155b1f689b613f3",
+  "current_source_hashes": {
+    "artifact/android_bounded_command.py": "8ca918c8d13f911d931b173d7b1880ecd0ed84c6aa94547a3c15ec3c8734fed7",
+    "artifact/test_android_bounded_command.py": "9baa6f8961317acd087de7dd13c58a40c68f7e597ce7b4136fdd19be0fe0edbe"
+  },
+  "scope": "Local boundary/contract evidence, not repaired platform or current-head CI"
+}

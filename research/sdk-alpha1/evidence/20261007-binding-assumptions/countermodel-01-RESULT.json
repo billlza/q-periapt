@@ -1,0 +1,18 @@
+{
+  "command": [
+    "/Users/bill/.opam/default/bin/easycrypt",
+    "compile",
+    "-no-eco",
+    "-timeout",
+    "10",
+    "-max-provers",
+    "2",
+    "target/easycrypt-assumption-review-current/JRejectionCountermodel.ec"
+  ],
+  "returncode": 1,
+  "seconds": 0.29902895796112716,
+  "source_sha256": "5d1346596d9ae8844312efb9473b15599db247d01cd10b62a8160c8f20c524b6",
+  "tool_sha256": "5b0e73095b7f05f79e9327623551390ad369c038e10fd44f547d5fecd8c36901",
+  "source_commit_reported": "r2026.06-6-g50ae51d",
+  "scope": "Isolated semantic countermodel under constant rejection; not real ML-KEM, X-Wing or SHAKE attack."
+}

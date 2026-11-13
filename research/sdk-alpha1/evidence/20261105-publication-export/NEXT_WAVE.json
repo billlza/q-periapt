@@ -1,0 +1,22 @@
+{
+  "observed_utc": "2026-11-05 00:14:35 UTC",
+  "configured_sdk_run": {
+    "id": 39129232908,
+    "name": "ci",
+    "event": "push",
+    "head_sha": "23280124efd2f0f3003d4ce85e3db665f6ec8a25",
+    "head_branch": "lza/windows-private-store",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-10-18T12:54:13Z",
+    "html_url": "https://github.com/billlza/q-periapt/actions/runs/39129232908"
+  },
+  "configured_report_sha256": "03b8cc88397ccc71966675f4757de22481aaffc01811f9f3da189f0410261c6b",
+  "local_qualified_sdk_producer": "f560d803c43a24fff222daa5e5e5bd623bfdf874",
+  "local_qualified_report_sha256": "93fbef9dace1af6550a85095f6d2392285197a8fe589838f4d6f8447ba03c4f8",
+  "configured_pin_modified": false,
+  "condition": "The focused workflow triggers on edits to its own YAML and consumes a separately pinned hosted SDK artifact. A matching hosted producer/report must be available and the selection validated before pushing this workflow correction.",
+  "sequencing": "The source/SDK producer can be staged as an earlier normal push without the focused-workflow edit; after that effective wave completes, update the explicit SDK pin and upload the retained export correction. Do not push the whole local tip blindly with the old pin.",
+  "current_wave_still_open": true,
+  "new_wave_started": false
+}

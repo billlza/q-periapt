@@ -1,0 +1,78 @@
+{
+  "status": "passed",
+  "build_log_sha256": "59c9d65e37b1141f399c5f658628f7831729acef756ac18279dc421be86919cd",
+  "finite_controls": {
+    "schema": "qperiapt-chain-prefix-controls/1",
+    "status": "passed",
+    "all_binary_online_marking_policies": 128,
+    "binary_assignments_examined": 8192,
+    "larger_alphabet_policies": 8,
+    "larger_alphabet_assignments_examined": 32768,
+    "all_observed_selected_key_fibres_uniform": true,
+    "retrospective_marking_breaks_ideal_independence": true,
+    "source": {
+      "files": 3,
+      "anchors": {
+        "fixed_index_encoding": true,
+        "zero_salt_extract": true,
+        "two_output_blocks": true,
+        "native_index_ceiling": true,
+        "first_send_step": true,
+        "send_counter_advances_once": true,
+        "receive_skips_compute_first": true,
+        "receive_skip_key_retained": true,
+        "exact_outbox_resume": true,
+        "zero_message_nonce": true,
+        "receive_transaction_private": true,
+        "domain_present": true
+      },
+      "fixed_width_indices_checked": 6,
+      "exposed_prefix_seed_recovers_selected_key": true,
+      "reserved_index_rejected": true,
+      "exact_recomputation_matches": true
+    },
+    "origins": {
+      "alias_step_consistency": true,
+      "prior_computation_rejected": true,
+      "distinct_material_identity": true,
+      "private_encryption_calls": 1,
+      "four_commit_retry_outcomes_share_one_origin": true
+    },
+    "scope": "Exact finite ideal-distribution and interface controls, source identities and anchors; the full compression-oracle comparison is the mathematical theorem.",
+    "checker_sha256": "da95d3050d4bff8ecc132b7fdae01ac9c5cbabd0c7c74f8fcd3baa23447d5b35"
+  },
+  "proof_review": "artifacts/chain-prefix/independent_review.json",
+  "proof_review_sha256": "0dcfc9b5bc0b73b136af704c812c9d3989d738bfe070cce43cdf128b6d78f9c9",
+  "retained_matched_projection": {
+    "rows": 49,
+    "malformed_input_controls": 14,
+    "status": "passed"
+  },
+  "retained_auditor_boundary_controls": {
+    "cases": 7,
+    "status": "passed"
+  },
+  "retained_retry_projection": {
+    "native_runs": 28,
+    "pairs": 14,
+    "matched_fresh_baselines": 14,
+    "status": "passed"
+  },
+  "original_formal_preservation": {
+    "formal_blocks": 95,
+    "display_blocks": 93,
+    "status": "passed"
+  },
+  "clean_source_export": {
+    "status": "passed",
+    "files": 9,
+    "pages": 96,
+    "plain_text_identical": true,
+    "layout_text_identical": true,
+    "all_fonts_embedded": true,
+    "font_count": 47,
+    "zip_sha256": "03040653071963443a85d12c6090ce0f089071064e7e55af9ed685173e8fb468",
+    "pdf_sha256": "123057b5f2ac1d8270be0663ab90740ae287e18a02cdc7009b40424fc14a5d83"
+  },
+  "scope": "New mathematical continuation and executed finite/source controls; original native, formal-verifier and workload evidence retains its original execution identity."
+}

@@ -1,0 +1,67 @@
+% Standalone manuscript fragment; no preamble.
+% Requires proposition and proof environments (e.g. amsthm).
+\paragraph{Why exposure must retain conjunctive guards.}
+The following elementary separation explains the conjunction in (GP).
+
+\begin{proposition}[Acquisition exposure is not additive]
+\label{prop:acquisition-nonadditivity}
+Let $r$ be a retained-record atom, $k$ a wrapping-key atom, and $s$ a
+protected-seed atom associated with an origin identifier $o$.
+For $A\subseteq\{r,k\}$, let $\operatorname{Cl}(A)$ be the least set
+containing $A$ and closed under the rule
+\[
+  \{r,k\}\;\Longrightarrow\;s.
+\]
+There are no other rules in this fragment.  Define the exposed-origin set by
+\[
+  E(A)=\{\,o : s\in\operatorname{Cl}(A)\,\}.
+\]
+There is no fixed function
+$f:\{r,k\}\longrightarrow\mathcal{P}(\{o\})$ satisfying
+\[
+  E(A)=\bigcup_{x\in A} f(x)
+  \qquad\text{for every }A\subseteq\{r,k\}.
+\]
+\end{proposition}
+
+\begin{proof}
+The closure rule gives
+\[
+  E(\{r\})=E(\{k\})=\varnothing,
+  \qquad
+  E(\{r,k\})=\{o\}.
+\]
+Exactness for the two singleton acquisitions forces
+$f(r)=f(k)=\varnothing$.  Their union is then empty for the joint
+acquisition, contradicting $E(\{r,k\})=\{o\}$.
+\end{proof}
+
+\paragraph{Meaning of exposure.}
+The proposition concerns derivability in an explicitly specified rule
+system.  The identifier $o$ may itself be public; its membership in $E(A)$
+records derivability of its protected seed, not discovery of the identifier.
+Derivability excludes guessing and is not a claim that a computational
+adversary has zero success probability.  As a separate probabilistic
+illustration, let $S,W$ be independent uniform $\lambda$-bit strings and
+$C=S\mathbin{\oplus}W$, with no additional observation depending on $S$ or
+$W$.  Then
+\[
+  H(S\mid C)=H(S\mid W)=\lambda,
+  \qquad H(S\mid C,W)=0.
+\]
+From either observation alone, any estimator of $S$ succeeds with
+probability at most $2^{-\lambda}$; from both, $S=C\mathbin{\oplus}W$
+recovers it exactly.  This illustration does not instantiate the record
+encryption used by the protocol.
+
+\paragraph{Consequence for provenance routes.}
+A source label and an exposure decision serve different purposes.  Copying
+a retained record preserves the source label, while subsequent acquisition
+of a matching key may change exposure.  A guarded-route representation
+retains this distinction: alternative acquired records supply alternative
+routes to the same source, and every route retains the conjunction of its
+required keys.  Exposure is therefore evaluated from the joint acquisition
+and key-derivation history.  The proposition does not rule out stateful
+labels, history-dependent vulnerability sets, or conservative per-object
+overapproximations; it rules out an exact, fixed, per-object union in the
+presence of the stated conjunctive dependency.

@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/workspace/scratch/2f48ae2878bc/codeql-control-20261111/authenticated-tool/codeql/codeql",
+    "dataset",
+    "import",
+    "-J-Xmx512M",
+    "--dbscheme=/workspace/scratch/2f48ae2878bc/codeql-control-20261111/authenticated-tool/codeql/rust/rust.dbscheme",
+    "--",
+    "/workspace/scratch/2f48ae2878bc/codeql-control-20261111/djo-admission/empty-dataset"
+  ],
+  "returncode": 100,
+  "seconds": 1.0176659100000052
+}

@@ -1,0 +1,26 @@
+{
+  "status": "passed",
+  "baseline_commit": "56eb5dca95a913539040d0939c733d1f11f89d50",
+  "scanned_pr_head": "3c9df1feeb7857e53ac4d6269788d20c87851459",
+  "scanned_tree": "0f281a963c2bd0e6f203c025a99d507ae73da9c2",
+  "workflow_run": 42959257074,
+  "python_sarif_artifact_id": 13834424714,
+  "rule": "py/polynomial-redos",
+  "original_lines": [
+    652,
+    659,
+    663
+  ],
+  "source_files": {
+    "artifact/codeql_summary_control.py": "3b1fd877694557f4c9c82559d97979e197c69899eb5205dbaaa62c3182da888f",
+    "artifact/test_codeql_summary_control.py": "cb872ac7e6052abb65d69d22becc713658a79af3e1775e490bc4f4799619ed97"
+  },
+  "validation": {
+    "command": "PYTHONPATH=artifact python -m unittest test_codeql_summary_control test_codeql_summary_plan test_codeql_rust_profile",
+    "tests": 146,
+    "seconds": 6.8,
+    "exit_code": 0
+  },
+  "independent_differential_cases": 5261,
+  "scope": "Diagnostic log parser and deadline admission. No change to the 39 security queries, evaluator allocation, evaluation deadline, package cryptography, or retained experiment results. New hosted scanning remains pending."
+}

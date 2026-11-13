@@ -1,0 +1,45 @@
+{
+  "schema": "qperiapt.workload_budget_review_packet/1",
+  "product_decision_status": "selected",
+  "decision_document": {
+    "path": "../../../../docs/continuity/SUPPORTED_WORKLOAD_BUDGETS_0_2.md",
+    "sha256": "ad6c82cdb5dd460886b3a182f1b0fd00d3217624da39cdb413904e1c729d59f4"
+  },
+  "files": [
+    {
+      "path": "BUDGET_REVIEW.json",
+      "bytes": 30370,
+      "sha256": "07c6b4fe791e9d11b3b286fd8ce2c3704391ac655d8bd167df75270d68fce40b"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4452,
+      "sha256": "becc1e0da1a220374355ce5a8b03e499b27948bceeca944e5ed182756276e229"
+    },
+    {
+      "path": "RUNTIME_DELTA.diff",
+      "bytes": 1489,
+      "sha256": "fcbba179af6ce525fc481d8ddc5fbd5664540eed7f5bd437dd0e6f096153325e"
+    },
+    {
+      "path": "SOURCE_INPUTS.json",
+      "bytes": 31704,
+      "sha256": "da2ba00cad77fe326120c8d0877cfa8b904081693c9f2a098cac676b66468414"
+    },
+    {
+      "path": "SOURCE_MAPPING.json",
+      "bytes": 2887,
+      "sha256": "db266408f229d78d380177a6b0ce1e25f3f8ed1d5a6bfeaaed304dcdd623d94e"
+    },
+    {
+      "path": "VERIFICATION.json",
+      "bytes": 2205,
+      "sha256": "2a2037d9de8f9ea8811a194b12f5052741975a3bfef8dd7f607aa34de8edc4a2"
+    },
+    {
+      "path": "review_existing.py",
+      "bytes": 16389,
+      "sha256": "7262b31e11c79f8b7753c1013d8925773da9f2e8797830a28e284b746f2bb91b"
+    }
+  ]
+}

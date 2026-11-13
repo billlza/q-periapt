@@ -1,0 +1,25 @@
+{
+  "command": [
+    "sh",
+    "artifact/python-run.sh",
+    "-c",
+    "import unittest; unittest.main(module=None,argv=['unittest', '-v', 'test_continuity_witnessed_renewal', 'test_continuity_c_enrollment', 'test_continuity_swift_consumer', 'test_continuity_kotlin_consumer'],warnings=\"error\")"
+  ],
+  "cwd": "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-lifecycle-integration",
+  "completed": false,
+  "exit": 0,
+  "seconds": 11.724496791954152,
+  "tests": 42,
+  "source_hashes": {
+    "artifact/continuity_witnessed_renewal.py": "acb7eb002f11e706c6cf13c891c81755c78c1b6c290c61456ad7db9265c94cb8",
+    "artifact/continuity_c_enrollment.py": "116da2cd157330cadb557b9e4e8318da93c66385e2c992395ee6445d92d04e3b",
+    "artifact/continuity_c_consumer.py": "bc91a95fb84b92fd0b289167e428f340f742f86f3d012484e8790bdf70d8fbcf",
+    "artifact/continuity_swift_consumer.py": "61a88e66564ee30215cab13f1a63d58c99b41e246a854b40b04a50ec11c60b3c",
+    "artifact/continuity_kotlin_consumer.py": "aa552c4010cfbc201407537e4155c31cc87d1d69a2d960e49e203e08d472414d",
+    "artifact/test_continuity_witnessed_renewal.py": "2a667a80fd76f471adc8f0bb7178f8a032c70cb913990f54519d1ba083bbd54b",
+    "artifact/test_continuity_c_enrollment.py": "c6cf6d5e8dcca2022f67b218e8382f6a658dd048c5fe25bd109921b41fef5197",
+    "artifact/test_continuity_swift_consumer.py": "c3987b5e508e407cdec207a7ca53a8d225f47a3848a7c144a6df25ec1043e6c1",
+    "artifact/test_continuity_kotlin_consumer.py": "8b5e92129348a93e061a52341bba3b5640943a9e20bf066b7b5a17a980e5975f"
+  },
+  "log_sha256": "f7c073119dd2bc36223e0db45935102c3af4397372a9b310ed361a8cab458263"
+}

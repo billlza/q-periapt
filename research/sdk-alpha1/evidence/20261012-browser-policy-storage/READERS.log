@@ -1,0 +1,19 @@
+test_ci_consumes_the_produced_archive_on_exact_minimum_runtime (artifact.test_wasm_sdk_package.WasmSDKPackageTests.test_ci_consumes_the_produced_archive_on_exact_minimum_runtime) ... ok
+test_extra_file_and_symlink_are_rejected (artifact.test_wasm_sdk_package.WasmSDKPackageTests.test_extra_file_and_symlink_are_rejected) ... ok
+test_minimum_runtime_is_exact_and_archive_must_match_consumer_source (artifact.test_wasm_sdk_package.WasmSDKPackageTests.test_minimum_runtime_is_exact_and_archive_must_match_consumer_source) ... ok
+test_npm12_packlist_requires_exact_package_and_unique_payload (artifact.test_wasm_sdk_package.WasmSDKPackageTests.test_npm12_packlist_requires_exact_package_and_unique_payload) ... ok
+test_pinned_manifest_and_generated_payload_mutation (artifact.test_wasm_sdk_package.WasmSDKPackageTests.test_pinned_manifest_and_generated_payload_mutation) ... ok
+test_rehashed_default_expert_exposure_is_rejected (artifact.test_wasm_sdk_package.WasmSDKPackageTests.test_rehashed_default_expert_exposure_is_rejected) ... ok
+test_rehashed_missing_generated_file_and_notice_are_rejected (artifact.test_wasm_sdk_package.WasmSDKPackageTests.test_rehashed_missing_generated_file_and_notice_are_rejected) ... ok
+test_schema_requires_integer_version (artifact.test_wasm_sdk_package.WasmSDKPackageTests.test_schema_requires_integer_version) ... ok
+test_actual_crypto_abort_and_close_race_required (artifact.test_wasm_browser_storage.BrowserStorageTests.test_actual_crypto_abort_and_close_race_required) ... ok
+test_ci_executes_browser_before_minimum_node_consumer (artifact.test_wasm_browser_storage.BrowserStorageTests.test_ci_executes_browser_before_minimum_node_consumer) ... ok
+test_complete_actual_capture (artifact.test_wasm_browser_storage.BrowserStorageTests.test_complete_actual_capture) ... ok
+test_failed_or_diagnostic_output_is_not_a_pass (artifact.test_wasm_browser_storage.BrowserStorageTests.test_failed_or_diagnostic_output_is_not_a_pass) ... ok
+test_quota_pressure_scopes_and_all_failures_required (artifact.test_wasm_browser_storage.BrowserStorageTests.test_quota_pressure_scopes_and_all_failures_required) ... ok
+test_worker_cut_and_release_observation_required (artifact.test_wasm_browser_storage.BrowserStorageTests.test_worker_cut_and_release_observation_required) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.897s
+
+OK

@@ -1,0 +1,39 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/rustfmt",
+    "--edition",
+    "2021",
+    "--config",
+    "skip_children=true",
+    "--check",
+    "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/durable/messages/tests/renewal.rs",
+    "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/durable/rosters.rs",
+    "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/durable/rosters/policy_continuation_tests.rs",
+    "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/durable/rosters/renewal_tests.rs",
+    "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/enrollment/policy_continuation_owner_tests.rs",
+    "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/enrollment/renewal.rs",
+    "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/enrollment/renewal_connection_tests.rs",
+    "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/enrollment/renewed_operations_tests.rs",
+    "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/identity.rs",
+    "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/installation.rs",
+    "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/installation/reopen.rs",
+    "/Users/bill/Documents/Codex/sdk-020-arm64-ci-20261004/research/continuity-identity-candidate/src/installation/tests/reopen/policy_continuation.rs"
+  ],
+  "completed": true,
+  "returncode": 0,
+  "source_hashes": {
+    "research/continuity-identity-candidate/src/durable/messages/tests/renewal.rs": "b50ec46d6e42904ab189a47213548915ff717428b6165aef69c36be0e146a20b",
+    "research/continuity-identity-candidate/src/durable/rosters.rs": "39eef9838136a9cfee9fd7a754a9497cc5e06c808ca0eb50ddda3b90e638d4b5",
+    "research/continuity-identity-candidate/src/durable/rosters/policy_continuation_tests.rs": "8cd2f24b47501155af923945fb3d83bc9289c350902fc1de5c582aaf82f784da",
+    "research/continuity-identity-candidate/src/durable/rosters/renewal_tests.rs": "f1011de44e3c0b2dc4eea0cf0760f2c70195d1e0f0c40cafaf0b26a2af903d85",
+    "research/continuity-identity-candidate/src/enrollment/policy_continuation_owner_tests.rs": "5a3495910ee29d078b480398e84d186336f5f24f1ca821824e61f4e1e14b0148",
+    "research/continuity-identity-candidate/src/enrollment/renewal.rs": "a7e81ec86bba852461775739ae90ec15420beffb8cd96aea68a7221bbbfddec6",
+    "research/continuity-identity-candidate/src/enrollment/renewal_connection_tests.rs": "53f7e70dd45a2d444e5fc3023a50cd63cdc15cbf19e750f38a3e153790f8561d",
+    "research/continuity-identity-candidate/src/enrollment/renewed_operations_tests.rs": "76aa8023afa265546e27ef3fbe6f67c29a11211089e08de478b6181e9e367881",
+    "research/continuity-identity-candidate/src/identity.rs": "dadae326ee9f10c067f537936461245a407675cc9665873a573c4ba41427362b",
+    "research/continuity-identity-candidate/src/installation.rs": "8db787aa834e05a6781c1ab6fb162c9a7a657c497795f4f84d8b5f124789d471",
+    "research/continuity-identity-candidate/src/installation/reopen.rs": "c55e2fed02c58e2d98131ec252b84679625079dac4bbfca52a244d6e7f5bca95",
+    "research/continuity-identity-candidate/src/installation/tests/reopen/policy_continuation.rs": "8fd090796ac6c6df193355a61d05b55c29b31569b7f07437c676a20eb223b405"
+  },
+  "release_claim_eligible": false
+}

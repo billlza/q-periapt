@@ -1,0 +1,12 @@
+{
+  "captured_utc": "2026-11-05T13:03:39.937433+00:00",
+  "implementation_commit": "d4c20bd323e2e380fc5545a180da7d38375e6a4a",
+  "red_returncode": 101,
+  "red_observed_failure": "HTTP test write /oversized: Broken pipe (os error 32)",
+  "debug_http_tests": 16,
+  "release_http_tests": 16,
+  "all_target_clippy_warnings_denied": true,
+  "format_check_passed": true,
+  "upstream_reference": "https://www.rfc-editor.org/rfc/rfc9110.html#section-10.1.1",
+  "scope": "macOS arm64 qualification-only shared HTTP client. Actual loopback TCP red/green plus original account HTTP routes. Server, SDK and request-size assertions unchanged; remote macOS CI and Linux reruns pending. No library runtime test count is claimed from Clippy."
+}

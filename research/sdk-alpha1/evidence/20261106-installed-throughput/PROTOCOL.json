@@ -1,0 +1,143 @@
+{
+  "binaries": {
+    "fanout": {
+      "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-throughput-resources-tupsw93l/build/release/deps/journal_fanout-8ae9f62330a7257d",
+      "sha256": "88089417df9049cee2b169a59efe6f5abbb814a7625a2b315f8cec6e1aa35d39"
+    },
+    "lifecycle": {
+      "path": "/private/var/folders/_1/c5pzdh_j04q963k2csf4vlkh0000gn/T/qperiapt-throughput-resources-tupsw93l/build/release/deps/journal_lifecycle-fa804ed4cbf8bd87",
+      "sha256": "bd813f5ff80aacb26314e44f4e56374176d8db6d37f8afac3db152ffc4b57941"
+    }
+  },
+  "build_report_sha256": "696ae885a1d559b3d41927287e4526d71898597f3b1d0055f4eab779882301f1",
+  "cohorts": 16,
+  "controller_sources": {
+    "readback-fanout.py": "45ed93e06ff925330e6293e7ffb3480e19a0c569df656a7e846ff9c1d1b9e75f",
+    "readback-operation-repeat.py": "5071af9a6d54066141c5ed1611a7a8e6492a6778728d586618c1f9740b9da518",
+    "readback-throughput.py": "3f6776cc6981fbd9a6030935cf74bf1ce38c7500703dede72670964471ad217a",
+    "run-throughput-cohort.py": "d3db84f483b8f4cc70a37a11725ff8478dc100e3e64c019663e7fc6add12b839",
+    "run-throughput-repeats.py": "84fad3b32161018af33f734e647dc548cd91297b9e62d2ad19724ed28199ef59"
+  },
+  "driver_sha256": "84fad3b32161018af33f734e647dc548cd91297b9e62d2ad19724ed28199ef59",
+  "host_controls": "Qualification processes must be absent at each boundary. Power, thermal-report and load snapshots retained; desktop applications/cache/clock frequency uncontrolled. No host setting changes.",
+  "performance_qualified": false,
+  "plan": [
+    {
+      "kind": "lifecycle",
+      "label": "measurement-lifecycle-local-02",
+      "position": 1,
+      "profile": "local",
+      "round": 1
+    },
+    {
+      "kind": "lifecycle",
+      "label": "measurement-lifecycle-witness-02",
+      "position": 2,
+      "profile": "witness",
+      "round": 1
+    },
+    {
+      "kind": "fanout",
+      "label": "measurement-fanout-witness-02",
+      "position": 3,
+      "profile": "witness",
+      "round": 1
+    },
+    {
+      "kind": "fanout",
+      "label": "measurement-fanout-local-02",
+      "position": 4,
+      "profile": "local",
+      "round": 1
+    },
+    {
+      "kind": "lifecycle",
+      "label": "measurement-lifecycle-witness-03",
+      "position": 1,
+      "profile": "witness",
+      "round": 2
+    },
+    {
+      "kind": "fanout",
+      "label": "measurement-fanout-local-03",
+      "position": 2,
+      "profile": "local",
+      "round": 2
+    },
+    {
+      "kind": "lifecycle",
+      "label": "measurement-lifecycle-local-03",
+      "position": 3,
+      "profile": "local",
+      "round": 2
+    },
+    {
+      "kind": "fanout",
+      "label": "measurement-fanout-witness-03",
+      "position": 4,
+      "profile": "witness",
+      "round": 2
+    },
+    {
+      "kind": "fanout",
+      "label": "measurement-fanout-local-04",
+      "position": 1,
+      "profile": "local",
+      "round": 3
+    },
+    {
+      "kind": "fanout",
+      "label": "measurement-fanout-witness-04",
+      "position": 2,
+      "profile": "witness",
+      "round": 3
+    },
+    {
+      "kind": "lifecycle",
+      "label": "measurement-lifecycle-witness-04",
+      "position": 3,
+      "profile": "witness",
+      "round": 3
+    },
+    {
+      "kind": "lifecycle",
+      "label": "measurement-lifecycle-local-04",
+      "position": 4,
+      "profile": "local",
+      "round": 3
+    },
+    {
+      "kind": "fanout",
+      "label": "measurement-fanout-witness-05",
+      "position": 1,
+      "profile": "witness",
+      "round": 4
+    },
+    {
+      "kind": "lifecycle",
+      "label": "measurement-lifecycle-local-05",
+      "position": 2,
+      "profile": "local",
+      "round": 4
+    },
+    {
+      "kind": "fanout",
+      "label": "measurement-fanout-local-05",
+      "position": 3,
+      "profile": "local",
+      "round": 4
+    },
+    {
+      "kind": "lifecycle",
+      "label": "measurement-lifecycle-witness-05",
+      "position": 4,
+      "profile": "witness",
+      "round": 4
+    }
+  ],
+  "planned_before_execution": true,
+  "release_claim_eligible": false,
+  "rounds": 4,
+  "scope": "Four balanced orders, fresh fixture for each serial lifecycle/fanout cohort, unchanged installed archives. Complete measured epoch and two-epoch workload intervals include diagnostics and independent control. All observations retained; no saturation, maximum capacity, mobile energy or frozen product budget.",
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8"
+}

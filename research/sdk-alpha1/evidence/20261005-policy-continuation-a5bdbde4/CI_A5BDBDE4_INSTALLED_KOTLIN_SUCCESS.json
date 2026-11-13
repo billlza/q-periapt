@@ -1,0 +1,53 @@
+{
+  "observed_utc": "2026-10-05T01:57:00.256298+00:00",
+  "run": 37245520247,
+  "job": 111564016523,
+  "artifact_id": 11321208018,
+  "head": "a5bdbde49c0f9a3cafdff26f7c1952203ee0c949",
+  "tested_merge": "d28d7db2abe6c5dcbc4ac5285b914cf042e3eb9f",
+  "merge_parents": [
+    "7ed1f96a7ec33732f02a989dd5a4669cdcce39ad",
+    "a5bdbde49c0f9a3cafdff26f7c1952203ee0c949"
+  ],
+  "zip_sha256": "76993eff8a85e39b1cd8ae5899e7dd02e1348775072383aff2c49203930829e5",
+  "zip_bytes": 145257827,
+  "report_hashes": {
+    "CONTINUITY_PACKAGE.json": "14e10bc10f32d9f84ba4a10851b195d6bbcfe00b92aa41c8c987ff13dfe82600",
+    "C_CONSUMER.json": "2b8ffb4ff6202f53e602a17346ff157175cae76706956bae981ab02131235eb5",
+    "KOTLIN_CONSUMER.json": "b93f8b98304a24b5ef7102e0f40ef15460d6638b30692008117b8032b5347b0f",
+    "sources-after.json": "9c3d339570e3438cbaf1f9ef0abb72306c941ef380fb2e8c71426806f32bdba7"
+  },
+  "source_files_matching_local_head": 351,
+  "source_mismatches": [],
+  "independent_source_before_after_equal": true,
+  "requested_consumers": [
+    "Rust",
+    "C",
+    "Kotlin"
+  ],
+  "commands_checked_including_nested_duplicates": {
+    "CONTINUITY_PACKAGE.json": 8440,
+    "C_CONSUMER.json": 4220,
+    "KOTLIN_CONSUMER.json": 4220
+  },
+  "command_expectation_failures": [],
+  "kotlin_profiles": [
+    "debug",
+    "release"
+  ],
+  "host": {
+    "os": "Darwin",
+    "arch": "arm64"
+  },
+  "completed": true,
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "scope": "unpublished installed Kotlin/JVM client/server/recovery and shared C/Rust engine; same-host macOS or GNU/Linux; local and explicitly witnessed original-installation profiles; test-host controller interruption uses explicit native cancel/join; calibrated journal sync process interruption and bounded prepared/in-flight owner GC under selected C2 frames; other JVM implementations and automatic JVM cancellation qualification remain separate",
+  "not_included": [
+    "isolated joint policy P1 source",
+    "Android runtime",
+    "cross-host or independent Continuity engine",
+    "JVM implementations other than the reported one",
+    "automatic JVM cancellation"
+  ]
+}

@@ -1,0 +1,116 @@
+\section{Mechanized recovery and separating executions}
+\label{sec:established}
+
+\subsection{The multi-epoch symbolic theorem}
+
+The checked symbolic model includes inherited roots, alternating proposers,
+asymmetric confirmation, initial traffic, and unbounded epochs. Signing and
+wrapping keys may be shared across their modeled uses. Its \textsf{Cut} event
+exposes the selected wrapping keys; exposure of other epochs' entropy is
+represented separately. We state the main theorem in terms of its recorded
+events, preserving its original target and disclosure predicates.
+
+Let $\tau$ be a trace of that model. Write
+$\mathsf{SessionKeys}(s,a,b)$ for the actual identity keys associated with session
+$s$, $\mathsf{KeyReserved}(s,e,P)$ and $\mathsf{EncapReserved}(s,e,Q)$ for the
+target reservations, and $\mathsf{Message}(s,e,r,k,m)$ for an application-message
+event. Define $\mathsf{AcquiredAfterSave}_c(s)$ to hold when there exist a role,
+an epoch, a revision, and matching \textsf{Saved}/\textsf{Snapshot} events for
+session $s$, with the \emph{save} event strictly after $c$. The matching record's
+session projection is the relevant saved object.
+
+\begin{theorem}[Checked multi-epoch symbolic secrecy]
+\label{thm:symbolic}
+Suppose $\tau$ contains the corresponding \textsf{SessionKeys}, \textsf{Cut}
+at $c$, target reservation events at $g$ and $h$, and
+$\mathsf{Message}(s,e,r,k,m)$. If
+\[
+ c<g,\qquad c<h,
+\]
+neither actual target identity key is disclosed anywhere in $\tau$, no reserved
+entropy of target epoch $e$ is disclosed, and
+$\mathsf{AcquiredAfterSave}_c(s)$ is false, then $\tau$ contains no adversarial
+knowledge event $\mathsf K(m)$.
+\end{theorem}
+
+The theorem was checked with all 24 reusable dependencies in one Tamarin
+process. An independent replay produced a byte-identical proof certificate.
+Appendix~\ref{app:artifacts} identifies the exact query, source, toolchain,
+replay receipt and complete auxiliary-query inventory.
+
+The theorem uses the modeled cryptographic constructors and record interface.
+Its key scope follows actual identity ownership: a shared signer exposed through
+another session is still a disclosure of that target key. Likewise, a retained
+target projection saved after Cut remains subject to the acquisition condition
+when a sibling write carries it into a later aggregate image.
+
+\subsection{Executability and the freshness boundary}
+
+A finite two-round construction exercises the operational rules with an exposed
+ancestor root and satisfies the complete original positive existential formula.
+A separate source-derived evaluator checks its rule instances and global
+quantifiers. This provides a concrete execution for the modeled recovery
+premises.
+
+The delayed-receipt construction instead contains a pre-Cut epoch-two
+generation reservation and a post-Cut encapsulation. It derives the target
+payload while satisfying the remaining main-theorem antecedents. Its point
+audit identifies $c<g$ as the sole false antecedent. Seven countertraces are
+rejected by the witness checker. Together, the positive and separating traces
+connect the recovery condition to executable schedules.
+
+\subsection{Native reservation disclosure}
+
+The native experiment stops a child process after committing a reservation,
+kills and reaps it, reopens the journal, and inspects the retained phase.
+It exercises two distinct boundaries:
+\begin{itemize}
+\item a 277-byte key-generation token, before key computation or offer publication;
+\item a 245-byte encapsulation token, after offer authentication and before
+encapsulation computation or response publication.
+\end{itemize}
+The predictor obtains the previous root, journal identity, wrapping key and
+captured token. Thereafter it uses the public policy configuration and later
+authenticated control wires. Its prediction interface has no journal or
+filesystem input, and the experiment withholds signer files and future private
+owners. A wrong wrapping key is rejected.
+
+For each cut, both honest peers complete the rekey and reopen their journals.
+The driver then creates fresh 128-byte application payloads, sends three in each
+direction, and checks honest delivery. Independently reconstructed traffic
+owners authenticate and decrypt all six intercepted frames. The two cuts
+therefore yield twelve actual post-restart plaintext recoveries. The
+delayed-receipt extension repeats the six-message check at epoch two using one
+responder snapshot.
+
+\begin{proposition}[Execution-time and counter-based separation]
+\label{prop:counter-separation}
+In the native executions, computing a KEM after restart, completing
+the target epoch, and subsequently reopening the journal do not make a
+previously disclosed reservation an independent secret contribution.
+Moreover, $\min(c_A,c_B)+1$ is not a universal upper bound on exposed epochs.
+\end{proposition}
+\begin{proof}
+At both process-cut boundaries the captured reservation reconstructs the later
+honest KEM result exactly. Equations~\eqref{eq:root}--\eqref{eq:traffic} then
+reconstruct traffic keys from the captured predecessor root and public wires;
+authenticated decryption verifies the six corresponding plaintexts after
+completion and restart. In the delayed-receipt execution,
+$(c_A,c_B)=(0,1)$ at capture and six epoch-two plaintexts are recovered.
+Thus the proposed counter bound equals one while an exposed epoch equals two.
+\end{proof}
+
+\subsection{An aggregate write preserves the target origin}
+
+A separate two-session native execution changes a sibling session and writes a
+new aggregate image. It checks exact equality of the retained target record,
+reopens and retries the original operation, and decrypts six subsequent target
+messages in each build profile. The new global revision and outer encryption
+nonce coexist with the old target reservation. This execution instantiates the
+alias/provenance distinction in the record model.
+
+The native executions isolate the reservation and acquisition conditions
+used in Theorem~\ref{thm:symbolic}. Section~\ref{sec:computation} gives the
+record simulations and common-experiment accounting for the corresponding
+computational interfaces.
+

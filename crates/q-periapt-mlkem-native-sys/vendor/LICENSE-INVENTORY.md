@@ -9,7 +9,7 @@ source code under `mlkem/` is available under the recipient's choice of:
 Apache-2.0 OR ISC OR MIT
 ```
 
-This covers the 118 vendored `.c`, `.h`, `.inc`, and `.S` files. The crates.io
+This covers the 119 vendored `.c`, `.h`, `.inc`, and `.S` files. The crates.io
 package distributes those files under the Apache-2.0 or MIT option, matching
 the package's SPDX expression.
 

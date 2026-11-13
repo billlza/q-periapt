@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "submission_files": 9,
+  "clean_compile_exit_code": 0,
+  "reading_pdf_sha256": "869cafaa87a54e6d8b29d1ce60bab2377cb292ff8b3e3d562bf4cb9948cf1fc0",
+  "clean_pdf_sha256": "a6967fb60ee70b8f759e8d764c91e183b36f61abb9f99808426c8d0cc3f1bb68",
+  "submission_zip_sha256": "dba40572b0e65e4d39c2e171d4e33f6a3d4fcf567ca6af4d22ef6ed827b21950",
+  "clean_compile_log_sha256": "2a751e3a7e13dc222fa96c7c025fa5eb7e8aaf17d254cfd8f7810a6dd53d6e83",
+  "text_comparisons": {
+    "plain": {
+      "equal": true,
+      "bytes": 263792,
+      "sha256": "9bb2bda2e420804338775c15d6bdbdaf38257e1c67071ccb83db9f671b2de46c"
+    },
+    "layout": {
+      "equal": true,
+      "bytes": 292762,
+      "sha256": "fd1191f8685e5f0d74ed3accf231c7cae8f1d019b8b50132bdfc2c0ecff9246c"
+    }
+  },
+  "all_fonts_embedded": true,
+  "fonts": 47
+}

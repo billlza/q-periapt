@@ -5,7 +5,8 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * Android facade over the q-periapt-ffi C ABI.
+ * Legacy byte-oriented Android facade over the q-periapt-ffi C ABI.
+ * New integrations should use {@link QPeriaptSDK} and its native key owners.
  *
  * <p>This class loads only the native libraries packaged in the app/AAR for the
  * device ABI. It does not search external or writable paths. Result objects that
@@ -439,4 +440,24 @@ public final class QPeriaptAndroid {
             byte[] applicationContext,
             byte[] outSecret
     );
+
+    // Same packaged-library loader and JNI registration; ABI major remains 2.
+    static native int sdkExtensionVersionNative();
+    static native long sdkRuntimeNewNative(byte[] policy, byte[] signature, byte[] trustRoot,
+            byte[] previousState, int maxLiveKeys, int maxInFlight);
+    static native byte[] sdkRuntimeStateNative(long handle);
+    static native boolean sdkRuntimeEnabledNative(long handle);
+    static native long sdkRuntimePrepareUpdateNative(long handle, byte[] policy, byte[] signature);
+    static native byte[] sdkPolicyUpdateStatesNative(long handle);
+    static native long sdkPolicyUpdateActivateNative(long handle);
+    static native long sdkExpertKeyImportNative(long handle, byte[] bytes);
+    static native byte[] sdkExpertKeyExportNative(long handle);
+    static native long sdkKeyGenerateNative(long runtime);
+    static native byte[] sdkKeyPublicNative(long key);
+    static native long sdkEncapsulateNative(long runtime, byte[] publicKey, byte[] context, byte[] ciphertext);
+    static native long sdkDecapsulateNative(long key, byte[] ciphertext, byte[] context);
+    static native byte[] sdkSecretExportNative(long secret);
+    static native long sdkSecretDeriveNative(long secret, int purpose, byte[] protocolLabel, byte[] context);
+    static native byte[] sdkDerivedKeyExportNative(long key);
+    static native void sdkCloseNative(long handle);
 }

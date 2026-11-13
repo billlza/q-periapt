@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "pdf_sha256": "869cafaa87a54e6d8b29d1ce60bab2377cb292ff8b3e3d562bf4cb9948cf1fc0",
+  "pdf_pages": 90,
+  "render_dpi": 115,
+  "review_scope": "Selected title, changed introduction, evaluation, matched-results tables, discussion and artifact appendix pages. All selected release renders are byte-identical to the inspected final renders.",
+  "reviewed_pages": [
+    {
+      "page": 1,
+      "png_sha256": "1c9d1bb7749701eba9c0ce618c0ae37f41b6e456b60e3e471aadb90974e25943",
+      "pixel_identical_to_inspected_render": true
+    },
+    {
+      "page": 4,
+      "png_sha256": "52a62d1091f785604a3a18f53e708f981a81b1f5cea469e419c276dd0ab97543",
+      "pixel_identical_to_inspected_render": true
+    },
+    {
+      "page": 65,
+      "png_sha256": "1611e922d98313623452f9b77b43a3b6aa9d004b20ca4cde72efff177eae06ef",
+      "pixel_identical_to_inspected_render": true
+    },
+    {
+      "page": 66,
+      "png_sha256": "b937e0fb155b36521718d5986aeb2c31b63bc4891bcc3886847069eed6283e02",
+      "pixel_identical_to_inspected_render": true
+    },
+    {
+      "page": 69,
+      "png_sha256": "287397a5e41cbf36bcd8e0d5f3da69cc47f6e5906e6b3dfbcb695aa1ab648317",
+      "pixel_identical_to_inspected_render": true
+    },
+    {
+      "page": 70,
+      "png_sha256": "9c41472180a1c37e98b2deae6b2966813b39075979d71d4602fa5ec6f9444a44",
+      "pixel_identical_to_inspected_render": true
+    },
+    {
+      "page": 71,
+      "png_sha256": "4fa86bda1f21dfa522339a86166ff02aae3cf2b5b2e30d6cd931a17cecd67093",
+      "pixel_identical_to_inspected_render": true
+    },
+    {
+      "page": 72,
+      "png_sha256": "3f654fd9ce6c08485687ad473f85f4b5663afa8321b2fccacd3e60d1e46c3dd4",
+      "pixel_identical_to_inspected_render": true
+    },
+    {
+      "page": 73,
+      "png_sha256": "71c9f1b18981898e8884fe3559b2ba73a4d6dc55c159e0478f2ae04403675a38",
+      "pixel_identical_to_inspected_render": true
+    },
+    {
+      "page": 82,
+      "png_sha256": "8d16186f93f9bdb5e10ea69e0af38520a2b44b929b29034467091904c549d155",
+      "pixel_identical_to_inspected_render": true
+    },
+    {
+      "page": 83,
+      "png_sha256": "82ba1616ff91265870ccbda739af4809b32cceee234d8210bb0c0c303a434bd1",
+      "pixel_identical_to_inspected_render": true
+    }
+  ],
+  "observations": [
+    "Both numerical tables fit within the text width and retain readable column headings and captions.",
+    "The method, current-epoch allocation argument, transport controls and discussion flow without clipped or overlapping text.",
+    "The title, updated validation framing and artifact appendix preserve the manuscript layout."
+  ],
+  "all_pages_visually_reviewed_this_increment": false
+}
