@@ -1,0 +1,1226 @@
+{
+  "base_head": "e8201df4a4d3ce3a8bdec90e08a9a5ec0845b62d",
+  "scope": "Actual first-configuration local-protection TLS and original-message recovery; fixed/recoverable SDK trust; existing required-witness registration activation retained",
+  "release_claim_eligible": false,
+  "witnessed_connection_composition": false,
+  "fresh_complete_distribution": false,
+  "runs": [
+    {
+      "name": "c-composition-debug-02",
+      "language": "C",
+      "profile": "debug",
+      "collector": null,
+      "source_unchanged": true,
+      "binary_identity": {
+        "first_configuration": "ff2bbffff29bf34c9d1b22d34185ba594c6b88feb0a6e130d49dfdccac407dc6",
+        "first-configuration-client": "6b6274f12e75ac4aa5860e87c8fa92ef951331e22f01249f80d0753e22f9d3c0",
+        "qpc-c-client": "f3d6a1b22e89f4187adf8934ce56ae5d742aec73914e4b6ebb57410bce46c71a",
+        "libq_periapt_continuity_c_consumer.dylib": "bd07bc3ad888f195c09876817c7d40fd11bf350fc3a32ba7fe1066b03a00ee75"
+      },
+      "public_readback": {
+        "completed": true,
+        "scope": "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host",
+        "language": "C",
+        "release_claim_eligible": false,
+        "scenarios": [
+          "local-fixed",
+          "local-recoverable",
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "public_readbacks": {
+          "local-fixed/unknown.bin": "cf70ab55653aaa42bbbcc520f590371f32a92145d9e0c6be9d909e992097649b",
+          "local-fixed/effect.bin": "4e69e1be3309f7420775008882f10fec61682f894cd47d42ad1f34f47982ed9e",
+          "local-fixed/replayed.bin": "269bde7f97d11c484eafa6e027bb9cb79d4f1c9f73a37fc83a74e06d76101f7f",
+          "local-fixed/request.bin": "269bde7f97d11c484eafa6e027bb9cb79d4f1c9f73a37fc83a74e06d76101f7f",
+          "local-fixed/intent.bin": "d724d4e5cd82d00979b891ded563f436f0f5cad11081b565849044e8252b06ef",
+          "local-fixed/after-traffic.bin": "269bde7f97d11c484eafa6e027bb9cb79d4f1c9f73a37fc83a74e06d76101f7f",
+          "local-fixed/session.bin": "59cab5f6bf41c629f5bafc5a2fc6e2987ee251700185ec232ee02f1d4d80a36a",
+          "local-fixed/root.bin": "167ba46b480e7cba009ebbdde4e26308dfdbf8da8b79c1e273876e0e45013468",
+          "local-fixed/manifest.json": "28a30bb99c6866bacbec12678da573333fecfabccb46e3c45a4671a905b6e665",
+          "local-fixed/acknowledged.bin": "cf70ab55653aaa42bbbcc520f590371f32a92145d9e0c6be9d909e992097649b",
+          "local-recoverable/unknown.bin": "d93a0e691609b3c209a2e830057b4d50bb49e497d6a69b3546f93206ffda7e88",
+          "local-recoverable/effect.bin": "7d6cebeeb91ca70b793a564130e1b6526c7eb1e1b9bede55993a7eea45b046ab",
+          "local-recoverable/replayed.bin": "959a627e2c0d127012863f07a714fe97e3e1163846ad43b8e8a4f6367bd0aa10",
+          "local-recoverable/request.bin": "959a627e2c0d127012863f07a714fe97e3e1163846ad43b8e8a4f6367bd0aa10",
+          "local-recoverable/intent.bin": "9894ca42ce0e0bea4cf4ab14f2b11366b9579ba56a28ae15b0690d36f37ade03",
+          "local-recoverable/after-traffic.bin": "959a627e2c0d127012863f07a714fe97e3e1163846ad43b8e8a4f6367bd0aa10",
+          "local-recoverable/session.bin": "af5badc9af7d1e1e9bbeee377178bf30d55c5abf998f6b57a94d5567fb831ed8",
+          "local-recoverable/root.bin": "12310baa9d13ec194406533f0e4990bb6723519370e9185222b7630801ea1dbd",
+          "local-recoverable/manifest.json": "4154ec3cb57cf2e43ff710e94f3b9035753fb60d42240d0042e0556b4bfc02ed",
+          "local-recoverable/acknowledged.bin": "d93a0e691609b3c209a2e830057b4d50bb49e497d6a69b3546f93206ffda7e88",
+          "signed-fixed/replayed.bin": "c0dceba1f5e0cbdf275d06f533dcdfcf5591c038e3aad02ea9badeaf914db118",
+          "signed-fixed/root.bin": "a37a4f2cf9a455c19461eab750068e6101052c1f1cfa9f591b3e6e1feaa00f98",
+          "signed-fixed/manifest.json": "682ea14765b18fdbac6922701ebaa98485d4f5e956343c92a34b3ac79bc7876a",
+          "signed-fixed/request.bin": "c0dceba1f5e0cbdf275d06f533dcdfcf5591c038e3aad02ea9badeaf914db118",
+          "signed-fixed/genesis.bin": "46f05fef2f955a52c416ae5079a480c321549d58253bb92af1dcd86abeffdaa2",
+          "signed-fixed/intent.bin": "6a7697955bfe26fb787c3c4610f4a5f315e7c3a193ef05b0ccf1d63803b8fa49",
+          "signed-recoverable/replayed.bin": "2be29c919a446492699adb2c2c4c232295b61669cb65f6fcc02e4a759e713901",
+          "signed-recoverable/root.bin": "616a7069a54c41d0e31822d8cc95029272fb7e5a2e3944576441f40d0ffd0f69",
+          "signed-recoverable/manifest.json": "c5efa1552b1b58669e561ffaa3fec8228e4b7d1a7ff7b3d14ca7db6179153b4d",
+          "signed-recoverable/request.bin": "2be29c919a446492699adb2c2c4c232295b61669cb65f6fcc02e4a759e713901",
+          "signed-recoverable/genesis.bin": "dc433eaa9d7ea32e8bdcd5c40ea9e6b89912c5ccf2698a893b218f67c7b8d233",
+          "signed-recoverable/intent.bin": "b02346d6f696ea25c270fe9da7976227c65f166cbb2bb372703fcb440d7fb8a6",
+          "tls-fixed/replayed.bin": "81eaa56f3af8cf20da7671eae2c9a5b83ef31d9df9c99b7efc9b20a62054133d",
+          "tls-fixed/root.bin": "ce46609d455b0df69d33e74db6ab34aec9add583a39edb6178b51eb0a86b8ef4",
+          "tls-fixed/manifest.json": "8bab73d33333406af6b481ddf8bb252626694294012f8bc7696c376571c12dd9",
+          "tls-fixed/request.bin": "81eaa56f3af8cf20da7671eae2c9a5b83ef31d9df9c99b7efc9b20a62054133d",
+          "tls-fixed/genesis.bin": "f51ce26f170f2824c91aa9265e041cb22c88151543dded5592fe4a1a36bb8eeb",
+          "tls-fixed/intent.bin": "fc45c86f1d347c933240dcfddbeab62bb451b9209ca74bfd90d35fdbb45a563e",
+          "tls-recoverable/replayed.bin": "dc8717aaf7c7e0cd8b77ddce628bdd36e6340d3500f82b2f7bcc3728b315e228",
+          "tls-recoverable/root.bin": "9c0f2c97d21170f0e5da284973123b556ef812cd25294026ebe38387906972fc",
+          "tls-recoverable/manifest.json": "b0e3b7e3e3b6784b1c5ff9be9bc5bf85ff80d89032f911817683c522edb62d27",
+          "tls-recoverable/request.bin": "dc8717aaf7c7e0cd8b77ddce628bdd36e6340d3500f82b2f7bcc3728b315e228",
+          "tls-recoverable/genesis.bin": "8d21d65e3e29c27b5b69b91ada06d249116dfb45d00a94d4ba99eeeea439c55e",
+          "tls-recoverable/intent.bin": "a4017cbbca382fa91779179215702fa4843486f343d0fca969478d38b170380a"
+        },
+        "local_connection_recovery_profiles": [
+          "fixed",
+          "recoverable"
+        ],
+        "witnessed_connection_composition": false,
+        "extra_owner_cases": false,
+        "signature_verification": "shared native execution only"
+      },
+      "commands": [
+        {
+          "name": "library",
+          "command": [
+            "/usr/bin/caffeinate",
+            "-i",
+            "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+            "rustc",
+            "--locked",
+            "--offline",
+            "--lib",
+            "--message-format=json",
+            "--",
+            "-C",
+            "link-arg=-Wl,-install_name,@rpath/libq_periapt_continuity_c_consumer.dylib"
+          ],
+          "returncode": 0,
+          "seconds": 0.9467634581960738
+        },
+        {
+          "name": "clang-path",
+          "command": [
+            "/usr/bin/xcrun",
+            "--sdk",
+            "macosx",
+            "--find",
+            "clang"
+          ],
+          "returncode": 0,
+          "seconds": 0.007967459037899971
+        },
+        {
+          "name": "sdk-path",
+          "command": [
+            "/usr/bin/xcrun",
+            "--sdk",
+            "macosx",
+            "--show-sdk-path"
+          ],
+          "returncode": 0,
+          "seconds": 0.008041667053475976
+        },
+        {
+          "name": "compile",
+          "command": [
+            "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+            "-isysroot",
+            "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Wpedantic",
+            "-pthread",
+            "-O0",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer/client.c",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer/recovery_client.c",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer/opening_client.c",
+            "-I",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer",
+            "-L",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-debug-02/installed",
+            "-lq_periapt_continuity_c_consumer",
+            "-Wl,-rpath,@loader_path",
+            "-o",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-debug-02/installed/qpc-c-client"
+          ],
+          "returncode": 0,
+          "seconds": 0.1814229169394821
+        },
+        {
+          "name": "exports",
+          "command": [
+            "/usr/bin/nm",
+            "-gU",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-debug-02/installed/libq_periapt_continuity_c_consumer.dylib"
+          ],
+          "returncode": 0,
+          "seconds": 0.04622987494803965
+        },
+        {
+          "name": "linkage",
+          "command": [
+            "/usr/bin/otool",
+            "-L",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-debug-02/installed/qpc-c-client"
+          ],
+          "returncode": 0,
+          "seconds": 0.013035791926085949
+        },
+        {
+          "name": "guard",
+          "command": [
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-debug-02/installed/qpc-c-client",
+            "peer-configuration-guard"
+          ],
+          "returncode": 0,
+          "seconds": 0.44449924980290234
+        },
+        {
+          "name": "configuration-compile",
+          "command": [
+            "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+            "-isysroot",
+            "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Wpedantic",
+            "-pthread",
+            "-O0",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer/first_configuration_client.c",
+            "-I",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer",
+            "-L",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-debug-02/installed",
+            "-lq_periapt_continuity_c_consumer",
+            "-Wl,-rpath,@loader_path",
+            "-o",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-debug-02/installed/first-configuration-client"
+          ],
+          "returncode": 0,
+          "seconds": 0.06474270788021386
+        },
+        {
+          "name": "trace-build",
+          "command": [
+            "/usr/bin/caffeinate",
+            "-i",
+            "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+            "test",
+            "--locked",
+            "--offline",
+            "--test",
+            "first_configuration",
+            "--no-run",
+            "--message-format=json"
+          ],
+          "returncode": 0,
+          "seconds": 1.7290324161294848
+        },
+        {
+          "name": "first-configuration-connection",
+          "command": [
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-debug-02/installed/first_configuration",
+            "independent_c_",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "returncode": 0,
+          "seconds": 22.34417745890096
+        }
+      ],
+      "seconds": null
+    },
+    {
+      "name": "c-composition-release-02",
+      "language": "C",
+      "profile": "release",
+      "collector": null,
+      "source_unchanged": true,
+      "binary_identity": {
+        "first_configuration": "b6736432c1143357e578de1be673cd96eae0799554c33ad31a040c74f444784e",
+        "first-configuration-client": "e87106f92822a078c7e24cd8d1dfaf29e802c526a4bfc33efb651a7225acda2d",
+        "qpc-c-client": "a497e9fa0d29a2c1a34f0729d08d4a7d7bdfed53719749f2eee6bb9f6066f791",
+        "libq_periapt_continuity_c_consumer.dylib": "911144c79a8f1cf46ae0a08215cc4488a5dce70f8986f2d3da1d1095d18176c0"
+      },
+      "public_readback": {
+        "completed": true,
+        "scope": "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host",
+        "language": "C",
+        "release_claim_eligible": false,
+        "scenarios": [
+          "local-fixed",
+          "local-recoverable",
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "public_readbacks": {
+          "local-fixed/unknown.bin": "090e0c7a2b693356b5584dad1140440053fa6ad22d543018c100a2e6a3657c82",
+          "local-fixed/effect.bin": "d4a737ae5256d632d0eab3321436c388d093f5248b218983a7d5a43af8746777",
+          "local-fixed/replayed.bin": "d00e8e7bae8d23d8128332f4b5a88be887f1b110e1783a3ad975689d969b2898",
+          "local-fixed/request.bin": "d00e8e7bae8d23d8128332f4b5a88be887f1b110e1783a3ad975689d969b2898",
+          "local-fixed/intent.bin": "73ee65f500c8354db31eb6dbfeb4355181853e28f13f605fff10c35fcb354da8",
+          "local-fixed/after-traffic.bin": "d00e8e7bae8d23d8128332f4b5a88be887f1b110e1783a3ad975689d969b2898",
+          "local-fixed/session.bin": "82714a82d538ab8ddc8f69a6d2624efe6dc1e2adc3e9e3c8331dfd85f3896932",
+          "local-fixed/root.bin": "e752c8a44080211be96668af05bada4a5570dbe4eaf7891546240536f545cd47",
+          "local-fixed/manifest.json": "28a30bb99c6866bacbec12678da573333fecfabccb46e3c45a4671a905b6e665",
+          "local-fixed/acknowledged.bin": "090e0c7a2b693356b5584dad1140440053fa6ad22d543018c100a2e6a3657c82",
+          "local-recoverable/unknown.bin": "fe667b30341d61e82b8d8afd31c52eb90c53ff8e3fb93b8320515d3cbba9cba4",
+          "local-recoverable/effect.bin": "beef7b326611255c73fb85d324dd8a7c3bcab5c8ce4a4f9b3b571b579fbd36ef",
+          "local-recoverable/replayed.bin": "84a932bbcbb42df77cd44bc7de2c7aad3337f3d34f8a26c9ef414eddd8d9b29c",
+          "local-recoverable/request.bin": "84a932bbcbb42df77cd44bc7de2c7aad3337f3d34f8a26c9ef414eddd8d9b29c",
+          "local-recoverable/intent.bin": "5aed78eca359375ee7062c65c57e691b314f9af4d111e0a7734b00067e00fadf",
+          "local-recoverable/after-traffic.bin": "84a932bbcbb42df77cd44bc7de2c7aad3337f3d34f8a26c9ef414eddd8d9b29c",
+          "local-recoverable/session.bin": "6befd5325847bec0f145af65c1f800cdd044185fff84e1c7eef1b3898a6a26b2",
+          "local-recoverable/root.bin": "f2e64bbd0506de009bb45e0837b192a695a0a0c6c39d319cb0debcce50794504",
+          "local-recoverable/manifest.json": "4154ec3cb57cf2e43ff710e94f3b9035753fb60d42240d0042e0556b4bfc02ed",
+          "local-recoverable/acknowledged.bin": "fe667b30341d61e82b8d8afd31c52eb90c53ff8e3fb93b8320515d3cbba9cba4",
+          "signed-fixed/replayed.bin": "942456dbb28b75b5247d64c5b326938d2478bf5a9ec6ac5d5911e5650fba665a",
+          "signed-fixed/root.bin": "f68926ea589fa6d2627f7f7aee316600747f550f192d2ac00f8d5e3b972a1df8",
+          "signed-fixed/manifest.json": "682ea14765b18fdbac6922701ebaa98485d4f5e956343c92a34b3ac79bc7876a",
+          "signed-fixed/request.bin": "942456dbb28b75b5247d64c5b326938d2478bf5a9ec6ac5d5911e5650fba665a",
+          "signed-fixed/genesis.bin": "68734e258146204d1df02e57766cc1435b29c7e85e2ef8317fe951419080ad17",
+          "signed-fixed/intent.bin": "cdc7d5ded61d156e61412e8ef082d8962d04c3fdc5153c2305380704647fc4cb",
+          "signed-recoverable/replayed.bin": "24ce47e3764a56a9d30581a47ff8d7ce102156747fed589f13a7ad7a0b582274",
+          "signed-recoverable/root.bin": "6826e38f2c7092541d960924c7145863534fc5ff8f498744410b876c25104dbb",
+          "signed-recoverable/manifest.json": "c5efa1552b1b58669e561ffaa3fec8228e4b7d1a7ff7b3d14ca7db6179153b4d",
+          "signed-recoverable/request.bin": "24ce47e3764a56a9d30581a47ff8d7ce102156747fed589f13a7ad7a0b582274",
+          "signed-recoverable/genesis.bin": "4b13acb61d0e69ec91c83d32b8f7386182208954e5cd9c424d693a9900ecbf09",
+          "signed-recoverable/intent.bin": "29e55778fc58f9180be0cf98ccb399e595885f8cb5488877afe272231ae5addf",
+          "tls-fixed/replayed.bin": "e9ce9f4e9a3c7ea37d6bfac0ede156139ae25d1e11b0060e6d81f98e9b11f7e9",
+          "tls-fixed/root.bin": "72cdf716191840af4bad8a62217507a93bd0ff9385ce29bdc0eb2b0c9ba21ad2",
+          "tls-fixed/manifest.json": "8bab73d33333406af6b481ddf8bb252626694294012f8bc7696c376571c12dd9",
+          "tls-fixed/request.bin": "e9ce9f4e9a3c7ea37d6bfac0ede156139ae25d1e11b0060e6d81f98e9b11f7e9",
+          "tls-fixed/genesis.bin": "7c5a1d1369e96a4594e28280c3ea22ec64f9cb58cce32b601e7d8e8a929a3233",
+          "tls-fixed/intent.bin": "7d7819c98a73866e57412be94d86d211c2b3d0d001a52dbb5c52594a04608924",
+          "tls-recoverable/replayed.bin": "112702f1d23da763a484319664d11c1029b9ce561a9264455a5bf080610e1f9a",
+          "tls-recoverable/root.bin": "067a92c96780eabe49db332f0f84c16d49fd0ab6ccbc25bb1187c9719b6d3383",
+          "tls-recoverable/manifest.json": "b0e3b7e3e3b6784b1c5ff9be9bc5bf85ff80d89032f911817683c522edb62d27",
+          "tls-recoverable/request.bin": "112702f1d23da763a484319664d11c1029b9ce561a9264455a5bf080610e1f9a",
+          "tls-recoverable/genesis.bin": "46aa6319aa439c7576b9ee48dbd75e6f02c711910c8d8388e9c832842cba2a59",
+          "tls-recoverable/intent.bin": "673b1f3897c8fdf907ce6f0d2e6664a681ea75e9d880c55f86f2ca9442510a62"
+        },
+        "local_connection_recovery_profiles": [
+          "fixed",
+          "recoverable"
+        ],
+        "witnessed_connection_composition": false,
+        "extra_owner_cases": false,
+        "signature_verification": "shared native execution only"
+      },
+      "commands": [
+        {
+          "name": "library",
+          "command": [
+            "/usr/bin/caffeinate",
+            "-i",
+            "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+            "rustc",
+            "--locked",
+            "--offline",
+            "--lib",
+            "--message-format=json",
+            "--release",
+            "--",
+            "-C",
+            "link-arg=-Wl,-install_name,@rpath/libq_periapt_continuity_c_consumer.dylib"
+          ],
+          "returncode": 0,
+          "seconds": 15.50812029116787
+        },
+        {
+          "name": "clang-path",
+          "command": [
+            "/usr/bin/xcrun",
+            "--sdk",
+            "macosx",
+            "--find",
+            "clang"
+          ],
+          "returncode": 0,
+          "seconds": 0.00814545783214271
+        },
+        {
+          "name": "sdk-path",
+          "command": [
+            "/usr/bin/xcrun",
+            "--sdk",
+            "macosx",
+            "--show-sdk-path"
+          ],
+          "returncode": 0,
+          "seconds": 0.009940291987732053
+        },
+        {
+          "name": "compile",
+          "command": [
+            "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+            "-isysroot",
+            "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Wpedantic",
+            "-pthread",
+            "-O2",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer/client.c",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer/recovery_client.c",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer/opening_client.c",
+            "-I",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer",
+            "-L",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-release-02/installed",
+            "-lq_periapt_continuity_c_consumer",
+            "-Wl,-rpath,@loader_path",
+            "-o",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-release-02/installed/qpc-c-client"
+          ],
+          "returncode": 0,
+          "seconds": 0.8503614999353886
+        },
+        {
+          "name": "exports",
+          "command": [
+            "/usr/bin/nm",
+            "-gU",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-release-02/installed/libq_periapt_continuity_c_consumer.dylib"
+          ],
+          "returncode": 0,
+          "seconds": 0.03328404086641967
+        },
+        {
+          "name": "linkage",
+          "command": [
+            "/usr/bin/otool",
+            "-L",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-release-02/installed/qpc-c-client"
+          ],
+          "returncode": 0,
+          "seconds": 0.019873791141435504
+        },
+        {
+          "name": "guard",
+          "command": [
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-release-02/installed/qpc-c-client",
+            "peer-configuration-guard"
+          ],
+          "returncode": 0,
+          "seconds": 0.3539612921886146
+        },
+        {
+          "name": "configuration-compile",
+          "command": [
+            "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+            "-isysroot",
+            "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.0.sdk",
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Wpedantic",
+            "-pthread",
+            "-O2",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer/first_configuration_client.c",
+            "-I",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer",
+            "-L",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-release-02/installed",
+            "-lq_periapt_continuity_c_consumer",
+            "-Wl,-rpath,@loader_path",
+            "-o",
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-release-02/installed/first-configuration-client"
+          ],
+          "returncode": 0,
+          "seconds": 0.12038033292628825
+        },
+        {
+          "name": "trace-build",
+          "command": [
+            "/usr/bin/caffeinate",
+            "-i",
+            "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+            "test",
+            "--locked",
+            "--offline",
+            "--test",
+            "first_configuration",
+            "--no-run",
+            "--message-format=json",
+            "--release"
+          ],
+          "returncode": 0,
+          "seconds": 37.50775504205376
+        },
+        {
+          "name": "first-configuration-connection",
+          "command": [
+            "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/c-composition-release-02/installed/first_configuration",
+            "independent_c_",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "returncode": 0,
+          "seconds": 42.94783425005153
+        }
+      ],
+      "seconds": null
+    },
+    {
+      "name": "swift-composition-debug-02",
+      "language": "Swift",
+      "profile": "debug",
+      "collector": null,
+      "source_unchanged": true,
+      "binary_identity": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/swift-build-debug/out/Products/Debug/FirstConfigurationClient": "993c7511233bc9b2a4cfc63465d4904e72d226013eec57e661e998d3a333218d",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/swift-consumer/native/debug/libq_periapt_continuity_c_consumer.dylib": "6725d3f0f1d0c456a73a36a1433f0fda9718f036050ad85bf06c7650986d78aa"
+      },
+      "public_readback": {
+        "completed": true,
+        "scope": "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host",
+        "language": "Swift",
+        "release_claim_eligible": false,
+        "scenarios": [
+          "local-fixed",
+          "local-recoverable",
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "public_readbacks": {
+          "local-fixed/unknown.bin": "c5039f819c88c81d8aa90a7c6e6390679bf24b38cf27f7b27d673ed5815b8671",
+          "local-fixed/effect.bin": "30ea2aed1cd13b3d666d51ad4c4f12c0ebe7da9c6d3b177ae5b9d2ea1f9db62b",
+          "local-fixed/replayed.bin": "b6fa31122d368291d8a3deaafe61cf933cbae89ae0c2e2f50e8609fbe64af33f",
+          "local-fixed/request.bin": "b6fa31122d368291d8a3deaafe61cf933cbae89ae0c2e2f50e8609fbe64af33f",
+          "local-fixed/intent.bin": "4086db907ef3769eef310e225f66f8b43fa769778c2feaab43f99341a4ace251",
+          "local-fixed/after-traffic.bin": "b6fa31122d368291d8a3deaafe61cf933cbae89ae0c2e2f50e8609fbe64af33f",
+          "local-fixed/session.bin": "f6a75e02b6fafe7af4645ab846481caddafbef0b35e7586379a1ab5ffa414584",
+          "local-fixed/root.bin": "7829be59ec7e7c25f74d22d5a123f1007938c8c7da82a0224b15f0f53be67afe",
+          "local-fixed/manifest.json": "cad16a04072c4779d31e87a6b5d6057e4c0c3b3302dce7b3a4bcae9b0b9822f4",
+          "local-fixed/acknowledged.bin": "c5039f819c88c81d8aa90a7c6e6390679bf24b38cf27f7b27d673ed5815b8671",
+          "local-recoverable/unknown.bin": "2ce51a3386852b31d1c216621187df6b4b1a0e9ead63d145ec4374f2c7438061",
+          "local-recoverable/effect.bin": "a2cd6cea82a2107952cc5750dacc3cf623c0861a47dfc494aca96d13775b9daa",
+          "local-recoverable/replayed.bin": "636f911d46c5f88dfd77c46320eb929df9ec477454319360801539243a7ae2ff",
+          "local-recoverable/request.bin": "636f911d46c5f88dfd77c46320eb929df9ec477454319360801539243a7ae2ff",
+          "local-recoverable/intent.bin": "5bb68add8d5bbb8b147d0651334e07e0f5ac9a7cd74fa11142604c188bed8be9",
+          "local-recoverable/after-traffic.bin": "636f911d46c5f88dfd77c46320eb929df9ec477454319360801539243a7ae2ff",
+          "local-recoverable/session.bin": "f8686ede8914580302b42f40ae080f8f333af51e8ded52ff3d37e6e8c4a22cd4",
+          "local-recoverable/root.bin": "614beacb9e3be4d04333bcff3c011f8dd2cb44ba77a7674af179a2bc27c9773b",
+          "local-recoverable/manifest.json": "0048db0c1cc9310de5248bc7a8fb46278abb08129682ff3729aeeac8b3d56d3c",
+          "local-recoverable/acknowledged.bin": "2ce51a3386852b31d1c216621187df6b4b1a0e9ead63d145ec4374f2c7438061",
+          "signed-fixed/replayed.bin": "80458161bb8ec75d717339d6de6f32781979b16bbf051efa0cbecf0fcea7a674",
+          "signed-fixed/root.bin": "27c943a892b530467271629956cc452708f53ae5fa27dff0535b9d3caac51f6b",
+          "signed-fixed/manifest.json": "5c2e4645d8935183b8addc41e05f117d69041e9259474b2db1d1f5df0f0a6f7e",
+          "signed-fixed/request.bin": "80458161bb8ec75d717339d6de6f32781979b16bbf051efa0cbecf0fcea7a674",
+          "signed-fixed/genesis.bin": "3abab52d2e918f67c07a33eb8a4a36ca9601ab56a5848791f2577a51393a40e6",
+          "signed-fixed/intent.bin": "c1be140686ae0b876cc282285dae111887b9423ce4353e8f3f4d713b59e82775",
+          "signed-recoverable/replayed.bin": "e325a1c85f8abce31142ea4503af0f604ae97f15a8b193806b36946200e96478",
+          "signed-recoverable/root.bin": "715f87f699adffda41f886db59c0cc47680b6f3d327bdc0b16f757cd812d942c",
+          "signed-recoverable/manifest.json": "e1611336509e4781dae05e0d22e8195486edd50602616f625cf13da7f617b592",
+          "signed-recoverable/request.bin": "e325a1c85f8abce31142ea4503af0f604ae97f15a8b193806b36946200e96478",
+          "signed-recoverable/genesis.bin": "8315cab0cc37fe5be07025c4ed689a9fe238e7b66e6fa13f7aa0119144a1a104",
+          "signed-recoverable/intent.bin": "0ce9ec7b159cb372dec376ff521d84bc36fcc9268973b3c81d36d3025d15b6dc",
+          "tls-fixed/replayed.bin": "c81f1530903da9b6d85d0362d170293d8a299901052bb3f377b73468ca6c9622",
+          "tls-fixed/root.bin": "cade3f7e2b8030005f94187d5825a6a9859b09e918c685fd5ae0c1228a5d0d43",
+          "tls-fixed/manifest.json": "556f97866666838e7a6e9e661cff97e46b80f8fd24bc99740bb8ae5a13152dc0",
+          "tls-fixed/request.bin": "c81f1530903da9b6d85d0362d170293d8a299901052bb3f377b73468ca6c9622",
+          "tls-fixed/genesis.bin": "cd9b299fbb88ac91acbd232a925f8ee7953a0eb00d68cc4a8590229f599ba997",
+          "tls-fixed/intent.bin": "37a7e8052d33efaf4e57adcf5e6807191f63178cbd256b92c2c2b7fb2f481b44",
+          "tls-recoverable/replayed.bin": "8a51d56cb6dd200e404ba7b10f3b70c297ccaac20522d02964c40b9c43bc85cc",
+          "tls-recoverable/root.bin": "e96fef6cae847c4ec272dfd541f2a6da709bb58c6c35153dcb19be415962415f",
+          "tls-recoverable/manifest.json": "76ffc412796f94b9e20623162ac52ba7c2b7dedea0d260946b8bd1426985e2c6",
+          "tls-recoverable/request.bin": "8a51d56cb6dd200e404ba7b10f3b70c297ccaac20522d02964c40b9c43bc85cc",
+          "tls-recoverable/genesis.bin": "4f861874e105a70303dc91b9c0595686c1046b67022f117171b1d468bb6984af",
+          "tls-recoverable/intent.bin": "63ff91c9856f81d76ec579607fdb2196846f0e2d1390d059b5407569d2f9c5a3"
+        },
+        "local_connection_recovery_profiles": [
+          "fixed",
+          "recoverable"
+        ],
+        "witnessed_connection_composition": false,
+        "extra_owner_cases": true,
+        "signature_verification": "shared native execution only"
+      },
+      "commands": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--test",
+        "first_configuration",
+        "--",
+        "independent_c_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 20.873236041981727
+    },
+    {
+      "name": "swift-composition-release-01",
+      "language": "Swift",
+      "profile": "release",
+      "collector": null,
+      "source_unchanged": true,
+      "binary_identity": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/swift-build-release/out/Products/Release/FirstConfigurationClient": "da6afa4e55db089c673b0e0e405107133fad31598b435c3d053e51a6e25675a7",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/swift-consumer/native/release/libq_periapt_continuity_c_consumer.dylib": "911144c79a8f1cf46ae0a08215cc4488a5dce70f8986f2d3da1d1095d18176c0"
+      },
+      "public_readback": {
+        "completed": true,
+        "scope": "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host",
+        "language": "Swift",
+        "release_claim_eligible": false,
+        "scenarios": [
+          "local-fixed",
+          "local-recoverable",
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "public_readbacks": {
+          "local-fixed/unknown.bin": "310dade543e296ccf3af97ed859b018a91eab490ed7c6a12acc5a136cd88fe69",
+          "local-fixed/effect.bin": "74555f8cc05b90738a8ac80c0c87b9b606d78598538246ce13b3b2cb710e98b6",
+          "local-fixed/replayed.bin": "102342371ee0a6ce3fedd3a1cfe0519b3a4fed2c8a9e15a91ffcfcde5732e9ab",
+          "local-fixed/request.bin": "102342371ee0a6ce3fedd3a1cfe0519b3a4fed2c8a9e15a91ffcfcde5732e9ab",
+          "local-fixed/intent.bin": "55f4dc9f240ef6ec328a2668e123afed78b8f7b6ad407bd6f68674257f6bd15c",
+          "local-fixed/after-traffic.bin": "102342371ee0a6ce3fedd3a1cfe0519b3a4fed2c8a9e15a91ffcfcde5732e9ab",
+          "local-fixed/session.bin": "b2511c21035807b03e6d8cda2eda7f7e4eb34dd8d4a41b44137722b4e91908e1",
+          "local-fixed/root.bin": "90ec03a3cf127f0127f43329b27af7ff8bfe3e5b8135ad8360e0efe21fb4541c",
+          "local-fixed/manifest.json": "cad16a04072c4779d31e87a6b5d6057e4c0c3b3302dce7b3a4bcae9b0b9822f4",
+          "local-fixed/acknowledged.bin": "310dade543e296ccf3af97ed859b018a91eab490ed7c6a12acc5a136cd88fe69",
+          "local-recoverable/unknown.bin": "cd97a76fd373473c0fbed0e152c898919c686eda8cbd9d230449dea926513f2c",
+          "local-recoverable/effect.bin": "966bb188c80a3e86b1f206f822feeaae6126a8996a5ccbc15fae9cd4fe9eec8a",
+          "local-recoverable/replayed.bin": "9139758b71bcf049fb53b359e85b0e7da1762bdf934a76395cf7bdac69fb490f",
+          "local-recoverable/request.bin": "9139758b71bcf049fb53b359e85b0e7da1762bdf934a76395cf7bdac69fb490f",
+          "local-recoverable/intent.bin": "2071feb1327c9bf904f9d82d2d00263d3aac6a11e9419c06576cdd604438d102",
+          "local-recoverable/after-traffic.bin": "9139758b71bcf049fb53b359e85b0e7da1762bdf934a76395cf7bdac69fb490f",
+          "local-recoverable/session.bin": "cbfa9bcc268c48944a02265d98e72aff55b687fdf4c089688a2b81e5bfc24c7d",
+          "local-recoverable/root.bin": "640ee67125b4d4c2d0d2851f8ec2e028a0507b6bb08ba3d32252aac81d41562a",
+          "local-recoverable/manifest.json": "0048db0c1cc9310de5248bc7a8fb46278abb08129682ff3729aeeac8b3d56d3c",
+          "local-recoverable/acknowledged.bin": "cd97a76fd373473c0fbed0e152c898919c686eda8cbd9d230449dea926513f2c",
+          "signed-fixed/replayed.bin": "e79bbe49752981134f84f5c1e0b1040fadcc8db0aabb56933feaeaa75408a6b1",
+          "signed-fixed/root.bin": "1571cecf0a4bd015d41a5aced0884211e31fa056ab9b9f021767bc7db5c88066",
+          "signed-fixed/manifest.json": "5c2e4645d8935183b8addc41e05f117d69041e9259474b2db1d1f5df0f0a6f7e",
+          "signed-fixed/request.bin": "e79bbe49752981134f84f5c1e0b1040fadcc8db0aabb56933feaeaa75408a6b1",
+          "signed-fixed/genesis.bin": "d4afe5b15cd7c1088598142c1e895cbf9cad418b467b0a5801266d3f472ba523",
+          "signed-fixed/intent.bin": "94660952a5e80776e46247620375362746a1e07e0738e6053dcc16e90d4a9539",
+          "signed-recoverable/replayed.bin": "0286a09925ba643333545197e7560a9eb900712d538a0c1c180b8fd3a4096c09",
+          "signed-recoverable/root.bin": "1003b8f75b284d775e5b5d8c397a07132dc3ccb9cf29debd18f18e9265a994e7",
+          "signed-recoverable/manifest.json": "e1611336509e4781dae05e0d22e8195486edd50602616f625cf13da7f617b592",
+          "signed-recoverable/request.bin": "0286a09925ba643333545197e7560a9eb900712d538a0c1c180b8fd3a4096c09",
+          "signed-recoverable/genesis.bin": "3fe085f6306aa5672f79f842fcded09517aca8211e8602e2c8c5eab3b11a2ca9",
+          "signed-recoverable/intent.bin": "e23fef26c4a3df2420cf32978b1cd9881fbe93229c43e8cbdeaca4793fc05abd",
+          "tls-fixed/replayed.bin": "c729c78060bc8ae594af2e0a8544fb4ec2b4c1370a6c9d9e52098198c8a8a704",
+          "tls-fixed/root.bin": "c85f5a33fa1295579fbc4d4424d6556159f10d03720d1380d5099a850c5e7827",
+          "tls-fixed/manifest.json": "556f97866666838e7a6e9e661cff97e46b80f8fd24bc99740bb8ae5a13152dc0",
+          "tls-fixed/request.bin": "c729c78060bc8ae594af2e0a8544fb4ec2b4c1370a6c9d9e52098198c8a8a704",
+          "tls-fixed/genesis.bin": "b98b5974ea0404fbaa89eac2933bc2e2fd7a69c497c615ffe0ae2df677d502cd",
+          "tls-fixed/intent.bin": "6bb55d4ee8fe56b42fb56fad0b07bc7fc6cef4758fa7d85f5a96646e844e5497",
+          "tls-recoverable/replayed.bin": "cc6e1861b1a6b120618a61cb141496185c6b1ecbb123c39aae9d684dede76891",
+          "tls-recoverable/root.bin": "aa23f286fd36e0d3c0038aa037dbd79c7f6f5b7caa9e8a4f024e08abea13fe8d",
+          "tls-recoverable/manifest.json": "76ffc412796f94b9e20623162ac52ba7c2b7dedea0d260946b8bd1426985e2c6",
+          "tls-recoverable/request.bin": "cc6e1861b1a6b120618a61cb141496185c6b1ecbb123c39aae9d684dede76891",
+          "tls-recoverable/genesis.bin": "c6c794315ec5b6ed9af7be0288405b972eda27ddfa2b9ebe497397c533df7b41",
+          "tls-recoverable/intent.bin": "542f1245e36387b309f530471430076de721a5e0230271c7eeafee53b7c25758"
+        },
+        "local_connection_recovery_profiles": [
+          "fixed",
+          "recoverable"
+        ],
+        "witnessed_connection_composition": false,
+        "extra_owner_cases": true,
+        "signature_verification": "shared native execution only"
+      },
+      "commands": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--release",
+        "--test",
+        "first_configuration",
+        "--",
+        "independent_c_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 78.40839533391409
+    },
+    {
+      "name": "kotlin-composition-debug-g1-02",
+      "language": "Kotlin",
+      "profile": "debug",
+      "collector": "G1",
+      "source_unchanged": true,
+      "binary_identity": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/kotlin-composition-debug-g1-02/client": "77d43f1b90ac1e4179d0dc08a84cd730b9fc73e6335a954a852262edee260e8a",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-configuration-current/external-debug-04/installed/libq_periapt_continuity_c_consumer.dylib": "6725d3f0f1d0c456a73a36a1433f0fda9718f036050ad85bf06c7650986d78aa",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home/bin/java": "83c9c5310d044e7c4262432854eb1bc5f49763d7c1e9971777a646c91b96c06d",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "d9bb8e8c71ebfe5d3b51ecc1448f87cc78b8acaaaa6cc0d1b22bab1c901f5b30",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "07648f9c32dbe9c1c24a8c57dc15e25b6b58bc957eaef0c3bfa9dfc328821765"
+      },
+      "public_readback": {
+        "completed": true,
+        "scope": "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host",
+        "language": "Kotlin",
+        "release_claim_eligible": false,
+        "scenarios": [
+          "local-fixed",
+          "local-recoverable",
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "public_readbacks": {
+          "local-fixed/unknown.bin": "7c578953772c6a57fbcb4c09efd4535fbc1d98777f3a6d31ad326db8e590146d",
+          "local-fixed/effect.bin": "e0e37b71c55bf4f7a361ed3ec471d012496814b1f51b85a3633b0a835ac3ec05",
+          "local-fixed/replayed.bin": "312b0090a98b829e0736d73e553baf7f256213f2a3288f6dd2b538f62cf09484",
+          "local-fixed/request.bin": "312b0090a98b829e0736d73e553baf7f256213f2a3288f6dd2b538f62cf09484",
+          "local-fixed/intent.bin": "e1ae0953d26cc40bea363d3c4eccadaa499cbde2ef352638217d96c03d694ba2",
+          "local-fixed/after-traffic.bin": "312b0090a98b829e0736d73e553baf7f256213f2a3288f6dd2b538f62cf09484",
+          "local-fixed/session.bin": "50ff839309a10a40846ac33d8d25b0540536abd73ef2397c6b1c5ae767cff3e2",
+          "local-fixed/root.bin": "22de9722406f74e502bfddadb3c55b8d8e4a0b099d18e915287d11ad6fc7da57",
+          "local-fixed/manifest.json": "68e3d6b131be9edc90a00cce2dffbbaad057f7e52720dd080e8c5838fbf227b5",
+          "local-fixed/acknowledged.bin": "7c578953772c6a57fbcb4c09efd4535fbc1d98777f3a6d31ad326db8e590146d",
+          "local-recoverable/unknown.bin": "962011e65b4e82199f02fd41bce42808e3d9b0875f3b6f773656259e473c3d7c",
+          "local-recoverable/effect.bin": "df4c5535020414162f52f5671322c3e50fd23d57a927a7c529347959df6283a4",
+          "local-recoverable/replayed.bin": "ed91d665557d1acada0c0bb9ddd21826ba9be6c7d749728d7f67d75bcb23ad36",
+          "local-recoverable/request.bin": "ed91d665557d1acada0c0bb9ddd21826ba9be6c7d749728d7f67d75bcb23ad36",
+          "local-recoverable/intent.bin": "d32a5404d874646b5812726af47160a46abd776e9cd39973190b4db567eab6a9",
+          "local-recoverable/after-traffic.bin": "ed91d665557d1acada0c0bb9ddd21826ba9be6c7d749728d7f67d75bcb23ad36",
+          "local-recoverable/session.bin": "aa416bbb853d9d7f0a2920605387c68aeffe39e6e7fd8cd340420b7cde7dbf2b",
+          "local-recoverable/root.bin": "a3097b4e1fcf64c9e65f5a2a7d90d479c2537e2127c6f9f387e7cdfba589a0be",
+          "local-recoverable/manifest.json": "c02c4771fb509f1c977d589fc622c824672ec1c04e135a9ae25e00249df87e3a",
+          "local-recoverable/acknowledged.bin": "962011e65b4e82199f02fd41bce42808e3d9b0875f3b6f773656259e473c3d7c",
+          "signed-fixed/replayed.bin": "3e8d987fcd4c90fb3d2754fa8589a5704b1e1d1251c4f4851d5bd268c8bbe914",
+          "signed-fixed/root.bin": "9684c1bd2e3e1dc06904f30e076ff6d12b6d04a380d95ad2b044c1f2eda7fdd5",
+          "signed-fixed/manifest.json": "f29dfb39cdea28338cddae4f3ad608f816d77411d7428f2c46f9d857ddeff677",
+          "signed-fixed/request.bin": "3e8d987fcd4c90fb3d2754fa8589a5704b1e1d1251c4f4851d5bd268c8bbe914",
+          "signed-fixed/genesis.bin": "ed0e75d03381ff92840711088a043ea714ff4789e50bb741b6d5a15d8d060f7a",
+          "signed-fixed/intent.bin": "bb633b1b84a552d14150a0347fb8789a4096b8d1682a022df34bc9176d53e9a3",
+          "signed-recoverable/replayed.bin": "b9433286c48ba56896a39f155deb46a0245137030dcdae905035e2482414f30d",
+          "signed-recoverable/root.bin": "8aaf3569a91be30bf248427b28a67f3166803a18ff6a8254a01e0af06e63f621",
+          "signed-recoverable/manifest.json": "3d5b751ede4be2f7ca86fc8410d3812dca690d76ae69c6d295c63bbbaf2ddf70",
+          "signed-recoverable/request.bin": "b9433286c48ba56896a39f155deb46a0245137030dcdae905035e2482414f30d",
+          "signed-recoverable/genesis.bin": "4a795d063781b3b5b79a6bd1b9fda61a2e620a66d6c3d8592aba72131a70098e",
+          "signed-recoverable/intent.bin": "afadf17e5b89009a86400aae66214a931d68f8fc5075568ca75d1f66e35022ae",
+          "tls-fixed/replayed.bin": "0803f2ea91c33d327391570eace421fef795693919fd49c86301a0ee2fda31cd",
+          "tls-fixed/root.bin": "60cccb31167007098becb32275645a54b064a1e525e4f1f40c11d8f78e76d3fb",
+          "tls-fixed/manifest.json": "a4eae9151dbae5e9992d3b5991c3a3f002374f6bdc611fe4b4de7c7fdbc47d9c",
+          "tls-fixed/request.bin": "0803f2ea91c33d327391570eace421fef795693919fd49c86301a0ee2fda31cd",
+          "tls-fixed/genesis.bin": "3aff50b7a689ac867ea3bc0dfe8e65945202070075fa548663acda9e6116379d",
+          "tls-fixed/intent.bin": "5361180cfc8c433ef7331a38543c1b3ca29eee0cbc39eb591cec6065d345fbec",
+          "tls-recoverable/replayed.bin": "d513b29a657afa8364d25d893d67af53d187f9006343dca72676b606532a80ed",
+          "tls-recoverable/root.bin": "b7e19fd0c18d5f3de780419478030b74afd978b6441401719e3983305332c1ce",
+          "tls-recoverable/manifest.json": "ec15ac27ae277348d4123d10c6a99b35f32012c126c78ca9c80c478775db13b3",
+          "tls-recoverable/request.bin": "d513b29a657afa8364d25d893d67af53d187f9006343dca72676b606532a80ed",
+          "tls-recoverable/genesis.bin": "7aff1f5596d231452007721edce10834c88d2c00e73289d3328055b80294193c",
+          "tls-recoverable/intent.bin": "0dea79f1f15f2521a1d7171274755101c82b643c292d5e1268fd60319bb2eed3"
+        },
+        "local_connection_recovery_profiles": [
+          "fixed",
+          "recoverable"
+        ],
+        "witnessed_connection_composition": false,
+        "extra_owner_cases": true,
+        "signature_verification": "shared native execution only"
+      },
+      "commands": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--test",
+        "first_configuration",
+        "--",
+        "independent_c_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 39.443983792094514
+    },
+    {
+      "name": "kotlin-composition-debug-serial-02",
+      "language": "Kotlin",
+      "profile": "debug",
+      "collector": "Serial",
+      "source_unchanged": true,
+      "binary_identity": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/kotlin-composition-debug-serial-02/client": "34da83a4e8bc41a5cf5f95a114b0323b064724abebadf86b7e9bd308fa9c6b2c",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-configuration-current/external-debug-04/installed/libq_periapt_continuity_c_consumer.dylib": "6725d3f0f1d0c456a73a36a1433f0fda9718f036050ad85bf06c7650986d78aa",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home/bin/java": "83c9c5310d044e7c4262432854eb1bc5f49763d7c1e9971777a646c91b96c06d",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "d9bb8e8c71ebfe5d3b51ecc1448f87cc78b8acaaaa6cc0d1b22bab1c901f5b30",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "07648f9c32dbe9c1c24a8c57dc15e25b6b58bc957eaef0c3bfa9dfc328821765"
+      },
+      "public_readback": {
+        "completed": true,
+        "scope": "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host",
+        "language": "Kotlin",
+        "release_claim_eligible": false,
+        "scenarios": [
+          "local-fixed",
+          "local-recoverable",
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "public_readbacks": {
+          "local-fixed/unknown.bin": "a78aa12e248fc85289e54716c4b716729cd096e98b700843c37fd7eebf3f481c",
+          "local-fixed/effect.bin": "efdbf9a81865693ab3772d505bfd75f4eae0ff404ce1e41fc19d026bcd0fa799",
+          "local-fixed/replayed.bin": "bdaa2ac347572c317429c7f9b17b6be6ee81634c057a16b4a4dc1a52f17aff62",
+          "local-fixed/request.bin": "bdaa2ac347572c317429c7f9b17b6be6ee81634c057a16b4a4dc1a52f17aff62",
+          "local-fixed/intent.bin": "e5886569c62231f85d7c0bef9b0b509fddbeb4682a6d27eeee06c4538f8f0b97",
+          "local-fixed/after-traffic.bin": "bdaa2ac347572c317429c7f9b17b6be6ee81634c057a16b4a4dc1a52f17aff62",
+          "local-fixed/session.bin": "ea3992a195895603f9d938b98e640c28806d59548a06bd85ebb75477025499de",
+          "local-fixed/root.bin": "3b0ed8b50569159187222fa505d285323cb07856dd7ce4f71ff3a4dd0d1d68ce",
+          "local-fixed/manifest.json": "68e3d6b131be9edc90a00cce2dffbbaad057f7e52720dd080e8c5838fbf227b5",
+          "local-fixed/acknowledged.bin": "a78aa12e248fc85289e54716c4b716729cd096e98b700843c37fd7eebf3f481c",
+          "local-recoverable/unknown.bin": "c558a1b719e85307b17f06e7f4577f6e8af40053c1bda69efa9b3b9d245d133b",
+          "local-recoverable/effect.bin": "5a78c1b534bbe53ae3b7d67c64a48112018969ffa915ea6265cd0347ed88d08e",
+          "local-recoverable/replayed.bin": "af8ed471adaefb075f33cb65d08ade1ba1fba563cce33e86eecae3e6f7950580",
+          "local-recoverable/request.bin": "af8ed471adaefb075f33cb65d08ade1ba1fba563cce33e86eecae3e6f7950580",
+          "local-recoverable/intent.bin": "bc2da8297410285e8a94009e554f97b06259e9d9ffa32b5017439063b60901b7",
+          "local-recoverable/after-traffic.bin": "af8ed471adaefb075f33cb65d08ade1ba1fba563cce33e86eecae3e6f7950580",
+          "local-recoverable/session.bin": "4cf75039c432d9fb4573e804f8f9bbbaada3d4eca31137d1b9b0e064258643a9",
+          "local-recoverable/root.bin": "f75a7cfcd8b7a736eccc118ecd3df2bf2ab19e3fe0ddc2fdadb3b0c7f32e6b69",
+          "local-recoverable/manifest.json": "c02c4771fb509f1c977d589fc622c824672ec1c04e135a9ae25e00249df87e3a",
+          "local-recoverable/acknowledged.bin": "c558a1b719e85307b17f06e7f4577f6e8af40053c1bda69efa9b3b9d245d133b",
+          "signed-fixed/replayed.bin": "bfcb3210d056fae40f78c1fffca6fbd7278af38c8e4199ac6cb15553b79f5145",
+          "signed-fixed/root.bin": "cc8e8aaa77005c889835989b7f1e17bfeac3e3491704c8f60c0fab55abad3e7c",
+          "signed-fixed/manifest.json": "f29dfb39cdea28338cddae4f3ad608f816d77411d7428f2c46f9d857ddeff677",
+          "signed-fixed/request.bin": "bfcb3210d056fae40f78c1fffca6fbd7278af38c8e4199ac6cb15553b79f5145",
+          "signed-fixed/genesis.bin": "890848eb27fe0c9991f13064a26d92533e9a8a9cb73db3c0532b51f61fd8bd3e",
+          "signed-fixed/intent.bin": "caff886f3582d877953ae956a4a72fdbbb2d7e7f42553f9b879e0852c836d8a1",
+          "signed-recoverable/replayed.bin": "7d97d26d1b97fbf5e0b18d9746997880f1f1b69fbb77f43641d3737186998111",
+          "signed-recoverable/root.bin": "e49978249fc4f9a0aa224475ec354f51cec619e9ba7c6f63a9460e1470792828",
+          "signed-recoverable/manifest.json": "3d5b751ede4be2f7ca86fc8410d3812dca690d76ae69c6d295c63bbbaf2ddf70",
+          "signed-recoverable/request.bin": "7d97d26d1b97fbf5e0b18d9746997880f1f1b69fbb77f43641d3737186998111",
+          "signed-recoverable/genesis.bin": "262135163f9134765cbb798c86adcf620dba569a7759dc36df5e86035986ddc7",
+          "signed-recoverable/intent.bin": "818dd4f88099ca5f6c95f6f295e4372ed792b832ac87a9bc67d6da255e3d708c",
+          "tls-fixed/replayed.bin": "5c38de0567df026cb0965677971208070aa4141f48bc00703a58f2f4bf52fca0",
+          "tls-fixed/root.bin": "d716e17c9319c53bae7a1fde532b47efed17fcd2febc89436395cc082eeac0b2",
+          "tls-fixed/manifest.json": "a4eae9151dbae5e9992d3b5991c3a3f002374f6bdc611fe4b4de7c7fdbc47d9c",
+          "tls-fixed/request.bin": "5c38de0567df026cb0965677971208070aa4141f48bc00703a58f2f4bf52fca0",
+          "tls-fixed/genesis.bin": "49b104fb48e917a8680e8eb1457e0cf11569c7e319627036cd1c2cbb67a9dd9e",
+          "tls-fixed/intent.bin": "92e763b2622960993cf986587c63bca0500980a58082cc1d37c15a7fc854599d",
+          "tls-recoverable/replayed.bin": "db1ca39f1c90e6d11b585fbf3736222008126d6732db92a6957b63d241bc75b3",
+          "tls-recoverable/root.bin": "991b9a7c3beda312e7d973281b086165fbbec53fc863c929afa8d4ecefc32545",
+          "tls-recoverable/manifest.json": "ec15ac27ae277348d4123d10c6a99b35f32012c126c78ca9c80c478775db13b3",
+          "tls-recoverable/request.bin": "db1ca39f1c90e6d11b585fbf3736222008126d6732db92a6957b63d241bc75b3",
+          "tls-recoverable/genesis.bin": "9d8e8edeac9458f796240fa663c1b1e5d3fccf675fe8ef384c983beca7937c1a",
+          "tls-recoverable/intent.bin": "8bb01da122697f3aca9deafc73c1a7e0983b7c8e7cfeb8106db9481043b30c13"
+        },
+        "local_connection_recovery_profiles": [
+          "fixed",
+          "recoverable"
+        ],
+        "witnessed_connection_composition": false,
+        "extra_owner_cases": true,
+        "signature_verification": "shared native execution only"
+      },
+      "commands": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--test",
+        "first_configuration",
+        "--",
+        "independent_c_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 36.19639541604556
+    },
+    {
+      "name": "kotlin-composition-release-g1-01",
+      "language": "Kotlin",
+      "profile": "release",
+      "collector": "G1",
+      "source_unchanged": true,
+      "binary_identity": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/kotlin-composition-release-g1-01/client": "b953ec89f0870ee4c97294168544b28cf6c870d2456b244ec6e723413262fd9d",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-configuration-current/external-release-01/installed/libq_periapt_continuity_c_consumer.dylib": "911144c79a8f1cf46ae0a08215cc4488a5dce70f8986f2d3da1d1095d18176c0",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home/bin/java": "83c9c5310d044e7c4262432854eb1bc5f49763d7c1e9971777a646c91b96c06d",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "d9bb8e8c71ebfe5d3b51ecc1448f87cc78b8acaaaa6cc0d1b22bab1c901f5b30",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "07648f9c32dbe9c1c24a8c57dc15e25b6b58bc957eaef0c3bfa9dfc328821765"
+      },
+      "public_readback": {
+        "completed": true,
+        "scope": "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host",
+        "language": "Kotlin",
+        "release_claim_eligible": false,
+        "scenarios": [
+          "local-fixed",
+          "local-recoverable",
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "public_readbacks": {
+          "local-fixed/unknown.bin": "794da93bbf743f569fd563583b7dce36cad8587d0ac8d5e1623d1718a1f7e662",
+          "local-fixed/effect.bin": "4aadc464677ae8054120fe3ccddf052610d806bf6fb54d1d8c0d7ff42b768c6b",
+          "local-fixed/replayed.bin": "4af3701382e62ac084f00da366a8f7d6a5386205b1eb31124a7a9b251521c5af",
+          "local-fixed/request.bin": "4af3701382e62ac084f00da366a8f7d6a5386205b1eb31124a7a9b251521c5af",
+          "local-fixed/intent.bin": "a04761afca522b05714bc15304ab0c4dd8287678f2804e2da1324ae2377bd5ec",
+          "local-fixed/after-traffic.bin": "4af3701382e62ac084f00da366a8f7d6a5386205b1eb31124a7a9b251521c5af",
+          "local-fixed/session.bin": "bf122c4fad7493faaaff4ffaf72cc8f1704873df7cdb2994b34d678cfda21513",
+          "local-fixed/root.bin": "479bfaaf36bd8329b11cbcc01d3fefd84bba46bc2cb9985041d3b618179027a3",
+          "local-fixed/manifest.json": "68e3d6b131be9edc90a00cce2dffbbaad057f7e52720dd080e8c5838fbf227b5",
+          "local-fixed/acknowledged.bin": "794da93bbf743f569fd563583b7dce36cad8587d0ac8d5e1623d1718a1f7e662",
+          "local-recoverable/unknown.bin": "ad5bd93db4bcb43fbb9866be17825b75432be6d3d983933a2e36765cdb56b87b",
+          "local-recoverable/effect.bin": "676d35585910b7699fa58ca3754a03f82214b7f411ac1f4626ccdf4f7988fa0c",
+          "local-recoverable/replayed.bin": "b0e236a4d6ff97b4daa9f592c10c4b8c69ef0269fdbd551dcffc716d2284c70b",
+          "local-recoverable/request.bin": "b0e236a4d6ff97b4daa9f592c10c4b8c69ef0269fdbd551dcffc716d2284c70b",
+          "local-recoverable/intent.bin": "f5717040b89e6a2f5ca1a7bdfdc39966cec513bde357280fdb0582487bf54505",
+          "local-recoverable/after-traffic.bin": "b0e236a4d6ff97b4daa9f592c10c4b8c69ef0269fdbd551dcffc716d2284c70b",
+          "local-recoverable/session.bin": "fe527295930544a999bc4b0128b1808549b6d9185744f90f69374adf5610b633",
+          "local-recoverable/root.bin": "e169bfd2c434afd33c7f7ce0b016b155951c9444fd6c0ad3d2941eeb12b5fd8e",
+          "local-recoverable/manifest.json": "c02c4771fb509f1c977d589fc622c824672ec1c04e135a9ae25e00249df87e3a",
+          "local-recoverable/acknowledged.bin": "ad5bd93db4bcb43fbb9866be17825b75432be6d3d983933a2e36765cdb56b87b",
+          "signed-fixed/replayed.bin": "d52123054a704c0069f022dc1d3dcdb4abfca94905e571c4fdc13ca763c89831",
+          "signed-fixed/root.bin": "8d3213fc71d01d2038783d3f47a1ca11e00834011f9db7189be62f1c0b172b29",
+          "signed-fixed/manifest.json": "f29dfb39cdea28338cddae4f3ad608f816d77411d7428f2c46f9d857ddeff677",
+          "signed-fixed/request.bin": "d52123054a704c0069f022dc1d3dcdb4abfca94905e571c4fdc13ca763c89831",
+          "signed-fixed/genesis.bin": "c6eaa95bfc75186f60851e2030e4b8ce4b63df4304e54e3709cb8919c85ef74b",
+          "signed-fixed/intent.bin": "a7f6d09ee2867c41d51347de3c86c4a154999b0b49ba608f62ad6f321455f8f8",
+          "signed-recoverable/replayed.bin": "fbcc6535329d439b2e86bbfdcd624b208f099089e050e97d3e3a35ed00d7f043",
+          "signed-recoverable/root.bin": "e40ff7019545b9c7170357dfe0783066c046ac34ad696d24314e240587b5f2ae",
+          "signed-recoverable/manifest.json": "3d5b751ede4be2f7ca86fc8410d3812dca690d76ae69c6d295c63bbbaf2ddf70",
+          "signed-recoverable/request.bin": "fbcc6535329d439b2e86bbfdcd624b208f099089e050e97d3e3a35ed00d7f043",
+          "signed-recoverable/genesis.bin": "7ef933b2b0688f0001d36de402bc60d563a6b9ca231e571fd44f5e457a809c16",
+          "signed-recoverable/intent.bin": "696c02ffaf046141ffc3a280c737380313fb70b531341efc21b081f3350a2945",
+          "tls-fixed/replayed.bin": "021fece3dc7c21f7f68145a01fa8d15bfda3e206f29f44d5874db23cddafb183",
+          "tls-fixed/root.bin": "4996c07e0078b551b81b7d278a21aa9c8d15d0d1a92a19c68afda068cd950da3",
+          "tls-fixed/manifest.json": "a4eae9151dbae5e9992d3b5991c3a3f002374f6bdc611fe4b4de7c7fdbc47d9c",
+          "tls-fixed/request.bin": "021fece3dc7c21f7f68145a01fa8d15bfda3e206f29f44d5874db23cddafb183",
+          "tls-fixed/genesis.bin": "7699b96025c653fa6314bb3162a9354c888366fc86e84827f0b558ca38dc106a",
+          "tls-fixed/intent.bin": "3c41a1a009d3b5112f39d4fc2e3b28d214e2f15b9c3bd607c3b541ac62f82766",
+          "tls-recoverable/replayed.bin": "97ea8c2c5604ecdc6c459b0ac3e28b10b90551fb9122c4f8af9f18a794887903",
+          "tls-recoverable/root.bin": "2e47ad14abb9b77194c0ce18051ae28c1cb69680ee416df37f7551f152349312",
+          "tls-recoverable/manifest.json": "ec15ac27ae277348d4123d10c6a99b35f32012c126c78ca9c80c478775db13b3",
+          "tls-recoverable/request.bin": "97ea8c2c5604ecdc6c459b0ac3e28b10b90551fb9122c4f8af9f18a794887903",
+          "tls-recoverable/genesis.bin": "f1d9f4780b292ec9e1e0252e45e18979049ecf71a73515feab5eccd0106eeb1e",
+          "tls-recoverable/intent.bin": "f160971cb5b657d93859e852dcc8ab154006eaff4116c32db9703ea1c7678f12"
+        },
+        "local_connection_recovery_profiles": [
+          "fixed",
+          "recoverable"
+        ],
+        "witnessed_connection_composition": false,
+        "extra_owner_cases": true,
+        "signature_verification": "shared native execution only"
+      },
+      "commands": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--release",
+        "--test",
+        "first_configuration",
+        "--",
+        "independent_c_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 111.44892208394594
+    },
+    {
+      "name": "kotlin-composition-release-serial-01",
+      "language": "Kotlin",
+      "profile": "release",
+      "collector": "Serial",
+      "source_unchanged": true,
+      "binary_identity": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/kotlin-composition-release-serial-01/client": "3a4c4cfd4bfee3954fc79e089f7a2bb3245c76e220bad0707cc8314d2b7eaaa6",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/peer-configuration-current/external-release-01/installed/libq_periapt_continuity_c_consumer.dylib": "911144c79a8f1cf46ae0a08215cc4488a5dce70f8986f2d3da1d1095d18176c0",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/continuity-kotlin-development/toolchains/installed/jdk-25.0.4.1+1/Contents/Home/bin/java": "83c9c5310d044e7c4262432854eb1bc5f49763d7c1e9971777a646c91b96c06d",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/continuity-installed-consumer.jar": "d9bb8e8c71ebfe5d3b51ecc1448f87cc78b8acaaaa6cc0d1b22bab1c901f5b30",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/kotlin-stdlib-2.4.20.jar": "2226de463d309d4a5500a481320b3dea515a6981dcae1def531fbc158884e25f",
+        "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-first-connection-kotlin-a166uoxz/consumer/build/install/continuity-installed-consumer/lib/q-periapt-continuity-kotlin-0.0.0.jar": "07648f9c32dbe9c1c24a8c57dc15e25b6b58bc957eaef0c3bfa9dfc328821765"
+      },
+      "public_readback": {
+        "completed": true,
+        "scope": "unpublished explicit configuration, independent host trust and original registration; installed foreign process and shared native Rust engine; same host",
+        "language": "Kotlin",
+        "release_claim_eligible": false,
+        "scenarios": [
+          "local-fixed",
+          "local-recoverable",
+          "signed-fixed",
+          "signed-recoverable",
+          "tls-fixed",
+          "tls-recoverable"
+        ],
+        "public_readbacks": {
+          "local-fixed/unknown.bin": "cb0a175a34c1bc73505f217b20af605f14fe34558492ef5de50f46dd187aac8c",
+          "local-fixed/effect.bin": "be22a4aca0e7ccfa702d7d351b19e8ef924ead231fec4413af45e9a9244442a6",
+          "local-fixed/replayed.bin": "bd90fab06471847b4a67be3d76051e61bc89aa20d9fd3dbadd258dedb1a75c90",
+          "local-fixed/request.bin": "bd90fab06471847b4a67be3d76051e61bc89aa20d9fd3dbadd258dedb1a75c90",
+          "local-fixed/intent.bin": "cbcfb03b936c43f507b8fb8f8780646abad61014bd94951ecbf6a4e115eddb07",
+          "local-fixed/after-traffic.bin": "bd90fab06471847b4a67be3d76051e61bc89aa20d9fd3dbadd258dedb1a75c90",
+          "local-fixed/session.bin": "519183412db5003f0e742116054e365c407888a4a9c5d35e0e99bd38fe2f49b9",
+          "local-fixed/root.bin": "b648e08d96e0f4aec54367e029cf528dd50bd1a075fc58248d64cfa3a8da1e36",
+          "local-fixed/manifest.json": "68e3d6b131be9edc90a00cce2dffbbaad057f7e52720dd080e8c5838fbf227b5",
+          "local-fixed/acknowledged.bin": "cb0a175a34c1bc73505f217b20af605f14fe34558492ef5de50f46dd187aac8c",
+          "local-recoverable/unknown.bin": "8e36b03e2af12003ef45a72d1129b9704d2123624a6c964c3c116bea0b155a72",
+          "local-recoverable/effect.bin": "9b0741d27fba08258798572950b5718fbfadc1b098fbf7d59eced41af4831387",
+          "local-recoverable/replayed.bin": "77261bdf9ee3ffb82365bf67fb024e3e95dd785ac8f7af205a213fa2ee97284e",
+          "local-recoverable/request.bin": "77261bdf9ee3ffb82365bf67fb024e3e95dd785ac8f7af205a213fa2ee97284e",
+          "local-recoverable/intent.bin": "bd0212ce838d0097981e0ff805ee80d35aefdef445a2e6066b0dc17473465794",
+          "local-recoverable/after-traffic.bin": "77261bdf9ee3ffb82365bf67fb024e3e95dd785ac8f7af205a213fa2ee97284e",
+          "local-recoverable/session.bin": "cff674fa34d79bd98c17ec91c5c69d3f8cd0287126e15346ba027d730dc31f2a",
+          "local-recoverable/root.bin": "a52237654ea821db58ae33fc9ef4b1de2cba94fd50ea38ceb12fb0831631e278",
+          "local-recoverable/manifest.json": "c02c4771fb509f1c977d589fc622c824672ec1c04e135a9ae25e00249df87e3a",
+          "local-recoverable/acknowledged.bin": "8e36b03e2af12003ef45a72d1129b9704d2123624a6c964c3c116bea0b155a72",
+          "signed-fixed/replayed.bin": "9e5ee2d0d5d958f532381810abd8e7426fe387aab9c78c35e5725979ecfc56cb",
+          "signed-fixed/root.bin": "734e25d6f74fb2ba4f6c633b44ac238d5ed5ca7bc2982ef4ed6341253a5bd770",
+          "signed-fixed/manifest.json": "f29dfb39cdea28338cddae4f3ad608f816d77411d7428f2c46f9d857ddeff677",
+          "signed-fixed/request.bin": "9e5ee2d0d5d958f532381810abd8e7426fe387aab9c78c35e5725979ecfc56cb",
+          "signed-fixed/genesis.bin": "d1156e34026fe8826a8868bd03479faf585719b9eff7ca99934498586fd23920",
+          "signed-fixed/intent.bin": "250f4d53c16217bc51cce891a9694700b9007387895dab954bdbb4a2b39bc606",
+          "signed-recoverable/replayed.bin": "8de29c9df30d9f402c4bc9c9d0bca71c389dc95813abe03ef134d66257a5bdb1",
+          "signed-recoverable/root.bin": "78b7932584e09cd5639aeb13acbb2d8307576fbb446548f8c8f7fcfdbfbed922",
+          "signed-recoverable/manifest.json": "3d5b751ede4be2f7ca86fc8410d3812dca690d76ae69c6d295c63bbbaf2ddf70",
+          "signed-recoverable/request.bin": "8de29c9df30d9f402c4bc9c9d0bca71c389dc95813abe03ef134d66257a5bdb1",
+          "signed-recoverable/genesis.bin": "4a28be2bc96779b6de8397cabc664e03636a0a518c241c41634a10089b876e11",
+          "signed-recoverable/intent.bin": "5c4e51bdef6ca1aaf7f09ae054730571d8ff382539457f37d114631ae2909f2d",
+          "tls-fixed/replayed.bin": "2811ec1ced40ac9001fb4abf9794e07ac61e70a16ba30463d03a8ec73bd3c0c1",
+          "tls-fixed/root.bin": "bc51cb388e7a4f8b35297a8d101216ddafee7737d7e2f53a606906c0f6cd16f9",
+          "tls-fixed/manifest.json": "a4eae9151dbae5e9992d3b5991c3a3f002374f6bdc611fe4b4de7c7fdbc47d9c",
+          "tls-fixed/request.bin": "2811ec1ced40ac9001fb4abf9794e07ac61e70a16ba30463d03a8ec73bd3c0c1",
+          "tls-fixed/genesis.bin": "6a7fb35234b023e11fb0e7fb505112a54337e02d49fab065e7453ca24f0c938a",
+          "tls-fixed/intent.bin": "faa4c95ead027e884cd066ba9399b912c6096dd6172af6c84d7f375e8fd72271",
+          "tls-recoverable/replayed.bin": "6e8aebd47665e5a6a242ebb2f315bf0feb87d02e1e1547231e6493b250632dba",
+          "tls-recoverable/root.bin": "78699dd4b85fcee9b8085fb71bbb569d0b8d6f9d7f94c953c64e41086e342b04",
+          "tls-recoverable/manifest.json": "ec15ac27ae277348d4123d10c6a99b35f32012c126c78ca9c80c478775db13b3",
+          "tls-recoverable/request.bin": "6e8aebd47665e5a6a242ebb2f315bf0feb87d02e1e1547231e6493b250632dba",
+          "tls-recoverable/genesis.bin": "b682903d2193d8f7c00d2ff04a1388dbf26eb417f93271ce56598c3012947c88",
+          "tls-recoverable/intent.bin": "25d19e03449efae6c85841fbae76aabf7c2b310ca0b8f3ae4978742d070da570"
+        },
+        "local_connection_recovery_profiles": [
+          "fixed",
+          "recoverable"
+        ],
+        "witnessed_connection_composition": false,
+        "extra_owner_cases": true,
+        "signature_verification": "shared native execution only"
+      },
+      "commands": [
+        "/usr/bin/caffeinate",
+        "-i",
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--release",
+        "--test",
+        "first_configuration",
+        "--",
+        "independent_c_",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 37.3272072088439
+    },
+    {
+      "name": "clippy-01",
+      "result": {
+        "command": [
+          "/usr/bin/caffeinate",
+          "-i",
+          "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+          "clippy",
+          "--locked",
+          "--offline",
+          "--all-targets",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer",
+        "returncode": 101,
+        "seconds": 2.4822375827934593,
+        "source_unchanged": true
+      }
+    },
+    {
+      "name": "clippy-02",
+      "result": {
+        "command": [
+          "/usr/bin/caffeinate",
+          "-i",
+          "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+          "clippy",
+          "--locked",
+          "--offline",
+          "--all-targets",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer",
+        "returncode": 0,
+        "seconds": 1.1144400408957154,
+        "source_unchanged": true
+      }
+    },
+    {
+      "name": "msrv-01",
+      "result": {
+        "command": [
+          "/usr/bin/caffeinate",
+          "-i",
+          "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+          "check",
+          "--locked",
+          "--offline",
+          "--all-targets"
+        ],
+        "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-connection-current/consumer",
+        "returncode": 0,
+        "seconds": 2.8960950828623027,
+        "source_unchanged": true
+      }
+    },
+    {
+      "name": "enrollment-regression-01",
+      "result": {
+        "runs": [
+          {
+            "label": "build-debug",
+            "command": [
+              "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+              "test",
+              "--locked",
+              "--offline",
+              "--test",
+              "enrollment",
+              "--no-run",
+              "--message-format=json"
+            ],
+            "returncode": 0,
+            "seconds": 6.1640390830580145
+          },
+          {
+            "label": "execute-debug",
+            "command": [
+              "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-install-current/consumer-build/debug/deps/enrollment-b8404437febd6dea",
+              "--exact",
+              "c_registration_owns_original_identity_through_connection_and_roster_refresh",
+              "c_registered_configured_peer_reopens_original_session_after_roster_refresh",
+              "--nocapture",
+              "--test-threads=1"
+            ],
+            "returncode": 0,
+            "seconds": 13.263649584027007
+          },
+          {
+            "label": "build-release",
+            "command": [
+              "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+              "test",
+              "--locked",
+              "--offline",
+              "--test",
+              "enrollment",
+              "--no-run",
+              "--message-format=json",
+              "--release"
+            ],
+            "returncode": 0,
+            "seconds": 31.830667540896684
+          },
+          {
+            "label": "execute-release",
+            "command": [
+              "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/first-install-current/consumer-build/release/deps/enrollment-3abf873667e545af",
+              "--exact",
+              "c_registration_owns_original_identity_through_connection_and_roster_refresh",
+              "c_registered_configured_peer_reopens_original_session_after_roster_refresh",
+              "--nocapture",
+              "--test-threads=1"
+            ],
+            "returncode": 0,
+            "seconds": 10.18249712511897
+          }
+        ],
+        "completed": true,
+        "source_unchanged": true
+      }
+    }
+  ],
+  "source_copy": [
+    {
+      "source": "target/first-connection-current/consumer/first_configuration_client.c",
+      "destination": "bindings/c/ContinuityPackageConsumer/first_configuration_client.c",
+      "sha256": "6ccb5bfcfbb32960933c3cf08529f149f48508665455a7aefc7d1a0b3466bd9e"
+    },
+    {
+      "source": "target/first-connection-current/consumer/tests/first_configuration.rs",
+      "destination": "bindings/c/ContinuityPackageConsumer/tests/first_configuration.rs",
+      "sha256": "77a53c8d0243d0195d58cc017f7639d9429450831ec71aeff65083f06c190bba"
+    },
+    {
+      "source": "target/first-connection-current/consumer/tests/enrollment.rs",
+      "destination": "bindings/c/ContinuityPackageConsumer/tests/enrollment.rs",
+      "sha256": "66bae6bc202c48d5661185b6b986817bfea1c897969a7e71edd1de8e39679264"
+    },
+    {
+      "source": "target/first-connection-current/consumer/tests/common/peer_bundle.rs",
+      "destination": "bindings/c/ContinuityPackageConsumer/tests/common/peer_bundle.rs",
+      "sha256": "422fd899601ab2da72394e0b36543ddf738c42c2f24bcabc766405cd0383e00d"
+    },
+    {
+      "source": "target/first-connection-current/swift-consumer/Sources/FirstConfigurationClient/Main.swift",
+      "destination": "bindings/swift/ContinuityPackageConsumer/Sources/FirstConfigurationClient/Main.swift",
+      "sha256": "d3f6367e2f449fd3dff6f5b462350f35c6e15c7a7c3c2537e0c5b38ba68ee5ea"
+    },
+    {
+      "source": "target/first-connection-current/kotlin-consumer/consumer/src/main/kotlin/configuration/FirstConfigurationClient.kt",
+      "destination": "bindings/kotlin/ContinuityPackageConsumer/consumer/src/main/kotlin/configuration/FirstConfigurationClient.kt",
+      "sha256": "2733dd07674f70cc0f946977dd1ead96cb8cf96a4a81bc3e0f2bcd60abd7db79"
+    }
+  ],
+  "capture": {
+    "file": "PUBLIC_CAPTURE.zip",
+    "sha256": "7f40823f877d2b406f5bb6691832f24875a7c7ca8fa7f2f0c2719d558ce38978",
+    "bytes": 917332,
+    "members": 401
+  }
+}

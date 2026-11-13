@@ -1,0 +1,42 @@
+{
+  "observed_at": "2026-11-11T03:20:00Z",
+  "method": "Read-only GitHub PR readback after root closeout",
+  "main_sha": "48d0fb9a5651b50494ec33d025dda52bd2ff5eae",
+  "closed_unmerged": [
+    {
+      "number": 9,
+      "state": "closed",
+      "merged": false,
+      "closed_at": "2026-11-11T03:18:36Z",
+      "updated_at": "2026-11-11T03:18:48Z",
+      "head_sha": "0438f960d8ea36ee23b313b1d1c992d9c1bcc579",
+      "base_ref": "main",
+      "body": "## Resolution — 2026-11-11\n\nThe requested upgrade is already present on [main `48d0fb9a5651`](https://github.com/billlza/q-periapt/commit/48d0fb9a5651b50494ec33d025dda52bd2ff5eae). All three changed manifests use `getrandom = \"0.4\"`, and the locked dependencies of `q-periapt-ffi`, `q-periapt-policy-agent`, and `q-periapt-tls-demo` resolve to `getrandom 0.4.3`. The 0.4.3 registry checksum also matches this PR. Closing this duplicate upgrade after comparing all four changed files with main.\n"
+    },
+    {
+      "number": 10,
+      "state": "closed",
+      "merged": false,
+      "closed_at": "2026-11-11T03:18:37Z",
+      "updated_at": "2026-11-11T03:18:48Z",
+      "head_sha": "ef91a1a89674137c1660f27d8d450e18e95f48df",
+      "base_ref": "main",
+      "body": "## Resolution — 2026-11-11\n\nThe requested `rustls 0.23.43` update has been superseded on [main `48d0fb9a5651`](https://github.com/billlza/q-periapt/commit/48d0fb9a5651b50494ec33d025dda52bd2ff5eae), whose `Cargo.lock` resolves `rustls 0.23.46`. This PR changes only the rustls version and checksum in that lockfile. Closing the superseded update to retain the newer version already on main.\n"
+    },
+    {
+      "number": 12,
+      "state": "closed",
+      "merged": false,
+      "closed_at": "2026-11-11T03:18:39Z",
+      "updated_at": "2026-11-11T03:18:51Z",
+      "head_sha": "ee9b4e7de29561b4e84a1f69712032af0661d149",
+      "base_ref": "main",
+      "body": "## Resolution — 2026-11-11\n\nThe requested TOML upgrade is already resolved on [main `48d0fb9a5651`](https://github.com/billlza/q-periapt/commit/48d0fb9a5651b50494ec33d025dda52bd2ff5eae): `toml 1.1.4+spec-1.1.0`, `serde_spanned 1.1.1`, `toml_datetime 1.1.1+spec-1.1.0`, `toml_parser 1.1.3+spec-1.1.0`, `toml_writer 1.1.2+spec-1.1.0`, and `winnow 1.0.4` match the target lock entries and checksums in this PR. The policy manifest already selects the compatible major version with `toml = \"1\"`; this PR's spelling is `\"1.1\"`. Closing the duplicate version upgrade after comparing both changed files with main.\n"
+    }
+  ],
+  "remain_open": [
+    21,
+    83,
+    84
+  ]
+}

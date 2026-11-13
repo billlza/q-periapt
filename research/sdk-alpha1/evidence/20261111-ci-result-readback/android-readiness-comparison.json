@@ -1,0 +1,99 @@
+{
+  "schema": "qperiapt-android-readiness-old-failure-comparison-v1",
+  "old_source": "bee17822db65242adbfb3b0be7d32090fae2f752",
+  "old_run": 42754204081,
+  "old_job": 129779610363,
+  "current_source": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+  "pull_request": {
+    "number": 163,
+    "head_sha": "a19c2c05b2807fdd22c4a4b51b30178fabd15202",
+    "merged": true,
+    "merge_commit_sha": "8bdb36698c9d955de8c71a41179d11d224f696e0"
+  },
+  "file_hashes": {
+    "bee17822:artifact/android-device-smoke.sh": "54bd1f9519e3a0eb4b9a096d81b8e7ee71c5c0eb6d99c8363851a853cb705331",
+    "bee17822:artifact/android_bounded_command.py": "e530dedcfc2a67d038e56aecdc6e5cecab873b1e6c86f3a6a4279c31629c3f45",
+    "8bdb3669:artifact/android-device-smoke.sh": "d3942ae3ab078b6534d37ef9c59c7ea850787e7678c0aa204046f56e8afc2d0a",
+    "8bdb3669:artifact/android_bounded_command.py": "40ad61791a674ae6d91a34c24fe0483d13a5129714c29529e46f767294977d22"
+  },
+  "old_sequence": [
+    "observe_preinstall_package_absence",
+    "install-apk",
+    "observe_owned_installed_package (2 exact observations)",
+    "device-time",
+    "start-app"
+  ],
+  "current_sequence": [
+    "observe_preinstall_package_absence",
+    "device-time",
+    "capture-emulator-memory-runtime",
+    "capture-emulator-baseline",
+    "wait-framework-ready",
+    "install-apk",
+    "observe_owned_installed_package",
+    "start-app"
+  ],
+  "framework_gate": {
+    "point": "Immediately before the first APK install on an owned emulator",
+    "whole_deadline_seconds": 120,
+    "query_timeout_max_seconds": 5,
+    "consecutive_successes_minimum": 3,
+    "stable_identity_seconds_minimum": 5,
+    "identity": [
+      "guest boot_id",
+      "system_server PID",
+      "system_server /proc stat starttime",
+      "live process state"
+    ],
+    "probes": [
+      "identity-before",
+      "boot-before",
+      "decrypt-before",
+      "settings-provider",
+      "package-manager",
+      "package-absence",
+      "identity-after",
+      "boot-after",
+      "decrypt-after"
+    ],
+    "reset_conditions": [
+      "host or guest query failure",
+      "bounded query timeout",
+      "changed process incarnation",
+      "guest reboot",
+      "unready provider or package reply"
+    ],
+    "fatal_conditions": [
+      "ownership/identity guard failure",
+      "malformed successful framing",
+      "smoke package present before install"
+    ],
+    "artifact_log": "adb-framework-readiness.log"
+  },
+  "activity_failure": {
+    "old_raw_error": "cmd: Failure calling service activity: Broken pipe (32)",
+    "old_command_exit": 224,
+    "old_package_installation": "success and two exact package path observations",
+    "old_diagnostics_available": [
+      "adb-start.log",
+      "adb-install.log",
+      "package observation journal",
+      "emulator.log"
+    ],
+    "old_diagnostics_absent": [
+      "guest logcat",
+      "app exit-info",
+      "tombstone"
+    ],
+    "current_activity_attempts": 1,
+    "current_failure_captures": [
+      "adb-start.log",
+      "run-bound app logcat",
+      "emulator app exit-info",
+      "emulator state",
+      "owned-emulator guest logcat"
+    ],
+    "conclusion": "The added gate covers instability during the pre-install framework admission window. The historical failure occurred after successful install/ownership observations. No old process/service logs identify whether instability already existed before install or newly arose afterward; the correct current-source runtime decision remains bound to its own Android run, while future activity failures preserve diagnostic evidence and stay failures.",
+    "code_changes_from_this_readback": false
+  }
+}

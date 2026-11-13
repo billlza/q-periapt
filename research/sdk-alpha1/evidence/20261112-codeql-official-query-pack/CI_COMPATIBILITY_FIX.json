@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "before_commit": "21e9730ab9411e242fa58f89b903b6de95e0628d",
+  "codeql_failure": {
+    "run": "https://github.com/billlza/q-periapt/actions/runs/43240218249",
+    "native_job": 131258297261,
+    "message": "AtomicUsize.fetch_update is deprecated in Rust 1.99; -D warnings rejects the consumer",
+    "fix": "Use compare_exchange_weak with the original AcqRel success and Acquire failure/load ordering; retain the Rust 1.90 contract, capacity failure and exactly-once pause admission."
+  },
+  "windows_failure": {
+    "run": "https://github.com/billlza/q-periapt/actions/runs/43240218128",
+    "job": 131258648549,
+    "test": "filesystem::maintenance::attempt::tests::actual_cleanup_process_cuts_recover_original_receipts",
+    "message": "isolated fixture deadline",
+    "fix": "Compose the outer budget from all serial 15-second child readiness windows plus a 15-second setup/recovery allowance. Preserve all four kill/reap, Busy and original-receipt assertions. Capture bounded stderr in a temporary file and report it on supervisor timeout."
+  },
+  "local_validation": {
+    "host-store-supervisor-tests.log": {
+      "sha256": "cae8525630c63a4ec7ea84ea5000c1bb748dbba3743bb6a070fce7125b71101e",
+      "passed": true
+    },
+    "host-store-supervisor-clippy.log": {
+      "sha256": "6cd29ffc22fa9e4e1a54f19b3b7ec443fdc85974a1b13d19505d2173de908836",
+      "passed": true
+    },
+    "compat-consumer-check-194.log": {
+      "sha256": "43b821d0f3aab2b0d93dea96b3795a12bc78b53e9ec4b368053075f6425c497e",
+      "passed": true
+    },
+    "compat-consumer-check-1991.log": {
+      "sha256": "353bb42741341f6dd6e6a2803163a929b91ca98fa19626da5ef4c41da8c48ba6",
+      "passed": true
+    },
+    "compat-consumer-clippy-1981.log": {
+      "sha256": "74eb7b743fa7b3bece6f3f94c86db9c424cb7b5ad9b1803f04cedc2b7b1fadc6",
+      "passed": true
+    },
+    "compat-consumer-budget-1991.log": {
+      "sha256": "33f37f7509f3f758ce8b279ec970e46fb4b1b8a8a32fc734e4c748ad109e151a",
+      "passed": true
+    },
+    "compat-consumer-cancellation-with-client-1991.log": {
+      "sha256": "c50836fdef9cf01313b78308abf80003e0b5758689c94543e230cf37827df1b8",
+      "passed": true,
+      "tcp_tls_live_expired_status_ack_cases": 8,
+      "seconds": 130.97
+    }
+  },
+  "limitations": [
+    "Local host-store execution is macOS, not Windows. Windows verification requires the new-head CI run.",
+    "Rust 1.90 compatibility follows unchanged stable atomic primitives; this local compiler matrix does not execute Rust 1.90.",
+    "Full current-source CodeQL qualification remains pending."
+  ],
+  "commands": [
+    "cargo +1.98.1 test --locked --offline -p q-periapt-host-store -- --nocapture",
+    "cargo +1.98.1 clippy --locked --offline -p q-periapt-host-store --all-targets -- -D warnings",
+    "cargo +1.98.1 fmt --all -- --check",
+    "RUSTFLAGS=\"-D warnings\" cargo +1.94.0 check --all-targets --all-features --locked --offline",
+    "RUSTFLAGS=\"-D warnings\" cargo +1.99.1 check --all-targets --all-features --offline",
+    "RUSTFLAGS=\"-D warnings\" cargo +1.98.1 clippy --all-targets --all-features --locked --offline -- -D warnings",
+    "RUSTFLAGS=\"-D warnings\" cargo +1.99.1 test --locked --offline --lib full_call_budget_preserves_drain_and_returns_capacity_after_failure -- --exact tests::full_call_budget_preserves_drain_and_returns_capacity_after_failure",
+    "RUSTFLAGS=\"-D warnings\" cargo +1.99.1 test --locked --offline --test enrollment_witness witness_cancellation::grant_only_cancellation_recovers_original_foreign_owner_after_process_loss -- --exact --nocapture"
+  ],
+  "consumer_validation_context": "Private copy of the current consumer with declared Cargo path patches to current repository crates; real clang-built C client linked to the newly built library. This is source regression coverage, not installed-package qualification."
+}

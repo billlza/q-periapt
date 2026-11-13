@@ -1,0 +1,67 @@
+test_archive_edges_preserve_source_build_and_lint_settings (test_continuity_independent_package.IndependentPackageTests.test_archive_edges_preserve_source_build_and_lint_settings) ... ERROR
+test_checkout_sources_mixed_versions_and_implicit_members_are_refused (test_continuity_independent_package.IndependentPackageTests.test_checkout_sources_mixed_versions_and_implicit_members_are_refused) ... ok
+test_complete_counterpart_setup_retains_lock_and_refuses_existing_state (test_continuity_independent_package.IndependentPackageTests.test_complete_counterpart_setup_retains_lock_and_refuses_existing_state) ... ERROR
+test_each_clippy_version_must_match_the_selected_compiler (test_continuity_independent_package.IndependentPackageTests.test_each_clippy_version_must_match_the_selected_compiler) ... ok
+test_exact_graph_and_original_lock (test_continuity_independent_package.IndependentPackageTests.test_exact_graph_and_original_lock) ... ok
+test_external_dependency_checksum_changes_are_refused (test_continuity_independent_package.IndependentPackageTests.test_external_dependency_checksum_changes_are_refused) ... ok
+test_new_dependency_features_or_workspace_cannot_be_silently_dropped (test_continuity_independent_package.IndependentPackageTests.test_new_dependency_features_or_workspace_cannot_be_silently_dropped) ... ok
+test_partial_or_malformed_ci_selection_cannot_fall_back_to_source_build (test_continuity_independent_package.IndependentPackageTests.test_partial_or_malformed_ci_selection_cannot_fall_back_to_source_build) ... ok
+test_selected_clippy_does_not_execute_cache_or_path_proxies (test_continuity_independent_package.IndependentPackageTests.test_selected_clippy_does_not_execute_cache_or_path_proxies) ... ok
+test_ci_repository_python_calls_use_one_shot_runner (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner) ... FAIL
+test_python_runner_guard_distinguishes_trigger_paths_and_execution (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_python_runner_guard_distinguishes_trigger_paths_and_execution) ... ok
+test_python_runner_guard_distinguishes_archive_members_and_execution (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_python_runner_guard_distinguishes_archive_members_and_execution) ... ok
+
+======================================================================
+ERROR: test_archive_edges_preserve_source_build_and_lint_settings (test_continuity_independent_package.IndependentPackageTests.test_archive_edges_preserve_source_build_and_lint_settings)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/e41ac2378a11/ci-nov10/repair-baseline/artifact/test_continuity_independent_package.py", line 95, in test_archive_edges_preserve_source_build_and_lint_settings
+    after = tomllib.loads(installed.installed_manifest(original).decode())
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/workspace/scratch/e41ac2378a11/ci-nov10/repair-baseline/artifact/continuity_independent_package.py", line 69, in installed_manifest
+    sdk.require({name for name in dependencies if name.startswith("q-periapt")} == expected,
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                "counterpart product dependencies differ")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/e41ac2378a11/ci-nov10/repair-baseline/artifact/rust_sdk_profile.py", line 66, in require
+    raise ValueError(message)
+ValueError: counterpart product dependencies differ
+
+======================================================================
+ERROR: test_complete_counterpart_setup_retains_lock_and_refuses_existing_state (test_continuity_independent_package.IndependentPackageTests.test_complete_counterpart_setup_retains_lock_and_refuses_existing_state)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/e41ac2378a11/ci-nov10/repair-baseline/artifact/test_continuity_independent_package.py", line 80, in test_complete_counterpart_setup_retains_lock_and_refuses_existing_state
+    original = installed.prepare_counterpart(consumer)
+  File "/workspace/scratch/e41ac2378a11/ci-nov10/repair-baseline/artifact/continuity_independent_package.py", line 124, in prepare_counterpart
+    manifest = installed_manifest(sdk.snapshot(consumer / "Cargo.toml").data)
+  File "/workspace/scratch/e41ac2378a11/ci-nov10/repair-baseline/artifact/continuity_independent_package.py", line 69, in installed_manifest
+    sdk.require({name for name in dependencies if name.startswith("q-periapt")} == expected,
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                "counterpart product dependencies differ")
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/e41ac2378a11/ci-nov10/repair-baseline/artifact/rust_sdk_profile.py", line 66, in require
+    raise ValueError(message)
+ValueError: counterpart product dependencies differ
+
+======================================================================
+FAIL: test_ci_repository_python_calls_use_one_shot_runner (test_proof_to_byte_release.ProofToByteReleaseMarkerTests.test_ci_repository_python_calls_use_one_shot_runner)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/e41ac2378a11/ci-nov10/repair-baseline/artifact/test_proof_to_byte_release.py", line 6477, in test_ci_repository_python_calls_use_one_shot_runner
+    self.assertIn(
+    ~~~~~~~~~~~~~^
+        "sh artifact/python-run.sh",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        line,
+        ^^^^^
+        f"{workflow.relative_to(ROOT)}:{number} bypasses the one-shot runner",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+AssertionError: 'sh artifact/python-run.sh' not found in '            artifact/codeql_summary_control.py' : .github/workflows/codeql-summary-control.yml:37 bypasses the one-shot runner
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.086s
+
+FAILED (failures=1, errors=2)

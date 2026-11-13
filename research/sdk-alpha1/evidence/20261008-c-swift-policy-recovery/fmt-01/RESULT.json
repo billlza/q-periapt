@@ -1,0 +1,16 @@
+{
+  "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/policy-recovery-ffi-current/source",
+  "head": "1f6e9edf6fe98a5ff4c572e69c346c7e088e17e5",
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+    "fmt",
+    "--all",
+    "--check"
+  ],
+  "returncode": 0,
+  "seconds": 0.5737849581055343,
+  "clean_source_after": true,
+  "head_unchanged": true,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

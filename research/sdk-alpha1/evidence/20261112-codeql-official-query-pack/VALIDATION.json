@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "kind": "qperiapt.codeql_official_upgrade_validation",
+  "codeql_version": "2.27.4",
+  "query_pack": "0.1.46",
+  "rust_library": "0.2.25",
+  "tool_bundle_sha256": "1c2f867094b80e43c9a0e511090e57e0ea3bf107600b4b3763c52b9020b4ec4b",
+  "upstream_fix": "https://github.com/github/codeql/pull/22903",
+  "retained_source_commit": "56f191f04a57806869b8a03078ee4d27ffe900ab",
+  "retained_source_artifact": 13677417145,
+  "retained_source_archive_sha256": "cb0bd89478b9a8d0f635a9ffa2156a06e3fbbf81b0054b8a1a474c045711d43d",
+  "retained_large_runs": [
+    {
+      "job": 1172298,
+      "archive_bytes": 10994595,
+      "archive_sha256": "78743726d7ba1ea83ea8d873d231923cc26562d2dfb39bcc4a5695ef4bbd2974",
+      "query_seconds": 668.6122510386631,
+      "implicit_compilations": 0,
+      "precompiled_queries": 39,
+      "query_ram_mb": 56000,
+      "threads": 4,
+      "complete_queries": 39
+    },
+    {
+      "job": 1172334,
+      "archive_bytes": 11007158,
+      "archive_sha256": "dc15a0c0b08f515f38f7ef56ecccfa306eaa2a147804a488794fa625bad4f6dc",
+      "query_seconds": 978.2879289127886,
+      "implicit_compilations": 0,
+      "precompiled_queries": 39,
+      "query_ram_mb": 14000,
+      "threads": 4,
+      "complete_queries": 39
+    }
+  ],
+  "all39_decoded_semantics_equal_between_budgets": true,
+  "fixture": {
+    "zip_sha256": "d5efa45490e88c5ad3ff9a2172cc07145e695dc58c1837bebad9dec890cb5383",
+    "members": {
+      "qlpack.yml": {
+        "bytes": 148,
+        "sha256": "8254198d311f271e4b36cadbf385347edf88f0b26ccf84079cf38ce2b91df464"
+      },
+      "TryFlow.ql": {
+        "bytes": 787,
+        "sha256": "337424c529c6bdb04d2a500b57ca7552758bf65b80fee945418a18f131858020"
+      },
+      "models.yml": {
+        "bytes": 181,
+        "sha256": "a795ca2e21d3d1234b57af743a87f425f49172544449c645e0bea25539423bd0"
+      },
+      "env/Cargo.toml": {
+        "bytes": 111,
+        "sha256": "8af4c7fc55c379d8fd5575b313af32e7fc00b4f2eef60f91a828c9b8ddd39078"
+      },
+      "env/test.rs": {
+        "bytes": 730,
+        "sha256": "9c28e1a1e0496a0c26fdced0f0c1d688e06986038ebe83bfc8f68bacc24ad1bc"
+      },
+      "env/lib.rs": {
+        "bytes": 13,
+        "sha256": "745dfdef04ca8413ef4975546b95cfaed5cf58599092d0871b6ab704f3743062"
+      },
+      "env/Cargo.lock": {
+        "bytes": 148,
+        "sha256": "58878cede52db96164e2b06834ef8c6616a639731bb7a08428084a59eb645d0a"
+      },
+      "env/options.yml": {
+        "bytes": 25,
+        "sha256": "a367eded8a8ca8139fb15d349c8ad808252772290aa7bc7d8f0f0ac60086b720"
+      },
+      "LICENSE": {
+        "bytes": 1074,
+        "sha256": "66056d06b874e3eb6a22f5fff297e1676a23dc43e8c8b81279c1ef33a6a270df"
+      }
+    },
+    "old_flows": [
+      50,
+      51,
+      52,
+      100,
+      101
+    ],
+    "new_flows": [
+      51,
+      52,
+      101
+    ],
+    "raw_evidence_archive_sha256": "49e4d65eaad9633e3a6158b91c045a7c4642b7a040c8c7c6e8b276fee66860d3",
+    "scope": "Same extracted fixture with private schema upgrade for official2.27.4; proves these normal-return/callback cases, not that this single upstream patch explains all performance change."
+  },
+  "quality_compilation": {
+    "job": 1172393,
+    "query_count": 4,
+    "compiled": [
+      {
+        "query": "ExtractedPaths.qlx",
+        "sha256_receipt": "9d31fd3184be48792a1fa2301fc1ce435ca71434b2dbc5913d9eb77e4211169b"
+      },
+      {
+        "query": "MacroCalls.qlx",
+        "sha256_receipt": "8f98dc42d5366408863be082bde0e3baed1a0601b2d23d127359cbc15f80f638"
+      },
+      {
+        "query": "Metrics.qlx",
+        "sha256_receipt": "b5634a396537a2ec8b227907855e4b0351c2bc47a59cc037e408792a5038deec"
+      },
+      {
+        "query": "UnresolvedMacros.qlx",
+        "sha256_receipt": "c4d2dbbad8bac53a8f8ce4760de5afded277d8bce5f2d652964298aecf3f4683"
+      }
+    ],
+    "all_warnings_errors_rejected": true,
+    "logs": {
+      "ExtractedPaths": {
+        "stderr_sha256": "66bba8ea2bc660a6c0d1295f0b20da920494d03d70abd301e4e4a7e13d519682",
+        "stderr_bytes": 195
+      },
+      "MacroCalls": {
+        "stderr_sha256": "1d92571162fbd60fb157059f04225e48f55361262b2d8683d460cf002c39930c",
+        "stderr_bytes": 187
+      },
+      "Metrics": {
+        "stderr_sha256": "96a61d9d3c113cfbbb813da3be249a9527c02470066a00d88dfa36d80766eccf",
+        "stderr_bytes": 181
+      },
+      "UnresolvedMacros": {
+        "stderr_sha256": "0b94e6f45602c36f61b312fb4e23ddaee0cfa3b43e89a32e58023eff4c176564",
+        "stderr_bytes": 199
+      }
+    },
+    "scope": "Actual Linux CLI2.27.4 compilation of current custom quality pack; current-target evaluation is left to CI."
+  },
+  "current_source_ci_included": false,
+  "release_claim_eligible": false,
+  "limitations": [
+    "Library versions and full summary plans differ from the previous projection baseline; this does not attribute the complete runtime improvement to one upstream patch.",
+    "The retained large database is old and its private copies were schema-upgraded. Current-source target and paired publication qualification require the corresponding CI artifacts.",
+    "Old and new library versions change some query results; this is a version correctness comparison, not an exact-old-result-preserving query-plan transform."
+  ],
+  "verified_at": "2026-11-12T13:53:00.703039+00:00"
+}

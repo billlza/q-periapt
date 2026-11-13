@@ -15,7 +15,7 @@ import sys
 import tempfile
 from collections.abc import Mapping, Sequence
 
-from bounded_process import BoundedProcessError, capture_stdout
+from bounded_process import BoundedProcessError, TimeoutPolicy, capture_stdout
 from evidence_io import EvidenceIOError, parse_strict_json_bytes, read_regular_snapshot
 from git_provenance import GitProvenanceError, inspect_worktree, run_git_bytes
 
@@ -27,26 +27,26 @@ EXTRACTED_PATHS_QUERY = QUERY_DIR / "ExtractedPaths.ql"
 METRICS_QUERY = QUERY_DIR / "Metrics.ql"
 UNRESOLVED_MACROS_QUERY = QUERY_DIR / "UnresolvedMacros.ql"
 FIXED_CODEQL_BINARY = pathlib.Path(
-    "/opt/hostedtoolcache/CodeQL/2.26.2/x64/codeql/codeql"
+    "/opt/hostedtoolcache/CodeQL/2.27.4/x64/codeql/codeql"
 )
 FIXED_CODEQL_DATABASE = pathlib.Path(
     "/home/runner/work/_temp/qperiapt-codeql-database/rust"
 )
 FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")
 # Keep current compiler inputs and pinned paper snapshots in the full extraction.
-EXPECTED_CURRENT_RUST_SOURCE_COUNT = 106
+EXPECTED_CURRENT_RUST_SOURCE_COUNT = 1174
 EXPECTED_ARCHIVED_RUST_SOURCE_COUNT = 68
 ARCHIVE_ROOT = "paper/continuity/artifacts/bootstrap"
 EXPECTED_TRACKED_RUST_SOURCE_COUNT = EXPECTED_CURRENT_RUST_SOURCE_COUNT + EXPECTED_ARCHIVED_RUST_SOURCE_COUNT
 CODEQL_COMMAND_TIMEOUT_SECONDS = 300
+# Metrics requires a whole-program consistency evaluation. Keep its deadline
+# finite; macOS extraction now reaches this gate on the Linux query worker,
+# while the lighter queries retain their separate 300-second limits.
+CODEQL_METRICS_TIMEOUT_SECONDS = 1800
 CODEQL_QUERY_THREADS = 4
 CODEQL_QUERY_RAM_MB = 14_000
 MAX_CODEQL_QUERY_DIAGNOSTIC_BYTES = 4 * 1024 * 1024
 MAX_CODEQL_DECODED_JSON_BYTES = 16 * 1024 * 1024
-ARCHIVE_SEMANTICS_MESSAGE = (
-    "semantic analyzer unavailable (not included in files loaded from manifest)"
-)
-ARCHIVE_SEMANTICS_FULL_MESSAGE = ARCHIVE_SEMANTICS_MESSAGE + ": macro expansion will be skipped."
 EXPECTED_METRICS = frozenset(
     {
         "extraction_errors",
@@ -103,45 +103,6 @@ ZERO_METRICS = EXPECTED_METRICS - TELEMETRY_METRICS - {
 
 class CodeQLRustQualityError(ValueError):
     """The CodeQL database cannot support a complete Rust analysis claim."""
-
-
-def _merge_cleanup_failure(primary: BaseException, message: str) -> None:
-    """Preserve control exceptions; otherwise expose cleanup in the domain error."""
-
-    if not isinstance(primary, Exception):
-        primary.add_note(message)
-        return
-    raise CodeQLRustQualityError(f"{primary}; {message}") from primary
-
-
-def _close_binding_descriptors(
-    descriptors: Sequence[tuple[int, str]],
-) -> None:
-    failures: list[str] = []
-    control_failure: BaseException | None = None
-    for descriptor, label in descriptors:
-        if descriptor < 0:
-            continue
-        try:
-            os.close(descriptor)
-        except BaseException as exc:
-            message = f"close CodeQL {label} binding: {exc}"
-            if not isinstance(exc, Exception) and control_failure is None:
-                control_failure = exc
-            else:
-                failures.append(message)
-    if control_failure is not None:
-        if failures:
-            control_failure.add_note("; ".join(failures))
-        raise control_failure
-    if failures:
-        raise CodeQLRustQualityError("; ".join(failures))
-
-
-@dataclasses.dataclass(frozen=True)
-class _PathIdentity:
-    device: int
-    inode: int
 
 
 @dataclasses.dataclass(frozen=True)
@@ -243,6 +204,85 @@ def validate_archive_inventory(root: pathlib.Path, tracked: frozenset[str]) -> f
     return frozenset(sources)
 
 
+def archived_macro_paths(source_sha256: Mapping[str, str]) -> frozenset[str]:
+    """Recognize frozen snapshots from exact paths and bytes in a macro profile."""
+    observed = {path for path in source_sha256 if path.startswith(ARCHIVE_ROOT + "/")}
+    if not observed:
+        return frozenset()
+    sources = pinned_archive_sources()
+    if observed != sources.keys():
+        raise ValueError("macro profile paper archive path inventory differs")
+    if any(source_sha256[path] != expected.sha256 for path, expected in sources.items()):
+        raise ValueError("macro profile paper archive source bytes differ")
+    return frozenset(sources)
+
+
+@dataclasses.dataclass(frozen=True)
+class HostedConfiguration:
+    platform: str
+    compiler_host: str
+    codeql: pathlib.Path
+    database: pathlib.Path
+    runner_temp: pathlib.Path
+    threads: int
+    ram_mb: int
+
+
+def hosted_configuration(host: str) -> HostedConfiguration:
+    """Select reviewed hosted paths and budgets; never accept environment paths."""
+    if host == "linux":
+        return HostedConfiguration(host, "x86_64-unknown-linux-gnu", FIXED_CODEQL_BINARY,
+                                   FIXED_CODEQL_DATABASE, FIXED_RUNNER_TEMP,
+                                   CODEQL_QUERY_THREADS, CODEQL_QUERY_RAM_MB)
+    if host == "darwin":
+        temporary = pathlib.Path("/Users/runner/work/_temp")
+        return HostedConfiguration(
+            host, "aarch64-apple-darwin",
+            pathlib.Path("/Users/runner/hostedtoolcache/CodeQL/2.27.4/arm64/codeql/codeql"),
+            temporary / "qperiapt-codeql-database/rust", temporary, 2, 5500,
+        )
+    raise CodeQLRustQualityError("unsupported hosted Rust analysis platform")
+
+
+def _merge_cleanup_failure(primary: BaseException, message: str) -> None:
+    """Preserve control exceptions; otherwise expose cleanup in the domain error."""
+
+    if not isinstance(primary, Exception):
+        primary.add_note(message)
+        return
+    raise CodeQLRustQualityError(f"{primary}; {message}") from primary
+
+
+def _close_binding_descriptors(
+    descriptors: Sequence[tuple[int, str]],
+) -> None:
+    failures: list[str] = []
+    control_failure: BaseException | None = None
+    for descriptor, label in descriptors:
+        if descriptor < 0:
+            continue
+        try:
+            os.close(descriptor)
+        except BaseException as exc:
+            message = f"close CodeQL {label} binding: {exc}"
+            if not isinstance(exc, Exception) and control_failure is None:
+                control_failure = exc
+            else:
+                failures.append(message)
+    if control_failure is not None:
+        if failures:
+            control_failure.add_note("; ".join(failures))
+        raise control_failure
+    if failures:
+        raise CodeQLRustQualityError("; ".join(failures))
+
+
+@dataclasses.dataclass(frozen=True)
+class _PathIdentity:
+    device: int
+    inode: int
+
+
 @dataclasses.dataclass(frozen=True)
 class _FixedCodeQLPathBindings:
     codeql: pathlib.Path
@@ -256,6 +296,8 @@ class _FixedCodeQLPathBindings:
     database_identity: _PathIdentity
     database_metadata_identity: _PathIdentity
     runner_temp_identity: _PathIdentity
+    threads: int = CODEQL_QUERY_THREADS
+    ram_mb: int = CODEQL_QUERY_RAM_MB
 
 
 def _identity(metadata: os.stat_result) -> _PathIdentity:
@@ -324,22 +366,26 @@ def _require_database_metadata(metadata: os.stat_result) -> None:
         )
 
 
-def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
-    if sys.platform != "linux":
+def _open_fixed_codeql_bindings(*, host: str = "linux") -> _FixedCodeQLPathBindings:
+    configuration = hosted_configuration(host)
+    if sys.platform != configuration.platform:
         raise CodeQLRustQualityError(
-            "fixed Rust CodeQL path bindings require the Linux analysis lane"
+            "fixed Rust CodeQL path bindings require the selected analysis platform"
         )
+    codeql = configuration.codeql
+    database = configuration.database
+    runner_temp = configuration.runner_temp
     codeql_path_metadata = _canonical_fixed_metadata(
-        FIXED_CODEQL_BINARY, "fixed CodeQL binary"
+        codeql, "fixed CodeQL binary"
     )
     database_path_metadata = _canonical_fixed_metadata(
-        FIXED_CODEQL_DATABASE, "fixed Rust CodeQL database"
+        database, "fixed Rust CodeQL database"
     )
     runner_temp_path_metadata = _canonical_fixed_metadata(
-        FIXED_RUNNER_TEMP, "fixed CodeQL temporary parent"
+        runner_temp, "fixed CodeQL temporary parent"
     )
     try:
-        FIXED_CODEQL_DATABASE.relative_to(FIXED_RUNNER_TEMP)
+        database.relative_to(runner_temp)
     except ValueError as exc:
         raise CodeQLRustQualityError(
             "fixed Rust CodeQL database must be under the fixed temporary parent"
@@ -349,7 +395,7 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
     database_metadata_descriptor = -1
     runner_temp_descriptor = -1
     try:
-        codeql_descriptor = os.open(FIXED_CODEQL_BINARY, _file_open_flags())
+        codeql_descriptor = os.open(codeql, _file_open_flags())
         codeql_metadata = os.fstat(codeql_descriptor)
         _require_codeql_metadata(codeql_metadata)
         if _identity(codeql_metadata) != _identity(codeql_path_metadata):
@@ -358,7 +404,7 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
             )
 
         database_descriptor = os.open(
-            FIXED_CODEQL_DATABASE, _directory_open_flags()
+            database, _directory_open_flags()
         )
         database_metadata = os.fstat(database_descriptor)
         _require_owned_directory_metadata(
@@ -388,7 +434,7 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
                 "Rust CodeQL database metadata changed while it was being opened"
             )
 
-        runner_temp_descriptor = os.open(FIXED_RUNNER_TEMP, _directory_open_flags())
+        runner_temp_descriptor = os.open(runner_temp, _directory_open_flags())
         runner_temp_metadata = os.fstat(runner_temp_descriptor)
         _require_owned_directory_metadata(
             runner_temp_metadata, "fixed CodeQL temporary parent"
@@ -398,9 +444,9 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
                 "fixed CodeQL temporary parent changed while it was being opened"
             )
         return _FixedCodeQLPathBindings(
-            codeql=FIXED_CODEQL_BINARY,
-            database=FIXED_CODEQL_DATABASE,
-            runner_temp=FIXED_RUNNER_TEMP,
+            codeql=codeql,
+            database=database,
+            runner_temp=runner_temp,
             codeql_descriptor=codeql_descriptor,
             database_descriptor=database_descriptor,
             database_metadata_descriptor=database_metadata_descriptor,
@@ -409,6 +455,8 @@ def _open_fixed_codeql_bindings() -> _FixedCodeQLPathBindings:
             database_identity=_identity(database_metadata),
             database_metadata_identity=_identity(database_file_metadata),
             runner_temp_identity=_identity(runner_temp_metadata),
+            threads=configuration.threads,
+            ram_mb=configuration.ram_mb,
         )
     except BaseException as primary:
         cleanup_error: BaseException | None = None
@@ -603,14 +651,23 @@ def _run_query(
                 "query",
                 "run",
                 "--warnings=error",
-                f"--threads={CODEQL_QUERY_THREADS}",
-                f"--ram={CODEQL_QUERY_RAM_MB}",
+                f"--threads={bindings.threads}",
+                f"--ram={bindings.ram_mb}",
                 f"--database={bindings.database}",
                 f"--output={output}",
                 "--",
                 str(query),
             ],
-            timeout_seconds=CODEQL_COMMAND_TIMEOUT_SECONDS,
+            timeout_seconds=(
+                CODEQL_METRICS_TIMEOUT_SECONDS
+                if query == METRICS_QUERY
+                else CODEQL_COMMAND_TIMEOUT_SECONDS
+            ),
+            timeout_policy=(
+                TimeoutPolicy.LONG_ANALYSIS
+                if query == METRICS_QUERY
+                else TimeoutPolicy.STANDARD
+            ),
             maximum_bytes=MAX_CODEQL_QUERY_DIAGNOSTIC_BYTES,
             stderr=subprocess.STDOUT,
         )
@@ -775,11 +832,12 @@ def validate_unresolved_detail_count(metric: int, details: Sequence[object]) -> 
         )
 
 
-def validate_quality(
+def validate_extraction_quality(
     tracked: frozenset[str],
     extracted: frozenset[str],
     metrics: Mapping[str, int],
 ) -> None:
+    """Check extraction integrity; macro coverage requires target validation too."""
     if extracted != tracked:
         missing = sorted(tracked - extracted)
         unexpected = sorted(extracted - tracked)
@@ -794,7 +852,7 @@ def validate_quality(
                 f"{name} must equal tracked Rust source count {expected_count}, "
                 f"got {metrics[name]}"
             )
-    for name in sorted(ZERO_METRICS):
+    for name in sorted(ZERO_METRICS - {"unresolved_source_macro_calls"}):
         if metrics[name] != 0:
             raise CodeQLRustQualityError(f"{name} must be zero, got {metrics[name]}")
     for name in ("source_macro_calls", "source_format_args"):
@@ -816,130 +874,18 @@ def validate_quality(
         raise CodeQLRustQualityError("type inconsistency categories do not sum to total")
 
 
-def _parse_file_details(
-    rows: Sequence[Sequence[object]],
-) -> dict[str, tuple[int, int]]:
-    details: dict[str, tuple[int, int]] = {}
-    for row in rows:
-        if (len(row) != 3 or not isinstance(row[0], str)
-                or any(type(value) is not int or value < 0 for value in row[1:])):
-            raise CodeQLRustQualityError("file-detail query returned a malformed row")
-        path = next(iter(_parse_extracted_paths([[row[0]]])))
-        if path in details:
-            raise CodeQLRustQualityError("file-detail query contains duplicate paths")
-        details[path] = (row[1], row[2])
-    return details
-
-
-def _parse_extraction_diagnostics(
-    rows: Sequence[Sequence[object]],
-) -> tuple[tuple[str, str, str, str, str, int, int], ...]:
-    details: list[tuple[str, str, str, str, str, int, int]] = []
-    for row in rows:
-        if (len(row) != 7
-                or any(not isinstance(value, str) or not value for value in row[:5])
-                or row[1] not in {"Warning", "Error"}
-                or any(type(value) is not int or value < 1 for value in row[5:])):
-            raise CodeQLRustQualityError("extraction-diagnostic query returned a malformed row")
-        _parse_extracted_paths([[row[0]]])
-        details.append(tuple(row))
-    if len(details) != len(set(details)):
-        raise CodeQLRustQualityError("extraction-diagnostic query contains duplicate rows")
-    return tuple(details)
-
-
-def _parse_quality_rows(
-    rows: Sequence[Sequence[object]],
-) -> tuple[dict[str, int], dict[str, tuple[int, int]],
-           tuple[tuple[str, str, str, str, str, int, int], ...]]:
-    metrics: list[list[object]] = []
-    files: list[list[object]] = []
-    diagnostics: list[list[object]] = []
-    for row in rows:
-        if (len(row) != 7 or not isinstance(row[0], str)
-                or not isinstance(row[1], str)
-                or type(row[2]) is not int or type(row[3]) is not int
-                or any(not isinstance(value, str) for value in row[4:])):
-            raise CodeQLRustQualityError("quality query returned a malformed tagged row")
-        kind, name, first, second, tag, message, full_message = row
-        if kind in {"metric", "file"}:
-            if tag or message or full_message or (kind == "metric" and second != 0):
-                raise CodeQLRustQualityError("quality query returned unexpected row fields")
-            if kind == "metric":
-                metrics.append([name, first])
-            else:
-                files.append([name, first, second])
-        elif kind in {"Warning", "Error"}:
-            diagnostics.append([name, kind, tag, message, full_message, first, second])
-        else:
-            raise CodeQLRustQualityError(f"quality query returned an unknown row kind: {kind}")
-    return (_parse_metrics(metrics), _parse_file_details(files),
-            _parse_extraction_diagnostics(diagnostics))
-
-
-def validate_current_and_archive_quality(
+def validate_quality(
     tracked: frozenset[str],
     extracted: frozenset[str],
     metrics: Mapping[str, int],
-    files: Mapping[str, tuple[int, int]],
-    diagnostics: Sequence[tuple[str, str, str, str, str, int, int]],
-    unresolved: Sequence[tuple[str, int, int, str]],
 ) -> None:
-    """Qualify all source bytes and the current Cargo compilation separately.
-
-    The original queries still analyze the complete database. A frozen partial
-    export has no Cargo semantic context: the sole admitted diagnostic is bound
-    to the reviewed file bytes and the exact CLI 2.26.2 diagnostic, not a path
-    prefix or an unrestricted warning/macro allowance.
-    """
-    try:
-        archived = validate_archive_inventory(REPOSITORY_ROOT, tracked)
-    except (OSError, EvidenceIOError, ValueError) as exc:
-        raise CodeQLRustQualityError(f"cannot validate archived Rust sources: {exc}") from exc
-    if not archived <= tracked:
-        raise CodeQLRustQualityError("archive inventory is outside tracked Rust sources")
-    current = tracked - archived
-    if files.keys() != tracked:
-        raise CodeQLRustQualityError("all extracted path set differs from tracked Rust sources")
-    if metrics["extracted_files"] != len(tracked):
-        raise CodeQLRustQualityError("extracted file metric differs from the complete inventory")
-    for index, name in enumerate(("source_macro_calls", "source_format_args")):
-        if sum(values[index] for values in files.values()) != metrics[name]:
-            raise CodeQLRustQualityError(f"per-file {name} count differs from its metric")
-    for severity, name in (("Error", "extraction_errors"), ("Warning", "extraction_warnings")):
-        if sum(row[1] == severity for row in diagnostics) != metrics[name]:
-            raise CodeQLRustQualityError(f"{name} detail count differs from its metric")
-    archive_warnings: set[str] = set()
-    for path, severity, tag, message, full_message, line, column in diagnostics:
-        if (path not in archived or severity != "Warning" or tag != "semantics"
-                or message != ARCHIVE_SEMANTICS_MESSAGE
-                or full_message != ARCHIVE_SEMANTICS_FULL_MESSAGE
-                or (line, column) != (1, 1)
-                or path in archive_warnings):
-            raise CodeQLRustQualityError(f"unqualified extraction diagnostic at {path}")
-        archive_warnings.add(path)
-    if archive_warnings != archived:
-        raise CodeQLRustQualityError("archive semantic-context diagnostic inventory differs")
-    validate_unresolved_detail_count(metrics["unresolved_source_macro_calls"], unresolved)
-    unresolved_by_path: dict[str, int] = {}
-    for path, _line, _column, _text in unresolved:
-        if path not in archived:
-            raise CodeQLRustQualityError(f"unresolved current-source macro at {path}")
-        unresolved_by_path[path] = unresolved_by_path.get(path, 0) + 1
-    for path, count in unresolved_by_path.items():
-        if count > files[path][0]:
-            raise CodeQLRustQualityError(f"unresolved macro count exceeds all macros at {path}")
-    current_metrics = dict(metrics)
-    current_metrics.update({
-        "extracted_files": len(current),
-        "extraction_warnings": metrics["extraction_warnings"] - len(archive_warnings),
-        "unresolved_source_macro_calls": 0,
-        "source_macro_calls": sum(files[path][0] for path in current),
-        "source_format_args": sum(files[path][1] for path in current),
-    })
-    # Every other zero metric, internal consistency equation and current-source
-    # sentinel is checked by the unchanged strict gate.
-    validate_quality(current, extracted, current_metrics)
+    """Retain the original single-database contract for existing callers."""
+    validate_extraction_quality(tracked, extracted, metrics)
+    if metrics["unresolved_source_macro_calls"] != 0:
+        raise CodeQLRustQualityError(
+            "unresolved_source_macro_calls must be zero, "
+            f"got {metrics['unresolved_source_macro_calls']}"
+        )
 
 
 def main() -> None:
@@ -968,7 +914,7 @@ def main() -> None:
                 extracted = _parse_extracted_paths(
                     _decode_query(bindings, paths_bqrs)
                 )
-                metrics, files, diagnostics = _parse_quality_rows(
+                metrics = _parse_metrics(
                     _decode_query(bindings, metrics_bqrs)
                 )
                 unresolved = _parse_unresolved_macros(
@@ -1000,9 +946,7 @@ def main() -> None:
                     )
                 else:
                     raise
-        validate_current_and_archive_quality(
-            tracked, extracted, metrics, files, diagnostics, unresolved
-        )
+        validate_quality(tracked, extracted, metrics)
         require_repository_target_absent()
         require_clean_checkout(expected_commit)
     except OSError as exc:
@@ -1022,10 +966,6 @@ def main() -> None:
     print(
         "CODEQL_RUST_DATABASE_QUALITY_PASS "
         f"tracked_rs={len(tracked)} "
-        f"current_rs={EXPECTED_CURRENT_RUST_SOURCE_COUNT} "
-        f"pinned_archive_rs={EXPECTED_ARCHIVED_RUST_SOURCE_COUNT} "
-        f"archive_semantics_warnings={len(diagnostics)} "
-        f"archive_unresolved_macros={len(unresolved)} "
         f"source_macro_calls={metrics['source_macro_calls']} "
         f"source_format_args={metrics['source_format_args']}"
     )

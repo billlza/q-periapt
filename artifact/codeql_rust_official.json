@@ -1,0 +1,15 @@
+{
+  "codeql_version": "2.27.4",
+  "compiled_inventory_sha256": "2197524c7b355bc5b77a9f124a65b45025df183acdc4de029edb42955e1371b1",
+  "kind": "qperiapt.codeql_official_query_plan",
+  "pack_file_count": 1353,
+  "pack_inventory_sha256": "971231f6f145caa8330aae2ae49f962cf93e05b2931bb28c17b663ca4a1193fd",
+  "pack_total_bytes": 13758004,
+  "query_count": 39,
+  "query_manifest_sha256": "4485ed02debd8c312b7105ef0456237c21f9de57bd55f0c80e00ae77857a2437",
+  "query_pack": "0.1.46",
+  "query_source_sha256": "7278d53373afb4f8069122e287c9c036a959ba0d167c152d67cd0de885881d67",
+  "schema": 1,
+  "tool_bundle_bytes": 98269325,
+  "tool_bundle_sha256": "1c2f867094b80e43c9a0e511090e57e0ea3bf107600b4b3763c52b9020b4ec4b"
+}

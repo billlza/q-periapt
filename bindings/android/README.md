@@ -1,5 +1,76 @@
 # Q-Periapt Android AAR/JNI
 
+The unpublished 0.2.0 source adds `QPeriaptSDK.Runtime`, `Key` and `Secret`
+owners. Private keys remain in Rust unless transferred through `QPeriaptSDK.Expert`;
+use try-with-resources and explicit close.
+ABI major stays 2 and both native library names are unchanged. The same
+`QPeriaptAndroid` loader now registers 26 JNI methods (the original nine plus
+seventeen owner extensions). See the [ownership contract](../../docs/SDK_OWNERSHIP.md),
+[explicit private-key transfer](../../docs/SDK_KEY_TRANSFER.md) and
+[prepare/persist/activate policy updates](../../docs/SDK_POLICY_UPDATES.md).
+The `sdk-020` packaging profile builds all four native ABI slices, checks the
+closed 51-export/26-JNI surface and retains the same library identities. Local
+host JNI execution, Android cross-compilation and APK assembly remain distinct
+from ART/device qualification. The packaging history and nine-method records
+below the SDK section apply to the retained 0.1.5 releases.
+
+## 0.2.0 SDK candidate
+
+The fixed Maven coordinate is `dev.qperiapt:q-periapt-android:0.2.0`.
+See [the packaged installation and lifecycle instructions](PackageREADME.md).
+The producer has an explicit profile so legacy 0.1.5 verification still requires
+nine exports, nine JNI methods and manifest schema 4. The SDK profile requires
+51/26, non-preview Java 11 classes, all owner types, minSdk 23, native/Rust notices
+and its separately typed schema-5 manifest. A manifest cannot choose its own
+verification profile. Old runtime/release receipts do not qualify this AAR.
+
+The [SDK runtime qualification guide](../../docs/SDK_ANDROID_RUNTIME.md) defines
+`agp_sdk_full_release` and `agp_sdk_minimal_release`, with explicit arm64/x86_64
+API-35/16-KiB targets and portable evidence replay. CI now selects these SDK
+profiles. Local minified APK builds and verifier regressions are recorded in
+the readiness ledger; current SDK ART and hosted-CI passes are still pending.
+
+Build the native AAR, using a fresh output directory:
+
+```sh
+QPERIAPT_ANDROID_AAR_OUT_DIR="$PWD/target/sdk-android-aar" \
+  sh artifact/android-aar.sh --profile sdk-020
+```
+
+The existing clean-source, NDK r29, Rust 1.96.1, ELF dependency/exports/16 KiB
+alignment, stripped-binary, Java/JNI descriptor, license and R8 gates remain.
+The SDK profile refuses an existing output and does not erase old candidates.
+Local dirty diagnostics require the existing explicit
+`QPERIAPT_ALLOW_DIRTY_ANDROID_AAR=1` opt-in and remain marked diagnostic-only.
+
+With the inspected AAR/manifest hashes, select canonical JDK 21 through
+`JAVA_HOME` and `PATH`, then stage and consume the Maven candidate:
+
+```sh
+sh artifact/python-run.sh artifact/android_sdk_package.py \
+  --output target/sdk-android-package \
+  --aar /absolute/path/to/q-periapt-android-0.2.0.aar \
+  --manifest /absolute/path/to/MANIFEST.json \
+  --aar-sha256 "$AAR_SHA256" --manifest-sha256 "$AAR_MANIFEST_SHA256" \
+  --sdk /absolute/path/to/android-sdk --gradle /absolute/path/to/gradle-9.7.1/bin/gradle
+```
+
+Use `--offline` only with the required Gradle/AGP dependencies already cached.
+The publisher uses a file Maven repository, pins the original AAR bytes and
+adds a sources JAR and licenses. The SDK consumer uses AGP 9.4.1
+template with an explicit SDK/Maven mode. Its full variant uses the owner API;
+its minimal variant calls only `runtimeVersion()`. Actual compiler inputs,
+resolved coordinate/hash, compile JVM, merged R8 rules, all 26 DEX native methods,
+exception callback, eight unchanged packaged native libraries and APK ZIP
+alignment are checked. Existing legacy file-AAR consumers remain the default.
+
+The helper emits an archive plus `INSTALLED_CONSUMERS.json`; "installed" here
+means resolved into an independent Android build project. Both produced Release
+APKs are unsigned and no device is started or contacted. The APK workloads use
+in-memory policy state and are not persistent-store or ART execution evidence.
+Public Maven upload, signing, SDK runtime proof profiles and current-device
+qualification remain separate gates.
+
 This binding is the Android product surface for `q-periapt-ffi`. It is deliberately
 separate from `bindings/kotlin`, which is a JVM/Panama FFM binding for JDK 25+ and
 does not run on Android ART.
@@ -323,10 +394,10 @@ gate, not a Maven/public-provenance claim. The independent selection mechanism d
 a source physical-ready: a fresh real-device run must be selected, and only the bound marker records
 that current state.
 
-CI job `bindings-android-runtime-16k` consumes the exact AAR artifact produced by
-`bindings-android-aar` and executes it on real x86_64 API-35 `google_apis_ps16k` ART for every push
-and pull request. This is an independent package-face gate. It is neither the canonical arm64-v8a
-release proof nor physical-device production evidence.
+The 0.1.5 CI lane used the exact AAR artifact for an independent x86_64
+API-35/16-KiB runtime gate. The SDK source selects the separately typed
+SDK profiles described above. Neither architecture substitutes for canonical
+arm64-v8a release evidence or physical-device qualification.
 
 ## Exact-AAR minified AGP Release consumers
 

@@ -1,0 +1,907 @@
+{
+  "schema": "qperiapt.supported_workload_budget_review/1",
+  "status": "recomputed",
+  "decision_status": "selected",
+  "decision_date": "2026-11-09",
+  "final_chosen_artifact_verification_status": "pending_existing_admission_sequence",
+  "coordinated_freeze_status": "pending_existing_admission_sequence",
+  "current_source_commit": "6a2ee33af2d67bb982d339cbeb49f2310c7e7032",
+  "current_source_tree": "3df69e936a13213f8b381661a443ea09f82bc32b",
+  "frozen_product_contract": false,
+  "performance_qualified": false,
+  "release_claim_eligible": false,
+  "new_native_executions": 0,
+  "source_inputs_verified": 116,
+  "implemented_hard_limits": [
+    {
+      "field": "signed_body_bytes",
+      "value": 16384,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_SIGNED_BODY_BYTES"
+    },
+    {
+      "field": "bootstrap_bundle_bytes",
+      "value": 65536,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_BOOTSTRAP_BUNDLE_BYTES"
+    },
+    {
+      "field": "bootstrap_field_bytes",
+      "value": 8192,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_BOOTSTRAP_FIELD_BYTES"
+    },
+    {
+      "field": "plaintext_bytes",
+      "value": 16384,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_PLAINTEXT_BYTES"
+    },
+    {
+      "field": "associated_data_bytes",
+      "value": 1024,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_ASSOCIATED_DATA_BYTES"
+    },
+    {
+      "field": "skipped_keys_per_direction_epoch",
+      "value": 128,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_SKIPPED_MESSAGE_KEYS"
+    },
+    {
+      "field": "outstanding_messages_per_direction_epoch",
+      "value": 64,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_OUTSTANDING_MESSAGES"
+    },
+    {
+      "field": "retained_traffic_epochs",
+      "value": 4,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_TRAFFIC_EPOCHS"
+    },
+    {
+      "field": "control_body_bytes",
+      "value": 8192,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_CONTROL_BYTES"
+    },
+    {
+      "field": "connection_frame_bytes",
+      "value": 32768,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_CONNECTION_FRAME_BYTES"
+    },
+    {
+      "field": "session_operation_records",
+      "value": 128,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_SESSION_OPERATION_RECORDS"
+    },
+    {
+      "field": "retained_fanout_records",
+      "value": 16,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_RETAINED_FANOUT_RECORDS"
+    },
+    {
+      "field": "prekey_records",
+      "value": 1024,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_PREKEY_RECORDS"
+    },
+    {
+      "field": "account_roster_records",
+      "value": 64,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_ACCOUNT_ROSTER_RECORDS"
+    },
+    {
+      "field": "device_history_per_account",
+      "value": 256,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_DEVICE_HISTORY_PER_ACCOUNT"
+    },
+    {
+      "field": "journal_image_bytes",
+      "value": 2097152,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_JOURNAL_IMAGE_BYTES"
+    },
+    {
+      "field": "network_exchanges",
+      "value": 128,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_NETWORK_EXCHANGES"
+    },
+    {
+      "field": "run_timeout_seconds",
+      "value": 120,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_RUN_TIMEOUT_SECONDS"
+    },
+    {
+      "field": "connect_timeout_seconds",
+      "value": 5,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/contract.rs",
+      "symbol": "MAX_CONNECT_TIMEOUT_SECONDS"
+    },
+    {
+      "field": "roster_devices",
+      "value": 32,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/identity.rs",
+      "symbol": "MAX_DEVICES"
+    },
+    {
+      "field": "manifest_prekeys",
+      "value": 1024,
+      "kind": "implemented_hard_limit",
+      "source": "research/continuity-identity-candidate/src/manifest.rs",
+      "symbol": "MAX_PREKEYS"
+    }
+  ],
+  "send_budget": {
+    "implemented_range": [
+      1,
+      65535
+    ],
+    "unsigned_default": null,
+    "installed_reference_fixture_B": 1024,
+    "selection_status": "retained_issuer_selected_B",
+    "control_responsibility": "Application/connection owner advances required PQ control so application work can continue within the signed allowance.",
+    "new_fixed_B_or_control_cadence": null
+  },
+  "measured_source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "whole_workload_observations_and_selected_budgets": [
+    {
+      "kind": "lifecycle",
+      "profile": "local",
+      "repetitions": 4,
+      "deliveries_per_repeat": 48,
+      "retired_aggregates_per_repeat": 0,
+      "control_updates_per_repeat": 1,
+      "elapsed_ns": {
+        "maximum": 8333735250,
+        "median": 8309598228.5,
+        "minimum": 8061930791
+      },
+      "total_elapsed_ns": 33014862498,
+      "observed_pooled_deliveries_per_second": 5.815562612494028,
+      "observed_plaintext_kib_per_second": 33.07601235855979,
+      "observed_per_repeat_delivery_rate": {
+        "maximum": 5.953908715463692,
+        "median": 5.776457463791619,
+        "minimum": 5.759722208597879
+      },
+      "witness_exchanges_per_repeat": 0,
+      "observed_witness_framed_bytes_per_repeat": 0,
+      "selected_reference_interval_ceiling_seconds": 11,
+      "selected_reference_delivery_rate_floor": 4.363636363636363,
+      "policy_status": "selected"
+    },
+    {
+      "kind": "lifecycle",
+      "profile": "witness",
+      "repetitions": 4,
+      "deliveries_per_repeat": 48,
+      "retired_aggregates_per_repeat": 0,
+      "control_updates_per_repeat": 1,
+      "elapsed_ns": {
+        "maximum": 14626500042,
+        "median": 14507726666.0,
+        "minimum": 14331211375
+      },
+      "total_elapsed_ns": 57973164749,
+      "observed_pooled_deliveries_per_second": 3.3118771561166476,
+      "observed_plaintext_kib_per_second": 18.836301325413434,
+      "observed_per_repeat_delivery_rate": {
+        "maximum": 3.349333056641208,
+        "median": 3.308778620900046,
+        "minimum": 3.2817146865051776
+      },
+      "witness_exchanges_per_repeat": 1243,
+      "observed_witness_framed_bytes_per_repeat": 9124863,
+      "selected_reference_interval_ceiling_seconds": 19,
+      "selected_reference_delivery_rate_floor": 2.526315789473684,
+      "policy_status": "selected"
+    },
+    {
+      "kind": "fanout",
+      "profile": "witness",
+      "repetitions": 4,
+      "deliveries_per_repeat": 24,
+      "retired_aggregates_per_repeat": 12,
+      "control_updates_per_repeat": 2,
+      "elapsed_ns": {
+        "maximum": 8296023375,
+        "median": 8163818875.0,
+        "minimum": 8122927250
+      },
+      "total_elapsed_ns": 32746588375,
+      "observed_pooled_deliveries_per_second": 2.931603100165698,
+      "observed_plaintext_kib_per_second": 16.673492632192406,
+      "observed_per_repeat_delivery_rate": {
+        "maximum": 2.9545998950070618,
+        "median": 2.93986774535912,
+        "minimum": 2.8929523116248452
+      },
+      "witness_exchanges_per_repeat": 914,
+      "observed_witness_framed_bytes_per_repeat": 6709674,
+      "selected_reference_interval_ceiling_seconds": 11,
+      "selected_reference_delivery_rate_floor": 2.1818181818181817,
+      "policy_status": "selected"
+    },
+    {
+      "kind": "fanout",
+      "profile": "local",
+      "repetitions": 4,
+      "deliveries_per_repeat": 24,
+      "retired_aggregates_per_repeat": 12,
+      "control_updates_per_repeat": 2,
+      "elapsed_ns": {
+        "maximum": 4583242625,
+        "median": 4464502479.5,
+        "minimum": 4371698834
+      },
+      "total_elapsed_ns": 17883946418,
+      "observed_pooled_deliveries_per_second": 5.367942721153371,
+      "observed_plaintext_kib_per_second": 30.530174226559797,
+      "observed_per_repeat_delivery_rate": {
+        "maximum": 5.489856669298643,
+        "median": 5.376424669638588,
+        "minimum": 5.23646727081135
+      },
+      "witness_exchanges_per_repeat": 0,
+      "observed_witness_framed_bytes_per_repeat": 0,
+      "selected_reference_interval_ceiling_seconds": 6,
+      "selected_reference_delivery_rate_floor": 4.0,
+      "policy_status": "selected"
+    }
+  ],
+  "representative_operation_observations": [
+    {
+      "kind": "lifecycle",
+      "profile": "local",
+      "operation": "establish",
+      "epoch": null,
+      "member_order": null,
+      "payload_bytes": null,
+      "associated_data_bytes": null,
+      "elapsed_ns": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 408059708,
+        "median": 400370229.0,
+        "minimum": 364095708,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_user_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 120773,
+        "median": 108289.0,
+        "minimum": 81202,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_system_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 8246,
+        "median": 7189.0,
+        "minimum": 6556,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "witness_exchange_distribution": {
+        "0": 4
+      },
+      "witness_framed_byte_distribution": {
+        "0": 4
+      }
+    },
+    {
+      "kind": "lifecycle",
+      "profile": "local",
+      "operation": "traffic_independent_rekey",
+      "epoch": null,
+      "member_order": null,
+      "payload_bytes": null,
+      "associated_data_bytes": null,
+      "elapsed_ns": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 275854042,
+        "median": 251389062.5,
+        "minimum": 233738209,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_user_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 79002,
+        "median": 54825.5,
+        "minimum": 38913,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_system_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 5328,
+        "median": 4901.0,
+        "minimum": 3975,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "witness_exchange_distribution": {
+        "0": 4
+      },
+      "witness_framed_byte_distribution": {
+        "0": 4
+      }
+    },
+    {
+      "kind": "lifecycle",
+      "profile": "local",
+      "operation": "send_confirmed",
+      "epoch": 1,
+      "member_order": null,
+      "payload_bytes": 1024,
+      "associated_data_bytes": 32,
+      "elapsed_ns": {
+        "empirical_p95_nearest_rank": 172780125,
+        "maximum": 173541542,
+        "median": 157240792.0,
+        "minimum": 130479916,
+        "samples": 32,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_user_us": {
+        "empirical_p95_nearest_rank": 34763,
+        "maximum": 34819,
+        "median": 26293.5,
+        "minimum": 16862,
+        "samples": 32,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_system_us": {
+        "empirical_p95_nearest_rank": 7759,
+        "maximum": 7985,
+        "median": 6878.5,
+        "minimum": 4386,
+        "samples": 32,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "witness_exchange_distribution": {
+        "0": 32
+      },
+      "witness_framed_byte_distribution": {
+        "0": 32
+      }
+    },
+    {
+      "kind": "lifecycle",
+      "profile": "local",
+      "operation": "retry_original_after_reopen",
+      "epoch": null,
+      "member_order": null,
+      "payload_bytes": null,
+      "associated_data_bytes": null,
+      "elapsed_ns": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 65005000,
+        "median": 60356770.5,
+        "minimum": 51113208,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_user_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 17924,
+        "median": 14410.0,
+        "minimum": 12158,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_system_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 1670,
+        "median": 1528.5,
+        "minimum": 1367,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "witness_exchange_distribution": {
+        "0": 4
+      },
+      "witness_framed_byte_distribution": {
+        "0": 4
+      }
+    },
+    {
+      "kind": "lifecycle",
+      "profile": "witness",
+      "operation": "establish",
+      "epoch": null,
+      "member_order": null,
+      "payload_bytes": null,
+      "associated_data_bytes": null,
+      "elapsed_ns": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 835639083,
+        "median": 772254375.5,
+        "minimum": 709293958,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_user_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 303173,
+        "median": 288228.5,
+        "minimum": 243294,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_system_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 26512,
+        "median": 23851.5,
+        "minimum": 22969,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "witness_exchange_distribution": {
+        "58": 4
+      },
+      "witness_framed_byte_distribution": {
+        "425778": 4
+      }
+    },
+    {
+      "kind": "lifecycle",
+      "profile": "witness",
+      "operation": "traffic_independent_rekey",
+      "epoch": null,
+      "member_order": null,
+      "payload_bytes": null,
+      "associated_data_bytes": null,
+      "elapsed_ns": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 498705125,
+        "median": 493423479.5,
+        "minimum": 485477417,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_user_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 193856,
+        "median": 182254.0,
+        "minimum": 173397,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_system_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 17713,
+        "median": 16755.5,
+        "minimum": 16345,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "witness_exchange_distribution": {
+        "43": 4
+      },
+      "witness_framed_byte_distribution": {
+        "315663": 4
+      }
+    },
+    {
+      "kind": "lifecycle",
+      "profile": "witness",
+      "operation": "send_confirmed",
+      "epoch": 1,
+      "member_order": null,
+      "payload_bytes": 1024,
+      "associated_data_bytes": 32,
+      "elapsed_ns": {
+        "empirical_p95_nearest_rank": 285338958,
+        "maximum": 287478125,
+        "median": 272866750.0,
+        "minimum": 261195834,
+        "samples": 32,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_user_us": {
+        "empirical_p95_nearest_rank": 97066,
+        "maximum": 97596,
+        "median": 89920.5,
+        "minimum": 82270,
+        "samples": 32,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_system_us": {
+        "empirical_p95_nearest_rank": 13304,
+        "maximum": 13424,
+        "median": 12277.5,
+        "minimum": 10944,
+        "samples": 32,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "witness_exchange_distribution": {
+        "22": 32
+      },
+      "witness_framed_byte_distribution": {
+        "161502": 32
+      }
+    },
+    {
+      "kind": "lifecycle",
+      "profile": "witness",
+      "operation": "retry_original_after_reopen",
+      "epoch": null,
+      "member_order": null,
+      "payload_bytes": null,
+      "associated_data_bytes": null,
+      "elapsed_ns": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 123423334,
+        "median": 118767896.0,
+        "minimum": 115281500,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_user_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 58880,
+        "median": 55177.5,
+        "minimum": 53762,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_system_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 5366,
+        "median": 4647.5,
+        "minimum": 4479,
+        "samples": 4,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "witness_exchange_distribution": {
+        "16": 4
+      },
+      "witness_framed_byte_distribution": {
+        "117456": 4
+      }
+    },
+    {
+      "kind": "fanout",
+      "profile": "witness",
+      "operation": "retire_account_operation",
+      "epoch": null,
+      "member_order": null,
+      "payload_bytes": null,
+      "associated_data_bytes": null,
+      "elapsed_ns": {
+        "empirical_p95_nearest_rank": 45034500,
+        "maximum": 48469375,
+        "median": 41013250.0,
+        "minimum": 37916625,
+        "samples": 48,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_user_us": {
+        "empirical_p95_nearest_rank": 15453,
+        "maximum": 16772,
+        "median": 13322.0,
+        "minimum": 11593,
+        "samples": 48,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_system_us": {
+        "empirical_p95_nearest_rank": 1768,
+        "maximum": 1902,
+        "median": 1326.5,
+        "minimum": 999,
+        "samples": 48,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "witness_exchange_distribution": {
+        "4": 48
+      },
+      "witness_framed_byte_distribution": {
+        "29364": 48
+      }
+    },
+    {
+      "kind": "fanout",
+      "profile": "witness",
+      "operation": "deliver_account_member",
+      "epoch": 1,
+      "member_order": 0,
+      "payload_bytes": 1024,
+      "associated_data_bytes": 32,
+      "elapsed_ns": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 325331209,
+        "median": 298840042.0,
+        "minimum": 290711625,
+        "samples": 8,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_user_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 123914,
+        "median": 116582.5,
+        "minimum": 106764,
+        "samples": 8,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_system_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 13771,
+        "median": 13177.5,
+        "minimum": 12623,
+        "samples": 8,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "witness_exchange_distribution": {
+        "31": 8
+      },
+      "witness_framed_byte_distribution": {
+        "227571": 8
+      }
+    },
+    {
+      "kind": "fanout",
+      "profile": "witness",
+      "operation": "deliver_account_member",
+      "epoch": 1,
+      "member_order": 1,
+      "payload_bytes": 1024,
+      "associated_data_bytes": 32,
+      "elapsed_ns": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 242799584,
+        "median": 224659062.5,
+        "minimum": 213837792,
+        "samples": 8,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_user_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 99029,
+        "median": 92823.0,
+        "minimum": 88519,
+        "samples": 8,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_system_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 12139,
+        "median": 10864.5,
+        "minimum": 9871,
+        "samples": 8,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "witness_exchange_distribution": {
+        "25": 8
+      },
+      "witness_framed_byte_distribution": {
+        "183525": 8
+      }
+    },
+    {
+      "kind": "fanout",
+      "profile": "local",
+      "operation": "retire_account_operation",
+      "epoch": null,
+      "member_order": null,
+      "payload_bytes": null,
+      "associated_data_bytes": null,
+      "elapsed_ns": {
+        "empirical_p95_nearest_rank": 23436333,
+        "maximum": 27091000,
+        "median": 21329396.0,
+        "minimum": 18836833,
+        "samples": 48,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_user_us": {
+        "empirical_p95_nearest_rank": 4500,
+        "maximum": 4741,
+        "median": 3911.0,
+        "minimum": 2874,
+        "samples": 48,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_system_us": {
+        "empirical_p95_nearest_rank": 457,
+        "maximum": 485,
+        "median": 368.5,
+        "minimum": 255,
+        "samples": 48,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "witness_exchange_distribution": {
+        "0": 48
+      },
+      "witness_framed_byte_distribution": {
+        "0": 48
+      }
+    },
+    {
+      "kind": "fanout",
+      "profile": "local",
+      "operation": "deliver_account_member",
+      "epoch": 1,
+      "member_order": 0,
+      "payload_bytes": 1024,
+      "associated_data_bytes": 32,
+      "elapsed_ns": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 177883500,
+        "median": 163717667.0,
+        "minimum": 160465959,
+        "samples": 8,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_user_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 40771,
+        "median": 37678.0,
+        "minimum": 34966,
+        "samples": 8,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_system_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 6303,
+        "median": 6198.5,
+        "minimum": 5943,
+        "samples": 8,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "witness_exchange_distribution": {
+        "0": 8
+      },
+      "witness_framed_byte_distribution": {
+        "0": 8
+      }
+    },
+    {
+      "kind": "fanout",
+      "profile": "local",
+      "operation": "deliver_account_member",
+      "epoch": 1,
+      "member_order": 1,
+      "payload_bytes": 1024,
+      "associated_data_bytes": 32,
+      "elapsed_ns": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 130904917,
+        "median": 126432708.0,
+        "minimum": 118329166,
+        "samples": 8,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_user_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 34098,
+        "median": 31680.5,
+        "minimum": 30145,
+        "samples": 8,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "cpu_system_us": {
+        "empirical_p95_nearest_rank": null,
+        "maximum": 5918,
+        "median": 5572.5,
+        "minimum": 4504,
+        "samples": 8,
+        "tail_scope": "Empirical nearest-rank p95 only when n>=20; not a production quantile guarantee. All samples retained."
+      },
+      "witness_exchange_distribution": {
+        "0": 8
+      },
+      "witness_framed_byte_distribution": {
+        "0": 8
+      }
+    }
+  ],
+  "sampled_memory_observations": [
+    {
+      "kind": "lifecycle",
+      "profile": "local",
+      "sampled_stages": 5,
+      "samples": 20,
+      "resident_bytes": 15368192,
+      "physical_footprint_bytes": 9404800,
+      "journal_database_bytes": [
+        393216,
+        405504
+      ]
+    },
+    {
+      "kind": "lifecycle",
+      "profile": "witness",
+      "sampled_stages": 5,
+      "samples": 20,
+      "resident_bytes": 16990208,
+      "physical_footprint_bytes": 10944896,
+      "journal_database_bytes": [
+        393216,
+        405504
+      ]
+    },
+    {
+      "kind": "fanout",
+      "profile": "witness",
+      "sampled_stages": 5,
+      "samples": 20,
+      "resident_bytes": 17973248,
+      "physical_footprint_bytes": 11993448,
+      "journal_database_bytes": [
+        851968,
+        462848,
+        462848
+      ]
+    },
+    {
+      "kind": "fanout",
+      "profile": "local",
+      "sampled_stages": 5,
+      "samples": 20,
+      "resident_bytes": 15663104,
+      "physical_footprint_bytes": 9781608,
+      "journal_database_bytes": [
+        851968,
+        462848,
+        462848
+      ]
+    }
+  ],
+  "capacity_observations_and_selected_budgets": {
+    "source_commit": "539845d573ac0af5fe104aabed2f96a86f9eac8b",
+    "cohorts": 4,
+    "business_effects_checked": 500,
+    "negative_controls_rejected_in_retained_execution": 548,
+    "observed_peak_whole_process_rss_bytes": 167575552,
+    "observed_maximum_sender_database_bytes": 12455936,
+    "selected_capacity_fixture_rss_ceiling_bytes": 209715200,
+    "selected_capacity_fixture_database_ceiling_bytes": 15728640,
+    "policy_status": "selected",
+    "scope": "Existing capacity/recovery workload, including both endpoints and observer; the database maximum is a physical file measurement, separate from the encoded-image hard cap."
+  },
+  "selected_budget_rule": "Selected 0.2.0 desktop reference regression policy: 1.25 times the maximum retained complete interval or capacity-fixture resource value, rounded up to one second or one MiB. This is an engineering allowance, not a statistical confidence bound.",
+  "selected_scope": "Exactly the defined installed desktop reference workloads and capacity/recovery fixture. Existing platform functional scope is retained. Larger-recipient quantitative envelopes and mobile energy add no admission requirement.",
+  "runtime_limits_changed": false,
+  "new_ci_gate": false,
+  "verification": {
+    "phase_groups_recomputed": 12,
+    "phase_samples": 48,
+    "operation_groups_recomputed": 90,
+    "operation_samples": 1560,
+    "memory_groups_recomputed": 20,
+    "memory_samples": 80
+  },
+  "checker_sha256": "7262b31e11c79f8b7753c1013d8925773da9f2e8797830a28e284b746f2bb91b"
+}

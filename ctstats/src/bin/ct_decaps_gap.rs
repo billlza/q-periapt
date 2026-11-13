@@ -223,6 +223,27 @@ fn main() {
         usage();
     }
 
+    // Record the actual path inside the instrumented process. A native build
+    // may select portable under a CPU/OS or instrumentation environment; that
+    // result must not be labeled an AVX2 binary-CT observation.
+    let active = q_periapt_backends::ml_kem_active_implementation_id();
+    eprintln!("MLKEM_ACTIVE_IMPLEMENTATION={active}");
+    match std::env::var("QPERIAPT_EXPECT_MLKEM_IMPLEMENTATION") {
+        Ok(expected) if expected != active => {
+            fixture_error(
+                &parameter,
+                "active implementation differs from required probe identity",
+            );
+        }
+        Ok(_) | Err(std::env::VarError::NotPresent) => {}
+        Err(std::env::VarError::NotUnicode(_)) => {
+            fixture_error(
+                &parameter,
+                "required implementation identity is not Unicode",
+            );
+        }
+    }
+
     match parameter.as_str() {
         "512" => run_probe::<_, ML_KEM_512_SK_LEN, ML_KEM_512_PK_LEN, ML_KEM_512_CT_LEN>(
             "ML-KEM-512",

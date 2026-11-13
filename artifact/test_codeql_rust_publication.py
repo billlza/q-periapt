@@ -1,0 +1,508 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+import re
+import shutil
+import tempfile
+import unittest
+from unittest import mock
+
+import codeql_rust_publication as publication
+from codeql_rust_profile import linux_query_memory
+import codeql_rust_quality as quality
+from codeql_target_coverage import validate_macro_profiles
+from test_codeql_rust_profile import sarif
+
+
+class RustPublicationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.base = Path(temporary.name).resolve()
+        self.root = self.base / "source"
+        (self.root / "src").mkdir(parents=True)
+        self.sources = {}
+        for name in ("native", "web", "macos", "windows"):
+            path = self.root / "src" / (name + ".rs")
+            path.write_text("pub fn operation() {}\n")
+            self.sources[path.relative_to(self.root).as_posix()] = self.digest(path)
+        self.artifacts = self.base / "artifacts"
+        self.artifacts.mkdir()
+        original = Path(__file__).resolve().parent
+        shutil.copytree(original / "codeql-rust-quality", self.root / "artifact/codeql-rust-quality")
+        shutil.copyfile(original / "codeql_rust_queries.json", self.root / "artifact/codeql_rust_queries.json")
+        self.inventory = self.read(self.root / "artifact/codeql_rust_queries.json")["queries"]
+        self.paths = {}
+        for name, own in (("native", "native"), ("wasm", "web"), ("macos", "macos"), ("windows", "windows")):
+            directory = self.artifacts / ("codeql-rust-profile-" + name + "-1")
+            directory.mkdir()
+            metrics = {key: 0 for key in quality.EXPECTED_METRICS}
+            metrics.update(extracted_files=4, successfully_extracted_files=4,
+                           source_macro_calls=4, unresolved_source_macro_calls=3, source_format_args=1)
+            rows = [[f"src/{own}.rs", 3, 5, "format!...", "expanded", "code", {"label": "format!..."}],
+                    *[[f"src/{other}.rs", 3, 5, "format!...", "unresolved", "code", {"label": "format!..."}]
+                      for other in ("native", "web", "macos", "windows") if other != own]]
+            self.write(directory / "MacroCalls.json", rows)
+            self.write(directory / "ExtractedPaths.json", [[path] for path in sorted(self.sources)])
+            self.write(directory / "Metrics.json", list(map(list, metrics.items())))
+            self.write(directory / "QUERY_INVENTORY.json", self.inventory)
+            self.write(directory / "results.sarif", sarif(name))
+            profile = {"schema": 1, "profile": name, "target": publication.TARGETS[name],
+                       "source_commit": "a" * 40, "run_id": "123", "run_attempt": "1",
+                       "codeql_version": publication.VERSION, "compiler": publication.COMPILER,
+                       "source_sha256": self.sources, "compiled_sources": {f"src/{own}.rs": self.sources[f"src/{own}.rs"]},
+                       "metrics": metrics, "macro_census_sha256": self.digest(directory / "MacroCalls.json"),
+                       "extracted_paths_sha256": self.digest(directory / "ExtractedPaths.json"),
+                       "quality_queries_sha256": {p.name: self.digest(p) for p in (self.root / "artifact/codeql-rust-quality").glob("*.ql")},
+                       "quality_pack_sha256": self.digest(self.root / "artifact/codeql-rust-quality/qlpack.yml"),
+                       "quality_lock_sha256": self.digest(self.root / "artifact/codeql-rust-quality/codeql-pack.lock.yml"),
+                       "active_target_quality_passed": True, "paired_target_quality_passed": False}
+            host = quality.hosted_configuration(publication.profile_host(name))
+            profile.update(compiler_host=host.compiler_host, query_threads=host.threads, query_ram_mb=host.ram_mb)
+            self.write(directory / "PROFILE.json", profile)
+            self.write(directory / "QUERY_MEMORY.json", linux_query_memory(["-J-Xmx3356M", "--off-heap-ram=9329"], name))
+            if name == "macos":
+                inputs = {key: value for key, value in profile.items()
+                          if key not in ("metrics", "macro_census_sha256", "extracted_paths_sha256")}
+                inputs["active_target_quality_passed"] = False
+                self.write(directory / "EXTRACTION_INPUTS.json", inputs)
+                profile.update(extraction_inputs_sha256=self.digest(directory / "EXTRACTION_INPUTS.json"),
+                               quality_host="linux", quality_threads=4, quality_ram_mb=14000, quality_run_attempt="1")
+                self.write(directory / "PROFILE.json", profile)
+                evidence = {leaf: {"bytes": (directory / leaf).stat().st_size,
+                                   "sha256": self.digest(directory / leaf)}
+                            for leaf in ("EXTRACTION_INPUTS.json",)}
+                self.write(directory / "TRANSFER.json", {
+                    "schema": 2, "profile": name, "target": publication.TARGETS[name],
+                    "source_commit": "a" * 40, "run_id": "123", "origin_attempt": "1",
+                    "origin_host": "darwin", "compiler_host": host.compiler_host,
+                    "compiler": publication.COMPILER, "codeql_version": publication.VERSION,
+                    "extraction_inputs_sha256": self.digest(directory / "EXTRACTION_INPUTS.json"),
+                    "database": {"file": "database.zip", "bytes": 1024, "sha256": "c" * 64},
+                    "database_inventory_sha256": "d" * 64, "database_members": 3,
+                    "database_expanded_bytes": 2048, "evidence": evidence,
+                })
+            self.write(directory / "ANALYSIS.json", {"schema": 2, "completed": True,
+                       "profile": name, "target": publication.TARGETS[name],
+                       "source_commit": "a" * 40, "run_id": "123", "run_attempt": "1",
+                       "analysis_host": "linux", "query_threads": 4, "query_ram_mb": 14000,
+                       "codeql_version": publication.VERSION,
+                       "query_pack": publication.QUERY_VERSION, "upload_performed": False,
+                       "profile_sha256": self.digest(directory / "PROFILE.json"),
+                       "query_inventory_sha256": self.digest(directory / "QUERY_INVENTORY.json"),
+                       "query_result_sha256": {path: "b" * 64 for path in self.inventory},
+                       "sarif_sha256": self.digest(directory / "results.sarif"),
+                       "query_memory_sha256": self.digest(directory / "QUERY_MEMORY.json"),
+                       **({"transfer_sha256": self.digest(directory / "TRANSFER.json")}
+                          if name == "macos" else {})})
+            self.paths[name] = directory
+        anchor = mock.patch.dict(publication.os.environ, {
+            "CODEQL_TRANSFER_SHA256": self.digest(self.paths["macos"] / "TRANSFER.json"),
+            "CODEQL_TRANSFER_ATTEMPT": "1",
+        })
+        anchor.start()
+        self.addCleanup(anchor.stop)
+        patch = mock.patch.object(quality, "tracked_rust_paths", return_value=frozenset(self.sources))
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    @staticmethod
+    def digest(path):
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    @staticmethod
+    def read(path):
+        return json.loads(path.read_text())
+
+    @staticmethod
+    def write(path, value):
+        path.write_text(json.dumps(value))
+
+    def validate(self, name):
+        return publication.validate_profile_artifact(self.paths[name], name, self.root, "a" * 40, "123", 1)
+
+    def rebind_profile(self, name, value):
+        directory = self.paths[name]
+        self.write(directory / "PROFILE.json", value)
+        analysis = self.read(directory / "ANALYSIS.json")
+        analysis["profile_sha256"] = self.digest(directory / "PROFILE.json")
+        self.write(directory / "ANALYSIS.json", analysis)
+
+    def official_analysis(self):
+        # Publication wiring tests mock the plan validator. Complete plan
+        # receipts and their negative controls belong to that validator's tests.
+        for directory in self.paths.values():
+            analysis = self.read(directory / "ANALYSIS.json")
+            analysis.update(schema=3, summary_plan_mode="official", analysis_plan_sha256="e" * 64)
+            self.write(directory / "ANALYSIS.json", analysis)
+
+    def publish(self, *arguments, output_name="published"):
+        output = self.base / output_name
+        argv = ["codeql_rust_publication", "--inputs", str(self.artifacts), "--output", str(output),
+                *arguments]
+        with mock.patch("sys.argv", argv), mock.patch.object(publication, "ROOT", self.root), \
+                mock.patch.dict(publication.os.environ, {"CODEQL_EXPECTED_COMMIT": "a" * 40,
+                    "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1"}), \
+                mock.patch.object(quality, "require_clean_checkout"), \
+                mock.patch.object(quality, "require_repository_target_absent"):
+            publication.main()
+        return output
+
+    def test_default_publication_keeps_legacy_output_and_validates_each_profile(self) -> None:
+        with mock.patch.object(publication.plan, "validate_publication",
+                               wraps=publication.plan.validate_publication) as validator, \
+                mock.patch.object(publication.plan, "expected_identity") as identity:
+            output = self.publish()
+        self.assertEqual(validator.call_count, 4)
+        for name, call in zip(publication.TARGETS, validator.call_args_list):
+            self.assertEqual(call.args[0], self.paths[name])
+            self.assertEqual(call.kwargs, {"expected_mode": "none"})
+        identity.assert_not_called()
+        paired = self.read(output / "PAIRED_QUALITY.json")
+        self.assertEqual(set(paired), {"completed", "source_commit", "run_id", "profile_inputs", "macro_coverage"})
+        for name in publication.TARGETS:
+            self.assertEqual((output / (name + ".sarif")).read_bytes(),
+                             (self.paths[name] / "results.sarif").read_bytes())
+
+    def test_official_selection_reaches_all_profiles_and_binds_the_paired_manifest(self) -> None:
+        self.official_analysis()
+        with mock.patch.object(publication.plan, "validate_publication") as validator, \
+                mock.patch.object(publication.plan, "expected_identity",
+                                  return_value={"manifest_sha256": "f" * 64}):
+            output = self.publish("--summary-plan-mode", "official")
+        self.assertEqual(validator.call_count, 4)
+        for name, call in zip(publication.TARGETS, validator.call_args_list):
+            self.assertEqual(call.args[0], self.paths[name])
+            self.assertEqual(call.args[1]["schema"], 3)
+            self.assertEqual(call.kwargs, {"expected_mode": "official"})
+        paired = self.read(output / "PAIRED_QUALITY.json")
+        self.assertEqual(paired["summary_plan_mode"], "official")
+        self.assertEqual(paired["summary_plan_manifest_sha256"], "f" * 64)
+        self.assertEqual(set(paired["profile_inputs"]), set(publication.TARGETS))
+
+    def test_any_plan_validator_failure_stops_before_publication(self) -> None:
+        self.official_analysis()
+        for rejected in publication.TARGETS:
+            def validate(directory, analysis, *, expected_mode):
+                self.assertEqual(expected_mode, "official")
+                if directory == self.paths[rejected]:
+                    raise ValueError("injected plan admission failure")
+            with self.subTest(profile=rejected), \
+                    mock.patch.object(publication.plan, "validate_publication", side_effect=validate), \
+                    self.assertRaisesRegex(ValueError, "plan admission failure"):
+                self.publish("--summary-plan-mode", "official", output_name="rejected-" + rejected)
+            self.assertFalse((self.base / ("rejected-" + rejected)).exists())
+
+    def test_official_cannot_replace_the_complete_query_result_gate(self) -> None:
+        self.official_analysis()
+        directory = self.paths["native"]
+        analysis = self.read(directory / "ANALYSIS.json")
+        del analysis["query_result_sha256"]["queries/summary/SummaryStats.ql"]
+        self.write(directory / "ANALYSIS.json", analysis)
+        with mock.patch.object(publication.plan, "validate_publication"), \
+                self.assertRaisesRegex(ValueError, "census is incomplete"):
+            publication.validate_profile_artifact(directory, "native", self.root, "a" * 40, "123", 1,
+                                                   summary_plan_mode="official")
+
+    def test_official_selector_rejects_legacy_profile_receipts(self) -> None:
+        for name in publication.TARGETS:
+            with self.subTest(profile=name), self.assertRaises(ValueError):
+                publication.validate_profile_artifact(self.paths[name], name, self.root, "a" * 40, "123", 1,
+                                                       summary_plan_mode="official")
+
+    def test_default_selector_rejects_official_profile_receipts(self) -> None:
+        self.official_analysis()
+        for name in publication.TARGETS:
+            with self.subTest(profile=name), self.assertRaises(ValueError):
+                self.validate(name)
+
+    def test_all_four_completed_profiles_are_required(self) -> None:
+        selected = publication.latest_profile_directories(self.artifacts, 1)
+        self.assertEqual(selected, self.paths)
+        result = validate_macro_profiles([self.validate(name) for name in publication.TARGETS])
+        self.assertEqual(result[publication.TARGETS["native"]]["inactive_with_compiled_peer"], 3)
+        for name, path in self.paths.items():
+            parked = self.base / "parked"
+            path.rename(parked)
+            try:
+                with self.subTest(name=name), self.assertRaisesRegex(ValueError, "artifacts are all required"):
+                    publication.latest_profile_directories(self.artifacts, 1)
+            finally:
+                parked.rename(path)
+
+    def test_workflow_uploads_each_profile_once_with_its_strict_category(self) -> None:
+        workflow = (publication.ROOT / ".github/workflows/codeql.yml").read_text()
+        publication_job = workflow.split("\n  rust-publication:\n", 1)[1]
+        uploads = re.findall(r"category: (\S+)\n\s+sarif_file: [^\n]+/(native|wasm|macos|windows)\.sarif", publication_job)
+        self.assertEqual(uploads, [("/language:rust", "native"), ("/language:rust/target:wasm", "wasm"),
+                                   ("/language:rust/target:macos", "macos"), ("/language:rust/target:windows", "windows")])
+
+    def test_rebinding_sarif_digest_cannot_change_a_profiles_category(self) -> None:
+        categories = {"native": "/language:rust/", "wasm": "/language:rust/target:wasm/",
+                      "macos": "/language:rust/target:macos/", "windows": "/language:rust/target:windows/"}
+        for name, expected in categories.items():
+            directory = self.paths[name]
+            self.assertEqual(self.validate(name).target, publication.TARGETS[name])
+            original = self.read(directory / "results.sarif")
+            analysis = self.read(directory / "ANALYSIS.json")
+            for wrong in set(categories.values()) - {expected} | {"/language:rust/target:native/"}:
+                changed = sarif(name)
+                changed["runs"][0]["automationDetails"]["id"] = wrong
+                self.write(directory / "results.sarif", changed)
+                rebound = dict(analysis, sarif_sha256=self.digest(directory / "results.sarif"))
+                self.write(directory / "ANALYSIS.json", rebound)
+                with self.subTest(profile=name, wrong=wrong), self.assertRaisesRegex(ValueError, "different target"):
+                    self.validate(name)
+            self.write(directory / "results.sarif", original)
+            self.write(directory / "ANALYSIS.json", analysis)
+
+    def test_linux_requires_its_bound_actual_memory_resolution(self) -> None:
+        for name in publication.TARGETS:
+            with self.subTest(profile=name):
+                directory = self.paths[name]
+                original = self.read(directory / "QUERY_MEMORY.json")
+                self.write(directory / "QUERY_MEMORY.json", dict(original, heap_mb=3072))
+                with self.assertRaisesRegex(ValueError, "not bound"):
+                    self.validate(name)
+                analysis = self.read(directory / "ANALYSIS.json")
+                analysis["query_memory_sha256"] = self.digest(directory / "QUERY_MEMORY.json")
+                self.write(directory / "ANALYSIS.json", analysis)
+                with self.assertRaisesRegex(ValueError, "differs from its resolved allocation"):
+                    self.validate(name)
+                (directory / "QUERY_MEMORY.json").unlink()
+                with self.assertRaises(ValueError):
+                    self.validate(name)
+
+    def test_rebinding_memory_digest_cannot_reuse_another_linux_profiles_record(self) -> None:
+        for name, other in (("native", "wasm"), ("wasm", "native"), ("macos", "native")):
+            with self.subTest(profile=name, other=other):
+                directory = self.paths[name]
+                self.write(directory / "QUERY_MEMORY.json",
+                           linux_query_memory(["-J-Xmx3356M", "--off-heap-ram=9329"], other))
+                analysis = self.read(directory / "ANALYSIS.json")
+                analysis["query_memory_sha256"] = self.digest(directory / "QUERY_MEMORY.json")
+                self.write(directory / "ANALYSIS.json", analysis)
+                with self.assertRaisesRegex(ValueError, "differs from its resolved allocation"):
+                    self.validate(name)
+
+    def test_linux_and_wasm_cannot_certify_macos_only_code(self) -> None:
+        with self.assertRaisesRegex(ValueError, "compiled peer"):
+            validate_macro_profiles([self.validate("native"), self.validate("wasm")])
+
+    def test_linux_wasm_and_macos_cannot_certify_windows_only_code(self) -> None:
+        with self.assertRaisesRegex(ValueError, "compiled peer"):
+            validate_macro_profiles([self.validate(name) for name in ("native", "wasm", "macos")])
+
+    def test_extraction_diagnostics_cannot_replace_a_completed_profile(self) -> None:
+        directory = self.paths["macos"]
+        inputs = self.read(directory / "PROFILE.json")
+        inputs["active_target_quality_passed"] = False
+        self.write(directory / "EXTRACTION_INPUTS.json", inputs)
+        (directory / "PROFILE.json").unlink()
+        with self.assertRaisesRegex(ValueError, "PROFILE.json"):
+            self.validate("macos")
+        self.write(directory / "PROFILE.json", inputs)
+        with self.assertRaisesRegex(ValueError, "did not complete"):
+            self.validate("macos")
+
+    def test_macos_requires_its_own_complete_suite_and_arm_host(self) -> None:
+        directory = self.paths["macos"]
+        profile = self.read(directory / "PROFILE.json")
+        for key, value in (("compiler_host", "x86_64-apple-darwin"), ("query_ram_mb", 14000),
+                           ("query_threads", 4), ("query_threads", True)):
+            with self.subTest(key=key, value=value):
+                self.rebind_profile("macos", dict(profile, **{key: value}))
+                with self.assertRaisesRegex(ValueError, "host or resource budget"):
+                    self.validate("macos")
+        self.rebind_profile("macos", profile)
+        analysis = self.read(directory / "ANALYSIS.json")
+        del analysis["query_result_sha256"]["queries/summary/SummaryStats.ql"]
+        self.write(directory / "ANALYSIS.json", analysis)
+        with self.assertRaisesRegex(ValueError, "census is incomplete"):
+            self.validate("macos")
+
+    def test_macos_origin_attempt_survives_a_later_linux_analysis_attempt(self) -> None:
+        directory = self.paths["macos"]
+        original_profile = (directory / "PROFILE.json").read_bytes()
+        analysis = self.read(directory / "ANALYSIS.json")
+        analysis["run_attempt"] = "2"
+        self.write(directory / "ANALYSIS.json", analysis)
+        with self.assertRaisesRegex(ValueError, "attempt identity"):
+            publication.validate_profile_artifact(directory, "macos", self.root, "a" * 40, "123", 2)
+        newer = directory.with_name("codeql-rust-profile-macos-2")
+        directory.rename(newer)
+        self.paths["macos"] = newer
+        selected = publication.latest_profile_directories(self.artifacts, 2)
+        self.assertEqual(selected["macos"], newer)
+        profile = publication.validate_profile_artifact(newer, "macos", self.root, "a" * 40, "123", 2)
+        self.assertEqual(profile.target, publication.TARGETS["macos"])
+        self.assertEqual((newer / "PROFILE.json").read_bytes(), original_profile)
+
+    def test_analysis_identity_and_budgets_are_separate_from_origin(self) -> None:
+        for name in publication.TARGETS:
+            directory = self.paths[name]
+            original = self.read(directory / "ANALYSIS.json")
+            mutations = (("schema", True), ("source_commit", "b" * 40), ("run_id", "124"),
+                         ("profile", "other"), ("target", "other"), ("run_attempt", "2"),
+                         ("analysis_host", "darwin"), ("query_threads", 2),
+                         ("query_threads", True), ("query_ram_mb", 5500))
+            for key, value in mutations:
+                with self.subTest(profile=name, key=key, value=value):
+                    self.write(directory / "ANALYSIS.json", dict(original, **{key: value}))
+                    with self.assertRaises(ValueError):
+                        self.validate(name)
+            self.write(directory / "ANALYSIS.json", original)
+
+    def test_origin_attempt_cannot_be_newer_than_analysis(self) -> None:
+        original = self.read(self.paths["macos"] / "PROFILE.json")
+        self.rebind_profile("macos", dict(original, run_attempt="2"))
+        with self.assertRaisesRegex(ValueError, "attempt identity"):
+            self.validate("macos")
+
+    def test_macos_quality_receipt_requires_linux_and_the_pending_extraction(self) -> None:
+        original = self.read(self.paths["macos"] / "PROFILE.json")
+        for key, value in (("quality_host", "darwin"), ("quality_threads", 2),
+                           ("quality_threads", True), ("quality_ram_mb", 5500),
+                           ("quality_run_attempt", "0"), ("quality_run_attempt", "2"),
+                           ("quality_run_attempt", 1), ("extraction_inputs_sha256", "f" * 64),
+                           ("compiled_sources", {})):
+            with self.subTest(key=key):
+                self.rebind_profile("macos", dict(original, **{key: value}))
+                with self.assertRaises(ValueError):
+                    self.validate("macos")
+        self.rebind_profile("macos", original)
+
+    def test_pending_extraction_cannot_be_rewritten_after_qualification(self) -> None:
+        directory = self.paths["macos"]
+        path = directory / "EXTRACTION_INPUTS.json"
+        inputs = self.read(path)
+        inputs["active_target_quality_passed"] = True
+        self.write(path, inputs)
+        with self.assertRaisesRegex(ValueError, "awaiting quality validation"):
+            self.validate("macos")
+
+    def test_macos_requires_the_prepare_jobs_exact_transfer_anchor(self) -> None:
+        for key, value in (("CODEQL_TRANSFER_SHA256", ""), ("CODEQL_TRANSFER_SHA256", "f" * 64),
+                           ("CODEQL_TRANSFER_ATTEMPT", "2")):
+            with self.subTest(key=key), mock.patch.dict(publication.os.environ, {key: value}):
+                with self.assertRaisesRegex(ValueError, "transfer"):
+                    self.validate("macos")
+        directory = self.paths["macos"]
+        transfer = self.read(directory / "TRANSFER.json")
+        transfer["database"]["sha256"] = "e" * 64
+        self.write(directory / "TRANSFER.json", transfer)
+        analysis = self.read(directory / "ANALYSIS.json")
+        analysis["transfer_sha256"] = self.digest(directory / "TRANSFER.json")
+        self.write(directory / "ANALYSIS.json", analysis)
+        with self.assertRaisesRegex(ValueError, "anchored transfer"):
+            self.validate("macos")
+
+    def test_rebound_transfer_still_requires_its_mac_origin(self) -> None:
+        directory = self.paths["macos"]
+        original = self.read(directory / "TRANSFER.json")
+        for key, value in (("origin_host", "linux"), ("target", publication.TARGETS["native"]),
+                           ("source_commit", "b" * 40), ("run_id", "124"), ("origin_attempt", "2")):
+            with self.subTest(key=key):
+                self.write(directory / "TRANSFER.json", dict(original, **{key: value}))
+                digest = self.digest(directory / "TRANSFER.json")
+                analysis = self.read(directory / "ANALYSIS.json")
+                analysis["transfer_sha256"] = digest
+                self.write(directory / "ANALYSIS.json", analysis)
+                with mock.patch.dict(publication.os.environ, {"CODEQL_TRANSFER_SHA256": digest}):
+                    with self.assertRaises(ValueError):
+                        self.validate("macos")
+
+    def test_local_linux_profiles_cannot_claim_transfer_receipts(self) -> None:
+        for name in ("native", "wasm"):
+            directory = self.paths[name]
+            original = self.read(directory / "ANALYSIS.json")
+            with self.subTest(profile=name, field=True):
+                self.write(directory / "ANALYSIS.json", dict(original, transfer_sha256="f" * 64))
+                with self.assertRaisesRegex(ValueError, "cannot claim"):
+                    self.validate(name)
+            self.write(directory / "ANALYSIS.json", original)
+            with self.subTest(profile=name, file=True):
+                shutil.copyfile(self.paths["macos"] / "TRANSFER.json", directory / "TRANSFER.json")
+                with self.assertRaisesRegex(ValueError, "cannot claim"):
+                    self.validate(name)
+
+    def test_latest_failed_mac_analysis_cannot_fall_back_to_old_success(self) -> None:
+        newer = self.artifacts / "codeql-rust-profile-macos-2"
+        newer.mkdir()
+        shutil.copyfile(self.paths["macos"] / "PROFILE.json", newer / "PROFILE.json")
+        selected = publication.latest_profile_directories(self.artifacts, 2)
+        self.assertEqual(selected["macos"], newer)
+        with self.assertRaisesRegex(ValueError, "ANALYSIS.json"):
+            publication.validate_profile_artifact(newer, "macos", self.root, "a" * 40, "123", 2)
+
+    def test_latest_failed_attempt_cannot_fall_back_to_old_success(self) -> None:
+        newer = self.artifacts / "codeql-rust-profile-native-2"
+        newer.mkdir()
+        selected = publication.latest_profile_directories(self.artifacts, 2)
+        self.assertEqual(selected["native"], newer)
+        with self.assertRaises(ValueError):
+            publication.validate_profile_artifact(newer, "native", self.root, "a" * 40, "123", 2)
+
+    def test_future_attempt_is_rejected(self) -> None:
+        (self.artifacts / "codeql-rust-profile-native-2").mkdir()
+        with self.assertRaisesRegex(ValueError, "future"):
+            publication.latest_profile_directories(self.artifacts, 1)
+
+    def test_run_source_tool_and_compiler_identity_are_bound(self) -> None:
+        original = self.read(self.paths["native"] / "PROFILE.json")
+        for key, value in (("run_id", "124"), ("source_commit", "b" * 40),
+                           ("compiler", "1.97.0"), ("target", publication.TARGETS["wasm"])):
+            changed = dict(original); changed[key] = value
+            self.rebind_profile("native", changed)
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                self.validate("native")
+        self.rebind_profile("native", original)
+
+    def test_changed_source_is_rejected(self) -> None:
+        (self.root / "src/native.rs").write_text("changed source\n")
+        with self.assertRaisesRegex(ValueError, "source bytes"):
+            self.validate("native")
+
+    def test_changed_quality_query_is_rejected(self) -> None:
+        (self.root / "artifact/codeql-rust-quality/MacroCalls.ql").write_text("changed query\n")
+        with self.assertRaisesRegex(ValueError, "quality query bytes"):
+            self.validate("native")
+
+    def test_sarif_corruption_or_query_result_omission_is_rejected(self) -> None:
+        directory = self.paths["native"]
+        analysis = self.read(directory / "ANALYSIS.json")
+        del analysis["query_result_sha256"]["queries/summary/SummaryStats.ql"]
+        self.write(directory / "ANALYSIS.json", analysis)
+        with self.assertRaisesRegex(ValueError, "census is incomplete"):
+            self.validate("native")
+        analysis["query_result_sha256"]["queries/summary/SummaryStats.ql"] = "b" * 64
+        self.write(directory / "ANALYSIS.json", analysis)
+        (directory / "results.sarif").write_bytes(b"corrupted")
+        with self.assertRaisesRegex(ValueError, "SARIF differs"):
+            self.validate("native")
+
+    def test_completed_marker_cannot_override_active_macro_failure(self) -> None:
+        directory = self.paths["native"]
+        rows = self.read(directory / "MacroCalls.json")
+        rows[0][4] = "unresolved"
+        self.write(directory / "MacroCalls.json", rows)
+        profile = self.read(directory / "PROFILE.json")
+        profile["metrics"]["unresolved_source_macro_calls"] = 4
+        self.write(directory / "Metrics.json", list(map(list, profile["metrics"].items())))
+        profile["macro_census_sha256"] = self.digest(directory / "MacroCalls.json")
+        self.rebind_profile("native", profile)
+        with self.assertRaisesRegex(ValueError, "active macro has no expansion"):
+            self.validate("native")
+
+    def test_stale_compiled_source_hash_is_rejected(self) -> None:
+        profile = self.read(self.paths["native"] / "PROFILE.json")
+        profile["compiled_sources"]["src/native.rs"] = "f" * 64
+        self.rebind_profile("native", profile)
+        with self.assertRaisesRegex(ValueError, "compiler source identity"):
+            self.validate("native")
+
+
+if __name__ == "__main__":
+    unittest.main()

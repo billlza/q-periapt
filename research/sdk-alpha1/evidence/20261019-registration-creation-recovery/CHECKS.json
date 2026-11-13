@@ -1,0 +1,361 @@
+{
+  "head": "e942693b99bf51df85f27e61a554fa06e7aa9eb7",
+  "installed": {
+    "schema_version": 2,
+    "kind": "qperiapt.host_enrollment_exchange",
+    "completed": true,
+    "release_claim_eligible": false,
+    "source_commit": "e942693b99bf51df85f27e61a554fa06e7aa9eb7",
+    "source_inputs": {
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/__init__.py": "9d7337e6f4f439c45ab9dc47bfdbff1335ec366df00229f36a31ae65f489bf9c",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/authority.py": "73e7472752f1199995c9196b45166ed5e301c26818c29251f03a3e0ad299c319",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/bootstrap.py": "0a5803f8f553a8c45447beb8b82c0c5e6a5a90c6426f77b7320611e8a7ccbef5",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/bootstrap_bundle.py": "7ddeb7c2c58be462cf28af6a9518dbedc221ad3a0ea445097c8442f6b8219438",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/control.py": "d1a2c83d916d6508b6acb465c6f1a2e9e9ec8ebe3e14cefbc43dadf3e11cd9d0",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/durable.py": "9b503ea0a43bdd9e5ba1b7d6c2b840ada8d9def0f4f5c0af67ce13ff4694ecdd",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/enrollment_cli.py": "48fe63fa6d1948d6bd8d42e29690eae988eaaab8acf470733583e48c0539996e",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/enrollment_client.py": "20bd069593f4541638d9b3441a103facf9db96e8af9a7d2079ce4f4c997a61d4",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/enrollment_exchange.py": "dd3aaff4b7e547b73872c39807df1d97b1780f6d98922eefcad08feb821aa3e1",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/epoch_codec.py": "18f52cc050a54aac22ceecd7a25b748d2329695d55cda315ef21019eb199555c",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/epoch_state.py": "20773d20415393e1a992dd4251bc6c367a5486a590732c9b255c79cd7e91c466",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/epoch_validation.py": "055b2adfaf01e48684ae9e08c59849bf7813c6985b0d9f86c291e7a25d7d9198",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/historical_inputs.py": "3d26d7a4735e6b3e3f6c26ca0fe5b991eebb4f4eba2ea2629c349059c8e49fc3",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/identity.py": "1652643e4203c5d1e707b62ca7f4f9ca338a205381fb8cbeb7be21f25504a158",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/identity_state.py": "15ae43b2d69d06ec6df62b68fe5edfed4f36c934f373222dbde9dbfe7d6a9cf4",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/journal.py": "5e5418d769237c47b9e1cb4d78b07b12d6ea2ca5a7284991f7cdcdc40f16bc52",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/kem.py": "f7ecbfe02d3c50ae61a0843cda962671d5b3e41931bc922fcb15d6bbbba6e1e9",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/local_authority_control.py": "96eadc6ab0173ec733415ff75168057d50a97f63110f6082bae50eba14c54dbb",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/local_credential.py": "fdb8910cfb8172489e56231367c47b27857e913b09a2ad4d9d4d50fc1d213f36",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/local_renewal.py": "ff426635df7355d06263666d2baae5e42323f1ddc42a1b501771a1f9a9142523",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/local_renewal_intent.py": "e544378526bd2072c9406894b655ef61752581579dd80aef937d76d10c87dcfa",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/local_renewal_protocol.py": "1535b8f048d09115585b0d833f046fa673389c9da9888f302c99574b90af3f91",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/local_renewal_record.py": "504ec5738e3dc1c9cd121ef7d1fbaf85b3f377dc4219dc89f62f6bd1b49a46bc",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/owner_guard.py": "57bd02cc2d846ed86ebaecaf17e1134c7ad4fb11412471fb463f23933f86c7fb",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/peer_owner.py": "dad4eeaac686d85134c5d6ae6d8b8336b7ddb3854f34f4aefe1b91e258398bf1",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/pending_recovery.py": "bb7dcb8e3e9c5dc21fe04bf720b9b2d0d88254884da0fc80aa1ae3f4fcfd8509",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/pending_recovery_protocol.py": "94a1cbb4c78144efc17d3fca1bf86cd930389df9e8c1479d46be8593d216c6d3",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/pending_recovery_views.py": "1f1a8ce034577c1d413b10807595ae0a64b7ed861e8e4c2cedb50c8e864c87aa",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/private_files.py": "e3c88a00d1d58c4fad23c8ba750f663536b1a3b1a30f264e16d14e6edf0664b7",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/provider.py": "cc4840f7c2c7c23d97b522fb512bb6547b0570e79da092dcef4881988362bd76",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/registered_owner.py": "da7e7b4690be3f848f7081fadabe2f08f19eb649cfa5788846bf698143c3ece3",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/registration.py": "958c1bfa74ba3a1351b4487c6cf81fa4b64589240b41008e6530a0b44092c5c0",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/registration_inputs.py": "3fd7c6f37e63067da33b3044b496d0d2b724039649abbf8601a688e2cf342c8c",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/registration_protocol.py": "2848f9f70fc0d5ae38fdbb2a0e25ff4b5c1261d6a553126ec7cde098984bf31c",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/registration_session.py": "e1132609b81c95790cd4e91c7f956bd993e58c4c47856adc945d0498be500fcc",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/registration_state.py": "bac481a5a891c273977d083e9f7c71c18e15504bbb861261a9c4c1c31acac2a0",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/rekey.py": "2e8c6bf5115c2bff9e854c2d71773e93a864fbf6bb902d4a8ac63159233ac897",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/rekey_owner.py": "b46af5d2b46b002f4a593ecb4fd68abef564bbac27a2d2c5eef17e3abc8ebbe0",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/renewal.py": "5e10b3ab6e86d727375462f1547dc902f39b5aa64b7f09512206d5bc8f619374",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/resolution.py": "9bf42d1f765f92c16e50823db8ab2fe1162c28d4e453cdf3360a536256fa0f75",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/resolution_owner.py": "d76f069abca8ce98ea0f4e7f59f8020b11558a005b8c918bf900f885cff10127",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/snapshot_fields.py": "2d5d3a33410fd58ccd217640fe5ccf654c66a55d51ef09b02948e001c68a135f",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/state_codec.py": "9a1649b3c35e542568776fdbd2d1cfc3e82b2d77bfd6f801c270dff0bd295091",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/storage_budget.py": "41fb5f205dcfe171a5e6924ef491ae8d0fe565943caa12fbfeec2d78b2065b67",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/traffic.py": "bf9a6bc9720b81c9f43b88cbb3c1f2dccfe49d2f20786a6135d35cbe3720f37a",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/traffic_codec.py": "0392ba7bac589b92fb584201f2bf19f9bdfa6ca0c4336fa0a48dd10a9a62a7a7",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/wire.py": "76a64c94f876038a7f072d668307813d4b7b89a34bc760ad54adf18ac7b035af",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/witness.py": "33890f17b6e12e7fbcb056e20d1a4fd3c6a263832ed49dfd6404f2476b09b506",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/witness_journal.py": "ae2b5f2768fa8b4ad060caa69cb1d257915dcbf358f1072474495333f9a0af0c",
+      "research/continuity-openssl-peer/qperiapt_continuity_reference/witness_session.py": "795da75666c0a34f32229574b3571601f9edf4f2c08f8b0f700ce8fa33583884",
+      "research/continuity-openssl-peer/tests/enrollment_exchange.py": "8c986285649b8df34506b0cbcf2f0cdc27a1925d7e47e8e374a61912a34fcf6e",
+      "research/continuity-openssl-peer/tests/enrollment_client.py": "6b9213645e90a1390268753127722733031226d7485ed9c59ecd0f62595b1bd1",
+      "research/continuity-openssl-peer/pyproject.toml": "93ea0548f8cd268136aef7a828fb5cdbf7a11726ffa2328ce87f007674bfb66d",
+      "research/continuity-openssl-peer/README.md": "bd083abc75f8343689cc9e266add4d98af1eed9e8844ed30a77af9e7aac2e9fd",
+      "research/continuity-openssl-peer/ENROLLMENT_EXCHANGE.md": "593dd5e8a9965a679e9b8249fc503475c1cde60233274cbba567d7cf7e34798d",
+      "research/continuity-openssl-peer/ENROLLMENT_CLIENT.md": "6ad477db91bfbf04ec95d117d02820941f423086968e297b2cdd7b44831d1c03",
+      "research/continuity-openssl-peer/LICENSE-APACHE": "cfdff80f6bf12fb250921ea93684b84ffa97b7aa02f0ec859de0c7312a72ceb3",
+      "research/continuity-openssl-peer/LICENSE-MIT": "b93c8c0efb8cfe3c10b26ab6e2982b44cb2e4a1dce72dd12f23d89814553c5f6",
+      "research/continuity-openssl-peer/requirements.txt": "484c3518a9e325f0ba45613d08e2a1a96113d5f8d265b6bc70855c87a0d15dd0",
+      "research/continuity-openssl-peer/build-requirements.txt": "0586d23ac46a8e421ac2e28c41d1ef3d3b1a534d781bc984f7b186a483f64af0",
+      "artifact/continuity_host_exchange.py": "88b594dac66ce45ffeeaacf7cd9d2e955534b8fd6fdb1c23f91ec37f3e0ad286",
+      "artifact/continuity_independent_python.py": "6112e6f9f625ed0c2dca610d5541449e8abeb7a689949b7bb4d358495367d3ea",
+      "artifact/continuity_independent_python_run.py": "00a9b8da8703512ca515ae16a454db20c03e496f66322b93e6a16c18fecc34c9",
+      "artifact/bounded_process.py": "4b54c1b09388970cf907b0eee60f11b44e384b7e7f625fcb39d66891a1fcd5b6",
+      "artifact/evidence_io.py": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d",
+      "artifact/git_provenance.py": "8bb64d7f43d1ffa00a39b31a174e8667d4d2cfb1f8c42a019a32627f6a065f3f",
+      "artifact/python_bootstrap.py": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe"
+    },
+    "wheel_sha256": "4dd7dda20f774d2bf71d1f68968572dc119010c57199fd3024a129840329558c",
+    "module_count": 50,
+    "outside_root": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-host-exchange-kdxwvfwh",
+    "exchange_test_names": [
+      "test_current_pin_and_historical_roster_are_individually_verified",
+      "test_current_revocation_cannot_be_overridden_by_historical_issuance",
+      "test_host_deadline_does_not_expire_an_already_issued_valid_credential",
+      "test_independent_current_roster_and_original_reopen",
+      "test_issuer_suspension_is_not_mislabelled_as_device_revocation",
+      "test_json_types_scope_bounds_and_duplicates",
+      "test_live_policy_pins_and_signature_required",
+      "test_response_cannot_select_its_own_operation_or_successor_intent"
+    ],
+    "exchange_execution": {
+      "tests": 8,
+      "successful": true,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "expected_failures": 0,
+      "unexpected_successes": 0,
+      "provider_version": "48.0.1",
+      "openssl": "OpenSSL 4.0.1 9 Jun 2026",
+      "implementation": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-host-exchange-kdxwvfwh/installed/qperiapt_continuity_reference/enrollment_exchange.py",
+      "private_fixtures_retained": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-host-exchange-kdxwvfwh/private-exchange"
+    },
+    "client_test_names": [
+      "test_arbitrary_authenticated_orphan_is_not_selected",
+      "test_cli_original_request_export_no_overwrite_and_real_acceptance",
+      "test_configuration_without_original_device_intent_stays_explicit_failure",
+      "test_corrupt_reserved_creation_is_rejected_before_publication",
+      "test_device_first_intent_kill_recovers_exact_original_target",
+      "test_exclusive_owner_wrong_key_id_and_second_begin_preserve_state",
+      "test_original_configuration_request_and_acceptance_reopen",
+      "test_ready_intent_kill_recovers_original_device",
+      "test_ready_missing_device_state_is_never_recreated",
+      "test_ready_owner_and_creation_reader_reject_reserved_advanced_transition",
+      "test_repeated_creation_recovery_kills_keep_one_exact_reserved_target",
+      "test_request_commit_kill_preserves_exact_signed_request",
+      "test_reserved_creation_cannot_change_scope_or_wrapping_key",
+      "test_response_cannot_replace_retained_authority_or_invitation",
+      "test_synced_initial_device_intent_recovers_exact_original_identity",
+      "test_truncated_reserved_creation_is_retained_without_new_key"
+    ],
+    "client_execution": {
+      "tests": 16,
+      "successful": true,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "expected_failures": 0,
+      "unexpected_successes": 0,
+      "provider_version": "48.0.1",
+      "openssl": "OpenSSL 4.0.1 9 Jun 2026",
+      "implementation": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-host-exchange-kdxwvfwh/installed/qperiapt_continuity_reference/enrollment_client.py",
+      "private_fixtures_retained": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-host-exchange-kdxwvfwh/private-client"
+    },
+    "scope": "Installed independent adapter/client, CLI processes and SIGKILL recovery with real OpenSSL signatures/journals and explicit test issuers; no native host/browser authorization or deployed policy-publisher admission."
+  },
+  "installed_client_process_kills": 14,
+  "native_registration": {
+    "native_sha256": "60c66db3973b9e1d8aabc22e3a87345b49e0a6d5ea080b1e855c6bbaf1e553fa",
+    "provider": {
+      "cryptography": "48.0.1",
+      "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+    },
+    "local": {
+      "workers": 42,
+      "native_commands": 15,
+      "process_kills": 10
+    },
+    "witness": {
+      "workers": 50,
+      "native_commands": 232,
+      "process_kills": 11
+    }
+  },
+  "native_scope": {
+    "binary": "/Users/bill/Documents/Codex/sdk-020-windows-private-store-20261017/target/independent-installed-01/source-checkout/target/installed-counterpart-03/counterpart",
+    "sha256": "60c66db3973b9e1d8aabc22e3a87345b49e0a6d5ea080b1e855c6bbaf1e553fa",
+    "frozen_build_source": "b89eb724f4f40388ab7546dab9b7d07c80bf607b",
+    "frozen_sdk_base": "23280124efd2f0f3003d4ce85e3db665f6ec8a25",
+    "build_report_sha256": "241a01136fdce460d673bcc0d8a63848b0509fd2fc25906df56287af3faf5181",
+    "native_fixture_sources_match": {
+      "native/src/fixture.rs": "9ebf712e98b49ed8ce49d97c937f7ecd37ee7befd391f64f6aeec0aefeb8a348",
+      "native/src/journal.rs": "9a7451f2dfdaa39b248f664899047cc77075d34479547aa3db69e9fcd39c6ff5",
+      "native/src/main.rs": "a51cf144a79ec878b39d40444c74c6314cc19313df651dc00c41e88796c4cb2c",
+      "native/src/peer_lifecycle.rs": "efeb6300cf6461c997bdea7de1839e4677e272a29eaf45c9f234117c662ca92f",
+      "native/src/registration.rs": "95689aa13ab6bc20086a39d1f450ef59a8172c89851ea4ac0b7b7b102c0efbef",
+      "native/src/resolution.rs": "29e51a4c76ff15e9bf1a85e8a1ada9e22b3e92f14206fdcb366d3b9c47395b0c",
+      "native/src/witness.rs": "0370af6335c009529cc8ac78d7070e782d193d17d316fe1c80e0285278344103",
+      "native/Cargo.toml": "fe15d136d588decef21f96dcb229391f7c7b602f6ebf9db030da88a59dacec1b",
+      "native/Cargo.lock": "cc6e7de9921a0e051cb03b587ed5b194372427efe6f96ef829c7b5a025cd2d8d"
+    },
+    "scope": "Current independent registration against the retained qualified native counterpart; not a new current-native build or operational authority."
+  },
+  "old_state": {
+    "original_head": "f0b861e2dcbafa4e4d5803363120354b31ccafff",
+    "original_private_client": "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-host-exchange-bd5dpi47/private-client/test_original_configuration_request_and_acceptance_reopen.client",
+    "loaded_sources": [
+      "/private/var/folders/c7/2dhh484x7m7bg6qkx91_92lm0000gn/T/qperiapt-host-exchange-bd5dpi47/installed",
+      "/Users/bill/Documents/Codex/sdk-020-windows-private-store-20261017/research/continuity-openssl-peer"
+    ],
+    "before_and_after_files": {
+      "registration/head": "a32e4f3e42bb6b1ca73a54dd2446299ac79489ce93914e3e0df47cdca1ca719f",
+      "configuration/head": "7b60c497f20f1373bc0f3f08712822d08dc611c4721be665db9021ce64f8b4af"
+    },
+    "public_observations": [
+      {
+        "phase": "Accepted",
+        "signing_id_sha256": "6063f86da6bfe2772bf5d642d83f5e9e12b7aadb278c256aa9c01bb3402b0a40",
+        "public_key_sha256": "e427c06279073069d6a716a21882810090b410775396820ef9e4927da1d0e92d",
+        "journal_sha256": "48761776469fd8dae3c0137846182b40afa2d8d3c53a91e11dbcc03808059130"
+      },
+      {
+        "phase": "Accepted",
+        "signing_id_sha256": "6063f86da6bfe2772bf5d642d83f5e9e12b7aadb278c256aa9c01bb3402b0a40",
+        "public_key_sha256": "e427c06279073069d6a716a21882810090b410775396820ef9e4927da1d0e92d",
+        "journal_sha256": "48761776469fd8dae3c0137846182b40afa2d8d3c53a91e11dbcc03808059130"
+      }
+    ],
+    "scope": "The same retained Accepted client was opened with its original key/id by old installed implementation and current source. Identity and bytes unchanged. No fresh authority, backdated acceptance or traffic-permission claim."
+  },
+  "prior_hosted_client": [
+    {
+      "platform": "ubuntu-24.04",
+      "head": "32692f3d617413bb63c62080e87a207c48781d31",
+      "run": 39214488459,
+      "job": 117935064380,
+      "artifact": 12168519147,
+      "artifact_sha256": "sha256:7fa554b4f76b4314ce0c2556eb0afe0627f2715c438376f24c3610172e88aab3",
+      "artifact_bytes": 148938,
+      "members": 40,
+      "independent_exchange": {
+        "wheel_sha256": "7c48e7781a7b0414e0d89ba6ac06e6bc62f171c2d617bc5006366edb1b878e2c",
+        "module_count": 50,
+        "executions": {
+          "exchange": {
+            "tests": 8,
+            "provider": "48.0.1",
+            "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+          },
+          "client": {
+            "tests": 10,
+            "provider": "48.0.1",
+            "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+          }
+        },
+        "source_inputs": 67
+      },
+      "test_names": [
+        "actual_loopback_tcp_preserves_authentication_boundary",
+        "admitted_root_never_regenerates_a_missing_wrapping_key",
+        "authorization_request_binding_roster_conflicts_and_two_devices",
+        "duplicate_and_malformed_authentication_cookies_are_rejected",
+        "explicit_reapproval_refreshes_only_host_deadline_and_refuses_expired_credential_scope",
+        "explicit_upgrade_preserves_account_and_issuance_reopens_exact_original_result",
+        "extra_passkey_requires_original_live_session_at_finish",
+        "http_enrollment_rejects_cross_origin_substitution_and_malformed_or_oversized_bodies",
+        "http_enrollment_requires_host_auth_and_recovers_exact_response_after_restart",
+        "http_reapproval_preserves_original_request_and_separates_history_from_current_roster",
+        "invitation_creation_recovers_lost_operation_id_using_original_caller_identity",
+        "issuance_commit_before_and_after_kill_preserves_original_operation_and_exact_result",
+        "issuer_child",
+        "public_parent_is_rejected_before_any_account_database_is_published",
+        "real_signatures_single_use_reopen_and_logout",
+        "reapproval_is_scoped_idempotent_and_cannot_branch_retarget_or_revive_terminal_grants",
+        "reapproval_kill_reconciles_one_signer_reservation_and_exact_successor_without_client_reset",
+        "reapproval_schema_upgrade_crashes_preserve_original_records_and_explicit_admission",
+        "registration_race_cannot_replace_original_account",
+        "rejects_cross_origin_and_host_before_authentication",
+        "root_first_use_reconciles_four_real_process_kills_without_replacing_published_keys",
+        "root_suspension_fences_pending_approval_but_preserves_historical_result",
+        "roster_conflict_reapproval_preserves_original_device_request_and_signing_files",
+        "schema_upgrade_kill_keeps_original_account_and_all_or_none_enrollment_tables",
+        "unknown_account_login_is_explicit_and_does_not_create_an_account",
+        "wrong_challenge_origin_and_expired_ceremonies_fail"
+      ],
+      "web_test_names": [
+        "204 approval/cancellation is an explicit successful empty response",
+        "a retained proof cannot be replaced, including before an approval retry",
+        "a separately selected reapproval proof never overwrites the original submitted request",
+        "a stale reapproval attempt does not block a new explicit decision for the original device",
+        "authority export retains the host account and exact revision without selecting a current roster",
+        "historical issuance stays byte-exact and does not select its own current roster",
+        "malformed successful responses and oversized bodies do not become success",
+        "plain-text body rejection remains a failure with its actual status",
+        "reapproval retry retains the explicitly selected u64 predecessor and original request",
+        "recovery file merge is bounded, scope-bound and idempotent",
+        "request encodings reject noncanonical padding, trailing bits and oversized data",
+        "status does not silently follow a historical successor or create another grant",
+        "storage failure before send prevents HTTP; failed response save retains the original pending record",
+        "transport retains exact response text and sends u64 values without rounding",
+        "u64 integers remain exact through parsing, request encoding and recovery storage",
+        "unknown invitation response retains its original correlation across a new model",
+        "wrong-account responses, corrupt storage and conflicting imports never reset original records"
+      ],
+      "binary_sha256_producer_observation": "114f539efee72aad9daa3e2459e6d8d26c230e70259bd5de3746204fd96c1e06",
+      "scope": "Terminal Rust debug/release26 entries (25 behavioral and1 dispatcher), Node26.10.0 browser model/transport17 unit tests using explicit substitutes, strictClippy/build and exact source/artifact checks. ActualTCP native auth/enrollment/staticmodule routes; existing14 library SIGKILL cuts. Installed independent wheel adapter8 and client10 tests, actual CLI subprocesses and5 SIGKILL cuts with explicit test issuers. Three cuts recover original state andtwo pre-publication cuts remain explicit failure. No actual host/browser authorization or operational policy publication. Does not establish real authenticated browser/device flow, installed independent livepolicy acceptance, deployed HTTPS or full lifecycle/release admission."
+    },
+    {
+      "platform": "macos-15",
+      "head": "32692f3d617413bb63c62080e87a207c48781d31",
+      "run": 39214488459,
+      "job": 117935064131,
+      "artifact": 12169148451,
+      "artifact_sha256": "sha256:c2af691860b1539de55f0da7705b0926c7942e23aaa89d18514e0fd2b3bca3bb",
+      "artifact_bytes": 149290,
+      "members": 40,
+      "independent_exchange": {
+        "wheel_sha256": "7c48e7781a7b0414e0d89ba6ac06e6bc62f171c2d617bc5006366edb1b878e2c",
+        "module_count": 50,
+        "executions": {
+          "exchange": {
+            "tests": 8,
+            "provider": "48.0.1",
+            "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+          },
+          "client": {
+            "tests": 10,
+            "provider": "48.0.1",
+            "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+          }
+        },
+        "source_inputs": 67
+      },
+      "test_names": [
+        "actual_loopback_tcp_preserves_authentication_boundary",
+        "admitted_root_never_regenerates_a_missing_wrapping_key",
+        "authorization_request_binding_roster_conflicts_and_two_devices",
+        "duplicate_and_malformed_authentication_cookies_are_rejected",
+        "explicit_reapproval_refreshes_only_host_deadline_and_refuses_expired_credential_scope",
+        "explicit_upgrade_preserves_account_and_issuance_reopens_exact_original_result",
+        "extra_passkey_requires_original_live_session_at_finish",
+        "http_enrollment_rejects_cross_origin_substitution_and_malformed_or_oversized_bodies",
+        "http_enrollment_requires_host_auth_and_recovers_exact_response_after_restart",
+        "http_reapproval_preserves_original_request_and_separates_history_from_current_roster",
+        "invitation_creation_recovers_lost_operation_id_using_original_caller_identity",
+        "issuance_commit_before_and_after_kill_preserves_original_operation_and_exact_result",
+        "issuer_child",
+        "public_parent_is_rejected_before_any_account_database_is_published",
+        "real_signatures_single_use_reopen_and_logout",
+        "reapproval_is_scoped_idempotent_and_cannot_branch_retarget_or_revive_terminal_grants",
+        "reapproval_kill_reconciles_one_signer_reservation_and_exact_successor_without_client_reset",
+        "reapproval_schema_upgrade_crashes_preserve_original_records_and_explicit_admission",
+        "registration_race_cannot_replace_original_account",
+        "rejects_cross_origin_and_host_before_authentication",
+        "root_first_use_reconciles_four_real_process_kills_without_replacing_published_keys",
+        "root_suspension_fences_pending_approval_but_preserves_historical_result",
+        "roster_conflict_reapproval_preserves_original_device_request_and_signing_files",
+        "schema_upgrade_kill_keeps_original_account_and_all_or_none_enrollment_tables",
+        "unknown_account_login_is_explicit_and_does_not_create_an_account",
+        "wrong_challenge_origin_and_expired_ceremonies_fail"
+      ],
+      "web_test_names": [
+        "204 approval/cancellation is an explicit successful empty response",
+        "a retained proof cannot be replaced, including before an approval retry",
+        "a separately selected reapproval proof never overwrites the original submitted request",
+        "a stale reapproval attempt does not block a new explicit decision for the original device",
+        "authority export retains the host account and exact revision without selecting a current roster",
+        "historical issuance stays byte-exact and does not select its own current roster",
+        "malformed successful responses and oversized bodies do not become success",
+        "plain-text body rejection remains a failure with its actual status",
+        "reapproval retry retains the explicitly selected u64 predecessor and original request",
+        "recovery file merge is bounded, scope-bound and idempotent",
+        "request encodings reject noncanonical padding, trailing bits and oversized data",
+        "status does not silently follow a historical successor or create another grant",
+        "storage failure before send prevents HTTP; failed response save retains the original pending record",
+        "transport retains exact response text and sends u64 values without rounding",
+        "u64 integers remain exact through parsing, request encoding and recovery storage",
+        "unknown invitation response retains its original correlation across a new model",
+        "wrong-account responses, corrupt storage and conflicting imports never reset original records"
+      ],
+      "binary_sha256_producer_observation": "83c649c1dd24881af0d1f14ce237e7ab3c3df0f39dad1076c39405918e2948f2",
+      "scope": "Terminal Rust debug/release26 entries (25 behavioral and1 dispatcher), Node26.10.0 browser model/transport17 unit tests using explicit substitutes, strictClippy/build and exact source/artifact checks. ActualTCP native auth/enrollment/staticmodule routes; existing14 library SIGKILL cuts. Installed independent wheel adapter8 and client10 tests, actual CLI subprocesses and5 SIGKILL cuts with explicit test issuers. Three cuts recover original state andtwo pre-publication cuts remain explicit failure. No actual host/browser authorization or operational policy publication. Does not establish real authenticated browser/device flow, installed independent livepolicy acceptance, deployed HTTPS or full lifecycle/release admission."
+    }
+  ],
+  "capture": {
+    "bytes": 1059438,
+    "members": 285,
+    "sha256": "ef3f2467e6afd21c470c7256e1ddcd6318f547b222e056e5d5bd10add009c63e"
+  },
+  "scope": "Recover only the original authenticated complete reserved registration creation intent. Partial/malformed/arbitrary/advanced state remains refused. Source and installed checks, frozen-native fixture interoperability and old-state reopen are distinct from actual host authorization, power-loss, erasure, PCS or full release qualification."
+}

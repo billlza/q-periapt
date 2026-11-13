@@ -11,7 +11,7 @@ import unittest
 from unittest import mock
 
 import codeql_rust_quality
-from bounded_process import BoundedProcessError, BoundedResult
+from bounded_process import BoundedProcessError, BoundedResult, TimeoutPolicy
 from git_provenance import WorktreeInspection
 
 
@@ -29,6 +29,41 @@ def clean_metrics(source_count: int = 2) -> dict[str, int]:
 
 
 class CodeQLRustQualityTests(unittest.TestCase):
+    def test_host_configuration_is_fixed_and_unknown_hosts_are_rejected(self) -> None:
+        mac = codeql_rust_quality.hosted_configuration("darwin")
+        self.assertEqual(mac.compiler_host, "aarch64-apple-darwin")
+        self.assertEqual(str(mac.codeql), "/Users/runner/hostedtoolcache/CodeQL/2.27.4/arm64/codeql/codeql")
+        self.assertEqual(str(mac.database), "/Users/runner/work/_temp/qperiapt-codeql-database/rust")
+        self.assertEqual((mac.threads, mac.ram_mb), (2, 5500))
+        with mock.patch.dict(os.environ, {"CODEQL_BINARY": "/untrusted/codeql", "RUNNER_TEMP": "/untrusted"}):
+            self.assertEqual(codeql_rust_quality.hosted_configuration("darwin"), mac)
+        with self.assertRaises(codeql_rust_quality.CodeQLRustQualityError):
+            codeql_rust_quality.hosted_configuration("win32")
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            mac.threads = 4
+
+    def test_macos_bindings_enforce_the_same_metadata_and_open_identity_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            binary, runner_temp, database, metadata = self._fixed_layout(root)
+            mac = dataclasses.replace(codeql_rust_quality.hosted_configuration("darwin"),
+                                      codeql=binary, database=database, runner_temp=runner_temp)
+            with mock.patch.object(codeql_rust_quality, "hosted_configuration", return_value=mac), \
+                    mock.patch.object(codeql_rust_quality.sys, "platform", "darwin"):
+                bindings = codeql_rust_quality._open_fixed_codeql_bindings(host="darwin")
+                try:
+                    self.assertEqual((bindings.threads, bindings.ram_mb), (2, 5500))
+                    codeql_rust_quality._revalidate_fixed_codeql_bindings(bindings)
+                    metadata.rename(database / "old-metadata.yml")
+                    metadata.write_text("name: replacement\n")
+                    with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "changed"):
+                        codeql_rust_quality._revalidate_fixed_codeql_bindings(bindings)
+                finally:
+                    codeql_rust_quality._close_fixed_codeql_bindings(bindings)
+                metadata.chmod(0o666)
+                with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "database metadata"):
+                    codeql_rust_quality._open_fixed_codeql_bindings(host="darwin")
+
     def _fixed_layout(
         self, root: pathlib.Path
     ) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path, pathlib.Path]:
@@ -159,10 +194,9 @@ class CodeQLRustQualityTests(unittest.TestCase):
         root = pathlib.Path(__file__).resolve().parent.parent
         guide = " ".join((root / "ARTIFACT.md").read_text(encoding="utf-8").split())
         expected = codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT
-        current = codeql_rust_quality.EXPECTED_CURRENT_RUST_SOURCE_COUNT
         self.assertIn(
             f"requires the exact path set of all {expected} tracked `.rs` files "
-            f"in the database and all {current} current sources to be successfully extracted",
+            "to be successfully extracted",
             guide,
         )
 
@@ -539,7 +573,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 ),
                 self.assertRaisesRegex(
                     codeql_rust_quality.CodeQLRustQualityError,
-                    "require the Linux analysis lane",
+                    "require the selected analysis platform",
                 ),
             ):
                 codeql_rust_quality._open_fixed_codeql_bindings()
@@ -1218,6 +1252,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         bindings = mock.Mock(
             codeql=pathlib.Path("/codeql"),
             database=pathlib.Path("/database"),
+            threads=4, ram_mb=14000,
         )
         with mock.patch.object(
             codeql_rust_quality,
@@ -1240,6 +1275,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         bindings = mock.Mock(
             codeql=pathlib.Path("/codeql"),
             database=pathlib.Path("/database"),
+            threads=4, ram_mb=14000,
         )
         query = pathlib.Path("/query.ql")
         output = pathlib.Path("/result.bqrs")
@@ -1302,6 +1338,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
         bindings = mock.Mock(
             codeql=pathlib.Path("/codeql"),
             database=pathlib.Path("/database"),
+            threads=4, ram_mb=14000,
         )
         query = pathlib.Path("/query.ql")
         output = pathlib.Path("/result.bqrs")
@@ -1320,6 +1357,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
             capture.call_args.kwargs,
             {
                 "timeout_seconds": 300,
+                "timeout_policy": TimeoutPolicy.STANDARD,
                 "maximum_bytes": 4 * 1024 * 1024,
                 "stderr": codeql_rust_quality.subprocess.STDOUT,
             },
@@ -1339,6 +1377,25 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 "/query.ql",
             ],
         )
+
+        for selected, seconds in (
+            (codeql_rust_quality.METRICS_QUERY, 1800),
+            (codeql_rust_quality.EXTRACTED_PATHS_QUERY, 300),
+            (codeql_rust_quality.UNRESOLVED_MACROS_QUERY, 300),
+        ):
+            with self.subTest(query=selected.name), mock.patch.object(
+                codeql_rust_quality, "capture_stdout", return_value=BoundedResult(0, b"")
+            ) as capture, mock.patch.object(
+                codeql_rust_quality, "_revalidate_fixed_codeql_bindings"
+            ):
+                codeql_rust_quality._run_query(bindings, selected, output)
+            self.assertEqual(capture.call_args.kwargs["timeout_seconds"], seconds)
+            self.assertIs(capture.call_args.kwargs["timeout_policy"],
+                          TimeoutPolicy.LONG_ANALYSIS if seconds == 1800 else TimeoutPolicy.STANDARD)
+            self.assertEqual(capture.call_args.kwargs["maximum_bytes"], 4 * 1024 * 1024)
+            self.assertIn("--warnings=error", capture.call_args.args[0])
+            self.assertIn("--threads=4", capture.call_args.args[0])
+            self.assertIn("--ram=14000", capture.call_args.args[0])
 
         valid = b'{"#select":{"tuples":[]}}'
         with mock.patch.object(
@@ -1390,6 +1447,10 @@ class CodeQLRustQualityTests(unittest.TestCase):
         )
         self.assertIsInstance(assignments["CODEQL_QUERY_THREADS"], ast.Constant)
         self.assertIsInstance(assignments["CODEQL_QUERY_RAM_MB"], ast.Constant)
+        for name, value in (("CODEQL_COMMAND_TIMEOUT_SECONDS", 300),
+                            ("CODEQL_METRICS_TIMEOUT_SECONDS", 1800)):
+            self.assertIsInstance(assignments[name], ast.Constant)
+            self.assertEqual(ast.literal_eval(assignments[name]), value)
 
     def test_tracked_inventory_is_nonempty_and_nul_terminated(self) -> None:
         tracked = codeql_rust_quality.tracked_rust_paths()
@@ -1401,6 +1462,290 @@ class CodeQLRustQualityTests(unittest.TestCase):
             "crates/q-periapt-backends/src/concrete_hybrid_kems_04_vector.rs",
             tracked,
         )
+        for sdk_source in (
+            "research/continuity-openssl-peer/native/src/fixture.rs",
+            "research/continuity-openssl-peer/native/src/enrolled_peer.rs",
+            "research/continuity-openssl-peer/native/src/journal.rs",
+            "research/continuity-openssl-peer/native/src/restart.rs",
+            "research/continuity-openssl-peer/native/src/approval.rs",
+            "research/continuity-openssl-peer/native/src/resolution.rs",
+            "research/continuity-openssl-peer/native/src/witness.rs",
+            "research/continuity-openssl-peer/native/src/peer_lifecycle.rs",
+            "research/continuity-openssl-peer/native/src/main.rs",
+            "bindings/c/ContinuityPackageConsumer/src/first_install/windows_c_tests/effect.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/status.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/publication.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/inventory.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/trust.rs",
+            "research/continuity-identity-candidate/examples/browser_owned_enrollment.rs",
+            "research/continuity-identity-candidate/src/anchor/transport/fetch.rs",
+            "research/continuity-identity-candidate/src/browser.rs",
+            "research/continuity-identity-candidate/src/browser/roster.rs",
+            "research/continuity-identity-candidate/src/browser/credential_requests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_credential_request_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_recovery_renewal_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/pending_recovery.rs",
+            "research/continuity-identity-candidate/src/anchor/store/pending_recovery.rs",
+            "research/continuity-identity-candidate/src/anchor/store/pending_recovery_tests.rs",
+            "research/continuity-identity-candidate/src/durable/pending_recovery.rs",
+            "research/continuity-identity-candidate/src/durable/pending_recovery/inspection_tests.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_write.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_continuation.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/continuation.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_process.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_write/process_loss.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_write/cancellation.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_query.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_write/accounting.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_write/flow.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_write/transport.rs",
+            "research/continuity-identity-candidate/src/durable/retired_report/inspect.rs",
+            "research/continuity-identity-candidate/src/durable/retired_report/inspect/bootstrap.rs",
+            "research/continuity-identity-candidate/src/durable/retired_report/inspect/session.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/pending_recovery.rs",
+            "research/continuity-identity-candidate/src/enrollment/pending_recovery.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_pending_write_policy_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_pending_write_recovery_tests.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/pending_recovery.rs",
+            "research/continuity-identity-candidate/src/browser/pending_recovery.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/retirement.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/retirement/reports.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/retirement/reports/bootstrap_metadata.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/retirement/reports/session_metadata.rs",
+            "research/continuity-identity-candidate/src/browser/retirement.rs",
+            "research/continuity-identity-candidate/src/crypto/persistence/browser_retirement.rs",
+            "research/continuity-identity-candidate/src/storage/browser/secrets.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/credential_requests.rs",
+            "research/continuity-identity-candidate/src/enrollment/renewal/storage.rs",
+            "research/continuity-identity-candidate/src/browser/credentials.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/credentials.rs",
+            "research/continuity-identity-candidate/src/browser/credentials/continuation.rs",
+            "research/continuity-identity-candidate/src/session_exchange/account.rs",
+            "research/continuity-identity-candidate/src/session_exchange/tests/account.rs",
+            "research/continuity-identity-candidate/src/browser/connections/account.rs",
+            "research/continuity-identity-candidate/src/enrollment/recovery.rs",
+            "research/continuity-identity-candidate/src/browser/recovery.rs",
+            "research/continuity-identity-candidate/src/session_exchange/tests/account/recovery.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/recovery.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/recovery/reports.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/account.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/account/types.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/credentials/continuation.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/credentials/types.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/history.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/roster.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/roster/types.rs",
+            "research/continuity-identity-candidate/src/browser/errors.rs",
+            "research/continuity-identity-candidate/src/browser/opening.rs",
+            "research/continuity-identity-candidate/src/browser/publication.rs",
+            "research/continuity-identity-candidate/src/browser/inventory.rs",
+            "research/continuity-identity-candidate/src/browser/connections.rs",
+            "research/continuity-identity-candidate/src/browser/connections/receiver.rs",
+            "research/continuity-identity-candidate/src/browser/http.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/peers.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/connections.rs",
+            "research/continuity-identity-candidate/src/session_exchange.rs",
+            "research/continuity-identity-candidate/src/session_exchange/control.rs",
+            "research/continuity-identity-candidate/src/session_exchange/tests/control.rs",
+            "research/continuity-identity-candidate/src/session_exchange/tests/delivery.rs",
+            "research/continuity-reference-app/tests/native_device/admission.rs",
+            "research/continuity-identity-candidate/src/browser/connections/rekey.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/rekey.rs",
+            "research/continuity-identity-candidate/src/session_exchange/client.rs",
+            "research/continuity-identity-candidate/src/session_exchange/server.rs",
+            "research/continuity-identity-candidate/src/session_exchange/codec.rs",
+            "research/continuity-identity-candidate/src/session_exchange/tests.rs",
+            "research/continuity-identity-candidate/src/browser_enrollment_probe.rs",
+            "research/continuity-identity-candidate/src/installation/opening.rs",
+            "research/continuity-identity-candidate/src/storage.rs",
+            "research/continuity-identity-candidate/src/storage/browser.rs",
+            "research/continuity-identity-candidate/src/storage/native.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_account.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_account_recovery.rs",
+            "bindings/c/ContinuityPackageConsumer/src/configuration/tests/roster_policy.rs",
+            "bindings/c/ContinuityPackageConsumer/src/peer_configuration.rs",
+            "bindings/c/ContinuityPackageConsumer/src/peer_configuration/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/peer_bundle.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/first_account.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/first_connection.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/first_policy.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/first_credential.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/first_expiry.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/policy_request.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/receiver_process.rs",
+            "bindings/c/ContinuityPackageConsumer/src/configuration.rs",
+            "bindings/c/ContinuityPackageConsumer/src/configuration/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/src/first_install.rs",
+            "bindings/c/ContinuityPackageConsumer/src/first_install/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/first_configuration.rs",
+            "research/continuity-identity-candidate/src/anchor/transport/tcp.rs",
+            "crates/q-periapt-host-store/src/database_format.rs",
+            "crates/q-periapt-host-store/src/filesystem/directory_publication.rs",
+            "crates/q-periapt-host-store/src/filesystem/directory_publication/tests.rs",
+            "crates/q-periapt-sdk/src/lib.rs",
+            "crates/q-periapt-sdk-wasm/src/lib.rs",
+            "crates/q-periapt-host-store/src/lib.rs",
+            "crates/q-periapt-ffi/src/sdk.rs",
+            "bindings/rust/SDKPackageConsumer/src/lib.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_credential_renewal.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_policy_expiry.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_cancellation.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_commit_error.rs",
+            "bindings/c/ContinuityPackageConsumer/src/enrollment/policy.rs",
+            "bindings/c/ContinuityPackageConsumer/src/retirement.rs",
+            "bindings/c/ContinuityPackageConsumer/src/publication.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/retirement.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/enrollment/policy_continuation.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/enrollment/policy_session.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/enrollment/policy_traffic.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_policy_continuation.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/witness_tls_relay.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/openssl_host.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/credential_cancellation.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_cancellation_tests.rs",
+            "research/continuity-identity-candidate/src/bootstrap_bundle/tests/historical.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/fanout/policy_continuation.rs",
+            "research/continuity-identity-candidate/src/durable/rosters/policy_continuation_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/policy_continuation_owner_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/policy_continuation_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/historical_policy_recovery_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_cancellation_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_fanout_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_session_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_transaction_tests.rs",
+            "research/continuity-identity-candidate/src/installation/tests/reopen/policy_continuation.rs",
+            "research/continuity-identity-candidate/src/session_policy/continuation.rs",
+            "research/continuity-identity-candidate/src/session_policy/continuation/tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/policy_renewal.rs",
+            "research/continuity-identity-candidate/src/anchor/store/roster_refresh.rs",
+            "research/continuity-identity-candidate/src/durable/rosters/peer_roster.rs",
+            "research/continuity-identity-candidate/src/durable/rosters/decode_cache.rs",
+            "research/continuity-identity-candidate/src/durable/rosters/decode_cache/tests.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/fanout/archive/committed.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_peer_roster_tests.rs",
+            "bindings/c/ContinuityPackageConsumer/src/enrollment/policy/renewal/witness.rs",
+            "bindings/c/ContinuityPackageConsumer/src/enrollment/roster_refresh.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/enrollment/witness_roster_fanout.rs",
+            "research/continuity-identity-candidate/tests/owned_connection/replacement.rs",
+            "research/continuity-identity-candidate/tests/owned_connection/publication.rs",
+            "research/continuity-identity-candidate/src/anchor/store/lineage.rs",
+            "research/continuity-identity-candidate/src/anchor/store/replacement.rs",
+            "research/continuity-identity-candidate/src/anchor/store/replacement_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/replacement_receipt.rs",
+            "research/continuity-identity-candidate/src/anchor/store/retired_cleanup.rs",
+            "research/continuity-identity-candidate/src/anchor/store/retired_cleanup_tests.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/retired_cleanup.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/retired_cleanup/erasure.rs",
+            "research/continuity-identity-candidate/src/crypto/persistence/retirement.rs",
+            "research/continuity-identity-candidate/src/enrollment/retirement.rs",
+            "research/continuity-identity-candidate/src/enrollment/retired_enrollment_tests.rs",
+            "research/continuity-identity-candidate/src/installation/retired/tests/erasure.rs",
+            "research/continuity-identity-candidate/src/installation/retired.rs",
+            "research/continuity-identity-candidate/src/installation/retired/tests.rs",
+            "research/continuity-identity-candidate/src/durable/retired_report.rs",
+            "research/continuity-identity-candidate/src/durable/publication.rs",
+            "research/continuity-identity-candidate/src/durable/publication/codec.rs",
+            "research/continuity-identity-candidate/src/bootstrap/classical_alias_tests.rs",
+            "research/continuity-identity-candidate/src/connection_transport/confirmation_tests.rs",
+            "research/continuity-identity-candidate/src/crypto/classical_compromise_tests.rs",
+            "research/continuity-identity-candidate/src/native_transport/socket/tests.rs",
+            "research/continuity-identity-candidate/src/durable/publication/import.rs",
+            "research/continuity-identity-candidate/src/directory_lease.rs",
+            "research/continuity-reference-app/src/directory_ledger.rs",
+            "research/continuity-reference-app/src/bin/q-periapt-prekey-directory.rs",
+            "research/continuity-reference-app/tests/native_device/directory_leases.rs",
+            "research/continuity-identity-candidate/src/durable/publication/tests.rs",
+            "research/continuity-identity-candidate/src/durable/messages/retired.rs",
+            "research/continuity-identity-candidate/src/anchor/store/retired_report.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/codec.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/receipt.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/image_version.rs",
+            "research/continuity-identity-candidate/src/anchor/store/image_codec.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/support.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root/tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root/process.rs",
+            "research/continuity-identity-candidate/src/durable/rosters/peer_retirement.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement_process.rs",
+            "research/continuity-identity-candidate/src/account_authority.rs",
+            "research/continuity-identity-candidate/src/account_authority/codec.rs",
+            "research/continuity-identity-candidate/src/account_authority/runtime.rs",
+            "research/continuity-identity-candidate/src/account_authority/tests.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_authority.rs",
+            "research/continuity-identity-candidate/src/durable/account_authority.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/journal_authority.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/journal_authority/recovery.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/process.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/receipt.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/recovery.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/refresh.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/codec.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/receipt.rs",
+            "research/continuity-identity-candidate/src/account_authority/preparation.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/plan.rs",
+            "research/continuity-identity-candidate/src/account_authority/closure.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_closure_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_closure_tests/recovery.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/closure.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/closure/receipt.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/preparation_closure.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/preparation_closure/receipt.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/closure.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/closure/recovery.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/transition.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/transition/support.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/transfer.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/transfer/codec.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/transfer/parent.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root/transition.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root/transition_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root/transition_tests/process.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root/transition_tests/support.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_authority.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_authority.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root/registry_activation_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/managed_policy_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/managed_renewal_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/managed_roster_tests.rs",
+            "research/continuity-identity-candidate/src/installation/admission.rs",
+            "research/continuity-identity-candidate/src/installation/tests/reopen/account_authority.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_session_managed_tests.rs",
+            "bindings/c/ContinuityPackageConsumer/src/account_authority.rs",
+            "bindings/c/ContinuityPackageConsumer/src/account_authority/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/managed.rs",
+            "bindings/c/ContinuityPackageConsumer/src/configuration/tests/account_authority.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/recovery.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/process.rs",
+            "bindings/c/ContinuityPackageConsumer/src/enrollment/credential_request.rs",
+            "bindings/c/ContinuityPackageConsumer/src/enrollment/pending_recovery.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/credential.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint_issuer.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint_witness.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint_witness_authority.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint_cycle.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/credential_request.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/first_policy_credential.rs",
+            "research/continuity-identity-candidate/src/anchor/store/policy_renewal/credential_cycle_crash_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/policy_renewal/credential_cycle_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/renewal/independent_policy.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_process_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_retirement_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_tests.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/classical_alias.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/reservation_disclosure/aggregate_copy.rs",
+        ):
+            with self.subTest(source=sdk_source):
+                self.assertIn(sdk_source, tracked)
         self.assertEqual(
             len(tracked), codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT
         )
@@ -1413,16 +1758,18 @@ class CodeQLRustQualityTests(unittest.TestCase):
         tracked = codeql_rust_quality.tracked_rust_paths()
         pinned = codeql_rust_quality.pinned_archive_sources()
         self.assertEqual(len(pinned), 68)
-        self.assertEqual(len(tracked - pinned.keys()), 106)
-        self.assertEqual(len(tracked), 174)
+        self.assertEqual(len(tracked - pinned.keys()), 1174)
+        self.assertEqual(len(tracked), 1242)
+        umask_test = "services/q-periapt-policy-agent/tests/private_file_umask.rs"
+        self.assertIn(umask_test, tracked)
         self.assertEqual(codeql_rust_quality.validate_archive_inventory(codeql_rust_quality.REPOSITORY_ROOT, tracked), frozenset(pinned))
         metrics = clean_metrics(len(tracked))
-        codeql_rust_quality.validate_quality(tracked, tracked, metrics)
-        for relative in pinned:
+        codeql_rust_quality.validate_extraction_quality(tracked, tracked, metrics)
+        for relative in (*pinned, umask_test):
             with self.subTest(snapshot=relative), self.assertRaisesRegex(
                 codeql_rust_quality.CodeQLRustQualityError, "successfully extracted path set differs"
             ):
-                codeql_rust_quality.validate_quality(tracked, tracked - {relative}, metrics)
+                codeql_rust_quality.validate_extraction_quality(tracked, tracked - {relative}, metrics)
 
     def test_same_count_archive_substitution_is_rejected(self) -> None:
         tracked = codeql_rust_quality.tracked_rust_paths()
@@ -1434,8 +1781,7 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 codeql_rust_quality, "run_git_bytes", return_value=raw
             ), self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "path inventory differs"):
                 codeql_rust_quality.tracked_rust_paths()
-        current = "crates/q-periapt-backends/src/lib.rs"
-        self.assertIn(current, tracked)
+        current = "crates/q-periapt-backends/src/contextbound_key.rs"
         paths = (tracked - {current}) | {codeql_rust_quality.ARCHIVE_ROOT + "/unreviewed/source/new.rs"}
         raw = b"".join(path.encode() + b"\0" for path in sorted(paths))
         with mock.patch.object(codeql_rust_quality, "run_git_bytes", return_value=raw), \
@@ -1498,6 +1844,645 @@ class CodeQLRustQualityTests(unittest.TestCase):
             source.symlink_to(replacement)
             with self.assertRaisesRegex(ValueError, "safely open|symlink"):
                 codeql_rust_quality.validate_archive_inventory(root, tracked)
+
+    def test_tracked_inventory_still_rejects_missing_or_added_lifecycle_sources(self) -> None:
+        tracked = sorted(codeql_rust_quality.tracked_rust_paths())
+        required = (
+            "services/q-periapt-policy-agent/tests/private_file_umask.rs",
+            "research/continuity-identity-candidate/src/crypto/sdk_policy.rs",
+            "research/continuity-identity-candidate/src/crypto/sdk_policy/tests.rs",
+            "research/continuity-reference-app/src/auth.rs",
+            "research/continuity-reference-app/src/http/enrollment.rs",
+            "research/continuity-reference-app/src/sdk_authority/operations.rs",
+            "research/continuity-reference-app/src/store/enrollment/reapproval.rs",
+            "research/continuity-openssl-peer/native/src/fixture.rs",
+            "research/continuity-openssl-peer/native/src/enrolled_peer.rs",
+            "research/continuity-openssl-peer/native/src/journal.rs",
+            "research/continuity-openssl-peer/native/src/resolution.rs",
+            "research/continuity-openssl-peer/native/src/witness.rs",
+            "research/continuity-openssl-peer/native/src/peer_lifecycle.rs",
+            "research/continuity-openssl-peer/native/src/main.rs",
+            "bindings/c/ContinuityPackageConsumer/src/first_install/windows_c_tests/effect.rs",
+            'crates/q-periapt-cli/src/scanner.rs',
+            'crates/q-periapt-cli/src/scanner/tests.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_account.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_account_recovery.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_replacement_traffic.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_retirement.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_retirement_android.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_root_owned.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_root_target.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_root_alternatives.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_root_traffic.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/local_roster.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/roster.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_roster_local.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_roster_peer.rs',
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_roster_traffic.rs',
+            "research/continuity-identity-candidate/src/enrollment/witness_recovery_renewal_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/pending_recovery.rs",
+            "research/continuity-identity-candidate/src/anchor/store/pending_recovery.rs",
+            "research/continuity-identity-candidate/src/anchor/store/pending_recovery_tests.rs",
+            "research/continuity-identity-candidate/src/durable/pending_recovery.rs",
+            "research/continuity-identity-candidate/src/durable/pending_recovery/inspection_tests.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_write.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_continuation.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/continuation.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_process.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_write/process_loss.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_write/cancellation.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_query.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_write/accounting.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_write/flow.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_pending_write/transport.rs",
+            "research/continuity-identity-candidate/src/durable/retired_report/inspect.rs",
+            "research/continuity-identity-candidate/src/durable/retired_report/inspect/bootstrap.rs",
+            "research/continuity-identity-candidate/src/durable/retired_report/inspect/session.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/pending_recovery.rs",
+            "research/continuity-identity-candidate/src/enrollment/pending_recovery.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_pending_write_policy_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_pending_write_recovery_tests.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/pending_recovery.rs",
+            "research/continuity-identity-candidate/src/browser/pending_recovery.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/retirement.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/retirement/reports.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/retirement/reports/bootstrap_metadata.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/retirement/reports/session_metadata.rs",
+            "research/continuity-identity-candidate/src/browser/retirement.rs",
+            "research/continuity-identity-candidate/src/crypto/persistence/browser_retirement.rs",
+            "research/continuity-identity-candidate/src/storage/browser/secrets.rs",
+            "research/continuity-identity-candidate/src/browser/credentials/continuation.rs",
+            "research/continuity-identity-candidate/src/session_exchange/account.rs",
+            "research/continuity-identity-candidate/src/session_exchange/tests/account.rs",
+            "research/continuity-identity-candidate/src/browser/connections/account.rs",
+            "research/continuity-identity-candidate/src/enrollment/recovery.rs",
+            "research/continuity-identity-candidate/src/browser/recovery.rs",
+            "research/continuity-identity-candidate/src/session_exchange/tests/account/recovery.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/recovery.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/recovery/reports.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/account.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/account/types.rs",
+            "crates/q-periapt-sdk-wasm/src/continuity/credentials/continuation.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/enrollment/policy_session.rs",
+            'bindings/c/ContinuityPackageConsumer/tests/common/android_roster_witness.rs',
+            "bindings/c/ContinuityPackageConsumer/src/peer_configuration.rs",
+            "bindings/c/ContinuityPackageConsumer/src/peer_configuration/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/peer_bundle.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/first_account.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/first_connection.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/first_policy.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/first_credential.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/first_expiry.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/policy_request.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/receiver_process.rs",
+            "bindings/c/ContinuityPackageConsumer/src/configuration.rs",
+            "bindings/c/ContinuityPackageConsumer/src/configuration/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/src/first_install.rs",
+            "bindings/c/ContinuityPackageConsumer/src/first_install/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/first_configuration.rs",
+            "research/continuity-identity-candidate/src/anchor/transport/tcp.rs",
+            "crates/q-periapt-host-store/src/database_format.rs",
+            "crates/q-periapt-host-store/src/filesystem/directory_publication.rs",
+            "crates/q-periapt-host-store/src/filesystem/directory_publication/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/src/retirement.rs",
+            "bindings/c/ContinuityPackageConsumer/src/publication.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/retirement.rs",
+            "research/continuity-identity-candidate/src/durable/rosters/peer_roster.rs",
+            "research/continuity-identity-candidate/src/durable/rosters/decode_cache.rs",
+            "research/continuity-identity-candidate/src/durable/rosters/decode_cache/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/openssl_host.rs",
+            "research/continuity-identity-candidate/tests/owned_connection/replacement.rs",
+            "research/continuity-identity-candidate/tests/owned_connection/publication.rs",
+            "research/continuity-identity-candidate/src/anchor/store/lineage.rs",
+            "research/continuity-identity-candidate/src/anchor/store/replacement.rs",
+            "research/continuity-identity-candidate/src/anchor/store/replacement_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/replacement_receipt.rs",
+            "research/continuity-identity-candidate/src/anchor/store/retired_cleanup.rs",
+            "research/continuity-identity-candidate/src/anchor/store/retired_cleanup_tests.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/retired_cleanup.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/retired_cleanup/erasure.rs",
+            "research/continuity-identity-candidate/src/crypto/persistence/retirement.rs",
+            "research/continuity-identity-candidate/src/enrollment/retirement.rs",
+            "research/continuity-identity-candidate/src/enrollment/retired_enrollment_tests.rs",
+            "research/continuity-identity-candidate/src/installation/retired/tests/erasure.rs",
+            "research/continuity-identity-candidate/src/installation/retired.rs",
+            "research/continuity-identity-candidate/src/installation/retired/tests.rs",
+            "research/continuity-identity-candidate/src/durable/retired_report.rs",
+            "research/continuity-identity-candidate/src/durable/publication.rs",
+            "research/continuity-identity-candidate/src/durable/publication/codec.rs",
+            "research/continuity-identity-candidate/src/bootstrap/classical_alias_tests.rs",
+            "research/continuity-identity-candidate/src/connection_transport/confirmation_tests.rs",
+            "research/continuity-identity-candidate/src/crypto/classical_compromise_tests.rs",
+            "research/continuity-identity-candidate/src/native_transport/socket/tests.rs",
+            "research/continuity-identity-candidate/src/durable/publication/import.rs",
+            "research/continuity-identity-candidate/src/directory_lease.rs",
+            "research/continuity-reference-app/src/directory_ledger.rs",
+            "research/continuity-reference-app/src/bin/q-periapt-prekey-directory.rs",
+            "research/continuity-reference-app/tests/native_device/directory_leases.rs",
+            "research/continuity-identity-candidate/src/durable/publication/tests.rs",
+            "research/continuity-identity-candidate/src/durable/messages/retired.rs",
+            "research/continuity-identity-candidate/src/anchor/store/retired_report.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/codec.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/receipt.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/image_version.rs",
+            "research/continuity-identity-candidate/src/anchor/store/image_codec.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/support.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root/tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root/process.rs",
+            "research/continuity-identity-candidate/src/durable/rosters/peer_retirement.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/peer_retirement_process.rs",
+            "research/continuity-identity-candidate/src/account_authority.rs",
+            "research/continuity-identity-candidate/src/account_authority/codec.rs",
+            "research/continuity-identity-candidate/src/account_authority/runtime.rs",
+            "research/continuity-identity-candidate/src/account_authority/tests.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_authority.rs",
+            "research/continuity-identity-candidate/src/durable/account_authority.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/journal_authority.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/journal_authority/recovery.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/process.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/receipt.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/recovery.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_freeze_tests/refresh.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/codec.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/receipt.rs",
+            "research/continuity-identity-candidate/src/account_authority/preparation.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/plan.rs",
+            "research/continuity-identity-candidate/src/account_authority/closure.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_closure_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_closure_tests/recovery.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/closure.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/closure/receipt.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/preparation_closure.rs",
+            "research/continuity-identity-candidate/src/anchor/store/account_replacement/preparation_closure/receipt.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/closure.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/closure/recovery.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/transition.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/transition/support.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/transfer.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/transfer/codec.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/transfer/parent.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root/transition.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root/transition_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root/transition_tests/process.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root/transition_tests/support.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_authority.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_authority.rs",
+            "research/continuity-identity-candidate/src/enrollment/account_root/registry_activation_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/managed_policy_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/managed_renewal_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/managed_roster_tests.rs",
+            "research/continuity-identity-candidate/src/installation/admission.rs",
+            "research/continuity-identity-candidate/src/installation/tests/reopen/account_authority.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_session_managed_tests.rs",
+            "bindings/c/ContinuityPackageConsumer/src/account_authority.rs",
+            "bindings/c/ContinuityPackageConsumer/src/account_authority/tests.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/managed.rs",
+            "bindings/c/ContinuityPackageConsumer/src/configuration/tests/account_authority.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/recovery.rs",
+            "research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/account_preparation/process.rs",
+            "bindings/c/ContinuityPackageConsumer/src/enrollment/credential_request.rs",
+            "bindings/c/ContinuityPackageConsumer/src/enrollment/pending_recovery.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/credential.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint_issuer.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint_witness.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint_witness_authority.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/android_policy_renewal/joint_cycle.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/credential_request.rs",
+            "bindings/c/ContinuityPackageConsumer/tests/common/first_policy_credential.rs",
+            "research/continuity-identity-candidate/src/anchor/store/policy_renewal/credential_cycle_crash_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/policy_renewal/credential_cycle_tests.rs",
+            "research/continuity-identity-candidate/src/anchor/store/renewal/independent_policy.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_process_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_retirement_tests.rs",
+            "research/continuity-identity-candidate/src/enrollment/witness_policy_credential_cycle_tests.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/classical_alias.rs",
+            "research/continuity-identity-candidate/src/durable/messages/tests/reservation_disclosure/aggregate_copy.rs",
+        )
+        for missing in required:
+            self.assertIn(missing, tracked)
+        changed = [[p for p in tracked if p != missing] for missing in required]
+        for paths in (*changed, tracked + ["unexpected.rs"]):
+            raw = b"".join(p.encode() + b"\0" for p in paths)
+            with self.subTest(paths=len(paths)), mock.patch.object(
+                codeql_rust_quality, "run_git_bytes", return_value=raw
+            ), self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError,
+                                     f"tracked Rust source count must be {codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT}"):
+                codeql_rust_quality.tracked_rust_paths()
+
+    def test_witness_handoff_inventory_requires_each_new_source(self) -> None:
+        tracked = sorted(codeql_rust_quality.tracked_rust_paths())
+        required = (
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/witness/preparation/next_attempt.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/managed.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/managed/process.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/managed/successive.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/managed/successive/process.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/managed/sync.rs',
+            'research/continuity-identity-candidate/src/enrollment/managed_root/transferred/next_attempt.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/witness/lineage.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/witness/next_attempt.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred/next_attempt.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/client.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/client/faults.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/client/process.rs',
+            'research/continuity-identity-candidate/src/anchor/store/account_replacement/transferred/plan/target.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/support.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/faults.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/process.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/next_attempt/process_inputs.rs',
+            'research/continuity-identity-candidate/src/account_authority/transferred.rs',
+            'research/continuity-identity-candidate/src/account_authority/transferred/codec.rs',
+            'research/continuity-identity-candidate/src/account_authority/transferred/operations.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/witness/preparation.rs',
+            'research/continuity-identity-candidate/src/enrollment/managed_root/transferred.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/managed.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/managed/activation.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/managed/admission.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/managed/process.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/managed/recovery.rs',
+            'research/continuity-identity-candidate/src/durable/retired_report/transferred.rs',
+            'research/continuity-identity-candidate/src/durable/retired_report/transferred/authority.rs',
+            'research/continuity-identity-candidate/src/durable/retired_report/transferred/control.rs',
+            'research/continuity-identity-candidate/src/durable/retired_report/transferred/control/codec.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/parent_cleanup.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/pending.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/mixed_cleanup.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/parent_cleanup/faults.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/parent_cleanup/process.rs',
+            'research/continuity-identity-candidate/src/enrollment/retirement/codec.rs',
+            'research/continuity-identity-candidate/src/enrollment/retirement/signer.rs',
+            'research/continuity-identity-candidate/src/enrollment/retirement/transferred.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/client_cleanup.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/client_cleanup/faults.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/client_cleanup/process.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/client_cleanup/sync.rs',
+            'research/continuity-identity-candidate/src/installation/retired/report.rs',
+            'research/continuity-identity-candidate/src/installation/retired/terminal.rs',
+            'research/continuity-identity-candidate/src/installation/retired/transferred.rs',
+            'research/continuity-identity-candidate/src/anchor/store/retired_transfer.rs',
+            'research/continuity-identity-candidate/src/anchor/store/retired_transfer/codec.rs',
+            'research/continuity-identity-candidate/src/anchor/store/retired_transfer/record.rs',
+            'research/continuity-identity-candidate/src/anchor/store/retired_transfer/operations.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_account_decision_tests/cleanup.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_account_decision_tests/cleanup_process.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/cleanup.rs',
+            'research/continuity-identity-candidate/src/account_authority/tests/transferred.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/registry.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/registry/recovery.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/registry/process.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/registry/association.rs',
+            'research/continuity-identity-candidate/src/anchor/store/account_replacement/transferred/plan.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/preparation.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/target_activation.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/process.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/process_inputs.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/codec.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred/transaction.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/fixture.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/policy.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_root/transferred_tests/recovery.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/codec.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/witness.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/witness/owner.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/witness/transaction.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/witness.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/witness/validation.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/witness/recovery.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/account_root/tests/witness/process.rs',
+            'research/continuity-identity-candidate/src/anchor/store/account_replacement/transferred.rs',
+            'research/continuity-identity-candidate/src/anchor/store/account_replacement/transferred/codec.rs',
+            'research/continuity-identity-candidate/src/anchor/store/account_replacement/transferred/record.rs',
+            'research/continuity-identity-candidate/src/anchor/store/account_replacement/transferred/store.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_account_decision_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_account_decision_tests/coverage.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_account_decision_tests/process.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_account_decision_tests/recovery.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_account_decision_tests/validation.rs',
+            'research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/transferred.rs',
+            'research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/transferred/codec.rs',
+            'research/continuity-identity-candidate/src/anchor/store/account_replacement/freeze/transferred/store.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_account_freeze_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_account_freeze_tests/coverage.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_account_freeze_tests/recovery.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_account_freeze_tests/process.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/codec.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/history.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/history/tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation/adoption.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation/authorization.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation/authorization/record.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation/authorization/transaction.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation/inherited.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/activation/source.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/approval.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/storage.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/testing.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/retirement.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_activation_recovery_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_activation_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_adoption_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_client_authorization_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_client_authorization_recovery_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_client_authorization_validation_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_successive_source_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/archive.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/archive/source.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_successive_activation_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_successive_activation_tests/recovery.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_successive_activation_tests/process.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_successive_activation_tests/sync.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_successive_activation_tests/validation.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_successive_import_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_successive_import_tests/recovery.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_successive_import_tests/validation.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/source_control.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff/import/source_control/codec.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_successive_freeze_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_successive_freeze_tests/faults.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_successive_freeze_tests/process.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_history_integration_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_import_recovery_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_import_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_import_validation_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_lifecycle_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_retirement_recovery_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_retirement_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_source.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_source_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/image_authority.rs',
+            'research/continuity-identity-candidate/src/anchor/store/image_authority_tests.rs',
+            'research/continuity-identity-candidate/src/session_policy/handoff_adoption.rs',
+            'research/continuity-identity-candidate/src/session_policy/handoff_adoption/retained.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/codec.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/transaction.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/lineage.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/successor.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/support.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/recovery.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/validation.rs',
+            'research/continuity-identity-candidate/src/anchor/reply_checks.rs',
+            'research/continuity-identity-candidate/src/anchor/transferred.rs',
+            'research/continuity-identity-candidate/src/anchor/store/commands.rs',
+            'research/continuity-identity-candidate/src/anchor/store/transferred.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/guard.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/operating.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/operating/storage.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/operating/process.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/operating/scope.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/reconciliation.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/reconciliation/operation.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/transferred.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/transferred/network.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/tests/transferred/recovery.rs',
+            'research/continuity-identity-candidate/src/session_policy/handoff_adoption/wire.rs',
+            'research/continuity-identity-candidate/src/anchor/store/handoff_transferred_control_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/transferred_control.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff/codec.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff_tests/faults.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff_tests/fixture.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff_tests/process.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff_tests/transfer.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff_tests/validation.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_credential_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_credential_tests/successive.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_credential_tests/root.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_policy_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_policy_tests/successive.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_policy_tests/successive/validation.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_policy_tests/successive/process.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_policy_tests/successive/sync.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_roster_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_roster_tests/successive.rs',
+            'research/continuity-identity-candidate/src/anchor/store/renewal/cancellation.rs',
+            'research/continuity-identity-candidate/src/anchor/store/transferred_control/cancellation.rs',
+            'research/continuity-identity-candidate/src/durable/write_intent/witness_handoff/cancellation.rs',
+            'research/continuity-identity-candidate/src/enrollment/renewal/witness/cancellation.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_handoff/cancellation.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_cancellation_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_cancellation_tests/successive.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_cancellation_tests/faults.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_cancellation_tests/process.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_cancellation_tests/validation.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_transfer_joint_cancellation_tests.rs',
+        )
+        for missing in required:
+            self.assertIn(missing, tracked)
+            raw = b"".join(p.encode() + b"\0" for p in tracked if p != missing)
+            with self.subTest(source=missing), mock.patch.object(
+                codeql_rust_quality, "run_git_bytes", return_value=raw
+            ), self.assertRaisesRegex(
+                codeql_rust_quality.CodeQLRustQualityError,
+                f"tracked Rust source count must be {codeql_rust_quality.EXPECTED_TRACKED_RUST_SOURCE_COUNT}",
+            ):
+                codeql_rust_quality.tracked_rust_paths()
+
+    def test_reference_recovery_inventory_requires_each_new_source(self) -> None:
+        tracked = sorted(codeql_rust_quality.tracked_rust_paths())
+        required = (
+            'research/continuity-reference-app/tests/support/credential_recovery_probe.rs',
+            'research/continuity-reference-app/src/credential_grant/witness.rs',
+            'research/continuity-reference-app/src/witness/credential_renewal.rs',
+            'research/continuity-reference-app/src/witness_credential_cli.rs',
+            'research/continuity-reference-app/tests/native_device/policy_witness_credential.rs',
+            'research/continuity-reference-app/src/policy_renewal/witness.rs',
+            'research/continuity-reference-app/src/native_device/policy_witness.rs',
+            'research/continuity-reference-app/src/native_policy_witness_cli.rs',
+            'research/continuity-reference-app/src/witness/policy_renewal.rs',
+            'research/continuity-reference-app/src/witness_policy_cli.rs',
+            'research/continuity-reference-app/tests/native_device/policy_witness.rs',
+            'research/continuity-identity-candidate/src/enrollment/policy_renewal/witness/unprepared.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_independent_policy_unprepared_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_independent_policy_unprepared_process_tests.rs',
+            'research/continuity-reference-app/src/roster_refresh.rs',
+            'research/continuity-reference-app/src/native_device/roster_refresh.rs',
+            'research/continuity-reference-app/src/native_roster_cli.rs',
+            'research/continuity-reference-app/src/witness/roster_refresh.rs',
+            'research/continuity-reference-app/src/witness_roster_cli.rs',
+            'research/continuity-reference-app/tests/native_device/roster.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation/adoption.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation/codec.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation/history.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation/roster.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation_codec_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation_process_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation_roster_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/preinstallation_witness_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/public_admission.rs',
+            'research/continuity-identity-candidate/src/session_exchange/tcp.rs',
+            'research/continuity-identity-candidate/src/tcp_io.rs',
+            'research/continuity-openssl-peer/native/src/fixture_extension.rs',
+            'research/continuity-openssl-peer/native/src/enrolled_peer.rs',
+            'research/continuity-openssl-peer/native/examples/account_authority_fixture.rs',
+            'research/continuity-openssl-peer/native/examples/policy_renewal_fixture.rs',
+            'research/continuity-openssl-peer/native/src/policy_lifecycle.rs',
+            'research/continuity-openssl-peer/native/src/enrolled_peer_policy.rs',
+            'research/continuity-reference-app/src/witness/replacement.rs',
+            'research/continuity-reference-app/src/witness/replacement_tests.rs',
+            'research/continuity-reference-app/src/witness_replacement_cli.rs',
+            'research/continuity-reference-app/tests/native_device/replacement.rs',
+            'research/continuity-openssl-peer/native/src/account_fixture.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/extension.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/extension/historical.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/grant.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/grant/crash.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/grant/inputs.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/grant/sequence.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/grant/witness.rs',
+            'research/continuity-reference-app/src/bin/q-periapt-native-device.rs',
+            'research/continuity-reference-app/src/bin/q-periapt-native-outgoing.rs',
+            'research/continuity-reference-app/src/bin/q-periapt-native-session.rs',
+            'research/continuity-reference-app/src/credential_grant.rs',
+            'research/continuity-reference-app/src/http/enrollment/tests/extension.rs',
+            'research/continuity-reference-app/src/http/enrollment/tests/grant.rs',
+            'research/continuity-reference-app/src/native_device/admission.rs',
+            'research/continuity-reference-app/src/native_device/credential_recovery.rs',
+            'research/continuity-reference-app/src/native_device/mailbox.rs',
+            'research/continuity-reference-app/src/native_device/mod.rs',
+            'research/continuity-reference-app/src/native_device/peer.rs',
+            'research/continuity-reference-app/src/native_device/policy.rs',
+            'research/continuity-reference-app/src/native_device/publication.rs',
+            'research/continuity-reference-app/src/native_device/renewal.rs',
+            'research/continuity-reference-app/src/native_renewal_cli.rs',
+            'research/continuity-reference-app/src/native_policy_cli.rs',
+            'research/continuity-reference-app/src/policy_renewal.rs',
+            'research/continuity-reference-app/src/policy_publisher/renewal.rs',
+            'research/continuity-reference-app/src/policy_publisher/renewal_store.rs',
+            'research/continuity-reference-app/src/policy_publisher/renewal_tests.rs',
+            'research/continuity-reference-app/src/publisher_renewal_cli.rs',
+            'research/continuity-reference-app/src/policy_approval.rs',
+            'research/continuity-reference-app/src/http/policy_approval.rs',
+            'research/continuity-reference-app/src/http/enrollment/tests/policy.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/grant/policy.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/grant/policy/crash.rs',
+            'research/continuity-reference-app/src/store/enrollment/history.rs',
+            'research/continuity-reference-app/src/store/enrollment/policy_approval.rs',
+            'research/continuity-reference-app/src/store/enrollment/policy_approval/inputs.rs',
+            'research/continuity-reference-app/src/store/enrollment/policy_approval/schema.rs',
+            'research/continuity-reference-app/src/store/enrollment/policy_approval/state.rs',
+            'research/continuity-reference-app/src/network/framing.rs',
+            'research/continuity-reference-app/src/network/mod.rs',
+            'research/continuity-reference-app/src/network/server.rs',
+            'research/continuity-reference-app/src/network/tests.rs',
+            'research/continuity-reference-app/src/network_service.rs',
+            'research/continuity-reference-app/src/outgoing_files.rs',
+            'research/continuity-reference-app/src/store/enrollment/extension.rs',
+            'research/continuity-reference-app/src/store/enrollment/extension/schema.rs',
+            'research/continuity-reference-app/src/store/enrollment/grant.rs',
+            'research/continuity-reference-app/src/store/enrollment/grant/inputs.rs',
+            'research/continuity-reference-app/src/store/enrollment/grant/schema.rs',
+            'research/continuity-reference-app/src/store/enrollment/grant/state.rs',
+            'research/continuity-reference-app/src/test_support.rs',
+            'research/continuity-reference-app/src/test_support/witness.rs',
+            'research/continuity-reference-app/src/bin/q-periapt-continuity-witness.rs',
+            'research/continuity-reference-app/src/witness/mod.rs',
+            'research/continuity-reference-app/src/witness/store.rs',
+            'research/continuity-reference-app/src/witness/enrollment.rs',
+            'research/continuity-reference-app/src/witness/tests.rs',
+            'research/continuity-identity-candidate/src/durable/rosters/tests/shared_account.rs',
+            'research/continuity-identity-candidate/src/durable/rosters/credential_changes.rs',
+            'research/continuity-identity-candidate/src/enrollment/renewal/account.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_renewal_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_renewal_session_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_renewal_recovery_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/roster_refresh/composition.rs',
+            'research/continuity-identity-candidate/src/anchor/store/roster_refresh/credential_composition_tests.rs',
+            'research/continuity-identity-candidate/src/anchor/store/roster_refresh/credential_composition_tests/retirement.rs',
+            'research/continuity-identity-candidate/src/anchor/store/roster_refresh/credential_composition_tests/policy_composition.rs',
+            'research/continuity-identity-candidate/src/anchor/store/roster_refresh/credential_composition_tests/crash.rs',
+            'research/continuity-identity-candidate/src/enrollment/roster_refresh/credential.rs',
+            'research/continuity-identity-candidate/src/durable/rosters/roster_refresh/credential.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_credential_roster_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_credential_roster_recovery_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/roster_refresh/continuation.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_joint_roster_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/witness_joint_roster_recovery_tests.rs',
+            'research/continuity-identity-candidate/src/durable/rosters/peer_renewal.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_peer_renewal_boundary_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_roster_fanout_tests.rs',
+            'research/continuity-identity-candidate/src/enrollment/account_roster_tests.rs',
+            'research/continuity-reference-app/tests/native_device.rs',
+            'research/continuity-reference-app/tests/native_device/account_recovery.rs',
+            'research/continuity-reference-app/tests/native_device/publication.rs',
+            'research/continuity-reference-app/tests/native_device/policy.rs',
+            'research/continuity-reference-app/tests/native_device/recovery.rs',
+            'research/continuity-reference-app/tests/native_device/renewal.rs',
+            'research/continuity-reference-app/tests/native_device/witness.rs',
+            'research/continuity-reference-app/tests/support/inbox_crash_probe.rs',
+            'research/continuity-reference-app/tests/support/account_http.rs',
+            'research/continuity-reference-app/tests/support/account_client_probe.rs',
+            'research/continuity-reference-app/src/native_device/peer_roster.rs',
+            'research/continuity-openssl-peer/native/src/prekey_refresh.rs',
+            'research/continuity-openssl-peer/native/src/witness_root.rs',
+            'research/continuity-openssl-peer/native/src/restart.rs',
+            'research/continuity-openssl-peer/native/src/approval.rs',
+            'research/continuity-reference-app/src/account_authority.rs',
+            'research/continuity-reference-app/src/account_authority/cutover.rs',
+            'research/continuity-reference-app/src/auth/account_authority.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/authority.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/authority/crash.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/authority/cutover.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/authority/cutover/crash.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/authority/cutover/fixtures.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/authority/cutover/preparation.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/root_preparation.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/root_preparation/crash.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/root_preparation/successor.rs',
+            'research/continuity-reference-app/src/auth/enrollment_tests/root_preparation/successor/crash.rs',
+            'research/continuity-reference-app/src/http/enrollment/authority.rs',
+            'research/continuity-reference-app/src/http/enrollment/candidate_root.rs',
+            'research/continuity-reference-app/src/http/enrollment/tests/root_cutover.rs',
+            'research/continuity-reference-app/src/http/enrollment/tests/root_successor.rs',
+            'research/continuity-reference-app/src/root_preparation.rs',
+            'research/continuity-reference-app/src/store/enrollment/authority.rs',
+            'research/continuity-reference-app/src/store/enrollment/authority/bootstrap.rs',
+            'research/continuity-reference-app/src/store/enrollment/authority/cutover.rs',
+            'research/continuity-reference-app/src/store/enrollment/authority/cutover/reconciliation.rs',
+            'research/continuity-reference-app/src/store/enrollment/authority/gate.rs',
+            'research/continuity-reference-app/src/store/enrollment/authority/schema.rs',
+            'research/continuity-reference-app/src/store/enrollment/root_preparation.rs',
+            'research/continuity-reference-app/src/store/enrollment/root_preparation/cutover.rs',
+            'research/continuity-reference-app/src/store/enrollment/root_preparation/schema.rs',
+            'research/continuity-reference-app/src/store/enrollment/root_preparation/successor.rs',
+            'research/continuity-reference-app/src/witness/account_root.rs',
+            'research/continuity-reference-app/src/witness/account_root/types.rs',
+            'research/continuity-reference-app/src/witness/account_root_tests.rs',
+            'research/continuity-reference-app/src/witness/account_root_tests/process.rs',
+            'research/continuity-reference-app/src/witness/store/root_operations.rs',
+            'research/continuity-reference-app/src/witness_root_cli.rs',
+        )
+        for missing in required:
+            self.assertIn(missing, tracked)
+            raw = b"".join(p.encode() + b"\0" for p in tracked if p != missing)
+            with self.subTest(missing=missing), mock.patch.object(
+                codeql_rust_quality, "run_git_bytes", return_value=raw
+            ), self.assertRaisesRegex(
+                codeql_rust_quality.CodeQLRustQualityError,
+                f"tracked Rust source count must be {len(tracked)}, got {len(tracked) - 1}",
+            ):
+                codeql_rust_quality.tracked_rust_paths()
 
     def test_unresolved_macro_details_are_strictly_typed_and_canonical(self) -> None:
         rows = [["crates/a/src/lib.rs", 7, 3, "concat!..."]]
@@ -1573,172 +2558,6 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 "repository-local target must be absent",
             ):
                 codeql_rust_quality.require_repository_target_absent(root)
-
-
-class CodeQLArchiveQualificationTests(unittest.TestCase):
-    current = frozenset({"crates/a/src/lib.rs", "crates/b/src/lib.rs"})
-    archive = "paper/continuity/artifacts/bootstrap/ack/source/old.rs"
-
-    def evidence(self):
-        tracked = self.current | {self.archive}
-        metrics = clean_metrics(len(tracked))
-        metrics.update({
-            "successfully_extracted_files": len(self.current),
-            "extraction_warnings": 1,
-            "source_macro_calls": 9,
-            "unresolved_source_macro_calls": 2,
-        })
-        files = {
-            "crates/a/src/lib.rs": (4, 2),
-            "crates/b/src/lib.rs": (3, 1),
-            self.archive: (2, 0),
-        }
-        diagnostics = [(
-            self.archive, "Warning", "semantics",
-            codeql_rust_quality.ARCHIVE_SEMANTICS_MESSAGE,
-            codeql_rust_quality.ARCHIVE_SEMANTICS_FULL_MESSAGE, 1, 1,
-        )]
-        unresolved = [(self.archive, 2, 1, "assert!..."), (self.archive, 3, 1, "vec!...")]
-        return [tracked, self.current, metrics, files, diagnostics, unresolved]
-
-    def qualify(self, evidence):
-        with mock.patch.object(
-            codeql_rust_quality, "validate_archive_inventory",
-            return_value=frozenset({self.archive}),
-        ) as inventory:
-            codeql_rust_quality.validate_current_and_archive_quality(*evidence)
-        inventory.assert_called_once_with(codeql_rust_quality.REPOSITORY_ROOT, evidence[0])
-
-    def test_observed_partial_archive_and_clean_current_sources_pass(self):
-        self.qualify(self.evidence())
-
-    def test_all_extracted_paths_must_include_every_current_and_archive_file(self):
-        for missing in self.current | {self.archive}:
-            evidence = self.evidence()
-            del evidence[3][missing]
-            with self.subTest(missing=missing), self.assertRaisesRegex(
-                codeql_rust_quality.CodeQLRustQualityError, "all extracted path set differs"
-            ):
-                self.qualify(evidence)
-        evidence = self.evidence()
-        evidence[3]["paper/continuity/artifacts/bootstrap/ack/source/substitute.rs"] = evidence[3].pop(self.archive)
-        with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "all extracted path set differs"):
-            self.qualify(evidence)
-
-    def test_current_source_success_and_zero_macros_remain_required(self):
-        evidence = self.evidence()
-        evidence[1] = frozenset({"crates/a/src/lib.rs"})
-        with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "successfully extracted path set differs"):
-            self.qualify(evidence)
-        evidence = self.evidence()
-        evidence[5][0] = ("crates/a/src/lib.rs", 2, 1, "assert!...")
-        with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "unresolved current-source macro"):
-            self.qualify(evidence)
-
-    def test_each_diagnostic_field_is_bound_and_other_warnings_fail(self):
-        for index, value in (
-            (0, "crates/a/src/lib.rs"), (2, "parse_error"),
-            (3, "semantic analyzer unavailable (no manifest found)"),
-            (4, "different full diagnostic"), (5, 2), (6, 2),
-        ):
-            evidence = self.evidence()
-            row = list(evidence[4][0])
-            row[index] = value
-            evidence[4][0] = tuple(row)
-            with self.subTest(index=index), self.assertRaisesRegex(
-                codeql_rust_quality.CodeQLRustQualityError, "unqualified extraction diagnostic"
-            ):
-                self.qualify(evidence)
-        evidence = self.evidence()
-        row = list(evidence[4][0])
-        row[1] = "Error"
-        evidence[4][0] = tuple(row)
-        evidence[2].update(extraction_warnings=0, extraction_errors=1)
-        with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "unqualified extraction diagnostic"):
-            self.qualify(evidence)
-
-    def test_missing_duplicate_or_unexpected_diagnostics_fail(self):
-        evidence = self.evidence()
-        evidence[4] = []
-        evidence[2]["extraction_warnings"] = 0
-        with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "diagnostic inventory differs"):
-            self.qualify(evidence)
-        evidence = self.evidence()
-        evidence[4] *= 2
-        evidence[2]["extraction_warnings"] = 2
-        with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "unqualified extraction diagnostic"):
-            self.qualify(evidence)
-
-    def test_global_counts_must_reconcile_with_details(self):
-        for name in ("source_macro_calls", "source_format_args", "extraction_warnings", "extraction_errors", "unresolved_source_macro_calls"):
-            evidence = self.evidence()
-            evidence[2][name] += 1
-            with self.subTest(metric=name), self.assertRaises(codeql_rust_quality.CodeQLRustQualityError):
-                self.qualify(evidence)
-        evidence = self.evidence()
-        evidence[3][self.archive] = (1, 0)
-        evidence[2]["source_macro_calls"] -= 1
-        with self.assertRaisesRegex(codeql_rust_quality.CodeQLRustQualityError, "exceeds all macros"):
-            self.qualify(evidence)
-
-    def test_archive_counts_cannot_supply_current_source_sentinels(self):
-        for index, name in ((0, "source_macro_calls"), (1, "source_format_args")):
-            evidence = self.evidence()
-            for path in self.current:
-                row = list(evidence[3][path])
-                row[index] = 0
-                evidence[3][path] = tuple(row)
-            if index == 1:
-                evidence[3][self.archive] = (2, 3)
-            evidence[2][name] = sum(row[index] for row in evidence[3].values())
-            self.assertGreater(evidence[2][name], 0)
-            with self.subTest(sentinel=name), self.assertRaisesRegex(
-                codeql_rust_quality.CodeQLRustQualityError, "sentinel must be nonzero"
-            ):
-                self.qualify(evidence)
-
-    def test_original_zero_quality_metrics_remain_failures(self):
-        for name in codeql_rust_quality.ZERO_METRICS - {"extraction_warnings", "extraction_errors", "unresolved_source_macro_calls"}:
-            evidence = self.evidence()
-            evidence[2][name] = 1
-            with self.subTest(metric=name), self.assertRaisesRegex(
-                codeql_rust_quality.CodeQLRustQualityError, f"{name} must be zero"
-            ):
-                self.qualify(evidence)
-
-    def test_tagged_parser_rejects_ambiguous_rows_and_preserves_all_details(self):
-        evidence = self.evidence()
-        metrics, files, diagnostics = evidence[2:5]
-        rows = [["metric", name, value, 0, "", "", ""] for name, value in metrics.items()]
-        rows += [["file", path, counts[0], counts[1], "", "", ""] for path, counts in files.items()]
-        rows += [[severity, path, line, column, tag, message, full] for path, severity, tag, message, full, line, column in diagnostics]
-        self.assertEqual(codeql_rust_quality._parse_quality_rows(rows), (metrics, files, tuple(diagnostics)))
-        for extra in (
-            ["Other", "file.rs", 1, 1, "", "", ""],
-            ["metric", "new", True, 0, "", "", ""],
-            ["metric", "new", 1, 0, "unread", "", ""],
-            ["file", "../escape.rs", 1, 0, "", "", ""],
-            ["file", "a.rs", -1, 0, "", "", ""],
-            ["Warning", self.archive, 0, 1, "semantics", "short", "full"],
-            rows[0], rows[-1], rows[-2],
-        ):
-            with self.subTest(row=extra), self.assertRaises(codeql_rust_quality.CodeQLRustQualityError):
-                codeql_rust_quality._parse_quality_rows([*rows, extra])
-
-    def test_real_pinned_inventory_preserves_all_174_sources(self):
-        tracked = codeql_rust_quality.tracked_rust_paths()
-        archived = codeql_rust_quality.validate_archive_inventory(codeql_rust_quality.REPOSITORY_ROOT, tracked)
-        current = tracked - archived
-        files = {path: (1, 0) for path in archived} | {path: (0, 0) for path in current}
-        files[sorted(current)[0]] = (7, 3)
-        metrics = clean_metrics(len(tracked))
-        metrics.update(successfully_extracted_files=len(current), extraction_warnings=len(archived),
-                       source_macro_calls=len(archived) + 7, unresolved_source_macro_calls=len(archived))
-        diagnostics = tuple((path, "Warning", "semantics", codeql_rust_quality.ARCHIVE_SEMANTICS_MESSAGE,
-                             codeql_rust_quality.ARCHIVE_SEMANTICS_FULL_MESSAGE, 1, 1) for path in sorted(archived))
-        unresolved = tuple((path, 2, 1, "assert!...") for path in sorted(archived))
-        codeql_rust_quality.validate_current_and_archive_quality(tracked, current, metrics, files, diagnostics, unresolved)
-        self.assertEqual((len(tracked), len(current), len(archived)), (174, 106, 68))
 
 
 if __name__ == "__main__":

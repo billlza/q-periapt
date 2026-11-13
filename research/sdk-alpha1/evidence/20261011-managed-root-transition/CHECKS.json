@@ -1,0 +1,521 @@
+{
+  "schema": 1,
+  "implementation_commit": "fc2d25fb21f2057a25271c88a3ee2fed781152bf",
+  "release_claim_eligible": false,
+  "scope": "Managed authenticated original non-commit and independently approved alternate account-root targets; same native registry/enrollment/journal engine.",
+  "behavior": [
+    "Closed original plans retain old-root suspension and exact original parent ownership, with or without a bound freeze.",
+    "The next target comes from independently retained approval; original non-commit and next freeze are separately authenticated.",
+    "Registry closure, next preparation and exact binding precede original parent/child reconciliation.",
+    "Unknown results repeat the exact transition, including an initial unfenced parent, existing history or already completed target. Missing files are not recreated.",
+    "Multiple abandoned targets keep original operation IDs and select the final account at revision 2 exactly once.",
+    "A known closed next target is refused before mutation; old retry cannot select it again.",
+    "Receipt decoding/signature/requested-scope failures preserve the controller and unrelated application authority. Persistence/recovery failures retain the consume-and-reconcile contract."
+  ],
+  "validation": [
+    {
+      "label": "root-final-02",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::account_root::tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 326.8591784588061,
+      "tests": 38,
+      "new_process_cuts": 14,
+      "source_matches_implementation_commit": true,
+      "completed": true
+    },
+    {
+      "label": "msrv-root-final-02",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "enrollment::account_root::tests",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 326.93196849990636,
+      "tests": 38,
+      "new_process_cuts": 14,
+      "source_matches_implementation_commit": true,
+      "completed": true
+    },
+    {
+      "label": "clippy-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "seconds": 10.750058999983594,
+      "tests": null,
+      "new_process_cuts": null,
+      "source_matches_implementation_commit": true,
+      "completed": true
+    },
+    {
+      "label": "msrv-clippy-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.90.0-aarch64-apple-darwin/bin/cargo",
+        "clippy",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "seconds": 13.205791542073712,
+      "tests": null,
+      "new_process_cuts": null,
+      "source_matches_implementation_commit": true,
+      "completed": true
+    },
+    {
+      "label": "release-final",
+      "command": [
+        "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+        "test",
+        "--manifest-path",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/research/continuity-identity-candidate/Cargo.toml",
+        "--all-features",
+        "--locked",
+        "--offline",
+        "-j",
+        "2",
+        "--lib",
+        "--release",
+        "managed_root_",
+        "--",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "seconds": 246.6507645000238,
+      "tests": 17,
+      "new_process_cuts": 14,
+      "source_matches_implementation_commit": true,
+      "completed": true
+    }
+  ],
+  "process_cuts": {
+    "false": [
+      "managed-noncommit-after",
+      "managed-next-preparation-after",
+      "managed-next-binding-after",
+      "intent-before",
+      "intent-after",
+      "managed-next-parent-after"
+    ],
+    "true": [
+      "managed-noncommit-after",
+      "managed-next-preparation-after",
+      "managed-next-binding-after",
+      "handoff-before",
+      "handoff-after",
+      "child-handoff-before",
+      "child-handoff-after",
+      "managed-next-parent-after"
+    ]
+  },
+  "process_scope": "Fourteen new actual kill-before-return cuts per tested profile, plus seven initial cutover cuts. Verify exact published marker bytes, on-disk registry progress, old-root suspension, original retry and real successor admission. Same native engine on one macOS arm64 host.",
+  "red_green": [
+    {
+      "capture": "receipt-red",
+      "baseline_commit": "93f131d4a4ebdb46ac2025c7942f590b1b0ca817",
+      "test": "managed_root_bad_receipts_preserve_unrelated_registry_authority",
+      "before": "An invalid freeze signature closed the owning registry and revoked an unrelated application lease.",
+      "after": "Receipt verification precedes the mutation path; invalid freeze and retirement preserve unrelated authority and the original operation."
+    },
+    {
+      "capture": "closed-next-red-02",
+      "prototype_source": "closed-next-red-source.rs",
+      "test": "managed_root_closed_next_target_requires_another_independent_approval",
+      "before": "The first transition prototype accepted replay to an already closed next plan.",
+      "after": "Known closed next plans are rejected before mutation; another approved plan can complete the original root cutover."
+    }
+  ],
+  "retained_verification_failures": [
+    {
+      "capture": "closed-next-red",
+      "cause": "New test needed a mutable witness guard; compilation failed before any counterexample ran."
+    },
+    {
+      "capture": "focused-02",
+      "cause": "Eighteen tests passed but a relative module declaration selected the existing sibling process file. This repeated old cuts and did not run the new 14-cut test. Explicit module path fixed; this result is not new-cut qualification."
+    },
+    {
+      "capture": "process-01",
+      "cause": "Eleven new cuts passed; the journal cut did not pause because its separate ROOT_FENCE environment selector was omitted. Correct selector supplied; no timeout or assertion weakened."
+    },
+    {
+      "capture": "root-final",
+      "cause": "The ready pathname became visible before fs::write completed its contents; exact marker assertion read an empty file. Shared test hooks now publish complete bytes atomically with no-clobber. This changes test synchronization, not product storage durability."
+    }
+  ],
+  "inventory": {
+    "tracked_rust_sources": 521,
+    "tests": 44,
+    "source_gate_pass": true,
+    "release_claim_eligible": false
+  },
+  "maintenance": {
+    "new_transition_module": "research/continuity-identity-candidate/src/enrollment/managed_root/transition.rs",
+    "production_lines": 176,
+    "reuses_existing_parent_and_journal_transition_engine": true,
+    "new_storage_format": false,
+    "changed_product_C_ABI": false,
+    "performance_claim": false
+  },
+  "remaining": [
+    "Managed committed-winner adoption, retired-message accounting/erasure and deployed witness control-plane transport.",
+    "Installed C/Swift/Kotlin integration of managed replacement; independent implementation and physical/current/minimum OS qualification.",
+    "Witness-key handoff and the other full 0.2.0 release gates."
+  ],
+  "limits": [
+    "Controlled fixture times 150/170; genuine signatures and disk transactions, not real-clock deployment qualification.",
+    "Local ordered commits do not form a cross-database atomic transaction.",
+    "Historical reconciliation does not provide whole-host rollback protection or physical erasure."
+  ],
+  "archive": {
+    "path": "CAPTURE.zip",
+    "bytes": 344944,
+    "sha256": "87e5c3489800d28ef3a383499efc5a0d0ea8378db0a97836773ea1a1ae3ccf96",
+    "members": [
+      {
+        "path": "COMPILERS.json",
+        "bytes": 433,
+        "sha256": "943fe03694b8644e205a630a3d835cca1bde4a5fb6b307509dc919af64ffa293"
+      },
+      {
+        "path": "FORMAT.json",
+        "bytes": 766,
+        "sha256": "f6e837142a23a06f62f143f593aa7f15e8c238aa3a5bafa0fad512dadd56276b"
+      },
+      {
+        "path": "candidate-fmt.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "candidate-fmt.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "clippy-final/RESULT.json",
+        "bytes": 42884,
+        "sha256": "d1d9498b474538cc7379cc3e3b06eaec4ea111e21c2cb230ea51c68d11f7b76b"
+      },
+      {
+        "path": "clippy-final/START.json",
+        "bytes": 42805,
+        "sha256": "fa7219078778bf5d953c7b4f97c95d5212c704fe530ba7d7017b4378755956f5"
+      },
+      {
+        "path": "clippy-final/stderr",
+        "bytes": 388,
+        "sha256": "262d9734b947b58f80d9d94961ad2edfd320f42e06d4f436b1edccfc40013cb6"
+      },
+      {
+        "path": "clippy-final/stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "closed-next-red-02/RESULT.json",
+        "bytes": 42792,
+        "sha256": "544a3349e5d0a66233743f3dbaffdda68b0044a5476da579cb30426678093771"
+      },
+      {
+        "path": "closed-next-red-02/START.json",
+        "bytes": 42710,
+        "sha256": "077c86076e3ff22f0f95bb5598c5c6912ec7edfb3611a7cd062ad5a7d7949853"
+      },
+      {
+        "path": "closed-next-red-02/stderr",
+        "bytes": 810,
+        "sha256": "b6dbf6232bb64cca9b12eacb7b4585fb32651de88a78ea9a4f8e47b1c3793276"
+      },
+      {
+        "path": "closed-next-red-02/stdout",
+        "bytes": 408,
+        "sha256": "7a26cecb941b9dbcd3dade34d608da13b2ab914a0ae3b380d4390360377eff95"
+      },
+      {
+        "path": "closed-next-red-source.rs",
+        "bytes": 6709,
+        "sha256": "bcb47824b6b9ad5800068c3c59a6157d027621f1fd70cfe34cb381d1b38f13c0"
+      },
+      {
+        "path": "closed-next-red/RESULT.json",
+        "bytes": 42791,
+        "sha256": "ff9dcc7465d73718dcf5409be78572d726e4cf09e77256241fabfcef492f331e"
+      },
+      {
+        "path": "closed-next-red/START.json",
+        "bytes": 42710,
+        "sha256": "7a3a7e46f398838d50e3602109ff4af156836f297b826fd80119111f45f623fe"
+      },
+      {
+        "path": "closed-next-red/stderr",
+        "bytes": 922,
+        "sha256": "e0943719bd3b2c4d233b6d20dccdd586c03e42b581cbbff5aa9104c59cf72a49"
+      },
+      {
+        "path": "closed-next-red/stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "focused-02/RESULT.json",
+        "bytes": 42947,
+        "sha256": "efa038cfa83f5cc75a8bea4f138a4b6910ec0d9c96bbece20e94ec69d6486039"
+      },
+      {
+        "path": "focused-02/START.json",
+        "bytes": 42870,
+        "sha256": "13585ddec4c9dee57122a3e15eee9b8d24fa8eecaf2664cdb16a9d24fec55618"
+      },
+      {
+        "path": "focused-02/stderr",
+        "bytes": 2042,
+        "sha256": "29b742de73c32c4000c53fb7627285483da9443081b2462a6807bdbaa1a9af51"
+      },
+      {
+        "path": "focused-02/stdout",
+        "bytes": 2406,
+        "sha256": "e8ac2d44ed4fe643e8618a6b2a320e87cf5753148431a5dcd0431aa2244fcaa7"
+      },
+      {
+        "path": "inventory-final.stderr",
+        "bytes": 143,
+        "sha256": "4493e050cdf86be5221cd402b1cad5a4e0e42cb3a90a29a0ca58491478c09faa"
+      },
+      {
+        "path": "inventory-final.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "msrv-clippy-final/RESULT.json",
+        "bytes": 42889,
+        "sha256": "f8622020d1d4db7b84ab9e3524ec4df9e7cfaccddbda2fecf18bf4d80dee8d2a"
+      },
+      {
+        "path": "msrv-clippy-final/START.json",
+        "bytes": 42810,
+        "sha256": "be2b63051196aa659dc420adbe8cd991e400f700f515b427bf0439b26476d34f"
+      },
+      {
+        "path": "msrv-clippy-final/stderr",
+        "bytes": 388,
+        "sha256": "968d9a4850279afc84c59e62198ccb3eb89c1bc009bc3b6a398f735fb9734513"
+      },
+      {
+        "path": "msrv-clippy-final/stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "msrv-root-final-02/RESULT.json",
+        "bytes": 42969,
+        "sha256": "a5a6b22cfc5ad3778f61003a6cdcec51de30b2ae01ffb730c52b5cef8f8b0af6"
+      },
+      {
+        "path": "msrv-root-final-02/START.json",
+        "bytes": 42890,
+        "sha256": "bcd9832ebd74c8dfaf5fa02fcf114c04f2ac7f2f357f112540baa12ecf0c998a"
+      },
+      {
+        "path": "msrv-root-final-02/stderr",
+        "bytes": 4309,
+        "sha256": "51c497124ece666bde8f843772e1096cac9e962729a7a67aad9ed61ffad5ff62"
+      },
+      {
+        "path": "msrv-root-final-02/stdout",
+        "bytes": 5246,
+        "sha256": "1285083c0bb4c21893847f1189afe8a9351496d22a452c91d4055c82ecb1c0c9"
+      },
+      {
+        "path": "msrv-root-final/RESULT.json",
+        "bytes": 42968,
+        "sha256": "3f8d46ef3f5327ecb6f10d99bb60b0d35a6ec82ec0001c7951a8016f537f89ce"
+      },
+      {
+        "path": "msrv-root-final/START.json",
+        "bytes": 42890,
+        "sha256": "2c0d145958db09d54c908af7bb3dcfdde133cb4ed92ba4198ace1ce99bf5a42f"
+      },
+      {
+        "path": "msrv-root-final/stderr",
+        "bytes": 4153,
+        "sha256": "87f870b10acf91990c93216f47e20a93a4d58e8294f730935d958c752f413001"
+      },
+      {
+        "path": "msrv-root-final/stdout",
+        "bytes": 5246,
+        "sha256": "bd16c8b96a2ebbc88cf5c58a91d0b2ffb0d632db05338c7485e6aae6f79b0bd4"
+      },
+      {
+        "path": "process-01/RESULT.json",
+        "bytes": 42975,
+        "sha256": "a00e9a078cc48d4a9c44edf520e2fa8df6d467061edf2f1c563549c2fdabd2e1"
+      },
+      {
+        "path": "process-01/START.json",
+        "bytes": 42893,
+        "sha256": "cd820e451fc6bd2c7fb89690149adf9029042add19e7bfbf147b25c95bcd73b0"
+      },
+      {
+        "path": "process-01/stderr",
+        "bytes": 2798,
+        "sha256": "7297a146a5bb7cceba989a02b243fd552d6a134c04808beafdf2c5125da96633"
+      },
+      {
+        "path": "process-01/stdout",
+        "bytes": 425,
+        "sha256": "851a96975ff9cc1ac49f00a7d9bd9d3681743ed6450b51aaab293b12df86c206"
+      },
+      {
+        "path": "receipt-red.patch",
+        "bytes": 2529,
+        "sha256": "c52600a6f4b814ffe7fc50f8c591ea511855f49160be937e114d9988e2e6dfff"
+      },
+      {
+        "path": "receipt-red/RESULT.json",
+        "bytes": 42460,
+        "sha256": "c42fca2d3468fc6645896bd71e68b091a8be5f067343529c9895bc2e32a6e52e"
+      },
+      {
+        "path": "receipt-red/START.json",
+        "bytes": 42378,
+        "sha256": "61ca36afda5db6e80335f453490a9ab07afa3af1955f5463b23d462312c2a740"
+      },
+      {
+        "path": "receipt-red/stderr",
+        "bytes": 771,
+        "sha256": "913afc3767b1b15339a16a940d834dc96d6e2441d9f2d948497119a468c27b5c"
+      },
+      {
+        "path": "receipt-red/stdout",
+        "bytes": 372,
+        "sha256": "21a48804ea4cbe2ab6f350ff0a1797c4d3c1bcafae5b71e117ce5403cb19df0b"
+      },
+      {
+        "path": "release-final/RESULT.json",
+        "bytes": 42965,
+        "sha256": "15129626bcce140506b62e3a5dae8c2113ae035da1bd8db87e8ff9fde0c7f6d1"
+      },
+      {
+        "path": "release-final/START.json",
+        "bytes": 42887,
+        "sha256": "4725483cda87e2ccc87707fd768946c2393f9c2ec571fc15ff63c7b273b4f748"
+      },
+      {
+        "path": "release-final/stderr",
+        "bytes": 3514,
+        "sha256": "e9045e253bb4d53ff8196c9eeb245e0a1763b4e4b346bec30313da562950884f"
+      },
+      {
+        "path": "release-final/stdout",
+        "bytes": 2285,
+        "sha256": "aa33bfd2d8a78e68c6aa1fad24045d5bb6c972ab42951611b87f29c6107e828a"
+      },
+      {
+        "path": "root-final-02/RESULT.json",
+        "bytes": 42963,
+        "sha256": "3a10dc93506ec2b4f224973577c82f45565312c82c66b270c211d70db0a2e865"
+      },
+      {
+        "path": "root-final-02/START.json",
+        "bytes": 42885,
+        "sha256": "ae1d6acad7b1ac5ad2f76ff528cc2684bc1f32b4a73dd23dc305f688d836058d"
+      },
+      {
+        "path": "root-final-02/stderr",
+        "bytes": 4304,
+        "sha256": "49a67bb4696a824b112c2cc64c2431d38fb5709004a743487fd3553b02282b26"
+      },
+      {
+        "path": "root-final-02/stdout",
+        "bytes": 5246,
+        "sha256": "cd709670edb5f6dc753230356cf048215759a2c48912f8970520fbb73ca0f22b"
+      },
+      {
+        "path": "root-final/RESULT.json",
+        "bytes": 42966,
+        "sha256": "c349e57a81e66beda42d901b59ce673801affe80c0a724f576142f9a39055b76"
+      },
+      {
+        "path": "root-final/START.json",
+        "bytes": 42885,
+        "sha256": "04451ce8b2ae1b4a4cfb89343d4714023f733b48aa207360e0b4b4498f0d357e"
+      },
+      {
+        "path": "root-final/stderr",
+        "bytes": 2559,
+        "sha256": "072031bc0d60467bc3d677aec32d63876040765aff69e252bf5c72aabd6a326e"
+      },
+      {
+        "path": "root-final/stdout",
+        "bytes": 5412,
+        "sha256": "18e719bb5f57e5b344cc172fc4e866714865a3461a7517e91c72bb1069d09fa9"
+      },
+      {
+        "path": "run.py",
+        "bytes": 2697,
+        "sha256": "e7b4d6ee68f5b8cbf3fa6ac00bf35dd8e790d02892fe4936f70e8a055020387e"
+      },
+      {
+        "path": "source-gate.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "source-gate.stdout",
+        "bytes": 252,
+        "sha256": "e4d05f6498b1a454e4374c1ebcfb2103cb1725f32a995733387a6ebb4e845002"
+      },
+      {
+        "path": "workspace-fmt.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "workspace-fmt.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  }
+}

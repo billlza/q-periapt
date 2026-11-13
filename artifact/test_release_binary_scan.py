@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import pathlib
+import struct
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 import release_binary_scan
@@ -308,6 +310,87 @@ class ReleaseBinaryScanTests(unittest.TestCase):
             message = str(captured.exception)
             self.assertIn("caller-forbidden Windows path 1", message)
             self.assertNotIn(roots[1], message)
+
+    def test_redacted_cli_preserves_failure_location_without_private_paths_or_bytes(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="private-path-sentinel-") as temporary:
+            first = pathlib.Path(temporary) / "first.bin"
+            second = pathlib.Path(temporary) / "private-file-sentinel.bin"
+            first.write_bytes(b"safe")
+            second.write_bytes(b"prefix private-content-sentinel suffix")
+            arguments = ["release_binary_scan.py", "--redact-paths", str(first), str(second),
+                         "--forbid-text", "private-content-sentinel"]
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with mock.patch.object(sys, "argv", arguments), redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(release_binary_scan.main(), 1)
+            report = json.loads(stderr.getvalue())
+            self.assertEqual(report, {"status": "fail", "file_index": 1,
+                "reason": "caller-forbidden text 0", "byte_offset": 7,
+                "sha256": hashlib.sha256(second.read_bytes()).hexdigest()})
+            self.assertEqual(stdout.getvalue(), "")
+            for secret in (temporary, "private-file-sentinel", "private-content-sentinel"):
+                self.assertNotIn(secret, stderr.getvalue())
+
+            second.unlink()
+            stderr = io.StringIO()
+            with mock.patch.object(sys, "argv", arguments), redirect_stderr(stderr):
+                self.assertEqual(release_binary_scan.main(), 1)
+            self.assertEqual(json.loads(stderr.getvalue()), {
+                "status": "fail", "file_index": 1, "reason": "scan-input-rejected"})
+
+            second.write_bytes(b"safe again")
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with mock.patch.object(sys, "argv", arguments), redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(release_binary_scan.main(), 0)
+            report = json.loads(stdout.getvalue())
+            self.assertEqual(report["status"], "pass")
+            self.assertEqual([row["file_index"] for row in report["files"]], [0, 1])
+            self.assertTrue(all(set(row) == {"bytes", "file_index", "sha256"} for row in report["files"]))
+            self.assertEqual(stderr.getvalue(), "")
+            self.assertNotIn(temporary, stdout.getvalue())
+
+    def test_redacted_windows_findings_identify_nested_roots_without_exposing_them(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "library.bin"
+            path.write_bytes(br"prefix C:\Users\private-user\cache\source.c" + b"\0")
+            arguments = ["release_binary_scan.py", "--redact-paths", str(path),
+                         "--forbid-windows-path", r"C:\Users\private-user",
+                         "--forbid-windows-path", r"C:\Users\private-user\cache"]
+            stderr = io.StringIO()
+            with mock.patch.object(sys, "argv", arguments), redirect_stderr(stderr):
+                self.assertEqual(release_binary_scan.main(), 1)
+            report = json.loads(stderr.getvalue())
+            self.assertEqual(report["matched_windows_paths"], [
+                {"index": 0, "byte_offset": 7}, {"index": 1, "byte_offset": 7}])
+            self.assertNotIn("private-user", stderr.getvalue())
+            self.assertNotIn("source.c", stderr.getvalue())
+
+    def test_archive_diagnostic_locates_metadata_without_disclosing_names_or_admitting_it(self) -> None:
+        private = b"C:\\Users\\private-person\\source.c\0"
+        coff = (struct.pack("<HHIIIHH", 0x8664, 1, 0, 0, 0, 0, 0)
+                + struct.pack("<8sIIIIIIHHI", b".debug$S", 0, 0, len(private), 60, 0, 0, 0, 0, 0x42000040)
+                + private)
+        def archive(name, payload):
+            header = (name.ljust(16) + b"0".ljust(12) + b"0".ljust(6) + b"0".ljust(6)
+                      + b"644".ljust(8) + str(len(payload)).encode().ljust(10) + b"`\n")
+            return b"!<arch>\n" + header + payload + (b"\n" if len(payload) % 2 else b"")
+        cases = ((archive(b"//", private), "long-name-table"),
+                 (archive(b"private.obj/", coff), "coff-section"),
+                 (b"!<arch>\nmalformed " + private, "unclassified-archive-position"))
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "private-library.lib"
+            for data, region in cases:
+                with self.subTest(region=region):
+                    path.write_bytes(data)
+                    stderr = io.StringIO()
+                    with mock.patch.object(sys, "argv", ["release_binary_scan.py", "--redact-paths", str(path)]), redirect_stderr(stderr):
+                        self.assertEqual(release_binary_scan.main(), 1)
+                    report = json.loads(stderr.getvalue())
+                    self.assertEqual(report["status"], "fail")
+                    self.assertEqual(report["archive_location"]["region"], region)
+                    if region == "coff-section":
+                        self.assertEqual(report["archive_location"]["section"], ".debug$S")
+                    for secret in ("private-person", "private.obj", "private-library", "source.c", temporary):
+                        self.assertNotIn(secret, stderr.getvalue())
 
     def test_credentials_are_rejected_in_both_utf16_encodings_and_alignments(self) -> None:
         cases = {

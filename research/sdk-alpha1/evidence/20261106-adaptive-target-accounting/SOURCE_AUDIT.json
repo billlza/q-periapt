@@ -1,0 +1,195 @@
+{
+  "full_native_prefix_complete": false,
+  "locations": {
+    "acceptance": {
+      "ordered_locations": [
+        {
+          "line": 797,
+          "literal": "if let Some(super::Plan::Ready {",
+          "step": "original-offer"
+        },
+        {
+          "line": 803,
+          "literal": "self.check_cached_wire(context, target, RekeyFlight::Offer, offer)?;",
+          "step": "verify-offer"
+        },
+        {
+          "line": 804,
+          "literal": "verify_wire(context, target, RekeyFlight::Response, reply)?;",
+          "step": "verify-response"
+        },
+        {
+          "line": 807,
+          "literal": "if body.len() != response::RESPONSE_BODY_LEN || !body.starts_with(&prefix)",
+          "step": "check-prefix"
+        },
+        {
+          "line": 814,
+          "literal": "let owner = match recovery.generate_key(",
+          "step": "replay-generation"
+        },
+        {
+          "line": 829,
+          "literal": "if owner\n                .public_key()",
+          "step": "check-public-key"
+        },
+        {
+          "line": 847,
+          "literal": ".decapsulate(&ciphertext, &response::kem_context(offer))",
+          "step": "decapsulate"
+        }
+      ],
+      "source": "research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs"
+    },
+    "fresh_reservation": {
+      "ordered_locations": [
+        {
+          "line": 167,
+          "literal": "let _admission = runtime.state.begin()?;",
+          "step": "runtime-admission"
+        },
+        {
+          "line": 168,
+          "literal": "let cipher = self.cipher()?;",
+          "step": "wrapping-owner"
+        },
+        {
+          "line": 169,
+          "literal": "let mut wire = binding(",
+          "step": "binding"
+        },
+        {
+          "line": 171,
+          "literal": "getrandom::fill(&mut entropy)",
+          "step": "entropy-draw"
+        },
+        {
+          "line": 173,
+          "literal": "getrandom::fill(&mut nonce)",
+          "step": "nonce-draw"
+        },
+        {
+          "line": 176,
+          "literal": ".encrypt_inout_detached(",
+          "step": "seal"
+        },
+        {
+          "line": 180,
+          "literal": "Ok(SealedOperation(wire))",
+          "step": "return-token"
+        }
+      ],
+      "source": "crates/q-periapt-sdk/src/expert/replay.rs"
+    },
+    "generation": {
+      "ordered_locations": [
+        {
+          "line": 363,
+          "literal": "if state.control.plan.is_none() {",
+          "step": "only-if-no-plan"
+        },
+        {
+          "line": 365,
+          "literal": ".reserve_key(",
+          "step": "fresh-generation"
+        },
+        {
+          "line": 367,
+          "literal": "state.control.plan = Some(Plan::Key(key));",
+          "step": "retain-plan"
+        },
+        {
+          "line": 368,
+          "literal": "self.store_message_state(&mut image, &state).await?;",
+          "step": "persist"
+        },
+        {
+          "line": 373,
+          "literal": "let key = match recovery.generate_key(",
+          "step": "compute-retained"
+        }
+      ],
+      "source": "research/continuity-identity-candidate/src/durable/messages/rekey.rs"
+    },
+    "response": {
+      "ordered_locations": [
+        {
+          "line": 205,
+          "literal": "verify_offer(&state, context, offer)?;",
+          "step": "authenticate-first"
+        },
+        {
+          "line": 215,
+          "literal": "if let Some(super::Plan::Response(saved))",
+          "step": "retained-response"
+        },
+        {
+          "line": 216,
+          "literal": "if saved.offer != offer {",
+          "step": "exact-offer"
+        },
+        {
+          "line": 250,
+          "literal": "if state.control.plan.is_none() {",
+          "step": "only-if-no-plan"
+        },
+        {
+          "line": 260,
+          "literal": ".reserve_encapsulation(",
+          "step": "fresh-encapsulation"
+        },
+        {
+          "line": 267,
+          "literal": "state.control.plan = Some(super::Plan::Response(Plan {",
+          "step": "retain-plan"
+        },
+        {
+          "line": 271,
+          "literal": "self.store_message_state(&mut image, &state).await?;",
+          "step": "persist"
+        },
+        {
+          "line": 288,
+          "literal": "let result = match recovery.encapsulate(",
+          "step": "compute-retained"
+        }
+      ],
+      "source": "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs"
+    }
+  },
+  "main_formula_sha256": "0b92ee18d7731c7c83fa05329e486fd6813f8ea13d64ed92215346f10cdf8faa",
+  "main_model_sha256": "dde5d06a071b1560da0d4c28c3f1fd81a3c39708f9fd8564ee391ddc362bcf7f",
+  "new_native_execution": false,
+  "new_tamarin_execution": false,
+  "proof_checker": false,
+  "release_claim_eligible": false,
+  "scope": "Selected source-byte identities and ordered source locations. Not a control-flow proof or complete native origin/acquisition refinement.",
+  "source_commit": "01ed008334a4aa0aee720ee7cbeec9b5394dc816",
+  "source_inputs": {
+    "crates/q-periapt-sdk/src/expert/replay.rs": {
+      "bytes": 9863,
+      "sha256": "cc95985cd212a2c2f224dcce22bc7fba5f4f331dc190e263085a0261dd0a3713"
+    },
+    "docs/continuity/KEM_CHALLENGE_ADAPTER_V1.md": {
+      "bytes": 14732,
+      "sha256": "e352b5ca9cbfb5ac652992eae456bed15c022fe59fee2b0df98443e92f865473"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/rekey.rs": {
+      "bytes": 17022,
+      "sha256": "74f8b76dad4fc7f95a5cbaf47bc7cf51ef2231f18bc1f940e68793a050483a10"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/rekey/completion.rs": {
+      "bytes": 42784,
+      "sha256": "d2ba085119db3cff2ebda780f4824b8b4cbd3a9f6e44531df45db48144a65c1e"
+    },
+    "research/continuity-identity-candidate/src/durable/messages/rekey/response.rs": {
+      "bytes": 15442,
+      "sha256": "e2c1dfe4122c9f2ae41101dfb7b392abcd801f09dd63b5f39e6722f3585cee59"
+    },
+    "research/continuity-recovery-symbolic/multi-epoch.spthy": {
+      "bytes": 16706,
+      "sha256": "78aaca97033b6a5ff470991883d1e36ad881a95e16ef6bd9f7c146e51e83ea0b"
+    }
+  },
+  "source_inputs_unchanged": true
+}

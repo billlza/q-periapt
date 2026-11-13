@@ -1,0 +1,141 @@
+{
+  "aar_sha256": "0e013023191c68c0be74a4a5e8be55c6a928f26b037edb367675ace02627c3df",
+  "apk_sha256": "29e3e3e7cf3c08030af6a37a36a780d83609b4ef5ce54d6084b7dcad73fed122",
+  "archive_bytes": 945961,
+  "archive_sha256": "a9fe5800b6841fd195a60bac4fc89ce2c2e0a548a4dbfd2def25cecebab35b98",
+  "completed": true,
+  "host_processes": 118,
+  "java_sha256": "2b887662a81dd652519b83d5a70d1a73f5946dd69307d754f944530045657d03",
+  "members": 843,
+  "physical_processes": 59,
+  "release_claim_eligible": false,
+  "routes": {
+    "device/recoverable-applied": {
+      "aar_sha256": "0e013023191c68c0be74a4a5e8be55c6a928f26b037edb367675ace02627c3df",
+      "apk_sha256": "29e3e3e7cf3c08030af6a37a36a780d83609b4ef5ce54d6084b7dcad73fed122",
+      "cleanup": true,
+      "completed": true,
+      "inputs": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/device-03/consumer.apk": "29e3e3e7cf3c08030af6a37a36a780d83609b4ef5ce54d6084b7dcad73fed122",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/device-03/device-driver.py": "5c74d7bc6762360e6a8f249afa4a9ea1bc77210b3cf8e4947dfde08f0beeb5d5",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/host-target-03/debug/deps/android-df789cbaf5cda4d5": "797507ad5d1d4b697e30939a7cde97cd3bbb11a4e36d7ab2b05628d7bed0a389",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/jni03/installed/libq_periapt_continuity_c_consumer.dylib": "e09a491bb45a33baddf1a74fc1186413cdba9530c3c3dbe52bb3b099c7d5507d",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/jni03/installed/qpc-c-client": "46d0bb93018cccbf20513d4eae56d43bab35d7a6fb7efd866bba2d02e314ad0a",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/jni03/installed/qpc-configuration-client": "2df7d6520b49880fe5d876e71f35242de7fbede088c120e448dc1bf7dab79d12"
+      },
+      "inputs_unchanged": true,
+      "physical_processes": 33,
+      "release_claim_eligible": false,
+      "result": {
+        "committed": true,
+        "foreign_processes": 33,
+        "historical_reads": 2,
+        "original_message_retried": true,
+        "real_policy_expiry": true,
+        "release_claim_eligible": false
+      },
+      "route": "recoverable-applied",
+      "scope": "Accepted API37 physical phone, actual R8 APK containing current AAR, source-linked C peer and independent host issuer/witness; original application message; no independent protocol implementation claim"
+    },
+    "device/recoverable-pending": {
+      "aar_sha256": "0e013023191c68c0be74a4a5e8be55c6a928f26b037edb367675ace02627c3df",
+      "apk_sha256": "29e3e3e7cf3c08030af6a37a36a780d83609b4ef5ce54d6084b7dcad73fed122",
+      "cleanup": true,
+      "completed": true,
+      "inputs": {
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/device-03/consumer.apk": "29e3e3e7cf3c08030af6a37a36a780d83609b4ef5ce54d6084b7dcad73fed122",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/device-03/device-driver.py": "5c74d7bc6762360e6a8f249afa4a9ea1bc77210b3cf8e4947dfde08f0beeb5d5",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/host-target-03/debug/deps/android-df789cbaf5cda4d5": "797507ad5d1d4b697e30939a7cde97cd3bbb11a4e36d7ab2b05628d7bed0a389",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/jni03/installed/libq_periapt_continuity_c_consumer.dylib": "e09a491bb45a33baddf1a74fc1186413cdba9530c3c3dbe52bb3b099c7d5507d",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/jni03/installed/qpc-c-client": "46d0bb93018cccbf20513d4eae56d43bab35d7a6fb7efd866bba2d02e314ad0a",
+        "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/jni03/installed/qpc-configuration-client": "2df7d6520b49880fe5d876e71f35242de7fbede088c120e448dc1bf7dab79d12"
+      },
+      "inputs_unchanged": true,
+      "physical_processes": 26,
+      "release_claim_eligible": false,
+      "result": {
+        "committed": false,
+        "foreign_processes": 26,
+        "historical_reads": 2,
+        "original_message_retried": false,
+        "real_policy_expiry": true,
+        "release_claim_eligible": false
+      },
+      "route": "recoverable-pending",
+      "scope": "Accepted API37 physical phone, actual R8 APK containing current AAR, source-linked C peer and independent host issuer/witness; original application message; no independent protocol implementation claim"
+    },
+    "host/fixed-applied": {
+      "completed": true,
+      "executable": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/host-target-03/debug/deps/android-df789cbaf5cda4d5",
+      "executable_sha256": "797507ad5d1d4b697e30939a7cde97cd3bbb11a4e36d7ab2b05628d7bed0a389",
+      "inputs_unchanged": true,
+      "release_claim_eligible": false,
+      "result": {
+        "committed": true,
+        "foreign_processes": 33,
+        "historical_reads": 2,
+        "original_message_retried": true,
+        "real_policy_expiry": true,
+        "release_claim_eligible": false
+      },
+      "route": "fixed-applied",
+      "scope": "Current source-linked C engine and real host Java/JNI; actual independent issuer and witness, original traffic; not physical or installed-archive qualification",
+      "source_linked": true
+    },
+    "host/fixed-pending": {
+      "completed": true,
+      "executable": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/host-target/debug/deps/android-df789cbaf5cda4d5",
+      "executable_sha256": "57084c30b121527fbd4f97059e004ed0c19093acf091e80387cb2548a5f15b3a",
+      "inputs_unchanged": true,
+      "release_claim_eligible": false,
+      "result": {
+        "committed": false,
+        "foreign_processes": 26,
+        "historical_reads": 2,
+        "original_message_retried": false,
+        "real_policy_expiry": true,
+        "release_claim_eligible": false
+      },
+      "route": "fixed-pending",
+      "scope": "Current source-linked C engine and real host Java/JNI; actual independent issuer and witness, original traffic; not physical or installed-archive qualification",
+      "source_linked": true
+    },
+    "host/recoverable-applied": {
+      "completed": true,
+      "executable": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/host-target-03/debug/deps/android-df789cbaf5cda4d5",
+      "executable_sha256": "797507ad5d1d4b697e30939a7cde97cd3bbb11a4e36d7ab2b05628d7bed0a389",
+      "inputs_unchanged": true,
+      "release_claim_eligible": false,
+      "result": {
+        "committed": true,
+        "foreign_processes": 33,
+        "historical_reads": 2,
+        "original_message_retried": true,
+        "real_policy_expiry": true,
+        "release_claim_eligible": false
+      },
+      "route": "recoverable-applied",
+      "scope": "Current source-linked C engine and real host Java/JNI; actual independent issuer and witness, original traffic; not physical or installed-archive qualification",
+      "source_linked": true
+    },
+    "host/recoverable-pending": {
+      "completed": true,
+      "executable": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-android-joint-policy/host-target/debug/deps/android-df789cbaf5cda4d5",
+      "executable_sha256": "57084c30b121527fbd4f97059e004ed0c19093acf091e80387cb2548a5f15b3a",
+      "inputs_unchanged": true,
+      "release_claim_eligible": false,
+      "result": {
+        "committed": false,
+        "foreign_processes": 26,
+        "historical_reads": 2,
+        "original_message_retried": false,
+        "real_policy_expiry": true,
+        "release_claim_eligible": false
+      },
+      "route": "recoverable-pending",
+      "scope": "Current source-linked C engine and real host Java/JNI; actual independent issuer and witness, original traffic; not physical or installed-archive qualification",
+      "source_linked": true
+    }
+  },
+  "scope": "Four host JNI routes and two accepted physical API37 ART routes for local joint G/T; independent issuer and same-engine C counterparty"
+}

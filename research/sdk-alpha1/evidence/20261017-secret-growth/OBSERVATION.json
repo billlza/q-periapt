@@ -1,0 +1,38 @@
+{
+  "completed_observation": true,
+  "source_base": "d71c6fc126fa78b56ab1073a574b13e7a99168e1",
+  "product_branch_changed": false,
+  "candidate_admitted": false,
+  "cases": [
+    {
+      "case": "old-state-encoding",
+      "build": "02",
+      "returncode": 101,
+      "workload_completed": true,
+      "watched_states": 7,
+      "nonzero_reallocation_frees": 14,
+      "zeroed_final_frees": 7,
+      "business_files_checked": 1,
+      "binary_sha256": "44b6a5825f83646331a98593068e46f2ee7ecf464e688bdc304de5952e760f38"
+    },
+    {
+      "case": "candidate-state-encoding",
+      "build": "04",
+      "returncode": 0,
+      "workload_completed": true,
+      "watched_states": 7,
+      "nonzero_reallocation_frees": 0,
+      "zeroed_final_frees": 7,
+      "business_files_checked": 1,
+      "binary_sha256": "2b6eb737eda5a38b3570abd4891a449efef0cf95a62b8c7125ab6acf42c3c7ae"
+    }
+  ],
+  "archive_sha256": "27c76536857008d5db9977b68276347e8bb97be164fabab49d3cbd99b909f01d",
+  "archive_bytes": 294077,
+  "archive_members": 105,
+  "all_members_read_back": true,
+  "source_patch_and_fixture_hashes_verified": true,
+  "business_files_checked": 2,
+  "scope": "A moving-allocator counterexample and isolated State/Traffic exact-capacity prototype; not evidence of native allocator residue, remote exploitation, full secret-buffer erasure, unchanged v21 encoding across all variants, or release qualification.",
+  "release_claim_eligible": false
+}

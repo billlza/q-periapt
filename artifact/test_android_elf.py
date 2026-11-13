@@ -7,6 +7,7 @@ import copy
 import datetime as dt
 import hashlib
 import io
+import json
 import os
 import pathlib
 import stat
@@ -333,10 +334,14 @@ class AndroidElfVerifierTests(unittest.TestCase):
         license_data = b"Dependency license text\n"
         license_path = "THIRD_PARTY/rust/example-dependency-1.0.0/LICENSE"
         inventory = {
-            "schema_version": 1,
+            "schema_version": 2,
             "kind": "qperiapt.third_party_rust_licenses",
             "root_package": "q-periapt-ffi",
-            "target": "x86_64-linux-android",
+            "targets": sorted(android_elf.THIRD_PARTY_RUST_COVERED_TARGETS),
+            "target_packages": {
+                target: [["example-dependency", "1.0.0", "registry+https://github.com/rust-lang/crates.io-index"]]
+                for target in android_elf.THIRD_PARTY_RUST_COVERED_TARGETS
+            },
             "packages": [
                 {
                     "checksum": "a" * 64,
@@ -668,6 +673,16 @@ class AndroidElfVerifierTests(unittest.TestCase):
                 llvm_nm=nm,
                 llvm_readelf=readelf,
             )
+
+    def test_load_alignment_must_be_power_of_two(self) -> None:
+        output = "LOAD 0x0 0x0 0x0 0x100 0x100 R E 0x6000\n"
+        with self.assertRaisesRegex(AndroidVerificationError, "not a power of two"):
+            android_elf.verify_program_headers(output, pathlib.Path("fixture.so"))
+
+    def test_load_offset_and_virtual_address_must_be_congruent(self) -> None:
+        output = "LOAD 0x1000 0x2000 0x2000 0x100 0x100 R E 0x4000\n"
+        with self.assertRaisesRegex(AndroidVerificationError, "incongruent LOAD"):
+            android_elf.verify_program_headers(output, pathlib.Path("fixture.so"))
 
     def test_expected_aar_sha256_mismatch_fails_closed(self) -> None:
         nm, readelf = self.fake_tools()
@@ -1019,6 +1034,22 @@ class AndroidElfVerifierTests(unittest.TestCase):
         path.write_bytes(zip_bytes(entries))
         with self.assertRaisesRegex(AndroidVerificationError, r"bytes differ"):
             audit_aar(path)
+
+    def test_third_party_license_inventory_requires_all_shipped_abi_closures(self) -> None:
+        original = self.aar_entries()
+        inventory = json.loads(original[THIRD_PARTY_RUST_INVENTORY])
+        # A single x86_64 graph can no longer stand in for a four-ABI AAR.
+        single = dict(inventory, schema_version=1, target="x86_64-linux-android")
+        del single["targets"]
+        del single["target_packages"]
+        missing = json.loads(original[THIRD_PARTY_RUST_INVENTORY])
+        del missing["target_packages"]["aarch64-linux-android"]
+        for changed, message in ((single, "does not cover multiple targets"),
+                                 (missing, "target closure set differs")):
+            entries = dict(original)
+            entries[THIRD_PARTY_RUST_INVENTORY] = canonical_license_inventory_json(changed)
+            with self.subTest(message=message), self.assertRaisesRegex(AndroidVerificationError, message):
+                android_elf.audit_aar_bytes(zip_bytes(entries), label="incomplete ABI license fixture")
 
 
 class AndroidManifestProvenanceTests(unittest.TestCase):

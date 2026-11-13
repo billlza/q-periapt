@@ -1,0 +1,31 @@
+{
+  "archive_readback_sha256": "13186ddcf81996e2354f53de61d5b5621cd5c6d822189d547ef6a67ce1136b36",
+  "archive_sha256": "febe57f043c78f09a77ec36a2694cdb156b3e184e287ff62871712f54b1ebdde",
+  "business_files_verified": 750,
+  "captured_reader_source_only": true,
+  "completed": true,
+  "driver_sha256": "d4941b2bfe9d71fd96afe64571486615855b89b67db771f661078bd83e28b2b3",
+  "exact_rate_cross_products_checked": true,
+  "members_verified": 1199,
+  "native_workload_rerun": false,
+  "negative_controls_reexecuted": 500,
+  "operation_spans_verified": 1950,
+  "performance_qualified": false,
+  "phase_groups_reproduced_from_captured_analysis_source": 12,
+  "phase_intervals_verified": 60,
+  "pilot_cohorts_replayed": 4,
+  "private_runtime_accessed": false,
+  "reader_files": {
+    "artifact/evidence_io.py": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d",
+    "artifact/python-env.sh": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49",
+    "artifact/python-run.sh": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255",
+    "artifact/python_bootstrap.py": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
+    "controller/analyze-throughput.py": "80c70bffaa8b759ffc4dcdf767a7df296a53752f73f0684c4362ab6be334c32a",
+    "controller/readback-fanout.py": "45ed93e06ff925330e6293e7ffb3480e19a0c569df656a7e846ff9c1d1b9e75f",
+    "controller/readback-operation-repeat.py": "5071af9a6d54066141c5ed1611a7a8e6492a6778728d586618c1f9740b9da518",
+    "controller/readback-throughput.py": "3f6776cc6981fbd9a6030935cf74bf1ce38c7500703dede72670964471ad217a",
+    "controller/validate-throughput-capsule.py": "c5f18fce1de1d6fee18b9a24c605086888f58db819869dae547c7780329f0d62"
+  },
+  "release_claim_eligible": false,
+  "repeated_cohorts_replayed": 16
+}

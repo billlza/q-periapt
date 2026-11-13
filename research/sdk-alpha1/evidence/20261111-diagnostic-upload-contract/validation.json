@@ -1,6 +1,6 @@
 {
   "status": "passed",
-  "source_base": "df411f3b304fbcef04601098ad90cd226617b9c1",
+  "source_base": "1b47a1931cab2a944902316619cdcf479bd64ab0",
   "failed_hosted_run": 42982407447,
   "failed_hosted_job": 130395662212,
   "root_cause": "The exact upload-step contract retained the previous path list after bounded Android cleanup diagnostics were added.",
@@ -8,15 +8,16 @@
   "validation": {
     "module": "test_proof_to_byte_release.BoundVerifierWiringTests",
     "tests": [
-      "test_ci_android_16k_runtime_consumes_same_run_aar_fail_closed"
+      "test_ci_android_runtime_matrix_consumes_same_run_aar_fail_closed",
+      "test_ci_android_replay_consumes_only_same_run_exports_with_producer_pins"
     ],
-    "count": 1,
-    "seconds": 0.065,
+    "count": 2,
+    "seconds": 0.082,
     "exit_code": 0
   },
   "source_sha256": {
-    ".github/workflows/ci.yml": "5f2cb891a9b8a960f5ac20d56a2477c504b6b882b0b89ebf63e6fc9b047f1ad3",
-    "artifact/test_proof_to_byte_release.py": "83d65a22ed1ecbc6b184afc93053e27df95eff1c7b9f82ad23d25439a31f05df"
+    ".github/workflows/ci.yml": "da33a738abeaeae4aa4b9e9205d86e73c5c89e3c947825ff7750bb9317f91df8",
+    "artifact/test_proof_to_byte_release.py": "031e23b93dd895e6d8a3b95f801369d155abb3c91e724909d724835fb839d0c6"
   },
   "runtime_effect": "No device cleanup or runtime proof behavior changes. Existing forbidden broad globs, credentials and ownership-file exclusions remain enforced."
 }

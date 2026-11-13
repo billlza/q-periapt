@@ -1,0 +1,544 @@
+{
+  "schema": 1,
+  "scope": "Partial stored role and phase source proofs; no full recovery security claim",
+  "source_base_commit": "e8351c74fef1b587e3cb81b06afe683320aa1740",
+  "parent_capture": "../20261028-entropy-storage-sources/CAPTURE.zip",
+  "parent_sha256": "ad6f1a5e017895d36e58cc4b91144861e5d11bc69030bf7ca6eff0f5cd2dd2eb",
+  "entry": "experiments/p0-origin-storage-role-direct-708/storage-role-direct-proof.spthy",
+  "entry_sha256": "6abc57adbf5518606053af6cfc81f12e59e98d9f9ec868cd1e1a2f3d82f42340",
+  "operational_prefix_sha256": "3cb837646fa2097468d1fad0a10433f50d5c31b6be5553f20085170c3eef0266",
+  "unchanged_queries": 29,
+  "query_definitions_sha256": "22cb7cc01ef480dd37523f5ed52239d8de0e0454feebf4f14bb570f77b98f850",
+  "closed_sources": [
+    "Application_Message",
+    "Cut_case_1",
+    "Cut_case_2",
+    "Offer_Commit_3_case_2",
+    "Reveal_Entropy",
+    "Reveal_Identity",
+    "Snapshot_Signer_File_case_1",
+    "Snapshot_Signer_File_case_2",
+    "Snapshot_Signer_File_case_3",
+    "Snapshot_case_1",
+    "Snapshot_case_2",
+    "Snapshot_case_3"
+  ],
+  "remaining_sources": [
+    "Final_Commit_8",
+    "Offer_Commit_3_case_1",
+    "Receipt_Commit_0",
+    "Response_Commit_6",
+    "Snapshot_case_4",
+    "Snapshot_case_5"
+  ],
+  "main_origin_result": {
+    "mode": "all-traces",
+    "status": "analysis incomplete",
+    "steps": 93
+  },
+  "auxiliary_all_trace_lemmas_verified": {
+    "application_counter_has_public_constructor": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 17
+    },
+    "first_responder_ready_event_is_unique": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 285
+    },
+    "generation_and_encapsulation_secrets_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "generation_and_session_identifiers_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "generation_and_signing_secrets_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "phase_position_event_is_unique": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 29
+    },
+    "produced_counter_has_public_constructor": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 35
+    },
+    "produced_send_root_is_initial_or_hashed": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 55
+    },
+    "produced_state_role_and_epoch_have_public_constructors": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 191
+    },
+    "ready_epoch_and_parent_have_public_constructors": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 12
+    },
+    "ready_parent_has_tagged_epoch_origin": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 12
+    },
+    "ready_root_is_initial_or_hashed": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 11
+    },
+    "reservations_inherit_locally_confirmed_root": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 14
+    },
+    "signed_wire_scope_has_session_and_parent_origin": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 47
+    }
+  },
+  "initial_traffic_witness_steps": 414,
+  "experiments": {
+    "p0-origin-storage-fields23-frontier-708": {
+      "prover_returncode": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 296.77821362500254,
+      "main_origin": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 102
+      },
+      "input_sha256": "94ebfe63c7fb1085c6fad14835271ccdf8d5a6925061964d044c0ae3af8bb2be",
+      "output_sha256": "a9bebb962f2b8bb3d0d376db56e2022d74d73545f26ce5d86cf9edb400bbdbbb",
+      "search_requested": true
+    },
+    "p0-origin-storage-role-wrap-708": {
+      "prover_returncode": 1,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 60.70899845800159,
+      "main_origin": null,
+      "input_sha256": "bed65f64c9d3eb901c568a652ac448c1b4331fa0fb777d58d4b725dd9017f05b",
+      "output_sha256": null,
+      "search_requested": false
+    },
+    "p0-origin-phase-control-708": {
+      "prover_returncode": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 309.8247519169963,
+      "main_origin": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 102
+      },
+      "input_sha256": "a9bebb962f2b8bb3d0d376db56e2022d74d73545f26ce5d86cf9edb400bbdbbb",
+      "output_sha256": "8c57b5be61e651e6c279d361dd17c72a96b78fdf505677b95506b49f55bc287a",
+      "search_requested": false
+    },
+    "p0-origin-storage-role-repeat-708": {
+      "prover_returncode": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 298.03976320900256,
+      "main_origin": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 124
+      },
+      "input_sha256": "bed65f64c9d3eb901c568a652ac448c1b4331fa0fb777d58d4b725dd9017f05b",
+      "output_sha256": "906c421808a1bea80cd78c5b8d283139a8ef02f2250e189e5983e6740efda301",
+      "search_requested": false
+    },
+    "p0-origin-storage-role-direct-708": {
+      "prover_returncode": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 287.7303943329971,
+      "main_origin": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 93
+      },
+      "input_sha256": "6abc57adbf5518606053af6cfc81f12e59e98d9f9ec868cd1e1a2f3d82f42340",
+      "output_sha256": "6abc57adbf5518606053af6cfc81f12e59e98d9f9ec868cd1e1a2f3d82f42340",
+      "search_requested": false
+    }
+  },
+  "timeout_boundary": "Initial new Wrap replay stopped at the unchanged60s derivationcheck before any lemma result. Unchanged prior102step certificate replayed, then one exact-input replication completed atsame limits. No invalid Wrap steps; lower-leveltimingcause unknown. Failure retained, no repeatedretryloop.",
+  "proof_simplification": "Snapshot role resolved through its original observed Wrap premise and two actual Setup producers. PublicA/B roles contradict the fresh generation-key source. Eleven Stored expansions and22 open Setup leaves replaced by this checked proof; all18 source cases andall29statements retained.",
+  "legacy_query_boundary": "initial_epoch_counter_is_zero remains deliberatelyunproved withoutreuse; the414step witness contradicts it after initialtraffic was enabled. See20261027-recovery-initial-traffic. No attempt to prove or silentlyreuse the obsolete invariant.",
+  "resource_bounds": {
+    "seconds_per_run": 900,
+    "derivation_check_seconds": 60,
+    "heap_gib": 12,
+    "threads": 1,
+    "total_search_depth": 16,
+    "capture_prefix_depth": 3,
+    "capture_remaining_bound": 13,
+    "capture_callbacks_limit": 32,
+    "captured_frontiers": 17,
+    "new_manual_path_depth_at_most": 4
+  },
+  "next_frontier_boundary": "Final tree has six open source roots. Snapshot4/5 producer expansions already exist in parent707tree. Transplant their exact subtrees into final93tree for26initial open leaves; captureactualgoals atprefix3+remaining13, retaining allsources/queries.",
+  "full_goal_achieved": false,
+  "release_claim_eligible": false,
+  "files": {
+    "experiments/p0-origin-phase-control-708/PREPARED.json": {
+      "bytes": 849,
+      "sha256": "5e475b00b29f7093695cb823215cddf6855279f365ce465916abc003c72ced00"
+    },
+    "experiments/p0-origin-phase-control-708/READBACK.json": {
+      "bytes": 4784,
+      "sha256": "24dc46d98d1e18bc5372b97b8a0ec022684eb791a0430d93abf6bd86bc4e4164"
+    },
+    "experiments/p0-origin-phase-control-708/model.spthy": {
+      "bytes": 355311,
+      "sha256": "a9bebb962f2b8bb3d0d376db56e2022d74d73545f26ce5d86cf9edb400bbdbbb"
+    },
+    "experiments/p0-origin-phase-control-708/phase-control-replay-STARTED.json": {
+      "bytes": 1609,
+      "sha256": "2cf8b0c82747d82fd6f86ac47b0895868a61788e842ef39f2cc2c9d42badef09"
+    },
+    "experiments/p0-origin-phase-control-708/phase-control-replay-TERMINAL.json": {
+      "bytes": 5974,
+      "sha256": "262bfb5f6ee0d06aee68e93e8735ea2e208677669a4c1641f2c1c7d00f2408f8"
+    },
+    "experiments/p0-origin-phase-control-708/phase-control-replay-proof.spthy": {
+      "bytes": 354418,
+      "sha256": "8c57b5be61e651e6c279d361dd17c72a96b78fdf505677b95506b49f55bc287a"
+    },
+    "experiments/p0-origin-phase-control-708/phase-control-replay.stderr": {
+      "bytes": 1595,
+      "sha256": "21054087bb688445361f58674d4879f7e2eb3565833f548ceee7c0d4d46f629e"
+    },
+    "experiments/p0-origin-phase-control-708/phase-control-replay.stdout": {
+      "bytes": 3062,
+      "sha256": "ccc311e0f487668526c4a5c200d4aa7b60dd26db83913a2e71fad4ab26bf691a"
+    },
+    "experiments/p0-origin-phase-control-708/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/PREPARED.json": {
+      "bytes": 705,
+      "sha256": "f902ca4b380a1275836dda9a1fceff4838e9b160cb93f2033c28b2b3e23132a9"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0000.json": {
+      "bytes": 361,
+      "sha256": "1d15edfd1e570f37eeb5a0561c1f5a63e3611bacc4bcddb14f8ced536a9c2627"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0000.txt": {
+      "bytes": 2387,
+      "sha256": "3c2977d90f5839ea29bba8adc10bab712715d0fba3dd9aeb4dd1f3cdc905ccf7"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0001.json": {
+      "bytes": 315,
+      "sha256": "0a2386e91821abfde2fb1bb49d96060b1d3a4ea8f23b26f5653b6278b4c482f4"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0001.txt": {
+      "bytes": 2396,
+      "sha256": "b6b71116c1961bdc0cd0fb7168db9118afb56f205330d850848cff91894a85b3"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0002.json": {
+      "bytes": 361,
+      "sha256": "ccb881dde4cef633d464f4e8f0dda9448185420d64b1fb55b3dc6da044dd4f3f"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0002.txt": {
+      "bytes": 2399,
+      "sha256": "b5bb2fdba0424e0f435755a4c17c54dd479e4c944df36724b653a9e876441109"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0003.json": {
+      "bytes": 345,
+      "sha256": "f25545d57700723a227f607e3ab05959cb9460eea96533feba44731604341c38"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0003.txt": {
+      "bytes": 2384,
+      "sha256": "0a7c773b0b65fb8857bcf548d574bc59c11900f241c08af651f2048bc70f4e58"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0004.json": {
+      "bytes": 369,
+      "sha256": "8ef53212e03e9cff9968ddf5a2c9de8c43fb39bf48cb4268c25c777e3dbc30a4"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0004.txt": {
+      "bytes": 2464,
+      "sha256": "78c9946f3287f826a94fe82362798218a12957a59a5f8633d2b8ff677742cbc9"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0005.json": {
+      "bytes": 409,
+      "sha256": "99d801221102eb1aad770748d2841553838dc865902e5467d5003eadae5da29a"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0005.txt": {
+      "bytes": 2613,
+      "sha256": "814212d122fe864ac3f80bccef07603a3c72f7c99bdcda2390b347129be32a6d"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0006.json": {
+      "bytes": 300,
+      "sha256": "06f9664f53cf605cf271a9ee68ffe5ddbf06fc6c1eb9a2e2c8311f7906050f2a"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0006.txt": {
+      "bytes": 921,
+      "sha256": "b852a3d9c9d4813a737ac797ec5b17ce08502f763de77f7d8f97b31c7ce7bd26"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0007.json": {
+      "bytes": 322,
+      "sha256": "1c140c67e15b6809dd2d8924dc46c86fc0ee152def16ea1f45d4048be11ce6bb"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0007.txt": {
+      "bytes": 2473,
+      "sha256": "817f3afd04f7e31fab8767d44d406eef9557752604deb06b30c201bd2db9dab1"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0008.json": {
+      "bytes": 300,
+      "sha256": "61a97b3e7d77f2ec90dff8baa921430fee8ba89b36857493b9914a50ca0a89ab"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0008.txt": {
+      "bytes": 923,
+      "sha256": "61e146bfc50686a8fbb7210f50e66cb6f68cdaf06e908d25776e43d8c772c146"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0009.json": {
+      "bytes": 361,
+      "sha256": "0f68e9b92358320657aeb1b5c9b85830944b455fc16ff500f3bfb9da8e50660a"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0009.txt": {
+      "bytes": 2029,
+      "sha256": "48c8fe55fa0f319bb25f4d5a057122c0e4f96e1b34e18eafb3242834df240ea1"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0010.json": {
+      "bytes": 369,
+      "sha256": "a2c2ed5af7e97c7fc576f73b7d0d286908b773091839d0f1936ce56eedd1d677"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0010.txt": {
+      "bytes": 2506,
+      "sha256": "2bf6fc4e60087250a6e599c58699a9cc3f144ea4e6e24f29e98a17a5b257cfd6"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0011.json": {
+      "bytes": 401,
+      "sha256": "65766f4cc471c4deac3a097964c58ec90362511d79747812e8e34a8a7556fe6f"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0011.txt": {
+      "bytes": 2331,
+      "sha256": "18b7c638f654ff64b8b70edc6b7d4ddbc61a451f11cf7e80df7494bfcffe48e6"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0012.json": {
+      "bytes": 353,
+      "sha256": "8fc4ab27a9f02abf16108af403aeff99326d0b2be273482f95a6b2d0c9565a77"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0012.txt": {
+      "bytes": 2470,
+      "sha256": "b3334072a789613535de6dff8bf7598f19d971583434ca3a121942ea0e2b4e3d"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0013.json": {
+      "bytes": 308,
+      "sha256": "302af1feb58fd73fd77b8365636ba2ddcabd11e9c5a7497be464396f5896167f"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0013.txt": {
+      "bytes": 1225,
+      "sha256": "90bb3047b6997779e25568a23bdde128243f6a2a57d4e35718c951fdd4d30646"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0014.json": {
+      "bytes": 337,
+      "sha256": "0549c1e49a45dd6aeb7408fed39f6e1bac47d49cd39194a1deba980d214bd030"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0014.txt": {
+      "bytes": 1500,
+      "sha256": "d92ebc8006a6ff1910f21b3a35fba3411458d8b080dbe8035c2bd3c620cde9de"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0015.json": {
+      "bytes": 293,
+      "sha256": "2b7cdd992018447d2ba60b5a7ef0c61de8836278a824e22cfa59b7fb9d7eae88"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0015.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0016.json": {
+      "bytes": 293,
+      "sha256": "3768dea8904664d9aa842daf5ccfefd854c45e0790d42b2f20655be769117174"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle-frames/0016.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle.diagnostic-stop": {
+      "bytes": 27,
+      "sha256": "dd68d7b5191957984a0e516ce6e16769b5a45b1e975bd161bde0f6102561e087"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle.lock": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle.py": {
+      "bytes": 2318,
+      "sha256": "a2c40cb451ad0e8f52f650ef4ceed6f0a2a6f654dd7b583f5fd8b7bf2c860101"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/initial-send-oracle.sh": {
+      "bytes": 329,
+      "sha256": "86c443cfd529e8d8cf30726822e8050382e8fe6d4519b8baeb2725dcf81753eb"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/model.spthy": {
+      "bytes": 354330,
+      "sha256": "94ebfe63c7fb1085c6fad14835271ccdf8d5a6925061964d044c0ae3af8bb2be"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/run.py": {
+      "bytes": 5793,
+      "sha256": "0dd1b2783d92b1b585fef2359c23abb9bdbe0f70747b79dcc4723c7819f4c41a"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/storage-fields23-frontier-STARTED.json": {
+      "bytes": 1920,
+      "sha256": "f20a5abbe3ea63d4bf848fa4d598f23cdbb77ef193ab84e3f0ceb92c316a509b"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/storage-fields23-frontier-TERMINAL.json": {
+      "bytes": 6286,
+      "sha256": "854ba5e80fa12e798222c89c68f4068d704df7f61f1cc41c2f8fb86957a9e672"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/storage-fields23-frontier-proof.spthy": {
+      "bytes": 355311,
+      "sha256": "a9bebb962f2b8bb3d0d376db56e2022d74d73545f26ce5d86cf9edb400bbdbbb"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/storage-fields23-frontier.stderr": {
+      "bytes": 36211,
+      "sha256": "ca577832d9504db7381f2d521fa5c1211f4396b632f576ab06a7a1b497503934"
+    },
+    "experiments/p0-origin-storage-fields23-frontier-708/storage-fields23-frontier.stdout": {
+      "bytes": 3091,
+      "sha256": "476e2a0349c900bc9d735724532aaf3cae1940b4dd97aee71a94e22c790c365a"
+    },
+    "experiments/p0-origin-storage-role-direct-708/PREPARED.json": {
+      "bytes": 1144,
+      "sha256": "addb67109b336917465c2589c9d790c267f875d47efa7ff1465a64e6db2c7b33"
+    },
+    "experiments/p0-origin-storage-role-direct-708/READBACK.json": {
+      "bytes": 840,
+      "sha256": "786749ecd6bfcc16d2caf3806be3dcb184ae02f7090e4d8eb9e17fd4baf85291"
+    },
+    "experiments/p0-origin-storage-role-direct-708/model.spthy": {
+      "bytes": 353908,
+      "sha256": "6abc57adbf5518606053af6cfc81f12e59e98d9f9ec868cd1e1a2f3d82f42340"
+    },
+    "experiments/p0-origin-storage-role-direct-708/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "experiments/p0-origin-storage-role-direct-708/storage-role-direct-STARTED.json": {
+      "bytes": 1618,
+      "sha256": "d0d8a53ce4c580115f784e985419c12700d2965fa10a6a9cc7818558cc6822c4"
+    },
+    "experiments/p0-origin-storage-role-direct-708/storage-role-direct-TERMINAL.json": {
+      "bytes": 5984,
+      "sha256": "8fca53cc0ff440e498f6db37f29acced7c8dbd65b2adee73733a29c016d41571"
+    },
+    "experiments/p0-origin-storage-role-direct-708/storage-role-direct-proof.spthy": {
+      "bytes": 353908,
+      "sha256": "6abc57adbf5518606053af6cfc81f12e59e98d9f9ec868cd1e1a2f3d82f42340"
+    },
+    "experiments/p0-origin-storage-role-direct-708/storage-role-direct.stderr": {
+      "bytes": 1595,
+      "sha256": "192d38836c094017d14bcda4e083c924a0a02fc07f455898a867d4eed1e9796b"
+    },
+    "experiments/p0-origin-storage-role-direct-708/storage-role-direct.stdout": {
+      "bytes": 3072,
+      "sha256": "1193989cebabc16c124f077d0f41dc2fff96d7edf858255ab9861dd1c2bfbf22"
+    },
+    "experiments/p0-origin-storage-role-repeat-708/PREPARED.json": {
+      "bytes": 749,
+      "sha256": "d4a3bb905d8825c623177c752f001daca96167862cd02b0e258d6be707e9d0f2"
+    },
+    "experiments/p0-origin-storage-role-repeat-708/READBACK.json": {
+      "bytes": 1143,
+      "sha256": "27cb074560d9463401af728653d8ef1f3814c28c0da26ebbeb8c3f718fb6657b"
+    },
+    "experiments/p0-origin-storage-role-repeat-708/model.spthy": {
+      "bytes": 355540,
+      "sha256": "bed65f64c9d3eb901c568a652ac448c1b4331fa0fb777d58d4b725dd9017f05b"
+    },
+    "experiments/p0-origin-storage-role-repeat-708/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "experiments/p0-origin-storage-role-repeat-708/storage-role-repeat-STARTED.json": {
+      "bytes": 1620,
+      "sha256": "e0c74ba49a55e533ef6556d43c7d9c40e3989e93c8054aed845fab73bf8c4271"
+    },
+    "experiments/p0-origin-storage-role-repeat-708/storage-role-repeat-TERMINAL.json": {
+      "bytes": 5986,
+      "sha256": "172634d5feff57d4270b9909c134831c799360d7e975b18a8a0e47522baabe78"
+    },
+    "experiments/p0-origin-storage-role-repeat-708/storage-role-repeat-proof.spthy": {
+      "bytes": 356198,
+      "sha256": "906c421808a1bea80cd78c5b8d283139a8ef02f2250e189e5983e6740efda301"
+    },
+    "experiments/p0-origin-storage-role-repeat-708/storage-role-repeat.stderr": {
+      "bytes": 1595,
+      "sha256": "5ca0469847f39bbe409405a00219b5130345ccf448826eea04661a71caeb82a4"
+    },
+    "experiments/p0-origin-storage-role-repeat-708/storage-role-repeat.stdout": {
+      "bytes": 3073,
+      "sha256": "5a0047bdb08a00077695dec07527130e7e127baee850d3796ef10227f1d09afd"
+    },
+    "experiments/p0-origin-storage-role-wrap-708/FAILURE_ANALYSIS.json": {
+      "bytes": 1414,
+      "sha256": "dcf007224023202f2384d7bc7fe9d781b6390c2e128fe7af7d69b830b9d57ed7"
+    },
+    "experiments/p0-origin-storage-role-wrap-708/FAILURE_FOLLOWUP.json": {
+      "bytes": 893,
+      "sha256": "fb6ba9b5bcc2222f8d30976ccac6af2230b47c5e13df3f568e0899da7c450504"
+    },
+    "experiments/p0-origin-storage-role-wrap-708/PREPARED.json": {
+      "bytes": 3993,
+      "sha256": "aed54106d3f671b4d9fd1778176a6d1e64687a494e953045f85c49134da8868c"
+    },
+    "experiments/p0-origin-storage-role-wrap-708/model.spthy": {
+      "bytes": 355540,
+      "sha256": "bed65f64c9d3eb901c568a652ac448c1b4331fa0fb777d58d4b725dd9017f05b"
+    },
+    "experiments/p0-origin-storage-role-wrap-708/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "experiments/p0-origin-storage-role-wrap-708/storage-role-wrap-replay-STARTED.json": {
+      "bytes": 1621,
+      "sha256": "0f6bbef893b8c101212ea1c4671365d2bb099767b8c7b5672081d2ae16e0ecda"
+    },
+    "experiments/p0-origin-storage-role-wrap-708/storage-role-wrap-replay-TERMINAL.json": {
+      "bytes": 1786,
+      "sha256": "30e3414809b772caa68c5ae587a423582893551ba395af20c83724224cf22058"
+    },
+    "experiments/p0-origin-storage-role-wrap-708/storage-role-wrap-replay.stderr": {
+      "bytes": 1562,
+      "sha256": "0c1ba78d5a4b6d446062bb0b73a2bfdf1eb33d9cdd9698a42f146cd770399113"
+    },
+    "experiments/p0-origin-storage-role-wrap-708/storage-role-wrap-replay.stdout": {
+      "bytes": 218,
+      "sha256": "4195e67d04684b699e9dd5135f586b086a9340cb7cb04f7ef2fb12ba40fda26a"
+    },
+    "parent/entry.spthy": {
+      "bytes": 355680,
+      "sha256": "4736abef8fc97eed60f45dd532e82c15a83118021b50eb57ee2a0da40ac53188"
+    },
+    "parent/root-role-frontier/0008.json": {
+      "bytes": 293,
+      "sha256": "5e7d6814ae60232f52424f247bd2d1afbd272c92aa9dcb7e2bc74307ca0a9c82"
+    },
+    "parent/root-role-frontier/0008.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "tools/P0_PINNED_PROVER_IDENTITY.json": {
+      "bytes": 974,
+      "sha256": "f6e18705fdaf213d556237ca67fcab123e1b6f3ee4eca05aa69c5e70e7329459"
+    }
+  }
+}

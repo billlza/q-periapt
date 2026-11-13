@@ -1,0 +1,9 @@
+{
+  "kind": "qperiapt.historical_package_graph_compatibility",
+  "record": "research/sdk-alpha1/evidence/20261107-release-manifest",
+  "packages": 16,
+  "schema_version": 1,
+  "recorded_graph_sha256": "a3985d5e0e56196368a3349c37a9589faf2526682b9cf37d8912bd9479eb07ad",
+  "observed_graph_sha256": "a3985d5e0e56196368a3349c37a9589faf2526682b9cf37d8912bd9479eb07ad",
+  "completed": true
+}

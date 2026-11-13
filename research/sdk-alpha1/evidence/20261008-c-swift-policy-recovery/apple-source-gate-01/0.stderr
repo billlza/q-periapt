@@ -1,0 +1,16 @@
+test_host_tools_and_each_sdk_target_have_separate_deployment_floors (artifact.test_apple_sdk_profile.AppleSDKProfileTests.test_host_tools_and_each_sdk_target_have_separate_deployment_floors) ... ok
+test_legacy_signing_mode_and_unknown_profiles_fail_before_build (artifact.test_apple_sdk_profile.AppleSDKProfileTests.test_legacy_signing_mode_and_unknown_profiles_fail_before_build) ... ok
+test_link_map_binds_archive_path_architecture_and_nonempty_object_set (artifact.test_apple_sdk_profile.AppleSDKProfileTests.test_link_map_binds_archive_path_architecture_and_nonempty_object_set) ... ok
+test_payload_changes_and_manifest_type_or_version_changes_fail (artifact.test_apple_sdk_profile.AppleSDKProfileTests.test_payload_changes_and_manifest_type_or_version_changes_fail) ... ok
+test_platform_inventory_excludes_intel_macos_but_retains_ios_simulator (artifact.test_apple_sdk_profile.AppleSDKProfileTests.test_platform_inventory_excludes_intel_macos_but_retains_ios_simulator) ... ok
+test_rehashing_contents_cannot_replace_the_checked_native_payload (artifact.test_apple_sdk_profile.AppleSDKProfileTests.test_rehashing_contents_cannot_replace_the_checked_native_payload) ... ok
+test_sdk_and_legacy_archives_have_separate_closed_layouts (artifact.test_apple_sdk_profile.AppleSDKProfileTests.test_sdk_and_legacy_archives_have_separate_closed_layouts) ... ok
+test_sdk_rejects_legacy_dual_macos_runtime_policy_before_tools_or_payload (artifact.test_apple_sdk_profile.AppleSDKProfileTests.test_sdk_rejects_legacy_dual_macos_runtime_policy_before_tools_or_payload) ... ok
+test_symlinked_package_entries_and_root_are_not_followed (artifact.test_apple_sdk_profile.AppleSDKProfileTests.test_symlinked_package_entries_and_root_are_not_followed) ... ok
+test_xcframework_digest_must_match_before_zip_parsing (artifact.test_apple_sdk_profile.AppleSDKProfileTests.test_xcframework_digest_must_match_before_zip_parsing) ... ok
+test_xcode_scheme_requires_known_consumer_identity_and_target (artifact.test_apple_sdk_profile.AppleSDKProfileTests.test_xcode_scheme_requires_known_consumer_identity_and_target) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.478s
+
+OK

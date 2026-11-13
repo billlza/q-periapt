@@ -1,0 +1,50 @@
+test_caller_git_environment_cannot_redirect_repository (test_git_provenance.GitProvenanceTests.test_caller_git_environment_cannot_redirect_repository) ... ok
+test_explicit_environment_is_exact_and_malformed_entries_fail_fast (test_bounded_process.BoundedProcessTests.test_explicit_environment_is_exact_and_malformed_entries_fail_fast) ... ok
+test_module_has_no_generic_command_or_output_cli (test_bounded_process.BoundedProcessTests.test_module_has_no_generic_command_or_output_cli) ... ok
+test_process_start_separates_executable_and_never_uses_a_shell (test_bounded_process.BoundedProcessTests.test_process_start_separates_executable_and_never_uses_a_shell) ... ok
+setUpClass (test_proof_to_byte_release.BoundVerifierWiringTests) ... ERROR
+
+======================================================================
+ERROR: setUpClass (test_proof_to_byte_release.BoundVerifierWiringTests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/4b61438fb07b/fips-review/artifact/evidence_io.py", line 931, in _open_regular_no_symlinks_posix
+    next_fd = os.open(
+              ^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'hqc-fips207-candidate'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/workspace/scratch/4b61438fb07b/fips-review/artifact/proof_to_byte_inputs.py", line 391, in _capture_once
+    snapshot = read_regular_snapshot(
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/4b61438fb07b/fips-review/artifact/evidence_io.py", line 1166, in read_regular_snapshot
+    digest = consume_regular_snapshot(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/4b61438fb07b/fips-review/artifact/evidence_io.py", line 1070, in consume_regular_snapshot
+    descriptor = _open_regular_no_symlinks(path)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/4b61438fb07b/fips-review/artifact/evidence_io.py", line 958, in _open_regular_no_symlinks
+    return _open_regular_no_symlinks_posix(path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/4b61438fb07b/fips-review/artifact/evidence_io.py", line 948, in _open_regular_no_symlinks_posix
+    raise EvidenceIOError(f"cannot safely open evidence file {path}: {exc}") from exc
+evidence_io.EvidenceIOError: cannot safely open evidence file /workspace/scratch/4b61438fb07b/fips-review/research/hqc-fips207-candidate/README.md: [Errno 2] No such file or directory: 'hqc-fips207-candidate'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/workspace/scratch/4b61438fb07b/fips-review/artifact/test_proof_to_byte_release.py", line 1156, in setUpClass
+    proof_to_byte_inputs.capture_proof_input_digests(ROOT)
+  File "/workspace/scratch/4b61438fb07b/fips-review/artifact/proof_to_byte_inputs.py", line 414, in capture_proof_input_digests
+    before, before_bytes = _capture_once(canonical_root)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/4b61438fb07b/fips-review/artifact/proof_to_byte_inputs.py", line 400, in _capture_once
+    raise ProofToByteInputsError(str(exc)) from exc
+proof_to_byte_inputs.ProofToByteInputsError: cannot safely open evidence file /workspace/scratch/4b61438fb07b/fips-review/research/hqc-fips207-candidate/README.md: [Errno 2] No such file or directory: 'hqc-fips207-candidate'
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.160s
+
+FAILED (errors=1)

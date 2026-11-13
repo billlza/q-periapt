@@ -1,0 +1,23 @@
+{
+  "command": [
+    "/Users/bill/Documents/Codex/sdk-020-recovery-20260929-160244/rustup/toolchains/1.98.1-aarch64-apple-darwin/bin/cargo",
+    "test",
+    "--offline",
+    "--manifest-path",
+    "/Users/bill/.codex/worktrees/sdk-continuity/pqt_hybrid_suite/target/credential-renewal-20261004/policy-joint-authorization-01/candidate/Cargo.toml",
+    "--all-features",
+    "--lib",
+    "policy_joint_authorization_probe",
+    "--",
+    "--nocapture"
+  ],
+  "returncode": 101,
+  "completed": false,
+  "source_commit": "2a50297d9617ee60ef82fbd3b03c9304b0231c6d",
+  "seconds": 6.906740749953315,
+  "log_sha256": "d042f32867c291536a99e423af1d027df04ea97e8efb6aae5ffc907449aee0b5",
+  "probe_sha256": "ae049fce71f337f5db70f8b82fb25f9519427025e8d698594e29462202553299",
+  "modified_test_sha256": "7a12c45b34afd11ebfc62bfc9e4bc091e1dc164ef65abb36716dd4cdc3bd32e2",
+  "scope": "Isolated joint authorization prototype with real candidate signatures and explicit synthetic trusted time. No durable transition, witness transition, operational release or ABI claim.",
+  "release_claim_eligible": false
+}

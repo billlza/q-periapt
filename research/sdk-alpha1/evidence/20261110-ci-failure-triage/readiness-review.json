@@ -1,0 +1,94 @@
+{
+  "reviewed_at_utc": "2026-11-10T22:37:17.636455+00:00",
+  "base_commit": "b524f06866ce6e85d8018368547090732bc7075b",
+  "file_sha256": {
+    "artifact/android_bounded_command.py": "40ad61791a674ae6d91a34c24fe0483d13a5129714c29529e46f767294977d22",
+    "artifact/android-device-smoke.sh": "d3942ae3ab078b6534d37ef9c59c7ea850787e7678c0aa204046f56e8afc2d0a",
+    "artifact/test_android_bounded_command.py": "2da0036467229b0b9fcd65e8266ae88f78d28ee22764ad968ab7263991751df9",
+    "artifact/test_android_device_proof.py": "1192bae13370b02ff928168e6c337db174b057c5d06e3579ac35a603c6585fc7",
+    ".github/workflows/ci.yml": "0798119c57c9e499024d50d3b156af89bcc5b020e30d5562100e0766b3fac729",
+    "artifact/test_proof_to_byte_release.py": "d1b0f3f8448bd985af262210b5bbd2f733c2948c44ecb8f6a1b68a45554b63e3"
+  },
+  "blocking_findings": [],
+  "scope": "Independent static and local regression review of owned-emulator framework readiness; no remote changes, no Android hardware/emulator execution, no CodeQL changes.",
+  "parser_injections": {
+    "passed": 23,
+    "coverage": [
+      "fresh global setting 0/1",
+      "CRLF",
+      "zombie/dead/stopped process",
+      "same-PID starttime reuse",
+      "guest reboot",
+      "new system-server PID",
+      "sticky boot plus settings-provider exception",
+      "null/diagnostic-contaminated settings reply",
+      "empty package manager",
+      "FDE transition",
+      "reset boot",
+      "pre-existing smoke package",
+      "multiple PIDs",
+      "wrong run ID",
+      "truncated/missing framing",
+      "inconsistent guest status",
+      "framed guest nonzero",
+      "extra trailing output"
+    ]
+  },
+  "native_diagnostic_argv_compatibility": {
+    "passed": true,
+    "method": "Compile original builder functions from base commit AST and compare complete argv tuples to current builders",
+    "unchanged_builders": [
+      "_emulator_app_exit_info_argv",
+      "_emulator_memory_runtime_argv",
+      "_emulator_state_argv"
+    ]
+  },
+  "local_full_modules": {
+    "test_count": 365,
+    "seconds": 18.792,
+    "status": "environment-blocked",
+    "failures": 10,
+    "errors": 11,
+    "skipped": 3,
+    "blocked_test_methods": [
+      "test_activation_failures_close_fd_and_keep_durable_recovery_state",
+      "test_activation_never_replaces_existing_endpoint",
+      "test_activation_post_ready_replacement_never_execs_or_removes_replacement",
+      "test_client_wait_rebinds_exact_concurrent_activation_ready_receipt",
+      "test_emulator_server_disables_automatic_scanning",
+      "test_live_private_adb_socket_without_snapshot_fails_closed",
+      "test_private_adb_socket_requires_owned_directory_and_exact_socket_leaf",
+      "test_private_listener_survives_real_exec_and_all_references_close_on_exit",
+      "test_sealed_socket_directory_allows_connect_but_blocks_replacement",
+      "test_server_exec_durably_advances_receipt_before_fd_close_and_exec",
+      "test_server_exec_uses_only_capability_owned_identity",
+      "test_sigkill_activation_windows_recover_offline_and_idempotently"
+    ],
+    "cause": "AF_UNIX socket constructor returns PermissionError errno 1 in this execution environment; initial blocked activation causes subsequent subcases in that test to see retained receipts. The same direct constructor and activation failure were reproduced on original b524 source.",
+    "log": "full-android-modules.log"
+  },
+  "base_environment_reproduction": {
+    "tests": 2,
+    "failures": 1,
+    "errors": 1,
+    "cause": "same AF_UNIX socket constructor EPERM on unmodified b524",
+    "log": "baseline-socket-environment.log"
+  },
+  "focused_modules": {
+    "tests": 12,
+    "seconds": 6.868,
+    "status": "passed",
+    "scope": "all six new framework cases plus six installer/runtime shell harness cases",
+    "log": "readiness-focused.log"
+  },
+  "additional_deadline_cases": {
+    "tests": 3,
+    "status": "passed",
+    "scope": "receipt preflight and process snapshot consume deadline: no guest query; recoverable query timeout resets stable window",
+    "log": "readiness-deadlines.log"
+  },
+  "shell_syntax_and_whitespace": "sh -n and git diff --check passed",
+  "deadline_interpretation": "All guest queries and listener checks consume one absolute 120-second readiness budget; admission is refused after expiration. Existing synchronous regular-file/process identity reads do not receive a remaining-time parameter; receipt read locks have their own 1-second bound and macOS host UUID calls a 5-second bound. No new unbounded subprocess or wait was introduced.",
+  "ownership_nonzero_semantics": "Post-query receipt/backend/listener validation happens before parsing a host nonzero response. Host nonzero resets readiness; ownership errors and malformed successful response framing still raise.",
+  "scope_note": "Readiness review snapshot before the separate license inventory repair and already-reviewed action-pin synchronization."
+}

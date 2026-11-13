@@ -1,0 +1,8 @@
+{
+  "bytes": 6030180,
+  "sha256": "2fac380b3ba4a24c9d96d52166c0bcc152dff37c1f9658d287cc0498b8aa9bd5",
+  "members": 133,
+  "source_commit": "5678d1019861fa1b04f3a219ba3fde7e0ddaaba8",
+  "sdk_report_sha256": "1e40fc2ae0c7c113509ae2a5c5a858cbd73a8a6fd7f63e66203316c4c61e228d",
+  "scope": "Current-source local SDK producer, exact archives and external consumer; no public registry publication or overall release acceptance."
+}

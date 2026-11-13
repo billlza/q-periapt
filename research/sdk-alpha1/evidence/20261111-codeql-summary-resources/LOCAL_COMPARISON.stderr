@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-codeql-summary-pressure/artifact/codeql_summary_control.py", line 903, in <module>
+    main()
+  File "/workspace/scratch/2f48ae2878bc/qperiapt-codeql-summary-pressure/artifact/codeql_summary_control.py", line 897, in main
+    raise RuntimeError("Paired memory comparison is incomplete; inspect its receipt") from None
+RuntimeError: Paired memory comparison is incomplete; inspect its receipt

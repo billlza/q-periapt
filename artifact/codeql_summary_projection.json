@@ -1,0 +1,153 @@
+{
+  "bundled_compiled_inventory_sha256": "f5d87c717575c9243272e3b1c8abdc1f5f12d93a193ffd2d3b1ba10df6de43d9",
+  "bundled_plan_sha256": "bc65daf746a13e0d162f0853b3a21eda41ff2d573774e6862983a916c06244a6",
+  "capsule_bytes": 620555,
+  "capsule_sha256": "060522ee09abd85424c0355e5c4a5e8186a9740b9d3b472fe557fca41ea96ba5",
+  "codeql_version": "2.27.2",
+  "compiled_inventory_sha256": "05ad87c50bd75afc23cdc425e70128b7b6f16f26908fa35fed42e80f31d138d4",
+  "compiler_inputs_digest": "fcbc88b667fe0122ca51593e2594a017",
+  "dependency_inventory": {
+    "bytes": 117207,
+    "effective_inventory_sha256": "5128a4c9a93e72169ca836b0681539e4e52dbe5b23ad817ef54c65524241a542",
+    "expanded_bytes": 444724,
+    "file_count": 1175,
+    "path": "codeql_summary_projection_dependencies.json.gz",
+    "root": ".codeql/libraries",
+    "sha256": "28522d921e19cf70d654bc30982e5b2bc9f92588032dcec8d4085d5e794923d6",
+    "upstream_inventory_sha256": "cc5094dfbf7174718ed834b8f21dd0efb6be55388102009dcd4e9d1795ea48f6"
+  },
+  "dynamic_join_order_mode": "all",
+  "expanded_bytes": 617543,
+  "files": {
+    ".codeql/precompiled/16df81ibftud7l68l1p2e6hhvd6.bytes.qlx": {
+      "bytes": 14844,
+      "sha256": "90e41956b3a283f739c9b6820a82f151f87e3078d7082941694c25af84ef1a79"
+    },
+    ".codeql/precompiled/1a116bqgail2svuilhcconf2bi7.bytes.qlx": {
+      "bytes": 3915,
+      "sha256": "281218b5950a4a4e8850de86621f2df65154c3e9f04ea790ed4cf005a4947ade"
+    },
+    ".codeql/precompiled/1aebd36jo502n28oesspnv3tpr9.bytes.qlx": {
+      "bytes": 3880,
+      "sha256": "e3926d156bee568239c1a996a1c00d75ce87b87ef39e60e7a14a1336c718df7a"
+    },
+    ".codeql/precompiled/1c1eb2jmb6tipo9nilm7rbpa0hf.bytes.qlx": {
+      "bytes": 24287,
+      "sha256": "3d8d86b476f13205e421e639916b1240e21d7a12f15a84d3bab86502260bf2b5"
+    },
+    ".codeql/precompiled/37eccbklok90phfmutj9ttsehje.bytes.qlx": {
+      "bytes": 79827,
+      "sha256": "e10e1474c9d64ddb9f1d83c2e9bbaf0fd9704990b667d59f48167bb7ee52e79e"
+    },
+    ".codeql/precompiled/46cc80ei1tdec24bdhh0qu999n6.bytes.qlx": {
+      "bytes": 442,
+      "sha256": "194b2470b58beb85d6fad89a6eddd67d1284057a7635a074c51f3033c5445d5b"
+    },
+    ".codeql/precompiled/5bc3da2odofb7qe5omh6em7lvma.bytes.qlx": {
+      "bytes": 64549,
+      "sha256": "ae7d987d58d459b23d25b6856237604c10d30478235f5db6707ed3bf20eb0a2e"
+    },
+    ".codeql/precompiled/5fc280u4e1dboa04b87qofjhlbe.bytes.qlx": {
+      "bytes": 7144,
+      "sha256": "076008c81b9df686d967d0885dbdc4c94218011ad7d0f912f0264ab1d07a7d06"
+    },
+    ".codeql/precompiled/68de92rdh7gskhfhmevl01i3of5.bytes.qlx": {
+      "bytes": 33597,
+      "sha256": "77babd025855106380f96943d2e8a9a65030aaefa07870903cfafdd59ec3a80f"
+    },
+    ".codeql/precompiled/89d7eeo8ieflv7kmkgql5ti1f12.bytes.qlx": {
+      "bytes": 29482,
+      "sha256": "51c61aa219735a01a20708701e12440f815d1bb892d65ae0c5418344eac5b7b4"
+    },
+    ".codeql/precompiled/99dc65hfjfov2dt8q2k8t7mblr1.bytes.qlx": {
+      "bytes": 8921,
+      "sha256": "ceaa5c1299dc3ae5fc4bc09d3b08c035e46b50696bee41b81e57ece7391b1025"
+    },
+    ".codeql/precompiled/a83cb57552pvjhiuqign208qvpe.bytes.qlx": {
+      "bytes": 114412,
+      "sha256": "ba13710ae87758bd906d4ca594ae6674a67b033af7e49f96aea7a8b508d1a7cb"
+    },
+    ".codeql/precompiled/b3b64bq1ds8fjukpceufnp5dns0.bytes.qlx": {
+      "bytes": 22228,
+      "sha256": "a5a51e56afb7e4c40e811f4fb78e6f3a7ab5b94d16d4c13e26ba05c214943039"
+    },
+    ".codeql/precompiled/cae315e659lttnko5f9g31aso13.bytes.qlx": {
+      "bytes": 4588,
+      "sha256": "b2fcb130d2946b83dd723303f8c39845e762bd9c8b7984a87fe030cca869acda"
+    },
+    ".codeql/precompiled/cd07cbjvktces4mvih2r7pc79g3.bytes.qlx": {
+      "bytes": 20192,
+      "sha256": "05a1a771bf35fa868f1d34fe3911d21a0046b8a0ea5add57fe7160c6dab35af4"
+    },
+    "queries/summary/SummaryStats.qlx": {
+      "bytes": 185235,
+      "sha256": "0c7f6af923a661310e801c7cf8990288c7c8edb9de5fb3027a1d5cb79afb7a03"
+    }
+  },
+  "kind": "qperiapt.codeql_summary_projection_plan",
+  "mode": "projection",
+  "plan_path": "queries/summary/SummaryStats.qlx",
+  "query_count": 39,
+  "query_manifest_sha256": "eb54654d668bfafc45f785427158a97e378791b20f9cb374d97301e7c296039b",
+  "query_pack": "0.1.44",
+  "query_pack_support_files": {
+    ".packinfo": {
+      "bytes": 62,
+      "sha256": "9cc66cb299b73769a30ce281c5caa4e43d473c393c47f1aa4418b65f55a4be13"
+    },
+    "codeql-pack.lock.yml": {
+      "bytes": 605,
+      "sha256": "301f1c417913d77b2c2789eb190c38de62f338cf2dcdcf2278ebfa3b92651c75"
+    },
+    "qlpack.yml": {
+      "bytes": 383,
+      "sha256": "18f026ad4baac9269d636e0ed47e13a45f36c777c3c49fec0872093ea54a6f7d"
+    },
+    "queries/summary/Stats.qll": {
+      "bytes": 7874,
+      "sha256": "f414a15e3421085bb1493d7e7677a864dd1edd1e4829d5ec8ad6e771581ac5f9"
+    },
+    "queries/summary/TaintReach.qll": {
+      "bytes": 1689,
+      "sha256": "9fe91726cb872e8139ccfeafdb4114d8ced19459f61626829db042f67f81dad6"
+    },
+    "queries/telemetry/DatabaseQuality.qll": {
+      "bytes": 3013,
+      "sha256": "499585d6edaa20cff4143ffb0a2e692d060a2dc7773d0ccae35725ca5e5a1f1d"
+    },
+    "queries/unusedentities/UnusedVariable.qll": {
+      "bytes": 1834,
+      "sha256": "036885f2eb4ba09303819fc8f9c5d984a3a2ab46c8adecd8215048b4cf5b0589"
+    },
+    "utils/modelgenerator/internal/CaptureModels.qll": {
+      "bytes": 7658,
+      "sha256": "649511aa2bea105bf98ff5fd9d7a30edcd01ed7768d92a126e894935b78793f8"
+    },
+    "utils/modelgenerator/internal/CaptureModelsPrinting.qll": {
+      "bytes": 481,
+      "sha256": "2d41f4decf0c23bdcf0087d408b20a3a13f7bf2755f44ca326ea1072a06b160f"
+    }
+  },
+  "query_source_sha256": "7278d53373afb4f8069122e287c9c036a959ba0d167c152d67cd0de885881d67",
+  "schema": 1,
+  "stage_count": 15,
+  "tool_bundle_bytes": 98247028,
+  "tool_bundle_sha256": "acf2050189aeede5b9aa566f8fb382b02ac1ace72f534778f68b06fce5371cea",
+  "unchanged_other_compiled_queries": 38,
+  "vendor_patch": {
+    "bytes": 9543,
+    "dependency_path": "codeql/dataflow/2.1.15/codeql/dataflow/internal/DataFlowImpl.qll",
+    "effective": {
+      "bytes": 144893,
+      "sha256": "86ae17d3900bdfe4940d2d92c09740d8b75f002fcc58bbcea69e733764218c52"
+    },
+    "path": "codeql_summary_projection.patch",
+    "sha256": "7ed7b74db41c3184f3607edfb6b7cfdbf479314b6453a8d1ce8f47607845e473",
+    "upstream": {
+      "bytes": 138246,
+      "sha256": "48abc6ae3a155494379f139d6a71d0d9b27469824e8f2dc5a72ff39a82ce64bf"
+    },
+    "upstream_package": "codeql/dataflow@2.1.15",
+    "upstream_url": "https://github.com/github/codeql/blob/codeql-cli/v2.27.2/shared/dataflow/codeql/dataflow/internal/DataFlowImpl.qll"
+  }
+}

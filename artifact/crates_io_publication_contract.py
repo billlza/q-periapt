@@ -118,12 +118,6 @@ CRATES_IO_PUBLICATION_BOUNDARY = (
 
 _SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-# Derived from PRODUCT_VERSION rather than spelled out, so opening the next
-# version line cannot leave this pattern pinned to the previous one while the
-# names it is checked against have already moved.
-_CRATE_FILE_RE = re.compile(
-    r"^[a-z0-9][a-z0-9_-]*-" + re.escape(PRODUCT_VERSION) + r"\.crate$"
-)
 
 _TOP_LEVEL_KEYS = frozenset(
     {
@@ -262,10 +256,11 @@ def _validate_remote_record(
     crate_name: str,
     crate_sha256: str,
     label: str,
+    product_version: str = PRODUCT_VERSION,
 ) -> None:
     record = _object(value, label)
     _exact_keys(record, _REMOTE_RECORD_KEYS, label)
-    _require(record["version"] == PRODUCT_VERSION, f"{label} version differs")
+    _require(record["version"] == product_version, f"{label} version differs")
     checksum = _sha256(record["checksum"], f"{label} checksum")
     _require(
         checksum == crate_sha256,
@@ -282,6 +277,7 @@ def _validate_crate(
     expected_dependencies: tuple[str, ...],
     package_completed_at: dt.datetime,
     observed_at: dt.datetime,
+    product_version: str = PRODUCT_VERSION,
 ) -> str:
     label = f"crates.io crate {index} ({expected_name})"
     crate = _object(value, label)
@@ -294,7 +290,7 @@ def _validate_crate(
         _fail(f"{label} has an unknown state: {state!r}")
 
     _require(crate["name"] == expected_name, f"{label} name/order differs")
-    _require(crate["version"] == PRODUCT_VERSION, f"{label} version differs")
+    _require(crate["version"] == product_version, f"{label} version differs")
     dependencies = crate["dependencies"]
     _require(
         isinstance(dependencies, list)
@@ -302,10 +298,10 @@ def _validate_crate(
         and tuple(dependencies) == expected_dependencies,
         f"{label} dependency topology differs",
     )
-    expected_file = f"{expected_name}-{PRODUCT_VERSION}.crate"
+    expected_file = f"{expected_name}-{product_version}.crate"
     _require(
         crate["crate_file"] == expected_file
-        and _CRATE_FILE_RE.fullmatch(expected_file) is not None,
+        and re.fullmatch(r"[a-z0-9][a-z0-9_-]*-" + re.escape(product_version) + r"\.crate", expected_file) is not None,
         f"{label} archive name differs",
     )
     _require(
@@ -321,12 +317,14 @@ def _validate_crate(
             crate_name=expected_name,
             crate_sha256=crate_sha256,
             label=f"{label} API record",
+            product_version=product_version,
         )
         _validate_remote_record(
             crate["sparse_index"],
             crate_name=expected_name,
             crate_sha256=crate_sha256,
             label=f"{label} sparse record",
+            product_version=product_version,
         )
         verified_at = parse_utc_timestamp(
             crate["verified_at"], f"{label} verified_at"
@@ -336,6 +334,36 @@ def _validate_crate(
             f"{label} verification timestamp is outside the receipt interval",
         )
     return state
+
+
+def validate_publication_crates(
+    crates: object,
+    *,
+    topology: tuple[tuple[str, tuple[str, ...]], ...],
+    product_version: str,
+    package_completed_at: dt.datetime,
+    observed_at: dt.datetime,
+    aggregate_status: object,
+) -> None:
+    """Validate exact archives, dual observations and the dependency-safe prefix."""
+
+    _require(isinstance(crates, list) and len(crates) == len(topology),
+             f"crates.io receipt must contain exactly {len(topology)} crate records")
+    states = tuple(
+        _validate_crate(crates[index], index=index, expected_name=name,
+                        expected_dependencies=dependencies, package_completed_at=package_completed_at,
+                        observed_at=observed_at, product_version=product_version)
+        for index, (name, dependencies) in enumerate(topology)
+    )
+    published_count = sum(state == CRATE_STATUS_PUBLISHED_VERIFIED for state in states)
+    _require(sum(crate["crate_size"] for crate in crates) <= MAX_TOTAL_CRATE_SIZE_BYTES,
+             "crates.io aggregate archive size exceeds the bounded range")
+    _require(states == (CRATE_STATUS_PUBLISHED_VERIFIED,) * published_count
+             + (CRATE_STATUS_ABSENT,) * (len(states) - published_count),
+             "crates.io published crates must be one exact topology prefix")
+    expected_status = PUBLICATION_STATUS_PUBLISHED_VERIFIED if published_count == len(states) else PUBLICATION_STATUS_PARTIAL
+    _require(aggregate_status == expected_status,
+             "crates.io aggregate status differs from the exact verified prefix")
 
 
 def _json_deep_equal(left: object, right: object) -> bool:
@@ -772,39 +800,10 @@ def validate_crates_io_publication_receipt(receipt_value: object) -> None:
         isinstance(crates, list) and len(crates) == len(CRATE_PUBLICATION_TOPOLOGY),
         "crates.io receipt must contain exactly ten crate records",
     )
-    states = tuple(
-        _validate_crate(
-            crates[index],
-            index=index,
-            expected_name=name,
-            expected_dependencies=dependencies,
-            package_completed_at=package_completed_at,
-            observed_at=observed_at,
-        )
-        for index, (name, dependencies) in enumerate(CRATE_PUBLICATION_TOPOLOGY)
-    )
-    published_count = sum(
-        state == CRATE_STATUS_PUBLISHED_VERIFIED for state in states
-    )
-    _require(
-        sum(crate["crate_size"] for crate in crates)
-        <= MAX_TOTAL_CRATE_SIZE_BYTES,
-        "crates.io aggregate archive size exceeds the bounded range",
-    )
-    _require(
-        states
-        == (CRATE_STATUS_PUBLISHED_VERIFIED,) * published_count
-        + (CRATE_STATUS_ABSENT,) * (len(states) - published_count),
-        "crates.io published crates must be one exact topology prefix",
-    )
-    expected_status = (
-        PUBLICATION_STATUS_PUBLISHED_VERIFIED
-        if published_count == len(states)
-        else PUBLICATION_STATUS_PARTIAL
-    )
-    _require(
-        receipt["status"] == expected_status,
-        "crates.io aggregate status differs from the exact verified prefix",
+    validate_publication_crates(
+        crates, topology=CRATE_PUBLICATION_TOPOLOGY, product_version=PRODUCT_VERSION,
+        package_completed_at=package_completed_at, observed_at=observed_at,
+        aggregate_status=receipt["status"],
     )
 
 

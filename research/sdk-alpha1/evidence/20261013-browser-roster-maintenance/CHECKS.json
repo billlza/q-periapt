@@ -1,0 +1,156 @@
+{
+  "browser": {
+    "base_cases": 10,
+    "case_count": 14,
+    "coercion_hooks": 0,
+    "roster_cases": [
+      "applied",
+      "cancel",
+      "close-after-commit",
+      "closed",
+      "closed-policy",
+      "drop-ack",
+      "drop-commit",
+      "local",
+      "local-expired",
+      "no-local-fallback",
+      "reserved-abandon",
+      "timeout",
+      "unprepared",
+      "wrong-proposal"
+    ],
+    "scalar_rejections_per_cohort": 10,
+    "version": "155.0.8059.40"
+  },
+  "capture": {
+    "bytes": 5493739,
+    "file": "CAPTURE.zip",
+    "manifest_sha256": "4c7590e9ed76976ab4df867c8c0831d22bf326f1d998e9f64e83de3fe7bb6c0c",
+    "members": 3249,
+    "sha256": "7bdc2e1113c6db8bc88fa18bddcf04a40de4b9be92a16e077748d36c7ab82a26"
+  },
+  "completed": true,
+  "non_admitted_attempts": [
+    "Package01 browser roster preparation exposed native file-opening calls; recorded before fixing the platform storage seam.",
+    "Run02 root fixture shortened the new roster validity start. Original prekey validity then failed the existing containment rule. The corrected independent root fixture retains the original start and caps the end at the original credential validity. No SDK admission check was weakened."
+  ],
+  "package": {
+    "manifest_sha256": "09c931bce35738b382b891b13003875cd59b08821a7515561cf59945ae3ca59b",
+    "sha256": "5106803bf32912cee793a7f306c166fa222a176fc1c919f1771c656e29c12ef8",
+    "source_bound": true,
+    "sources_unchanged": true,
+    "typescript": "7.0.2 strict NodeNext passed"
+  },
+  "release_claim_eligible": false,
+  "scalar_red_green": {
+    "corrected": {
+      "results": [
+        {
+          "accepted": true,
+          "name": "valid",
+          "value": "1"
+        },
+        {
+          "accepted": false,
+          "code": "InvalidInput",
+          "error": "Error: InvalidInput",
+          "name": "overflow",
+          "value": "18446744073709551617"
+        },
+        {
+          "accepted": false,
+          "code": "InvalidInput",
+          "error": "Error: InvalidInput",
+          "name": "negative-alias",
+          "value": "-18446744073709551615"
+        },
+        {
+          "accepted": false,
+          "code": "InvalidInput",
+          "error": "Error: InvalidInput",
+          "name": "string",
+          "value": "1"
+        },
+        {
+          "accepted": false,
+          "code": "InvalidInput",
+          "error": "Error: InvalidInput",
+          "name": "boolean",
+          "value": "true"
+        }
+      ],
+      "scope": "Node instantiation of the installed web WASM; no browser storage claim"
+    },
+    "old_package_sha256": "9c1be915de5cec5e15a7e7f67871e386311cdf6a0637c47dd2cb0c2d09e8ae85",
+    "original": {
+      "results": [
+        {
+          "accepted": true,
+          "name": "valid",
+          "value": "1"
+        },
+        {
+          "accepted": true,
+          "name": "overflow",
+          "value": "18446744073709551617"
+        },
+        {
+          "accepted": true,
+          "name": "negative-alias",
+          "value": "-18446744073709551615"
+        },
+        {
+          "accepted": true,
+          "name": "string",
+          "value": "1"
+        },
+        {
+          "accepted": true,
+          "name": "boolean",
+          "value": "true"
+        }
+      ],
+      "scope": "Node instantiation of the installed web WASM; no browser storage claim"
+    }
+  },
+  "scope": "Actual npm package in Chrome dedicated Workers with IndexedDB/Web Locks/OPFS and a loopback native signed witness using the same Rust engine. Historical recovery constructs no live runtime. Public prekey/journal continuity is exercised; this is not installed pairwise-session continuity, independent protocol implementation, deployed HTTPS, device, performance, PCS or full-release qualification.",
+  "source": {
+    "base_commit": "886397135ff4b2a88a4e627572e9f3912bdb6939",
+    "overlay": {
+      "ARTIFACT.md": "e4695c86ec07d6e6fc7b69537c12701391ec54185dc5b120e4b929a6b2988d6c",
+      "artifact/codeql_rust_quality.py": "c61d7256c9bd8b92967c1068ee50e6a4c4b55fb8b1dba182ecef3630f5540b0c",
+      "artifact/test_codeql_rust_quality.py": "142532c5372a10830a1a27ef777411a274ac651fe57e39bd4c17ec47ac6ab72f",
+      "crates/q-periapt-sdk-wasm/PackageREADME.md": "62f73642ffcf719d3da29e9d76da5a7bfbf067bf5a081980ccbd0c091b5e4647",
+      "crates/q-periapt-sdk-wasm/package/web/index.d.ts": "03449d377d3ff1c182b8b949b21508a4d751ad538d8e0f98602ded3c5a498c98",
+      "crates/q-periapt-sdk-wasm/package/web/index.js": "27e76d4955dd7cfa429e858f6e7d83669484c5450a567c862cfdad3379671603",
+      "crates/q-periapt-sdk-wasm/src/continuity.rs": "c6314f163e2e1b4701a4dc5521758fdda328b4e67b79390200d254fb3e4f867b",
+      "crates/q-periapt-sdk-wasm/src/continuity/history.rs": "ac96f4ed46cce75326fe7ab4ca5f3dda929a7dbe06f98a0d2ad13cec306b462d",
+      "crates/q-periapt-sdk-wasm/src/continuity/roster.rs": "e68fb1fcdcb09d9aae8bf97892363a9b265df5582d4941a3949c78a83343976a",
+      "crates/q-periapt-sdk-wasm/src/continuity/roster/types.rs": "0946ee80ea5ec69c4e664e7dd1ea590810109bf42ee9371c109e794a24c37b76",
+      "crates/q-periapt-sdk-wasm/src/continuity/status.rs": "32a80afaa70255cabbcb2cc56bf3505a6f5ad552213f1d67d4fdfcae11488698",
+      "crates/q-periapt-sdk-wasm/src/continuity/trust.rs": "44be33749a4c533a1c106a0c0a0fcbd53925e6884ae4bc64846ff613410756ae",
+      "crates/q-periapt-sdk-wasm/tests/browser-suite.mjs": "3d0e55b86c94768e1e23f32d8fb1baadd81026376ee6223c82cc2e8759c930bd",
+      "crates/q-periapt-sdk-wasm/tests/types.mts": "df95031ac4489f95fb9670d4a600eb277a439f0a282268330fde4f7db95a3060",
+      "research/continuity-identity-candidate/src/browser.rs": "0ded63bde9eecca60f3f6800765f08645c9d463b1d509c4c031a129529461076",
+      "research/continuity-identity-candidate/src/browser/roster.rs": "471de20b6176e69c7671a2b34ce248ba33e09cf429bb403472a0daf2f60e6a47",
+      "research/continuity-identity-candidate/src/durable/write_intent/account_authority.rs": "86484b1cd4fb3612c0bebd5da443ae11746fee5e4bec6e595f2886c122095dee",
+      "research/continuity-identity-candidate/src/durable/write_intent/roster_refresh.rs": "a688e5b8228c035d936a7f6c65a654d1926aa2bb9196ea2e7cb31c3c87e42e4d",
+      "research/continuity-identity-candidate/src/enrollment.rs": "9f3112c6df0089cfc45038fd1c9fd87c1991ae25f0dd58bd4663d7f63fa77634",
+      "research/continuity-identity-candidate/src/enrollment/account_authority.rs": "a374cc7aa4bd9f9444c317e380fa4143afdbbbb4cbe7bfb0dbb52d16a7a23406",
+      "research/continuity-identity-candidate/src/enrollment/roster_refresh.rs": "31b1fd9e0537b3b64e12f9cfcf0c44207690435184ecdd387f6629d5654479e9",
+      "research/continuity-identity-candidate/src/installation.rs": "9ac8d0e2a4f7e93707faf5d0ece750868fb0ae20bbdff7485855464afa759dd1"
+    },
+    "source": "/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/target/continuity-browser-publication/source"
+  },
+  "storage_red_green": "Installed package01 failed original roster preparation with Database(File); package02 uses the retained platform storage for inspection, original journal opening, account authorization, recovery and retirement. Identical applied scenario now completes with exact original journal and prekey.",
+  "validation": {
+    "artifact_controls": 53,
+    "format": "passed",
+    "native_clippy": "all targets -D warnings passed",
+    "native_local_expiry_cases": 1,
+    "native_msrv": "Rust1.90.0 passed",
+    "native_roster_cases": 24,
+    "wasm_clippy": "-D warnings passed",
+    "wasm_msrv": "Rust1.90.0 passed"
+  }
+}

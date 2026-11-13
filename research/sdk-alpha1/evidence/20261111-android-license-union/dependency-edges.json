@@ -1,0 +1,81 @@
+{
+  "interpretation": "fips204 0.5.0 retains sha3 0.10.9 as a normal dependency and uses sha2 0.10 only for development. sha3 0.10.9 reaches keccak 0.1.6, whose cpufeatures ^0.2 edge is restricted to aarch64.",
+  "selected_packages": [
+    {
+      "dependencies": [
+        {
+          "features": [
+            "zeroize"
+          ],
+          "kind": null,
+          "name": "sha3",
+          "optional": false,
+          "registry": null,
+          "rename": null,
+          "req": "^0.10.9",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "target": null,
+          "uses_default_features": false
+        },
+        {
+          "features": [],
+          "kind": "dev",
+          "name": "sha2",
+          "optional": false,
+          "registry": null,
+          "rename": null,
+          "req": "^0.10.8",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "target": null,
+          "uses_default_features": false
+        }
+      ],
+      "name": "fips204",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.5.0"
+    },
+    {
+      "dependencies": [
+        {
+          "features": [],
+          "kind": null,
+          "name": "cpufeatures",
+          "optional": false,
+          "registry": null,
+          "rename": null,
+          "req": "^0.2",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "target": "cfg(target_arch = \"aarch64\")",
+          "uses_default_features": true
+        }
+      ],
+      "name": "keccak",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.1.6"
+    },
+    {
+      "dependencies": [
+        {
+          "features": [],
+          "kind": null,
+          "name": "keccak",
+          "optional": false,
+          "registry": null,
+          "rename": null,
+          "req": "^0.1.4",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "target": null,
+          "uses_default_features": true
+        }
+      ],
+      "name": "sha3",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "version": "0.10.9"
+    }
+  ],
+  "source_metadata_file": {
+    "bytes": 107134,
+    "sha256": "8bbc8fcc907fb6a80a04cd552946e1e2f2e2aa87c6a09fe5b602e2e763308fc6"
+  },
+  "source_metadata_path": "research/sdk-alpha1/evidence/20261111-fips204-upgrade/workspace-metadata.json.gz"
+}

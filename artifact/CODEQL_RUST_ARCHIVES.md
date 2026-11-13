@@ -1,14 +1,42 @@
 # Rust snapshots retained by the bootstrap proof packets
 
-The CodeQL source census at paper commit `4fde471641150c68a08b56e728067c72b39ab346` contains 174 tracked Rust files: 106 current sources and the 68 snapshots below. These snapshots preserve the implementation inputs assessed by the proof packets. They are partial source exports with no Cargo manifests, not additional compilation roots.
+The CodeQL source census at integration commit `0e2ca2d79ab0000bed79130cec97b31181e936ea` contains 1241 tracked Rust files: 1173 current sources and the 68 snapshots below. These snapshots preserve the implementation inputs assessed by the proof packets. They are partial source exports with no Cargo manifests, not additional compilation roots.
 
-`codeql_rust_quality.py` pins the exact five `SOURCE_PINS.json` manifests. Each manifest binds every listed file by original path, byte length, SHA-256 and Git blob identity. Inventory admission checks those identities against the current checkout before accepting the database. Every one of the 174 files must be present in the extracted database and remains an input to the unchanged security queries.
+The isolated `services/q-periapt-policy-agent/tests/private_file_umask.rs` integration test adds one current source. The live census is now 1242 tracked Rust files: 1174 current sources and the same 68 snapshots. Cargo includes the new test in its existing all-targets compilation.
 
-The 106 current sources must have successful extraction, zero warnings and zero unresolved source macros. Each of the 68 partial snapshots must have precisely one CodeQL 2.26.2 warning with tag `semantics`, location 1:1 and message `semantic analyzer unavailable (not included in files loaded from manifest)`. The complete message must append `: macro expansion will be skipped.` The gate checks every diagnostic individually and rejects all other diagnostics. Macro details may name only those exact authenticated snapshots; their counts must reconcile with the complete database and per-file inventory. Current-source macro and format-argument sentinels remain nonzero. All extraction errors, unextracted elements and the existing zero consistency and format-argument metrics remain failures. A retained source packet cannot acquire a Cargo manifest above a source file.
+`codeql_rust_quality.py` pins the exact five `SOURCE_PINS.json` manifests. Each manifest binds every listed file by original path, byte length, SHA-256 and Git blob identity. Inventory admission checks those identities before extraction and again when publication validates current checkout bytes. The complete 1242-file extraction requirement and its zero-diagnostic/integrity checks remain in force.
 
-`Metrics.ql` retains its global metric formulas and adds tagged rows for the complete extracted path set, per-file macro/format-argument counts, and the path, severity, tag, short and full messages, line and column of all extraction warnings and errors. These rows cross-check the global metrics and unchanged successful-path and unresolved-macro queries. This explicitly records the partial exports' available syntax and original-source provenance while qualifying the current Cargo compilation for semantic analysis. The existing proof-input digest covers the complete query; there is no new unbound query dependency.
+The raw macro census retains every snapshot entity and its unresolved state. Paired coverage reports their expanded and unresolved counts separately; only current source macros participate in executable target coverage. A snapshot cannot be admitted as a compiler input, cover an active-source failure, or supply the current-source macro sentinel.
 
 For each table, the retained path is `paper/continuity/artifacts/bootstrap/<packet>/source/` followed by the original path in its first column. The source commit is the historical identity from that packet, not the current build commit.
+
+## File loading for the pinned Rust extractor
+
+The Rust 2.27.2 extractor uses rust-analyzer 0.0.352 to load Cargo package file
+roots. The producer explicitly includes this reviewed bootstrap archive directory
+through `CODEQL_EXTRACTOR_RUST_OPTION_EXTRA_INCLUDES`. The value is a JSON array
+containing the original absolute archive path. The existing source-pin check
+authenticates all 68 file paths and bytes before the extraction command.
+
+This inclusion loads the snapshot bytes into the file view. Their existing
+non-module status remains visible in the extractor diagnostics and raw macro
+census. Cargo compilation roots, module declarations and the target coverage
+rules retain their existing roles.
+
+The native attempt in
+[run 42982431606](https://github.com/billlza/q-periapt/actions/runs/42982431606/job/130412772905)
+extracted all 1,241 tracked files, with zero extraction errors and zero
+unextracted elements. Its 68 warnings came from exactly the 68 snapshots that
+were absent from the loaded Cargo file view; consequently, the successful-file
+census contained 1,173 paths. The explicit file-view input addresses that
+observed omission. Complete current-path equality and zero-warning checks
+continue to govern preparation.
+
+The input follows the fixed upstream
+[extractor configuration](https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/rust/extractor/src/config.rs),
+[file-loading diagnostics](https://github.com/github/codeql/blob/a7057b836bf29767461026718b14d20790b9085f/rust/extractor/src/main.rs),
+and published
+[rust-analyzer package-root loader](https://docs.rs/ra_ap_project_model/0.0.352/src/ra_ap_project_model/workspace.rs.html#833-880).
 
 ## ack: 19 Rust snapshots
 
@@ -125,6 +153,6 @@ Assessed source commit: `360aa8107aa7df502108627a4dcf89f30d106594`. [Pinned sour
 
 ## Relationship to the current implementation
 
-Each packet records the exact historical implementation assessed by its proof and source controls. The paper branch contains 106 current Rust sources; the partial bootstrap source exports preserve additional assessed research inputs without creating new Cargo compilation roots. The current checkout and the historical input commits keep their separate identities.
+At the stated integration commit, 66 snapshots are byte-identical to their original paths in the current tree. The `initial` and `reply` copies of `crates/q-periapt-backends/src/contextbound_key.rs` retain the earlier key-binding implementation; the current path includes the subsequent staging change. Both historical copies remain pinned and extracted. Their historical role does not stand in for compilation or macro coverage of the current file.
 
-Changes to the retained source set require an explicit review of this inventory and its pinned manifests. Missing, substituted, modified or additional snapshot paths fail admission; adding a Cargo manifest above a retained source also fails. Current source additions continue to require the existing exact inventory update and quality checks.
+Changes to the retained source set require an explicit review of this inventory and its pinned manifests. Missing, substituted, modified or additional snapshot paths fail admission; adding a Cargo manifest above a retained source also fails. Current source additions continue to require the existing exact inventory update and target coverage.

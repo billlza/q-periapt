@@ -1,0 +1,191 @@
+{
+  "before_failure": {
+    "run": 43252714021,
+    "publisher_job": 131337293323,
+    "missing_macro_entities": 769
+  },
+  "mechanism": "Add a real Windows target peer for cfg(windows) source; retain every raw macro entity, actual compiler depfile binding, active-target rejection and complete suite gate.",
+  "experiment": {
+    "job": 1173007,
+    "completed": true,
+    "source_commit_base": "b31c3fff8398fd0a353c91d14d7e1b5559d57199",
+    "scope": "Windows GNU cross compilation and CodeQL quality; unchanged paired macro validator against the three current-source profiles. Not Windows runtime or full39 qualification.",
+    "result_sha256": "3a06e153c49c5ed5436180d1aa408077c01461c008e89b38650e96b2819341ad",
+    "paired_sha256": "4bf54a161bf4850a59cb614299b359d60d183b5b2b2f130ea9ed4e7961c5d26a",
+    "remote_readback_hashes_verified": true,
+    "metrics": {
+      "extracted_files": 1242,
+      "source_format_args": 3344,
+      "source_macro_calls": 34949,
+      "extraction_errors": 0,
+      "extraction_warnings": 0,
+      "unextracted_elements": 0,
+      "ast_inconsistencies": 0,
+      "cfg_inconsistencies": 0,
+      "ssa_inconsistencies": 0,
+      "successfully_extracted_files": 1242,
+      "unresolved_source_macro_calls": 13018,
+      "dataflow_inconsistencies": 0,
+      "source_format_args_without_expr": 0,
+      "type_inference_inconsistencies": 46,
+      "path_resolution_inconsistencies": 1553,
+      "source_format_args_without_dataflow_node": 0,
+      "type_ill_formed_mention": 33,
+      "path_multiple_tuple_fields": 0,
+      "path_multiple_record_fields": 0,
+      "type_missing_parameter_id": 0,
+      "path_multiple_canonical_paths": 144,
+      "path_multiple_path_resolutions": 1145,
+      "path_multiple_resolved_targets": 264,
+      "type_noninjective_parameter_id": 0,
+      "type_nonfunctional_parameter_id": 0,
+      "type_nonunique_certain_information": 13
+    },
+    "coverage": {
+      "x86_64-unknown-linux-gnu": {
+        "expanded": 43480,
+        "compiler_export_metadata": 0,
+        "inactive_with_compiled_peer": 273,
+        "archived_snapshot_expanded": 0,
+        "archived_snapshot_unresolved": 615
+      },
+      "wasm32-unknown-unknown": {
+        "expanded": 21262,
+        "compiler_export_metadata": 11,
+        "inactive_with_compiled_peer": 13083,
+        "archived_snapshot_expanded": 0,
+        "archived_snapshot_unresolved": 615
+      },
+      "aarch64-apple-darwin": {
+        "expanded": 43558,
+        "compiler_export_metadata": 0,
+        "inactive_with_compiled_peer": 273,
+        "archived_snapshot_expanded": 0,
+        "archived_snapshot_unresolved": 615
+      },
+      "x86_64-pc-windows-gnu": {
+        "expanded": 21931,
+        "compiler_export_metadata": 0,
+        "inactive_with_compiled_peer": 12403,
+        "archived_snapshot_expanded": 0,
+        "archived_snapshot_unresolved": 615
+      }
+    },
+    "source_count": 1242,
+    "compiled_windows_files": 369,
+    "prior_missing_entities": 769,
+    "commands": [
+      {
+        "label": "compile-host-store",
+        "exit_code": 0,
+        "seconds": 8.478280381299555
+      },
+      {
+        "label": "compile-engine-unit",
+        "exit_code": 0,
+        "seconds": 112.86331942025572
+      },
+      {
+        "label": "compile-engine-connection",
+        "exit_code": 0,
+        "seconds": 14.083577984012663
+      },
+      {
+        "label": "compile-continuity-c-unit",
+        "exit_code": 0,
+        "seconds": 35.99235795252025
+      },
+      {
+        "label": "extract-windows",
+        "exit_code": 0,
+        "seconds": 344.9573100823909
+      },
+      {
+        "label": "query-ExtractedPaths",
+        "exit_code": 0,
+        "seconds": 80.8481470439583
+      },
+      {
+        "label": "query-Metrics",
+        "exit_code": 0,
+        "seconds": 429.1677473736927
+      },
+      {
+        "label": "query-MacroCalls",
+        "exit_code": 0,
+        "seconds": 44.02706674579531
+      }
+    ],
+    "fixture_metadata_warning": {
+      "logs": {
+        "query-ExtractedPaths.stderr": [
+          "WARNING: Failed to retrieve qlpack commit hash from Git repository"
+        ],
+        "query-Metrics.stderr": [
+          "WARNING: Failed to retrieve qlpack commit hash from Git repository"
+        ],
+        "query-MacroCalls.stderr": [
+          "WARNING: Failed to retrieve qlpack commit hash from Git repository"
+        ]
+      },
+      "cause": "Isolated snapshot had unborn Git HEAD; no source/query diagnostic was reported.",
+      "corrected_control_job": 1173068,
+      "corrected_control_status": "running"
+    },
+    "verified_at": "2026-11-12T18:01:33.672993+00:00"
+  },
+  "product_changes": [
+    "Required fourth Windows GNU profile on Linux with MinGW and real cfg(test) compilation",
+    "Host dependency metadata retained for both reviewed cross targets",
+    "Windows executable/DLL/import-library depfiles bound to their crate sources",
+    "COFF bridge declarations omit inapplicable ELF visibility while preserving unused-result diagnostics"
+  ],
+  "local_validation": {
+    "windows-profile-final-tests.log": {
+      "sha256": "12efb4092baf2b18e938e4726d9d60b46700ceaf5fb74c1362415d07d14a6181",
+      "passed": true
+    },
+    "windows-workflow-contract-tests.log": {
+      "sha256": "74e7156e152ebfc358c91b13016f608877601cc6df0a86eb70c6a51fd06ade9a",
+      "passed": true
+    },
+    "windows-bridge-native-tests.log": {
+      "sha256": "48c3f30ae5cc6d4b516b0f061d8edef6e114bbdaf7252231dd8bbc10148f37e2",
+      "passed": true
+    },
+    "windows-bridge-clippy.log": {
+      "sha256": "f4468fb9feb8186a7201f1dfe6da13a166dba616b34e65dc826c6a8f96844e5c",
+      "passed": true
+    },
+    "return_value_attribute_controls": {
+      "results": [
+        {
+          "mode": "host",
+          "case": "checked",
+          "exit": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "mode": "host",
+          "case": "discarded",
+          "exit": 1,
+          "stderr_sha256": "1801e6d17ff771d2fef70bf54f9cf6e9f841fa57895259375e59623b9bbdeb0f"
+        },
+        {
+          "mode": "windows-conditional",
+          "case": "checked",
+          "exit": 0,
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "mode": "windows-conditional",
+          "case": "discarded",
+          "exit": 1,
+          "stderr_sha256": "1801e6d17ff771d2fef70bf54f9cf6e9f841fa57895259375e59623b9bbdeb0f"
+        }
+      ],
+      "scope": "Header return-value attribute control using local clang; real Windows GNU compilation is independently checked on NCC."
+    }
+  },
+  "remaining": "New-head complete four-profile 39-query cohort, paired publication and full ordinary CI. Metadata-warning control still running."
+}

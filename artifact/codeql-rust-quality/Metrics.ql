@@ -1,6 +1,6 @@
 /**
  * @name Rust database quality metrics
- * @description Emits extraction, macro, format-argument and consistency metrics with source and diagnostic details.
+ * @description Emits fail-closed extraction, macro, format-argument, and consistency metrics.
  * @kind table
  * @id qperiapt/rust-quality/metrics
  */
@@ -119,31 +119,6 @@ private int metric(string name) {
   result = sum(string type | | DataFlowConsistency::getInconsistencyCounts(type))
 }
 
-private predicate row(
-  string kind, string name, int first, int second, string tag, string message, string fullMessage
-) {
-  kind = "metric" and first = metric(name) and second = 0 and
-  tag = "" and message = "" and fullMessage = ""
-  or
-  kind = "file" and
-  exists(ExtractedFile file |
-    name = file.getRelativePath() and
-    first = count(MacroCall call | call.fromSource() and call.getFile() = file) and
-    second = count(FormatArgsArg argument | argument.fromSource() and argument.getFile() = file)
-  ) and
-  tag = "" and message = "" and fullMessage = ""
-  or
-  exists(Diagnostic diagnostic |
-    (diagnostic instanceof ExtractionWarning or diagnostic instanceof ExtractionError) and
-    kind = diagnostic.getSeverityText() and
-    name = diagnostic.getLocation().getFile().getRelativePath() and
-    first = diagnostic.getLocation().getStartLine() and
-    second = diagnostic.getLocation().getStartColumn() and
-    tag = diagnostic.getTag() and message = diagnostic.getMessage() and
-    fullMessage = diagnostic.getFullMessage()
-  )
-}
-
-from string kind, string name, int first, int second, string tag, string message, string fullMessage
-where row(kind, name, first, second, tag, message, fullMessage)
-select kind, name, first, second, tag, message, fullMessage
+from string name, int value
+where value = metric(name)
+select name, value

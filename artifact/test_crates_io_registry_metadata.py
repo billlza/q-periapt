@@ -63,6 +63,26 @@ class GoldenReproductionTests(unittest.TestCase):
     def test_wasm_golden_internal_dependencies(self) -> None:
         self._assert_golden("q-periapt-wasm")
 
+    def test_aliases_match_cargo_1981_capture(self) -> None:
+        name = "registry-alias-fixture"
+        crate = build_crate({
+            "Cargo.toml": (FIXTURES / f"{name}.cargo.toml").read_bytes(),
+            "README.md": (FIXTURES / f"{name}.readme.md").read_bytes(),
+        })
+        raw = (FIXTURES / f"{name}.metadata.json").read_text(encoding="utf-8")
+        captured = json.loads(raw)
+        self.assertEqual(registry.serialize_metadata(captured), raw)
+        # Cargo sent this request to an isolated alternate registry. The only
+        # destination-dependent field is registry: crates.io dependencies need
+        # it there, but not when uploading to crates.io itself. Keep the raw
+        # capture intact and remove only that independently asserted field.
+        for dep in captured["deps"]:
+            self.assertEqual(dep.pop("registry"),
+                             "https://github.com/rust-lang/crates.io-index")
+        actual = registry.registry_metadata(crate)
+        self.assertEqual(registry.serialize_metadata(actual),
+                         registry.serialize_metadata(captured))
+
     def test_golden_metadata_matches_strict_json(self) -> None:
         # The committed golden must itself be exactly what serialize produces
         # when re-parsed, i.e. compact and key-stable.
@@ -147,18 +167,68 @@ class DependencyDerivationTests(unittest.TestCase):
         manifest = '[package]\nname = "d"\nversion = "1.0.0"\n'
         self.assertEqual(self._deps(manifest), [])
 
+    def test_renamed_dependencies_keep_package_and_toml_names_distinct(self) -> None:
+        for table, kind in registry._KIND_BY_TABLE:
+            for prefix, target in (("", None), ('target."cfg(unix)".', "cfg(unix)")):
+                with self.subTest(table=table, target=target):
+                    manifest = (
+                        '[package]\nname = "d"\nversion = "1.0.0"\n'
+                        f'[{prefix}{table}]\n'
+                        'alias = { version = "=2.6.4", package = "redb" }\n'
+                    )
+                    dep = self._deps(manifest)[0]
+                    self.assertEqual((dep["name"], dep["explicit_name_in_toml"],
+                                      dep["version_req"], dep["kind"], dep["target"]),
+                                     ("redb", "alias", "=2.6.4", kind, target))
+                    self.assertEqual(tuple(dep), registry._DEP_FIELD_ORDER +
+                                     ("explicit_name_in_toml",))
+
+    def test_explicit_same_name_is_preserved(self) -> None:
+        dep = self._deps(
+            '[package]\nname = "d"\nversion = "1.0.0"\n'
+            '[dependencies]\nredb = { version = "1", package = "redb" }\n'
+        )[0]
+        self.assertEqual(dep["name"], dep["explicit_name_in_toml"])
+
+    def test_optional_alias_requires_the_alias_feature_reference(self) -> None:
+        manifest = (
+            '[package]\nname = "d"\nversion = "1.0.0"\n'
+            '[dependencies]\n'
+            'redb-legacy = { version = "=2.6.4", package = "redb", optional = true }\n'
+            '[features]\n'
+        )
+        for feature in ('migration = []\n', 'migration = ["dep:redb"]\n'):
+            with self.subTest(feature=feature), self.assertRaisesRegex(
+                registry.RegistryMetadataError, "optional dependency 'redb-legacy'"
+            ):
+                self._deps(manifest + feature)
+        self.assertEqual(self._deps(manifest + 'migration = ["dep:redb-legacy"]\n')[0]
+                         ["explicit_name_in_toml"], "redb-legacy")
+
 
 class RefusalTests(unittest.TestCase):
     def _expect_refusal(self, manifest: str, pattern: str) -> None:
         with self.assertRaisesRegex(registry.RegistryMetadataError, pattern):
             registry.registry_metadata(crate_from_manifest(manifest))
 
-    def test_renamed_dependency_is_refused(self) -> None:
-        manifest = (
-            '[package]\nname = "d"\nversion = "1.0.0"\n\n'
-            '[dependencies]\nalias = { version = "1", package = "real" }\n'
-        )
-        self._expect_refusal(manifest, "renamed")
+    def test_invalid_renamed_package_is_refused(self) -> None:
+        for value in ('""', '1', 'false', '[]', '{}', '"not a name"', '"bad/name"'):
+            with self.subTest(value=value):
+                manifest = (
+                    '[package]\nname = "d"\nversion = "1.0.0"\n'
+                    f'[dependencies]\nalias = {{ version = "1", package = {value} }}\n'
+                )
+                self._expect_refusal(manifest, "package name")
+
+    def test_renaming_does_not_allow_unmodeled_sources(self) -> None:
+        for field, pattern in (("registry", "alternate registry"),
+                               ("registry-index", "alternate registry"),
+                               ("path", "git/path source"), ("git", "git/path source")):
+            with self.subTest(field=field):
+                self._expect_refusal(
+                    '[package]\nname = "d"\nversion = "1.0.0"\n'
+                    '[dependencies]\nalias = { version = "1", package = "real", '
+                    f'{field} = "unmodeled" }}\n', pattern)
 
     def test_alternate_registry_is_refused(self) -> None:
         manifest = (

@@ -1,0 +1,9 @@
+{
+  "completed": true,
+  "tests": 1,
+  "log_sha256": "fa542e8622122ca1f4cc64e9c40b3965bc4bebddd993e4ebc20bba069bce6800",
+  "source_hashes": {
+    ".github/workflows/ci.yml": "2e6a4ab8b2a08f3dd307833a5c6bfb69f27fad598ac6d555cce1407a040a8613",
+    "artifact/test_proof_to_byte_release.py": "285b539f62f5c9af69c130f7b1991bfd55cc712a6b869e29d0d84d5d0670849f"
+  }
+}

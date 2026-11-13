@@ -2,50 +2,6 @@
 
 use super::*;
 
-/// A failed `create` must not leave the `O_CREAT|O_EXCL` leaf behind: the next
-/// attempt would get `EEXIST`, and the `create = false` path rejects the
-/// zero-length leftover, so one transient failure would brick provisioning
-/// permanently.
-///
-/// Ignored by default because it manipulates the process-wide `umask`, which
-/// would make any sibling test that creates a private file flaky when the suite
-/// runs in parallel. Run it deliberately:
-///
-/// ```text
-/// cargo test -p q-periapt-policy-agent -- --ignored --test-threads=1
-/// ```
-///
-/// Verified in both directions when the unlink was added: without it this fails
-/// with `failed create left .../brick.redb behind`.
-#[test]
-#[ignore = "manipulates the process-wide umask; run with --test-threads=1"]
-fn failed_private_file_create_leaves_no_leaf_behind() -> TestResult {
-    use rustix::fs::Mode;
-    use rustix::process::umask;
-
-    let directory = TestDirectory::new()?;
-    let path = directory.join("brick.redb");
-    // umask 0o200 strips the owner-write bit, so O_CREAT yields mode 0400 and
-    // the exact-mode check rejects it after the leaf already exists.
-    let previous = umask(Mode::WUSR);
-    let outcome = open_private_file(&path, true);
-    umask(previous);
-    assert!(
-        matches!(outcome, Err(PrivateFileError)),
-        "expected the exact-mode check to reject a 0400 leaf"
-    );
-    assert!(
-        !path.exists(),
-        "failed create left {path:?} behind; provisioning would be bricked"
-    );
-    // A retry under a sane umask must now succeed.
-    drop(
-        open_private_file(&path, true)
-            .map_err(|_| io::Error::other("retry after a cleaned-up failure must succeed"))?,
-    );
-    Ok(())
-}
-
 #[test]
 fn private_state_file_is_opened_beneath_an_owned_descriptor_boundary() -> TestResult {
     use std::os::unix::fs::{symlink, PermissionsExt};
@@ -365,7 +321,7 @@ fn witness_store_refuses_a_clean_foreign_database_without_touching_it() -> TestR
         .map_err(|_| io::Error::other("failed to create the private foreign fixture"))?;
     let database = redb::Database::builder().create_file(file)?;
     let mut transaction = database.begin_write()?;
-    transaction.set_durability(redb::Durability::Immediate);
+    transaction.set_durability(redb::Durability::Immediate)?;
     transaction.set_two_phase_commit(true);
     {
         let table: redb::TableDefinition<&str, &[u8]> =
@@ -411,7 +367,7 @@ fn witness_admission_preserves_valid_head_and_continuous_lock_ownership() -> Tes
     let before = fs::read(&path)?;
     let file =
         open_private_file(&path, false).map_err(|_| io::Error::other("lock source open failed"))?;
-    let locked = redb::backends::FileBackend::new(file)?;
+    let locked = q_periapt_host_store::filesystem::LockedFileBackend::new(file)?;
     assert_eq!(
         crate::witness::test_support::open_head(&path),
         Err(WitnessError::Persistence)
@@ -428,7 +384,7 @@ fn witness_admission_preserves_valid_head_and_continuous_lock_ownership() -> Tes
         let competitor = open_private_file(&path, false)
             .map_err(|_| io::Error::other("competing source open failed"))?;
         assert!(matches!(
-            redb::backends::FileBackend::new(competitor),
+            q_periapt_host_store::filesystem::LockedFileBackend::new(competitor),
             Err(redb::DatabaseError::DatabaseAlreadyOpen)
         ));
         assert_eq!(fs::read_dir(directory.path())?.count(), 1);

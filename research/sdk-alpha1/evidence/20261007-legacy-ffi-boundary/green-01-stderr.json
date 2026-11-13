@@ -1,0 +1,4 @@
+{
+  "sha256": "7648954e3f1466ec0193082848f8df12bc177a2868124fa0565184491608222b",
+  "text": "   Compiling q-periapt-ffi v0.2.0 (/Users/bill/Documents/Codex/sdk-020-lifecycle-ci-20261006/crates/q-periapt-ffi)\n    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.77s\n     Running unittests src/lib.rs (target/native-stack-debug/build/debug/deps/q_periapt_ffi_abi2-e7fe92d2fc64e246)\n   Doc-tests q_periapt_ffi_abi2\n"
+}

@@ -1,0 +1,1106 @@
+{
+  "schema": "qperiapt-old-ci-targeted-readback-v1",
+  "observed_at": "2026-11-11T03:17:14Z",
+  "integration_head": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+  "scope": "Seven newly completed old-source generic runs; fourteen failed jobs absent from prior seventeen-run inventory",
+  "runs": [
+    {
+      "run_id": 42754204081,
+      "total": 34,
+      "received": 34,
+      "counts": {
+        "success": 32,
+        "failure": 2
+      },
+      "failed": [
+        {
+          "id": 129624662319,
+          "name": "check",
+          "head_sha": "bee17822db65242adbfb3b0be7d32090fae2f752",
+          "started_at": "2026-11-10T10:15:25Z",
+          "completed_at": "2026-11-10T10:29:57Z",
+          "steps": [
+            {
+              "name": "Run sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_*.py' -v",
+              "number": 12
+            }
+          ]
+        },
+        {
+          "id": 129779610363,
+          "name": "bindings-android-runtime-16k",
+          "head_sha": "bee17822db65242adbfb3b0be7d32090fae2f752",
+          "started_at": "2026-11-10T15:16:11Z",
+          "completed_at": "2026-11-10T15:20:37Z",
+          "steps": [
+            {
+              "name": "Execute the hash-bound AAR on API 35 16 KiB ART",
+              "number": 15
+            }
+          ]
+        }
+      ],
+      "installed": [],
+      "cancelled_summary": [],
+      "prior_audit_run": false
+    },
+    {
+      "run_id": 42640883163,
+      "total": 71,
+      "received": 71,
+      "counts": {
+        "success": 59,
+        "failure": 2,
+        "cancelled": 10
+      },
+      "failed": [
+        {
+          "id": 129241356187,
+          "name": "check",
+          "head_sha": "aaebe334b757cc69ce11c0051d3745da3554e2f8",
+          "started_at": "2026-11-09T20:34:53Z",
+          "completed_at": "2026-11-09T20:48:50Z",
+          "steps": [
+            {
+              "name": "Exercise all artifact tooling",
+              "number": 16
+            }
+          ]
+        },
+        {
+          "id": 130111632080,
+          "name": "continuity-installed-coverage",
+          "head_sha": "aaebe334b757cc69ce11c0051d3745da3554e2f8",
+          "started_at": "2026-11-11T01:30:59Z",
+          "completed_at": "2026-11-11T01:35:18Z",
+          "steps": [
+            {
+              "name": "Require all installed consumer profiles from this source",
+              "number": 5
+            }
+          ]
+        }
+      ],
+      "installed": [
+        {
+          "id": 129422021430,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T20:34:59Z",
+          "completed_at": "2026-11-10T20:34:59Z"
+        },
+        {
+          "id": 129422021432,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T20:34:59Z",
+          "completed_at": "2026-11-10T20:34:59Z"
+        },
+        {
+          "id": 129422021445,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T20:34:59Z",
+          "completed_at": "2026-11-10T20:34:59Z"
+        },
+        {
+          "id": 129422021453,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T20:34:59Z",
+          "completed_at": "2026-11-10T20:34:59Z"
+        },
+        {
+          "id": 129422021478,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T20:34:59Z",
+          "completed_at": "2026-11-10T20:34:59Z"
+        },
+        {
+          "id": 129422021529,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T20:34:59Z",
+          "completed_at": "2026-11-10T20:34:59Z"
+        }
+      ],
+      "cancelled_summary": [
+        {
+          "id": 129241356431,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.000555555555554
+        },
+        {
+          "id": 129241356626,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.000555555555554
+        },
+        {
+          "id": 129241356814,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.000555555555554
+        },
+        {
+          "id": 129422021287,
+          "name": "policy-maintenance-package (macos-15, aarch64-apple-darwin)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24
+        },
+        {
+          "id": 129422021430,
+          "name": "continuity-installed-android-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24
+        },
+        {
+          "id": 129422021432,
+          "name": "continuity-installed-kotlin-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24
+        },
+        {
+          "id": 129422021445,
+          "name": "continuity-installed-kotlin-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24
+        },
+        {
+          "id": 129422021453,
+          "name": "continuity-installed-swift-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24
+        },
+        {
+          "id": 129422021478,
+          "name": "continuity-installed-android-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24
+        },
+        {
+          "id": 129422021529,
+          "name": "continuity-installed-swift-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24
+        }
+      ],
+      "prior_audit_run": false
+    },
+    {
+      "run_id": 42640875301,
+      "total": 71,
+      "received": 71,
+      "counts": {
+        "success": 60,
+        "failure": 2,
+        "cancelled": 9
+      },
+      "failed": [
+        {
+          "id": 129241323885,
+          "name": "check",
+          "head_sha": "aaebe334b757cc69ce11c0051d3745da3554e2f8",
+          "started_at": "2026-11-09T19:45:16Z",
+          "completed_at": "2026-11-09T20:01:37Z",
+          "steps": [
+            {
+              "name": "Exercise all artifact tooling",
+              "number": 16
+            }
+          ]
+        },
+        {
+          "id": 130093775352,
+          "name": "continuity-installed-coverage",
+          "head_sha": "aaebe334b757cc69ce11c0051d3745da3554e2f8",
+          "started_at": "2026-11-11T01:18:00Z",
+          "completed_at": "2026-11-11T01:22:26Z",
+          "steps": [
+            {
+              "name": "Require all installed consumer profiles from this source",
+              "number": 5
+            }
+          ]
+        }
+      ],
+      "installed": [
+        {
+          "id": 129404741609,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T20:04:14Z",
+          "completed_at": "2026-11-10T20:04:14Z"
+        },
+        {
+          "id": 129404741617,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T20:04:14Z",
+          "completed_at": "2026-11-10T20:04:14Z"
+        },
+        {
+          "id": 129404741669,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T20:04:14Z",
+          "completed_at": "2026-11-10T20:04:14Z"
+        },
+        {
+          "id": 129404741674,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T20:04:14Z",
+          "completed_at": "2026-11-10T20:04:14Z"
+        },
+        {
+          "id": 129404741679,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T20:04:14Z",
+          "completed_at": "2026-11-10T20:04:14Z"
+        },
+        {
+          "id": 129404741686,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T20:04:14Z",
+          "completed_at": "2026-11-10T20:04:14Z"
+        }
+      ],
+      "cancelled_summary": [
+        {
+          "id": 129241324897,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129241325002,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129241325126,
+          "name": "continuity-spqr-reference (macos-15)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129404741609,
+          "name": "continuity-installed-android-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24
+        },
+        {
+          "id": 129404741617,
+          "name": "continuity-installed-kotlin-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24
+        },
+        {
+          "id": 129404741669,
+          "name": "continuity-installed-android-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24
+        },
+        {
+          "id": 129404741674,
+          "name": "continuity-installed-kotlin-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24
+        },
+        {
+          "id": 129404741679,
+          "name": "continuity-installed-swift-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24
+        },
+        {
+          "id": 129404741686,
+          "name": "continuity-installed-swift-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24
+        }
+      ],
+      "prior_audit_run": false
+    },
+    {
+      "run_id": 42635384067,
+      "total": 71,
+      "received": 71,
+      "counts": {
+        "success": 58,
+        "failure": 2,
+        "cancelled": 11
+      },
+      "failed": [
+        {
+          "id": 129222043769,
+          "name": "check",
+          "head_sha": "de4fbce0a116157083320937db0606f44fd67345",
+          "started_at": "2026-11-09T18:57:49Z",
+          "completed_at": "2026-11-09T19:08:31Z",
+          "steps": [
+            {
+              "name": "Exercise all artifact tooling",
+              "number": 16
+            }
+          ]
+        },
+        {
+          "id": 130158286346,
+          "name": "continuity-installed-coverage",
+          "head_sha": "de4fbce0a116157083320937db0606f44fd67345",
+          "started_at": "2026-11-11T01:32:42Z",
+          "completed_at": "2026-11-11T01:36:21Z",
+          "steps": [
+            {
+              "name": "Require all installed consumer profiles from this source",
+              "number": 5
+            }
+          ]
+        }
+      ],
+      "installed": [
+        {
+          "id": 129396118199,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "success",
+          "runner_id": 1000086775,
+          "step_count": 15,
+          "started_at": "2026-11-10T18:24:04Z",
+          "completed_at": "2026-11-10T21:58:19Z"
+        },
+        {
+          "id": 129396118312,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T19:48:51Z",
+          "completed_at": "2026-11-10T19:48:52Z"
+        },
+        {
+          "id": 129396118367,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T19:48:51Z",
+          "completed_at": "2026-11-10T19:48:52Z"
+        },
+        {
+          "id": 129396118379,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T19:48:51Z",
+          "completed_at": "2026-11-10T19:48:52Z"
+        },
+        {
+          "id": 129396118406,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T19:48:51Z",
+          "completed_at": "2026-11-10T19:48:52Z"
+        },
+        {
+          "id": 129396118487,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T19:48:51Z",
+          "completed_at": "2026-11-10T19:48:52Z"
+        }
+      ],
+      "cancelled_summary": [
+        {
+          "id": 129222043916,
+          "name": "bindings-swift",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.000555555555554
+        },
+        {
+          "id": 129222044424,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.000555555555554
+        },
+        {
+          "id": 129222044487,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.000555555555554
+        },
+        {
+          "id": 129222044569,
+          "name": "continuity-spqr-reference (macos-15)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.000555555555554
+        },
+        {
+          "id": 129222044741,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.000555555555554
+        },
+        {
+          "id": 129396118244,
+          "name": "policy-maintenance-package (macos-15, aarch64-apple-darwin)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129396118312,
+          "name": "continuity-installed-android-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129396118367,
+          "name": "continuity-installed-swift-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129396118379,
+          "name": "continuity-installed-kotlin-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129396118406,
+          "name": "continuity-installed-swift-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129396118487,
+          "name": "continuity-installed-android-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        }
+      ],
+      "prior_audit_run": false
+    },
+    {
+      "run_id": 42634858474,
+      "total": 71,
+      "received": 71,
+      "counts": {
+        "success": 59,
+        "cancelled": 10,
+        "failure": 2
+      },
+      "failed": [
+        {
+          "id": 129220215787,
+          "name": "check",
+          "head_sha": "747c45bab13320d1df2ebaaa0012f183fcf4a1a0",
+          "started_at": "2026-11-09T18:46:09Z",
+          "completed_at": "2026-11-09T18:56:20Z",
+          "steps": [
+            {
+              "name": "Exercise all artifact tooling",
+              "number": 16
+            }
+          ]
+        },
+        {
+          "id": 130089193552,
+          "name": "continuity-installed-coverage",
+          "head_sha": "747c45bab13320d1df2ebaaa0012f183fcf4a1a0",
+          "started_at": "2026-11-11T01:26:20Z",
+          "completed_at": "2026-11-11T01:31:12Z",
+          "steps": [
+            {
+              "name": "Require all installed consumer profiles from this source",
+              "number": 5
+            }
+          ]
+        }
+      ],
+      "installed": [
+        {
+          "id": 129390169948,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T19:38:14Z",
+          "completed_at": "2026-11-10T19:38:15Z"
+        },
+        {
+          "id": 129390169949,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "success",
+          "runner_id": 1000086507,
+          "step_count": 14,
+          "started_at": "2026-11-10T16:09:24Z",
+          "completed_at": "2026-11-10T19:56:22Z"
+        },
+        {
+          "id": 129390169955,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T19:38:14Z",
+          "completed_at": "2026-11-10T19:38:15Z"
+        },
+        {
+          "id": 129390169967,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T19:38:14Z",
+          "completed_at": "2026-11-10T19:38:15Z"
+        },
+        {
+          "id": 129390170053,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T19:38:14Z",
+          "completed_at": "2026-11-10T19:38:15Z"
+        },
+        {
+          "id": 129390170116,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T19:38:14Z",
+          "completed_at": "2026-11-10T19:38:15Z"
+        }
+      ],
+      "cancelled_summary": [
+        {
+          "id": 129220215251,
+          "name": "bindings-swift",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129220215331,
+          "name": "continuity-spqr-reference (macos-15)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129220216069,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129220216106,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129220216248,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129390169948,
+          "name": "continuity-installed-kotlin-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129390169955,
+          "name": "continuity-installed-swift-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129390169967,
+          "name": "continuity-installed-android-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129390170053,
+          "name": "continuity-installed-swift-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129390170116,
+          "name": "continuity-installed-kotlin-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        }
+      ],
+      "prior_audit_run": false
+    },
+    {
+      "run_id": 42634083989,
+      "total": 71,
+      "received": 71,
+      "counts": {
+        "failure": 2,
+        "success": 59,
+        "cancelled": 10
+      },
+      "failed": [
+        {
+          "id": 129217536539,
+          "name": "check",
+          "head_sha": "62f67a89ddd5b7752139262cf8f0cdbb1301101d",
+          "started_at": "2026-11-09T17:15:26Z",
+          "completed_at": "2026-11-09T17:25:55Z",
+          "steps": [
+            {
+              "name": "Exercise all artifact tooling",
+              "number": 16
+            }
+          ]
+        },
+        {
+          "id": 130096623316,
+          "name": "continuity-installed-coverage",
+          "head_sha": "62f67a89ddd5b7752139262cf8f0cdbb1301101d",
+          "started_at": "2026-11-11T01:32:25Z",
+          "completed_at": "2026-11-11T01:35:50Z",
+          "steps": [
+            {
+              "name": "Require all installed consumer profiles from this source",
+              "number": 5
+            }
+          ]
+        }
+      ],
+      "installed": [
+        {
+          "id": 129337013360,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T17:47:48Z",
+          "completed_at": "2026-11-10T17:47:49Z"
+        },
+        {
+          "id": 129337013362,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T17:47:48Z",
+          "completed_at": "2026-11-10T17:47:49Z"
+        },
+        {
+          "id": 129337013371,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "success",
+          "runner_id": 1000086692,
+          "step_count": 13,
+          "started_at": "2026-11-10T17:25:23Z",
+          "completed_at": "2026-11-10T20:09:06Z"
+        },
+        {
+          "id": 129337013558,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T17:47:48Z",
+          "completed_at": "2026-11-10T17:47:49Z"
+        },
+        {
+          "id": 129337013571,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T17:47:48Z",
+          "completed_at": "2026-11-10T17:47:49Z"
+        },
+        {
+          "id": 129337013581,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T17:47:48Z",
+          "completed_at": "2026-11-10T17:47:49Z"
+        }
+      ],
+      "cancelled_summary": [
+        {
+          "id": 129217537494,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129217537504,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129217537554,
+          "name": "continuity-spqr-reference (macos-15)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129217537971,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.000555555555554
+        },
+        {
+          "id": 129337013351,
+          "name": "policy-maintenance-package (macos-15, aarch64-apple-darwin)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129337013360,
+          "name": "continuity-installed-android-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129337013362,
+          "name": "continuity-installed-android-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129337013558,
+          "name": "continuity-installed-kotlin-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129337013571,
+          "name": "continuity-installed-swift-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129337013581,
+          "name": "continuity-installed-kotlin-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        }
+      ],
+      "prior_audit_run": false
+    },
+    {
+      "run_id": 42634029494,
+      "total": 71,
+      "received": 71,
+      "counts": {
+        "success": 60,
+        "failure": 2,
+        "cancelled": 9
+      },
+      "failed": [
+        {
+          "id": 129217346267,
+          "name": "check",
+          "head_sha": "62f67a89ddd5b7752139262cf8f0cdbb1301101d",
+          "started_at": "2026-11-09T17:04:20Z",
+          "completed_at": "2026-11-09T17:14:55Z",
+          "steps": [
+            {
+              "name": "Exercise all artifact tooling",
+              "number": 16
+            }
+          ]
+        },
+        {
+          "id": 130092507075,
+          "name": "continuity-installed-coverage",
+          "head_sha": "62f67a89ddd5b7752139262cf8f0cdbb1301101d",
+          "started_at": "2026-11-11T01:17:46Z",
+          "completed_at": "2026-11-11T01:22:44Z",
+          "steps": [
+            {
+              "name": "Require all installed consumer profiles from this source",
+              "number": 5
+            }
+          ]
+        }
+      ],
+      "installed": [
+        {
+          "id": 129323518637,
+          "name": "continuity-installed-kotlin-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T17:24:05Z",
+          "completed_at": "2026-11-10T17:24:06Z"
+        },
+        {
+          "id": 129323518657,
+          "name": "continuity-installed-swift-debug",
+          "conclusion": "success",
+          "runner_id": 1000086682,
+          "step_count": 13,
+          "started_at": "2026-11-10T17:22:20Z",
+          "completed_at": "2026-11-10T20:02:04Z"
+        },
+        {
+          "id": 129323518662,
+          "name": "continuity-installed-android-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T17:24:05Z",
+          "completed_at": "2026-11-10T17:24:06Z"
+        },
+        {
+          "id": 129323518695,
+          "name": "continuity-installed-android-debug",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T17:24:05Z",
+          "completed_at": "2026-11-10T17:24:06Z"
+        },
+        {
+          "id": 129323518711,
+          "name": "continuity-installed-kotlin-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T17:24:05Z",
+          "completed_at": "2026-11-10T17:24:06Z"
+        },
+        {
+          "id": 129323518846,
+          "name": "continuity-installed-swift-release",
+          "conclusion": "cancelled",
+          "runner_id": 0,
+          "step_count": 0,
+          "started_at": "2026-11-09T17:24:05Z",
+          "completed_at": "2026-11-10T17:24:06Z"
+        }
+      ],
+      "cancelled_summary": [
+        {
+          "id": 129217346667,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129217346724,
+          "name": "continuity-spqr-reference (macos-15)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129217346776,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129217346797,
+          "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129323518637,
+          "name": "continuity-installed-kotlin-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129323518662,
+          "name": "continuity-installed-android-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129323518695,
+          "name": "continuity-installed-android-debug",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129323518711,
+          "name": "continuity-installed-kotlin-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        },
+        {
+          "id": 129323518846,
+          "name": "continuity-installed-swift-release",
+          "runner_id": 0,
+          "steps": 0,
+          "delta_hours": 24.00027777777778
+        }
+      ],
+      "prior_audit_run": false
+    }
+  ],
+  "classifications": [
+    {
+      "runs": [
+        42640883163,
+        42640875301,
+        42635384067,
+        42634858474,
+        42634083989,
+        42634029494
+      ],
+      "check": {
+        "errors": "Two IndependentPackageTests fail: counterpart product dependencies differ",
+        "additional_failure": "Old one-shot scanner misreads workflow sparse-checkout path entries",
+        "current_counterpart_check": {
+          "head": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+          "tests": [
+            "artifact.test_continuity_independent_package.IndependentPackageTests.test_archive_edges_preserve_source_build_and_lint_settings",
+            "artifact.test_continuity_independent_package.IndependentPackageTests.test_complete_counterpart_setup_retains_lock_and_refuses_existing_state"
+          ],
+          "result": "PASS 2/2",
+          "duration_seconds": 0.029
+        }
+      },
+      "coverage": {
+        "error": "installed consumer partition set is missing, duplicated, or unexpected",
+        "partition_state": "5 or 6 of 6 installed consumers were cancelled after 24h; every cancelled consumer has runner_id=0 and no steps",
+        "attribution": "No execution occurred in cancelled partitions; coverage join failed closed on missing results"
+      }
+    },
+    {
+      "run": 42754204081,
+      "check_job": 129624662319,
+      "head": "bee17822db65242adbfb3b0be7d32090fae2f752",
+      "error": "tracked Rust source count must be 106, got 154",
+      "test": "test_codeql_rust_quality.CodeQLRustQualityTests.test_tracked_inventory_is_nonempty_and_nul_terminated",
+      "trace": "test_codeql_rust_quality.py:1393 -> codeql_rust_quality.py:446",
+      "canonical_followup": {
+        "head": "11e113f27d7708474cd55713d4a22cc028f80944",
+        "tests": 48,
+        "result": "PASS",
+        "inventory": "106 current + 68 archived = 174",
+        "log": "/tmp/qperiapt-paper-codeql-quality.log"
+      }
+    },
+    {
+      "run": 42754204081,
+      "job": 129779610363,
+      "head": "bee17822db65242adbfb3b0be7d32090fae2f752",
+      "android": {
+        "artifact_id": 13775259372,
+        "zip_path": "/workspace/scratch/2f48ae2878bc/qperiapt-paper-android-bee17822-diagnostics.zip",
+        "sha256": "eafcaa406999dbf7a5b2b94e9f96ae565706480b7621e6e282dfc149e6550aec",
+        "install": "Performing Streamed Install\\nSuccess",
+        "postinstall": "Two consecutive exact package-path observations",
+        "activity_command_exit": 224,
+        "activity_error": "cmd: Failure calling service activity: Broken pipe (32)",
+        "cleanup": "First query nonzero, recovered, uninstall Success, three consecutive package-absent observations",
+        "guest_logs": "Artifact contains emulator.log but no logcat or tombstone",
+        "attribution": "Failure calling guest activity service over the command transport; no evidence in this artifact to identify APK/native crash or exact system-server cause",
+        "rerun_performed": false
+      }
+    }
+  ]
+}

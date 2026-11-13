@@ -1,6 +1,6 @@
 # Manuscript development workflow
 
-The continuous research branch is `paper/joc-persistent-recovery`; [draft PR #119](https://github.com/billlza/q-periapt/pull/119) targets `main`. Continue manuscript updates on this same branch and PR. Changes on this branch concern the manuscript, directly used research artifacts, and the manuscript build. Native source observations retain their immutable source revisions.
+The continuous research branch is `paper/joc-persistent-recovery`. [PR #119](https://github.com/billlza/q-periapt/pull/119) integrated the manuscript into `main` on 13 November 2026. Continue subsequent manuscript updates on this same branch through focused pull requests against `main`. Changes on this branch concern the manuscript, directly used research artifacts, and the manuscript build. Native source observations retain their immutable source revisions.
 
 Maintain one manuscript title and stable reading/source filenames. The repository reading copy is `continuity.pdf`; external deliverables use `Q-Periapt_JoC_Manuscript.pdf` and `Q-Periapt_JoC_Research.zip`. Git commits and the artifact hash records identify changes. Keep the title, abstract and contribution narrative focused on the research results. Historical proof/evidence snapshots retain their original identities for traceability.
 

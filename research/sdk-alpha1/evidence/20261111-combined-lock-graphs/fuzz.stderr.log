@@ -1,0 +1,6 @@
+    Updating crates.io index
+ Downloading crates ...
+  Downloaded derive_arbitrary v1.5.0
+  Downloaded syn v3.0.9
+  Downloaded arbitrary v1.5.0
+  Downloaded libfuzzer-sys v0.4.13

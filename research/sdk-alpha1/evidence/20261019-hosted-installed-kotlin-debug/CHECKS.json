@@ -1,0 +1,20 @@
+{
+  "head": "23280124efd2f0f3003d4ce85e3db665f6ec8a25",
+  "run": 39129232908,
+  "captures": {
+    "kotlin-debug": {
+      "bytes": 43217507,
+      "members": 8623,
+      "sha256": "7c8b2160f6e477d066a2bc4510fee321e47d20c8735cb7556025030f5e71cb76",
+      "artifact": 12153733196,
+      "artifact_bytes": 134496155,
+      "artifact_digest": "sha256:fb037e540bf1da60f7da412c317cc49904fb71b04c5005343a8d304a2fefc43e",
+      "contracts": 19,
+      "package_files": 281
+    }
+  },
+  "scope": "Exact shipped foreign package bytes and original public client/server/recovery,account delivery/TLS/witness/unknown outcome and root lifecycle readers replayed. Same-host shared native engine; original execution and private authentication remain producer observations. No rerun of uploaded binaries, independent cryptographic signature implementation, physical-device test, full remaining foreign contract replay or six-partition release admission.",
+  "public_reader_sources": 45,
+  "source_files_verified_against_Git_per_partition": 1132,
+  "original_artifacts": "Full terminal ZIPs remain locally retained with GitHub IDs/digests. These captures contain selected public records, actual consumer packages, original readers and relevant trace outputs; not complete terminal ZIPs or all producer checks."
+}

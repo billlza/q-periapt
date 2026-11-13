@@ -1,0 +1,17 @@
+Gnuplot not found, using plotters backend
+Benchmarking compat_xwing_combiner_134B/ours_sha3_inline_zero_alloc
+Benchmarking compat_xwing_combiner_134B/ours_sha3_inline_zero_alloc: Warming up for 500.00 ms
+Benchmarking compat_xwing_combiner_134B/ours_sha3_inline_zero_alloc: Collecting 100 samples in estimated 1.0018 s (1.9M iterations)
+Benchmarking compat_xwing_combiner_134B/ours_sha3_inline_zero_alloc: Analyzing
+compat_xwing_combiner_134B/ours_sha3_inline_zero_alloc
+                        time:   [544.67 ns 554.60 ns 564.59 ns]
+
+Benchmarking contextbound_combiner_2.5KB/ours_sha3
+Benchmarking contextbound_combiner_2.5KB/ours_sha3: Warming up for 500.00 ms
+Benchmarking contextbound_combiner_2.5KB/ours_sha3: Collecting 100 samples in estimated 1.0001 s (111k iterations)
+Benchmarking contextbound_combiner_2.5KB/ours_sha3: Analyzing
+contextbound_combiner_2.5KB/ours_sha3
+                        time:   [8.6269 µs 8.8335 µs 9.0489 µs]
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+

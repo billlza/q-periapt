@@ -1,0 +1,11 @@
+{
+  "completed": false,
+  "failure": {
+    "message": "fresh 39-query result census differs",
+    "type": "ControlError"
+  },
+  "kind": "qperiapt.codeql_summary_control_comparison",
+  "release_claim_eligible": false,
+  "sarif_published": false,
+  "schema": 1
+}

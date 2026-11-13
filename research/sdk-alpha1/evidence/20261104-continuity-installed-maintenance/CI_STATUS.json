@@ -1,0 +1,3400 @@
+{
+  "observed_utc": "2026-11-04 20:55:02 UTC",
+  "counts": {
+    "success": 287,
+    "queued": 36,
+    "failure": 7,
+    "skipped": 2
+  },
+  "changes": [
+    {
+      "run_id": 41791861104,
+      "id": 126446854048,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T19:52:23Z",
+      "completed_at": "2026-11-04T20:25:21Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831271,
+      "name": "bindings-swift",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T19:57:44Z",
+      "completed_at": "2026-11-04T20:38:19Z"
+    }
+  ],
+  "rows": [
+    {
+      "run_id": 41791519877,
+      "id": 126445762402,
+      "name": "abi2-windows-package-2022",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:23:30Z",
+      "completed_at": "2026-11-04T07:34:01Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762704,
+      "name": "Binary CT [x86_64-portable]",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:53:27Z",
+      "completed_at": "2026-11-04T07:56:03Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762719,
+      "name": "windows",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:24:33Z",
+      "completed_at": "2026-11-04T07:46:07Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762744,
+      "name": "bindings-swift",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T13:41:43Z",
+      "completed_at": "2026-11-04T14:22:53Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762797,
+      "name": "Binary CT [aarch64-native]",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:21:56Z",
+      "completed_at": "2026-11-04T07:24:36Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762811,
+      "name": "msrv",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:33:24Z",
+      "completed_at": "2026-11-04T07:37:13Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762819,
+      "name": "tamarin-proof",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:26:05Z",
+      "completed_at": "2026-11-04T07:58:07Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762842,
+      "name": "bindings-kotlin",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:26:54Z",
+      "completed_at": "2026-11-04T07:35:24Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762843,
+      "name": "audit",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:24:11Z",
+      "completed_at": "2026-11-04T07:28:59Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762863,
+      "name": "pq-optional-backends",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:25:33Z",
+      "completed_at": "2026-11-04T07:30:51Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762871,
+      "name": "check",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:25:49Z",
+      "completed_at": "2026-11-04T07:46:32Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762873,
+      "name": "proverif-proof",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:35:46Z",
+      "completed_at": "2026-11-04T07:47:53Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762888,
+      "name": "abi2-linux-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:24:54Z",
+      "completed_at": "2026-11-04T07:30:49Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762894,
+      "name": "cross-compiler (beta)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:31:41Z",
+      "completed_at": "2026-11-04T07:36:23Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762909,
+      "name": "x86-avx2-candidate",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:42:46Z",
+      "completed_at": "2026-11-04T07:53:22Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762917,
+      "name": "no_std",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:35:27Z",
+      "completed_at": "2026-11-04T07:37:30Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762919,
+      "name": "cross (wasm32-unknown-unknown)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:37:03Z",
+      "completed_at": "2026-11-04T07:43:30Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762933,
+      "name": "cross-compiler (stable)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:49:14Z",
+      "completed_at": "2026-11-04T07:51:53Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762949,
+      "name": "cross-compiler (nightly)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:29:35Z",
+      "completed_at": "2026-11-04T07:33:58Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762953,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-account-root)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:31:56Z",
+      "completed_at": "2026-11-04T07:37:18Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762966,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762968,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:28:27Z",
+      "completed_at": "2026-11-04T08:31:12Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762970,
+      "name": "rust-publish-contract",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:37:34Z",
+      "completed_at": "2026-11-04T07:48:57Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445762976,
+      "name": "cross (aarch64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:37:21Z",
+      "completed_at": "2026-11-04T07:39:51Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763003,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763022,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, suite)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:38:10Z",
+      "completed_at": "2026-11-04T08:41:37Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763045,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, suite)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:32:38Z",
+      "completed_at": "2026-11-04T09:38:56Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763050,
+      "name": "formal-easycrypt",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:47:18Z",
+      "completed_at": "2026-11-04T07:52:20Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763052,
+      "name": "cross (riscv64gc-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:34:22Z",
+      "completed_at": "2026-11-04T07:35:59Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763066,
+      "name": "cross (x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:38:10Z",
+      "completed_at": "2026-11-04T07:39:37Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763111,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, roster-capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:57:55Z",
+      "completed_at": "2026-11-04T08:23:00Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763150,
+      "name": "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:22:22Z",
+      "completed_at": "2026-11-04T07:27:11Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763159,
+      "name": "bindings-android-aar",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:44:19Z",
+      "completed_at": "2026-11-04T07:53:05Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763176,
+      "name": "sidechannel",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:14:54Z",
+      "completed_at": "2026-11-04T08:17:45Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763182,
+      "name": "bindings-wasm",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:46:50Z",
+      "completed_at": "2026-11-04T08:02:01Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763189,
+      "name": "standard-tls-interop",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:22:54Z",
+      "completed_at": "2026-11-04T07:26:02Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763191,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, roster-capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:26:04Z",
+      "completed_at": "2026-11-04T09:11:13Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763231,
+      "name": "feature-fence",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:09:42Z",
+      "completed_at": "2026-11-04T08:12:22Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763246,
+      "name": "riscv64-run",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:55:23Z",
+      "completed_at": "2026-11-04T07:57:43Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763253,
+      "name": "transport",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:53:36Z",
+      "completed_at": "2026-11-04T07:56:57Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763254,
+      "name": "continuity-spqr-reference (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:16:14Z",
+      "completed_at": "2026-11-04T08:25:24Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763255,
+      "name": "continuity-spqr-reference (macos-15)",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763257,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763276,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, release)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:46:56Z",
+      "completed_at": "2026-11-04T08:48:09Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763291,
+      "name": "formal-proof",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:57:58Z",
+      "completed_at": "2026-11-04T08:00:14Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763322,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-other)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:01:51Z",
+      "completed_at": "2026-11-04T08:29:10Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763337,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-next-attempt)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:01:20Z",
+      "completed_at": "2026-11-04T09:08:43Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763355,
+      "name": "hqc-draft-candidate",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:53:25Z",
+      "completed_at": "2026-11-04T07:58:21Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763363,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-transferred)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:21:11Z",
+      "completed_at": "2026-11-04T08:55:54Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763385,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:26:04Z",
+      "completed_at": "2026-11-04T09:31:32Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763400,
+      "name": "fuzz",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:07:35Z",
+      "completed_at": "2026-11-04T08:13:52Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763408,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-transferred)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:21:52Z",
+      "completed_at": "2026-11-04T08:43:52Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763413,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, release)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:23:04Z",
+      "completed_at": "2026-11-04T08:59:25Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763420,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-next-attempt)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:59:15Z",
+      "completed_at": "2026-11-04T08:52:26Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763436,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-other)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:39:42Z",
+      "completed_at": "2026-11-04T09:06:41Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126445763510,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-account-root)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:30:25Z",
+      "completed_at": "2026-11-04T08:37:28Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126456505873,
+      "name": "policy-maintenance-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:57:45Z",
+      "completed_at": "2026-11-04T08:01:17Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126456505925,
+      "name": "policy-maintenance-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:29:16Z",
+      "completed_at": "2026-11-04T08:32:35Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126456505939,
+      "name": "continuity-installed-rust",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:24:56Z",
+      "completed_at": "2026-11-04T09:31:40Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126456505946,
+      "name": "continuity-installed-android-release",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:48:57Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126456505984,
+      "name": "continuity-installed-android-debug",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:48:57Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126456506032,
+      "name": "continuity-installed-swift-debug",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:48:57Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126456506050,
+      "name": "policy-maintenance-package (macos-15, aarch64-apple-darwin)",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:48:57Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126456506096,
+      "name": "continuity-installed-kotlin-debug",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:48:57Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126456506122,
+      "name": "continuity-installed-swift-release",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:48:57Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126456506355,
+      "name": "continuity-installed-kotlin-release",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:48:57Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126458039002,
+      "name": "bindings-android-runtime-minimum",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:47:58Z",
+      "completed_at": "2026-11-04T09:02:27Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126458039471,
+      "name": "bindings-android-runtime-16k",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:52:04Z",
+      "completed_at": "2026-11-04T09:09:26Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126490126653,
+      "name": "bindings-android-runtime-replay-api23-4k",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T09:09:52Z",
+      "completed_at": "2026-11-04T09:12:30Z"
+    },
+    {
+      "run_id": 41791519877,
+      "id": 126490126729,
+      "name": "bindings-android-runtime-replay-api35-16k",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T09:11:16Z",
+      "completed_at": "2026-11-04T09:14:00Z"
+    },
+    {
+      "run_id": 41791520084,
+      "id": 126445762408,
+      "name": "account-exchange (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:29:03Z",
+      "completed_at": "2026-11-04T07:55:20Z"
+    },
+    {
+      "run_id": 41791520084,
+      "id": 126445762576,
+      "name": "account-validation (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:26:41Z",
+      "completed_at": "2026-11-04T07:53:25Z"
+    },
+    {
+      "run_id": 41791520084,
+      "id": 126445762591,
+      "name": "root-winner / root (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T12:47:16Z",
+      "completed_at": "2026-11-04T13:07:09Z"
+    },
+    {
+      "run_id": 41791520084,
+      "id": 126445762687,
+      "name": "account-exchange (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T14:16:19Z",
+      "completed_at": "2026-11-04T15:00:07Z"
+    },
+    {
+      "run_id": 41791520084,
+      "id": 126445762690,
+      "name": "root-continuation / root (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:23:07Z",
+      "completed_at": "2026-11-04T07:44:04Z"
+    },
+    {
+      "run_id": 41791520084,
+      "id": 126445762701,
+      "name": "account-validation (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T11:21:45Z",
+      "completed_at": "2026-11-04T11:56:05Z"
+    },
+    {
+      "run_id": 41791520084,
+      "id": 126445762762,
+      "name": "root-winner / root (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:27:03Z",
+      "completed_at": "2026-11-04T07:38:07Z"
+    },
+    {
+      "run_id": 41791520084,
+      "id": 126445762791,
+      "name": "root-continuation / root (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T13:29:47Z",
+      "completed_at": "2026-11-04T14:11:43Z"
+    },
+    {
+      "run_id": 41791520084,
+      "id": 126445762792,
+      "name": "root-unactivated / root (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T14:17:09Z",
+      "completed_at": "2026-11-04T14:32:48Z"
+    },
+    {
+      "run_id": 41791520084,
+      "id": 126445762956,
+      "name": "root-unactivated / root (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:27:16Z",
+      "completed_at": "2026-11-04T07:33:39Z"
+    },
+    {
+      "run_id": 41791519992,
+      "id": 126445761763,
+      "name": "continuity-publication",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:29:28Z",
+      "completed_at": "2026-11-04T07:31:37Z"
+    },
+    {
+      "run_id": 41791519992,
+      "id": 126445762088,
+      "name": "continuity-evidence",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:31:47Z",
+      "completed_at": "2026-11-04T07:32:13Z"
+    },
+    {
+      "run_id": 41791519911,
+      "id": 126445761261,
+      "name": "sdk-package",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:28:05Z",
+      "completed_at": "2026-11-04T07:35:13Z"
+    },
+    {
+      "run_id": 41791519911,
+      "id": 126451430289,
+      "name": "prepare",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:24:35Z",
+      "completed_at": "2026-11-04T08:30:22Z"
+    },
+    {
+      "run_id": 41791519911,
+      "id": 126473200406,
+      "name": "native (windows-2022, release)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:45:44Z",
+      "completed_at": "2026-11-04T09:12:46Z"
+    },
+    {
+      "run_id": 41791519911,
+      "id": 126473200557,
+      "name": "native (windows-2025, release)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:45:15Z",
+      "completed_at": "2026-11-04T09:08:02Z"
+    },
+    {
+      "run_id": 41791519911,
+      "id": 126473200661,
+      "name": "native (windows-2022, debug)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:46:37Z",
+      "completed_at": "2026-11-04T09:06:48Z"
+    },
+    {
+      "run_id": 41791519911,
+      "id": 126473200702,
+      "name": "native (windows-2025, debug)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:44:29Z",
+      "completed_at": "2026-11-04T09:09:48Z"
+    },
+    {
+      "run_id": 41791519911,
+      "id": 126491664219,
+      "name": "public-readback (windows-2022)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T09:13:20Z",
+      "completed_at": "2026-11-04T09:15:50Z"
+    },
+    {
+      "run_id": 41791519911,
+      "id": 126491664272,
+      "name": "public-readback (windows-2025)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T09:14:13Z",
+      "completed_at": "2026-11-04T09:16:27Z"
+    },
+    {
+      "run_id": 41791511694,
+      "id": 126445736637,
+      "name": "account-exchange (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T09:07:48Z",
+      "completed_at": "2026-11-04T09:58:02Z"
+    },
+    {
+      "run_id": 41791511694,
+      "id": 126445736907,
+      "name": "account-validation (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:20:00Z",
+      "completed_at": "2026-11-04T07:46:53Z"
+    },
+    {
+      "run_id": 41791511694,
+      "id": 126445736911,
+      "name": "account-validation (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:26:21Z",
+      "completed_at": "2026-11-04T08:57:12Z"
+    },
+    {
+      "run_id": 41791511694,
+      "id": 126445736967,
+      "name": "account-exchange (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:38:08Z"
+    },
+    {
+      "run_id": 41791511694,
+      "id": 126445736971,
+      "name": "root-continuation / root (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T09:11:28Z",
+      "completed_at": "2026-11-04T09:49:17Z"
+    },
+    {
+      "run_id": 41791511694,
+      "id": 126445737013,
+      "name": "root-winner / root (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T11:16:58Z",
+      "completed_at": "2026-11-04T11:39:44Z"
+    },
+    {
+      "run_id": 41791511694,
+      "id": 126445737047,
+      "name": "root-unactivated / root (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:58Z",
+      "completed_at": "2026-11-04T07:28:06Z"
+    },
+    {
+      "run_id": 41791511694,
+      "id": 126445737079,
+      "name": "root-unactivated / root (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:57:16Z",
+      "completed_at": "2026-11-04T09:11:25Z"
+    },
+    {
+      "run_id": 41791511694,
+      "id": 126445737094,
+      "name": "root-winner / root (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:32:43Z"
+    },
+    {
+      "run_id": 41791511694,
+      "id": 126445737108,
+      "name": "root-continuation / root (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:40:18Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737283,
+      "name": "check",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:23:26Z",
+      "completed_at": "2026-11-04T07:37:00Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737362,
+      "name": "no_std",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:20:00Z",
+      "completed_at": "2026-11-04T07:22:17Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737381,
+      "name": "formal-easycrypt",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:23:57Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737397,
+      "name": "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:20:01Z",
+      "completed_at": "2026-11-04T07:24:28Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737401,
+      "name": "bindings-android-aar",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:28:24Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737408,
+      "name": "continuity-spqr-reference (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:28:06Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737414,
+      "name": "Binary CT [x86_64-portable]",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:20:00Z",
+      "completed_at": "2026-11-04T07:23:59Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737423,
+      "name": "audit",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:20:00Z",
+      "completed_at": "2026-11-04T07:26:15Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737427,
+      "name": "windows",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:24:01Z",
+      "completed_at": "2026-11-04T07:48:29Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737437,
+      "name": "cross (wasm32-unknown-unknown)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:20:00Z",
+      "completed_at": "2026-11-04T07:22:51Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737456,
+      "name": "pq-optional-backends",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:24:56Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737458,
+      "name": "fuzz",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:20:00Z",
+      "completed_at": "2026-11-04T07:27:03Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737461,
+      "name": "x86-avx2-candidate",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:20:00Z",
+      "completed_at": "2026-11-04T07:26:38Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737463,
+      "name": "rust-publish-contract",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:29:25Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737474,
+      "name": "sidechannel",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:22:28Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737475,
+      "name": "abi2-linux-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:23:53Z",
+      "completed_at": "2026-11-04T07:28:02Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737482,
+      "name": "cross-compiler (beta)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:24:51Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737492,
+      "name": "standard-tls-interop",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:23:57Z",
+      "completed_at": "2026-11-04T07:27:15Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737495,
+      "name": "bindings-swift",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T09:40:39Z",
+      "completed_at": "2026-11-04T10:18:00Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737500,
+      "name": "feature-fence",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:30:54Z",
+      "completed_at": "2026-11-04T07:33:21Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737508,
+      "name": "cross (riscv64gc-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:20:00Z",
+      "completed_at": "2026-11-04T07:22:54Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737511,
+      "name": "bindings-wasm",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:35:09Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737514,
+      "name": "formal-proof",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:21:51Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737525,
+      "name": "tamarin-proof",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:56:04Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737533,
+      "name": "continuity-spqr-reference (macos-15)",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:55Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737545,
+      "name": "hqc-draft-candidate",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:25:46Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737550,
+      "name": "cross-compiler (stable)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:20:00Z",
+      "completed_at": "2026-11-04T07:23:54Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737558,
+      "name": "cross-compiler (nightly)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:23:50Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737572,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, release)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:35:12Z",
+      "completed_at": "2026-11-04T08:33:00Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737577,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-next-attempt)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T08:22:49Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737580,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, suite)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:20:00Z",
+      "completed_at": "2026-11-04T08:21:39Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737598,
+      "name": "cross (x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:46:34Z",
+      "completed_at": "2026-11-04T07:49:11Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737603,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-account-root)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:20:00Z",
+      "completed_at": "2026-11-04T07:27:00Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737616,
+      "name": "cross (aarch64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:33:19Z",
+      "completed_at": "2026-11-04T07:35:43Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737617,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, suite)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:48:33Z",
+      "completed_at": "2026-11-04T08:53:15Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737618,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-other)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:39:40Z",
+      "completed_at": "2026-11-04T08:08:42Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737624,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-other)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:46:47Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737649,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, roster-capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:39:54Z",
+      "completed_at": "2026-11-04T08:22:37Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737660,
+      "name": "Binary CT [aarch64-native]",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:20:02Z",
+      "completed_at": "2026-11-04T07:23:04Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737664,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:55Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737685,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-transferred)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:40:12Z",
+      "completed_at": "2026-11-04T08:17:05Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737715,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, release)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:44:15Z",
+      "completed_at": "2026-11-04T08:44:01Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737746,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-next-attempt)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:58:10Z",
+      "completed_at": "2026-11-04T09:05:53Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737782,
+      "name": "abi2-windows-package-2022",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:22:31Z",
+      "completed_at": "2026-11-04T07:29:32Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737787,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, roster-capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:46:11Z",
+      "completed_at": "2026-11-04T08:31:56Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737794,
+      "name": "proverif-proof",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:31:53Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737820,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:55Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737845,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-account-root)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:47:56Z",
+      "completed_at": "2026-11-04T07:54:38Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737875,
+      "name": "bindings-kotlin",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:24:59Z",
+      "completed_at": "2026-11-04T07:31:44Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737887,
+      "name": "msrv",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:24:08Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737915,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:55Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445737943,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-transferred)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:40:22Z",
+      "completed_at": "2026-11-04T08:14:51Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445738007,
+      "name": "transport",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:23:27Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445738015,
+      "name": "riscv64-run",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:19:59Z",
+      "completed_at": "2026-11-04T07:23:23Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445738046,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:56:55Z",
+      "completed_at": "2026-11-04T08:44:25Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126445738059,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:58:44Z",
+      "completed_at": "2026-11-04T09:00:35Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126448897878,
+      "name": "bindings-android-runtime-minimum",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:15:59Z",
+      "completed_at": "2026-11-04T08:35:49Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126448897959,
+      "name": "bindings-android-runtime-16k",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:21:40Z",
+      "completed_at": "2026-11-04T08:40:31Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126449257872,
+      "name": "policy-maintenance-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:53:27Z",
+      "completed_at": "2026-11-04T07:57:06Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126449257926,
+      "name": "continuity-installed-android-debug",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:29:25Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126449257936,
+      "name": "continuity-installed-rust",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:18:27Z",
+      "completed_at": "2026-11-04T09:28:01Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126449257941,
+      "name": "policy-maintenance-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:17:26Z",
+      "completed_at": "2026-11-04T08:21:07Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126449257971,
+      "name": "continuity-installed-android-release",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:29:25Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126449257992,
+      "name": "continuity-installed-kotlin-release",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:29:25Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126449258002,
+      "name": "policy-maintenance-package (macos-15, aarch64-apple-darwin)",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:29:25Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126449258004,
+      "name": "continuity-installed-kotlin-debug",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:29:25Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126449258020,
+      "name": "continuity-installed-swift-release",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:29:25Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126449258037,
+      "name": "continuity-installed-swift-debug",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T07:29:25Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126477511831,
+      "name": "bindings-android-runtime-replay-api35-16k",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:55:58Z",
+      "completed_at": "2026-11-04T09:01:04Z"
+    },
+    {
+      "run_id": 41791511701,
+      "id": 126477512029,
+      "name": "bindings-android-runtime-replay-api23-4k",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "started_at": "2026-11-04T08:59:22Z",
+      "completed_at": "2026-11-04T09:01:51Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853248,
+      "name": "no_std",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:13:55Z",
+      "completed_at": "2026-11-04T08:15:56Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853390,
+      "name": "cross (x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:55:39Z",
+      "completed_at": "2026-11-04T07:57:52Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853431,
+      "name": "abi2-linux-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:07:39Z",
+      "completed_at": "2026-11-04T08:12:54Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853449,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-account-root)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:00:18Z",
+      "completed_at": "2026-11-04T08:07:12Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853458,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-account-root)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:57:27Z",
+      "completed_at": "2026-11-04T08:04:09Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853473,
+      "name": "abi2-windows-package-2022",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:47:58Z",
+      "completed_at": "2026-11-04T07:58:41Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853524,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:22:55Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853525,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-next-attempt)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:52:35Z",
+      "completed_at": "2026-11-04T08:59:19Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853538,
+      "name": "check",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:01:54Z",
+      "completed_at": "2026-11-04T08:22:26Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853545,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-transferred)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:12:57Z",
+      "completed_at": "2026-11-04T08:47:55Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853549,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-other)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:12:04Z",
+      "completed_at": "2026-11-04T09:41:33Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853559,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-next-attempt)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:48:12Z",
+      "completed_at": "2026-11-04T09:42:19Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853569,
+      "name": "continuity-spqr-reference (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:02:30Z",
+      "completed_at": "2026-11-04T09:15:29Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853590,
+      "name": "Binary CT [aarch64-native]",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:24:03Z",
+      "completed_at": "2026-11-04T07:26:51Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853622,
+      "name": "standard-tls-interop",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:04:12Z",
+      "completed_at": "2026-11-04T08:07:36Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853623,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, roster-capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:12:24Z",
+      "completed_at": "2026-11-04T09:58:34Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853626,
+      "name": "cross-compiler (stable)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:14:32Z",
+      "completed_at": "2026-11-04T08:18:24Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853630,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-transferred)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:11:08Z",
+      "completed_at": "2026-11-04T09:47:59Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853635,
+      "name": "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:08:47Z",
+      "completed_at": "2026-11-04T08:13:32Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853644,
+      "name": "riscv64-run",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:22:29Z",
+      "completed_at": "2026-11-04T08:26:02Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853653,
+      "name": "formal-proof",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:43:55Z",
+      "completed_at": "2026-11-04T08:45:41Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853655,
+      "name": "bindings-android-aar",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:37:31Z",
+      "completed_at": "2026-11-04T08:46:37Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853660,
+      "name": "formal-easycrypt",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:02:22Z",
+      "completed_at": "2026-11-04T09:07:29Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853677,
+      "name": "windows",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:52:22Z",
+      "completed_at": "2026-11-04T08:14:03Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853680,
+      "name": "transport",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:33:35Z",
+      "completed_at": "2026-11-04T08:38:46Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853683,
+      "name": "sidechannel",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:31:15Z",
+      "completed_at": "2026-11-04T08:33:31Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853696,
+      "name": "cross-compiler (nightly)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:49:58Z",
+      "completed_at": "2026-11-04T08:53:17Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853749,
+      "name": "bindings-kotlin",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:15:21Z",
+      "completed_at": "2026-11-04T08:24:53Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853764,
+      "name": "cross (riscv64gc-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:09:54Z",
+      "completed_at": "2026-11-04T09:14:30Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853777,
+      "name": "cross (aarch64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:14:04Z",
+      "completed_at": "2026-11-04T09:17:26Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853778,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-other)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:12:33Z",
+      "completed_at": "2026-11-04T09:39:43Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853784,
+      "name": "fuzz",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:07:32Z",
+      "completed_at": "2026-11-04T09:14:10Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853798,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, roster-capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:14:03Z",
+      "completed_at": "2026-11-04T09:43:16Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853799,
+      "name": "proverif-proof",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:40:13Z",
+      "completed_at": "2026-11-04T08:49:55Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853806,
+      "name": "audit",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:59:28Z",
+      "completed_at": "2026-11-04T09:06:39Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853829,
+      "name": "x86-avx2-candidate",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:09:56Z",
+      "completed_at": "2026-11-04T08:17:04Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853830,
+      "name": "cross-compiler (beta)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:30:42Z",
+      "completed_at": "2026-11-04T08:34:25Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853834,
+      "name": "feature-fence",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:10:19Z",
+      "completed_at": "2026-11-04T09:11:35Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853844,
+      "name": "tamarin-proof",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:43:13Z",
+      "completed_at": "2026-11-04T09:34:33Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853850,
+      "name": "cross (wasm32-unknown-unknown)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:13:35Z",
+      "completed_at": "2026-11-04T08:16:11Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853852,
+      "name": "bindings-wasm",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:14:06Z",
+      "completed_at": "2026-11-04T08:30:39Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853855,
+      "name": "continuity-spqr-reference (macos-15)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T19:49:06Z",
+      "completed_at": "2026-11-04T19:57:40Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853885,
+      "name": "pq-optional-backends",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:46:58Z",
+      "completed_at": "2026-11-04T08:52:00Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853899,
+      "name": "hqc-draft-candidate",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:57:29Z",
+      "completed_at": "2026-11-04T09:02:18Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853903,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:11:38Z",
+      "completed_at": "2026-11-04T10:31:36Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853913,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:12:26Z",
+      "completed_at": "2026-11-04T09:15:42Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853928,
+      "name": "Binary CT [x86_64-portable]",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:06:44Z",
+      "completed_at": "2026-11-04T09:10:16Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853946,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, suite)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:02:21Z",
+      "completed_at": "2026-11-04T09:40:15Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853982,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T16:26:07Z",
+      "completed_at": "2026-11-04T17:33:18Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446853985,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, release)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:52:30Z",
+      "completed_at": "2026-11-04T09:48:24Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446854000,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, release)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:21:42Z",
+      "completed_at": "2026-11-04T08:57:26Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446854025,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, suite)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:53:19Z",
+      "completed_at": "2026-11-04T09:55:21Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446854028,
+      "name": "msrv",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:09:46Z",
+      "completed_at": "2026-11-04T09:12:01Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446854035,
+      "name": "bindings-swift",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T14:48:15Z",
+      "completed_at": "2026-11-04T15:21:49Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446854048,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T19:52:23Z",
+      "completed_at": "2026-11-04T20:25:21Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126446854095,
+      "name": "rust-publish-contract",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:57:59Z",
+      "completed_at": "2026-11-04T09:08:39Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126480103437,
+      "name": "bindings-android-runtime-minimum",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:14:33Z",
+      "completed_at": "2026-11-04T09:34:33Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126480103487,
+      "name": "bindings-android-runtime-16k",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:15:33Z",
+      "completed_at": "2026-11-04T09:24:56Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126489776539,
+      "name": "continuity-installed-rust",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:09:29Z",
+      "completed_at": "2026-11-04T10:09:52Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126489776664,
+      "name": "policy-maintenance-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:08:48Z",
+      "completed_at": "2026-11-04T09:12:21Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126489776722,
+      "name": "continuity-installed-android-release",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:08:40Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126489776768,
+      "name": "policy-maintenance-package (macos-15, aarch64-apple-darwin)",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:08:40Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126489776791,
+      "name": "continuity-installed-kotlin-debug",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:08:40Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126489776821,
+      "name": "continuity-installed-android-debug",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:08:40Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126489776864,
+      "name": "continuity-installed-swift-debug",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:08:40Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126489776883,
+      "name": "policy-maintenance-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:12:50Z",
+      "completed_at": "2026-11-04T09:16:21Z"
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126489776946,
+      "name": "continuity-installed-kotlin-release",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:08:40Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126489776973,
+      "name": "continuity-installed-swift-release",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:08:40Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791861104,
+      "id": 126501940518,
+      "name": "bindings-android-runtime-replay-${{ matrix.profile }}",
+      "status": "completed",
+      "conclusion": "skipped",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:34:34Z",
+      "completed_at": "2026-11-04T09:34:33Z"
+    },
+    {
+      "run_id": 41791861473,
+      "id": 126446844601,
+      "name": "root-unactivated / root (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T14:02:15Z",
+      "completed_at": "2026-11-04T14:16:10Z"
+    },
+    {
+      "run_id": 41791861473,
+      "id": 126446844887,
+      "name": "root-winner / root (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:56:07Z",
+      "completed_at": "2026-11-04T08:09:39Z"
+    },
+    {
+      "run_id": 41791861473,
+      "id": 126446844892,
+      "name": "account-validation (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:47:29Z",
+      "completed_at": "2026-11-04T08:11:15Z"
+    },
+    {
+      "run_id": 41791861473,
+      "id": 126446844899,
+      "name": "root-winner / root (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T18:44:02Z",
+      "completed_at": "2026-11-04T19:01:47Z"
+    },
+    {
+      "run_id": 41791861473,
+      "id": 126446844993,
+      "name": "account-exchange (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T14:34:02Z",
+      "completed_at": "2026-11-04T15:19:59Z"
+    },
+    {
+      "run_id": 41791861473,
+      "id": 126446845001,
+      "name": "account-validation (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T14:32:47Z",
+      "completed_at": "2026-11-04T15:01:49Z"
+    },
+    {
+      "run_id": 41791861473,
+      "id": 126446845068,
+      "name": "root-continuation / root (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T15:33:07Z",
+      "completed_at": "2026-11-04T16:13:16Z"
+    },
+    {
+      "run_id": 41791861473,
+      "id": 126446845104,
+      "name": "root-unactivated / root (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:56:07Z",
+      "completed_at": "2026-11-04T08:05:54Z"
+    },
+    {
+      "run_id": 41791861473,
+      "id": 126446845204,
+      "name": "root-continuation / root (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:58:25Z",
+      "completed_at": "2026-11-04T08:17:20Z"
+    },
+    {
+      "run_id": 41791861473,
+      "id": 126446845249,
+      "name": "account-exchange (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:52:22Z",
+      "completed_at": "2026-11-04T08:15:18Z"
+    },
+    {
+      "run_id": 41791861355,
+      "id": 126446843907,
+      "name": "directory-behavior",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:51:56Z",
+      "completed_at": "2026-11-04T07:55:36Z"
+    },
+    {
+      "run_id": 41791861355,
+      "id": 126446844218,
+      "name": "directory-format",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:57:09Z",
+      "completed_at": "2026-11-04T07:57:24Z"
+    },
+    {
+      "run_id": 41791861381,
+      "id": 126446844946,
+      "name": "continuity-evidence",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:53:08Z",
+      "completed_at": "2026-11-04T07:53:31Z"
+    },
+    {
+      "run_id": 41791861381,
+      "id": 126446845220,
+      "name": "continuity-publication",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:54:42Z",
+      "completed_at": "2026-11-04T07:56:52Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831231,
+      "name": "no_std",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:35:17Z",
+      "completed_at": "2026-11-04T07:37:50Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831250,
+      "name": "rust-publish-contract",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:57:00Z",
+      "completed_at": "2026-11-04T08:07:32Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831266,
+      "name": "x86-avx2-candidate",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:34:04Z",
+      "completed_at": "2026-11-04T07:40:03Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831271,
+      "name": "bindings-swift",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T19:57:44Z",
+      "completed_at": "2026-11-04T20:38:19Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831282,
+      "name": "check",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:28:09Z",
+      "completed_at": "2026-11-04T07:46:31Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831335,
+      "name": "cross (riscv64gc-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:36:03Z",
+      "completed_at": "2026-11-04T07:39:33Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831345,
+      "name": "abi2-linux-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:28:09Z",
+      "completed_at": "2026-11-04T07:33:16Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831351,
+      "name": "abi2-linux-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:29:39Z",
+      "completed_at": "2026-11-04T07:34:19Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831366,
+      "name": "pq-optional-backends",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:43:33Z",
+      "completed_at": "2026-11-04T07:48:54Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831368,
+      "name": "cross-compiler (stable)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:40:06Z",
+      "completed_at": "2026-11-04T07:44:12Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831371,
+      "name": "feature-fence",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:45:54Z",
+      "completed_at": "2026-11-04T07:47:14Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831379,
+      "name": "msrv",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:04:37Z",
+      "completed_at": "2026-11-04T08:08:24Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831381,
+      "name": "proverif-proof",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:46:35Z",
+      "completed_at": "2026-11-04T07:59:12Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831390,
+      "name": "fuzz",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:27:07Z",
+      "completed_at": "2026-11-04T07:34:01Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831392,
+      "name": "cross-compiler (beta)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:34:04Z",
+      "completed_at": "2026-11-04T07:38:26Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831395,
+      "name": "formal-proof",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:10:22Z",
+      "completed_at": "2026-11-04T08:12:30Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831439,
+      "name": "Binary CT [x86_64-portable]",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:37:16Z",
+      "completed_at": "2026-11-04T07:40:08Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831484,
+      "name": "cross (x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:41:26Z",
+      "completed_at": "2026-11-04T07:47:54Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831488,
+      "name": "Binary CT [aarch64-native]",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:22:59Z",
+      "completed_at": "2026-11-04T07:25:30Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831498,
+      "name": "bindings-android-aar",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:48:58Z",
+      "completed_at": "2026-11-04T07:57:55Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831499,
+      "name": "abi2-windows-package-2022",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:32:46Z",
+      "completed_at": "2026-11-04T07:42:43Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831505,
+      "name": "hqc-draft-candidate",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:08:27Z",
+      "completed_at": "2026-11-04T08:14:29Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831509,
+      "name": "windows",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:38:29Z",
+      "completed_at": "2026-11-04T08:01:51Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831513,
+      "name": "transport",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:49:24Z",
+      "completed_at": "2026-11-04T07:52:32Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831566,
+      "name": "cross (aarch64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:07:16Z",
+      "completed_at": "2026-11-04T08:09:53Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831606,
+      "name": "bindings-kotlin",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:36:26Z",
+      "completed_at": "2026-11-04T07:44:16Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831610,
+      "name": "cross (wasm32-unknown-unknown)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:06:52Z",
+      "completed_at": "2026-11-04T08:10:19Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831612,
+      "name": "cross-compiler (nightly)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:17:07Z",
+      "completed_at": "2026-11-04T08:21:36Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831671,
+      "name": "formal-easycrypt",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:17:09Z",
+      "completed_at": "2026-11-04T08:21:49Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831680,
+      "name": "standard-tls-interop",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:44:07Z",
+      "completed_at": "2026-11-04T07:47:25Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831693,
+      "name": "continuity-spqr-reference (macos-15)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T16:35:21Z",
+      "completed_at": "2026-11-04T16:44:48Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831696,
+      "name": "riscv64-run",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:22:40Z",
+      "completed_at": "2026-11-04T08:26:01Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831718,
+      "name": "continuity-spqr-reference (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:54:12Z",
+      "completed_at": "2026-11-04T08:06:48Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831751,
+      "name": "sidechannel",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:02:04Z",
+      "completed_at": "2026-11-04T08:04:34Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831757,
+      "name": "audit",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:39:36Z",
+      "completed_at": "2026-11-04T07:45:51Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446831873,
+      "name": "bindings-wasm",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:49:00Z",
+      "completed_at": "2026-11-04T08:03:14Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832079,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, suite)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:05:57Z",
+      "completed_at": "2026-11-04T09:11:04Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832104,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, suite)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:03:17Z",
+      "completed_at": "2026-11-04T08:40:10Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832154,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:00:39Z",
+      "completed_at": "2026-11-04T10:15:56Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832248,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, release)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T16:22:03Z",
+      "completed_at": "2026-11-04T17:14:52Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832249,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T17:53:26Z",
+      "completed_at": "2026-11-04T18:31:06Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832260,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, roster-capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:11:19Z",
+      "completed_at": "2026-11-04T08:57:04Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832263,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-account-root)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:17:48Z",
+      "completed_at": "2026-11-04T08:24:27Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832265,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:01:54Z",
+      "completed_at": "2026-11-04T10:27:27Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832277,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-transferred)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:33:10Z",
+      "completed_at": "2026-11-04T09:09:50Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832298,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-root-next-attempt)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:12:33Z",
+      "completed_at": "2026-11-04T09:17:26Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832311,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-account-root)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:22:52Z",
+      "completed_at": "2026-11-04T08:29:37Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832324,
+      "name": "continuity-identity-candidate (macos-15, 1.98.1, suite)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T17:49:10Z",
+      "completed_at": "2026-11-04T18:55:08Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832333,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, release)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:35:52Z",
+      "completed_at": "2026-11-04T09:36:31Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832340,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-other)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:29:40Z",
+      "completed_at": "2026-11-04T08:46:34Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832364,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-transferred)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:32:48Z",
+      "completed_at": "2026-11-04T09:13:17Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832377,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, enrollment-other)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:53:20Z",
+      "completed_at": "2026-11-04T09:20:32Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832379,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.90.0, enrollment-root-next-attempt)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:34:28Z",
+      "completed_at": "2026-11-04T09:32:57Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832391,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, release)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:05:57Z",
+      "completed_at": "2026-11-04T10:02:25Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832479,
+      "name": "continuity-identity-candidate (ubuntu-24.04, 1.98.1, roster-capacity)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:44:04Z",
+      "completed_at": "2026-11-04T09:13:59Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126446832956,
+      "name": "tamarin-proof",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:25:28Z",
+      "completed_at": "2026-11-04T09:17:40Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126459839323,
+      "name": "bindings-android-runtime-minimum",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:06:42Z",
+      "completed_at": "2026-11-04T09:23:09Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126459839388,
+      "name": "bindings-android-runtime-16k",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:06:52Z",
+      "completed_at": "2026-11-04T09:24:34Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126463649638,
+      "name": "continuity-installed-rust",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:34:05Z",
+      "completed_at": "2026-11-04T09:38:58Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126463649652,
+      "name": "policy-maintenance-package (macos-15, aarch64-apple-darwin)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T19:43:14Z",
+      "completed_at": "2026-11-04T19:49:02Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126463649730,
+      "name": "continuity-installed-kotlin-debug",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:07:32Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126463649748,
+      "name": "continuity-installed-android-release",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:07:32Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126463649756,
+      "name": "continuity-installed-android-debug",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:07:32Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126463649766,
+      "name": "policy-maintenance-package (ubuntu-22.04-arm, aarch64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:42:01Z",
+      "completed_at": "2026-11-04T08:45:11Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126463649767,
+      "name": "policy-maintenance-package (ubuntu-22.04, x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:40:34Z",
+      "completed_at": "2026-11-04T08:43:10Z"
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126463649783,
+      "name": "continuity-installed-kotlin-release",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:07:32Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126463649821,
+      "name": "continuity-installed-swift-debug",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:07:32Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126463650237,
+      "name": "continuity-installed-swift-release",
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T08:07:33Z",
+      "completed_at": null
+    },
+    {
+      "run_id": 41791854684,
+      "id": 126497222021,
+      "name": "bindings-android-runtime-replay-${{ matrix.profile }}",
+      "status": "completed",
+      "conclusion": "skipped",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T09:24:35Z",
+      "completed_at": "2026-11-04T09:24:34Z"
+    },
+    {
+      "run_id": 41791854739,
+      "id": 126446824462,
+      "name": "account-validation (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T14:02:04Z",
+      "completed_at": "2026-11-04T14:32:38Z"
+    },
+    {
+      "run_id": 41791854739,
+      "id": 126446824712,
+      "name": "account-exchange (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T14:32:51Z",
+      "completed_at": "2026-11-04T15:18:01Z"
+    },
+    {
+      "run_id": 41791854739,
+      "id": 126446824800,
+      "name": "account-exchange (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:24:40Z",
+      "completed_at": "2026-11-04T07:52:19Z"
+    },
+    {
+      "run_id": 41791854739,
+      "id": 126446824801,
+      "name": "root-continuation / root (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:32:17Z",
+      "completed_at": "2026-11-04T07:53:23Z"
+    },
+    {
+      "run_id": 41791854739,
+      "id": 126446824851,
+      "name": "root-continuation / root (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T15:01:53Z",
+      "completed_at": "2026-11-04T15:35:40Z"
+    },
+    {
+      "run_id": 41791854739,
+      "id": 126446824853,
+      "name": "root-winner / root (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:37:54Z",
+      "completed_at": "2026-11-04T07:49:21Z"
+    },
+    {
+      "run_id": 41791854739,
+      "id": 126446824890,
+      "name": "account-validation (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:27:18Z",
+      "completed_at": "2026-11-04T07:54:06Z"
+    },
+    {
+      "run_id": 41791854739,
+      "id": 126446824957,
+      "name": "root-unactivated / root (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T14:33:43Z",
+      "completed_at": "2026-11-04T14:48:11Z"
+    },
+    {
+      "run_id": 41791854739,
+      "id": 126446824987,
+      "name": "root-unactivated / root (ubuntu-24.04, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T07:33:42Z",
+      "completed_at": "2026-11-04T07:41:22Z"
+    },
+    {
+      "run_id": 41791854739,
+      "id": 126446825076,
+      "name": "root-winner / root (macos-15, arm64)",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "started_at": "2026-11-04T14:11:47Z",
+      "completed_at": "2026-11-04T14:33:39Z"
+    }
+  ],
+  "run_status": [
+    {
+      "id": 41791519877,
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "created_at": "2026-11-04T07:19:59Z",
+      "updated_at": "2026-11-04T07:19:59Z",
+      "run_started_at": "2026-11-04T07:19:59Z",
+      "run_attempt": 1,
+      "event": "pull_request"
+    },
+    {
+      "id": 41791511701,
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "475cd23923e45819b01b6041c91c44540ec056ec",
+      "created_at": "2026-11-04T07:19:54Z",
+      "updated_at": "2026-11-04T07:19:54Z",
+      "run_started_at": "2026-11-04T07:19:54Z",
+      "run_attempt": 1,
+      "event": "push"
+    },
+    {
+      "id": 41791861104,
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "created_at": "2026-11-04T07:22:52Z",
+      "updated_at": "2026-11-04T07:22:55Z",
+      "run_started_at": "2026-11-04T07:22:52Z",
+      "run_attempt": 1,
+      "event": "pull_request"
+    },
+    {
+      "id": 41791854684,
+      "status": "queued",
+      "conclusion": null,
+      "head_sha": "6084f3bfb09333f6b66291b38809ed512296a27b",
+      "created_at": "2026-11-04T07:22:49Z",
+      "updated_at": "2026-11-04T07:22:51Z",
+      "run_started_at": "2026-11-04T07:22:49Z",
+      "run_attempt": 1,
+      "event": "push"
+    }
+  ],
+  "scope": "Existing effective wave at old PR heads 475cd239 and 6084f3bf; does not qualify local implementation f560d803 or source 4effa8b2. Queued jobs are not passes. No new wave, retry, push or cancellation was triggered."
+}

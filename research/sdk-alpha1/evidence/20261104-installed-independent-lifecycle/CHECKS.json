@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "observed_at_utc": "2026-11-04T10:23:55.244736+00:00",
+  "source_commit": "6ce866b31088b3215bcc24bcfef84b4075ff5907",
+  "sdk_base_commit": "6084f3bfb09333f6b66291b38809ed512296a27b",
+  "sdk_report_sha256": "d9cd990bf3dc6a731ec09b659fdc38f3f3cbc17b2f035b09e5e61094cbc11885",
+  "native_sha256": "f7fe7507bdd539b4404709b45df207869b5d06ecfc1f62f979c866e01f8437a8",
+  "wheel_sha256": "596bba62781296558a64d768a12ed618043b8cf3e14070cdf81c2ed423d3a094",
+  "candidate_archive_sha256": "e0d32e8e142a386147a88d9d4fd4eac42efb472a9c691c9405055ad69318f993",
+  "host": {
+    "os": "Darwin",
+    "arch": "arm64"
+  },
+  "provider": {
+    "cryptography": "48.0.1",
+    "openssl": "OpenSSL 4.0.1 9 Jun 2026"
+  },
+  "same_native_build_and_runtime": true,
+  "current_source_inputs_match": {
+    "builder": 26,
+    "runtime": 239
+  },
+  "runtime_commands": [
+    "shared_account_checks",
+    "roster-capacity",
+    "roster_boundary_checks",
+    "local_policy_checks",
+    "directory-cli",
+    "policy-composition-capacity",
+    "roster-revocation",
+    "shared-witness-expiry",
+    "local_policy_boundary_checks",
+    "witness_policy_boundary_checks",
+    "registration",
+    "client-session",
+    "one-time-publication",
+    "peer-intermediate",
+    "directory-lease",
+    "shared-pending",
+    "witness_policy_checks",
+    "probe",
+    "roster_refresh_checks",
+    "policy-composition",
+    "extension-session",
+    "shared-migration",
+    "account-boundary",
+    "witness_account_checks",
+    "install"
+  ],
+  "runtime_command_count": 25,
+  "commands_using_installed_native": 22,
+  "runtime_commands_exit_zero": true,
+  "runtime_command_stderr_empty": true,
+  "failed_builder_retained": {
+    "source_commit": "0fa0e17d88c38136050df0d2441e21f0f51ad48a",
+    "native_build_exit": 0,
+    "clippy_exit": 101,
+    "error": "E0514: Rust 1.98.1 metadata read by Clippy Rust 1.99.1"
+  },
+  "build_and_clippy_passed": true,
+  "clippy_versions": {
+    "driver": "clippy 0.1.98 (48a229ceae 2026-09-01)",
+    "frontend": "clippy 0.1.98 (48a229ceae 2026-09-01)"
+  },
+  "targeted_package_tests": 9,
+  "independent_artifact_tests": 58,
+  "directory_cli_public_files": 15,
+  "directory_cli_producer_scope": "source-built real CLI; same Release public byte set as earlier P2 checkpoint",
+  "scope": "Full existing installed Python registered-owner runner against a genuinely installed Rust crate counterpart; same-host Apple Silicon; individual scenario limits retained in original reports.",
+  "not_qualified": [
+    "all other independent source-only scenarios",
+    "cross-host path",
+    "other platforms",
+    "formal product ABI 2 admission",
+    "final release candidate"
+  ],
+  "release_claim_eligible": false,
+  "documentation_readback": {
+    "archive_member": "documentation/DOCUMENTATION_READBACK.json",
+    "new_document_local_links_resolve": true,
+    "full_readiness_link_check_passed": false,
+    "legacy_missing_count": 50,
+    "all_already_missing_in_starting_tree": true
+  }
+}

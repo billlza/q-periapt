@@ -1,0 +1,595 @@
+{
+  "schema": 1,
+  "scope": "Stored generation and encapsulation reservation source analysis; complete origin and recovery theorems remain open",
+  "source_base_commit": "023367675c000b1c781a243ca79170ad72a1caeb",
+  "parent_capture": "../20261028-response-source-origin/CAPTURE.zip",
+  "parent_sha256": "3c8f8c0548a33f4a845980b147f03782e117b4c448cdc19d6716133f0fc8c442",
+  "entry": "experiments/p0-origin-stored-reservation-replay-713/stored-reservation-replay-proof.spthy",
+  "entry_sha256": "e43ce04aacc0e10e97b39425752abde81e77ff30b15bec08363f80dfc2e77fe9",
+  "operational_prefix_sha256": "3cb837646fa2097468d1fad0a10433f50d5c31b6be5553f20085170c3eef0266",
+  "unchanged_queries": 29,
+  "query_definitions_sha256": "88dee7ec275af1bd7d031844a8ca4240eed50b846174eb87970b928d96612ee1",
+  "closed_sources": [
+    "Application_Message",
+    "Cut_case_1",
+    "Cut_case_2",
+    "Final_Commit_8",
+    "Offer_Commit_3_case_1",
+    "Offer_Commit_3_case_2",
+    "Receipt_Commit_0",
+    "Response_Commit_6",
+    "Reveal_Entropy",
+    "Reveal_Identity",
+    "Snapshot_Signer_File_case_1",
+    "Snapshot_Signer_File_case_2",
+    "Snapshot_Signer_File_case_3",
+    "Snapshot_case_1",
+    "Snapshot_case_2",
+    "Snapshot_case_3",
+    "Snapshot_case_4"
+  ],
+  "remaining_sources": [
+    "Snapshot_case_5"
+  ],
+  "snapshot_producer_open_counts": {
+    "Final_Commit_8": 3,
+    "Final_Reservation_7": 3,
+    "Key_Reservation_1": 4,
+    "Offer_Commit_3": 3,
+    "Offer_Signing_2": 3,
+    "Receipt_Accept_0": 2,
+    "Receipt_Commit_0": 2,
+    "Receipt_Reservation_9": 3,
+    "Response_Commit_6": 3,
+    "Response_Compute_5": 3,
+    "Response_Reservation_4": 6
+  },
+  "open_leaf_count": 35,
+  "main": {
+    "mode": "all-traces",
+    "status": "analysis incomplete",
+    "steps": 266
+  },
+  "unchanged_producer_hashes": {
+    "Final_Commit_8": "627825e24f2553725c4fadbd8ad3d03b7eb746cdded5a4515e4fbfa7c6cb8288",
+    "Final_Reservation_7": "3f62d0d0ba7a48486d75ceb4c59fffb6041fcf2cb2fdd5e1bbf4b4099ff2787b",
+    "Offer_Commit_3": "e7ff181b59430ce7d903b615e8579e70832c0cb44d4faa43d1be247a63f9920f",
+    "Offer_Signing_2": "146fa6a257df4f9bc2d7bd8f48bc28bfb6f1cc85583c76d205d75cc2223cd3f7",
+    "Receipt_Accept_0": "f46c04589716bdba6e686cc67078da925409183610973d9cd9b66c894b524023",
+    "Receipt_Commit_0": "8d95ae1eb4b793b1e541fc7fdb7e9fc3bdf06548b7ba50f9795552d9bc4e1062",
+    "Receipt_Reservation_9": "9b19384c0bfa78f54d82686a741865afef63e2220490653008ec8c7679d391c2",
+    "Response_Commit_6": "845de3bedde8de5a3c2476939a1307d51371b75e8ba5fd9a846bbbfa9b07eaeb",
+    "Response_Compute_5": "5be7704241cfeb2ff3ccbfd73498d83a43069e3776976bbcd861ad2dddf49fce"
+  },
+  "auxiliary_all_trace_verified": {
+    "application_counter_has_public_constructor": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 17
+    },
+    "first_responder_ready_event_is_unique": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 285
+    },
+    "generation_and_encapsulation_secrets_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "generation_and_session_identifiers_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "generation_and_signing_secrets_are_distinct": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 1
+    },
+    "phase_position_event_is_unique": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 29
+    },
+    "produced_counter_has_public_constructor": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 35
+    },
+    "produced_send_root_is_initial_or_hashed": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 55
+    },
+    "produced_state_role_and_epoch_have_public_constructors": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 191
+    },
+    "ready_epoch_and_parent_have_public_constructors": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 12
+    },
+    "ready_parent_has_tagged_epoch_origin": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 12
+    },
+    "ready_root_is_initial_or_hashed": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 11
+    },
+    "reservations_inherit_locally_confirmed_root": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 14
+    },
+    "signed_wire_scope_has_session_and_parent_origin": {
+      "mode": "all-traces",
+      "status": "verified",
+      "steps": 47
+    }
+  },
+  "initial_traffic_witness_steps": 414,
+  "method_provenance_and_restoration": {
+    "full_parent_sha256": "17388a2c9dee3d9c3ca497b6bf3f08bdb1f3b070a06f11117dfe89bf8e9843ac",
+    "capture_sha256": "236e87ece2913c55627a1b119541723ab9a32921212498bcab9a2df3d87ee608",
+    "input_sha256": "5d430f6acfba075c3445e64f7c7e251602e226993c1a06f55330fede554c7497",
+    "actual_selected_methods": [
+      {
+        "producer": "Key_Reservation_1",
+        "frame_index": 2,
+        "frame": "0002.txt",
+        "frame_sha256": "883fc7eb409b4ab23003041a16302bc6596694c26274b79517b69108cce5d4be",
+        "method": "(#vr.10, 0) ~~> (#known, 0)",
+        "reason": "actual unique knowledge chain"
+      },
+      {
+        "producer": "Key_Reservation_1",
+        "frame_index": 3,
+        "frame": "0003.txt",
+        "frame_sha256": "2beb94a8205020b4e8aeeedcdbee413ce64ee68f6c37d2ec065dccdb35862217",
+        "method": "(#vr.10, 0) ~~> (#known, 0)",
+        "reason": "actual unique knowledge chain"
+      },
+      {
+        "producer": "Key_Reservation_1",
+        "frame_index": 4,
+        "frame": "0004.txt",
+        "frame_sha256": "d191c3239c7e90c7b3130931a1eb05a8cb443a998d552bdc157500aba7baa20e",
+        "method": "(#vr.10, 0) ~~> (#known, 0)",
+        "reason": "actual unique knowledge chain"
+      },
+      {
+        "producer": "Key_Reservation_1",
+        "frame_index": 5,
+        "frame": "0005.txt",
+        "frame_sha256": "cf3a10fb3a1d00acf0a3c87ad70079ab86920dc3af464105a8f801b61ba128c7",
+        "method": "PositionedPhaseState( phase_owner.1, s.1, role, %n.1, 'Ready',                      <parent.1, old.1, role>, %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.8",
+        "reason": "actual old-root Ready producer premise"
+      },
+      {
+        "producer": "Key_Reservation_1",
+        "frame_index": 6,
+        "frame": "0006.txt",
+        "frame_sha256": "9e906415f6e1b3c489e09c678dc7046f74126227ebeb441cba019da91cabbdc5",
+        "method": "(#vr.11, 0) ~~> (#known, 0)",
+        "reason": "actual unique knowledge chain"
+      },
+      {
+        "producer": "Response_Reservation_4",
+        "frame_index": 14,
+        "frame": "0014.txt",
+        "frame_sha256": "5cd3d93d443c992c2abe8b4bf482dd6ecee391fe0bdcdb88b1b8f8074063f427",
+        "method": "(#vr.15, 0) ~~> (#known, 0)",
+        "reason": "actual unique knowledge chain"
+      },
+      {
+        "producer": "Response_Reservation_4",
+        "frame_index": 15,
+        "frame": "0015.txt",
+        "frame_sha256": "6d7c090f3afc5ef3286ef763ff3f9fc63b77930c6343cf46a1fbd3e1dacd5b42",
+        "method": "(#vr.15, 0) ~~> (#known, 0)",
+        "reason": "actual unique knowledge chain"
+      },
+      {
+        "producer": "Response_Reservation_4",
+        "frame_index": 16,
+        "frame": "0016.txt",
+        "frame_sha256": "bf10921e526b5fee5f27d2eb2bcd82f5f5ea3c696cfcfc544f6a43374817a440",
+        "method": "(#vr.15, 0) ~~> (#known, 0)",
+        "reason": "actual unique knowledge chain"
+      },
+      {
+        "producer": "Response_Reservation_4",
+        "frame_index": 17,
+        "frame": "0017.txt",
+        "frame_sha256": "69e55178280687888fe0405f36cb67279e18f779d305750fd916bf4d7c518197",
+        "method": "(#vr.15, 0) ~~> (#known, 0)",
+        "reason": "actual unique knowledge chain"
+      },
+      {
+        "producer": "Response_Reservation_4",
+        "frame_index": 18,
+        "frame": "0018.txt",
+        "frame_sha256": "973e17670af2c00ab87a56f29126a0e4c5889359b5d7e7b02154ba2bb1a38ae7",
+        "method": "PositionedPhaseState( phase_owner.1, ~sid, role, %n.1, 'Ready',                      <parent.1, old.1, p.1>, %phase_step_count.1)[no_precomp] \u25b6\u2080 #vr.8",
+        "reason": "actual old-root Ready producer premise"
+      },
+      {
+        "producer": "Response_Reservation_4",
+        "frame_index": 19,
+        "frame": "0019.txt",
+        "frame_sha256": "4d50a00e6fa738677fbe71d5b6632c8c73bbca3fddda73d8c32100b0525cb7b3",
+        "method": "(#vr.16, 0) ~~> (#known, 0)",
+        "reason": "actual unique knowledge chain"
+      }
+    ],
+    "restored_unselected_producers": [
+      {
+        "producer": "Final_Commit_8",
+        "sha256": "627825e24f2553725c4fadbd8ad3d03b7eb746cdded5a4515e4fbfa7c6cb8288",
+        "open_leaves": 3
+      },
+      {
+        "producer": "Final_Reservation_7",
+        "sha256": "3f62d0d0ba7a48486d75ceb4c59fffb6041fcf2cb2fdd5e1bbf4b4099ff2787b",
+        "open_leaves": 3
+      },
+      {
+        "producer": "Offer_Commit_3",
+        "sha256": "e7ff181b59430ce7d903b615e8579e70832c0cb44d4faa43d1be247a63f9920f",
+        "open_leaves": 3
+      },
+      {
+        "producer": "Offer_Signing_2",
+        "sha256": "146fa6a257df4f9bc2d7bd8f48bc28bfb6f1cc85583c76d205d75cc2223cd3f7",
+        "open_leaves": 3
+      },
+      {
+        "producer": "Receipt_Accept_0",
+        "sha256": "f46c04589716bdba6e686cc67078da925409183610973d9cd9b66c894b524023",
+        "open_leaves": 2
+      },
+      {
+        "producer": "Receipt_Commit_0",
+        "sha256": "8d95ae1eb4b793b1e541fc7fdb7e9fc3bdf06548b7ba50f9795552d9bc4e1062",
+        "open_leaves": 2
+      },
+      {
+        "producer": "Receipt_Reservation_9",
+        "sha256": "9b19384c0bfa78f54d82686a741865afef63e2220490653008ec8c7679d391c2",
+        "open_leaves": 3
+      },
+      {
+        "producer": "Response_Commit_6",
+        "sha256": "845de3bedde8de5a3c2476939a1307d51371b75e8ba5fd9a846bbbfa9b07eaeb",
+        "open_leaves": 3
+      },
+      {
+        "producer": "Response_Compute_5",
+        "sha256": "5be7704241cfeb2ff3ccbfd73498d83a43069e3776976bbcd861ad2dddf49fce",
+        "open_leaves": 3
+      }
+    ],
+    "all18_sources_11stored_producers_29queries_retained": true,
+    "all17_closed_sources_retained_byte_equal": true,
+    "operational_prefix_unchanged": true,
+    "independent_replay_no_search_or_oracle": true,
+    "maximum_explicit_prefix": 7,
+    "total_depth_limit": 16,
+    "release_claim_eligible": false
+  },
+  "experiments": {
+    "p0-origin-stored-reservations-713": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 312.72133462499914,
+      "main": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 195
+      },
+      "input_sha256": "bdcc2f24755e9615d9e7248b3f4c4cfcb6f1d463ba30e373794bd2c7a4c16657",
+      "output_sha256": "236e87ece2913c55627a1b119541723ab9a32921212498bcab9a2df3d87ee608",
+      "captured_frontiers": 20,
+      "search_requested": true
+    },
+    "p0-origin-stored-reservation-replay-713": {
+      "prover_exit": 0,
+      "driver_exit": 1,
+      "accepted": false,
+      "seconds": 302.62783304100594,
+      "main": {
+        "mode": "all-traces",
+        "status": "analysis incomplete",
+        "steps": 266
+      },
+      "input_sha256": "5d430f6acfba075c3445e64f7c7e251602e226993c1a06f55330fede554c7497",
+      "output_sha256": "e43ce04aacc0e10e97b39425752abde81e77ff30b15bec08363f80dfc2e77fe9",
+      "captured_frontiers": 0,
+      "search_requested": false
+    }
+  },
+  "resources": {
+    "seconds_per_run": 900,
+    "derivation_seconds": 60,
+    "heap_gib": 12,
+    "threads": 1,
+    "capture_callbacks_limit": 32,
+    "capture_prefix": 6,
+    "remaining_search_bound": 10,
+    "total_search_depth_limit": 16,
+    "next_open_prefix_maximum": 7,
+    "next_remaining_search_bound": 9
+  },
+  "boundaries": [
+    "Seven parent-origin leaves close. Nine recorded knowledge-chain methods and two Ready-producer methods also expose new old-root, fresh-key and payload leaves; total36to35 is not a theorem completion percentage.",
+    "All18sources,11Storedproducers,29queries and protocol rules retained. Nine unselected checked subtrees are restored byte-identically.",
+    "No full recovery secrecy, reachability, implementation, physical-device, power-loss, ABI, performance or release claim."
+  ],
+  "full_goal_achieved": false,
+  "release_claim_eligible": false,
+  "files": {
+    "experiments/p0-origin-stored-reservation-replay-713/PREPARATION.json": {
+      "bytes": 5560,
+      "sha256": "728e8005588f5ef5aaae93fa024bcde81e98df5d39fe1632866195903e9c02fe"
+    },
+    "experiments/p0-origin-stored-reservation-replay-713/model.spthy": {
+      "bytes": 401639,
+      "sha256": "5d430f6acfba075c3445e64f7c7e251602e226993c1a06f55330fede554c7497"
+    },
+    "experiments/p0-origin-stored-reservation-replay-713/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "experiments/p0-origin-stored-reservation-replay-713/stored-reservation-replay-STARTED.json": {
+      "bytes": 1638,
+      "sha256": "3eeb6502e23b74c7b2ef507b089f2132dceb525c8ff4cfcb59f4283951d8d5fc"
+    },
+    "experiments/p0-origin-stored-reservation-replay-713/stored-reservation-replay-TERMINAL.json": {
+      "bytes": 6004,
+      "sha256": "d08255f4d1d888bc7512e7745a9945daebd2694f4f9d65c3636e009023896955"
+    },
+    "experiments/p0-origin-stored-reservation-replay-713/stored-reservation-replay-proof.spthy": {
+      "bytes": 402425,
+      "sha256": "e43ce04aacc0e10e97b39425752abde81e77ff30b15bec08363f80dfc2e77fe9"
+    },
+    "experiments/p0-origin-stored-reservation-replay-713/stored-reservation-replay.stderr": {
+      "bytes": 1595,
+      "sha256": "603787f4647c4cb1eff337ad8615cd99d5f59ccc109c3a75934de4575fc2f3b8"
+    },
+    "experiments/p0-origin-stored-reservation-replay-713/stored-reservation-replay.stdout": {
+      "bytes": 3091,
+      "sha256": "cc4e1344e4bb66f6a1c8f07fab6a2c0890ca6cbcdf6c8842a51032f66c20d30a"
+    },
+    "experiments/p0-origin-stored-reservations-713/PREPARATION.json": {
+      "bytes": 2259,
+      "sha256": "0a303c7b631c4330c958e965b6d326f1f613866785294a08bb8755ac190bd74a"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0000.json": {
+      "bytes": 377,
+      "sha256": "4ebcf13163b304cc1773c48cb104038e322fca59e9f3a05297cf3c5a38cd67e9"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0000.txt": {
+      "bytes": 2495,
+      "sha256": "75b0b0db6fdbd1ade3c220a71b85f9ce5a113a1ec8044e60b68c96a10a028c81"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0001.json": {
+      "bytes": 417,
+      "sha256": "16d567eace3a24ddc5184e695e60122634f4b6a82f337377c26a886450b3a9a2"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0001.txt": {
+      "bytes": 2644,
+      "sha256": "f281c1eeb8371084fa998fdb473afa17cb197deeea436564b9c03295e968cc6b"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0002.json": {
+      "bytes": 377,
+      "sha256": "8e10e934be78f7db384f7947b62a9ad6df31c2eaa3cb56d26ffaa94f00d927e6"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0002.txt": {
+      "bytes": 2154,
+      "sha256": "883fc7eb409b4ab23003041a16302bc6596694c26274b79517b69108cce5d4be"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0003.json": {
+      "bytes": 385,
+      "sha256": "cbc4f795f6facefc3bdf1d03faeb60766b41a0d4ca56c73e91198c7b20865f86"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0003.txt": {
+      "bytes": 2603,
+      "sha256": "2beb94a8205020b4e8aeeedcdbee413ce64ee68f6c37d2ec065dccdb35862217"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0004.json": {
+      "bytes": 308,
+      "sha256": "6cd6a8d1059aa67f06887c13ac763a4e75b9d2fdd72036deb95479783011ca82"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0004.txt": {
+      "bytes": 1072,
+      "sha256": "d191c3239c7e90c7b3130931a1eb05a8cb443a998d552bdc157500aba7baa20e"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0005.json": {
+      "bytes": 300,
+      "sha256": "66a6061e71a570e064bdcea38c006e6258a04942bb2d731ab8dd3d1a8cbbcf1f"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0005.txt": {
+      "bytes": 921,
+      "sha256": "cf3a10fb3a1d00acf0a3c87ad70079ab86920dc3af464105a8f801b61ba128c7"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0006.json": {
+      "bytes": 307,
+      "sha256": "429a87d36c6361cfd3d93291cf74d28c3a3d9d745a1be78ab3c5defaa7c90156"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0006.txt": {
+      "bytes": 952,
+      "sha256": "9e906415f6e1b3c489e09c678dc7046f74126227ebeb441cba019da91cabbdc5"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0007.json": {
+      "bytes": 329,
+      "sha256": "3f1184ae5addc87dfd1aec195d47c7b340aed1bbee872139d35d23f20a2d2238"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0007.txt": {
+      "bytes": 2503,
+      "sha256": "76bfee11a047424dfb090315d9d023bc01b8aded5e6d5d1fab6c59a87c07d28d"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0008.json": {
+      "bytes": 307,
+      "sha256": "7de63062bdcbd3160320f9760f92f9399d03dd08ec6d0261b218a53110b2e028"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0008.txt": {
+      "bytes": 953,
+      "sha256": "7cf228160b2a7e94bc74cf2d4e0953c605322361797c0383800b0d695b1f42a3"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0009.json": {
+      "bytes": 369,
+      "sha256": "f289f680043b911fe1215203d3fba6156a7ab80148c715c523a8339d72b4866d"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0009.txt": {
+      "bytes": 2060,
+      "sha256": "44613c89a41436c872b2ac17006e08770447317bd299935fdd95a6ac995f43a7"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0010.json": {
+      "bytes": 377,
+      "sha256": "896d2c02ea1c6f9cbb9cd831c265781c88c495e8e57cd257bcb6090b18f070ff"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0010.txt": {
+      "bytes": 2537,
+      "sha256": "f3701a12af87c5c4dd61dfcc4e751611690e47262eb517ebb3013a9bdd3294e6"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0011.json": {
+      "bytes": 409,
+      "sha256": "a53e23882f76166dd17b80d06b1791d17609a5d2f54cf3fbbbce71cc6118174e"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0011.txt": {
+      "bytes": 2362,
+      "sha256": "43f1d3bda31bbb6f0e624bf2b81de9d6e3316df5ed672a88e6dddbe9eeb1f7ba"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0012.json": {
+      "bytes": 361,
+      "sha256": "d82a95c9e05042851065b9dd710cf2b098821711c627f2b983ee4d25bb32100a"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0012.txt": {
+      "bytes": 2501,
+      "sha256": "02bd8e2dd41250ccef8e1956266f85df7058d42c18092b3733979e9e800826eb"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0013.json": {
+      "bytes": 315,
+      "sha256": "0eff778716d990929c12677bd43bb6e6ed52d27cbc77baaf742704f12ff822c5"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0013.txt": {
+      "bytes": 1255,
+      "sha256": "4d714b0c045d57c94e01d94d6fe2ce98d1f6afa9435c13ab976007c42160d997"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0014.json": {
+      "bytes": 409,
+      "sha256": "07a233c069db1b5855e797b27fed2102e65abce439178e2bdc8905e63ffcd45f"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0014.txt": {
+      "bytes": 4349,
+      "sha256": "5cd3d93d443c992c2abe8b4bf482dd6ecee391fe0bdcdb88b1b8f8074063f427"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0015.json": {
+      "bytes": 385,
+      "sha256": "8188d5ae335d2384f40804d8a911612a167f26c883c09e1523682c5e7ae8e768"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0015.txt": {
+      "bytes": 2934,
+      "sha256": "6d7c090f3afc5ef3286ef763ff3f9fc63b77930c6343cf46a1fbd3e1dacd5b42"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0016.json": {
+      "bytes": 337,
+      "sha256": "f43c6aecc4025ab651b7a3c98d5ae71867cc8f9356f855572f5e64849a9d6731"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0016.txt": {
+      "bytes": 1441,
+      "sha256": "bf10921e526b5fee5f27d2eb2bcd82f5f5ea3c696cfcfc544f6a43374817a440"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0017.json": {
+      "bytes": 337,
+      "sha256": "2183511c871057925630b71a8a917abac6a884e3e887bec3019e5d599a71b917"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0017.txt": {
+      "bytes": 1441,
+      "sha256": "69e55178280687888fe0405f36cb67279e18f779d305750fd916bf4d7c518197"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0018.json": {
+      "bytes": 337,
+      "sha256": "1ef531a0cbf0d8ed83f41ef1d611ecee1594673ca695817c742395a48f994161"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0018.txt": {
+      "bytes": 1500,
+      "sha256": "973e17670af2c00ab87a56f29126a0e4c5889359b5d7e7b02154ba2bb1a38ae7"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0019.json": {
+      "bytes": 345,
+      "sha256": "82b85d7e7939a12a6a67296a66eff0168997bf582dd7a1af555ff63185147823"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle-frames/0019.txt": {
+      "bytes": 1532,
+      "sha256": "4d50a00e6fa738677fbe71d5b6632c8c73bbca3fddda73d8c32100b0525cb7b3"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle.diagnostic-stop": {
+      "bytes": 27,
+      "sha256": "dd68d7b5191957984a0e516ce6e16769b5a45b1e975bd161bde0f6102561e087"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle.lock": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle.py": {
+      "bytes": 2318,
+      "sha256": "a2c40cb451ad0e8f52f650ef4ceed6f0a2a6f654dd7b583f5fd8b7bf2c860101"
+    },
+    "experiments/p0-origin-stored-reservations-713/initial-send-oracle.sh": {
+      "bytes": 323,
+      "sha256": "f4b515e4f8c2ce6104832519e205df4c202204c4c0377c0bb5e0f840851e8d9d"
+    },
+    "experiments/p0-origin-stored-reservations-713/model.spthy": {
+      "bytes": 395104,
+      "sha256": "bdcc2f24755e9615d9e7248b3f4c4cfcb6f1d463ba30e373794bd2c7a4c16657"
+    },
+    "experiments/p0-origin-stored-reservations-713/run.py": {
+      "bytes": 5793,
+      "sha256": "482633af8086a0198c09db1ab6b7eeb5d4910602a3f852e7a765e1108d3c2d23"
+    },
+    "experiments/p0-origin-stored-reservations-713/stored-reservations-STARTED.json": {
+      "bytes": 1894,
+      "sha256": "f32fec0c5506fb90a6249473b10bdaccf5a93ce7ec2fdd2d3c6314992006efff"
+    },
+    "experiments/p0-origin-stored-reservations-713/stored-reservations-TERMINAL.json": {
+      "bytes": 6262,
+      "sha256": "5c4b788966174b1d02169488863f886cbe48ef751d21c20f1ce3f4e802891237"
+    },
+    "experiments/p0-origin-stored-reservations-713/stored-reservations-proof.spthy": {
+      "bytes": 395844,
+      "sha256": "236e87ece2913c55627a1b119541723ab9a32921212498bcab9a2df3d87ee608"
+    },
+    "experiments/p0-origin-stored-reservations-713/stored-reservations.stderr": {
+      "bytes": 44184,
+      "sha256": "561538e4a30577d576b248dd22ddc94aaf85c32d787d36de13e759e2bad669f2"
+    },
+    "experiments/p0-origin-stored-reservations-713/stored-reservations.stdout": {
+      "bytes": 3073,
+      "sha256": "bb60bf87b765613d644991ae7a5f473f9cfb7c94565fccfce753d4bcaa396622"
+    },
+    "parent/entry.spthy": {
+      "bytes": 401044,
+      "sha256": "17388a2c9dee3d9c3ca497b6bf3f08bdb1f3b070a06f11117dfe89bf8e9843ac"
+    },
+    "preparation/prepare-stored-reservation-frontiers-713.py": {
+      "bytes": 3780,
+      "sha256": "c23defd5dfda65d36f1109664640090acefdd6d622c190e75eb2ee29e5c058cb"
+    },
+    "preparation/prepare-stored-reservation-replay-713.py": {
+      "bytes": 5085,
+      "sha256": "7ca6c08a5299be941b39afb153e2da172be49d83058fdc250534a91ab6d941cc"
+    },
+    "tools/P0_PINNED_PROVER_IDENTITY.json": {
+      "bytes": 974,
+      "sha256": "f6e18705fdaf213d556237ca67fcab123e1b6f3ee4eca05aa69c5e70e7329459"
+    }
+  }
+}

@@ -37,7 +37,7 @@ impl TrustedClockV2 for FakeClock {
 // has no protected-store implementation on other platforms anyway.
 #[cfg(unix)]
 #[test]
-fn a_failed_provision_leaves_the_path_retryable() -> TestResult {
+fn a_failed_provision_preserves_state_without_implicit_replacement() -> TestResult {
     use std::os::unix::fs::PermissionsExt;
 
     // `open_private_file` requires an owner-only parent and refuses to
@@ -63,16 +63,9 @@ fn a_failed_provision_leaves_the_path_retryable() -> TestResult {
     )
     .is_err());
 
-    // The half-provisioned file must not survive. Creation is
-    // O_CREAT|O_EXCL, so a leftover makes every later provision fail with
-    // EEXIST while `open` rejects the store it finds -- one transient
-    // failure would brick the path forever.
-    assert!(
-        !path.exists(),
-        "a failed provision left its store file behind"
-    );
-
-    // And the path is genuinely reusable, not merely tidy.
+    // Failure after file admission is not proof of absence. Retain the partial
+    // state for explicit diagnosis, and never turn a retry into replacement.
+    let retained = std::fs::read(&path)?;
     let working = FakeClock::new(100);
     let retried = AuthorityStoreV2::provision_with_clock_for_test(
         &path,
@@ -81,7 +74,14 @@ fn a_failed_provision_leaves_the_path_retryable() -> TestResult {
         limits(8, 4, 4)?,
         &working,
     );
-    assert!(retried.is_ok(), "retry failed: {:?}", retried.err());
+    assert!(matches!(
+        retried,
+        Err(AuthorityStoreErrorV2::InsecureOrMissingStore)
+    ));
+    assert_eq!(std::fs::read(&path)?, retained);
+    // A refused redb open may update its own recovery header. Test the exclusive
+    // provisioning comparison before that independent storage-engine operation.
+    assert!(AuthorityStoreV2::open(&path).is_err());
     Ok(())
 }
 

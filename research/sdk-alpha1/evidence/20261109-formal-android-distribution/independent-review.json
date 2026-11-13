@@ -1,0 +1,149 @@
+{
+  "art_executed": false,
+  "artifacts": [
+    {
+      "bytes": 11507,
+      "path": "independent_controls.py",
+      "sha256": "d4345c661ef2a921bd6f99a6e59db1bafa29fbd1f9ef7dc084652fbbe5f33d44"
+    },
+    {
+      "bytes": 3285,
+      "path": "independent-controls.json",
+      "sha256": "9a299ec23b5ef70817ed444e03a06470d489ea91c17d24cbf445a8517440ad60"
+    },
+    {
+      "bytes": 10784,
+      "path": "independent-tests.log",
+      "sha256": "42fae733f90d9cfb470703a7071755c78551b86dcec3e7dbfd6a5f407955dc16"
+    },
+    {
+      "bytes": 4741,
+      "path": "independent-review.md",
+      "sha256": "8052e38bedb5936c7530495ea61fddc7ef01bfc4fa1b98aea1e3770fab21f565"
+    }
+  ],
+  "disposition": "ready_for_integration_as_local_assembly_and_static_readback_increment",
+  "findings": [
+    {
+      "file": "artifact/android_elf.py",
+      "function": "verify_program_headers",
+      "id": "shared_load_geometry",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "consumed_source_replace_read_restore",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "captured_java_inventory_omission",
+      "status": "fixed_and_verified"
+    },
+    {
+      "id": "owned_output_failure_cleanup",
+      "status": "fixed_and_verified"
+    }
+  ],
+  "historical_android_contract_reference": {
+    "artifact_version": "0.0.0",
+    "bytes": 1729,
+    "path": "research/sdk-alpha1/evidence/20261106-current-android-aar/READBACK.json",
+    "sha256": "1dc411a145d979f5d49dd56c6a99da5b78c0ec737160939607c157ccdbd11198",
+    "usage": "Exact retained native dependencies and metadata contract only; no new 0.2.0 compilation claim."
+  },
+  "independent_controls": {
+    "archives": {
+      "backslash": "AndroidVerificationError: Continuity Android archive entry contains a backslash: 'a\\\\b'",
+      "case_alias": "AndroidVerificationError: Continuity Android archive contains case-conflicting entries: 'a', 'A'",
+      "directory": "AndroidVerificationError: Continuity Android archive entry is not canonically named: 'a/'",
+      "duplicate": "AndroidVerificationError: Continuity Android archive contains duplicate entry: a",
+      "entry_size": "AndroidVerificationError: Continuity Android archive entry is too large: a",
+      "member_count": "ValueError: archive member count exceeds bounds",
+      "parent_traversal": "AndroidVerificationError: Continuity Android archive entry traverses a parent: '../a'",
+      "symlink": "AndroidVerificationError: Continuity Android archive contains unsafe file mode for a: 0o120777"
+    },
+    "jni_source_correspondence": {
+      "c_prototypes_and_java_source_descriptors_match": true,
+      "callback_descriptors_match_java_source": {
+        "fail": "(Ljava/lang/String;I[BZ)V",
+        "invokeCommit": "(Ljava/lang/Object;[B[B[B)I",
+        "validCommit": "(Ljava/lang/Object;)Z"
+      },
+      "registered_static_methods": 23
+    },
+    "scope": "synthetic structural controls and copied-source race fixtures; no native compile or runtime",
+    "shared_elf": {
+      "incongruent_load_rejected": "AndroidVerificationError: fixture.so has incongruent LOAD file offset and virtual address",
+      "non_power_two_rejected": "AndroidVerificationError: fixture.so has a LOAD alignment that is not a power of two: 0x6000",
+      "valid_16k_accepted": true
+    },
+    "source_binding": {
+      "captured_inventory_file_absence_rejected": "EvidenceIOError: cannot safely open evidence file <source-fixture>/bindings/android/ContinuityPackageConsumer/src/main/java/dev/qperiapt/continuity/android/AccountAuthorityCheckpoint.java: [Errno 2] No such file or directory: 'AccountAuthorityCheckpoint.java'",
+      "consumed_source_snapshots": 76,
+      "java_sources": 68,
+      "replace_read_restore_changes_bound_digest": true,
+      "restored_source_disk_matches_selected_identity": true,
+      "shortened_inventory_after_restore_rejected": "ValueError: selected source path inventory changed",
+      "unmodified_source_matches": true
+    }
+  },
+  "java_compilation_executed": false,
+  "kind": "qperiapt.continuity_android_distribution_independent_review",
+  "native_compilation_executed": false,
+  "physical_device_executed": false,
+  "publication_performed": false,
+  "reviewed_at_utc": "2026-11-09T18:12:58.366926+00:00",
+  "reviewed_files": [
+    {
+      "bytes": 73486,
+      "path": "artifact/android_elf.py",
+      "sha256": "43847cc3212e7202e97c63db6155241a7e9d3f59fc38baa55ae6950eeb8d7303"
+    },
+    {
+      "bytes": 46671,
+      "path": "artifact/test_android_elf.py",
+      "sha256": "358e1c08456e45c6d2e3693143c8dd23a203de31566e340abccc966477f82ae3"
+    },
+    {
+      "bytes": 6353,
+      "path": "artifact/continuity_android_classes.py",
+      "sha256": "5b07fa70ec2c665f9575dee7e964abb6519fe8c4e1fa6d714100820abea8bf10"
+    },
+    {
+      "bytes": 31512,
+      "path": "artifact/continuity_android_distribution.py",
+      "sha256": "d42d5d7a622227ba519f5f488f5f0e46ccf5700bba5c3072bb5f63bbf665c3a4"
+    },
+    {
+      "bytes": 27643,
+      "path": "artifact/test_continuity_android_distribution.py",
+      "sha256": "d132291743c641534cf91f02fddbd88076eccaa52de595d84d9deef60804be23"
+    },
+    {
+      "bytes": 12717,
+      "path": "docs/continuity/ANDROID_DISTRIBUTION_0_2.md",
+      "sha256": "5008087941aa96dea964e75bb880e114e9b64f09c4d2491e78ad7aa618be225f"
+    }
+  ],
+  "reviewer": "bootstrap_research",
+  "schema_version": 1,
+  "status": "passed",
+  "tests": {
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-m",
+      "unittest",
+      "-v",
+      "test_continuity_android_distribution",
+      "test_android_elf"
+    ],
+    "composed_produce_and_verify": true,
+    "count": 64,
+    "elapsed_seconds": 6.811,
+    "existing_release_distribution_identity_accepted": true,
+    "owned_output_failure_cleanup_and_preexisting_output_retention": true,
+    "parent_before_after_source_hashes_match": true,
+    "post_capture_native_input_and_selection_mutations_rejected": true,
+    "returncode": 0
+  }
+}

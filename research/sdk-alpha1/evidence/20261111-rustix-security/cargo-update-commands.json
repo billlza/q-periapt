@@ -6,11 +6,53 @@
       "--manifest-path",
       "Cargo.toml",
       "-p",
-      "rustix@1.1.4",
+      "rustix@1.1.5",
       "--precise",
       "1.1.6"
     ],
     "exit": 0,
-    "elapsed": 5.825196877999815
+    "elapsed": 5.74052020299996
+  },
+  {
+    "command": [
+      "/workspace/scratch/4b61438fb07b/rustix-toolchain/install/bin/cargo",
+      "update",
+      "--manifest-path",
+      "research/continuity-identity-candidate/Cargo.toml",
+      "-p",
+      "rustix@1.1.5",
+      "--precise",
+      "1.1.6"
+    ],
+    "exit": 0,
+    "elapsed": 5.899442476000104
+  },
+  {
+    "command": [
+      "/workspace/scratch/4b61438fb07b/rustix-toolchain/install/bin/cargo",
+      "update",
+      "--manifest-path",
+      "research/continuity-openssl-peer/native/Cargo.toml",
+      "-p",
+      "rustix@1.1.5",
+      "--precise",
+      "1.1.6"
+    ],
+    "exit": 0,
+    "elapsed": 5.66897434700013
+  },
+  {
+    "command": [
+      "/workspace/scratch/4b61438fb07b/rustix-toolchain/install/bin/cargo",
+      "update",
+      "--manifest-path",
+      "research/continuity-reference-app/Cargo.toml",
+      "-p",
+      "rustix@1.1.5",
+      "--precise",
+      "1.1.6"
+    ],
+    "exit": 0,
+    "elapsed": 6.219262878999871
   }
 ]

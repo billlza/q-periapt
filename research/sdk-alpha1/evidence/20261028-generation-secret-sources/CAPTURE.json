@@ -1,0 +1,1888 @@
+{
+  "schema": 1,
+  "scope": "Partial generation-key knowledge-source proof progress; no full multi-epoch secrecy or release admission",
+  "parent_capture": "../20261028-recovery-wire-scope-origins/CAPTURE.zip",
+  "parent_sha256": "b6a5b72504b4116ac1cdbcf9ae83ce10ea86855cba73e6487342e49c64e5ddf4",
+  "source_base_commit": "a4b5f5c25085b6ac97d0bb0c4d8bce11ce0744f1",
+  "operational_prefix_sha256": "3cb837646fa2097468d1fad0a10433f50d5c31b6be5553f20085170c3eef0266",
+  "unchanged_queries": 29,
+  "entry": "experiments/p0-origin-signerfile-edges-706/signerfile-edges-replay-proof.spthy",
+  "entry_sha256": "55b826b3b83dec744c701a68cc0d2cc3164d29d48bc2dcbc79fc9f0f4560c3db",
+  "closed_sources": [
+    "Application_Message",
+    "Cut_case_1",
+    "Cut_case_2",
+    "Offer_Commit_3_case_2",
+    "Reveal_Identity",
+    "Snapshot_Signer_File_case_1",
+    "Snapshot_Signer_File_case_2",
+    "Snapshot_Signer_File_case_3"
+  ],
+  "remaining_sources": [
+    "Final_Commit_8",
+    "Offer_Commit_3_case_1",
+    "Receipt_Commit_0",
+    "Response_Commit_6",
+    "Reveal_Entropy",
+    "Snapshot_case_1",
+    "Snapshot_case_2",
+    "Snapshot_case_3",
+    "Snapshot_case_4",
+    "Snapshot_case_5"
+  ],
+  "main_origin_result": {
+    "mode": "all-traces",
+    "status": "analysis incomplete",
+    "steps": 62
+  },
+  "auxiliary_all_trace_lemmas_verified": 14,
+  "initial_traffic_witness_steps": 414,
+  "full_goal_achieved": false,
+  "release_claim_eligible": false,
+  "preserved_attempts": {
+    "dependency_composition": "218steps incomplete;128ordinarycallbacks exhausted in Final_Commit_8",
+    "wire_shape_priority": "218steps incomplete; no added closedsource",
+    "first_identity_replay": "Two invalid IdentityKey addresses retained; noaddedclosedsource",
+    "source_frontier_capture": "Pausedbyusergoalstate;SIGINT/prover-2;15frontiers retained, no result",
+    "identity_edge_replay": "Exact captured edge checked without search; fifthsource closes",
+    "signer_file_frontier_capture": "Exact source steps checked; one more branch closes;14frontiers",
+    "signer_file_edge_replay": "Four exact captured edges checked without search;8of18sourcesclosed,10open"
+  },
+  "resource_bounds": {
+    "seconds_per_run": 900,
+    "heap_gib": 12,
+    "threads": 1,
+    "source_search_total_depth": 16,
+    "continuation_prefix_depth": 2,
+    "continuation_bound": 14,
+    "frontier_prefix_depth": 3,
+    "frontier_bound": 13,
+    "ordinary_search_callbacks": 128,
+    "capture_only_callbacks": 32,
+    "manual_new_path_depth": 4
+  },
+  "files": {
+    "experiments/p0-certified-origin-dependencies-704/DRIVER_TERMINAL.json": {
+      "bytes": 150,
+      "sha256": "2d113e4d1fa88e0ece85e241b7a7cfa6d255aeea72699292b897ef3d7e3f05c2"
+    },
+    "experiments/p0-certified-origin-dependencies-704/MODEL_READBACK.json": {
+      "bytes": 377,
+      "sha256": "03be9904aeef1dcea520ffe79074718e2a906d350e722221cbecd84691672dd0"
+    },
+    "experiments/p0-certified-origin-dependencies-704/PREPARED.json": {
+      "bytes": 1571,
+      "sha256": "1541ce08b5135c5cee6e0c2b1cfe00534b421968dfb4b75f9b7d68059536fe6a"
+    },
+    "experiments/p0-certified-origin-dependencies-704/certified-origin-STARTED.json": {
+      "bytes": 1902,
+      "sha256": "02d0a965628eadde8f0ae892803086000bf6d0daa1ef66b6d6fa5d3b5e6c26b2"
+    },
+    "experiments/p0-certified-origin-dependencies-704/certified-origin-TERMINAL.json": {
+      "bytes": 6267,
+      "sha256": "dbc8f6e18006fac99e6a9d4cd5768b9d34c87f7904b295fcf58d354e438bfab1"
+    },
+    "experiments/p0-certified-origin-dependencies-704/certified-origin-proof.spthy": {
+      "bytes": 380213,
+      "sha256": "219f158230bc0ff45410cead053199fb7380c455fced4360493eaf7263f648c0"
+    },
+    "experiments/p0-certified-origin-dependencies-704/certified-origin.stderr": {
+      "bytes": 3398071,
+      "sha256": "55695c9faef711a59c60dc7424a03ff0f7fba1800822315ccb892c0c1b480948"
+    },
+    "experiments/p0-certified-origin-dependencies-704/certified-origin.stdout": {
+      "bytes": 3076,
+      "sha256": "194f7307e44c65c3276afe2f5673350f6a39d6ea574d7d839685fb268d662419"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0000.json": {
+      "bytes": 527,
+      "sha256": "f529419e0db29c1e0cbff06ebad9e7b8125acb2c2ea7fb89b55f03d22b5d5e5a"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0001.json": {
+      "bytes": 935,
+      "sha256": "f577451115d4698a3de0b09c851a8a477c0e18987f7a3693a9de3d8ddc28b370"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0002.json": {
+      "bytes": 534,
+      "sha256": "120e811d2b828d1d60e17264f6edff23b2e3fd0d5580f9b4216f11db2ac6e70c"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0003.json": {
+      "bytes": 538,
+      "sha256": "24e114cd98725a7d08cfc9737478c40e132c515a9ea93302d6f0df7a5cc1ee18"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0004.json": {
+      "bytes": 595,
+      "sha256": "bd6e4ddc009fa768527f6ef07150a13a071eec991dfc3cd03457a343a3a12b29"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0005.json": {
+      "bytes": 563,
+      "sha256": "ab10d7c38fa6568a238f4232464d616a77836281d6c094545094fbcf2ec2dccd"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0006.json": {
+      "bytes": 747,
+      "sha256": "321fd85fb749a60c4c6f1df7b346059403a2333f9ab8b211a975b849b2dc5ffc"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0007.json": {
+      "bytes": 663,
+      "sha256": "28afac8b983ede35fdf1322732c95b9ecccf4b9fb7770a52c96e83f98611677b"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0008.json": {
+      "bytes": 631,
+      "sha256": "d90a3b5ced37d4589be36b415bc07802b1f6e820287f1e569ac8da75f4288cc4"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0009.json": {
+      "bytes": 632,
+      "sha256": "7ea249e114baf8b5aa7ee78790b063b27fa3bf27364080957299356aa7d84784"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0010.json": {
+      "bytes": 632,
+      "sha256": "3467e24a0f419d2e484ed6ae44b860ab6125d455a7dbbe566b505268dd42f1c8"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0011.json": {
+      "bytes": 632,
+      "sha256": "7c8e5e832d2d704f8329b89f49364b0eafe7d9ba3463de0403cb944dbea48b9d"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0012.json": {
+      "bytes": 655,
+      "sha256": "e028124c1447b4e2f9b2f06813f59b4753e875494758326daef1e7c250ff4897"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0013.json": {
+      "bytes": 787,
+      "sha256": "640af0b81acc3d10fe6d2d1a682ea6ca9cc29d0222384588c4f0f63fa017a74f"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0014.json": {
+      "bytes": 677,
+      "sha256": "f642285eabfd0e053b20ca1754941492025ea171863739e2e7ce03df74c65a33"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0015.json": {
+      "bytes": 632,
+      "sha256": "10eac51c432d7474ab4a0cfce031dd40505fc138c47aa1c49dbc18aa2e8149cd"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0016.json": {
+      "bytes": 632,
+      "sha256": "7c8e5e832d2d704f8329b89f49364b0eafe7d9ba3463de0403cb944dbea48b9d"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0017.json": {
+      "bytes": 632,
+      "sha256": "7ea249e114baf8b5aa7ee78790b063b27fa3bf27364080957299356aa7d84784"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0018.json": {
+      "bytes": 531,
+      "sha256": "124a2bf56be6c4005c0dec2c062552ce61cbd27308f23d9511a6e8ea1eedd2e6"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0019.json": {
+      "bytes": 654,
+      "sha256": "8f8c42cad9f8823e206b616ca6154170f45678f607ce489371e89c4196f57b3d"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0020.json": {
+      "bytes": 538,
+      "sha256": "341189acd80221ef700e484006c2029a665acfcc7fa4b7b37d48645ed1255d66"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0021.json": {
+      "bytes": 935,
+      "sha256": "f221782fe712aa29edb36d198bf69878f30aabe06c4e473dd3fd0dddaf54c0d0"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0022.json": {
+      "bytes": 899,
+      "sha256": "90749b6d569b310b57ca362c21bd2f7ca54170c0986792651a0469781ee31aea"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0023.json": {
+      "bytes": 500,
+      "sha256": "b4cad831c61729aaec0a6e4f04b6d0c7467d8f4cc88b985d646335588d5bbf04"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0024.json": {
+      "bytes": 502,
+      "sha256": "bbbe46db2811f9a7d79eac5a929c43303df7f7fd3fe24f03f159c917be9beee7"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0025.json": {
+      "bytes": 589,
+      "sha256": "b00707fb73cde49694eb066cdfabd1f48883a231d2e9672450415649eb2e8b8d"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0026.json": {
+      "bytes": 555,
+      "sha256": "a6324faeca91234ae52e6492c995fb50f04efa8c1fb27351ae617ced5e851381"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0027.json": {
+      "bytes": 645,
+      "sha256": "e121d4965bbb0ef667d2ade61c3fda136eff3dcb5961dbac6b79b462e429b954"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0028.json": {
+      "bytes": 557,
+      "sha256": "2640ea5580ff8b405439ae9e60efb8124d6673219d06db4c164068ba1e9a0f42"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0029.json": {
+      "bytes": 689,
+      "sha256": "45300394ed692bb101ee585e41d0d0d87909a92269d9e126bc841058c8cf5434"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0030.json": {
+      "bytes": 579,
+      "sha256": "e6ca9c0776f044a4eea68b58033941dfa464d48c01cdd2d98a1d84f02ec13ed5"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0031.json": {
+      "bytes": 672,
+      "sha256": "09904082b59b01a0af130bc132bd883a32963841a0250d36ae80a12f6b7972dc"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0032.json": {
+      "bytes": 581,
+      "sha256": "46d5355a6f04460082bc6e56b3b035ee6cbb129e15f7774d8b90b7df297b1592"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0033.json": {
+      "bytes": 729,
+      "sha256": "d88c3d3c06c25e823c33d2c5a44330ec9cb4ddda6d62e804890b8fd4f3886625"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0034.json": {
+      "bytes": 655,
+      "sha256": "88a095ede8fcee74cd30f62a33232a6d73caab54963c4f41c6d29c6cbc928d7e"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0035.json": {
+      "bytes": 523,
+      "sha256": "23695f2d5a77fe15a594db27f2bdb8f657fb0296a30c6b265fbebe0aba2c5c5f"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0036.json": {
+      "bytes": 613,
+      "sha256": "6a6ccca3a5e715e737be0085cfd6203608831e66b43fac7956d620592b5919bd"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0037.json": {
+      "bytes": 525,
+      "sha256": "66044e0f06fe514114db72434e3512819f72ff9a372ae23d43804f71fb1b648e"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0038.json": {
+      "bytes": 707,
+      "sha256": "d5d867711b5de56cfd5b7b3d2980b5e63746ae63ad82ca6a62f6cbd0623c4a7b"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0039.json": {
+      "bytes": 613,
+      "sha256": "5b78c3b8d408d7d36e64877c8f6338c327c504025a725c6996a529ad3ba26b3f"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0040.json": {
+      "bytes": 706,
+      "sha256": "ded18ebb823d79f03df11c3781caf660f58057ac044880d844a9a1e5d829aae2"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0041.json": {
+      "bytes": 615,
+      "sha256": "f5b3fddad27f32678806662ea9d57c39faff597282edb55b04162592558dc279"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0042.json": {
+      "bytes": 727,
+      "sha256": "ef964fbe17dafb8103d428dc2a7bda483af521b18794099232e5533b99b6cc07"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0043.json": {
+      "bytes": 629,
+      "sha256": "220517653e010375839fe82abf91d6403dc39778e185dcd3ac09c4f2d1f2030c"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0044.json": {
+      "bytes": 719,
+      "sha256": "154c205ae7f60efa7d3a987c007d05f03f89b6a5de3057f84bcba11ef2d71103"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0045.json": {
+      "bytes": 663,
+      "sha256": "d2a48482d9881a5f1950cb7cfedd5d701b0aefaea82abf1c383e2ce8419ccfec"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0046.json": {
+      "bytes": 631,
+      "sha256": "f669a13773bce275cf78d0dc30b37b27398e9b446b3015c2e7f44b44a379610d"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0047.json": {
+      "bytes": 591,
+      "sha256": "cfc99859ba8780470880d5ba99834fad6bdb8fdc7b2ed43af0ab02542656a841"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0048.json": {
+      "bytes": 585,
+      "sha256": "836ba479cc63c616d0cfed1cbb0fbdcf659417c2976169ebeda728c3219c57dc"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0049.json": {
+      "bytes": 589,
+      "sha256": "eaf53cdb8f56067d8ab721cab6bb14a3c2e2d26d765c18399ada47a282ed6bba"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0050.json": {
+      "bytes": 502,
+      "sha256": "26b100bed25f0c9c323164d1a02c69c4f9f021b71b9a5a1a2f1a497de3f23a2b"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0051.json": {
+      "bytes": 523,
+      "sha256": "b79e7608b9723a6ffde04189fbb3171531fc73504a187f69c2c7315801a9f71e"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0052.json": {
+      "bytes": 935,
+      "sha256": "576bc19ae7b89959b0f85be608d7eb0f92a4f880df02250f5e65aaf9dbbb1289"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0053.json": {
+      "bytes": 534,
+      "sha256": "1c3349491b84ae02a4b869380c66fa53cb2a901c9b9731dbcec06e01db6381c5"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0054.json": {
+      "bytes": 538,
+      "sha256": "409610d092077557899c196dc23d7a0fae9040cccd0dac30f0440a0f4cb9585d"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0055.json": {
+      "bytes": 595,
+      "sha256": "e3bfc70a66d697f6120897907a826e8aaf625c42da69b197c562644afd19e572"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0056.json": {
+      "bytes": 563,
+      "sha256": "e17519eba6428e19646a34d8bc01ff01c35ba63897d866477566f1d35339dbb4"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0057.json": {
+      "bytes": 758,
+      "sha256": "437c35fbdd263b828bc6caa50d6fc1fe5446734bb00d0709f76623d07c9286a5"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0058.json": {
+      "bytes": 631,
+      "sha256": "9560ad54d1d270e4b476ffd95d9c270ec4a0fe625c51956b796f5d924a874193"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0059.json": {
+      "bytes": 632,
+      "sha256": "c3e410446ff745515d6e933e7ad294e7428ed92abf39aed7ffb892577bc12caa"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0060.json": {
+      "bytes": 632,
+      "sha256": "ed85169ae897bcc66bf1a23da340537e98986a9173898a2a9f7d4be37c98516c"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0061.json": {
+      "bytes": 632,
+      "sha256": "8114d59b92506663d07057511a37effbec2f58f9ee8ac4de10d611951f2afe72"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0062.json": {
+      "bytes": 655,
+      "sha256": "671a1953e0dc339fda6eb16a9cd8c5ee435bcec1fd048fe2bfeed8ebd1c58a5d"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0063.json": {
+      "bytes": 787,
+      "sha256": "881c8308fa463e613191f17f0fc982af1bf14e9227de684c563be8bd6629755f"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0064.json": {
+      "bytes": 677,
+      "sha256": "10be2c0829cca828c1d940c242ce2f3ee3c4978d5e098b16efec71efbe3d528f"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0065.json": {
+      "bytes": 849,
+      "sha256": "8b2c04c7ea474e74f7d470f86a22f4113d42a75798e050b5ed14ece9950b854a"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0066.json": {
+      "bytes": 632,
+      "sha256": "18069a9964dcf35a759d21bfbffc59acab63d75165f42027bb202c47544e9183"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0067.json": {
+      "bytes": 632,
+      "sha256": "8114d59b92506663d07057511a37effbec2f58f9ee8ac4de10d611951f2afe72"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0068.json": {
+      "bytes": 632,
+      "sha256": "c3e410446ff745515d6e933e7ad294e7428ed92abf39aed7ffb892577bc12caa"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0069.json": {
+      "bytes": 531,
+      "sha256": "0b34e67076cba42f9adce3c46cb571c7c8760ec2bfeb78379d9efa2056b97b5f"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0070.json": {
+      "bytes": 686,
+      "sha256": "93e51e8955e2d086b62390be32c1fc0a05563d857fe819508ee51fc7858da4c8"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0071.json": {
+      "bytes": 538,
+      "sha256": "ce5928e59be7a6111add3efdfa62187af0660d514619dc85ede9f3eb951cf98b"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0072.json": {
+      "bytes": 935,
+      "sha256": "a28f39e8997e7f8cf6e8efe4b8cf1bd14559b6512291d8228434bf6be5db1ef0"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0073.json": {
+      "bytes": 927,
+      "sha256": "11305075a771e9f445afad530055cdb7b2e68fdf0051e6dbcf96057829fbbde0"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0074.json": {
+      "bytes": 526,
+      "sha256": "34471a739c6db844eed35741ea8ac6068786f2e084c204aad35a2eb9d1f82b6a"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0075.json": {
+      "bytes": 528,
+      "sha256": "3b98be04f6e58d60aaacab5071303bd4988e654ac6b30deb359eee99251f51ed"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0076.json": {
+      "bytes": 589,
+      "sha256": "b730fb03b480b754d250e5e375f1273b8f86c5775bc3cf318fddac8f37e56b99"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0077.json": {
+      "bytes": 555,
+      "sha256": "ca4ccfe21246b25e702b2468902038692009fa732561b7b1ed79d5544f445ed7"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0078.json": {
+      "bytes": 688,
+      "sha256": "0db7d9d48da51f803a24ad49a9001073ecf4af9d01b7da42905f59a33c4da2b3"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0079.json": {
+      "bytes": 533,
+      "sha256": "d0be24a2af858d45bb6fdae56f117a3d180a64bee3e345bdba3b152d8e295a40"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0080.json": {
+      "bytes": 534,
+      "sha256": "a4823ae8133b2bb11bfd43f5b7b261179f7623d43b6edccf4da07024dd7020df"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0081.json": {
+      "bytes": 534,
+      "sha256": "cb79f88976df4155d2ebe210129f332add8f2dbfb519e7eee93e565b704d6fe5"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0082.json": {
+      "bytes": 557,
+      "sha256": "ca8c67ad5e09ea1d3fe879ee60de66f5f4a3df9a552394c301f2c1e3ecd555f4"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0083.json": {
+      "bytes": 689,
+      "sha256": "743b9a8abbe20eb17c6bebd3076fc08209feefb09c5f2f9ed23a4ea3870b32db"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0084.json": {
+      "bytes": 579,
+      "sha256": "d3d2c2ac67545bf385437e0ccbedf7c87a38957d29453b93fd1f51bdbf0661b8"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0085.json": {
+      "bytes": 716,
+      "sha256": "5366904415a448d2e73b3071f9f22572ded6231bada4996881b8b4bc81cbd8b1"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0086.json": {
+      "bytes": 605,
+      "sha256": "3eb7b61e55efc3fde0ebb311e55f74de18d00fe97921e2c67e3ecc0d6ea572b9"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0087.json": {
+      "bytes": 605,
+      "sha256": "de30efd030b2c4f9d4d1cce9075b9a9369576be77fff09110c029fbcaf7185f9"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0088.json": {
+      "bytes": 534,
+      "sha256": "f9ded5223d32aa231012c8c95527c82e2d63e513147962e81d62e62359693681"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0089.json": {
+      "bytes": 534,
+      "sha256": "cb79f88976df4155d2ebe210129f332add8f2dbfb519e7eee93e565b704d6fe5"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0090.json": {
+      "bytes": 523,
+      "sha256": "9eae32a45bae9580619dd96d0e63d91f1617bd68ba044bf4c3a83fcc3e58d17f"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0091.json": {
+      "bytes": 603,
+      "sha256": "3a028b8a2c075b05cf39b28b5ad9c2a2555314df533271df3dabb507ac19a702"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0092.json": {
+      "bytes": 589,
+      "sha256": "11152d24cce1f13dd4f0f565bd1d1afa0391e91687f760c57720ee88f992c3aa"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0093.json": {
+      "bytes": 528,
+      "sha256": "ad6fb7773316bf6c43c9a7b3bf6066905ccd66cb3d023fbd0657d05187e6d59d"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0094.json": {
+      "bytes": 873,
+      "sha256": "7c73af859b8e858181791fd8035f348111b3317776bb88261f58c51ed2e19751"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0095.json": {
+      "bytes": 474,
+      "sha256": "fa6f3e815a75619a28aa09a5069515f7ec706a8fd9efe742b81743301841c512"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0096.json": {
+      "bytes": 569,
+      "sha256": "bbc8e7ed022d06e1eeb8f329b305d4dab2addc1fc9d05b97a6f8701a78d4a1bb"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0097.json": {
+      "bytes": 530,
+      "sha256": "3d8dcaca509459c8c0ccba7c5f25a9842a6c953841594a0601114e7cf631b746"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0098.json": {
+      "bytes": 664,
+      "sha256": "32a8ac36e9efcfd47bf51f862c4545b6f87e3dde71c648edb4bf5280b2190edb"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0099.json": {
+      "bytes": 554,
+      "sha256": "1be8f370d1cdc5ffe81baf4e9082504aff4505fe6be452516589b2a6d012d5d9"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0100.json": {
+      "bytes": 704,
+      "sha256": "fa34ed8fcd27f2ed3388cf791d87aa40c07b9739e95fa23d6fc149660893d53c"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0101.json": {
+      "bytes": 630,
+      "sha256": "06f51c1ed66566f796b2231dfb35d98a27c476e6e185697588f4f9c88f37084b"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0102.json": {
+      "bytes": 504,
+      "sha256": "622d8e35d2462a666c5e0a431b5fb7b196116cca46a7e5e080b489f7df30f708"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0103.json": {
+      "bytes": 686,
+      "sha256": "bd991839d15332eebba373af9492c8786dbee77d20eeb13ba30d00e0a0c4df2d"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0104.json": {
+      "bytes": 586,
+      "sha256": "20ec37504bea1315847a578b35b19794d86e0dcbd53f9ef90b911cf33bb357c1"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0105.json": {
+      "bytes": 700,
+      "sha256": "3803f0e3ab37417c0c4588f32948d018406bc14f1ebdd9d1f31a436f11624778"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0106.json": {
+      "bytes": 604,
+      "sha256": "10e8e9263f0fc0b6fee90b383588c2de06c7f6a6f99bbb24517adbd0ae2c10eb"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0107.json": {
+      "bytes": 714,
+      "sha256": "9d781aeac0df102a206e22dd96b3bf1b3f80f18bfb5e4300f8b2cce7e1ccb398"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0108.json": {
+      "bytes": 604,
+      "sha256": "a89ac62341b3617bdddf818fbbbeefadd7fae01b9276dbb56bb98c99fdd3c4fa"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0109.json": {
+      "bytes": 706,
+      "sha256": "151f1d7d188c9972b11849ee8629f617724bea9118c45965edec1730bf5dbae5"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0110.json": {
+      "bytes": 623,
+      "sha256": "08440a731e51b089b19c98b919063ae14d3bca36f6cafb5461f345107ffb08a6"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0111.json": {
+      "bytes": 623,
+      "sha256": "ba4fc509cea2b8effe459c392adb3c4a490a276545fc32492740e3d75661180d"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0112.json": {
+      "bytes": 703,
+      "sha256": "16f6b477319f1741a6c3c6fb3a835d9afa55bbd681d78d01b2bf07173c29207c"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0113.json": {
+      "bytes": 665,
+      "sha256": "cca636dc76490919f626e8cc3b66edb4b26d6949d996973c184e0c34c9bcea84"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0114.json": {
+      "bytes": 470,
+      "sha256": "bb224b1faaca7c6b52a6cecde34d3c3ea1338d58fb52870be040db93f805b7dc"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0115.json": {
+      "bytes": 569,
+      "sha256": "de3c23e9fa0b3aab4f85118413d30c3254ff0a6f591dd482cfac458c8a9f80f7"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0116.json": {
+      "bytes": 873,
+      "sha256": "80f375793009e1e3c7b2ef87049a7b688fd241f28508e1dc1a13dc38985dae94"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0117.json": {
+      "bytes": 474,
+      "sha256": "2fef7657681a36174d551afaa0bb843702d0dd3665a944fc9e018b6b474c0f00"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0118.json": {
+      "bytes": 569,
+      "sha256": "cd0d9973713e4de1babe8f8959951bd4eebbffcae1c24002681fb75797d23a49"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0119.json": {
+      "bytes": 530,
+      "sha256": "dbb5b2ad0e50049a8ca94ecce5cbe7c2242900d6852fb664e7d8fc3a162ea6ab"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0120.json": {
+      "bytes": 664,
+      "sha256": "29cb56b7ba80b09f22f34b377ef665693e66949daef5ca80e70a5b80aaf8c047"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0121.json": {
+      "bytes": 554,
+      "sha256": "cf7c6ce36f7961a55c875c4c0963956261d88d241bd3cf6c226306342a27691b"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0122.json": {
+      "bytes": 704,
+      "sha256": "1b48fd66aee9cedd49602458053de21f0a1782ace12414cff093c2d58abf9028"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0123.json": {
+      "bytes": 630,
+      "sha256": "3be96f8052b54baeb2968fc0c3d557468e18b2b684d49870b6c450f5a1d230b4"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0124.json": {
+      "bytes": 504,
+      "sha256": "2c3a01ebb8dbb58c1307ab9910c04d1c3974e6c4b7c5d987c5d0af691c702a92"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0125.json": {
+      "bytes": 686,
+      "sha256": "fb34b5fd42f88b9b1a41319a0f7244e9ef2d11a59a36fd329d62b022ef1c17c9"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0126.json": {
+      "bytes": 586,
+      "sha256": "6dfed7533cc7479bab947c0745af29be8615b4dbded0e404a599e11898257077"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0127.json": {
+      "bytes": 700,
+      "sha256": "7c90ac87adb2925d3f142e4956c2e2eba287cf4ce409a86a4a86b7796376575e"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0128.json": {
+      "bytes": 500,
+      "sha256": "6f2435a64f82eed958292869c335326e6b854c69e07d137a159266ac2d900c8b"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0128.txt": {
+      "bytes": 19717,
+      "sha256": "cbd0ba35b2953cde84dec97af41042a96e5612a5835a79bd7e3b8838248d75c1"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0129.json": {
+      "bytes": 432,
+      "sha256": "b69afd5a0ce6bf61201ce53c090f1f730488d24f280eef6d266cf0a375c56ffd"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0129.txt": {
+      "bytes": 326,
+      "sha256": "0b8464875c561a49edbb4fc804a44d615211c6278cd3b3e4164fdb9fe25ffdff"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0130.json": {
+      "bytes": 435,
+      "sha256": "f72c91abc6cf2c618f1d2f216c330fd97f56fd953537963a7684767b7a00ac97"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0130.txt": {
+      "bytes": 476,
+      "sha256": "1d008a79774113fcdfd21f6c773560ce23c6ed9ceea7bc83034b64cb738db8c3"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0131.json": {
+      "bytes": 444,
+      "sha256": "b0adf08346a82e1378f7040ad4ba33a06ae9f4bb615d3fc8606419f796c33d3c"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0131.txt": {
+      "bytes": 811,
+      "sha256": "450ed143f046d53abf4045b44e19e3b25958ca05202ee2afd2ecc4667a099186"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0132.json": {
+      "bytes": 444,
+      "sha256": "c0ed3768ac3a6e20241d6ce29a07b3039036b5dc245c7e60f41edb15a6aeaf92"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0132.txt": {
+      "bytes": 811,
+      "sha256": "450ed143f046d53abf4045b44e19e3b25958ca05202ee2afd2ecc4667a099186"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0133.json": {
+      "bytes": 444,
+      "sha256": "db60fce1767f54cfb3e796b9246775318832b0bc2a84acc8a9d50857292d141e"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0133.txt": {
+      "bytes": 811,
+      "sha256": "450ed143f046d53abf4045b44e19e3b25958ca05202ee2afd2ecc4667a099186"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0134.json": {
+      "bytes": 441,
+      "sha256": "31b05c5b02ff3d85ce0ccb0b7891a3717532651b624ae57d4ce21fbc0cacdb1e"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0134.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0135.json": {
+      "bytes": 441,
+      "sha256": "2628875668eac21801b1c13f463c64c873b70d46d98d5c0e129e297fdfba55d2"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0135.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0136.json": {
+      "bytes": 441,
+      "sha256": "d0e883a4f2fde15e21670bf9aca7150dbeb0104ed72cfab26b5f6ff4f6cff749"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0136.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0137.json": {
+      "bytes": 441,
+      "sha256": "5fb13c4caa9ee8515bfa1d01921046908d1bde4d02f4364e0eed5d684786cfad"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0137.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0138.json": {
+      "bytes": 441,
+      "sha256": "ac34d36b1fc45546d4be161433adcf4fc667baa75c860e2e250495c67220645f"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle-frames/0138.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle.diagnostic-stop": {
+      "bytes": 16,
+      "sha256": "5d29c704162f4eb9fbd937c2356c103e995f9f2f482ee100af467fbbdc4de60e"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle.py": {
+      "bytes": 7624,
+      "sha256": "607c8bd6e3948df563dafb487e359a9d085fea220127c64116fd334d0ba93dc6"
+    },
+    "experiments/p0-certified-origin-dependencies-704/initial-send-oracle.sh": {
+      "bytes": 326,
+      "sha256": "1c37161e0dc71d0a590e45b1b3f5e5e2b2f1edcca2294a20a81bce7557c955d4"
+    },
+    "experiments/p0-certified-origin-dependencies-704/model.spthy": {
+      "bytes": 350327,
+      "sha256": "18b5820700689628401cc2271f73dd5e8c9fd4ba7cd2fbe62d2b8c00b4a5e422"
+    },
+    "experiments/p0-certified-origin-dependencies-704/run.py": {
+      "bytes": 5793,
+      "sha256": "858ccea4318e9e0e76f1b72da8dc1a08133f1aa28453b00fea98621f46879643"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/DRIVER_TERMINAL.json": {
+      "bytes": 151,
+      "sha256": "749312c57b98be42544d3c8aa485611d33c94292215527e74385620b29126eb6"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/ORDERING_INPUT.txt": {
+      "bytes": 2387,
+      "sha256": "3c2977d90f5839ea29bba8adc10bab712715d0fba3dd9aeb4dd1f3cdc905ccf7"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/PREPARED.json": {
+      "bytes": 1739,
+      "sha256": "6b5a4574e07571bb4a4beb027a67aa598a99782e71dce3bc4228333f84813b8c"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0000.json": {
+      "bytes": 1287,
+      "sha256": "beeba96662bf4abeb9dac988a78a8d5a8b4dc03459afd980544797da3805019f"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0001.json": {
+      "bytes": 527,
+      "sha256": "9c2fed568b30dbd1fbc0d91ace44104c8afe28e2fcde5ab2b6b238ae84dd731c"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0002.json": {
+      "bytes": 935,
+      "sha256": "dbe9af237b443c7be0f356acff2329c481361fa7ce75c88a7663df86382af076"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0003.json": {
+      "bytes": 509,
+      "sha256": "ca8a423bf6c59ab2c3d19db6a9e12289dee08e3c77893c30fd682d740c743a65"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0004.json": {
+      "bytes": 509,
+      "sha256": "48c008cb1ae3713048202c05280983005c11b52adb92e22b3973c9e9b4663f35"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0005.json": {
+      "bytes": 509,
+      "sha256": "dcd08f4f87819655379a38d9f1443d0a82b90bcc2953b1bd57af053eb6eb1dc1"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0006.json": {
+      "bytes": 526,
+      "sha256": "b2ec2c93d79262357f4d1b6853d9671d7be8f7ad7f789422563900d9acc6cc55"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0007.json": {
+      "bytes": 530,
+      "sha256": "ed80c9564082924035ec42324856cb61739f8315e626b2420fa52d705425b064"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0008.json": {
+      "bytes": 589,
+      "sha256": "d7cbb88934653d3f811f7ce8e432eedf6b9f575740527d13caa247be07e18333"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0009.json": {
+      "bytes": 555,
+      "sha256": "20b517ad559dad6ed59950273dad1035c589580d323f75e081662711734b5927"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0010.json": {
+      "bytes": 888,
+      "sha256": "065e86f6b08a06d42cd44c6e816a5f028b416967e72e320be79d3b4019ebd0b7"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0011.json": {
+      "bytes": 1251,
+      "sha256": "7a7537e1433d46084add1fad6574a645225be13ebc8d3019b90b4d5bf7eecaaa"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0012.json": {
+      "bytes": 517,
+      "sha256": "b664f275445d97d98d648a15e9c426a1104eedc025620423fea0e402e455cc52"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0013.json": {
+      "bytes": 852,
+      "sha256": "b932688a4a104cdc689b24aec17099fa8c48574110c2b7f55f4810659f05d680"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0014.json": {
+      "bytes": 517,
+      "sha256": "f8e586e9889b0ccac368dd392e915356463d7301a56048e716c27dcf58588cbe"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0015.json": {
+      "bytes": 852,
+      "sha256": "9f0ca67dcfd02ef5ff01fe4d0c38bcdb2d8ff005918fd960296d59ecbfeb9a3b"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0016.json": {
+      "bytes": 815,
+      "sha256": "2f6189593059cf6dd1f414daacb7686bc5308dbfedc2ba47faa3d91de391e24e"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0017.json": {
+      "bytes": 530,
+      "sha256": "9e35825b6ced8b2730543b24c2788ef6eb1292ed72cffab8715ab00860142a47"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0018.json": {
+      "bytes": 589,
+      "sha256": "eec4eed013648a4d5b897410a51546739261f44a329ce1d0a7f96b78f90e4071"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0019.json": {
+      "bytes": 555,
+      "sha256": "3c87c66a115e656e9787b5fec0ba4d83356eab6f9c60001cc50b30df9b48da00"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0020.json": {
+      "bytes": 888,
+      "sha256": "d82609c11c70cb260bd43f7da00ddadc879cb31fe5514a6d27afc47f263dbb11"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0021.json": {
+      "bytes": 1251,
+      "sha256": "8523a70b2eefbffbed0e166b408c03fb77527c27c47ede4c23b0e811763ef318"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0022.json": {
+      "bytes": 517,
+      "sha256": "54fd943f7695796a5df6dadd600e4b00191782458a137285fc98cfb266424a0b"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0023.json": {
+      "bytes": 852,
+      "sha256": "50b75e6bb9a8529ed71bc63cecdb5e7afc5a3037f19d97cb8858184860782ff1"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0024.json": {
+      "bytes": 517,
+      "sha256": "42ba292022f830d29826e151a87d75786781ffc8a801875e17ed46dc48ff44cf"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0025.json": {
+      "bytes": 852,
+      "sha256": "0df8481b39db797ea67d10172e6a2bf1e75ecab8d0d48727c76049481e59e6d8"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0026.json": {
+      "bytes": 509,
+      "sha256": "2ff31f2c49761f9132ca44184bee7059711fa37176da737d204116be0ec22dcf"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0027.json": {
+      "bytes": 509,
+      "sha256": "2ff31f2c49761f9132ca44184bee7059711fa37176da737d204116be0ec22dcf"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0028.json": {
+      "bytes": 526,
+      "sha256": "b2ec2c93d79262357f4d1b6853d9671d7be8f7ad7f789422563900d9acc6cc55"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0029.json": {
+      "bytes": 530,
+      "sha256": "ed80c9564082924035ec42324856cb61739f8315e626b2420fa52d705425b064"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0030.json": {
+      "bytes": 589,
+      "sha256": "d7cbb88934653d3f811f7ce8e432eedf6b9f575740527d13caa247be07e18333"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0031.json": {
+      "bytes": 555,
+      "sha256": "a38e743d4730b8903eadea88ecd48ae3fa723525cb668bcb14d2692336340932"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0032.json": {
+      "bytes": 888,
+      "sha256": "683694880e2641d7107c64257dfaba8a4888325815d53aa4f89e15ef47829351"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0033.json": {
+      "bytes": 1251,
+      "sha256": "4721c467809f056ab585428780081781ce34b167858aed8226d40dc8cbe3fd0c"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0034.json": {
+      "bytes": 517,
+      "sha256": "3771d1a8890aa129a329b2532e19fd783a27697f779c6af3c4bd515afa8c6162"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0035.json": {
+      "bytes": 852,
+      "sha256": "73c349035f886d8e99709aacd69578ff90efc0074a9f93b6f298f8ba2b73c190"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0036.json": {
+      "bytes": 517,
+      "sha256": "0c8e4b16a8d11c38073e1ac7b49172411dd761a141e8383da77955ad0127db27"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0037.json": {
+      "bytes": 852,
+      "sha256": "7bcbf01c66b5186268b9fea2103c3c0a36314cf2394bc0dfe8666033fc8eaa54"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0038.json": {
+      "bytes": 815,
+      "sha256": "2f6189593059cf6dd1f414daacb7686bc5308dbfedc2ba47faa3d91de391e24e"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0039.json": {
+      "bytes": 530,
+      "sha256": "9e35825b6ced8b2730543b24c2788ef6eb1292ed72cffab8715ab00860142a47"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0040.json": {
+      "bytes": 589,
+      "sha256": "eec4eed013648a4d5b897410a51546739261f44a329ce1d0a7f96b78f90e4071"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0041.json": {
+      "bytes": 555,
+      "sha256": "d131ac304dc394de8ca0c46f9e6f1ef0d66b8bb99f6395f6ea3e1d13b21a30af"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0042.json": {
+      "bytes": 888,
+      "sha256": "43e0de74f6cda5cb794f0352d5cb680ff865d754fce25bb5da85c8ffd3e7ec6e"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0043.json": {
+      "bytes": 1251,
+      "sha256": "7751f1dce628dc849d4d0861e015433de3d64021f74da631ce869c0a07e02179"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0044.json": {
+      "bytes": 517,
+      "sha256": "bfac459952101bd7e67dbb16a41fa5a82e3f4e70a5f8715ddd6318f80afba99c"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0045.json": {
+      "bytes": 852,
+      "sha256": "cf6f18c58549ab8142bd61056b227cc366eb9dca2491cc76fdb463b5679d5d7b"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0046.json": {
+      "bytes": 517,
+      "sha256": "cde5a7504ba26c16ae087d578b612caa7a8407ad98a37c1127bd4597766561ab"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0047.json": {
+      "bytes": 852,
+      "sha256": "5a900003f04c5baed26e533b1fc087a9b9ed9f3f41e62d83517ef9584c151cc4"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0048.json": {
+      "bytes": 935,
+      "sha256": "e43bd0226a823388ab12b62eb2078bbcdebb4343ee915163a50a950acccd8847"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0049.json": {
+      "bytes": 509,
+      "sha256": "5838cde543f71936775330d68d6e145c1d52e140d5752a88dd34f372fa39842e"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0050.json": {
+      "bytes": 509,
+      "sha256": "187c23dd7ad568acbd27d593ca88eaa333c19dcdf4fb1cce908c2cfaaff7d9b5"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0051.json": {
+      "bytes": 509,
+      "sha256": "12e1c3798ff2639e4ca80154049b372187f8579f9b498094206702dc21aae60f"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0052.json": {
+      "bytes": 526,
+      "sha256": "90a8290afcf5105f27124bae6763678d98849677c103da107ad51b0d2be83c4e"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0053.json": {
+      "bytes": 530,
+      "sha256": "f4df5aad81463622d6b62d5ed01ab5ff2f2688afadc83e1522fbeef87a3964ed"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0054.json": {
+      "bytes": 589,
+      "sha256": "a468104bbb2b7949831966fdc0b3dcd9de751c28482209e1e8387175ef694989"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0055.json": {
+      "bytes": 555,
+      "sha256": "25e91b87f56be37d9ecaec5712b750e0511d05e99bca1b05ec3ea6467fb66d29"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0056.json": {
+      "bytes": 888,
+      "sha256": "de90315c1297692b14740885cc3a20def535e0d7402d970896e6f9bd2383627e"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0057.json": {
+      "bytes": 1251,
+      "sha256": "b355b3fb1855eb9ce7f2a9c2850f7da38f09cfd6529d38c7d4fcd09ce77d95b6"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0058.json": {
+      "bytes": 517,
+      "sha256": "b4143118608550bb111023a043b1c82dc1309975145a2d7884164a3a306375b8"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0059.json": {
+      "bytes": 852,
+      "sha256": "5d5872a756bb292de97fb50f95edee9fb622b9f1b9a2a1b1a7a3bc2f24dfbb7e"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0060.json": {
+      "bytes": 517,
+      "sha256": "89b42e663e46546456fb8fd6aecffc853148a0fa5ec7cda56b712cf9adaa475c"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0061.json": {
+      "bytes": 852,
+      "sha256": "d947fbd27bc75dc0f8d750b6d5f4e60dbbb5e4ce9545f539c493fe18f7390f6f"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0062.json": {
+      "bytes": 815,
+      "sha256": "c0e7766d949d3337eb8018a184c643cc6006fdae3a9bdb8cb7151823787e94bc"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0063.json": {
+      "bytes": 530,
+      "sha256": "22f138a147f6ea59a644665192e08f108da87d22f0146cbedf97e0b3bf330c3b"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0064.json": {
+      "bytes": 589,
+      "sha256": "7d54ea5ffa1412c878433cbd68b80c8f2c2daabdf21bb27069c5f0c64dcbac36"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0065.json": {
+      "bytes": 555,
+      "sha256": "bd15511b0466e6f5f91170defa1ea662277b66634fe182cf4cda7edd17d1b375"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0066.json": {
+      "bytes": 888,
+      "sha256": "097da4e8c3de612a28fd70dfea3b76a2c021e1c3075efb19b9cd2168f6bb9c1e"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0067.json": {
+      "bytes": 1251,
+      "sha256": "e0ee7bca6d45835f322d7110256cdc98391c6bbb41971862d9fbd30097af0525"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0068.json": {
+      "bytes": 517,
+      "sha256": "14298790f30ecfc035c9b43e03c6ec2789245131047316fe025437bf174cb474"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0069.json": {
+      "bytes": 852,
+      "sha256": "d5208baf1b87cb5571eb61c943d3a0d5e8b5804124e4d1cf4e4d924a9358a5d0"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0070.json": {
+      "bytes": 517,
+      "sha256": "4fc7be14a1210629f8ac156e3771f0d2b054d569f79eb6c19bf7faa77292e54f"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0071.json": {
+      "bytes": 852,
+      "sha256": "279bcf73c447f722c7b8d5f99a8728b813efd3f86494929cb321a5ed6e8963e9"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0072.json": {
+      "bytes": 509,
+      "sha256": "d853db62b80815a9868f615fe305a68d7c92945c282a8ebbe769b523f2bb0540"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0073.json": {
+      "bytes": 509,
+      "sha256": "d853db62b80815a9868f615fe305a68d7c92945c282a8ebbe769b523f2bb0540"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0074.json": {
+      "bytes": 526,
+      "sha256": "90a8290afcf5105f27124bae6763678d98849677c103da107ad51b0d2be83c4e"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0075.json": {
+      "bytes": 530,
+      "sha256": "f4df5aad81463622d6b62d5ed01ab5ff2f2688afadc83e1522fbeef87a3964ed"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0076.json": {
+      "bytes": 589,
+      "sha256": "a468104bbb2b7949831966fdc0b3dcd9de751c28482209e1e8387175ef694989"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0077.json": {
+      "bytes": 555,
+      "sha256": "e80b4174ef54bc14a3bdf89e9aff1923476d02e8c6469b2a603c5804a5c7b78b"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0078.json": {
+      "bytes": 888,
+      "sha256": "a5860c5b8bff1f18d43dbd68d754f7baa996df49c4a59c513eea1351c15ce3b0"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0079.json": {
+      "bytes": 1251,
+      "sha256": "f4d1fe260bdc4555b42ee856daae77d00c9a6c5224ae2403783c1bafa965ba08"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0080.json": {
+      "bytes": 517,
+      "sha256": "78d1523a29e4a14fcfd9df23bf07b47581fcc0ea1973a40b404800140c4f33a1"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0081.json": {
+      "bytes": 852,
+      "sha256": "4b115773194cabba36542682cf24bb570838408a6181e3d5970e4e249044caad"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0082.json": {
+      "bytes": 517,
+      "sha256": "d8e6b5fd33fffe954c11fd52d69d5c0a6e482b3f80a766650146da62c41df2fd"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0083.json": {
+      "bytes": 852,
+      "sha256": "65bdbdd051b2c428b9d161c736196660105051b811381f4cc85d7b115fbebc98"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0084.json": {
+      "bytes": 815,
+      "sha256": "c0e7766d949d3337eb8018a184c643cc6006fdae3a9bdb8cb7151823787e94bc"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0085.json": {
+      "bytes": 530,
+      "sha256": "22f138a147f6ea59a644665192e08f108da87d22f0146cbedf97e0b3bf330c3b"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0086.json": {
+      "bytes": 589,
+      "sha256": "7d54ea5ffa1412c878433cbd68b80c8f2c2daabdf21bb27069c5f0c64dcbac36"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0087.json": {
+      "bytes": 555,
+      "sha256": "cdfc7f43d36d9b0ef0eefdea1d963e31448ba93ba3111ada80301cf195254ec1"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0088.json": {
+      "bytes": 888,
+      "sha256": "fc8fff0ef4897acfeabd74fc4f89608a247bd1a3b79ba5dd77bceb5ab586605a"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0089.json": {
+      "bytes": 1251,
+      "sha256": "2928a16323ef46e74d35cf104accba180c1d86e5cb6c13a1823df7d106f5dc64"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0090.json": {
+      "bytes": 517,
+      "sha256": "8c663d4ca995d8a0916c2e0f53737616cae8c27fffab3d7142c21d667c19b85c"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0091.json": {
+      "bytes": 852,
+      "sha256": "aee88aeff720e0d5906855759d10ed466d59e421865b9171adbef4428af7416f"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0092.json": {
+      "bytes": 517,
+      "sha256": "156c7078a2acc80b8bb0a683d4fce19b9379191b662ae507d7848551adb4b874"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0093.json": {
+      "bytes": 852,
+      "sha256": "2892df767fd8f18297719d8abfd52443266588d70f5d926d2cafdfb60542fc26"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0094.json": {
+      "bytes": 527,
+      "sha256": "55ba154838061c05527d2fedcfb161cfcbeb176a2a1016d71e0136fb5a441dde"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0095.json": {
+      "bytes": 935,
+      "sha256": "3e158f55489ca710690c00ee69a057eebca2a866c5be2ee8b4c9facc410df37f"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0096.json": {
+      "bytes": 509,
+      "sha256": "bd49d5ff1a05a46bcf3f3f5e100fd7ad53d1a15913e357819b65dc0c77b5c85f"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0097.json": {
+      "bytes": 509,
+      "sha256": "a5bd7599d9fb37a45c3fc94df9cdebd2bfcd1b8bcc990226e51cda8d0a60b19b"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0098.json": {
+      "bytes": 509,
+      "sha256": "897315d4c0a6192dc07a70e7d18c125c46ed436865fe45b15d342011227eff25"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0099.json": {
+      "bytes": 509,
+      "sha256": "7175e3cb998734df71dd3adb5f670e80398d2b53fbdb21da807d6c766b8e4d70"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0100.json": {
+      "bytes": 526,
+      "sha256": "94a9635dd8876649326b2b4756cd5f2ada50771bd98f2340941c064a5c6b0bdf"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0101.json": {
+      "bytes": 530,
+      "sha256": "8b44fc36c4a258757354cdf9f67be7f10bd64717264dc88410972fe8cb12b6c8"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0102.json": {
+      "bytes": 589,
+      "sha256": "a0d18fa3d3bb639d5406efcb896da362b14d00a19c4d6eee3573958dc8507b36"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0103.json": {
+      "bytes": 555,
+      "sha256": "b9742d7e191822e8af1334cb12e1373d8dff858c4acf583c5432ab931c98a06c"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0104.json": {
+      "bytes": 945,
+      "sha256": "7edc2fe1130809718bf1dd3b8b1b9861568920f24bb36599de6c03fd7bfab2f9"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0105.json": {
+      "bytes": 1251,
+      "sha256": "6edb817407a7535e7c4aa4194190ba0f41d933dc562b220788a927613e5e3d24"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0106.json": {
+      "bytes": 517,
+      "sha256": "dc6292d3cea1134ad727e9cfb6560b585f10a69607082a4cd1132962d2a1dcfb"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0107.json": {
+      "bytes": 909,
+      "sha256": "5d0413caf823d0a0b7d8a04fdd18c6c94af6c8316c32d73795394211a559390e"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0108.json": {
+      "bytes": 517,
+      "sha256": "2c92704e0c76f78668132e50b598e939cc8d7d1c327b5fe71c8beed53b85abfe"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0109.json": {
+      "bytes": 911,
+      "sha256": "43e3bb015435d814b238f13793fc51ce27c89cbb52ebf4b4b334f5bd8e325332"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0110.json": {
+      "bytes": 872,
+      "sha256": "fc73f5a09848d76fb40d451b11b0f174a780b8ef9aae4eefeff7f4b58860cb63"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0111.json": {
+      "bytes": 530,
+      "sha256": "8f5858332bf7eb418a3d565a8f6b670b3563ac4c3a0b3dcfd3f3cc657bd8bb6a"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0112.json": {
+      "bytes": 589,
+      "sha256": "839af29aa63a9016dd08beeb6427eb0947bb897587a953de74826e3abc87a5d2"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0113.json": {
+      "bytes": 555,
+      "sha256": "f22baafc12ed76d3f0b04ff84b3f7871df68b4b3d9b8d39cdb69b43573000526"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0114.json": {
+      "bytes": 945,
+      "sha256": "8934cba486dafca448a512ec4c842993e36645938d14241e5ae454a7c9d62c42"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0115.json": {
+      "bytes": 1251,
+      "sha256": "ded95151403454591b5472a5fa57573fed22cb0682bfe335830892e578822a73"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0116.json": {
+      "bytes": 517,
+      "sha256": "cc24e268e729390271ec08d5aaba6ca95ca3250417b1a095fb6d7287a7088a88"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0117.json": {
+      "bytes": 909,
+      "sha256": "3978fa75eba603c64071e6bfab689a9efa4157df0f5a212d99032c8301958c2a"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0118.json": {
+      "bytes": 517,
+      "sha256": "39fd684fbc33fea5ed450344d016072fc66b687260f3a4fef5ed184f17f23ad3"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0119.json": {
+      "bytes": 911,
+      "sha256": "ebeda6669ccd21fb6a6c55d5f4e7e6db4a6a8abd1ec8398116ba13a63723d146"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0120.json": {
+      "bytes": 509,
+      "sha256": "a62431ddbdea7c617ee9814d701700d2359cc2e13f2e679e589da2838fadcc27"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0121.json": {
+      "bytes": 509,
+      "sha256": "a62431ddbdea7c617ee9814d701700d2359cc2e13f2e679e589da2838fadcc27"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0122.json": {
+      "bytes": 526,
+      "sha256": "94a9635dd8876649326b2b4756cd5f2ada50771bd98f2340941c064a5c6b0bdf"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0123.json": {
+      "bytes": 530,
+      "sha256": "8b44fc36c4a258757354cdf9f67be7f10bd64717264dc88410972fe8cb12b6c8"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0124.json": {
+      "bytes": 589,
+      "sha256": "a0d18fa3d3bb639d5406efcb896da362b14d00a19c4d6eee3573958dc8507b36"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0125.json": {
+      "bytes": 555,
+      "sha256": "2f8503742a5145601d9e44ead289e616fdfb4ed8fc54d75ff4dea1060546323a"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0126.json": {
+      "bytes": 945,
+      "sha256": "f339420adce4f762192048db1dc3f334f0d67159634da355c0f0baf4285b835c"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0127.json": {
+      "bytes": 653,
+      "sha256": "baf8765aeca5f49ce1675ec23c5aa04b60e0cb3482d5211be4d820b3d46e2b0b"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0128.json": {
+      "bytes": 522,
+      "sha256": "be43473e212c979c4c10a5e2b6a3afffa4c4b8e41a79a6460924bb439a844d73"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0128.txt": {
+      "bytes": 3454,
+      "sha256": "65f92eb1b84fb18db5c5af97b519e3e72dd0f210ec46b910b3f5045e7cd743ed"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0129.json": {
+      "bytes": 458,
+      "sha256": "aa17fce9edcbd8998503f6fc2cc671c6f898a7b4dfd63209287d4637e9dd85f8"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0129.txt": {
+      "bytes": 2467,
+      "sha256": "c4b0fab6d7fdbc247a811d2bc9e7a9c27e2ee6ee9054a76d0c01c526e8a0e400"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0130.json": {
+      "bytes": 443,
+      "sha256": "e0f31d1bd8e1356a6f14890202a19873165f5cae013e404f98ea1aa0888bb022"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0130.txt": {
+      "bytes": 1173,
+      "sha256": "c2aaa1b71b8130c9da13a5916e94f605509a188607a1b29ca2effefc52ee97d5"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0131.json": {
+      "bytes": 462,
+      "sha256": "4073e0f09ec40cf7a3c26b8c27617ae69169a5fdf92edf2953e9e2d7c3f568f1"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0131.txt": {
+      "bytes": 1586,
+      "sha256": "7ba481632c7fc863c522584739ea3ac949ec7e0e6e322bdf26ac6f8c05a2e50e"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0132.json": {
+      "bytes": 462,
+      "sha256": "dc3d89820d706a5b31c47d727d26aa84903abc150bae477955853204136d2743"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0132.txt": {
+      "bytes": 1335,
+      "sha256": "f049fb5901f9c41dbf4d9fc8bcf1f6783a0335506f665d5141a550c3a9a1b678"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0133.json": {
+      "bytes": 470,
+      "sha256": "96fbd594763afe34e00e4b5426ecd5dc3f6ae050e84d46f2462ffa99d1b043c3"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0133.txt": {
+      "bytes": 1816,
+      "sha256": "005cdbe0c39ac93e60bda334811a57136f6630319dc0dba820eac60ce762793b"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0134.json": {
+      "bytes": 452,
+      "sha256": "9c8101543083d7681a830bbc0844da5820469abc62a41923ca2e741c574ada78"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0134.txt": {
+      "bytes": 2396,
+      "sha256": "b6b71116c1961bdc0cd0fb7168db9118afb56f205330d850848cff91894a85b3"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0135.json": {
+      "bytes": 474,
+      "sha256": "80ec20f9cebc094cb18a381b581a590b7ee6ccc4428bf7ce53ca3e61bc7b2490"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0135.txt": {
+      "bytes": 2399,
+      "sha256": "b5bb2fdba0424e0f435755a4c17c54dd479e4c944df36724b653a9e876441109"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0136.json": {
+      "bytes": 466,
+      "sha256": "f66d2b6187c037cf1fbc051fddd102ae93cf801623ed32e07b36d3f544603ef0"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0136.txt": {
+      "bytes": 2384,
+      "sha256": "0a7c773b0b65fb8857bcf548d574bc59c11900f241c08af651f2048bc70f4e58"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0137.json": {
+      "bytes": 438,
+      "sha256": "0752da85fd8352b21237017529354d0ee64c84065a25c078662063212aa1f6ce"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0137.txt": {
+      "bytes": 706,
+      "sha256": "d41b1f511d9ee7ba11f1130a56bb957adc9205c40d547528c85d9680c7eba844"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0138.json": {
+      "bytes": 438,
+      "sha256": "51778953622813268ff6bcb3c3e0b18a77cdbce727df155f2af5560511272618"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0138.txt": {
+      "bytes": 697,
+      "sha256": "c4f13312aebd34610015d636eefe284fbb7a227a5dbe7a7c05779c3dfa56d45c"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0139.json": {
+      "bytes": 444,
+      "sha256": "391d335f185cff2dd20529cbc0228ae5b4db479b34ab4c4a38793ed85de25142"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0139.txt": {
+      "bytes": 811,
+      "sha256": "450ed143f046d53abf4045b44e19e3b25958ca05202ee2afd2ecc4667a099186"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0140.json": {
+      "bytes": 444,
+      "sha256": "6222d184aff32686d7e51931d0880a2114fce8e2a6f9ceda45a87d96bd656f66"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0140.txt": {
+      "bytes": 811,
+      "sha256": "450ed143f046d53abf4045b44e19e3b25958ca05202ee2afd2ecc4667a099186"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0141.json": {
+      "bytes": 444,
+      "sha256": "c8a3f3ce9aa45ac43acba3c7520c705504ec79f26a6e0903c39b3c54fda5bc54"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0141.txt": {
+      "bytes": 811,
+      "sha256": "450ed143f046d53abf4045b44e19e3b25958ca05202ee2afd2ecc4667a099186"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0142.json": {
+      "bytes": 441,
+      "sha256": "58c7ccecc2c0f8ba0d10411c1e0e2b4115303e41bc8799e2062f80575fb4ecf7"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0142.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0143.json": {
+      "bytes": 441,
+      "sha256": "ecde62bf2c340c5910f511d5cd970c78e9bd1d9b055e9fb78b52c270ef113f7d"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0143.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0144.json": {
+      "bytes": 441,
+      "sha256": "8fac8ae96e3c9a20fa9e8c628b35b9d7da268fa873c0d1a17c257775c69ad057"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0144.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0145.json": {
+      "bytes": 441,
+      "sha256": "8950659099251e0f11350d6b23973d0ceaa994fbff574f2061dfd6b077d6bc16"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0145.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0146.json": {
+      "bytes": 441,
+      "sha256": "e794f27c137acb6b9ad56129c85f70def80985deb300a0610eb03a8b2d9af505"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle-frames/0146.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle.diagnostic-stop": {
+      "bytes": 16,
+      "sha256": "5d29c704162f4eb9fbd937c2356c103e995f9f2f482ee100af467fbbdc4de60e"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle.py": {
+      "bytes": 7936,
+      "sha256": "d0c273b311c886ed87be3cdd961c9aea9b7fc7b22575a797b9b9004adf14b837"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/initial-send-oracle.sh": {
+      "bytes": 328,
+      "sha256": "eb0ac46328d215a7ab82aa9f422526b77c749824b16c8a14756fc69d2068e7ad"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/model.spthy": {
+      "bytes": 350327,
+      "sha256": "18b5820700689628401cc2271f73dd5e8c9fd4ba7cd2fbe62d2b8c00b4a5e422"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/run.py": {
+      "bytes": 5793,
+      "sha256": "858ccea4318e9e0e76f1b72da8dc1a08133f1aa28453b00fea98621f46879643"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/shape-priority-origin-STARTED.json": {
+      "bytes": 1913,
+      "sha256": "3425c9abc3513a568414794e269fd1338264b2a56b4d7d0c5a81acb2ba25f129"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/shape-priority-origin-TERMINAL.json": {
+      "bytes": 6279,
+      "sha256": "7ec76147d377936bde90f90cc03832aae33396d619cd6c928f912bebe5e7a912"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/shape-priority-origin-proof.spthy": {
+      "bytes": 418562,
+      "sha256": "000f7b9e2be59d4b8aadc238eb43c7a88a7cfc01519ac97c986f88d6c3578f30"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/shape-priority-origin.stderr": {
+      "bytes": 271191,
+      "sha256": "f617c839e2ba6931cab5d0ffcda18114d1c4b3ec7469a55167a85dbe73d6ea02"
+    },
+    "experiments/p0-certified-origin-shape-priority-705/shape-priority-origin.stdout": {
+      "bytes": 3085,
+      "sha256": "1b2ec92623e1aeee6b87024c25c2c553330a635b5933e91f3515578aa16e2150"
+    },
+    "experiments/p0-origin-identity-edge-706/0005.txt": {
+      "bytes": 953,
+      "sha256": "d5fb8735135748ed35303840ec25f02f1fdd6aea10d9ee2102f9db2773518b85"
+    },
+    "experiments/p0-origin-identity-edge-706/0006.txt": {
+      "bytes": 953,
+      "sha256": "d5fb8735135748ed35303840ec25f02f1fdd6aea10d9ee2102f9db2773518b85"
+    },
+    "experiments/p0-origin-identity-edge-706/PREPARED.json": {
+      "bytes": 601,
+      "sha256": "13073729a0d40e7174494d8112b451c0f28d0ffeb8c1c3caa47d709cdb84b599"
+    },
+    "experiments/p0-origin-identity-edge-706/READBACK.json": {
+      "bytes": 601,
+      "sha256": "fa2c4600306c7f0effd8d0bcd17205d68dca555bf6ab5373747c3d9d12cd03e2"
+    },
+    "experiments/p0-origin-identity-edge-706/identity-edge-replay-STARTED.json": {
+      "bytes": 1609,
+      "sha256": "25fb47a89bd6ca09265790e7482b3046c3302f5cabd8470a12e1b62fea9feaef"
+    },
+    "experiments/p0-origin-identity-edge-706/identity-edge-replay-TERMINAL.json": {
+      "bytes": 5974,
+      "sha256": "a87c4b6d9028497a06d772e688b86e0156c3c58a693d3ac256957cd659a8f011"
+    },
+    "experiments/p0-origin-identity-edge-706/identity-edge-replay-proof.spthy": {
+      "bytes": 350724,
+      "sha256": "8c3795ab31352a07b33f1bcd99d6acb0f34cd001b3ee1a0ce4c0d5d122d5c8d5"
+    },
+    "experiments/p0-origin-identity-edge-706/identity-edge-replay.stderr": {
+      "bytes": 1595,
+      "sha256": "8f1b9a1808aca865ee20ad5f66be976a8a8106b2c0ad76e51483377ccc0fb3cf"
+    },
+    "experiments/p0-origin-identity-edge-706/identity-edge-replay.stdout": {
+      "bytes": 3061,
+      "sha256": "ce4da932eb6fdd420d2bdef7d171ba1d300e93ecead77015b92500bcaffdcb27"
+    },
+    "experiments/p0-origin-identity-edge-706/model.spthy": {
+      "bytes": 350525,
+      "sha256": "7d86b2e1b988122dcfcd7144c43eebb81867d53f0ae8288e16f7f6db1155f7fd"
+    },
+    "experiments/p0-origin-identity-edge-706/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "experiments/p0-origin-identity-source-705/DRIVER_TERMINAL.json": {
+      "bytes": 112,
+      "sha256": "571300478440529cb1380f32b71f4bd3e084263f7b3061f18c9bc5beb9243a9e"
+    },
+    "experiments/p0-origin-identity-source-705/PREPARED.json": {
+      "bytes": 2077,
+      "sha256": "d6c68fc712dc8691bd1b5bb377907bc143243df27f6b2d5adc7cc6d4e9fe46e8"
+    },
+    "experiments/p0-origin-identity-source-705/identity-source-replay-STARTED.json": {
+      "bytes": 1615,
+      "sha256": "e8a8e6ace33d36a6102f1e2745ed1c4674a91a09c18d3e030d34b99a85078db7"
+    },
+    "experiments/p0-origin-identity-source-705/identity-source-replay-TERMINAL.json": {
+      "bytes": 5979,
+      "sha256": "2fab8460498ddeb90f3e1af35a95abc0dd77572a4ac261ecd006b5fae8a0b365"
+    },
+    "experiments/p0-origin-identity-source-705/identity-source-replay-proof.spthy": {
+      "bytes": 351086,
+      "sha256": "a250c697a1ae5343bdea638caa17f4d5c789ed5232b899462db94cfdc5d23432"
+    },
+    "experiments/p0-origin-identity-source-705/identity-source-replay.stderr": {
+      "bytes": 1595,
+      "sha256": "7b2a1a95a27522ecaac7e0d3df52e359a4110d7d5ce8ffeea8ff3bb4d4a948a7"
+    },
+    "experiments/p0-origin-identity-source-705/identity-source-replay.stdout": {
+      "bytes": 3067,
+      "sha256": "bf3be05dbbdc94c45b79de75ddde8884df286cc182296bca51979b61dc13e946"
+    },
+    "experiments/p0-origin-identity-source-705/model.spthy": {
+      "bytes": 350717,
+      "sha256": "0b3ec7a4c9e822a35824743286f9beb01cad8bc3a9f3e2f03672d2fcb831c326"
+    },
+    "experiments/p0-origin-identity-source-705/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "experiments/p0-origin-signerfile-edges-706/PREPARED.json": {
+      "bytes": 1562,
+      "sha256": "646c0f4156da663f77c189ad869c882cf873ede47a4ed6f97391761063a01a46"
+    },
+    "experiments/p0-origin-signerfile-edges-706/READBACK.json": {
+      "bytes": 1230,
+      "sha256": "f2a0d1c1e6a609abd2752dc024e633532602541339946ded2964f459f9d5b37d"
+    },
+    "experiments/p0-origin-signerfile-edges-706/model.spthy": {
+      "bytes": 351728,
+      "sha256": "0c3a645e03699905f7046f73308ad75a8792bf4b60753cf83a0b109c1edceeda"
+    },
+    "experiments/p0-origin-signerfile-edges-706/run.py": {
+      "bytes": 5719,
+      "sha256": "a68b631d1408cbbac8c6587cb96b2300c65faff5ee763c3c9933f1fac4f07eeb"
+    },
+    "experiments/p0-origin-signerfile-edges-706/signerfile-edges-replay-STARTED.json": {
+      "bytes": 1618,
+      "sha256": "380a520b54f72415233c987e627056f72e64bcffe4570122cada6dbbe8decf8b"
+    },
+    "experiments/p0-origin-signerfile-edges-706/signerfile-edges-replay-TERMINAL.json": {
+      "bytes": 5982,
+      "sha256": "70756fb91a47665ed0e10f051c429a5b6914762f91c7dce959724080850b53bc"
+    },
+    "experiments/p0-origin-signerfile-edges-706/signerfile-edges-replay-proof.spthy": {
+      "bytes": 351310,
+      "sha256": "55b826b3b83dec744c701a68cc0d2cc3164d29d48bc2dcbc79fc9f0f4560c3db"
+    },
+    "experiments/p0-origin-signerfile-edges-706/signerfile-edges-replay.stderr": {
+      "bytes": 1595,
+      "sha256": "1025b025f0f070013e172f52e839f81e6f32ccad24363d31d0d1a7c4567ccfaf"
+    },
+    "experiments/p0-origin-signerfile-edges-706/signerfile-edges-replay.stdout": {
+      "bytes": 3070,
+      "sha256": "9e5af0916d6134937069fedcbcd3c46875ba26422f656059ab49b8259ae66583"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/DRIVER_TERMINAL.json": {
+      "bytes": 154,
+      "sha256": "99222136b4014c0ca13db416487e121e58c74067e8ce78b32b44b3adf4bdcbcd"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/PREPARED.json": {
+      "bytes": 1536,
+      "sha256": "d343d548c82b0f3e1e4220eade5fce1ddb46bb0a3c9ba430b956a8e5e6b90d3f"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0000.json": {
+      "bytes": 361,
+      "sha256": "1d15edfd1e570f37eeb5a0561c1f5a63e3611bacc4bcddb14f8ced536a9c2627"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0000.txt": {
+      "bytes": 2387,
+      "sha256": "3c2977d90f5839ea29bba8adc10bab712715d0fba3dd9aeb4dd1f3cdc905ccf7"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0001.json": {
+      "bytes": 315,
+      "sha256": "0a2386e91821abfde2fb1bb49d96060b1d3a4ea8f23b26f5653b6278b4c482f4"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0001.txt": {
+      "bytes": 2396,
+      "sha256": "b6b71116c1961bdc0cd0fb7168db9118afb56f205330d850848cff91894a85b3"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0002.json": {
+      "bytes": 361,
+      "sha256": "ccb881dde4cef633d464f4e8f0dda9448185420d64b1fb55b3dc6da044dd4f3f"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0002.txt": {
+      "bytes": 2399,
+      "sha256": "b5bb2fdba0424e0f435755a4c17c54dd479e4c944df36724b653a9e876441109"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0003.json": {
+      "bytes": 345,
+      "sha256": "f25545d57700723a227f607e3ab05959cb9460eea96533feba44731604341c38"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0003.txt": {
+      "bytes": 2384,
+      "sha256": "0a7c773b0b65fb8857bcf548d574bc59c11900f241c08af651f2048bc70f4e58"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0004.json": {
+      "bytes": 286,
+      "sha256": "731d630701ce7b04aa92ba49d920123a762ee987ef1fe6e8023eb16798a1a602"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0004.txt": {
+      "bytes": 706,
+      "sha256": "d41b1f511d9ee7ba11f1130a56bb957adc9205c40d547528c85d9680c7eba844"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0005.json": {
+      "bytes": 308,
+      "sha256": "b555b37f53ed0c7e756e22f2bf0985462a98bdfb25a5f01b5349f071276e1b5c"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0005.txt": {
+      "bytes": 1061,
+      "sha256": "eb269410dc449e8ebe221c4daff33dab1fd419148081d4ff7ba7445b77de4b7b"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0006.json": {
+      "bytes": 308,
+      "sha256": "1dfffdb5855db52dca7b0b452614294b1ffafd16477fe02dd4f6246bd8588b37"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0006.txt": {
+      "bytes": 1061,
+      "sha256": "e77ca72907df8b17e10b247a00f1b1eab2c591c49de66604d63d033e2902e809"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0007.json": {
+      "bytes": 308,
+      "sha256": "55a5cdc141c006e6addcac9808a81b2e25f80b083ed924939730a79bc42335f0"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0007.txt": {
+      "bytes": 1061,
+      "sha256": "97cf39f499c1e656fd8aa4b065b787618815eb8434ab799a6e79400c61febe2f"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0008.json": {
+      "bytes": 308,
+      "sha256": "a59d3fb0602185984910353efcc13a5d9fa31b484d55c9de19f801fdfd062405"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0008.txt": {
+      "bytes": 1061,
+      "sha256": "620b2cf818d849bf86f3f98f75094c48efd1b46434c50186d048e0e8b6e2297f"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0009.json": {
+      "bytes": 293,
+      "sha256": "09b5164d0e96dcd1d50d1f94216a481fd21558cf478ed97b9897e33599a5f7ea"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0009.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0010.json": {
+      "bytes": 293,
+      "sha256": "28e16ee014b0d5b1e5e36a87cf0fb5111f9d2e9bc33b6ebc47c4d2fc2311abd6"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0010.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0011.json": {
+      "bytes": 293,
+      "sha256": "6b3e91d53fa4e0d3d35e295f6b36af42e872ce4f6d4acf569266005a259aaac2"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0011.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0012.json": {
+      "bytes": 293,
+      "sha256": "241bd16c5075c0078cfcc43868aff2aee11f01999fb41be8d72c821484d5fad1"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0012.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0013.json": {
+      "bytes": 293,
+      "sha256": "57d05070cb0f72b467936344f639e252d53a1e926db2575804a37341cd672c12"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle-frames/0013.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle.diagnostic-stop": {
+      "bytes": 27,
+      "sha256": "dd68d7b5191957984a0e516ce6e16769b5a45b1e975bd161bde0f6102561e087"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle.py": {
+      "bytes": 2318,
+      "sha256": "a2c40cb451ad0e8f52f650ef4ceed6f0a2a6f654dd7b583f5fd8b7bf2c860101"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/initial-send-oracle.sh": {
+      "bytes": 324,
+      "sha256": "e59822adc81ddae2e83a24df1613c9ed4708605e98a65d7cdaa9f39bb44b81f6"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/model.spthy": {
+      "bytes": 351174,
+      "sha256": "137807cff8b2bad7cba6d3de682be2c5339a75fbbd0fef46110270ffb4de6164"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/run.py": {
+      "bytes": 5793,
+      "sha256": "0dd1b2783d92b1b585fef2359c23abb9bdbe0f70747b79dcc4723c7819f4c41a"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/signerfile-frontiers-STARTED.json": {
+      "bytes": 1900,
+      "sha256": "3ebc1a1fe5581d25eb65500b802548fcab80952ad518a66868aa8708cbabcf74"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/signerfile-frontiers-TERMINAL.json": {
+      "bytes": 6265,
+      "sha256": "07817ff1e8d04033c6a9da053211525684e60953efb19a4ca681f62772c17630"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/signerfile-frontiers-proof.spthy": {
+      "bytes": 351756,
+      "sha256": "165592abc6ae8094691b3f9ffe605a4ac2076c032f797e33244ba437c6337a50"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/signerfile-frontiers.stderr": {
+      "bytes": 21707,
+      "sha256": "047bc21afa181eb99257dca59fc6c726f50d7694e92b12b8fb8ebd9ae004cd1a"
+    },
+    "experiments/p0-origin-signerfile-frontiers-706/signerfile-frontiers.stdout": {
+      "bytes": 3075,
+      "sha256": "9002c0bbe5dfbfba1bc16f9c2c0d9ade0ecdfbfb9329be95b4d34557ea3817fb"
+    },
+    "experiments/p0-origin-source-frontiers-705/DRIVER_TERMINAL.json": {
+      "bytes": 248,
+      "sha256": "4139a4161983b06d7a72cbc44cf12a46891002e76f89210dcb31b318595a5649"
+    },
+    "experiments/p0-origin-source-frontiers-705/PAUSE_CLEANUP.json": {
+      "bytes": 208,
+      "sha256": "df6ec85d572ed396e37c6c21839a1fec5d2d09901067efd8e7243281e881bcda"
+    },
+    "experiments/p0-origin-source-frontiers-705/PREPARED.json": {
+      "bytes": 931,
+      "sha256": "edba81bd209eecef5f023f5cba2cd031c4f920f38ce3ec1f6a44f33d23881665"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0000.json": {
+      "bytes": 361,
+      "sha256": "1d15edfd1e570f37eeb5a0561c1f5a63e3611bacc4bcddb14f8ced536a9c2627"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0000.txt": {
+      "bytes": 2387,
+      "sha256": "3c2977d90f5839ea29bba8adc10bab712715d0fba3dd9aeb4dd1f3cdc905ccf7"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0001.json": {
+      "bytes": 315,
+      "sha256": "0a2386e91821abfde2fb1bb49d96060b1d3a4ea8f23b26f5653b6278b4c482f4"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0001.txt": {
+      "bytes": 2396,
+      "sha256": "b6b71116c1961bdc0cd0fb7168db9118afb56f205330d850848cff91894a85b3"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0002.json": {
+      "bytes": 361,
+      "sha256": "ccb881dde4cef633d464f4e8f0dda9448185420d64b1fb55b3dc6da044dd4f3f"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0002.txt": {
+      "bytes": 2399,
+      "sha256": "b5bb2fdba0424e0f435755a4c17c54dd479e4c944df36724b653a9e876441109"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0003.json": {
+      "bytes": 345,
+      "sha256": "f25545d57700723a227f607e3ab05959cb9460eea96533feba44731604341c38"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0003.txt": {
+      "bytes": 2384,
+      "sha256": "0a7c773b0b65fb8857bcf548d574bc59c11900f241c08af651f2048bc70f4e58"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0004.json": {
+      "bytes": 286,
+      "sha256": "731d630701ce7b04aa92ba49d920123a762ee987ef1fe6e8023eb16798a1a602"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0004.txt": {
+      "bytes": 706,
+      "sha256": "d41b1f511d9ee7ba11f1130a56bb957adc9205c40d547528c85d9680c7eba844"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0005.json": {
+      "bytes": 293,
+      "sha256": "fd296b9d5ce0308944499233df2e77abec55c43f20962cd9c8005aab1c93eb25"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0005.txt": {
+      "bytes": 953,
+      "sha256": "d5fb8735135748ed35303840ec25f02f1fdd6aea10d9ee2102f9db2773518b85"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0006.json": {
+      "bytes": 293,
+      "sha256": "f7f7bd64deed952fc747ac29d1fcba705395552e2f3e2ca329475fc76e748d43"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0006.txt": {
+      "bytes": 953,
+      "sha256": "d5fb8735135748ed35303840ec25f02f1fdd6aea10d9ee2102f9db2773518b85"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0007.json": {
+      "bytes": 300,
+      "sha256": "3653a42e18e377cfd3e837165e09e1dfa166d4dad7da6342a7c88dd0bba33029"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0007.txt": {
+      "bytes": 811,
+      "sha256": "450ed143f046d53abf4045b44e19e3b25958ca05202ee2afd2ecc4667a099186"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0008.json": {
+      "bytes": 300,
+      "sha256": "953fff9ff2d28600da4089af9fd20482c28a487638db6a04c14fda3683743fcf"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0008.txt": {
+      "bytes": 811,
+      "sha256": "450ed143f046d53abf4045b44e19e3b25958ca05202ee2afd2ecc4667a099186"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0009.json": {
+      "bytes": 300,
+      "sha256": "096b18177fc3f520432d3d4b60503ac2adb0e42eaf2441cee0f3114140869f89"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0009.txt": {
+      "bytes": 811,
+      "sha256": "450ed143f046d53abf4045b44e19e3b25958ca05202ee2afd2ecc4667a099186"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0010.json": {
+      "bytes": 293,
+      "sha256": "28e16ee014b0d5b1e5e36a87cf0fb5111f9d2e9bc33b6ebc47c4d2fc2311abd6"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0010.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0011.json": {
+      "bytes": 293,
+      "sha256": "6b3e91d53fa4e0d3d35e295f6b36af42e872ce4f6d4acf569266005a259aaac2"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0011.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0012.json": {
+      "bytes": 293,
+      "sha256": "241bd16c5075c0078cfcc43868aff2aee11f01999fb41be8d72c821484d5fad1"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0012.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0013.json": {
+      "bytes": 293,
+      "sha256": "57d05070cb0f72b467936344f639e252d53a1e926db2575804a37341cd672c12"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0013.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0014.json": {
+      "bytes": 293,
+      "sha256": "12a8348885fc2865d6fbc61e555c4216dcd272cc0c59f22ecc10005b9250ad79"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle-frames/0014.txt": {
+      "bytes": 786,
+      "sha256": "754ea9ff49c3716dfb63a881d58d10c8d55505541524171f8631134dbad17d22"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle.diagnostic-stop": {
+      "bytes": 27,
+      "sha256": "dd68d7b5191957984a0e516ce6e16769b5a45b1e975bd161bde0f6102561e087"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle.py": {
+      "bytes": 2318,
+      "sha256": "a2c40cb451ad0e8f52f650ef4ceed6f0a2a6f654dd7b583f5fd8b7bf2c860101"
+    },
+    "experiments/p0-origin-source-frontiers-705/initial-send-oracle.sh": {
+      "bytes": 320,
+      "sha256": "07aef86537e7d42f925e62be906b23bd9c3525c3e5fae4e1e0335794a3248802"
+    },
+    "experiments/p0-origin-source-frontiers-705/model.spthy": {
+      "bytes": 350469,
+      "sha256": "343122054d8a1fdcddba0c437acb7c1823f1401f7f9660f0b58e540b1eeab7dc"
+    },
+    "experiments/p0-origin-source-frontiers-705/run.py": {
+      "bytes": 5793,
+      "sha256": "0dd1b2783d92b1b585fef2359c23abb9bdbe0f70747b79dcc4723c7819f4c41a"
+    },
+    "experiments/p0-origin-source-frontiers-705/source-frontiers-STARTED.json": {
+      "bytes": 1884,
+      "sha256": "abde505e967fc11264fb474406f25c51e91c3fc813f4220e9eeba08f1353516e"
+    },
+    "experiments/p0-origin-source-frontiers-705/source-frontiers-TERMINAL.json": {
+      "bytes": 2050,
+      "sha256": "408166a6eafe78f51f98818bac9a7cbddf33c2e0c6b51bf696b40bd1df435fca"
+    },
+    "experiments/p0-origin-source-frontiers-705/source-frontiers.stderr": {
+      "bytes": 21921,
+      "sha256": "250ec53eb22995167b013e78f8d5064b5a6d1bb09ceb6625e3a3059f72bf8196"
+    },
+    "experiments/p0-origin-source-frontiers-705/source-frontiers.stdout": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "toolchain/P0_PINNED_PROVER_IDENTITY_01.json": {
+      "bytes": 974,
+      "sha256": "f6e18705fdaf213d556237ca67fcab123e1b6f3ee4eca05aa69c5e70e7329459"
+    }
+  },
+  "archive": {
+    "bytes": 680691,
+    "sha256": "2e2f4c0172dc23331cdc8930d2da2230f42b3330d829dcddd7691c0e1d224c8b",
+    "members": 454,
+    "expanded_bytes": 8810173
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "compared_sources": {
+    "main": "48d0fb9a5651b50494ec33d025dda52bd2ff5eae",
+    "integration_before": "8bdb36698c9d955de8c71a41179d11d224f696e0",
+    "integration_after": "866029211e0ed85cbf71be51f0beecbd3184713e"
+  },
+  "pr110": {
+    "state": "closed",
+    "merged": true,
+    "merged_at": "2026-11-11T03:30:37Z",
+    "base": "integration/sdk-020",
+    "candidate": "c04f4bbc9d8e14b62929021d942593597b7740f7",
+    "merge_commit": "866029211e0ed85cbf71be51f0beecbd3184713e",
+    "tree": "8dd34ceb5725f7bc5deb7b318bd6b6a759171677",
+    "patch": {
+      "files": [
+        "artifact/apple_verifier_recovery.py",
+        "artifact/test_apple_verifier_recovery.py"
+      ],
+      "additions": 30,
+      "deletions": 1,
+      "sha256": "7f2615bbe7138615e9db9f77ae7c3564ee1123576684437b6f5259bbe65d5880"
+    },
+    "validation": {
+      "before_fix": "new positive consumer verifier test fails on original allow-list",
+      "after_fix": {
+        "tests": 54,
+        "passed": 54,
+        "seconds": 3.708,
+        "modules": [
+          "artifact.test_apple_verifier_recovery",
+          "artifact.test_apple_stable_publication",
+          "artifact.test_release_publication_contract"
+        ]
+      }
+    },
+    "publication_scope": "Allows the independently snapshotted Swift verifier script in verifier-only recovery; producer/source/ABI evidence identity remains protected. Does not reopen published 0.1.5 assets."
+  },
+  "pr40": {
+    "head": "9434a369f3d322f2e6f5ecda64a66d059b5667c1",
+    "encoded_workflow_executed": false,
+    "decoded_patch": {
+      "bytes": 40525,
+      "sha256": "b26f6cb06d0ba28caf57cf5412d4fb267b9fea0791ccc2cb19b623344c99ae33"
+    },
+    "included_in_main": false,
+    "included_in_integration": false,
+    "original_confirmation_blob": "823d1b3a52fa4949f792a4fd6d702f65e6225f28",
+    "original_python_contract_blob": "dbab9dd6cf5c9f675ccf09d35037f9695f64db89",
+    "original_formal_contract_blob": "857a5d1e0b314b24bb686b9fffa3b68cb0849e7f",
+    "existing_contract_tests": {
+      "passed": 13,
+      "seconds": 0.06
+    },
+    "proposed_vectors_independently_verified": true,
+    "disposition": "Keep open: keyed-prefix SHA3 to HMAC-SHA3-256 is a genuine protocol-byte change absent from current main and integration. Review the nine actual source files rather than merging the encoded transfer workflow."
+  }
+}

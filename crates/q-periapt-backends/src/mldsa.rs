@@ -7,15 +7,29 @@
 
 use super::{to_arr, to_zeroizing, write_exact};
 use fips204::{
-    ml_dsa_44, ml_dsa_65, ml_dsa_87,
+    ml_dsa_44, ml_dsa_65, ml_dsa_87, pre_hash,
     traits::{
         KeyGen as Fips204KeyGen, SerDes as Fips204SerDes, Signer as Fips204Signer,
         Verifier as Fips204Verifier,
     },
-    Ph,
 };
 use q_periapt_core::{Error, ZeroizingBytes};
 use q_periapt_sig::{SigAlg, Signer, Verifier};
+use shake::{
+    digest::{ExtendableOutput, Update, XofReader},
+    Shake128,
+};
+
+/// The SHAKE128 HashML-DSA variant uses a 256-bit digest. The public adapter still
+/// accepts the message; fips204 0.5 receives this digest and its explicit OID.
+fn shake128_prehash(message: &[u8]) -> ZeroizingBytes<32> {
+    let mut state = Shake128::default();
+    Update::update(&mut state, message);
+    let mut reader = state.finalize_xof();
+    let mut digest = ZeroizingBytes::<32>::zeroed();
+    XofReader::read(&mut reader, digest.as_mut_bytes());
+    digest
+}
 
 #[inline]
 fn validate_context(context: &[u8]) -> Result<(), Error> {
@@ -42,11 +56,8 @@ fn validate_small_secret_coefficients(
 
     match eta {
         2 => {
-            let mut groups = packed.chunks_exact(3);
-            for group in &mut groups {
-                let [first, second, third] = group else {
-                    return Err(Error::Backend);
-                };
+            let (groups, remainder) = packed.as_chunks::<3>();
+            for [first, second, third] in groups {
                 let encoded =
                     u32::from(*first) | (u32::from(*second) << 8) | (u32::from(*third) << 16);
                 for shift in (0..24).step_by(3) {
@@ -55,7 +66,7 @@ fn validate_small_secret_coefficients(
                     }
                 }
             }
-            if !groups.remainder().is_empty() {
+            if !remainder.is_empty() {
                 return Err(Error::Backend);
             }
         }
@@ -190,8 +201,11 @@ macro_rules! mldsa_backends {
                     validate_small_secret_coefficients(sk.as_bytes(), $eta, $packed_small_len)?;
                     let signing_key =
                         $m::PrivateKey::try_from_bytes(*sk.as_bytes()).map_err(|_| Error::Backend)?;
+                    let digest = shake128_prehash(msg);
                     let signature = signing_key
-                        .try_hash_sign_with_seed(randomness.as_bytes(), msg, context, &Ph::SHAKE128)
+                        .try_hash_sign_with_seed(
+                            randomness.as_bytes(), digest.as_bytes(), context, &pre_hash::SHAKE_128,
+                        )
                         .map_err(|_| Error::Backend)?;
                     write_exact(out_sig, &signature)?;
                     Ok($sig_len)
@@ -209,8 +223,9 @@ macro_rules! mldsa_backends {
                     let verification_key = $m::PublicKey::try_from_bytes(to_arr::<$vk_len>(pk)?)
                         .map_err(|_| Error::Backend)?;
                     let signature = to_arr::<$sig_len>(sig)?;
+                    let digest = shake128_prehash(msg);
                     verification_key
-                        .hash_verify(msg, &signature, context, &Ph::SHAKE128)
+                        .hash_verify(digest.as_bytes(), &signature, context, &pre_hash::SHAKE_128)
                         .then_some(())
                         .ok_or(Error::Backend)
                 }

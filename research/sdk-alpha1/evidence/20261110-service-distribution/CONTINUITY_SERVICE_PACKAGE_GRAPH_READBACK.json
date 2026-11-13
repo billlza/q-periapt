@@ -1,0 +1,566 @@
+{
+  "completed": true,
+  "full_spec_lock_verified": false,
+  "kind": "qperiapt.independent_service_candidate_package_graph",
+  "observed_inputs": [
+    {
+      "bytes": 997,
+      "path": "CONTINUITY_SERVICE_PACKAGE_ROW.json",
+      "sha256": "b3490a51745c836cb736eeaa90625414a01866bab5adf532800f5f32f4e17403"
+    },
+    {
+      "bytes": 15197,
+      "path": "CONTINUITY_SERVICE_PACKAGE.json",
+      "sha256": "66356ebccb80e2f0b55faf991acc34dea17149748527108dea5b3c19ce0cb863"
+    },
+    {
+      "bytes": 1572,
+      "path": "CONTINUITY_SERVICE_INSTALLATION.json",
+      "sha256": "5c6c9339fcd3771808a285e38dccf0da44cb43fd303b4192b9305097d8d8822e"
+    },
+    {
+      "bytes": 7024604,
+      "path": "q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+      "sha256": "7612477540409b5fe09495767451983fb949151861773603e70162d80e63de01"
+    },
+    {
+      "bytes": 1458,
+      "path": "input-manifests/crates/q-periapt-mlkem-native-sys/Cargo.toml",
+      "sha256": "4341cd51942baee9643da986663e422474e00c018d4539cd11ad260fa3f47634"
+    },
+    {
+      "bytes": 2030,
+      "path": "input-manifests/Cargo.toml",
+      "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+    },
+    {
+      "bytes": 614,
+      "path": "input-manifests/crates/q-periapt-core/Cargo.toml",
+      "sha256": "86eda915b3a03f4881195ae3c3a138a5e0dc43d5e3011e10ddfd46fd95169397"
+    },
+    {
+      "bytes": 629,
+      "path": "input-manifests/crates/q-periapt-kem/Cargo.toml",
+      "sha256": "cf1bd572b390dea2118bfcadcfdfdd37d1aaa087cafa10ae0775f7dcb5a40562"
+    },
+    {
+      "bytes": 662,
+      "path": "input-manifests/crates/q-periapt-sig/Cargo.toml",
+      "sha256": "7faa1ac3323ed8eaf8be3e498b0a9fa99b25ed9d19a1f856e132a86ffd13a03d"
+    },
+    {
+      "bytes": 4733,
+      "path": "input-manifests/crates/q-periapt-backends/Cargo.toml",
+      "sha256": "ac1f1f274af5f80df67197410960ed915394a9b218365ef81dbf5eff3a780374"
+    },
+    {
+      "bytes": 1166,
+      "path": "input-manifests/crates/q-periapt-policy/Cargo.toml",
+      "sha256": "4d151697af8aa70cef16ccf22cf081cbc4afc052cb164678840861337cbd0db4"
+    },
+    {
+      "bytes": 1430,
+      "path": "input-manifests/crates/q-periapt-sdk/Cargo.toml",
+      "sha256": "77e4e27c16ef2867a61511f5839cd57be8959691f05e8422aa4c63a49faba142"
+    },
+    {
+      "bytes": 1405,
+      "path": "input-manifests/crates/q-periapt-host-store/Cargo.toml",
+      "sha256": "a9b9af2154aa14935e255fa0c88f47e26ff49057e4cfb152845afb8e68bd3ca9"
+    },
+    {
+      "bytes": 2287,
+      "path": "input-manifests/crates/q-periapt-rustls/Cargo.toml",
+      "sha256": "c6dfb3310477277a7da01ff2bcd3a329cae0f4f04359f882bb3e8d0367b8e17c"
+    },
+    {
+      "bytes": 1458,
+      "path": "input-manifests/crates/q-periapt-ffi/Cargo.toml",
+      "sha256": "c05ce7a8bce93016b6a1167bbf7b43867385d9ca6aca6cca32d0986363ea096c"
+    },
+    {
+      "bytes": 1447,
+      "path": "input-manifests/crates/q-periapt-wasm/Cargo.toml",
+      "sha256": "fd5d592bdafe6badf2d5d2e84491bbbdf23f4bda120a445f6297fd6def184c44"
+    },
+    {
+      "bytes": 3981,
+      "path": "input-manifests/crates/q-periapt-cli/Cargo.toml",
+      "sha256": "cf231fd60c31e6a8db64870e2b9f3e7363a2ae3a409d0a2f1bc60fbc1ef16714"
+    },
+    {
+      "bytes": 3429,
+      "path": "input-manifests/research/continuity-identity-candidate/Cargo.toml",
+      "sha256": "9bc73696980974a17cfdcb243292ee1148d7db34a4205cc496c861eff79b1fe8"
+    },
+    {
+      "bytes": 573,
+      "path": "CONTINUITY_SERVICE_DISTRIBUTION.json",
+      "sha256": "56f96a7534fdf545e3dd4845cbff93756d8aa10a7d7a61bb9b6526fb2438c3e3"
+    }
+  ],
+  "package_rows": [
+    {
+      "artifacts": [],
+      "assessments": [],
+      "dependencies": [],
+      "format": "cargo",
+      "id": "q-periapt-mlkem-native-sys",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 1458,
+        "path": "input-manifests/crates/q-periapt-mlkem-native-sys/Cargo.toml",
+        "sha256": "4341cd51942baee9643da986663e422474e00c018d4539cd11ad260fa3f47634"
+      },
+      "name": "q-periapt-mlkem-native-sys",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "input-manifests/Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [],
+      "assessments": [],
+      "dependencies": [],
+      "format": "cargo",
+      "id": "q-periapt-core",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 614,
+        "path": "input-manifests/crates/q-periapt-core/Cargo.toml",
+        "sha256": "86eda915b3a03f4881195ae3c3a138a5e0dc43d5e3011e10ddfd46fd95169397"
+      },
+      "name": "q-periapt-core",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "input-manifests/Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [],
+      "assessments": [],
+      "dependencies": [
+        "q-periapt-core"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-kem",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 629,
+        "path": "input-manifests/crates/q-periapt-kem/Cargo.toml",
+        "sha256": "cf1bd572b390dea2118bfcadcfdfdd37d1aaa087cafa10ae0775f7dcb5a40562"
+      },
+      "name": "q-periapt-kem",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "input-manifests/Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [],
+      "assessments": [],
+      "dependencies": [
+        "q-periapt-core"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-sig",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 662,
+        "path": "input-manifests/crates/q-periapt-sig/Cargo.toml",
+        "sha256": "7faa1ac3323ed8eaf8be3e498b0a9fa99b25ed9d19a1f856e132a86ffd13a03d"
+      },
+      "name": "q-periapt-sig",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "input-manifests/Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [],
+      "assessments": [],
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-mlkem-native-sys",
+        "q-periapt-sig"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-backends",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 4733,
+        "path": "input-manifests/crates/q-periapt-backends/Cargo.toml",
+        "sha256": "ac1f1f274af5f80df67197410960ed915394a9b218365ef81dbf5eff3a780374"
+      },
+      "name": "q-periapt-backends",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "input-manifests/Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [],
+      "assessments": [],
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-sig"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-policy",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 1166,
+        "path": "input-manifests/crates/q-periapt-policy/Cargo.toml",
+        "sha256": "4d151697af8aa70cef16ccf22cf081cbc4afc052cb164678840861337cbd0db4"
+      },
+      "name": "q-periapt-policy",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "input-manifests/Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [],
+      "assessments": [],
+      "dependencies": [
+        "q-periapt-backends",
+        "q-periapt-core",
+        "q-periapt-kem",
+        "q-periapt-policy"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-sdk",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 1430,
+        "path": "input-manifests/crates/q-periapt-sdk/Cargo.toml",
+        "sha256": "77e4e27c16ef2867a61511f5839cd57be8959691f05e8422aa4c63a49faba142"
+      },
+      "name": "q-periapt-sdk",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "input-manifests/Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [],
+      "assessments": [],
+      "dependencies": [
+        "q-periapt-backends",
+        "q-periapt-core",
+        "q-periapt-policy",
+        "q-periapt-sdk",
+        "q-periapt-sig"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-host-store",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 1405,
+        "path": "input-manifests/crates/q-periapt-host-store/Cargo.toml",
+        "sha256": "a9b9af2154aa14935e255fa0c88f47e26ff49057e4cfb152845afb8e68bd3ca9"
+      },
+      "name": "q-periapt-host-store",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "input-manifests/Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [],
+      "assessments": [],
+      "dependencies": [
+        "q-periapt-backends",
+        "q-periapt-core",
+        "q-periapt-kem",
+        "q-periapt-policy",
+        "q-periapt-sdk"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-rustls",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 2287,
+        "path": "input-manifests/crates/q-periapt-rustls/Cargo.toml",
+        "sha256": "c6dfb3310477277a7da01ff2bcd3a329cae0f4f04359f882bb3e8d0367b8e17c"
+      },
+      "name": "q-periapt-rustls",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "input-manifests/Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [],
+      "assessments": [],
+      "dependencies": [
+        "q-periapt-backends",
+        "q-periapt-core",
+        "q-periapt-host-store",
+        "q-periapt-kem",
+        "q-periapt-policy",
+        "q-periapt-rustls",
+        "q-periapt-sdk"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-ffi",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 1458,
+        "path": "input-manifests/crates/q-periapt-ffi/Cargo.toml",
+        "sha256": "c05ce7a8bce93016b6a1167bbf7b43867385d9ca6aca6cca32d0986363ea096c"
+      },
+      "name": "q-periapt-ffi",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "input-manifests/Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [],
+      "assessments": [],
+      "dependencies": [
+        "q-periapt-backends",
+        "q-periapt-core",
+        "q-periapt-kem",
+        "q-periapt-policy"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-wasm",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 1447,
+        "path": "input-manifests/crates/q-periapt-wasm/Cargo.toml",
+        "sha256": "fd5d592bdafe6badf2d5d2e84491bbbdf23f4bda120a445f6297fd6def184c44"
+      },
+      "name": "q-periapt-wasm",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "input-manifests/Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [],
+      "assessments": [],
+      "dependencies": [
+        "q-periapt-backends",
+        "q-periapt-core",
+        "q-periapt-host-store",
+        "q-periapt-policy",
+        "q-periapt-rustls",
+        "q-periapt-sdk",
+        "q-periapt-sig"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-cli",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 3981,
+        "path": "input-manifests/crates/q-periapt-cli/Cargo.toml",
+        "sha256": "cf231fd60c31e6a8db64870e2b9f3e7363a2ae3a409d0a2f1bc60fbc1ef16714"
+      },
+      "name": "q-periapt-cli",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "input-manifests/Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [],
+      "assessments": [],
+      "dependencies": [
+        "q-periapt-backends",
+        "q-periapt-core",
+        "q-periapt-host-store",
+        "q-periapt-policy",
+        "q-periapt-rustls",
+        "q-periapt-sdk"
+      ],
+      "format": "cargo",
+      "id": "continuity-engine",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 3429,
+        "path": "input-manifests/research/continuity-identity-candidate/Cargo.toml",
+        "sha256": "9bc73696980974a17cfdcb243292ee1148d7db34a4205cc496c861eff79b1fe8"
+      },
+      "name": "q-periapt-continuity",
+      "role": "engine",
+      "version": "0.2.0",
+      "workspace": null
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 7024604,
+          "path": "q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "7612477540409b5fe09495767451983fb949151861773603e70162d80e63de01"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 15197,
+          "path": "CONTINUITY_SERVICE_PACKAGE.json",
+          "sha256": "66356ebccb80e2f0b55faf991acc34dea17149748527108dea5b3c19ce0cb863"
+        },
+        {
+          "bytes": 1572,
+          "path": "CONTINUITY_SERVICE_INSTALLATION.json",
+          "sha256": "5c6c9339fcd3771808a285e38dccf0da44cb43fd303b4192b9305097d8d8822e"
+        }
+      ],
+      "dependencies": [
+        "continuity-engine"
+      ],
+      "format": "distribution",
+      "id": "continuity-services",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 573,
+        "path": "CONTINUITY_SERVICE_DISTRIBUTION.json",
+        "sha256": "56f96a7534fdf545e3dd4845cbff93756d8aa10a7d7a61bb9b6526fb2438c3e3"
+      },
+      "name": "q-periapt-continuity-services",
+      "role": "service",
+      "version": "0.2.0",
+      "workspace": null
+    }
+  ],
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "schema_version": 1,
+  "scope": "Exact original 12-SDK and engine Cargo manifest graph plus the actual service distribution row, artifacts and assessments; candidate package consistency only.",
+  "script_sha256": "2c88eab32127b17def354b8d47a0c0b96c0eaaef72f64cee778e73ba76e92c4e",
+  "source": {
+    "commit": "e314717842328f6f706d081753b52eb887061d1a",
+    "tree": "de95f4e1e9ac98345eab0b91664e15b78616548d"
+  },
+  "source_manifests": {
+    "Cargo.toml": {
+      "bytes": 2030,
+      "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+    },
+    "crates/q-periapt-backends/Cargo.toml": {
+      "bytes": 4733,
+      "sha256": "ac1f1f274af5f80df67197410960ed915394a9b218365ef81dbf5eff3a780374"
+    },
+    "crates/q-periapt-cli/Cargo.toml": {
+      "bytes": 3981,
+      "sha256": "cf231fd60c31e6a8db64870e2b9f3e7363a2ae3a409d0a2f1bc60fbc1ef16714"
+    },
+    "crates/q-periapt-core/Cargo.toml": {
+      "bytes": 614,
+      "sha256": "86eda915b3a03f4881195ae3c3a138a5e0dc43d5e3011e10ddfd46fd95169397"
+    },
+    "crates/q-periapt-ffi/Cargo.toml": {
+      "bytes": 1458,
+      "sha256": "c05ce7a8bce93016b6a1167bbf7b43867385d9ca6aca6cca32d0986363ea096c"
+    },
+    "crates/q-periapt-host-store/Cargo.toml": {
+      "bytes": 1405,
+      "sha256": "a9b9af2154aa14935e255fa0c88f47e26ff49057e4cfb152845afb8e68bd3ca9"
+    },
+    "crates/q-periapt-kem/Cargo.toml": {
+      "bytes": 629,
+      "sha256": "cf1bd572b390dea2118bfcadcfdfdd37d1aaa087cafa10ae0775f7dcb5a40562"
+    },
+    "crates/q-periapt-mlkem-native-sys/Cargo.toml": {
+      "bytes": 1458,
+      "sha256": "4341cd51942baee9643da986663e422474e00c018d4539cd11ad260fa3f47634"
+    },
+    "crates/q-periapt-policy/Cargo.toml": {
+      "bytes": 1166,
+      "sha256": "4d151697af8aa70cef16ccf22cf081cbc4afc052cb164678840861337cbd0db4"
+    },
+    "crates/q-periapt-rustls/Cargo.toml": {
+      "bytes": 2287,
+      "sha256": "c6dfb3310477277a7da01ff2bcd3a329cae0f4f04359f882bb3e8d0367b8e17c"
+    },
+    "crates/q-periapt-sdk/Cargo.toml": {
+      "bytes": 1430,
+      "sha256": "77e4e27c16ef2867a61511f5839cd57be8959691f05e8422aa4c63a49faba142"
+    },
+    "crates/q-periapt-sig/Cargo.toml": {
+      "bytes": 662,
+      "sha256": "7faa1ac3323ed8eaf8be3e498b0a9fa99b25ed9d19a1f856e132a86ffd13a03d"
+    },
+    "crates/q-periapt-wasm/Cargo.toml": {
+      "bytes": 1447,
+      "sha256": "fd5d592bdafe6badf2d5d2e84491bbbdf23f4bda120a445f6297fd6def184c44"
+    },
+    "research/continuity-identity-candidate/Cargo.toml": {
+      "bytes": 3429,
+      "sha256": "9bc73696980974a17cfdcb243292ee1148d7db34a4205cc496c861eff79b1fe8"
+    }
+  },
+  "stage": "candidate",
+  "validation": {
+    "artifacts": 1,
+    "assessments": [
+      {
+        "completed": true,
+        "kind": "qperiapt.continuity_service_package",
+        "package": "continuity-services",
+        "path": "CONTINUITY_SERVICE_PACKAGE.json",
+        "sha256": "66356ebccb80e2f0b55faf991acc34dea17149748527108dea5b3c19ce0cb863"
+      },
+      {
+        "completed": true,
+        "kind": "qperiapt.continuity_service_installation",
+        "package": "continuity-services",
+        "path": "CONTINUITY_SERVICE_INSTALLATION.json",
+        "sha256": "5c6c9339fcd3771808a285e38dccf0da44cb43fd303b4192b9305097d8d8822e"
+      }
+    ],
+    "missing_release_roles": [
+      "android",
+      "browser",
+      "kotlin",
+      "native",
+      "swift"
+    ],
+    "packages": 14,
+    "roles": [
+      "engine",
+      "sdk",
+      "service"
+    ]
+  },
+  "validator_sha256": "c67b7d29fd91139c80204418a8393847f13d22a7c586f675eae819fdde8c30b2"
+}

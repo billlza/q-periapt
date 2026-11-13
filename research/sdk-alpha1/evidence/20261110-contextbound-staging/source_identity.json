@@ -1,0 +1,26 @@
+{
+  "baseline_commit": "4c8a894cae712c71fe555a08571f21b2fb3127be",
+  "original_pr": 37,
+  "original_head": "b8b243fdfea7d8ac2697e43d73a9247a3d5a2c5c",
+  "original_failure_jobs": [
+    "https://github.com/billlza/q-periapt/actions/runs/32207787302/job/95934258867",
+    "https://github.com/billlza/q-periapt/actions/runs/32207787302/job/95934258690"
+  ],
+  "candidate_files": {
+    "Cargo.lock": "86cb376fd74f0b1edc60bc5c34d9d42e142b0e512741ae29e7bc727bd23bd2cb",
+    "Cargo.toml": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67",
+    "crates/q-periapt-backends/src/lib.rs": "a91f2ddb28ee793ea253cc3a44470cde46d8c8bf8ee08eeb569c6ac1c4bb01dd",
+    "crates/q-periapt-backends/benches/combiner.rs": "2ce44d59bad7497696c90199adce58642f5e42829d9a83a6933c270fedaee77b"
+  },
+  "tested_source_sha256": {
+    "Cargo.lock": "86cb376fd74f0b1edc60bc5c34d9d42e142b0e512741ae29e7bc727bd23bd2cb",
+    "Cargo.toml": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67",
+    "crates/q-periapt-backends/src/lib.rs": "a91f2ddb28ee793ea253cc3a44470cde46d8c8bf8ee08eeb569c6ac1c4bb01dd",
+    "crates/q-periapt-backends/benches/combiner.rs": "2ce44d59bad7497696c90199adce58642f5e42829d9a83a6933c270fedaee77b"
+  },
+  "installer": {
+    "url": "https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init",
+    "published_checksum_url": "https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init.sha256",
+    "sha256": "b1c8cb14e30889e7e2999e6b69e62d9e9b9ffc0f4df8180564d306d9680e6c55"
+  }
+}

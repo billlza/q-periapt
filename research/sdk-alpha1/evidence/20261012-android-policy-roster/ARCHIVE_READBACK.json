@@ -1,0 +1,129 @@
+{
+  "completed": true,
+  "capture_sha256": "32130182643df55a45aa42e538248b5fee1d271b89a741befdb7ed6b9e88d8ce",
+  "supplement_sha256": "9b6ec1fd5c59a8e9abb6e851953f9b3c96063b6f523417847542f5b5425af448",
+  "manifest_members_verified": 3206,
+  "outcomes": {
+    "host": {
+      "roster_signed_fixed_applied": {
+        "foreign_processes": 68,
+        "operation": "ce896fcad7f883b693bcbb7473993ad74559b2b37878e13d4616a2094f433e68",
+        "original_request_sha256": "f9a0f5163af3da57196649fbffcd869c15241ca31268cef2e14c0c70967c799a",
+        "original_session": "f126b7125507cdf70249268041de9809fe3796cd62220d69cbc769baf1761f56",
+        "original_message": "00000000000000000000000000000000b862bacf1242d2711c01d99b6b63aa9e",
+        "policy_expired": true,
+        "independent_policy_renewed": true,
+        "business_effects": 1,
+        "terminal": "applied"
+      },
+      "roster_signed_fixed_closed": {
+        "foreign_processes": 68,
+        "operation": "8562563762012b8723e0520f2cee8a038233c6dd5c6b3f3f409cf19173094e46",
+        "original_request_sha256": "af5caf45830bc279055c75548b462a14f0b62ee38ad5e02857f123ad859f0cda",
+        "original_session": "6f7ca419d636f56c07086ac088dc71b8ecb00dd26a2eecedb89f08826043f9b2",
+        "original_message": "00000000000000000000000000000000b58205b005ce2371af14e9a32f8c917d",
+        "policy_expired": true,
+        "independent_policy_renewed": true,
+        "business_effects": 1,
+        "terminal": "closed"
+      },
+      "roster_signed_recoverable_applied": {
+        "foreign_processes": 68,
+        "operation": "f5d1c8096291462063f74b42febb533d0b9e8546a94888bd92a61e577cc66833",
+        "original_request_sha256": "45d943ae65337f69804dec2b7f4d1835ec4f68e88ad29fd2ce07dcb553c00b58",
+        "original_session": "8ddae764645aa1b1edd32a1e5a96298a77aef1b4496810dbbf02625947788325",
+        "original_message": "00000000000000000000000000000000cfd8a1a2585b79425b0137a91ab96acb",
+        "policy_expired": true,
+        "independent_policy_renewed": true,
+        "business_effects": 1,
+        "terminal": "applied"
+      },
+      "roster_signed_recoverable_closed": {
+        "foreign_processes": 68,
+        "operation": "05b76489570314ca8fbbe22e957ff2040f262ab4c0ed112c972f1717a3329781",
+        "original_request_sha256": "a0baab5203f43915e97f40672d18185d6fcef3952a901acb39c32272770775a3",
+        "original_session": "8d6aa1bfe7ad054b3a2d537fbfe3715b4d2e2e5f7774e38237819b25ce4b8288",
+        "original_message": "00000000000000000000000000000000d4b32e29a37d2dcbb9cb73f60e646c41",
+        "policy_expired": true,
+        "independent_policy_renewed": true,
+        "business_effects": 1,
+        "terminal": "closed"
+      },
+      "roster_tls_fixed_applied": {
+        "foreign_processes": 68,
+        "operation": "67b132714cf9b1e73ac91836abb9cb160ff2a97b33815d4d7233ae8a7ab5a1c7",
+        "original_request_sha256": "baa10172129439ca86bad61d8d58f42d3c19bd87d259d9971ba35ac164210d7c",
+        "original_session": "3de036f92b263307a4853e66e8fa78beb61d6b52d8dd72c712af0ea26d29968c",
+        "original_message": "00000000000000000000000000000000860e43166ee805084471d95d5bb8c0ab",
+        "policy_expired": true,
+        "independent_policy_renewed": true,
+        "business_effects": 1,
+        "terminal": "applied"
+      },
+      "roster_tls_fixed_closed": {
+        "foreign_processes": 68,
+        "operation": "6e0f33d0c8c7393ef160c7713d67186ae8641534777fbc7c178a14fb90299b5d",
+        "original_request_sha256": "371d0b3e3f1cf0caa5b0d7ccb625c03ede69252a50aa06799a1e259dba816a8e",
+        "original_session": "6369b05a927f8487a8bd975d2f2eacc9a1446668a949ec1a415b20b31d979de5",
+        "original_message": "00000000000000000000000000000000a26866d0704cb7e3aa73f6fda1ade821",
+        "policy_expired": true,
+        "independent_policy_renewed": true,
+        "business_effects": 1,
+        "terminal": "closed"
+      },
+      "roster_tls_recoverable_applied": {
+        "foreign_processes": 68,
+        "operation": "4798f089808414d03ff5cd4ff4a5775323ab6626fd9a0fa5f1b2a911da583c6d",
+        "original_request_sha256": "b77dc78b5e3d269c35a5d1313dc8c725827a28612c8f2ac16c7df42a91a55e22",
+        "original_session": "905cead8a3cf33873dbf5d336e13a52f504339c3170503492c0f16748a864cb8",
+        "original_message": "0000000000000000000000000000000097f23c30217b8aa4854d15378c74eedf",
+        "policy_expired": true,
+        "independent_policy_renewed": true,
+        "business_effects": 1,
+        "terminal": "applied"
+      },
+      "roster_tls_recoverable_closed": {
+        "foreign_processes": 68,
+        "operation": "293a9beccfd5e0209afb809d6d81a63fb1bc7e673625dc2936011f5530f72955",
+        "original_request_sha256": "d098658343bd6eeb4711cc49fa297c14284064a07705ec371b7db00cb08b61c1",
+        "original_session": "7d6d58b470a7fef1f9ac0a31ba1ccfa95e0f62e64225b545b4d0a63d324d47c0",
+        "original_message": "00000000000000000000000000000000049fe5a34c12331b5e379200717730e9",
+        "policy_expired": true,
+        "independent_policy_renewed": true,
+        "business_effects": 1,
+        "terminal": "closed"
+      }
+    },
+    "art": {
+      "roster_signed_fixed_applied": {
+        "foreign_processes": 68,
+        "operation": "d566cd062b2f0f51340327a782e5be7114dfbab25d1900ed0bdb36203f3e5a6d",
+        "original_request_sha256": "af3429a54c6ec4d68e918e8122cca2ca449eef610b942960a8f10d5b0f691248",
+        "original_session": "847ea6f6b7fb6087b6d02bc4e16ca9b3d86a5bf144bf0ddca827bb01168df6e9",
+        "original_message": "00000000000000000000000000000000702b4cd678f93ad891d5e07bf65d6f84",
+        "policy_expired": true,
+        "independent_policy_renewed": true,
+        "business_effects": 1,
+        "terminal": "applied"
+      },
+      "roster_tls_recoverable_closed": {
+        "foreign_processes": 68,
+        "operation": "4b0232ba228922568afe92db5ee99c50ee0772a172d0c10ecb5db1e6f2d82458",
+        "original_request_sha256": "0491302672062a81b678ece9da49ee30e44fc1b05397c1860713191040a4e9d3",
+        "original_session": "733c4e9acd7ba10c5f204704a638a8c248b1574052334e37f0c1733697c208c7",
+        "original_message": "000000000000000000000000000000002d9d2f223213551e90f4bf72d1e02221",
+        "policy_expired": true,
+        "independent_policy_renewed": true,
+        "business_effects": 1,
+        "terminal": "closed"
+      }
+    }
+  },
+  "reader_sha256": {
+    "continuity_android_policy_renewal.py": "4c08d665ac168e9bd8df60a306997f2f42d1f712ae27d2670e740ee161ad9c87",
+    "continuity_android_roster_witness.py": "8c6a67eddadf57a439df736c96f81e5fe5ae862d0331bc5521ffe3c5b928ccab",
+    "continuity_android_roster.py": "e20d77df00246ee69ff1b2b96d84a1bbc2a9cbf418fcb1b94b783466737b1d6f"
+  },
+  "scope": "Current readers verify retained prototype records only; this is not a fresh integrated runtime run.",
+  "physical_device_scope": "The existing accepted phone suffices; no additional device is required."
+}

@@ -1,0 +1,37 @@
+{
+  "capture": {
+    "bytes": 7885785,
+    "file": "CAPTURE.zip",
+    "manifest_sha256": "f0c03c2a28c8ca25836b0a7230b4f97ddf8e731d157b2f9e83a8225450182590",
+    "members": 2461,
+    "sha256": "18b5b355543c25ddc953e09a45de626db08df317e240195c264ce32dd611fe90"
+  },
+  "case_count": 5,
+  "cases": [
+    "applied",
+    "close-after-commit",
+    "closed",
+    "drop-ack",
+    "drop-commit"
+  ],
+  "completed": true,
+  "engine_commit": "e8a829782fc44b4841c28015af25488821f3c439",
+  "package": {
+    "manifest_sha256": "09c931bce35738b382b891b13003875cd59b08821a7515561cf59945ae3ca59b",
+    "sha256": "5106803bf32912cee793a7f306c166fa222a176fc1c919f1771c656e29c12ef8",
+    "source_bound": true,
+    "sources_unchanged": true
+  },
+  "release_claim_eligible": false,
+  "scope": "Actual installed browser npm package with IndexedDB/Web Locks/OPFS, original public bundle/pins, current policy and loopback native signed witness/counterpart sharing the Rust engine. Original peer trust remains at its authenticated bootstrap roster; this does not claim remote adoption of the new roster, revocation propagation, independent implementation, deployment, representative performance, PCS or full-release qualification.",
+  "trace_policy": "All raw witness and native witness files remain task-local under the original closed runs and are hashed in FULL_RAW_TRACE_MANIFEST.json. The archive includes complete peer/carrier traffic, public fixtures, operation logs/results, complete witness metadata and raw witness traces around the injected R loss cuts. Private keys, journal stores and browser profiles are excluded.",
+  "validated": [
+    "One original bootstrap and same session ID; no replacement handshake after R.",
+    "Committed outbound message with lost native consumption ACK; pending incoming native ciphertext captured before R.",
+    "One pending PQ rekey control reply lost before R; exact progress survives.",
+    "R Applied/Closed, lost Commit, lost ACK and Close-after-commit recover through original enrollment.",
+    "Original control/ciphertext bytes replay unchanged after R; target epoch1 finishes.",
+    "Original messages in both directions authenticate consumption; duplicate receive skips the host callback and retains the identical ACK.",
+    "New message after R and rekey has a distinct ID/ciphertext and commits exactly one additional native host effect."
+  ]
+}

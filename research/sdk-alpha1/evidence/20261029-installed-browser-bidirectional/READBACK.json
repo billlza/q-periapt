@@ -1,0 +1,17 @@
+{
+  "archive_sha256": "bd99fe191e510b48a83a9a63d9dd3bc24e2930996828ea46ed0f51cccac4fd21",
+  "manifest_sha256": "706c3d398b548fa95bfb5b68783ae7a39e358471dc81ee27aa2983aee580662d",
+  "file_members": 115,
+  "all_members_byte_compared": true,
+  "both_directions_verified": true,
+  "no_response_existed_at_selected_worker_cut": true,
+  "original_request_exact_retry": true,
+  "host_callback_calls_after_retry": 2,
+  "host_business_records_after_retry": 1,
+  "sender_before_retry": "Committed",
+  "sender_after_retry": "Acknowledged",
+  "qualification_seconds": 26.73656525000115,
+  "scope": "Actual installed browser SDK and repository-built native processes, real HTTP/TCP, IndexedDB strict host transaction, Worker termination and original state. Test authority/local policy; not real-user login, Witness qualification, power loss, whole-browser-process loss, independent session implementation or installed native SDK.",
+  "private_state_archived": false,
+  "release_claim_eligible": false
+}

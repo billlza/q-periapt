@@ -1,0 +1,4 @@
+{
+  "sha256": "f0f739062e95385ae4664826a1f85ab9156233a2e91b6e6b3ba0096bca78902b",
+  "text": "\nrunning 1 test\ntest tests::legacy_overflowing_pointer_regions_rejected_without_reads ... FAILED\n\nfailures:\n\nfailures:\n    tests::legacy_overflowing_pointer_regions_rejected_without_reads\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 41 filtered out; finished in 0.04s\n\n"
+}

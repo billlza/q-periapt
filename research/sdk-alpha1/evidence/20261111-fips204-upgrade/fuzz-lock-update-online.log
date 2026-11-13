@@ -1,0 +1,4 @@
+    Updating crates.io index
+    Updating fips204 v0.4.6 -> v0.5.0
+    Removing sha2 v0.10.9
+note: pass `--verbose` to see 7 unchanged dependencies behind latest

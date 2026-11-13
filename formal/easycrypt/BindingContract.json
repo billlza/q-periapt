@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "sources": {
+    "BindingViaCR.ec": {
+      "imports": [
+        "require import AllCore List."
+      ],
+      "axioms": {
+        "be8_size": "axiom be8_size n : size (be8 n) = 8.",
+        "be8_inj": "axiom be8_inj n m : be8 n = be8 m => n = m.",
+        "reject_pq_input": "axiom reject_pq_input : accepts_pq reject_sk_pq reject_ct_pq = false.",
+        "ek_neq": "axiom ek_neq : ek0 <> ek1.",
+        "zof_inj": "axiom zof_inj (a b : bytes) : zof a = zof b => a = b.",
+        "jrej_inj": "axiom jrej_inj (z0 z1 c0 c1 : bytes) : jrej z0 c0 = jrej z1 c1 => z0 = z1 /\\ c0 = c1.",
+        "lctx_neq": "axiom lctx_neq : lctxA <> lctxB."
+      },
+      "lemmas": {
+        "encode_nil": "lemma encode_nil : encode [] = [].",
+        "encode_cons": "lemma encode_cons f fs : encode (f :: fs) = lp f ++ encode fs.",
+        "lp_cat_inj": "lemma lp_cat_inj (a b x y : bytes) : lp a ++ x = lp b ++ y => a = b /\\ x = y.",
+        "encode_inj": "lemma encode_inj (t1 t2 : transcript) : encode t1 = encode t2 => t1 = t2.",
+        "combine_def": "lemma combine_def (t : transcript) : combine t = H (encode t).",
+        "bind_le_cr": "lemma bind_le_cr (A <: BindAdv) &m : Pr[Bind(A).main() @ &m : res] <= Pr[CR(B(A)).main() @ &m : res].",
+        "neq_proj_neq": "lemma neq_proj_neq (p : transcript -> obs) (t0 t1 : transcript) : p t0 <> p t1 => t0 <> t1.",
+        "bind_le_cr_kct": "lemma bind_le_cr_kct (A <: BindAdv) &m : Pr[BindCT(A).main() @ &m : res] <= Pr[CR(B(A)).main() @ &m : res].",
+        "bind_le_cr_kpk": "lemma bind_le_cr_kpk (A <: BindAdv) &m : Pr[BindPK(A).main() @ &m : res] <= Pr[CR(B(A)).main() @ &m : res].",
+        "bind_le_cr_kctx": "lemma bind_le_cr_kctx (A <: BindAdv) &m : Pr[BindCTX(A).main() @ &m : res] <= Pr[CR(B(A)).main() @ &m : res].",
+        "hkey_def": "lemma hkey_def (e : texec) : hkey e = H (encode (fields e)).",
+        "ct_neq_fields_neq": "lemma ct_neq_fields_neq (e0 e1 : texec) : ct_of e0 <> ct_of e1 => fields e0 <> fields e1.",
+        "malbind_kct_le_cr": "lemma malbind_kct_le_cr (A <: MalAdv) &m : Pr[MalBindKCT(A).main() @ &m : res] <= Pr[CR(BK(A)).main() @ &m : res].",
+        "pk_neq_fields_neq": "lemma pk_neq_fields_neq (e0 e1 : texec) : pk_of e0 <> pk_of e1 => fields e0 <> fields e1.",
+        "ctx_neq_fields_neq": "lemma ctx_neq_fields_neq (e0 e1 : texec) : ctx_of e0 <> ctx_of e1 => fields e0 <> fields e1.",
+        "malbind_kpk_le_cr": "lemma malbind_kpk_le_cr (A <: MalAdv) &m : Pr[MalBindKPK(A).main() @ &m : res] <= Pr[CR(BK(A)).main() @ &m : res].",
+        "malbind_kctx_le_cr": "lemma malbind_kctx_le_cr (A <: MalAdv) &m : Pr[MalBindKCTX(A).main() @ &m : res] <= Pr[CR(BK(A)).main() @ &m : res].",
+        "reject_ctx_neq": "lemma reject_ctx_neq : reject_ctx0 <> reject_ctx1.",
+        "reject_exec_bottom": "lemma reject_exec_bottom (c : bytes) : hkey_x (reject_exec c) = None.",
+        "reject_exec_ctx": "lemma reject_exec_ctx (c : bytes) : ctx_of (reject_exec c) = c.",
+        "kctx_without_nonbottom_broken": "lemma kctx_without_nonbottom_broken &m : Pr[MalBindKCTXWithoutNonBottom(RejectCtxAdv).main() @ &m : res] = 1%r.",
+        "malbind_kct_xrej_le_cr": "lemma malbind_kct_xrej_le_cr (A <: MalAdv) &m : Pr[MalBindKCTx(A).main() @ &m : res] <= Pr[CR(BK(A)).main() @ &m : res].",
+        "malbind_kpk_xrej_le_cr": "lemma malbind_kpk_xrej_le_cr (A <: MalAdv) &m : Pr[MalBindKPKx(A).main() @ &m : res] <= Pr[CR(BK(A)).main() @ &m : res].",
+        "malbind_kctx_xrej_le_cr": "lemma malbind_kctx_xrej_le_cr (A <: MalAdv) &m : Pr[MalBindKCTXx(A).main() @ &m : res] <= Pr[CR(BK(A)).main() @ &m : res].",
+        "lean_eq": "lemma lean_eq : lean_key (mk ek0) = lean_key (mk ek1).",
+        "lpk_mk": "lemma lpk_mk (k : bytes) : lpk (mk k) = (k, ekt0).",
+        "lean_kpk_broken": "lemma lean_kpk_broken &m : Pr[LeanKPK(SchmiegAdv).main() @ &m : res] = 1%r.",
+        "lpk_neq_full_neq": "lemma lpk_neq_full_neq (e0 e1 : lexec) : lpk e0 <> lpk e1 => full_fields e0 <> full_fields e1.",
+        "full_kpk_le_cr": "lemma full_kpk_le_cr (A <: LAdv) &m : Pr[FullKPK(A).main() @ &m : res] <= Pr[CR(BKf(A)).main() @ &m : res].",
+        "seed_lpk_neq_fields_neq": "lemma seed_lpk_neq_fields_neq (e0 e1 : lexec) : lpk e0 <> lpk e1 => lean_fields_seed e0 <> lean_fields_seed e1.",
+        "lean_kpk_seed_le_cr": "lemma lean_kpk_seed_le_cr (A <: LAdv) &m : Pr[LeanKPKseed(A).main() @ &m : res] <= Pr[CR(BKseed(A)).main() @ &m : res].",
+        "omitctx_eq": "lemma omitctx_eq : omit_ctx_key (mkc lctxA) = omit_ctx_key (mkc lctxB).",
+        "lctxo_mkc": "lemma lctxo_mkc (c : bytes) : lctxo (mkc c) = c.",
+        "omit_ctx_kctx_broken": "lemma omit_ctx_kctx_broken &m : Pr[OmitCtxKCTX(CtxAdv).main() @ &m : res] = 1%r.",
+        "lct_neq_omitct_neq": "lemma lct_neq_omitct_neq (e0 e1 : lexec) : lct e0 <> lct e1 => omit_ct_fields e0 <> omit_ct_fields e1.",
+        "omit_ct_kct_le_cr": "lemma omit_ct_kct_le_cr (A <: LAdv) &m : Pr[OmitCtKCT(A).main() @ &m : res] <= Pr[CR(BKct(A)).main() @ &m : res].",
+        "lct_neq_full_neq": "lemma lct_neq_full_neq (e0 e1 : lexec) : lct e0 <> lct e1 => full_fields e0 <> full_fields e1.",
+        "lctxo_neq_full_neq": "lemma lctxo_neq_full_neq (e0 e1 : lexec) : lctxo e0 <> lctxo e1 => full_fields e0 <> full_fields e1.",
+        "full_kct_le_cr": "lemma full_kct_le_cr (A <: LAdv) &m : Pr[FullKCT(A).main() @ &m : res] <= Pr[CR(BKf(A)).main() @ &m : res].",
+        "full_kctx_le_cr": "lemma full_kctx_le_cr (A <: LAdv) &m : Pr[FullKCTX(A).main() @ &m : res] <= Pr[CR(BKf(A)).main() @ &m : res].",
+        "xwing_eq_pk": "lemma xwing_eq_pk : xwing_key (mk ek0) = xwing_key (mk ek1).",
+        "xwing_kpk_broken": "lemma xwing_kpk_broken &m : Pr[XWingKPK(SchmiegAdv).main() @ &m : res] = 1%r.",
+        "xwing_eq_ctx": "lemma xwing_eq_ctx : xwing_key (mkc lctxA) = xwing_key (mkc lctxB).",
+        "xwing_kctx_broken": "lemma xwing_kctx_broken &m : Pr[XWingKCTX(CtxAdv).main() @ &m : res] = 1%r.",
+        "lct_neq_xwing_neq": "lemma lct_neq_xwing_neq (e0 e1 : lexec) : lct e0 <> lct e1 => xwing_fields e0 <> xwing_fields e1.",
+        "xwing_kct_le_cr": "lemma xwing_kct_le_cr (A <: LAdv) &m : Pr[XWingKCT(A).main() @ &m : res] <= Pr[CR(BKxw(A)).main() @ &m : res]."
+      }
+    },
+    "JRejectionCountermodel.ec": {
+      "imports": [
+        "require import AllCore List."
+      ],
+      "axioms": {},
+      "lemmas": {
+        "reject_width": "lemma reject_width (z ct : bytes) : size (reject z ct) = 32.",
+        "seedof_inj": "lemma seedof_inj (a b : bytes) : seedof a = seedof b => a = b.",
+        "omitted_ct_inputs_equal": "lemma omitted_ct_inputs_equal : omit_ct_fields first = omit_ct_fields different_ct.",
+        "xwing_inputs_equal": "lemma xwing_inputs_equal : xwing_fields first = xwing_fields different_ct.",
+        "seed_inputs_equal": "lemma seed_inputs_equal : seed_fields first = seed_fields different_pk.",
+        "ciphertexts_differ": "lemma ciphertexts_differ : (first.`ctp, first.`ctt) <> (different_ct.`ctp, different_ct.`ctt).",
+        "public_keys_differ": "lemma public_keys_differ : (first.`ek, first.`ekt) <> (different_pk.`ek, different_pk.`ekt).",
+        "omitted_ct_without_J_binding": "lemma omitted_ct_without_J_binding &m : Pr[OmitCtAttack.main() @ &m : res] = 1%r.",
+        "xwing_without_J_binding": "lemma xwing_without_J_binding &m : Pr[XWingAttack.main() @ &m : res] = 1%r.",
+        "seed_without_J_binding": "lemma seed_without_J_binding &m : Pr[SeedAttack.main() @ &m : res] = 1%r.",
+        "omitted_ct_no_outer_collision": "lemma omitted_ct_no_outer_collision : encode (omit_ct_fields first) = encode (omit_ct_fields different_ct).",
+        "xwing_no_outer_collision": "lemma xwing_no_outer_collision : encode (xwing_fields first) = encode (xwing_fields different_ct).",
+        "seed_no_outer_collision": "lemma seed_no_outer_collision : encode (seed_fields first) = encode (seed_fields different_pk)."
+      }
+    }
+  },
+  "assumption_notes": {
+    "be8_size, be8_inj": "Abstract fixed-width encoding assumptions over int-list bytes; concrete bounded-byte/Rust encoder refinement is separate.",
+    "reject_pq_input, ek_neq, lctx_neq": "Witness existence for explicit rejection and key/context counterexamples.",
+    "zof_inj, jrej_inj": "Idealized comparison assumptions only. Global injectivity cannot instantiate a fixed 32-byte J over its complete input domain. They do not occur in the earlier ContextBound reductions. JRejectionCountermodel demonstrates why removing all rejection-function binding assumptions invalidates the three comparison claims; it does not prove that global injectivity is necessary."
+  }
+}
