@@ -2696,7 +2696,7 @@ _EXPECTED_LOCAL_SOURCE_SHA256 = {
 # The alpha review includes the opt-in dispatcher and all its CPU/OS guards;
 # the historical 0.1.5 profile above remains immutable. See SDK_X86_CANDIDATE.md.
 _SDK_020_LOCAL_SOURCE_SHA256 = {
-    "build.rs": "423984f4ff9ce17c71087b0cb5fb7208edca6b8a5b2ba47c44fa7c74ccb3002d",
+    "build.rs": "e372d5af7333fd7253878ee31a6f39d4b0d0de15e8331dc3b89fb1f2c3eb3727",
     "src/build_support.rs": "567e1bb28a9218e59bc4655915126016342c45b09b52e893e9ce7edde55eba01",
     "src/build_support_tests.rs": "2e0a1370eb78cf9557839e208e4c461940babddea6cc506a1f0214c2914f6c0a",
     "src/lib.rs": "2248aa6ec5f6fb67993cd8454455efc2f214e0e70e2946961dce82386ce77ab6",
