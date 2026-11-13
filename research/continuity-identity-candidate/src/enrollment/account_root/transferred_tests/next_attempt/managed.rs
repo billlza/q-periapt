@@ -166,7 +166,7 @@ fn finish(work: Work, closed: bool, later: bool) {
         &s.t.policy,
         next.now,
         Box::new(carrier),
-        Duration::from_secs(3),
+        WITNESS_ATTEMPT_TIMEOUT,
     );
     if closed {
         assert!(matches!(result, Err(DurableError::Suspended)));

@@ -10,6 +10,13 @@ mod managed;
 mod support;
 use crate::AccountAuthorityReplacementState as State;
 use support::{Next, Scenario};
+
+// These recovery scenarios perform real signing, witness admission and reply
+// verification in the unoptimized test profile alongside other test workers.
+// Keep a finite functional-test budget; deadline rejection and attempts to
+// extend it are checked separately in durable::anchoring::tests.
+const WITNESS_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(10);
+
 #[path = "next_attempt/faults.rs"]
 mod faults;
 #[path = "next_attempt/process.rs"]
