@@ -18,7 +18,7 @@ def fixture():
     def identity(n): return base64.urlsafe_b64encode(bytes([n])*32).rstrip(b'=').decode()
     return dict(schema_version=1, kind='qperiapt.authenticated_device_replacement', completed=True,
         release_claim_eligible=False, cleanup_errors=[], effects=5, confirmed_epoch=1,
-        old_generation=1, new_generation=2, native_sha256={}, provider='48.0.1',
+        old_generation=1, new_generation=2, native_sha256={}, provider='50.0.0',
         implementation=str(Path('/installed') / PACKAGE / 'session_cli.py'), clock='actual OS time',
         old_state_unchanged=True, native_identity_unchanged=True, witness_keys_unchanged=True,
         original_bootstrap_recovered=True, old_journal=identity(1), new_journal=identity(2),

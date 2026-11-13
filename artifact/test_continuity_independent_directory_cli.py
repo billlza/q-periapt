@@ -96,7 +96,7 @@ class DirectoryCliEvidenceTests(unittest.TestCase):
                                         "exact-retry-is-not-conflict", "bad-pq-signature"],
                   "historical_only": True, "current_authorization_or_consumption": False,
                   "session_qualified": False, "release_claim_eligible": False,
-                  "directory_cli": "source-build", "provider": {"cryptography": "48.0.1"}}
+                  "directory_cli": "source-build", "provider": {"cryptography": "50.0.0"}}
         verify_directory_cli_result(result, source, public, implementation)
         for field, value in (("completed", 1), ("verified_original_receipts", True), ("cli_processes", 30),
                              ("cli_processes", 32), ("historical_processes", 3), ("negative_controls", []),

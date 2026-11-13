@@ -19,7 +19,7 @@ import time
 def arguments():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--provider-root", type=Path, required=True,
-                        help="explicit directory containing cryptography 48.0.1; no site/.pth loading")
+                        help="explicit directory containing cryptography 50.0.0; no site/.pth loading")
     parser.add_argument("--native", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     return parser.parse_args()

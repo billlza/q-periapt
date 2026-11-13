@@ -129,7 +129,7 @@ def qualify(args):
                     and all(observed[k] == 0 for k in ('failures', 'errors', 'skipped', 'expected_failures', 'unexpected_successes')),
                     'installed ' + label + ' test results differ')
             require(observed['implementation'] == str(application / PACKAGE / module)
-                    and observed['provider_version'] == '48.0.1', 'installed implementation or provider differs')
+                    and observed['provider_version'] == '50.0.0', 'installed implementation or provider differs')
             for name in expected:
                 require((name + ' (__main__.' + class_name + '.' + name + ') ... ok').encode() in execution.stderr,
                         'missing executed ' + label + ' test: ' + name)
@@ -146,7 +146,7 @@ def qualify(args):
                 and observed['commands'] == 24 and observed['expected_refusals'] == 7
                 and observed['sdk_authority_sha256'] == sdk_authority.sha256
                 and observed['sdk_policy_versions'] == [1,2]
-                and observed['policy_versions'] == [1,2,3] and observed['provider'] == '48.0.1'
+                and observed['policy_versions'] == [1,2,3] and observed['provider'] == '50.0.0'
                 and observed['independent_implementation'] == str(application / PACKAGE / 'enrollment_exchange.py'),
                 'native policy publication results differ')
         require(read_regular_snapshot(publisher_path, maximum=128 * 1024**2, label='native policy publisher').sha256

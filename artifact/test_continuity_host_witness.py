@@ -13,7 +13,7 @@ def fixture():
                     **(dict(queued_requests=0,expired_queued=0) if native else {}))
     def service(label,pid,n,*,native=False):return dict(label=label,pid=pid,exit=0,stats=stats(n,native=native))
     return dict(schema_version=1,kind='qperiapt.required_witness_session_cli',completed=True,
-        confirmed_epoch=2,effects=3,native_sha256={},provider='48.0.1',
+        confirmed_epoch=2,effects=3,native_sha256={},provider='50.0.0',
         implementation=str(Path('/installed')/PACKAGE/'session_cli.py'),clock='actual OS time',
         commands=[dict(label=label,exit=1 if label in FAILED else 0) for label in LABELS],
         refusals=list(REFUSALS),witness_keys_unchanged=True,

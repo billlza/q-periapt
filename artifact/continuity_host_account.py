@@ -52,7 +52,7 @@ def verify(value,binaries,application,*,credential_expiry=False):
         from continuity_host_account_expiry import verify as verify_expiry
         verify_expiry(value.get('expiry'))
     else:require('expiry' not in value,'immediate cohort cannot claim elapsed expiry')
-    require(value.get('native_sha256')==binaries and value.get('provider')=='48.0.1' and value.get('clock')=='actual OS time'
+    require(value.get('native_sha256')==binaries and value.get('provider')=='50.0.0' and value.get('clock')=='actual OS time'
             and value.get('implementation')==str(application/PACKAGE/'credential_cli.py'),'HTTP cohort implementation')
     for key in ('original_keys_unchanged','witness_keys_unchanged','original_wire_unchanged'):
         require(value.get(key) is True,'HTTP cohort '+key)

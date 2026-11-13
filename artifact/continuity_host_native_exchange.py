@@ -52,7 +52,7 @@ def verify(observed, binaries, application):
             and observed.get('completed') is True, 'native exchange report schema/completion')
     require(observed.get('native_sha256') == binaries
             and observed.get('implementation') == str(application / PACKAGE / 'publication.py')
-            and observed.get('provider') == '48.0.1', 'native exchange implementation differs')
+            and observed.get('provider') == '50.0.0', 'native exchange implementation differs')
     require(type(observed.get('confirmed_epoch')) is int and observed['confirmed_epoch'] == 3
             and type(observed.get('control_exchanges')) is int and observed['control_exchanges'] == 8
             and observed.get('clock') == 'actual OS time', 'native exchange completion differs')

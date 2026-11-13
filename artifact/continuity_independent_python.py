@@ -49,7 +49,7 @@ def verify_directory_cli_result(result: dict, source_hashes: dict, public_hashes
             and result.get("current_authorization_or_consumption") is False
             and result.get("session_qualified") is False and result.get("release_claim_eligible") is False
             and result.get("directory_cli") == "source-build"
-            and result.get("provider", {}).get("cryptography") == "48.0.1",
+            and result.get("provider", {}).get("cryptography") == "50.0.0",
             "installed directory CLI readback scope differs")
 
 
@@ -296,7 +296,7 @@ def verify_extension_session(result: dict, *, implementation: str, native_sha256
     """Require the completed post-expiry workload from the selected installed owners."""
     require(result.get("schema_version") == 1 and type(result.get("schema_version")) is int
             and result.get("kind") == "qperiapt.enrollment_extension_session"
-            and result.get("completed") is True and result.get("provider") == "48.0.1"
+            and result.get("completed") is True and result.get("provider") == "50.0.0"
             and result.get("implementation") == implementation
             and result.get("native_sha256") == native_sha256,
             "extension session implementation or completion differs")
@@ -358,7 +358,7 @@ def inspect_wheel(data: bytes, sources: dict[str, bytes], licenses: dict[str, by
     for field, value in {
         "Metadata-Version": "2.5", "Name": "qperiapt-continuity-reference", "Version": "0.0.0",
         "Requires-Python": ">=3.14,<3.15", "License-Expression": "Apache-2.0 OR MIT",
-        "Classifier": "Private :: Do Not Upload", "Requires-Dist": "cryptography==48.0.1",
+        "Classifier": "Private :: Do Not Upload", "Requires-Dist": "cryptography==50.0.0",
         "Import-Name": PACKAGE,
     }.items():
         require(metadata.get_all(field) == [value], "reference metadata differs: " + field)

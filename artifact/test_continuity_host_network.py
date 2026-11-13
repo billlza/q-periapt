@@ -28,7 +28,7 @@ class NetworkReceiptTests(unittest.TestCase):
                 rows.append(row)
             return rows
         self.valid=dict(schema_version=1,kind='qperiapt.native_reference_network',completed=True,
-            native_sha256=self.binaries.copy(),provider='48.0.1',clock='actual OS time',
+            native_sha256=self.binaries.copy(),provider='50.0.0',clock='actual OS time',
             implementation='/installed/qperiapt_continuity_reference/network.py',effects=3,effect_commit_calls=3,confirmed_epoch=2,
             commands=[dict(label=label,exit=1 if label in ('wrong-inbox-journal','network-native-lost') else 0) for label in LABELS],
             refusals=list(REFUSALS),services=[dict(label='network-service-first',pid=11,exit=0,stats=stats(3,3,native=True)),
