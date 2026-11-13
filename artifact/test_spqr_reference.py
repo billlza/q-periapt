@@ -1,10 +1,12 @@
 """Negative controls for reference byte/accounting evidence and dependency isolation."""
 from pathlib import Path
 import copy
+import hashlib
 import json
 import tempfile
 import tomllib
 import unittest
+from unittest.mock import patch
 
 from artifact.bounded_process import capture_output
 from artifact import spqr_reference as ref
@@ -13,6 +15,51 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReferenceTests(unittest.TestCase):
+    def test_only_exact_updates_can_change_the_comparison_anchor(self):
+        selected = (ROOT/"research/continuity-spqr-reference/Cargo.lock").read_bytes()
+        before = b'version = "1.10.1"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"'
+        after = b'version = "1.12.1"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"'
+        before_rand = b'name = "rand"\nversion = "0.9.1"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "9fbfd9d094a40bf3ae768db9361049ace4c0e04a4fd6b359518bd7b73a73dd97"'
+        after_rand = b'name = "rand"\nversion = "0.9.3"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "7ec095654a25171c2124e9e3393a930bddbffdc939556c914957a4c3e0a87166"'
+        self.assertEqual(selected.count(after), 1)
+        self.assertEqual(selected.count(after_rand), 1)
+        rand_block = next(b'[[package]]'+block for block in selected.split(b'[[package]]')
+                          if block.startswith(b'\nname = "rand"\n'))
+        original = selected.replace(after, before).replace(after_rand, before_rand)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            upstream, reference = root/"upstream.lock", root/"reference.lock"
+            upstream.write_bytes(original)
+            with patch.object(ref, "UPSTREAM_LOCK", hashlib.sha256(original).hexdigest()):
+                reference.write_bytes(selected)
+                result = ref.check_lock(upstream, reference)
+                self.assertEqual([(u["name"],u["comparison"]["version"]) for u in result["comparison_dependency_updates"]],
+                                 [("bytes","1.12.1"),("rand","0.9.3")])
+                changed = {
+                    "old bytes": selected.replace(after, before),
+                    "different version": selected.replace(after, after.replace(b'1.12.1', b'1.12.2')),
+                    "different checksum": selected.replace(after, after.replace(b'fc652a48', b'00000000')),
+                    "different registry": selected.replace(after, after.replace(b'crates.io-index', b'other-index')),
+                    "other provider": selected.replace(b'name = "hkdf"', b'name = "unapproved-kdf"'),
+                    "mixed bytes": selected + b'\n[[package]]\nname = "bytes"\n' + before + b'\n',
+                    "missing bytes": selected.replace(b'[[package]]\nname = "bytes"\n' + after + b'\n', b''),
+                    "old rand": selected.replace(after_rand, before_rand),
+                    "different rand version": selected.replace(after_rand, after_rand.replace(b'0.9.3', b'0.9.4')),
+                    "different rand checksum": selected.replace(after_rand, after_rand.replace(b'7ec09565', b'00000000')),
+                    "different rand registry": selected.replace(after_rand, after_rand.replace(b'crates.io-index', b'other-index')),
+                    "missing rand": selected.replace(rand_block, b''),
+                    "unqualified rand_core": selected.replace(b'name = "rand_core"\nversion = "0.9.3"',
+                                                               b'name = "rand_core"\nversion = "0.9.4"'),
+                }
+                for name, data in changed.items():
+                    with self.subTest(change=name), self.assertRaisesRegex(ref.ReferenceError, "comparison anchor"):
+                        reference.write_bytes(data)
+                        ref.check_lock(upstream, reference)
+                reference.write_bytes(selected)
+                upstream.write_bytes(original+b"\n")
+                with self.assertRaisesRegex(ref.ReferenceError, "upstream dependency lock changed"):
+                    ref.check_lock(upstream, reference)
+
     def test_wire_accepts_exact_control_and_chunk_shapes(self):
         self.assertEqual(ref.wire_header(bytes.fromhex("01010100")), (1, 1, 0))
         for kind in (1,2,3,5,6):
