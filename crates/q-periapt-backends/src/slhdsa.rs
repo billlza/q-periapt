@@ -106,7 +106,7 @@ macro_rules! slhdsa_backends {
                     out_sig: &mut [u8],
                 ) -> Result<usize, Error> {
                     let sk = crate::to_zeroizing::<{ fips205::$m::SK_LEN }>(sk)?;
-                    let key = fips205::$m::PrivateKey::try_from_bytes(sk.as_bytes())
+                    let key = fips205::$m::PrivateKey::try_from_bytes(*sk.as_bytes())
                         .map_err(|_| Error::Backend)?;
                     // ctx = empty. All-zero randomness selects deterministic
                     // (non-hedged, KAT-reproducible) signing; anything else must be
@@ -139,7 +139,7 @@ macro_rules! slhdsa_backends {
                     let pk_arr = crate::to_arr::<{ fips205::$m::PK_LEN }>(pk)?;
                     let sig_arr = crate::to_arr::<{ fips205::$m::SIG_LEN }>(sig)?;
                     let key =
-                        fips205::$m::PublicKey::try_from_bytes(&pk_arr).map_err(|_| Error::Backend)?;
+                        fips205::$m::PublicKey::try_from_bytes(pk_arr).map_err(|_| Error::Backend)?;
                     if key.verify(msg, &sig_arr, b"") {
                         Ok(())
                     } else {
