@@ -9,10 +9,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: android-platform-probe-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   supervision-controls:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 5
+    # Allow checkout/setup time while keeping the process-control test bounded.
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -28,6 +33,7 @@ jobs:
           check-latest: false
           update-environment: false
       - name: Check process ownership and bounded shutdown
+        timeout-minutes: 3
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: sh artifact/python-run.sh -m unittest -v artifact/test_android_platform_probe.py

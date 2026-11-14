@@ -113,7 +113,7 @@ jobs:
 
       - name: Initialize CodeQL
         id: codeql_init
-        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           build-mode: ${{ matrix.build_mode }}
           config: |
@@ -128,7 +128,7 @@ jobs:
       - name: Verify linked CodeQL bundle
         env:
           CODEQL_BINARY: ${{ steps.codeql_init.outputs.codeql-path }}
-        run: test "$("$CODEQL_BINARY" version --format=terse)" = "2.27.1"
+        run: test "$("$CODEQL_BINARY" version --format=terse)" = "2.27.4"
 
       - name: Build Kotlin binding
         if: matrix.language == 'java-kotlin'
@@ -159,7 +159,7 @@ jobs:
       - name: Analyze
         id: codeql_analyze
         timeout-minutes: 60
-        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           category: /language:${{ matrix.language }}
           output: ${{ runner.temp }}/qperiapt-codeql-results-${{ matrix.language }}
@@ -176,7 +176,7 @@ jobs:
 
       - name: Retain CodeQL SARIF results
         if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codeql-results-${{ matrix.language }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -248,7 +248,7 @@ jobs:
             test_codeql_target_coverage test_codeql_compiler_sources \
             test_codeql_cargo_metadata test_codeql_rust_profile test_codeql_rust_publication test_codeql_rust_transfer \
             test_codeql_rust_plan test_codeql_progress
-      - uses: github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+      - uses: github/codeql-action/setup-codeql@33d7b85da1a04171e211befe2c739303b9a4c066
         id: rust_codeql
         with:
           tools: https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.4/codeql-bundle-${{ matrix.bundle }}.tar.gz
@@ -370,7 +370,7 @@ jobs:
             test_codeql_target_coverage test_codeql_compiler_sources \
             test_codeql_cargo_metadata test_codeql_rust_profile test_codeql_rust_publication test_codeql_rust_transfer \
             test_codeql_rust_plan test_codeql_progress
-      - uses: github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+      - uses: github/codeql-action/setup-codeql@33d7b85da1a04171e211befe2c739303b9a4c066
         id: rust_codeql
         with:
           tools: https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.4/codeql-bundle-osx64.tar.gz
@@ -457,7 +457,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: github/codeql-action/setup-codeql@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+      - uses: github/codeql-action/setup-codeql@33d7b85da1a04171e211befe2c739303b9a4c066
         id: rust_codeql
         with:
           tools: https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.4/codeql-bundle-linux64.tar.gz
@@ -575,23 +575,23 @@ jobs:
             --inputs "$RUNNER_TEMP/qperiapt-rust-profiles" \
             --output "$RUNNER_TEMP/qperiapt-rust-publication" \
             --summary-plan-mode official
-      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+      - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066
         with:
           # Preserve main's Rust analysis identity for the native continuation.
           category: /language:rust
           sarif_file: ${{ runner.temp }}/qperiapt-rust-publication/native.sarif
           wait-for-processing: true
-      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+      - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066
         with:
           category: /language:rust/target:wasm
           sarif_file: ${{ runner.temp }}/qperiapt-rust-publication/wasm.sarif
           wait-for-processing: true
-      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+      - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066
         with:
           category: /language:rust/target:macos
           sarif_file: ${{ runner.temp }}/qperiapt-rust-publication/macos.sarif
           wait-for-processing: true
-      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2
+      - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066
         with:
           category: /language:rust/target:windows
           sarif_file: ${{ runner.temp }}/qperiapt-rust-publication/windows.sarif

@@ -17,6 +17,12 @@ test -x "$adb"
 test -x "$emulator"
 avdmanager=$(command -v avdmanager)
 case "$avdmanager" in "$sdk"/cmdline-tools/*/bin/avdmanager) ;; *) exit 2 ;; esac
+printf 'PLATFORM_HOST_TOOLS\n'
+"$adb" version
+"$emulator" -version
+sha256sum "$adb" "$emulator"
+printf 'PLATFORM_HOST_MEMORY\n'
+cat /proc/meminfo
 
 # No global ADB server or attached USB device participates. All state is new.
 work=$output/work
@@ -150,12 +156,28 @@ guest cat /proc/meminfo
 guest sha256sum /apex/com.android.art/lib64/libart.so
 
 capture_failure() {
-    if adb_call -s "$serial" logcat -d -b main -b system -b crash -v threadtime \
-        -t 1000 -s 'DEBUG:*' 'AndroidRuntime:E' 'ActivityManager:I' 'Zygote:E' 'libc:F' '*:S'; then
-        printf 'PLATFORM_FAILURE_LOG_CAPTURED\n'
-    else
-        printf 'PLATFORM_FAILURE_LOG_UNAVAILABLE\n'
-    fi
+    local phase
+    # debuggerd writes the native backtrace asynchronously after libc reports
+    # the fatal signal. Keep the owned emulator alive for one bounded grace
+    # period, then read the crash buffer again before cleanup terminates it.
+    # Both reads retain adb_call's five-second timeout. The reads and grace
+    # period remain inside the unchanged outer 360-second supervision deadline.
+    for phase in immediate deferred; do
+        if [ "$phase" = deferred ]; then
+            if ! sleep 10; then
+                printf 'PLATFORM_FAILURE_GRACE_INTERRUPTED\n'
+                break
+            fi
+        fi
+        printf 'PLATFORM_FAILURE_CAPTURE phase=%s\n' "$phase"
+        if adb_call -s "$serial" logcat -d -b main -b system -b crash -v threadtime \
+            -t 1000 -s 'DEBUG:*' 'tombstoned:*' 'crash_dump64:*' \
+            'AndroidRuntime:E' 'ActivityManager:I' 'Zygote:E' 'libc:F' '*:S'; then
+            printf 'PLATFORM_FAILURE_LOG_CAPTURED phase=%s\n' "$phase"
+        else
+            printf 'PLATFORM_FAILURE_LOG_UNAVAILABLE phase=%s\n' "$phase"
+        fi
+    done
 }
 for sample in {1..60}; do
     # IFileIntegrityService's first AIDL method is isApkVeritySupported().

@@ -1,12 +1,9 @@
 name: Installed Continuity Android JNI
 
-# The host JNI partitions and fresh arm64 AAR build select the same pinned SDK
-# cohort. The AAR job records native/Java compilation and static readback.
+# Explicit replay of a selected SDK cohort. Ordinary CI builds the arm64 AAR
+# from its own SDK producer and runs both JNI profiles in the six-profile join.
+# Updating this workflow or its historical pin must not enqueue a stale cohort.
 on:
-  push:
-    paths:
-      - .github/workflows/continuity-android-installed.yml
-      - .github/continuity-android-installed.json
   workflow_dispatch:
 
 permissions:

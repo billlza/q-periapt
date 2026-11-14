@@ -30,6 +30,10 @@ permissions:
   contents: read
   actions: read
 
+concurrency:
+  group: independent-continuity-${{ github.event_name }}-${{ github.event_name == 'push' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
 env:
   RUSTFLAGS: "-D warnings"
   CARGO_TERM_COLOR: never
