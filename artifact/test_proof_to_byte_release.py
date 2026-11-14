@@ -76,11 +76,11 @@ PINNED_DOWNLOAD_ARTIFACT_ACTION = (
     "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1"
 )
 PINNED_UPLOAD_ARTIFACT_ACTION = (
-    "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1"
+    "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2"
 )
 PINNED_CODEQL_ACTION = (
-    "github/codeql-action/{action}@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 "
-    "# v4.38.2"
+    "github/codeql-action/{action}@33d7b85da1a04171e211befe2c739303b9a4c066 "
+    "# v4.39.3"
 )
 PINNED_SETUP_JAVA_ACTION = (
     "actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0"
@@ -1484,7 +1484,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self,
     ) -> None:
         build = (ROOT / "bindings/kotlin/build.gradle.kts").read_text(encoding="utf-8")
-        self.assertIn('kotlin("jvm") version "2.4.20"', build)
+        self.assertIn('kotlin("jvm") version "2.4.21"', build)
         self.assertEqual(
             re.findall(r"jvmTarget\.set\(JvmTarget\.JVM_([0-9]+)\)", build), ["25"]
         )
@@ -1576,7 +1576,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self.assertEqual(other_languages.count(action.format(action="init")), 1)
         self.assertEqual(other_languages.count(action.format(action="analyze")), 1)
         self.assertIn("tools: linked", other_languages)
-        self.assertIn('version --format=terse)" = "2.27.1"', other_languages)
+        self.assertIn('version --format=terse)" = "2.27.4"', other_languages)
 
         self.assertIn("runs-on: ${{ matrix.runner }}", rust)
         for entry in (
@@ -1821,7 +1821,24 @@ class BoundVerifierWiringTests(unittest.TestCase):
         )
         self.assertNotIn("target-branch:", dependabot)
         self.assertNotIn("ignore:", dependabot)
-        self.assertNotIn("groups:", dependabot)
+        # CodeQL sub-actions must move together; other dependency updates stay
+        # individually visible. Only this exact GitHub Actions group is allowed.
+        self.assertEqual(dependabot.count("groups:"), 1)
+        actions_update = dependabot.split(
+            "  - package-ecosystem: github-actions\n", 1
+        )[1]
+        group_prefix, group_separator, group_config = actions_update.partition(
+            "    groups:\n"
+        )
+        self.assertEqual(group_separator, "    groups:\n")
+        self.assertNotIn("groups:", group_prefix)
+        self.assertEqual(
+            group_config,
+            "      codeql-action:\n"
+            "        patterns:\n"
+            '          - "github/codeql-action"\n'
+            '          - "github/codeql-action/*"\n',
+        )
         policy = SECURITY_POLICY.read_text(encoding="utf-8")
         normalized_policy = " ".join(policy.split())
         self.assertIn("Report a vulnerability", normalized_policy)
@@ -2509,10 +2526,10 @@ class BoundVerifierWiringTests(unittest.TestCase):
         combined = "\n".join(workflow_sources.values())
         expected = {
             ".github/workflows/abi2-platform-candidate.yml": 1,
-            ".github/workflows/ci.yml": 2,
+            ".github/workflows/ci.yml": 3,
             ".github/workflows/continuity-android-installed.yml": 1,
         }
-        # The installed Android consumer has its own SDK provisioning lane.
+        # Same-run Continuity and explicit cohort replay each provision the NDK.
         # Keep exact ownership as well as counts so a new unbounded caller or
         # a missing existing caller cannot hide behind a repository total.
         for command in (

@@ -1,7 +1,7 @@
 import java.security.MessageDigest
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-plugins { kotlin("jvm") version "2.4.20" }
+plugins { kotlin("jvm") version "2.4.21" }
 
 repositories {
     exclusiveContent {

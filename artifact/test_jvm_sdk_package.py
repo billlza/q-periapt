@@ -15,53 +15,57 @@ class JvmSDKPackageTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-        self.repository = self.root / "maven"
-        self.directory = self.repository / jvm.MAVEN_PATH
-        self.directory.mkdir(parents=True)
-        self.binary = {f"dev/qperiapt/{name}.class": b"\xca\xfe\xba\xbe\x00\x00\x00\x45fixture-header-only"
-            for name in ("QPeriaptRuntime", "QPeriaptKey", "QPeriaptSecret", "QPeriaptExpert", "QPeriaptHybrid",
-                         "QPeriaptPersistentRuntime", "QPeriaptPolicyRecoveryTrust", "QPeriaptPolicyRecoveryRequest",
-                         "QPeriaptPolicyRecoveryAuthorization", "QPeriaptPolicyRecoveryResult", "QPeriaptPolicyRecoveryReopen")}
-        self.binary["META-INF/dev.qperiapt_q-periapt-hybrid.kotlin_module"] = b"fixture"
-        self.binary["META-INF/MANIFEST.MF"] = ("Manifest-Version: 1.0\r\nAutomatic-Module-Name: dev.qperiapt.hybrid\r\n"
-            "Implementation-Title: Q-Periapt Kotlin/JVM SDK\r\nImplementation-Version: 0.2.0\r\n"
-            "QPeriapt-ABI: 2\r\nQPeriapt-SDK-Extension: 1\r\n\r\n").encode()
-        source_root = jvm.BINDING / "src/main/kotlin"
+        self.select_contract(jvm.product_maven_contract())
+
+    def select_contract(self, contract):
+        self.contract = contract
+        self.repository = self.root / ("maven-" + contract.name)
+        self.directory = self.repository / contract.path
+        self.directory.mkdir(parents=True, exist_ok=True)
+        self.binary = {f"{contract.class_prefix}{name}.class": b"\xca\xfe\xba\xbe\x00\x00\x00\x45fixture-header-only"
+            for name in contract.required_classes}
+        self.binary[f"META-INF/{contract.group}_{contract.name}.kotlin_module"] = b"fixture"
+        attributes = {"Manifest-Version": "1.0", "Automatic-Module-Name": contract.module,
+            "Implementation-Title": contract.title, "Implementation-Version": contract.version,
+            **dict(contract.manifest_extensions)}
+        self.binary["META-INF/MANIFEST.MF"] = ("\r\n".join(f"{key}: {value}" for key, value in attributes.items()) + "\r\n\r\n").encode()
+        source_root = contract.binding / "src/main/kotlin"
         self.source = {path.relative_to(source_root).as_posix(): path.read_bytes() for path in source_root.rglob("*.kt")}
         self.source["META-INF/MANIFEST.MF"] = b"Manifest-Version: 1.0\r\n\r\n"
         for name, path in jvm.NOTICE_PATHS.items():
             self.binary[name] = self.source[name] = path.read_bytes()
         self.pom = (f'<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>'
-            f'<groupId>{jvm.GROUP}</groupId><artifactId>{jvm.NAME}</artifactId><version>{jvm.VERSION}</version>'
+            f'<groupId>{contract.group}</groupId><artifactId>{contract.name}</artifactId><version>{contract.version}</version>'
             f'<dependencies><dependency><groupId>org.jetbrains.kotlin</groupId><artifactId>kotlin-stdlib</artifactId>'
-            f'<version>{jvm.KOTLIN}</version><scope>compile</scope></dependency></dependencies></project>')
+            f'<version>{contract.kotlin_version}</version><scope>compile</scope></dependency></dependencies></project>')
         self.write_repository()
 
     def write_repository(self):
+        contract = self.contract
         for suffix, files in ((".jar", self.binary), ("-sources.jar", self.source)):
-            with zipfile.ZipFile(self.directory / f"{jvm.PREFIX}{suffix}", "w") as archive:
+            with zipfile.ZipFile(self.directory / f"{contract.prefix}{suffix}", "w") as archive:
                 for name, data in files.items():
                     archive.writestr(name, data)
-        (self.directory / f"{jvm.PREFIX}.pom").write_text(self.pom)
-        self.module = {"formatVersion": "1.1", "component": {"group": jvm.GROUP, "module": jvm.NAME,
-            "version": jvm.VERSION, "attributes": {"org.gradle.status": "release"}},
+        (self.directory / f"{contract.prefix}.pom").write_text(self.pom)
+        self.module = {"formatVersion": "1.1", "component": {"group": contract.group, "module": contract.name,
+            "version": contract.version, "attributes": {"org.gradle.status": "release"}},
             "createdBy": {"gradle": {"version": "9.8.0"}}, "variants": []}
         for variant in ("apiElements", "runtimeElements", "sourcesElements"):
             sources = variant == "sourcesElements"
-            name = f"{jvm.PREFIX}{'-sources' if sources else ''}.jar"
+            name = f"{contract.prefix}{'-sources' if sources else ''}.jar"
             data = (self.directory / name).read_bytes()
             row = {"name": variant, "attributes": {} if sources else {"org.gradle.jvm.version": 25},
                 "files": [{"name": name, "url": name, "size": len(data),
                     **{algorithm: hashlib.new(algorithm, data).hexdigest() for algorithm in ("md5", "sha1", "sha256", "sha512")}}]}
             if not sources:
-                row["dependencies"] = [{"group": "org.jetbrains.kotlin", "module": "kotlin-stdlib", "version": {"requires": jvm.KOTLIN}}]
+                row["dependencies"] = [{"group": "org.jetbrains.kotlin", "module": "kotlin-stdlib", "version": {"requires": contract.kotlin_version}}]
             self.module["variants"].append(row)
         self.write_module_checksums()
 
     def write_module_checksums(self):
-        (self.directory / f"{jvm.PREFIX}.module").write_text(json.dumps(self.module))
+        (self.directory / f"{self.contract.prefix}.module").write_text(json.dumps(self.module))
         for suffix in (".jar", "-sources.jar", ".pom", ".module"):
-            path = self.directory / f"{jvm.PREFIX}{suffix}"
+            path = self.directory / f"{self.contract.prefix}{suffix}"
             for algorithm in ("md5", "sha1", "sha256", "sha512"):
                 path.with_name(f"{path.name}.{algorithm}").write_text(hashlib.new(algorithm, path.read_bytes()).hexdigest())
 
@@ -70,6 +74,36 @@ class JvmSDKPackageTests(unittest.TestCase):
         (self.directory / f"{jvm.PREFIX}.jar.sha256").write_text("0" * 64)
         with self.assertRaisesRegex(ValueError, "checksum differs"):
             jvm.verify_maven(self.repository)
+
+    def test_code_selected_profiles_reject_rehashed_kotlin_pom_rebinding(self):
+        import continuity_kotlin_consumer as continuity
+        for contract, selected, other in ((jvm.product_maven_contract(), "2.4.21", "2.4.20"),
+                                          (continuity.maven_contract(), "2.4.20", "2.4.21")):
+            with self.subTest(coordinate=contract.coordinate):
+                self.assertEqual(contract.kotlin_version, selected)
+                self.select_contract(contract)
+                self.assertEqual(jvm.verify_maven(self.repository, contract=contract)["coordinate"], contract.coordinate)
+                self.pom = self.pom.replace(f"<version>{selected}</version>", f"<version>{other}</version>")
+                self.write_repository()
+                # Even a coherently changed, rehashed POM and module cannot pick
+                # the other product's Kotlin version from candidate bytes.
+                for variant in self.module["variants"][:2]:
+                    variant["dependencies"][0]["version"]["requires"] = other
+                self.write_module_checksums()
+                with self.assertRaisesRegex(ValueError, "Maven dependencies differ"):
+                    jvm.verify_maven(self.repository, contract=contract)
+
+    def test_code_selected_profiles_reject_rehashed_kotlin_module_rebinding(self):
+        import continuity_kotlin_consumer as continuity
+        for contract, other in ((jvm.product_maven_contract(), "2.4.20"),
+                                (continuity.maven_contract(), "2.4.21")):
+            for variant_index in (0, 1):
+                with self.subTest(coordinate=contract.coordinate, variant=variant_index):
+                    self.select_contract(contract)
+                    self.module["variants"][variant_index]["dependencies"][0]["version"]["requires"] = other
+                    self.write_module_checksums()
+                    with self.assertRaisesRegex(ValueError, "Gradle JVM version or dependency differs"):
+                        jvm.verify_maven(self.repository, contract=contract)
 
     def test_rehashed_missing_persistent_api_is_rejected(self):
         del self.binary["dev/qperiapt/QPeriaptPersistentRuntime.class"]
