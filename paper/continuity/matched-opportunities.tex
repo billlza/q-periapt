@@ -8,6 +8,17 @@ application work and communication cost on the same opportunity budget.
 The protocol source is fixed at \texttt{358b921a}; the reference SPQR revision
 and its isolated chunk-width variant retain the identities stated above.
 
+\paragraph{Comparison target.}
+The cross-profile rows compare the configured protocol services under a
+common request and transport schedule, retaining each profile's authentication,
+acknowledgement, retry and persistence boundaries. Their service and
+communication counts describe these configurations jointly. Within Continuity,
+the $b=32$ and $b=64$ rows measure the send budget's effect with the remaining
+driver rules fixed. Section~\ref{sec:retry-readiness} then isolates retry
+readiness by changing that rule alone within the same native protocol.
+These comparisons locate the observed exposure, service and communication
+tradeoffs at their configuration and scheduling boundaries.
+
 \paragraph{Workload and capture.}
 Each schedule contains 2,048 directed transmission opportunities, indexed
 0--2,047. The designated sender receives one 32-byte application request at
