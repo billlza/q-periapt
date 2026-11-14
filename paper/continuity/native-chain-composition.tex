@@ -275,6 +275,90 @@ and the root, record and component costs retain their displayed
 coefficients; no additional guess of the marked message index is used.
 \end{proof}
 
+\paragraph{Reading the bound in ordinary primitives.}
+For the executed-slot selector, Table~\ref{tab:native-online-substitutions}
+collects the substitutions in
+\eqref{eq:native-online-confidentiality}--\eqref{eq:native-online-integrity}.
+The index $\sigma\in\{+,-,\mathrm{msg}\}$ identifies the actual terminal
+test: each test retains its own complete-execution resources. The table
+instantiates the displayed terms without changing the original candidate
+partition or the selected message.
+
+\begin{table}[htbp]
+\caption{Primitive substitutions for native online selected-message security.
+The attribution cost is charged once outside the candidate sum.}
+\label{tab:native-online-substitutions}
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.19\textwidth}>{\raggedright\arraybackslash}X@{}}
+\toprule
+Term & Established substitution and its role \\
+\midrule
+Record cost $\varepsilon_{{\rm rec},j}$ &
+$\displaystyle\min\!\left\{1,
+\sum_{i=1}^{M_j^{\rm seal}}\Phi_{192}(d_{j,i},Q_{j,i})
++\delta_{{\rm seal},j}\right\}$.
+\par Here $\delta_{{\rm seal},j}=\min\{1,\binom{M_j^{\rm seal}}2 2^{-192}\}$.
+Equation~\eqref{eq:live-core-record-cost} counts fresh sealing attempts,
+including failed commits; copies retain their original handles. \\
+\addlinespace[3pt]
+Component cost $a_j^\sigma$ &
+At most $\min\{1,\operatorname{Adv}^{\rm cca}(B_j^\sigma)
++\zeta_{{\rm pre},j}^{\sigma}\}$.
+\par Here
+$\zeta_{{\rm pre},j}^{\sigma}
+=\min\{1,q_{j,\sigma}^{-}2^{-256}+\delta_{{\rm mr},j}^{\sigma}\}$
+by Proposition~\ref{prop:kem-deferred-challenge}.
+The bound retains real prechallenge decapsulation. \\
+\addlinespace[3pt]
+Correctness $\delta_j$ &
+The selected pair's shared-key correctness cost from
+Section~\ref{sec:contextbound-connection}. It remains separate from the
+message-recovery event $\delta_{{\rm mr},j}^{\sigma}$ inside the component
+bridge. \\
+\addlinespace[3pt]
+Continuation $B_j^{\rm chain}$,
+$\Omega_j^{\rm chain}$ &
+Equations~\eqref{eq:native-chain-continuation} and
+\eqref{eq:native-chain-integrity-cost} combine ContextBound replacement,
+root initialization, the finite prefix sum in~\eqref{eq:prefix-error},
+and one-key AEAD confidentiality or integrity. Each comparison costs twice
+its event bound for the signed score and once for the Boolean event. \\
+\addlinespace[3pt]
+Attribution $\Delta_{\rm attr}$ &
+$\min\{1,\varepsilon_{\rm sig}+\chi_H(Q_H)\}$ by
+Proposition~\ref{prop:executed-source-attribution}, using the ordinary
+ML-DSA instantiation below. This is the original-game association cost
+for the executed-slot selector. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Specifically, for at most $U$ fresh signing-owner families, the established
+ordinary-signature bridge~\eqref{eq:native-pair-ordinary-mldsa} permits
+\[
+\begin{split}
+ \varepsilon_{\rm sig}\le\min\bigl\{1,U\bigl(&
+ \varepsilon_{\rm MLDSA,EUF}^{\rm su}+\beta_{256}(q)\\[-2pt]
+ &+\delta_{\mathsf X}(q_*^{\rm res})
+  +\delta_{\mathsf X}(q_*^{\rm ord})\bigr)\bigr\}.
+\end{split}
+\]
+Here $q$ bounds distinct executed target $(r,\mu)$ pairs,
+$\beta_{256}(q)=\min\{1,\binom q2 2^{-256}\}$, and the two $q_*$ budgets
+count remaining shared-XOF calls in the complete reservation and ordinary
+experiments. The established oracle terms are
+$\delta_{\mathsf C}(v)=\min\{1,v2^{-256}\}$ in the classical model and
+$\delta_{\mathsf Q}(v)=\min\{1,2v2^{-128}\}$ in the quantum model.
+
+Confidentiality uses the two component tests $+$ and $-$, each with its
+own prechallenge term, before the outer factor $1/2$. Integrity uses the
+single $\mathrm{msg}$ test. The existing $2\delta_j$ and $\delta_j$
+coefficients therefore remain in their respective bounds. The live core
+has zero charged projection residual. Online marking incurs the displayed
+$L$-term prefix sum; its complete-query budgets include preparation,
+failed attempts, endpoint aliases, real suffix computation and terminal
+testing. These are the same interfaces and budgets as in the theorem.
+
 For $L=1$, the prefix cost reduces to the existing first-message
 schedule cost. The enlarged controller adds the choice of a later
 uncomputed index after observing earlier keys, while preserving the
