@@ -2,6 +2,7 @@
 use super::super::fixture::Work;
 use super::super::registry::RegistryRecovery;
 use super::super::*;
+use super::WITNESS_ATTEMPT_TIMEOUT;
 use crate::AccountAuthorityReplacementState as State;
 
 pub(super) struct Scenario {
@@ -254,7 +255,7 @@ impl Next {
                 self.now,
                 s.t.history.current_pin().clone(),
                 Box::new(carrier),
-                Duration::from_secs(3),
+                WITNESS_ATTEMPT_TIMEOUT,
             )
             .expect("actual current Witness carrier");
         let mut active = enrollment

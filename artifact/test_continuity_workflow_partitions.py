@@ -1,12 +1,26 @@
 """CI partitions must preserve all existing tests and keep their time bounds."""
+import hashlib
 import os
 from pathlib import Path
 import re
 import subprocess
 import tempfile
+import textwrap
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def workflow_job(text, name):
+    match = re.search(r'(?ms)^  ' + re.escape(name) + r':\n(.*?)(?=^  [\w-]+:|\Z)', text)
+    if match is None:
+        raise ValueError('required workflow job is absent: ' + name)
+    return match[1]
+
+
+def workflow_steps(job):
+    return [step.rstrip() + '\n' for step in re.findall(r'(?ms)^      - .*?(?=^      - |^  #|\Z)', job)]
 
 
 def native(text):
@@ -131,6 +145,88 @@ class ContinuityWorkflowPartitionsTests(unittest.TestCase):
     def test_current_workloads_are_complete_and_bounded(self):
         native(self.native)
         independent(self.independent)
+
+    def test_automatic_android_aar_retains_the_full_recipe_and_same_run_sdk(self):
+        replay = (ROOT / '.github/workflows/continuity-android-installed.yml').read_text()
+        self.assertEqual(re.findall(r'(?m)^  ([\w-]+):', replay.split('permissions:', 1)[0]),
+                         ['workflow_dispatch'])
+        current = workflow_job(self.native, 'continuity-android-aar')
+        historical = workflow_job(replay, 'android-aar')
+        self.assertIn('    needs: rust-publish-contract\n', current)
+        self.assertNotRegex(current, r'(?m)^    if:')
+        self.assertNotIn('continue-on-error:', current)
+        for setting in ('runs-on: macos-15', 'timeout-minutes: 210'):
+            self.assertIn(setting, current)
+            self.assertIn(setting, historical)
+        actual, original = workflow_steps(current), workflow_steps(historical)
+        self.assertEqual(len(actual), len(original))
+        for step, previous in zip(actual, original):
+            if '\n        id: inputs\n' in previous:
+                self.assertIn('SDK_RUN_ID: ${{ github.run_id }}', step)
+                self.assertIn('SDK_REPORT_SHA256: ${{ needs.rust-publish-contract.outputs.sdk_report_sha256 }}', step)
+                self.assertNotIn('.github/continuity-android-installed.json', step)
+            elif 'uses: actions/download-artifact@' in previous:
+                self.assertIn('name: rust-sdk-package\n', step)
+                self.assertNotIn('run-id:', step)
+                self.assertNotIn('github-token:', step)
+                self.assertEqual(step, re.sub(r'^          (run-id|github-token):.*\n', '', previous,
+                                              flags=re.MULTILINE))
+            else:
+                self.assertEqual(step, previous, 'native/Java build, source checks, or readback changed')
+
+    def test_actual_android_sdk_binding_tracks_report_bytes_and_rejects_missing_inputs(self):
+        # Execute the producer digest command and the consumer's actual selector.
+        # The native build's existing admission tests then verify those report bytes.
+        import continuity_android_distribution as distribution
+        producer = workflow_job(self.native, 'rust-publish-contract')
+        self.assertIn('sdk_report_sha256: ${{ steps.sdk_report_identity.outputs.report_sha256 }}', producer)
+        digest_step, = (step for step in workflow_steps(producer)
+                       if '\n        id: sdk_report_identity\n' in step)
+        self.assertIn('        shell: bash\n', digest_step)
+        command = textwrap.dedent(digest_step.split('        run: |\n', 1)[1])
+        selection_step, = (step for step in workflow_steps(workflow_job(self.native, 'continuity-android-aar'))
+                          if '\n        id: inputs\n' in step)
+        selection = textwrap.dedent(selection_step.split("<<'PYTHON'\n", 1)[1].split('          PYTHON\n', 1)[0])
+        source = {'commit': 'a' * 40, 'tree': 'b' * 40, 'tree_sha256': 'c' * 64}
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            report = root / 'target/sdk-rust-package/RUST_SDK_PACKAGE.json'
+            report.parent.mkdir(parents=True)
+            for data in (b'{"cohort":1}\n', b'{"cohort":2}\n'):
+                report.write_bytes(data)
+                output = root / 'producer-output'
+                output.write_text('')
+                result = subprocess.run(['/bin/bash', '-euo', 'pipefail', '-c', command], cwd=root,
+                    env={**os.environ, 'GITHUB_OUTPUT': str(output)}, capture_output=True, text=True,
+                    timeout=10, check=False)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                expected = hashlib.sha256(data).hexdigest()
+                self.assertEqual(output.read_text(), 'report_sha256=' + expected + '\n')
+                selected = root / 'consumer-output'
+                for changes, accepted in (({}, True), ({'SDK_REPORT_SHA256': ''}, False),
+                                          ({'SDK_RUN_ID': 'latest'}, False),
+                                          ({'EXPECTED_COMMIT': 'd' * 40}, False)):
+                    selected.write_text('')
+                    environment = {**os.environ, 'SDK_RUN_ID': '1234', 'SDK_REPORT_SHA256': expected,
+                                   'EXPECTED_COMMIT': source['commit'], 'GITHUB_OUTPUT': str(selected), **changes}
+                    with self.subTest(changes=changes), mock.patch.dict(os.environ, environment, clear=True), \
+                            mock.patch.object(distribution, 'repository_paths', return_value=[]), \
+                            mock.patch.object(distribution, 'source_identity', return_value=source):
+                        if accepted:
+                            exec(compile(selection, '<workflow SDK selector>', 'exec'), {})
+                            self.assertEqual(dict(line.split('=', 1) for line in selected.read_text().splitlines()),
+                                             {'sdk_run_id': '1234', 'sdk_report_sha256': expected,
+                                              **{'source_' + key: value for key, value in source.items()}})
+                        else:
+                            with self.assertRaises(ValueError):
+                                exec(compile(selection, '<workflow SDK selector>', 'exec'), {})
+                            self.assertEqual(selected.read_text(), '')
+            report.unlink()
+            result = subprocess.run(['/bin/bash', '-euo', 'pipefail', '-c', command], cwd=root,
+                env={**os.environ, 'GITHUB_OUTPUT': str(root / 'missing-output')}, capture_output=True,
+                text=True, timeout=10, check=False)
+            self.assertNotEqual(result.returncode, 0, 'missing producer report must stop the job')
+            self.assertFalse((root / 'missing-output').exists())
 
     def test_native_artifact_transport_cannot_preempt_independent_verification(self):
         native(self.native)
