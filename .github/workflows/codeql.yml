@@ -462,7 +462,7 @@ jobs:
         with:
           tools: https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.27.4/codeql-bundle-linux64.tar.gz
           languages: rust
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: codeql-rust-macos-transfer-${{ needs.rust-macos-prepare.outputs.origin_attempt }}
           path: ${{ runner.temp }}/qperiapt-codeql-macos-transfer
@@ -561,7 +561,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           pattern: codeql-rust-profile-*
           path: ${{ runner.temp }}/qperiapt-rust-profiles

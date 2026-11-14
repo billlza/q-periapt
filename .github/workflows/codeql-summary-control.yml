@@ -142,13 +142,13 @@ jobs:
             artifact/python-env.sh
             artifact/python_bootstrap.py
       - name: Read 2048 MiB heap evidence
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: codeql-summary-control-heap-2048
           path: ${{ runner.temp }}/qperiapt-codeql-summary-pair/heap-2048
       - name: Read 1536 MiB heap evidence
         if: always()
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: codeql-summary-control-heap-1536
           path: ${{ runner.temp }}/qperiapt-codeql-summary-pair/heap-1536
