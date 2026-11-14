@@ -139,13 +139,15 @@ class _QueryCompletions:
 
     MAX_LINE_BYTES = 1024
     _COMPLETION_MARKER = b"Evaluation done; writing results to "
+    _START_MARKER = b"Starting evaluation of "
+    _START = re.compile(rb"Starting evaluation of ([^\r\n]+\.ql)\.")
     _COMPLETION = re.compile(
         rb"\[([1-9][0-9]?)/39 eval "
         rb"(?:[0-9]{1,6}(?:\.[0-9]{1,3})?(?:ms|h|m|s)){1,3}"
         rb"\] Evaluation done; writing results to ([^\r\n]+\.bqrs)\."
     )
 
-    def __init__(self, query_paths, *, strict=False, on_progress=None):
+    def __init__(self, query_paths, *, strict=False, on_progress=None, require_starts=False):
         expected = {}
         for relative in query_paths:
             require(len(expected) < 39, "query progress requires exactly 39 query paths")
@@ -163,6 +165,12 @@ class _QueryCompletions:
         self._expected = expected
         self._strict = strict
         self._on_progress = on_progress
+        self._require_starts = require_starts
+        self._expected_starts = {b"codeql/rust-queries/" + name.encode(): name
+                                 for name in expected.values()}
+        self._started = set()
+        self._markers = (self._COMPLETION_MARKER, self._START_MARKER) if require_starts else (
+            self._COMPLETION_MARKER,)
         self._seen = set()
         self._pending = bytearray()
         self._discarding = False
@@ -190,12 +198,12 @@ class _QueryCompletions:
         # including a marker split across read boundaries. Keep only its suffix;
         # never copy an unbounded segment just to search for that marker.
         if self._strict:
-            marker = self._COMPLETION_MARKER
-            overlap = len(marker) - 1
+            overlap = max(map(len, self._markers)) - 1
             boundary = self._pending[-overlap:] + block[start:min(end, start + overlap)]
-            require(marker not in self._pending and marker not in boundary
-                    and block.find(marker, start, end) < 0,
-                    "malformed query completion message in oversized stderr line")
+            for marker in self._markers:
+                require(marker not in self._pending and marker not in boundary
+                        and block.find(marker, start, end) < 0,
+                        "malformed query execution message in oversized stderr line")
             if end - start >= overlap:
                 self._pending[:] = block[end - overlap:end]
             else:
@@ -207,6 +215,14 @@ class _QueryCompletions:
     def _observe_line(self, line: bytes) -> None:
         if line.endswith(b"\r"):
             line = line[:-1]
+        if self._require_starts and self._START_MARKER in line:
+            start = self._START.fullmatch(line)
+            require(start is not None, "malformed query start message")
+            query = self._expected_starts.get(start[1])
+            require(query is not None and query not in self._started,
+                    "unknown or duplicate query start")
+            self._started.add(query)
+            return
         match = self._COMPLETION.fullmatch(line)
         if match is None or int(match[1]) > 39:
             require(not self._strict or self._COMPLETION_MARKER not in line,
@@ -216,6 +232,8 @@ class _QueryCompletions:
         if result not in self._expected or result in self._seen:
             require(not self._strict, "unknown or duplicate query completion")
             return
+        require(not self._require_starts or self._expected[result] in self._started,
+                "query completion has no earlier admitted start")
         # Reconstruct the count from distinct admitted completion messages.
         # A repeated, reordered or inflated raw counter cannot jump this count.
         self._seen.add(result)
@@ -227,20 +245,23 @@ class _QueryCompletions:
             self._observe_line(bytes(self._pending))
         require(self._seen == self._expected.keys(),
                 "retained stderr does not complete exactly the 39 admitted queries")
+        require(not self._require_starts or self._started == set(self._expected.values()),
+                "retained stderr does not start exactly the 39 admitted queries")
         return sorted(self._expected[result] for result in self._seen)
 
 
 def read_completion_receipt(path: Path, query_paths, *, maximum_bytes=16 * 1024**2,
-                            seconds=30) -> dict:
+                            seconds=30, require_starts=False) -> dict:
     """Bind every distinct completion to one bounded snapshot of original stderr.
 
-    The CLI's stderr progress stream can contain completion messages absent
+    The CLI's stderr progress stream can contain start/completion messages absent
     from its internal evaluator log. Keep the latter's observations intact and
     require the complete admitted query set from this independently retained
-    stream. Publication calls this same reader on the uploaded original bytes.
+    stream. With require_starts, each query must start exactly once before its
+    completion in this same snapshot. Publication rereads the original bytes.
     """
     deadline = time.monotonic() + seconds
-    completions = _QueryCompletions(query_paths, strict=True)
+    completions = _QueryCompletions(query_paths, strict=True, require_starts=require_starts)
 
     def capture(block: bytes) -> None:
         require(time.monotonic() <= deadline, "query completion read exceeded its bound")
@@ -250,8 +271,11 @@ def read_completion_receipt(path: Path, query_paths, *, maximum_bytes=16 * 1024*
                                         label="query completion stderr", consume=capture)
     queries = completions.finish()
     require(time.monotonic() <= deadline, "query completion read exceeded its bound")
-    return {"schema": 1, "source": path.name, "bytes": snapshot.size,
-            "sha256": snapshot.sha256, "queries": queries}
+    receipt = {"schema": 2 if require_starts else 1, "source": path.name,
+               "bytes": snapshot.size, "sha256": snapshot.sha256, "queries": queries}
+    if require_starts:
+        receipt["started_queries"] = sorted(completions._started)
+    return receipt
 
 
 class QueryCompletionSink:
