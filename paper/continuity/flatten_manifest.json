@@ -2,7 +2,7 @@
   "schema": "qperiapt-joc-single-source/1",
   "input_entry": "main.tex",
   "output": "joc-submission.tex",
-  "output_sha256": "23894ef6384108a27bc3d64644842bf5e6aa8cb682a68061b6d53405f3f46897",
+  "output_sha256": "89a6921d88486ec0cb3d24ff149d98720f04e6b4dbd05fb972a4506e75ecd14d",
   "inputs": {
     "acquisition-nonadditivity.tex": {
       "sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
@@ -73,8 +73,8 @@
       "bytes": 8980
     },
     "introduction.tex": {
-      "sha256": "18129e1d1a935a69ea34f6239e09b59fa01b3e209dd810f396220fe67cb432a1",
-      "bytes": 10114
+      "sha256": "fbc9813ebd23884e2da1827d7ce34fe566024ec524acc6257c18287b3b7067f0",
+      "bytes": 8970
     },
     "joint-continuation.tex": {
       "sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
@@ -93,8 +93,8 @@
       "bytes": 5679
     },
     "main.tex": {
-      "sha256": "f252a221b6b6af5803d720ac1aebb225a2ca8b2c665cb9e95a786a3cdfe4d17f",
-      "bytes": 4316
+      "sha256": "6cd59ec3cf8fce94a84579449686d088420a2836e2b86355b31b50631254bd3e",
+      "bytes": 4085
     },
     "matched-opportunities.tex": {
       "sha256": "f119af537ad701301511d35395f6ba6c477dc691fb412f985436e6bb61793fd4",
@@ -113,8 +113,8 @@
       "bytes": 13617
     },
     "native-chain-composition.tex": {
-      "sha256": "e4fda73318c6f16a672f7efde4f0c3659587f23f1a082e20e52e5d149007c04e",
-      "bytes": 15290
+      "sha256": "6670da70f63e544bea8bb7786b31db8324bd23c26bbaefa2a9e96642c05e5030",
+      "bytes": 19201
     },
     "native-correspondence.tex": {
       "sha256": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
