@@ -4,7 +4,7 @@ This unpublished Python endpoint implements a first, deliberately bounded part
 of the candidate protocol independently of the Q-Periapt engine. It constructs
 and authenticates real protocol flights; it does not call the Rust candidate to
 parse, verify, derive, encapsulate or finish its own operation. Cryptographic
-primitives use `cryptography 48.0.1` with OpenSSL. PyCA's own provider bindings
+primitives use `cryptography 50.0.0` with OpenSSL. PyCA's own provider bindings
 contain Rust, but contain no Q-Periapt protocol implementation.
 
 The separate `native` executable is the actual Rust **responder** and a test

@@ -65,7 +65,7 @@ def verify(value, binaries, application):
             and value.get('cleanup_errors') == [], 'replacement completion boundary')
     for key, n in [('schema_version', 1), ('effects', 5), ('confirmed_epoch', 1),
                    ('old_generation', 1), ('new_generation', 2)]: count(value.get(key), n, key)
-    require(value.get('native_sha256') == binaries and value.get('provider') == '48.0.1'
+    require(value.get('native_sha256') == binaries and value.get('provider') == '50.0.0'
             and value.get('implementation') == str(application / PACKAGE / 'session_cli.py')
             and value.get('clock') == 'actual OS time', 'replacement implementation')
     for key in ('old_state_unchanged', 'native_identity_unchanged', 'witness_keys_unchanged', 'original_bootstrap_recovered'):

@@ -30,7 +30,7 @@ BINDING = ROOT / "bindings/kotlin"
 VERSION = "0.2.0"
 GROUP = "dev.qperiapt"
 NAME = "q-periapt-hybrid"
-KOTLIN = "2.4.20"
+KOTLIN = "2.4.21"
 COORDINATE = f"{GROUP}:{NAME}:{VERSION}"
 MODULE = "dev.qperiapt.hybrid"
 MAVEN_PATH = Path("dev/qperiapt") / NAME / VERSION
@@ -60,6 +60,7 @@ class MavenContract:
     class_prefix: str
     required_classes: tuple[str, ...]
     binding: Path
+    kotlin_version: str
 
     @property
     def coordinate(self) -> str:
@@ -79,7 +80,7 @@ def product_maven_contract() -> MavenContract:
         (("QPeriapt-ABI", "2"), ("QPeriapt-SDK-Extension", "1")), "dev/qperiapt/",
         ("QPeriaptRuntime", "QPeriaptKey", "QPeriaptSecret", "QPeriaptExpert", "QPeriaptHybrid",
          "QPeriaptPersistentRuntime", "QPeriaptPolicyRecoveryTrust", "QPeriaptPolicyRecoveryRequest",
-         "QPeriaptPolicyRecoveryAuthorization", "QPeriaptPolicyRecoveryResult", "QPeriaptPolicyRecoveryReopen"), BINDING)
+          "QPeriaptPolicyRecoveryAuthorization", "QPeriaptPolicyRecoveryResult", "QPeriaptPolicyRecoveryReopen"), BINDING, KOTLIN)
 
 
 def require(condition: bool, message: str) -> None:
@@ -200,7 +201,7 @@ def verify_maven(repository: Path, *, contract: MavenContract | None = None) -> 
     dependencies = pom.findall("m:dependencies/m:dependency", namespace)
     require(len(dependencies) == 1 and
         {child.tag.split("}")[-1]: child.text for child in dependencies[0]}
-        == {"groupId": "org.jetbrains.kotlin", "artifactId": "kotlin-stdlib", "version": KOTLIN, "scope": "compile"},
+        == {"groupId": "org.jetbrains.kotlin", "artifactId": "kotlin-stdlib", "version": contract.kotlin_version, "scope": "compile"},
         "Maven dependencies differ")
     require(not any(pom.find(f"m:{key}", namespace) is not None for key in
                     ("repositories", "pluginRepositories", "parent", "build", "profiles")), "Maven resolution override is forbidden")
@@ -238,7 +239,7 @@ def verify_maven(repository: Path, *, contract: MavenContract | None = None) -> 
                 "Gradle module contains an unsupported resolution override")
         if row["name"] != "sourcesElements":
             require(row["attributes"]["org.gradle.jvm.version"] == 25 and row["dependencies"] == [
-                {"group": "org.jetbrains.kotlin", "module": "kotlin-stdlib", "version": {"requires": KOTLIN}}],
+                {"group": "org.jetbrains.kotlin", "module": "kotlin-stdlib", "version": {"requires": contract.kotlin_version}}],
                 "Gradle JVM version or dependency differs")
         else:
             require("dependencies" not in row, "sources JAR must not add dependencies")

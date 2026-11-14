@@ -185,6 +185,12 @@ fn configured_build(
         for flag in build_support::X86_BASELINE_FLAGS {
             build.flag(flag);
         }
+        if build.get_compiler().is_like_gnu() {
+            // Pinned cc 1.11.1 supplies this exact GNU/Linux x86-64 baseline.
+            // Remove only our builder flag; defaults and environment flags
+            // remain subject to the full uniqueness and ISA checks below.
+            build.remove_flag("-march=x86-64");
+        }
     }
     build
 }

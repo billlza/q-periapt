@@ -12,7 +12,7 @@ class CliReceiptTests(unittest.TestCase):
             rejected_busy=0,read_errors=0,operation_errors=0,last_operation_error=None,
             **(dict(queued_requests=0,expired_queued=0) if native else {}))
         self.value=dict(schema_version=1,kind='qperiapt.independent_session_cli',completed=True,
-            native_sha256=self.binaries.copy(),provider='48.0.1',clock='actual OS time',
+            native_sha256=self.binaries.copy(),provider='50.0.0',clock='actual OS time',
             implementation='/installed/qperiapt_continuity_reference/session_cli.py',confirmed_epoch=7,
             commands=[dict(label=n,exit=1 if n in REFUSALS else 0) for n in LABELS],refusals=list(REFUSALS),
             frames=[dict(label=n,kind=k,request_sha256='b'*64,response_sha256='c'*64) for n,k in FRAMES],

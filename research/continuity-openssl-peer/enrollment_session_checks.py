@@ -17,6 +17,40 @@ import tempfile
 import time
 
 
+def _finish_fixture(out, native, client, registry, bridge, refusals, primary_error):
+    """Retain every cleanup failure without abandoning evidence or the native child."""
+    failures = []
+
+    def attempt(stage, action):
+        try:
+            action()
+        except BaseException as error:
+            error.add_note('Enrollment fixture cleanup: ' + stage)
+            failures.append(error)
+
+    if client is not None:
+        attempt('close client', client.close)
+    if registry is not None:
+        attempt('close registry', registry.close)
+    if bridge is not None:
+        # Join the worker before retaining its final records. A bridge failure
+        # still permits the other transcripts and owned child to be finalized.
+        attempt('close witness bridge', bridge.close)
+        attempt('write WITNESS.json', lambda:
+                (out / 'WITNESS.json').write_text(json.dumps(bridge.records, indent=2) + '\n'))
+    attempt('write NATIVE.json', lambda:
+            (out / 'NATIVE.json').write_text(json.dumps(native.commands, indent=2) + '\n'))
+    attempt('write REFUSALS.json', lambda:
+            (out / 'REFUSALS.json').write_text(json.dumps(refusals, indent=2) + '\n'))
+    attempt('close native child', native.close)
+    if failures:
+        if primary_error is not None:
+            failures.insert(0, primary_error)
+        if len(failures) == 1:
+            raise failures[0]
+        raise BaseExceptionGroup('Enrollment fixture and cleanup failures', failures) from None
+
+
 def exercise(args, label):
     from fixture_inputs import load, load_witness_pin
     from qperiapt_continuity_reference.enrollment_client import EnrollmentClient
@@ -51,6 +85,7 @@ def exercise(args, label):
                          policy_lifecycle=inspection_kind == 'policy')
     native.program_plan = args.native_program_plan
     client = None; bridge = None; registry = None; root_bound = False; refusals = []; observed = []
+    primary_error = None
     encode = lambda value: json.dumps(value, separators=(',', ':')).encode()
     b64 = lambda value: base64.urlsafe_b64encode(value).rstrip(b'=').decode()
 
@@ -298,14 +333,11 @@ def exercise(args, label):
         (out / 'RESULT.json').write_text(json.dumps(result, indent=2) + '\n')
         return {k:result[k] for k in ('completed','profile','witness_requests')} | {
             'native_commands':len(native.commands), 'refusal_cases':[row['case'] for row in refusals]}
+    except BaseException as error:
+        primary_error = error
+        raise
     finally:
-        if client is not None: client.close()
-        if registry is not None: registry.close()
-        if bridge is not None:
-            (out / 'WITNESS.json').write_text(json.dumps(bridge.records, indent=2) + '\n'); bridge.close()
-        (out / 'NATIVE.json').write_text(json.dumps(native.commands, indent=2) + '\n')
-        (out / 'REFUSALS.json').write_text(json.dumps(refusals, indent=2) + '\n')
-        native.close()
+        _finish_fixture(out, native, client, registry, bridge, refusals, primary_error)
 
 
 def main():
@@ -500,3 +532,4 @@ def main():
 
 
 if __name__ == '__main__': main()
+

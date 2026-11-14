@@ -14,7 +14,7 @@ class NativeExchangeReceiptTests(unittest.TestCase):
         self.application=Path('/installed')
         self.valid={'schema_version':5,'kind':'qperiapt.native_reference_exchange','completed':True,
             'native_sha256':self.binaries.copy(),'implementation':'/installed/qperiapt_continuity_reference/publication.py',
-            'provider':'48.0.1','confirmed_epoch':3,'control_exchanges':8,'clock':'actual OS time',
+            'provider':'50.0.0','confirmed_epoch':3,'control_exchanges':8,'clock':'actual OS time',
             'commands':[{'label':name,'exit':expected_exit(name)} for name in LABELS],
             'refusals':list(REFUSALS),'process_kills':[
                 {'stage':stage,'pid':i+100,'exit':-9,'inbox_flags':6,'marker_sha256':hashlib.sha256(f'{i+100} {stage}\n'.encode()).hexdigest()}

@@ -12,7 +12,7 @@ members = ["."]
 
 [dependencies]
 spqr = { git = "https://github.com/signalapp/SparsePostQuantumRatchet", rev = "f2589fef855c10f39d72634dab3d14654dd410bf", features = ["test-utils"] }
-rand = "=0.9.1"
+rand = "=0.9.3"
 prost = "=0.14.1"
 serde_json = "=1.0.140"
 sha2 = "=0.10.8"

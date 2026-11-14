@@ -43,7 +43,7 @@ linux-x86_64-avx2 = []
 # Use artifact/rust-publish-contract.sh --profile sdk-020 for this source.
 # The default maintenance profile retains its historical cc 1.2.67 contract;
 # its frozen receipts do not qualify this dependency or the SDK 0.2 binaries.
-cc = "=1.5.1"
+cc = "=1.11.1"
 
 [dev-dependencies]
 sha3 = { version = "=0.12.0", default-features = false }

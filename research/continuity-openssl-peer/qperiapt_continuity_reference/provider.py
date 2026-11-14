@@ -16,7 +16,7 @@ def load_provider(directory: Path):
     import cryptography
     from cryptography.hazmat.backends.openssl.backend import backend
     from cryptography.hazmat.bindings import _rust
-    if cryptography.__version__ != "48.0.1":
+    if cryptography.__version__ != "50.0.0":
         raise ValueError("unqualified cryptography version")
     for module in (cryptography, _rust):
         if not Path(module.__file__).resolve(strict=True).is_relative_to(root):
