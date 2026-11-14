@@ -116,7 +116,7 @@ jobs:
           sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_*.py' -v 2>&1 | tee target/artifact-tooling-checks/tests.log
       - name: Preserve artifact tooling results including failures
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: artifact-tooling-checks
           path: target/artifact-tooling-checks/
@@ -160,6 +160,8 @@ jobs:
   # Uses a private Cargo home and audits the resolved consumer lock; no upload.
   rust-publish-contract:
     runs-on: ubuntu-latest
+    outputs:
+      sdk_report_sha256: ${{ steps.sdk_report_identity.outputs.report_sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         env:
@@ -196,9 +198,16 @@ jobs:
             --report "$report" --report-sha256 "$report_sha256" \
             --source-commit "$(git rev-parse HEAD)" \
             > target/sdk-rust-package/publication-dry-run.json
+      - name: Bind consumers to the completed SDK report
+        id: sdk_report_identity
+        shell: bash
+        run: |
+          report=target/sdk-rust-package/RUST_SDK_PACKAGE.json
+          report_sha256=$(sha256sum "$report" | cut -d' ' -f1)
+          printf 'report_sha256=%s\n' "$report_sha256" >> "$GITHUB_OUTPUT"
       - name: Retain Rust SDK archives and verification evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rust-sdk-package
           path: |
@@ -270,7 +279,7 @@ jobs:
             --output target/policy-maintenance-package
       - name: Retain maintenance package and qualification evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: policy-maintenance-${{ matrix.target }}
           path: |
@@ -370,7 +379,7 @@ jobs:
             -ExpectedContractSha256 $contractSha256 `
             -ExpectedGitCommit $gitCommit `
             -ExpectedGitTree $gitTree
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: abi2-windows-x86_64-msvc
           path: target/qperiapt-windows-sdk-020/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip
@@ -547,7 +556,7 @@ jobs:
             "target/qperiapt-c-abi2/$package" \
             "target/qperiapt-c-abi2/verify-$package"
           verify_archive "$archive_sha256" "$EXPECTED_TARGET" "0.2.0" "$manifest_sha256" "$contract_sha256"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: abi2-linux-${{ matrix.target }}
           path: target/qperiapt-c-abi2/q-periapt-c-abi2-0.2.0-${{ matrix.target }}.tar.gz
@@ -827,7 +836,7 @@ jobs:
           cargo build --locked --release -p q-periapt-ctstats --bin ct_decaps_gap --features valgrind,linux-x86_64-avx2
       - name: Require actual AVX2 under Memcheck and preserve controls
         run: sh artifact/x86-avx2-ct.sh
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: x86-avx2-candidate-ct
@@ -884,7 +893,7 @@ jobs:
         env:
           RUSTFLAGS: "-D warnings"
         run: cargo test --locked -p q-periapt-rustls --example connection_peer --features reference-connection
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: standard-tls-interop
@@ -1011,7 +1020,7 @@ jobs:
             --expected-node-version v24.0.0 --output target/sdk-wasm-node24-minimum
       - name: Retain installed WASM candidate and consumer evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wasm-sdk-package
           path: |
@@ -1098,7 +1107,7 @@ jobs:
           PY
       - name: Retain fuzz logs, corpora and crash artifacts
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fuzz-execution
           path: |
@@ -1158,7 +1167,7 @@ jobs:
         run: sh artifact/apple-sdk-device-check.sh
       - name: Retain SDK device-workload build and host logs
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: apple-sdk-device-host-and-compile
           path: target/apple-sdk-device-check/*.log
@@ -1178,7 +1187,7 @@ jobs:
             --swift "$probe_bin/QPeriaptConnectionProbe" --output target/sdk-connection-interop
       - name: Retain connection boundary observations without test keys
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: swift-rust-connection-boundary
           path: |
@@ -1193,7 +1202,7 @@ jobs:
         run: sh artifact/python-run.sh artifact/sdk_path_performance.py --output target/sdk-path-performance --samples 200
       - name: Retain SDK timing samples and failed attempts
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sdk-path-performance-diagnostic
           path: |
@@ -1209,7 +1218,7 @@ jobs:
         run: sh artifact/python-run.sh artifact/sdk_connection_performance.py --output target/sdk-connection-performance --reconnects 200
       - name: Retain connection timing and acceptance logs without test keys
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sdk-connection-performance-diagnostic
           path: |
@@ -1226,7 +1235,7 @@ jobs:
           sh artifact/swift-xcframework.sh --profile sdk-020
       - name: Retain Apple SDK packages and failed-attempt diagnostics
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: apple-sdk-020
           path: |
@@ -1267,7 +1276,7 @@ jobs:
             --toolchain-root "$(rustc +1.98.1 --print sysroot)"
       - name: Retain installed package connection evidence without test keys
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: installed-swift-rust-sdk-connection
           path: |
@@ -1379,7 +1388,7 @@ jobs:
             --native-sha256 "$native_sha256" --native-manifest-sha256 "$native_manifest_sha256"
       - name: Preserve JVM package and installation evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sdk-jvm-package
           path: |
@@ -1466,7 +1475,7 @@ jobs:
           aar_sha256=$(sha256sum "$package_dir/q-periapt-android-0.2.0.aar" | cut -d' ' -f1)
           manifest_sha256=$(sha256sum "$package_dir/MANIFEST.json" | cut -d' ' -f1)
           printf 'aar_sha256=%s\nmanifest_sha256=%s\n' "$aar_sha256" "$manifest_sha256" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: abi2-android-sdk-020-aar
           path: |
@@ -1763,14 +1772,14 @@ jobs:
             --expected-aar-sha256 "$EXPECTED_AAR_SHA256" \
             --expected-aar-manifest-sha256 "$EXPECTED_MANIFEST_SHA256"
       - name: Upload the verified pair for independent Linux replay
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: abi2-android-sdk-020-export-${{ matrix.profile }}-x86_64
           path: target/android-sdk-runtime-export-${{ matrix.profile }}/*
           if-no-files-found: error
       - name: Upload bounded Android package diagnostics after failure
         if: failure() && hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log') != ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64-failure-diagnostics
           path: |
@@ -1814,7 +1823,7 @@ jobs:
           if-no-files-found: error
       - name: Retain Android SDK package and runtime evidence
         if: always() && (hashFiles('target/sdk-android-package/*.stdout') != '' || hashFiles('target/qperiapt-android-device-smoke-runs/*/proof/agp-evidence/proof.json') != '' || hashFiles('target/android-system-image-runtime/REPORT.json') != '')
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: abi2-android-sdk-020-runtime-${{ matrix.profile }}-x86_64
           path: |
@@ -1923,7 +1932,7 @@ jobs:
             --expected-aar-manifest-sha256 "$EXPECTED_MANIFEST_SHA256"
       - name: Retain independent replay results
         if: always() && hashFiles(format('target/android-sdk-runtime-verify-{0}/REPORT.json', matrix.profile)) != ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: abi2-android-sdk-020-replay-${{ matrix.profile }}-x86_64
           path: target/android-sdk-runtime-verify-${{ matrix.profile }}/REPORT.json
@@ -1954,7 +1963,7 @@ jobs:
           cargo run --locked -p q-periapt-cli --bin qperiapt -- sbom --lock Cargo.lock > "$sbom_stdout"
           cargo run --locked -p q-periapt-cli --bin qperiapt -- sbom --lock Cargo.lock --out sbom.cdx.json
           cmp "$sbom_stdout" sbom.cdx.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cyclonedx-boms
           path: |
@@ -1973,7 +1982,7 @@ jobs:
           cp sbom.cdx.json target/sdk-bom-profile/share/q-periapt/bom/sbom.cdx.json
           sh artifact/python-run.sh -c 'from pathlib import Path; from package_bom import verify, BomProfile; print(verify(Path("target/sdk-bom-profile"), cargo_lock=Path("Cargo.lock"), profile=BomProfile.NATIVE_SDK_020))'
       - name: Retain native SDK inventory
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: native-sdk-boms
           path: target/sdk-bom-profile/share/q-periapt/bom/*.json
@@ -2138,7 +2147,7 @@ jobs:
             --compare "$evidence/whole-kem-repeated" \
             --baseline "$evidence/first" --chunk64 "$evidence/chunk64-first" \
             --binary "$CARGO_TARGET_DIR/release/q-periapt-whole-kem-reference" > "$evidence/whole-kem-verification.json"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: continuity-spqr-reference-${{ matrix.os }}
@@ -2191,7 +2200,7 @@ jobs:
             --output target/continuity-installed-rust
       - name: Retain package and public execution evidence without private test state
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: continuity-installed-rust
           path: |
@@ -2348,7 +2357,7 @@ jobs:
             --output target/continuity-installed-swift
       - name: Retain native packages and selected public execution evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: continuity-installed-${{ matrix.consumer }}-${{ matrix.profile }}
           path: |
@@ -2503,10 +2512,112 @@ jobs:
             --input target/continuity-profile-input \
             --source-commit "$EXPECTED_COMMIT" \
             --output target/CONTINUITY_PROFILE_COVERAGE.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: continuity-installed-coverage
           path: target/CONTINUITY_PROFILE_COVERAGE.json
+          if-no-files-found: error
+
+  # Build and independently reopen the Continuity arm64 AAR against this run's
+  # verified SDK. Host JNI execution remains in both Android profile partitions.
+  continuity-android-aar:
+    name: continuity-android-aar-arm64
+    needs: rust-publish-contract
+    env:
+      CARGO_TERM_COLOR: never
+    runs-on: macos-15
+    timeout-minutes: 210
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: init.defaultBranch
+          GIT_CONFIG_VALUE_0: main
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+          components: clippy
+          targets: aarch64-linux-android
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: python
+        with:
+          python-version: "3.14.7"
+          check-latest: false
+          update-environment: false
+      - name: Check Android build and distribution controls
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: sh artifact/python-run.sh -m unittest -v test_continuity_android_build test_continuity_android_distribution
+      - name: Select exact SDK cohort and current Android source
+        id: inputs
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+          SDK_RUN_ID: ${{ github.run_id }}
+          SDK_REPORT_SHA256: ${{ needs.rust-publish-contract.outputs.sdk_report_sha256 }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+          test "$(uname -m)" = arm64
+          sh artifact/python-run.sh - <<'PYTHON'
+          from pathlib import Path
+          import os
+          from continuity_android_distribution import repository_paths, source_identity
+          from continuity_independent_package import validate_sdk_selection
+          selection = {"sdk_run_id": os.environ["SDK_RUN_ID"],
+                       "sdk_report_sha256": os.environ["SDK_REPORT_SHA256"]}
+          if not validate_sdk_selection(selection["sdk_run_id"], selection["sdk_report_sha256"]):
+              raise ValueError("Android SDK cohort cannot be empty")
+          source = source_identity(paths=repository_paths(Path.cwd()))
+          if source["commit"] != os.environ["EXPECTED_COMMIT"]:
+              raise ValueError("Android source does not identify this workflow commit")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as stream:
+              for key, value in {**selection, **{"source_" + key: value for key, value in source.items()}}.items():
+                  stream.write(key + "=" + value + "\n")
+          PYTHON
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: rust-sdk-package
+          path: target/continuity-sdk-input
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          packages: platform-tools
+      - name: Install the selected NDK r29
+        run: |
+          license_answers=$(printf 'y\n%.0s' {1..64})
+          sdkmanager --licenses <<< "$license_answers" >/dev/null
+          unset license_answers
+          sdkmanager "ndk;29.0.14206865"
+      - name: Compile current Continuity sources and reopen the arm64 AAR
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          SDK_REPORT_SHA256: ${{ steps.inputs.outputs.sdk_report_sha256 }}
+          SDK_RUN_ID: ${{ steps.inputs.outputs.sdk_run_id }}
+          SOURCE_COMMIT: ${{ steps.inputs.outputs.source_commit }}
+          SOURCE_TREE: ${{ steps.inputs.outputs.source_tree }}
+          SOURCE_TREE_SHA256: ${{ steps.inputs.outputs.source_tree_sha256 }}
+        run: |
+          sh artifact/python-run.sh artifact/continuity_android_build.py \
+            --report target/continuity-sdk-input/sdk-rust-package/RUST_SDK_PACKAGE.json \
+            --report-sha256 "$SDK_REPORT_SHA256" \
+            --sdk-run-id "$SDK_RUN_ID" \
+            --source-commit "$SOURCE_COMMIT" --source-tree "$SOURCE_TREE" \
+            --source-tree-sha256 "$SOURCE_TREE_SHA256" \
+            --toolchain-root "$(rustc +1.98.1 --print sysroot)" \
+            --ndk "$ANDROID_HOME/ndk/29.0.14206865" --java-home "$JAVA_HOME" \
+            --native-package-id continuity-native \
+            --output target/continuity-android-build
+          git diff --exit-code
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: continuity-android-aar-arm64
+          path: target/continuity-android-build/
           if-no-files-found: error
 
   # Actual-signature Continuity candidate, isolated from the SDK publication graph.
@@ -2789,7 +2900,7 @@ jobs:
           sh artifact/python-run.sh research/continuity-identity-candidate/scripts/exercise_bootstrap_bundle.py \
             --fixtures target/continuity-public-vectors --consumer "$CARGO_TARGET_DIR/release/examples/import_bootstrap_bundle" \
             --output target/continuity-bootstrap-bundle-verification
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always() && matrix.os == 'macos-15' && matrix.partition == 'suite'
         with:
           name: continuity-public-vectors-${{ github.sha }}
@@ -2803,7 +2914,7 @@ jobs:
           retention-days: 14
       - name: Preserve native compiler and test results including failures
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: continuity-native-checks-${{ matrix.os }}-${{ matrix.toolchain }}-${{ matrix.partition }}
           path: target/continuity-native-checks/
@@ -3033,7 +3144,7 @@ jobs:
             --profile shared-storage --output target/continuity-recovery-proof/shared-storage
       - name: Retain Continuity recovery proof results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: continuity-recovery-proof
           path: target/continuity-recovery-proof

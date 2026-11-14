@@ -129,15 +129,18 @@ fn published_payload_absence_is_not_cleanup_or_publication_authority() {
 
 #[test]
 fn cleanup_unknown_outcomes_replay_the_original_durable_result() {
-    if !isolated_case("filesystem::maintenance::attempt::tests::cleanup_unknown_outcomes_replay_the_original_durable_result", "QPERIAPT_MANAGED_CASE_ISOLATED", "MANAGED_CASE_COMPLETE:cleanup_unknown_outcomes_replay_the_original_durable_result") { return; }
-
-    for cut in [
-        Step::Admitted,
-        Step::IntentCommitted,
-        Step::EntryRemoved,
-        Step::PayloadSynced,
-        Step::ReceiptCommitted,
-    ] {
+    if let Some(cut) = isolated_scenarios(
+        "filesystem::maintenance::attempt::tests::cleanup_unknown_outcomes_replay_the_original_durable_result",
+        "QPERIAPT_MANAGED_CASE_ISOLATED",
+        "MANAGED_CASE_COMPLETE:cleanup_unknown_outcomes_replay_the_original_durable_result",
+        &[
+            Step::Admitted,
+            Step::IntentCommitted,
+            Step::EntryRemoved,
+            Step::PayloadSynced,
+            Step::ReceiptCommitted,
+        ],
+    ) {
         let temp = test_directory::directory().expect("directory");
         let control = abandoned(temp.path(), false);
         let original = fs::read(control.join(RECORD)).expect("original record");
@@ -169,9 +172,8 @@ fn cleanup_unknown_outcomes_replay_the_original_durable_result() {
             original
         );
         assert!(!temp.path().join("formal").exists());
+        eprintln!("MANAGED_CASE_COMPLETE:cleanup_unknown_outcomes_replay_the_original_durable_result:{cut:?}");
     }
-
-    eprintln!("MANAGED_CASE_COMPLETE:cleanup_unknown_outcomes_replay_the_original_durable_result");
 }
 
 #[test]
@@ -325,17 +327,19 @@ fn stale_or_conflicting_cleanup_control_fields_are_not_rewritten() {
 
 #[test]
 fn invalid_cleanup_receipt_state_refuses_before_payload_removal() {
-    if !isolated_case(
+    if let Some(case) = isolated_scenarios(
         "filesystem::maintenance::attempt::tests::invalid_cleanup_receipt_state_refuses_before_payload_removal",
-        "QPERIAPT_MANAGED_CASE_ISOLATED", "MANAGED_CASE_COMPLETE:invalid_cleanup_receipt_state_refuses_before_payload_removal") { return; }
-    for case in [
-        "pending-without-intent",
-        "done-without-intent",
-        "damaged-done",
-        "pending-with-payload",
-        "done-with-payload",
-        "duplicate-intent",
-    ] {
+        "QPERIAPT_MANAGED_CASE_ISOLATED",
+        "MANAGED_CASE_COMPLETE:invalid_cleanup_receipt_state_refuses_before_payload_removal",
+        &[
+            "pending-without-intent",
+            "done-without-intent",
+            "damaged-done",
+            "pending-with-payload",
+            "done-with-payload",
+            "duplicate-intent",
+        ],
+    ) {
         let temp = test_directory::directory().expect("directory");
         let path = abandoned(temp.path(), false);
         let control = Control::open(&path).expect("original control");
@@ -373,8 +377,8 @@ fn invalid_cleanup_receipt_state_refuses_before_payload_removal() {
             body,
             "{case}"
         );
+        eprintln!("MANAGED_CASE_COMPLETE:invalid_cleanup_receipt_state_refuses_before_payload_removal:{case:?}");
     }
-    eprintln!("MANAGED_CASE_COMPLETE:invalid_cleanup_receipt_state_refuses_before_payload_removal");
 }
 
 #[test]
@@ -578,6 +582,44 @@ fn isolated_case_with_children(name: &str, flag: &str, marker: &str, child_steps
         assert_eq!(value, "1");
         return true;
     }
+    supervise_isolated_case(name, flag, marker, child_steps, None);
+    false
+}
+
+// Durable Windows operations can consume a substantial part of the deadline.
+// Give each independent scenario the existing bound and its own completion
+// marker, without extending the deadline for a stuck scenario.
+fn isolated_scenarios<T: Copy + std::fmt::Debug>(
+    name: &str,
+    flag: &str,
+    marker: &str,
+    scenarios: &[T],
+) -> Option<T> {
+    let selector = format!("{flag}_SCENARIO");
+    assert!(!scenarios.is_empty(), "fixture scenarios must not be empty");
+    if let Some(value) = std::env::var_os(flag) {
+        assert_eq!(value, "1");
+        let index = std::env::var(&selector)
+            .expect("fixture scenario selector")
+            .parse::<usize>()
+            .expect("fixture scenario index");
+        return Some(*scenarios.get(index).expect("known fixture scenario"));
+    }
+    for (index, scenario) in scenarios.iter().enumerate() {
+        let index = index.to_string();
+        let marker = format!("{marker}:{scenario:?}");
+        supervise_isolated_case(name, flag, &marker, 0, Some((&selector, &index)));
+    }
+    None
+}
+
+fn supervise_isolated_case(
+    name: &str,
+    flag: &str,
+    marker: &str,
+    child_steps: u32,
+    scenario: Option<(&str, &str)>,
+) {
     // Each serial child owns a readiness deadline. The supervisor must allow
     // all of those windows plus setup/recovery, rather than racing the first.
     let timeout = PROCESS_STEP_TIMEOUT * (child_steps + 1);
@@ -586,6 +628,7 @@ fn isolated_case_with_children(name: &str, flag: &str, marker: &str, child_steps
         Command::new(std::env::current_exe().expect("test binary"))
             .args(["--exact", name, "--nocapture"])
             .env(flag, "1")
+            .envs(scenario)
             .stdout(Stdio::null())
             .stderr(Stdio::from(
                 diagnostics.try_clone().expect("diagnostic writer"),
@@ -621,17 +664,19 @@ fn isolated_case_with_children(name: &str, flag: &str, marker: &str, child_steps
     let stderr = String::from_utf8(stderr).expect("fixture diagnostic encoding");
     assert!(
         status.is_some(),
-        "isolated fixture deadline after {timeout:?}: {stderr}"
+        "isolated fixture deadline after {timeout:?} for {marker}: {stderr}"
     );
     let status = status.expect("fixture exit status");
-    assert!(status.success(), "isolated fixture failed: {stderr}");
+    assert!(
+        status.success(),
+        "isolated fixture {marker} failed: {stderr}"
+    );
     assert_eq!(
         stderr.lines().filter(|line| *line == marker).count(),
         1,
-        "selected body did not complete: {stderr}"
+        "selected body {marker} did not complete: {stderr}"
     );
     eprint!("{stderr}");
-    false
 }
 #[test]
 fn cleanup_process_child() {

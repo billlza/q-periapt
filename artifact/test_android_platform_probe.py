@@ -18,6 +18,48 @@ PROBE = ROOT / "research/android-platform-probe"
 
 
 class PlatformProbeTests(unittest.TestCase):
+    def test_failure_capture_retains_delayed_backtrace_and_original_status(self):
+        script = (PROBE / "run.sh").read_text()
+        start = script.index("capture_failure() {")
+        end = script.index("\n}\n", start) + 3
+        capture = script[start:end]
+        with tempfile.TemporaryDirectory() as directory:
+            driver = Path(directory) / "capture.sh"
+            driver.write_text(
+                "set -euo pipefail\nserial=emulator-5584\nreads=0\n"
+                "first_status=$1\nlast_status=$2\ngrace_status=$3\n"
+                "adb_call() {\n"
+                "  reads=$((reads + 1))\n"
+                "  if [ \"$reads\" -eq 1 ]; then\n"
+                "    printf 'Fatal signal 11 (system_server)\\n'\n"
+                "    return \"$first_status\"\n"
+                "  fi\n"
+                "  printf 'backtrace: frame_00 retained after grace\\n'\n"
+                "  return \"$last_status\"\n"
+                "}\n"
+                "sleep() { test \"$1\" = 10; printf 'GRACE_WINDOW\\n'; "
+                "return \"$grace_status\"; }\n"
+                + capture + "\ncapture_failure\nexit 23\n")
+            for first, last in ((0, 0), (1, 0), (0, 1), (1, 1)):
+                with self.subTest(first=first, last=last):
+                    result = capture_stdout(
+                        ["/bin/bash", str(driver), str(first), str(last), "0"],
+                        timeout_seconds=5, maximum_bytes=4096)
+                    self.assertEqual(result.returncode, 23, result.stdout)
+                    self.assertEqual(result.stdout.count(b"GRACE_WINDOW\n"), 1)
+                    self.assertIn(b"PLATFORM_FAILURE_CAPTURE phase=deferred\n", result.stdout)
+                    self.assertLess(result.stdout.index(b"GRACE_WINDOW\n"),
+                                    result.stdout.index(b"backtrace: frame_00"))
+                    marker = b"UNAVAILABLE" if last else b"CAPTURED"
+                    self.assertIn(b"PLATFORM_FAILURE_LOG_" + marker +
+                                  b" phase=deferred\n", result.stdout)
+            interrupted = capture_stdout(
+                ["/bin/bash", str(driver), "0", "0", "1"],
+                timeout_seconds=5, maximum_bytes=4096)
+            self.assertEqual(interrupted.returncode, 23, interrupted.stdout)
+            self.assertIn(b"PLATFORM_FAILURE_GRACE_INTERRUPTED\n", interrupted.stdout)
+            self.assertNotIn(b"phase=deferred", interrupted.stdout)
+
     def test_fresh_checkout_records_a_failed_driver_without_a_target_directory(self):
         spec = importlib.util.spec_from_file_location("android_platform_probe_fresh", PROBE / "run.py")
         module = importlib.util.module_from_spec(spec)

@@ -77,7 +77,7 @@ jobs:
           sh artifact/rust-publish-contract.sh --profile sdk-020 --output target/sdk-rust-package
       - name: Preserve SDK archives and producer evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: windows-sdk-package
           path: |
@@ -129,7 +129,7 @@ jobs:
             --output target/windows-installed-input
       - name: Preserve archive closure and producer results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: windows-installed-input
           path: target/windows-installed-input/
@@ -220,7 +220,7 @@ jobs:
           sh artifact/python-run.sh artifact/continuity_windows_consume.py --input target/windows-installed-input/INPUT.json --output target/windows-installed-results --private-root "$RUNNER_TEMP/installed-c-private" --profile "${{ matrix.profile }}"
       - name: Preserve public results and exact C library inputs
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: windows-installed-c-${{ matrix.os }}-${{ matrix.profile }}
           path: target/windows-installed-results/
@@ -259,7 +259,7 @@ jobs:
           EXPECTED_HEAD: ${{ github.sha }}
         run: |
           sh artifact/python-run.sh artifact/continuity_windows_network_review.py --profile-inputs target/windows-public-readback/debug target/windows-public-readback/release --output target/windows-public-readback/NETWORK_REVIEW.json --head "$EXPECTED_HEAD"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: windows-lifecycle-readback-${{ matrix.os }}
           path: target/windows-public-readback/NETWORK_REVIEW.json

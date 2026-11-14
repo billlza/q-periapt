@@ -8,6 +8,15 @@ Q-Periapt code. After one cold boot of the same r5 image, it calls the read-only
 fails the run and captures bounded system diagnostics. Completion only describes
 this finite experiment; it supplies no SDK acceptance or release evidence.
 
+The evidence records the host ADB and emulator versions and executable hashes,
+host memory, guest image fingerprint and ART library hash. On failure, it reads
+the system/crash log immediately and again after a ten-second grace period so
+that asynchronous `debuggerd` output can arrive before emulator cleanup. Each
+read retains its five-second timeout, and both reads and the grace period stay
+within the unchanged 360-second supervisor deadline. An absent
+or incomplete backtrace remains visible in the retained log. Diagnostic reads
+and the grace period do not change the original failure outcome.
+
 The [Android 15 AIDL](https://android.googlesource.com/platform/frameworks/base/+/android-15.0.0_r1/core/java/android/security/IFileIntegrityService.aidl)
 places `isApkVeritySupported()` first. Its
 [service implementation](https://android.googlesource.com/platform/frameworks/base/+/android-15.0.0_r1/services/core/java/com/android/server/security/FileIntegrityService.java)
