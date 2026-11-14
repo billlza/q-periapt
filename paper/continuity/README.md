@@ -4,7 +4,7 @@ Research manuscript for Journal of Cryptology.
 
 **Author:** Ziang Li (李子昂), Department of Engineering, Durham University. **Correspondence:** 2403871950@qq.com. The alternative contact, bhmq03@durham.ac.uk, is retained in `author-metadata.json`.
 
-The repository maintains one manuscript on **`paper/joc-persistent-recovery`**, through [manuscript PR #119](https://github.com/billlza/q-periapt/pull/119). The reading copy is [continuity.pdf](continuity.pdf). External copies use the stable filenames `Q-Periapt_JoC_Manuscript.pdf` and `Q-Periapt_JoC_Research.zip`; Git commits and artifact hashes identify the research history.
+The repository maintains one manuscript on **`paper/joc-persistent-recovery`**. [Manuscript PR #119](https://github.com/billlza/q-periapt/pull/119) integrated it into `main` on 13 November 2026; subsequent focused updates continue on the same research branch. The reading copy is [continuity.pdf](continuity.pdf). External copies use the stable filenames `Q-Periapt_JoC_Manuscript.pdf` and `Q-Periapt_JoC_Research.zip`; Git commits and artifact hashes identify the research history.
 
 ## Research structure
 

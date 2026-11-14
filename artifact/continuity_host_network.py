@@ -60,7 +60,7 @@ def verify(observed,binaries,application):
     require(type(observed) is dict and observed.get('kind')=='qperiapt.native_reference_network'
             and observed.get('completed') is True,'network completion')
     count(observed.get('schema_version'),1,'network result schema')
-    require(observed.get('native_sha256')==binaries and observed.get('provider')=='48.0.1'
+    require(observed.get('native_sha256')==binaries and observed.get('provider')=='50.0.0'
             and observed.get('implementation')==str(application/PACKAGE/'network.py')
             and observed.get('clock')=='actual OS time','network implementation differs')
     for key,expected in (('effects',3),('effect_commit_calls',3),('confirmed_epoch',2)):

@@ -31,6 +31,7 @@ import continuity_profiles as profiles_contract
 import third_party_licenses as licenses
 
 FIXTURE = package.ROOT / "bindings/kotlin/ContinuityPackageConsumer"
+KOTLIN = "2.4.20"
 SCOPE = ("unpublished installed Kotlin/JVM client/server/recovery and shared C/Rust engine; "
          "same-host macOS or GNU/Linux; local and explicitly witnessed original-installation profiles; "
          "test-host controller interruption uses explicit native cancel/join; "
@@ -180,7 +181,7 @@ def maven_contract() -> jvm.MavenContract:
          "IndependentPolicyProposal", "IndependentPolicyState", "IndependentPolicyProgress",
          "RosterRefreshOutcome", "RosterRefreshResolution", "RosterRefreshID", "RosterPolicySource",
          "RosterRefreshScope", "RosterRefreshProposal", "RosterRefreshProgress", "RosterRefreshState",
-         "SessionID", "MessageID", "Counter64"), FIXTURE)
+          "SessionID", "MessageID", "Counter64"), FIXTURE, KOTLIN)
 
 
 def source_files() -> dict[str, bytes]:
@@ -387,7 +388,7 @@ def verify_recovery_execution(stdout: bytes, directory: Path) -> dict:
 
 def runtime_closure(data: bytes, distribution: Path, jar_sha256: str, outside: Path) -> dict:
     sdk.require(len(data) <= 65536 and data.endswith(b"\n"), "JVM runtime closure exceeds its bound or is truncated")
-    expected = {maven_contract().coordinate, "org.jetbrains.kotlin:kotlin-stdlib:2.4.20", "org.jetbrains:annotations:13.0"}
+    expected = {maven_contract().coordinate, f"org.jetbrains.kotlin:kotlin-stdlib:{KOTLIN}", "org.jetbrains:annotations:13.0"}
     result = {}
     for line in data.decode("utf-8").splitlines():
         fields = line.split("\t")
@@ -657,7 +658,7 @@ def qualify_kotlin(outside: Path, output: Path, native: dict, environment: dict,
             jvm_runtime = {"jvm_executable": java,
                 "jvm_consumer": distribution / "lib/continuity-installed-consumer.jar",
                 "jvm_sdk": distribution / "lib" / (contract.prefix + ".jar"),
-                "jvm_stdlib": distribution / "lib" / ("kotlin-stdlib-" + jvm.KOTLIN + ".jar"),
+                "jvm_stdlib": distribution / "lib" / ("kotlin-stdlib-" + KOTLIN + ".jar"),
                 "jvm_annotations": distribution / "lib/annotations-13.0.jar"}
             sync_faults = faults.Matrix(outside, output, profile, env, launcher,
                 fault_tools["native_helper"], fault_tools["sync_probe"], fault_tools["probe_smoke"],

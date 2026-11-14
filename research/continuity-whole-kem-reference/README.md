@@ -14,7 +14,10 @@ workloads. Those public fixtures do not prove unpredictability. ML-KEM-768
 generation, full encapsulation and decapsulation use `libcrux-ml-kem 0.0.8`;
 HMAC-SHA-256 uses `libcrux-hmac 0.0.6`; HKDF-SHA-256 uses the same locked HKDF/SHA2
 versions and target-specific SHA2 assembly feature as the SPQR baseline. Every
-selected registry version and checksum belongs to that baseline's upstream lock.
+selected registry version and checksum belongs to the checked SPQR driver lock,
+including the shared, exact `bytes 1.12.1` and `rand 0.9.3` updates documented in the
+[reference baseline](../continuity-spqr-reference/README.md). The original
+upstream lock stays fixed; an unqualified change in either driver is rejected.
 
 The two roles alternate as the KEM proposer: A for odd epochs, B for even epochs.
 There is one outstanding exchange:

@@ -39,7 +39,7 @@ def verify(value, binaries, application):
             and value.get('release_claim_eligible') is False and value.get('cleanup_errors') == [], 'own roster completion')
     for key,n in [('schema_version',6),('effects',4),('confirmed_epoch',1),('sibling_generation',1),('successor_generation',2)]:
         count(value.get(key),n,key)
-    require(value.get('native_sha256') == binaries and value.get('provider') == '48.0.1'
+    require(value.get('native_sha256') == binaries and value.get('provider') == '50.0.0'
             and value.get('implementation') == str(application / PACKAGE / 'session_cli.py')
             and value.get('clock') == 'actual OS time', 'own roster implementation')
     for key in ('original_keys_unchanged','old_sibling_unchanged'): require(value.get(key) is True,key)

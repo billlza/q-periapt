@@ -167,7 +167,7 @@ def qualify(args: argparse.Namespace) -> dict:
                 and one_time["private_keys_exported"] is False
                 and one_time["native_sha256"] == native.sha256
                 and one_time["native_publication_selection_matched"] is True
-                and one_time["provider"]["cryptography"] == "48.0.1"
+                and one_time["provider"]["cryptography"] == "50.0.0"
                 and one_time["public_case_sha256"] == snapshot(output / "one-time-publication/PUBLIC_CASE.json").sha256,
                 "installed one-time publication implementation or scope differs")
         run([*interpreter, str(application / "directory_lease_checks.py"),
@@ -188,7 +188,7 @@ def qualify(args: argparse.Namespace) -> dict:
                 and lease["historical_only"] is True
                 and lease["durable_allocation_or_session_qualified"] is False
                 and lease["private_keys_exported"] is False and lease["release_claim_eligible"] is False
-                and lease["provider"]["cryptography"] == "48.0.1",
+                and lease["provider"]["cryptography"] == "50.0.0",
                 "installed directory lease implementation or scope differs")
         # The source-built CLI already committed these original public receipts.
         # This isolated wheel consumer receives no ledger, signer, wrapping key or policy.
@@ -230,7 +230,7 @@ def qualify(args: argparse.Namespace) -> dict:
         refusals = ["configuration-directory-alias", "prepared-child-refuses-roster-retarget",
                     "closed-client-revokes-child", "nested-client-operation",
                     "callback-close-withholds-result", "outer-directory-admission", "repaired-path-does-not-revive-child"]
-        require(client_session["completed"] is True and client_session["provider"] == "48.0.1"
+        require(client_session["completed"] is True and client_session["provider"] == "50.0.0"
                 and client_session["implementation"] == str(application / PACKAGE / "enrollment_client.py")
                 and client_session["native_sha256"] == native.sha256
                 and client_session["profiles"] == [

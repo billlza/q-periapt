@@ -24,7 +24,7 @@ def verify(value,binaries,application,*,account_credential=False):
     count(value.get('schema_version'),2 if account_credential else 1,'witness receipt version')
     if account_credential:credential.verify(value)
     count(value.get('confirmed_epoch'),2,'witness epoch');count(value.get('effects'),3,'witness effects')
-    require(value.get('native_sha256')==binaries and value.get('provider')=='48.0.1'
+    require(value.get('native_sha256')==binaries and value.get('provider')=='50.0.0'
             and value.get('implementation')==str(application/PACKAGE/'session_cli.py')
             and value.get('clock')=='actual OS time','witness installed implementation')
     require(value.get('commands')==[{'label':label,'exit':1 if label in FAILED else 0} for label in LABELS]

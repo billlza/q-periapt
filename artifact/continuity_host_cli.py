@@ -40,7 +40,7 @@ def verify(value,binaries,application,*,account_credential=False):
     count(value.get('schema_version'),2 if account_credential else 1,'CLI receipt version')
     if account_credential:credential.verify(value)
     count(value.get('confirmed_epoch'),7,'CLI confirmed epoch')
-    require(value.get('native_sha256')==binaries and value.get('provider')=='48.0.1'
+    require(value.get('native_sha256')==binaries and value.get('provider')=='50.0.0'
             and value.get('implementation')==str(application/PACKAGE/'session_cli.py')
             and value.get('clock')=='actual OS time','CLI implementation differs')
     commands=value.get('commands');require(type(commands) is list and len(commands)==len(LABELS),'CLI command inventory')

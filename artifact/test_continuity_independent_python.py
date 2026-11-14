@@ -252,7 +252,7 @@ class RosterReceiptTests(unittest.TestCase):
 class ExtensionSessionReceiptTests(unittest.TestCase):
     def report(self):
         return {"schema_version":1,"kind":"qperiapt.enrollment_extension_session","completed":True,
-                "provider":"48.0.1","implementation":"/installed/client.py","native_sha256":"a"*64,
+                "provider":"50.0.0","implementation":"/installed/client.py","native_sha256":"a"*64,
                 "profiles":[{"completed":True,"profile":name,"native_commands":commands,
                     "witness_requests":witness,"bootstrap_time":210,"traffic_time":220,
                     "original_expiry":160,"extended_expiry":300,"confirmed_epoch":1,
@@ -305,7 +305,7 @@ class WheelBoundaryTests(unittest.TestCase):
         files[DIST + "/METADATA"] = (
             "Metadata-Version: 2.5\nName: qperiapt-continuity-reference\nVersion: 0.0.0\n"
             "Requires-Python: >=3.14,<3.15\nLicense-Expression: Apache-2.0 OR MIT\n"
-            "Classifier: Private :: Do Not Upload\nRequires-Dist: cryptography==48.0.1\n"
+            "Classifier: Private :: Do Not Upload\nRequires-Dist: cryptography==50.0.0\n"
             "Import-Name: qperiapt_continuity_reference\nLicense-File: LICENSE-APACHE\n"
             "License-File: LICENSE-MIT\n\n").encode() + self.readme + b"\n"
         files[DIST + "/WHEEL"] = b"Wheel-Version: 1.0\nGenerator: flit 4.1.0\nRoot-Is-Purelib: true\nTag: py3-none-any\n"
@@ -334,7 +334,7 @@ class WheelBoundaryTests(unittest.TestCase):
     def test_dependency_pin_cannot_be_widened(self):
         def change(files):
             name = DIST + "/METADATA"
-            files[name] = files[name].replace(b"cryptography==48.0.1", b"cryptography>=48")
+            files[name] = files[name].replace(b"cryptography==50.0.0", b"cryptography>=50")
         with self.assertRaisesRegex(ValueError, "Requires-Dist"):
             inspect_wheel(self.wheel(change), self.sources, self.licenses, self.readme)
 

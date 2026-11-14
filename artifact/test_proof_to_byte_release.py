@@ -1484,7 +1484,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
         self,
     ) -> None:
         build = (ROOT / "bindings/kotlin/build.gradle.kts").read_text(encoding="utf-8")
-        self.assertIn('kotlin("jvm") version "2.4.20"', build)
+        self.assertIn('kotlin("jvm") version "2.4.21"', build)
         self.assertEqual(
             re.findall(r"jvmTarget\.set\(JvmTarget\.JVM_([0-9]+)\)", build), ["25"]
         )
@@ -5865,7 +5865,7 @@ with _temporary_release_test_directories(parents):
         )
         self.assertFalse(os.path.lexists(ROOT / "rust-toolchain"))
 
-        workflows = ((CI_WORKFLOW, 28), (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3))
+        workflows = ((CI_WORKFLOW, 29), (ABI2_PLATFORM_CANDIDATE_WORKFLOW, 3))
         self.assertEqual(WINDOWS_RELEASE_RUST_TOOLCHAIN, CANONICAL_RUST_TOOLCHAIN)
         for path, expected_count in workflows:
             with self.subTest(workflow=path.name):

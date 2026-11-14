@@ -19,7 +19,7 @@ def fixture():
         transitions.append(dict(operation=identity(i),binding=binding,observation=dict(binding=binding,state='Applied'),
             progress=dict(schema='qperiapt-roster-refresh-progress/1',state='Applied',retired=True,binding=binding,scope=scope)))
     return dict(kind='qperiapt.authenticated_surviving_device_roster',completed=True,release_claim_eligible=False,cleanup_errors=[],
-        schema_version=6,effects=4,confirmed_epoch=1,sibling_generation=1,successor_generation=2,native_sha256={},provider='48.0.1',
+        schema_version=6,effects=4,confirmed_epoch=1,sibling_generation=1,successor_generation=2,native_sha256={},provider='50.0.0',
         implementation='/installed/qperiapt_continuity_reference/session_cli.py',clock='actual OS time',
         original_keys_unchanged=True,old_sibling_unchanged=True,session=identity(4),journal=identity(5),original_pending_message=identity(6),policy_pending_message=identity(9),
         commands=[dict(label=k,exit=1 if k in FAILED else 0) for k in LABELS],
