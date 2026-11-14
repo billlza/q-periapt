@@ -43,7 +43,7 @@ shake = { version = "=0.1.0", default-features = false, features = ["zeroize"] }
 # --- optional backends (see [features]) ---
 # SLH-DSA (FIPS 205), pure Rust. Deterministic (non-hedged, KAT-able) signing by
 # default; caller-supplied addrnd selects the hedged variant.
-fips205 = { version = "0.4.1", optional = true }
+fips205 = { version = "0.5.0", optional = true }
 # Feeds caller-supplied SLH-DSA hedging randomness (and, in tests, the ACVP
 # keyGen seed replay) into the fips205 `CryptoRngCore` APIs (same rand_core 0.6
 # the `fips205` dep uses). Pulled in only with the `slh-dsa` feature.
