@@ -4228,6 +4228,28 @@ def _wait_framework_ready(
             reason, observed = _framework_readiness_observation(raw, capability.run_id)
         if observed is not None and observed[0] == previous_boot_id:
             reason, observed = "awaiting-prepared-reboot", None
+        if previous_boot_id is not None and reason in {"query-nonzero", "query-timeout"}:
+            # This private server deliberately disables emulator auto-scanning.
+            # A preparatory reboot can therefore remove its sole transport.
+            # The existing recovery path reconnects only after authenticated
+            # ownership checks and two exact absence observations; an offline
+            # or unauthorized device is left untouched. Recovery never counts
+            # as a ready sample or refreshes this boot's observation budget.
+            recovery_timeout = _remaining_observation_timeout(deadline)
+            if recovery_timeout is not None:
+                recovery = _recover_owned_emulator_transport(
+                    layout, capability, timeout_seconds=recovery_timeout,
+                    deadline=deadline, expected_receipt_sha256=receipt.snapshot_sha256,
+                )
+                _require(
+                    recovery.returncode == 0 and recovery.stdout in {
+                        (outcome.value + "\n").encode("ascii") for outcome in EmulatorTransportRecovery
+                    },
+                    "prepared-boot transport recovery returned an invalid result",
+                )
+                print("ANDROID_FRAMEWORK_TRANSPORT_RECOVERY " + json.dumps({
+                    "attempt": attempt, "outcome": recovery.stdout.decode("ascii").rstrip("\n"),
+                }, sort_keys=True), flush=True)
         now = time.monotonic()
         if observed is None:
             identity, stable_since, consecutive = None, None, 0
@@ -4286,12 +4308,14 @@ def _prepare_16k_emulator_gc(
     capability: runtime_state.AndroidCommandCapability,
     *, timeout_seconds: int,
 ) -> BoundedResult:
-    """Select ART CC once, before SDK installation, on the owned x86 16K image.
+    """Explicitly probe ART CC once on the owned x86 16K image.
 
     AOSP kernel 38447e018c92f6ae182067a02a6954fa92b33a73 disables UFFD for
     x86's 16K emulation. API35 image r5 still carries the older 2024-10-18
     kernel. ART's force_disable_uffd_gc boot flag provides the same collector
     selection without replacing the image/kernel or changing guest privileges.
+    This diagnostic is not part of normal SDK qualification: the r5 image has
+    exhibited system_server crashes after the switch, before SDK installation.
     """
     _require(capability.device_kind == "emulator" and capability.adb_profile == "linux-system",
              "GC preparation requires the owned Linux emulator")
@@ -4576,10 +4600,13 @@ def _recover_owned_emulator_transport(
     capability: runtime_state.AndroidCommandCapability,
     *,
     timeout_seconds: int,
+    deadline: float | None = None,
+    expected_receipt_sha256: str | None = None,
 ) -> BoundedResult:
     """Attempt one authenticated re-registration without changing proof evidence."""
 
-    deadline = time.monotonic() + timeout_seconds
+    attempt_deadline = time.monotonic() + timeout_seconds
+    deadline = attempt_deadline if deadline is None else min(attempt_deadline, deadline)
     _validate_owned_adb_server_for_client(capability, deadline=deadline)
     result: BoundedResult | None = None
     primary: BaseException | None = None
@@ -4591,6 +4618,10 @@ def _recover_owned_emulator_transport(
             and receipt.phase is runtime_state.RuntimePhase.EMULATOR_CHILD_REGISTERED
             and receipt.device_kind == "emulator",
             "emulator transport recovery lacks this run's active emulator receipt",
+        )
+        _require(
+            expected_receipt_sha256 is None or receipt.snapshot_sha256 == expected_receipt_sha256,
+            "emulator transport recovery differs from the prepared-boot receipt",
         )
         context = _validate_recovery_receipt(receipt)
         _require(
