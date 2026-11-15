@@ -118,16 +118,18 @@ forward evaluator.
 \begin{corollary}[Copies, deletion and late disclosure]
 \label{cor:guarded-history}
 Exposure is monotone under additional acquisitions, direct disclosures
-and key disclosures.  Copying or rewrapping a source adds routes to the
-same source identity.  Local deletion of a record previously acquired
+and key disclosures. Copying or rewrapping a source preserves existing
+routes and may add routes to the same source identity.
+Local deletion of a record previously acquired
 does not remove its routes from adversarial knowledge.  In particular,
 a later matching-key disclosure can expose a source in a ciphertext
 acquired before that disclosure and deleted locally in the meantime.
 \end{corollary}
 \begin{proof}
 The cumulative sets and their key closure only grow, and every predicate
-in (GP) is positive.  A source-preserving copy changes a route's record
-identity or key guards but not its terminal source.  Local deletion
+in (GP) is positive. An exact ciphertext copy reuses its record identity
+and route. Source-preserving rewrapping may change record identities or
+key guards while retaining the terminal source. Local deletion
 restricts future acquisition from that local store; it removes no member
 of $A_t$ and therefore cannot invalidate a satisfied route.
 \end{proof}

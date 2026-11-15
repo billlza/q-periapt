@@ -59,6 +59,27 @@ directions to use their remaining epoch-zero capacity. This elementary
 allocation count supplies the exposure envelope tested by the native trace
 predictor.
 
+More generally, let $n_d$ count first allocations before a cut in direction
+$d$ of the captured epoch, and let $N_d$ count subsequent first allocations
+under that same epoch. The per-direction cap gives $0\le n_d\le b$ and
+$N_d\le b-n_d$, hence $N_A+N_B\le2b-n_A-n_B$.
+Changing retry readiness or arbitration retains this inequality: an exact
+retry consumes another transmission opportunity while reusing its original
+allocation. The present cut has $n_A+n_B=1$, giving $2b-1$.
+Under one-way traffic, $N_B=0$ and $n_A=1$ give $N_A\le b-1$.
+The realized allocation history determines how much of this capacity is
+used. In the retained native traces, the captured-seed predictor reconstructs
+every post-capture epoch-zero application, with key and AEAD checks. Its
+successful derivations therefore realize the occupied part of this
+allocation capacity.
+
+Subsequent rekeys can admit applications under later traffic chains.
+For the native live-core interface, Theorem~\ref{thm:native-online-message}
+supplies the security bound for a selected send satisfying the original
+reservation and acquisition predicate~\eqref{eq:eligibility}. We therefore
+retain the executed commitments, admission denominator and queued demand
+alongside the reconstructed set when interpreting the measured service.
+
 \input{matched-opportunity-tables}
 
 In the alternating schedule, reducing $b$ from 64 to 32 changes the derived

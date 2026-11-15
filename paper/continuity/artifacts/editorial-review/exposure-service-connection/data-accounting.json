@@ -1,0 +1,123 @@
+{
+  "status": "passed",
+  "scope": "Integer accounting and source anchors from the existing retained executions; no additional native experiment.",
+  "source_sha256": {
+    "artifacts/retry-readiness/analysis.json": "0f2deb41f94f561a265cf1ccb8a3951c77cfaa8090ddcdd03229fe8aa96ad5c3",
+    "artifacts/retry-readiness/sources/retry_age_driver.rs.txt": "75cd41f4cfd38852622a7b6fade4df7af8b5a4f06673465d98615aee2c3e2b1a",
+    "artifacts/matched-comparison/sources/validate.py.txt": "80a2eed73944decaa8edde69db1b3523a12475930dd5e4da4821ca52add636bc"
+  },
+  "frame_class_partition": "First application, application retry, ACK and control frame counts exhaust the 2,048 alternating transmission opportunities.",
+  "rows": [
+    {
+      "budget": 32,
+      "scenario": "alternating",
+      "immediate": {
+        "application_frames": 688,
+        "retry_application_frames": 604,
+        "ack_frames": 676,
+        "control_frames": 80,
+        "delivered": 688,
+        "emitted_bytes": 565288,
+        "physical_sync_data": 14219,
+        "opportunities": 2048,
+        "derived_owner_A": 63,
+        "derived_owner_B": 63
+      },
+      "age4": {
+        "application_frames": 971,
+        "retry_application_frames": 16,
+        "ack_frames": 941,
+        "control_frames": 120,
+        "delivered": 971,
+        "emitted_bytes": 706764,
+        "physical_sync_data": 20015,
+        "opportunities": 2048,
+        "derived_owner_A": 63,
+        "derived_owner_B": 63
+      },
+      "age4_minus_immediate": {
+        "application_frames": 283,
+        "retry_application_frames": -588,
+        "ack_frames": 265,
+        "control_frames": 40,
+        "delivered": 283,
+        "emitted_bytes": 141476,
+        "physical_sync_data": 5796,
+        "opportunities": 0,
+        "derived_owner_A": 0,
+        "derived_owner_B": 0
+      },
+      "frame_class_sums": {
+        "immediate": 2048,
+        "age4": 2048
+      },
+      "bytes_per_delivery": {
+        "immediate": 821.6395348837209,
+        "age4": 727.8722966014418
+      },
+      "sync_data_per_delivery": {
+        "immediate": 20.6671511627907,
+        "age4": 20.612770339855818
+      }
+    },
+    {
+      "budget": 64,
+      "scenario": "alternating",
+      "immediate": {
+        "application_frames": 718,
+        "retry_application_frames": 579,
+        "ack_frames": 711,
+        "control_frames": 40,
+        "delivered": 718,
+        "emitted_bytes": 407596,
+        "physical_sync_data": 14579,
+        "opportunities": 2048,
+        "derived_owner_A": 127,
+        "derived_owner_B": 127
+      },
+      "age4": {
+        "application_frames": 999,
+        "retry_application_frames": 8,
+        "ack_frames": 985,
+        "control_frames": 56,
+        "delivered": 999,
+        "emitted_bytes": 455388,
+        "physical_sync_data": 20255,
+        "opportunities": 2048,
+        "derived_owner_A": 127,
+        "derived_owner_B": 127
+      },
+      "age4_minus_immediate": {
+        "application_frames": 281,
+        "retry_application_frames": -571,
+        "ack_frames": 274,
+        "control_frames": 16,
+        "delivered": 281,
+        "emitted_bytes": 47792,
+        "physical_sync_data": 5676,
+        "opportunities": 0,
+        "derived_owner_A": 0,
+        "derived_owner_B": 0
+      },
+      "frame_class_sums": {
+        "immediate": 2048,
+        "age4": 2048
+      },
+      "bytes_per_delivery": {
+        "immediate": 567.6824512534819,
+        "age4": 455.84384384384384
+      },
+      "sync_data_per_delivery": {
+        "immediate": 20.305013927576603,
+        "age4": 20.275275275275277
+      }
+    }
+  ],
+  "predictor_source": {
+    "capture": "retry_age_driver.rs.txt:101-115 captures a complete epoch-zero record and asserts no pending private rekey work.",
+    "prediction": "retry_age_driver.rs.txt:117-133 advances captured epoch-zero chain seeds; later epochs return None.",
+    "reconstruction": "retry_age_driver.rs.txt:243-247 checks actual key equality, actual AEAD plaintext recovery and altered-seed rejection.",
+    "trace_validation": "matched-comparison/sources/validate.py.txt:124 checks known == (postcut and epoch == 0)."
+  },
+  "interpretation": "The allocation ceiling concerns subsequent first allocations of the captured epoch. The retained predictor reconstructs each subsequently committed epoch-zero message. Security of eligible later sends follows from the native theorem and its original-source/acquisition conditions."
+}

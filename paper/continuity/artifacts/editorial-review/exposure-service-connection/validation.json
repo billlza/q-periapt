@@ -1,0 +1,45 @@
+{
+  "schema": "qperiapt-joc-editorial-validation/1",
+  "status": "passed",
+  "base_commit": "4b8cda65727e91508a4d258d550d9de610a21815",
+  "scope": "Exposition and three formal-block terminology refinements; existing make/source and independent export checks.",
+  "commands": [
+    {
+      "command": "make -C paper/continuity source PYTHON=\"sh <isolated-checkout>/artifact/python-run.sh\"",
+      "exit_code": 0,
+      "includes": "Existing chain-prefix, native online-chain, four bootstrap source checks, matched comparison/input controls, retry analysis, document check and nine-file source package."
+    },
+    {
+      "command": "sh artifact/python-run.sh paper/continuity/artifacts/bootstrap/verify_source_export.py --archive <build>/joc-source.zip --reading-copy <paper>/continuity.pdf --work-directory <fresh-build>/source-export-reviewed --output <build>/source-export-check.json",
+      "exit_code": 0
+    },
+    {
+      "command": "sh artifact/python-run.sh paper/continuity/check_build.py",
+      "exit_code": 0,
+      "stage": "Final frozen reading PDF after independent source export"
+    }
+  ],
+  "make_source_stdout_sha256": "1a5a97a35f8b497ecbc5be1bd501653ea885af14b3693efda2479b3719dee291",
+  "build_receipt_sha256": "0c1fad6cad95c7fc791526293877664ca2249bcfc742496f4af7fd656bd47d5f",
+  "source_export_receipt_sha256": "d797ad070143af03ffcbff3c3db61697c384585ff88972c9153fd6a27784a236",
+  "source_preservation_receipt_sha256": "144b4688d55c3b384bed7d4c504d84baf62a7253c88d2e80801e87e46cae711e",
+  "data_accounting_receipt_sha256": "e2270a1002178a515a09c466e8608cf8df58047e9967d16ce6da3af7e738150a",
+  "independent_semantic_preservation_sha256": "6fd3f258267b00ee07fd8b80ba05e9ab01811ca9e2deea54036552e3eabe34b3",
+  "independent_methodology_review_sha256": "a8aeda933d34ce2ff02b199fc8af862f04d41a7180591054958af464f25b2344",
+  "reviewed_pages": [
+    17,
+    88,
+    89,
+    90,
+    94,
+    95,
+    97,
+    98,
+    99,
+    100
+  ],
+  "visual_result": "No clipping, overlap, equation overflow or unresolved reference observed on the rendered review pages; the formal wording, validation map, allocation explanation and complete discussion were inspected.",
+  "tex_environment": "Installed pdfTeX 1.40.26 / LaTeX2e 2024-11-01 patch level 2 with the existing task-local format and font maps; publisher class, bibliography styles and figure bytes unchanged.",
+  "native_runs_repeated": false,
+  "formal_provers_repeated": false
+}
