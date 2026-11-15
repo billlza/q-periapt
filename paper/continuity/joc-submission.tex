@@ -969,18 +969,73 @@ definition.  Both inclusions hold for each fixed prefix; no independence
 or advance choice of the acquisition schedule was used.
 \end{proof}
 
-\paragraph{Efficient evaluation.}
+\paragraph{Incremental evaluation.}
 Equation (GP) is a declarative normal form: a compressed record DAG can
-have exponentially many paths.  An efficient leakage evaluator instead
-computes the iterative decryption and key-derivation fixed point, without
-enumerating those paths.  Let $N$ be the total number of record, key and
-source atoms, and let $M$ count rule and payload incidences.  There are at
-most $N$ strict-growth rounds; repeated rule scans therefore take
-$O(N(N+M))$ time and $O(N+M)$ space under standard indexed set and
-dictionary representations, with source-dictionary operations included
-in this accounting.  The finite checker materializes the route table only
-for its declared small fixtures, to compare that normal form against the
-forward evaluator.
+have exponentially many paths. Its exposure set can instead be maintained
+directly from the decryption rules. The evaluator specializes indexed
+forward chaining for Horn rules~\cite[Section~4]{dowlingGallier1984}
+to cumulative record acquisitions and disclosures. Put
+\[
+\begin{aligned}
+ N&=|\mathcal R|+|\mathcal K|+|\Omega_{\rm src}|,\\
+ M&=|\mathcal D|+\sum_{r\in\mathcal R}
+       \bigl(1+|\operatorname{child}(r)|+|\operatorname{orig}(r)|\bigr).
+\end{aligned}
+\]
+The unit in each summand counts the record's matching-key incidence.
+In an adjacency-list representation, repeated incidences are counted with
+multiplicity in $M$.
+
+\begin{proposition}[Incremental exposure evaluation]
+\label{prop:guarded-worklist}
+For the fixed record and key-derivation graphs above, the exact exposure
+set at every prefix of a cumulative acquisition and disclosure history
+can be maintained with $O(N+M)$ preprocessing, $O(N+M+U)$ total time and
+$O(N+M)$ working space, where $U$ counts input acquisition, key-disclosure
+and direct-source-disclosure events, including repetitions. These bounds
+use indexed atom identities with constant-time membership and insertion;
+they include reporting each newly exposed source once. Exporting complete
+sets at selected prefixes adds their total output size.
+\end{proposition}
+\begin{proof}
+Index each key's outgoing derivation edges and the records having that
+matching key. Maintain known keys, available records, opened records and
+exposed sources. Enqueue a key or record only when it first becomes known
+or available. A key event propagates its outgoing derivations and checks
+its indexed records. A record event checks its matching key. When both
+the record and its key are present, open the record once, making its
+children available and its sources exposed. Direct disclosures insert
+their sources immediately. Drain the queue after each input event.
+
+Every insertion is an instance of a stated derivation rule, so all
+maintained facts belong to the least closure. At an empty queue, every
+derivation edge with a known parent has been processed. For a record
+whose two premises hold, the later arrival of those premises triggers
+its opening unless it was already opened. Thus every enabled rule has
+fired, and the maintained facts are exactly the least closure. Applying
+this argument after each input event and using
+Theorem~\ref{thm:guarded-normalization} gives the exposure set (GP) at
+every prefix, including adaptively chosen prefixes.
+
+Each key and record is queued at most once. Each key-derivation and
+matching-key incidence is scanned at most once from its key, each
+record's key is tested once from its record, and each opened record's
+payload incidences are processed once. Repeated input events take
+constant time. The total work is therefore $O(N+M+U)$, and the indexes,
+sets and queue occupy $O(N+M)$ space. Each source enters the incremental
+output at most once; complete-set exports are charged separately.
+\end{proof}
+
+The graphs are fixed throughout this bound. Local deletion changes future
+acquisition availability and leaves the cumulative closure intact. A new
+record or derivation edge changes the indexed input and requires its own
+update accounting. An implementation using dictionaries has the
+corresponding expected bounds under constant expected lookup and insertion
+costs; normalization of external identities is charged separately.
+The finite checker retains explicit route enumeration
+for its small fixtures, where it compares the guarded normal form with
+forward decryption. The indexed evaluator avoids that enumeration;
+materializing all route witnesses can itself require exponential output.
 
 \begin{corollary}[Copies, deletion and late disclosure]
 \label{cor:guarded-history}
@@ -5824,7 +5879,7 @@ Which event fixes a contribution's origin? &
 Reservation-boundary captures, delayed receipts and sibling aggregate writes;
 reconstruction of subsequent traffic from the captured original inputs.\\
 Which acquired objects jointly expose a source? &
-Iterative decryption and guarded routes on the same finite graphs, with
+Iterative decryption, indexed closure and guarded routes on the same finite graphs, with
 explicit expected cases for key dependencies and later disclosures.\\
 How does retained state interact with communication opportunities? &
 Pinned component snapshots across seven schedules, with reconstructed keys
@@ -5844,8 +5899,8 @@ accounting.\\
 
 \label{sec:guarded-checks}
 
-The specialization in Section~\ref{sec:guarded-provenance} has two executable
-realizations: iterative decryption of available record objects, and evaluation
+The retained finite checker for Section~\ref{sec:guarded-provenance} compares
+two executable realizations: iterative decryption of available record objects, and evaluation
 of normalized paths after computing key reachability. Their common inputs
 are a finite immutable record graph, canonical key identities, fixed public
 key-derivation edges, acquired records, directly disclosed keys, and directly
@@ -5912,6 +5967,58 @@ interpretations of the record model.
 Appendix~\ref{app:artifacts} identifies the source, result files and
 independent expected-result checks. The reproduction entry point rejects
 execution modes that disable its assertions.
+
+\paragraph{Indexed closure and cumulative histories.}
+The indexed realization of Proposition~\ref{prop:guarded-worklist} agrees
+with both retained evaluators on all 5,360 assignments. This comparison
+checks the complete source, record and key sets against iterative decryption,
+and the source set against guarded paths. The incremental implementation
+also agrees with fresh iterative evaluation at 2,189 prefixes: the 360 legal
+event permutations, ten directed histories and one repeated-event history.
+Each update returns newly exposed sources; complete snapshots are exported
+explicitly for these comparisons.
+An independent checker also enumerates every satisfying assignment of each
+of 24 small typed Horn theories. For each of 2,592 seed sets, it intersects
+all satisfying assignments that contain the seeds and compares that least
+model with the indexed result in all three sorts. Every comparison agrees.
+
+Structural-work controls separate rule propagation from path enumeration.
+For a key-derivation chain with $m$ edges listed in reverse order, the retained
+scan performs $m(m+1)$ key-edge visits, while the indexed evaluator visits
+each edge once. Table~\ref{tab:indexed-key-work} records the executed cases.
+The count concerns key-derivation incidences; queue and record visits are
+also retained in the machine-readable result.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}rrr@{}}
+\toprule
+Key edges $m$ & Repeated-scan edge visits & Indexed edge visits\\
+\midrule
+32 & 1,056 & 32\\
+128 & 16,512 & 128\\
+512 & 262,656 & 512\\
+\bottomrule
+\end{tabular}
+\caption{Structural work on reverse-ordered key-derivation chains.
+Both evaluators compute the same closure. These are executed operation
+counts on declared control graphs.}
+\label{tab:indexed-key-work}
+\end{table}
+
+A separate 128-layer containment DAG has 257 records, 510 containment edges
+and $2^{128}$ root-to-source paths, counted from its construction.
+The indexed evaluator processes 1,027 queue, guard and payload visits to
+reach the exact closure. A further 2,000 repeated acquisitions and key
+disclosures perform no additional propagation visits. A 4,096-record chain
+checks iterative handling of deep containment. Throughout these controls,
+the indexed evaluator's path-oracle constructor is replaced by a failing
+sentinel; any indexed request for route enumeration would fail the check.
+The result records the graph
+dimensions, individual visit counters and source hashes. These controls
+exercise the indexed implementation and its output accounting under the
+fixed-graph semantics of Proposition~\ref{prop:guarded-worklist}.
 
 \subsection{Reference snapshots and communication schedules}
 
@@ -6582,7 +6689,7 @@ The complete manuscript extends the previously retained source at commit
 \end{center}
 under \path{paper/continuity}. The manuscript and its directly used evidence
 are maintained in the repository's
-\href{https://github.com/billlza/q-periapt/pull/119}{continuous manuscript PR}.
+\href{https://github.com/billlza/q-periapt/pull/194}{current manuscript PR}.
 The filenames below are relative to \path{paper/continuity} in that distribution.
 
 The explicit normalization theorem and its proof are in
@@ -6594,6 +6701,13 @@ are in \path{acquisition-nonadditivity.tex}. The executable supplement is in
 \path{results.json} records the finite enumeration and history checks.
 \item \path{review_exposure.py} checks 17 independently stated expected
 results; \path{review_results.json} records their outcomes.
+\item \path{indexed_exposure.py} implements the cumulative closure of
+Proposition~\ref{prop:guarded-worklist} without path enumeration.
+\path{check_indexed_exposure.py} checks equivalence, histories and structural
+work; \path{indexed-results.json} records its results and source hashes.
+The independent least-model oracle is \path{review_indexed_exposure.py},
+with results in \path{indexed-review-results.json} and argument review in
+\path{indexed-review.md}.
 \item \path{review.md} documents the theorem and implementation review;
 \path{review_optimized_guard.json} records fail-closed optimized-mode
 rejection. The separately named
@@ -6610,6 +6724,8 @@ From that artifact directory, the reproduction commands are
 \begin{verbatim}
 python3 check_exposure.py --output results.json
 python3 review_exposure.py
+python3 check_indexed_exposure.py --output indexed-results.json
+python3 review_indexed_exposure.py --output indexed-review-results.json
 \end{verbatim}
 \end{quote}
 These commands exercise the finite record model and its independent expected

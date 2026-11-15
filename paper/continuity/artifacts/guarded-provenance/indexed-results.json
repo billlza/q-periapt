@@ -1,0 +1,237 @@
+{
+  "schema": "q-periapt-indexed-exposure-checks-v1",
+  "status": "passed",
+  "scope": "fixed finite record/key/source derivation graph; supports the indexed closure proposition",
+  "output_accounting": "incremental operations return newly exposed sources; full state exports cost their output size",
+  "source_sha256": {
+    "check_exposure.py": "f1d099836194f17a165527d5a2296c06a7d2bd44bf187c1ab9c7456e4beeb92c",
+    "indexed_exposure.py": "2096c4d30902671eadf1282c3f7ff1ed6a54f3d374c706cefad2c2131ba8211c",
+    "check_indexed_exposure.py": "11ff9e6f9089e359313243a8622fc83b9f2e2319d8307b19797abde8b7e17a84"
+  },
+  "exhaustive": {
+    "instances": {
+      "native_shared_journal_key": 512,
+      "independent_wrapping_keys": 128,
+      "rewrapped_origin": 512,
+      "nested_aggregate": 4096,
+      "same_actual_key_alias": 16,
+      "empty_record_and_unrelated_source": 64,
+      "key_derivation_cycle_requires_a_seed": 32
+    },
+    "total_assignments": 5360,
+    "compared": [
+      "all three closure sorts against retained scan",
+      "exposed source set against retained guarded paths"
+    ]
+  },
+  "histories": {
+    "directed_histories": 10,
+    "legal_event_permutations": 360,
+    "duplicate_event_histories": 1,
+    "prefix_comparisons": 2189
+  },
+  "independent_expected_cases": [
+    {
+      "case": "empty_graph",
+      "status": "passed"
+    },
+    {
+      "case": "key_cycle_without_records_or_seed",
+      "status": "passed"
+    },
+    {
+      "case": "key_cycle_without_records_with_seed",
+      "status": "passed"
+    },
+    {
+      "case": "unseeded_key_self_loop",
+      "status": "passed"
+    },
+    {
+      "case": "seeded_key_self_loop",
+      "status": "passed"
+    },
+    {
+      "case": "source_does_not_backderive_keys",
+      "status": "passed"
+    },
+    {
+      "case": "same_name_keeps_record_key_source_sorts_separate",
+      "status": "passed"
+    },
+    {
+      "case": "same_name_acquisition_still_needs_key",
+      "status": "passed"
+    },
+    {
+      "case": "reverse_ordered_key_edges",
+      "status": "passed"
+    },
+    {
+      "case": "unrelated_keys_do_not_open_record",
+      "status": "passed"
+    },
+    {
+      "case": "one_complete_diamond_route_suffices",
+      "status": "passed"
+    },
+    {
+      "case": "shared_leaf_keeps_intermediate_guard",
+      "status": "passed"
+    },
+    {
+      "case": "partial_routes_cannot_be_spliced",
+      "status": "passed"
+    },
+    {
+      "case": "duplicate_edges_and_payloads_preserve_sets",
+      "status": "passed"
+    },
+    {
+      "case": "acquirethendisclose_key",
+      "status": "passed"
+    },
+    {
+      "case": "disclose_keythenacquire",
+      "status": "passed"
+    },
+    {
+      "case": "explicit_lazy_route_and_normalized_api",
+      "status": "passed"
+    }
+  ],
+  "invalid_inputs_rejected": [
+    "duplicate_identity",
+    "unknown_child",
+    "empty_record_identity",
+    "empty_key_identity",
+    "record_self_cycle",
+    "two_record_cycle",
+    "unknown_acquisition",
+    "unknown_key",
+    "unknown_direct_source",
+    "unknown_membership_query",
+    "unknown_history_event",
+    "acquire_after_local_deletion",
+    "delete_local_after_local_deletion"
+  ],
+  "scaling": {
+    "reverse_key_chains": [
+      {
+        "key_edges": 32,
+        "repeated_scan_key_edge_visits": 1056,
+        "indexed": {
+          "input_events": 2,
+          "key_visits": 33,
+          "record_visits": 1,
+          "derivation_visits": 32,
+          "guard_visits": 1,
+          "payload_visits": 1,
+          "records_opened": 1,
+          "sources_added": 1
+        },
+        "indexed_total_visits": 68
+      },
+      {
+        "key_edges": 128,
+        "repeated_scan_key_edge_visits": 16512,
+        "indexed": {
+          "input_events": 2,
+          "key_visits": 129,
+          "record_visits": 1,
+          "derivation_visits": 128,
+          "guard_visits": 1,
+          "payload_visits": 1,
+          "records_opened": 1,
+          "sources_added": 1
+        },
+        "indexed_total_visits": 260
+      },
+      {
+        "key_edges": 512,
+        "repeated_scan_key_edge_visits": 262656,
+        "indexed": {
+          "input_events": 2,
+          "key_visits": 513,
+          "record_visits": 1,
+          "derivation_visits": 512,
+          "guard_visits": 1,
+          "payload_visits": 1,
+          "records_opened": 1,
+          "sources_added": 1
+        },
+        "indexed_total_visits": 1028
+      }
+    ],
+    "layered_record_dags": [
+      {
+        "layers": 8,
+        "records": 17,
+        "containment_edges": 30,
+        "root_to_source_paths_by_combinatorial_count": "256",
+        "indexed": {
+          "input_events": 2002,
+          "key_visits": 1,
+          "record_visits": 17,
+          "derivation_visits": 0,
+          "guard_visits": 17,
+          "payload_visits": 32,
+          "records_opened": 17,
+          "sources_added": 1
+        },
+        "indexed_total_visits": 67
+      },
+      {
+        "layers": 32,
+        "records": 65,
+        "containment_edges": 126,
+        "root_to_source_paths_by_combinatorial_count": "4294967296",
+        "indexed": {
+          "input_events": 2002,
+          "key_visits": 1,
+          "record_visits": 65,
+          "derivation_visits": 0,
+          "guard_visits": 65,
+          "payload_visits": 128,
+          "records_opened": 65,
+          "sources_added": 1
+        },
+        "indexed_total_visits": 259
+      },
+      {
+        "layers": 128,
+        "records": 257,
+        "containment_edges": 510,
+        "root_to_source_paths_by_combinatorial_count": "340282366920938463463374607431768211456",
+        "indexed": {
+          "input_events": 2002,
+          "key_visits": 1,
+          "record_visits": 257,
+          "derivation_visits": 0,
+          "guard_visits": 257,
+          "payload_visits": 512,
+          "records_opened": 257,
+          "sources_added": 1
+        },
+        "indexed_total_visits": 1027
+      }
+    ],
+    "deep_record_chain": {
+      "records": 4096,
+      "recursion_used": false,
+      "indexed": {
+        "input_events": 2,
+        "key_visits": 1,
+        "record_visits": 4096,
+        "derivation_visits": 0,
+        "guard_visits": 4096,
+        "payload_visits": 4096,
+        "records_opened": 4096,
+        "sources_added": 1
+      },
+      "indexed_total_visits": 12289
+    },
+    "measurement": "explicit adjacency/payload and deque-pop counts; no wall-clock threshold",
+    "path_oracle": "constructor patched to raise throughout every large-graph control"
+  }
+}

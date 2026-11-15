@@ -97,7 +97,7 @@ The complete manuscript extends the previously retained source at commit
 \end{center}
 under \path{paper/continuity}. The manuscript and its directly used evidence
 are maintained in the repository's
-\href{https://github.com/billlza/q-periapt/pull/119}{continuous manuscript PR}.
+\href{https://github.com/billlza/q-periapt/pull/194}{current manuscript PR}.
 The filenames below are relative to \path{paper/continuity} in that distribution.
 
 The explicit normalization theorem and its proof are in
@@ -109,6 +109,13 @@ are in \path{acquisition-nonadditivity.tex}. The executable supplement is in
 \path{results.json} records the finite enumeration and history checks.
 \item \path{review_exposure.py} checks 17 independently stated expected
 results; \path{review_results.json} records their outcomes.
+\item \path{indexed_exposure.py} implements the cumulative closure of
+Proposition~\ref{prop:guarded-worklist} without path enumeration.
+\path{check_indexed_exposure.py} checks equivalence, histories and structural
+work; \path{indexed-results.json} records its results and source hashes.
+The independent least-model oracle is \path{review_indexed_exposure.py},
+with results in \path{indexed-review-results.json} and argument review in
+\path{indexed-review.md}.
 \item \path{review.md} documents the theorem and implementation review;
 \path{review_optimized_guard.json} records fail-closed optimized-mode
 rejection. The separately named
@@ -125,6 +132,8 @@ From that artifact directory, the reproduction commands are
 \begin{verbatim}
 python3 check_exposure.py --output results.json
 python3 review_exposure.py
+python3 check_indexed_exposure.py --output indexed-results.json
+python3 review_indexed_exposure.py --output indexed-review-results.json
 \end{verbatim}
 \end{quote}
 These commands exercise the finite record model and its independent expected

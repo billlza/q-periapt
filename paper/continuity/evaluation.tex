@@ -34,7 +34,7 @@ Which event fixes a contribution's origin? &
 Reservation-boundary captures, delayed receipts and sibling aggregate writes;
 reconstruction of subsequent traffic from the captured original inputs.\\
 Which acquired objects jointly expose a source? &
-Iterative decryption and guarded routes on the same finite graphs, with
+Iterative decryption, indexed closure and guarded routes on the same finite graphs, with
 explicit expected cases for key dependencies and later disclosures.\\
 How does retained state interact with communication opportunities? &
 Pinned component snapshots across seven schedules, with reconstructed keys
@@ -54,8 +54,8 @@ accounting.\\
 
 \label{sec:guarded-checks}
 
-The specialization in Section~\ref{sec:guarded-provenance} has two executable
-realizations: iterative decryption of available record objects, and evaluation
+The retained finite checker for Section~\ref{sec:guarded-provenance} compares
+two executable realizations: iterative decryption of available record objects, and evaluation
 of normalized paths after computing key reachability. Their common inputs
 are a finite immutable record graph, canonical key identities, fixed public
 key-derivation edges, acquired records, directly disclosed keys, and directly
@@ -122,6 +122,58 @@ interpretations of the record model.
 Appendix~\ref{app:artifacts} identifies the source, result files and
 independent expected-result checks. The reproduction entry point rejects
 execution modes that disable its assertions.
+
+\paragraph{Indexed closure and cumulative histories.}
+The indexed realization of Proposition~\ref{prop:guarded-worklist} agrees
+with both retained evaluators on all 5,360 assignments. This comparison
+checks the complete source, record and key sets against iterative decryption,
+and the source set against guarded paths. The incremental implementation
+also agrees with fresh iterative evaluation at 2,189 prefixes: the 360 legal
+event permutations, ten directed histories and one repeated-event history.
+Each update returns newly exposed sources; complete snapshots are exported
+explicitly for these comparisons.
+An independent checker also enumerates every satisfying assignment of each
+of 24 small typed Horn theories. For each of 2,592 seed sets, it intersects
+all satisfying assignments that contain the seeds and compares that least
+model with the indexed result in all three sorts. Every comparison agrees.
+
+Structural-work controls separate rule propagation from path enumeration.
+For a key-derivation chain with $m$ edges listed in reverse order, the retained
+scan performs $m(m+1)$ key-edge visits, while the indexed evaluator visits
+each edge once. Table~\ref{tab:indexed-key-work} records the executed cases.
+The count concerns key-derivation incidences; queue and record visits are
+also retained in the machine-readable result.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}rrr@{}}
+\toprule
+Key edges $m$ & Repeated-scan edge visits & Indexed edge visits\\
+\midrule
+32 & 1,056 & 32\\
+128 & 16,512 & 128\\
+512 & 262,656 & 512\\
+\bottomrule
+\end{tabular}
+\caption{Structural work on reverse-ordered key-derivation chains.
+Both evaluators compute the same closure. These are executed operation
+counts on declared control graphs.}
+\label{tab:indexed-key-work}
+\end{table}
+
+A separate 128-layer containment DAG has 257 records, 510 containment edges
+and $2^{128}$ root-to-source paths, counted from its construction.
+The indexed evaluator processes 1,027 queue, guard and payload visits to
+reach the exact closure. A further 2,000 repeated acquisitions and key
+disclosures perform no additional propagation visits. A 4,096-record chain
+checks iterative handling of deep containment. Throughout these controls,
+the indexed evaluator's path-oracle constructor is replaced by a failing
+sentinel; any indexed request for route enumeration would fail the check.
+The result records the graph
+dimensions, individual visit counters and source hashes. These controls
+exercise the indexed implementation and its output accounting under the
+fixed-graph semantics of Proposition~\ref{prop:guarded-worklist}.
 
 \subsection{Reference snapshots and communication schedules}
 
