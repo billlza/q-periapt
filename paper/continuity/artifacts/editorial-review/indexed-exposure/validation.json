@@ -1,0 +1,59 @@
+{
+  "schema": "qperiapt-indexed-exposure-integration/1",
+  "status": "passed",
+  "base_commit": "1ce86a455b45721393676be15d7f0532d71e7c6a",
+  "make_source": {
+    "status": "passed",
+    "command": "make -C paper/continuity source PYTHON=\"sh <repository>/artifact/python-run.sh\"",
+    "log_sha256": "e7e4bd8082272d0a7c157d7dd5dbb1bb87ea31ac4da36b02b7d7d79b61e5c439",
+    "checks": [
+      "chain-prefix finite controls",
+      "native online-chain controls",
+      "four bootstrap source packet checks",
+      "49 matched profile/schedule rows and directed input controls",
+      "28 native retry executions / 14 pairs retained analysis",
+      "indexed closure equivalence, histories, expected cases, input rejection and structural-work controls",
+      "independent typed-Horn least-model enumeration",
+      "manuscript build and source identity",
+      "nine-file single-source export"
+    ]
+  },
+  "indexed_checks": {
+    "receipt": "../../guarded-provenance/indexed-results.json",
+    "sha256": "ddf893d3d304135057d0e1b4652dfd37b531a7e97088e4de4cc6f4bbb21b8488",
+    "fixture_assignments": 5360,
+    "history_prefixes": 2189,
+    "independent_expected_cases": 17,
+    "invalid_inputs_rejected": 13,
+    "measurement": "explicit adjacency/payload and deque-pop counts; no wall-clock threshold"
+  },
+  "independent_model_oracle": {
+    "receipt": "../../guarded-provenance/indexed-review-results.json",
+    "sha256": "d1f25b05a2110e6a9ee303d24affd3aaaf6dd638929bf3e52369614618cd8db8",
+    "method": "Enumerate all Boolean satisfying valuations of each typed Horn theory, then intersect those containing each seed set; compare all three closure sorts.",
+    "graphs": 24,
+    "seed_set_comparisons": 2592
+  },
+  "build_check": {
+    "path": "build-check.json",
+    "sha256": "3b28aeca9599f28a640cf9896af70c7532da833de993c9b79d0e58d288bee79c"
+  },
+  "source_export_check": {
+    "path": "source-export-check.json",
+    "sha256": "94222756eb3335b58abc92f5495a9763e3585f242fb1f81dbb0b69d165e790c8"
+  },
+  "source_preservation": {
+    "path": "source-preservation.json",
+    "sha256": "768a1b93c298d06c2757c57d4dc8c72cee5f78cce212fdfa5f7ca266ae7c8478"
+  },
+  "ci_entrypoint_review": {
+    "path": "ci-integration-review.json",
+    "sha256": "bea36ffbeb217d31ecb706dcad23a8525668e6c6ce6bc9e01823c4177251a796"
+  },
+  "visual_review": {
+    "path": "visual-review.json",
+    "sha256": "13927e35d691796df2b1490932fd0ba45c10635f238d31633c97c66a7c744b25"
+  },
+  "source_zip_sha256": "74101630b96e5d523dd7628404e9ef25d8887c1a87b3ae27d91dd84852d63f24",
+  "hosted_ci": "Hosted CI is attached to the subsequently published exact head and is not asserted by this local validation receipt."
+}

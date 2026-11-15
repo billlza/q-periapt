@@ -1,0 +1,47 @@
+{
+  "status": "passed",
+  "scope": "bounded CI entrypoint, launcher-isolation and artifact-retention review; not a full CI rerun",
+  "source_head": "7f1421e47b7e43fff84a767449bf34112431bfab",
+  "source_sha256": {
+    "artifact/python-run.sh": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255",
+    "artifact/python-env.sh": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49",
+    "artifact/python_bootstrap.py": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
+    "paper/continuity/Makefile": "e481a7e95be639eb3159963dddae16b9b65cd0c869e1959c86197f5ee79a7d92",
+    ".github/workflows/joc-manuscript.yml": "05bd12a2a0ae006e551474b217ab352646d4933d5ca0f89b85c160d33f30667d",
+    "paper/continuity/artifacts/guarded-provenance/check_indexed_exposure.py": "11ff9e6f9089e359313243a8622fc83b9f2e2319d8307b19797abde8b7e17a84",
+    "paper/continuity/artifacts/guarded-provenance/review_indexed_exposure.py": "8cec1e769a7b582107d35315946929bb80816abea804271c9938a5d2edc74991",
+    "paper/continuity/artifacts/guarded-provenance/indexed_exposure.py": "2096c4d30902671eadf1282c3f7ff1ed6a54f3d374c706cefad2c2131ba8211c",
+    "paper/continuity/artifacts/guarded-provenance/check_exposure.py": "f1d099836194f17a165527d5a2296c06a7d2bd44bf187c1ab9c7456e4beeb92c"
+  },
+  "actual_entrypoints": [
+    {
+      "command": [
+        "sh",
+        "/workspace/scratch/9b2c5bdde08e/paper-work/artifact/python-run.sh",
+        "/workspace/scratch/9b2c5bdde08e/paper-work/paper/continuity/artifacts/guarded-provenance/check_indexed_exposure.py",
+        "--output",
+        "/workspace/scratch/9b2c5bdde08e/ci-evidence/indexed-gate/indexed-exposure.json"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.462,
+      "output_sha256": "ddf893d3d304135057d0e1b4652dfd37b531a7e97088e4de4cc6f4bbb21b8488"
+    },
+    {
+      "command": [
+        "sh",
+        "/workspace/scratch/9b2c5bdde08e/paper-work/artifact/python-run.sh",
+        "/workspace/scratch/9b2c5bdde08e/paper-work/paper/continuity/artifacts/guarded-provenance/review_indexed_exposure.py",
+        "--output",
+        "/workspace/scratch/9b2c5bdde08e/ci-evidence/indexed-gate/indexed-exposure-review.json"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.227,
+      "output_sha256": "d1f25b05a2110e6a9ee303d24affd3aaaf6dd638929bf3e52369614618cd8db8"
+    }
+  ],
+  "makefile_hardened_entry_count": 2,
+  "launcher_unchanged_from": "d8b92d0633ed009d042d96b1d63fe357f4cafb98",
+  "loader_changes_sys_path": false,
+  "success_and_always_diagnostics_include_both_json": true,
+  "source_files_modified_by_reviewer": false
+}

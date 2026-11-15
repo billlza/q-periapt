@@ -2,15 +2,15 @@
   "schema": "qperiapt-joc-single-source/1",
   "input_entry": "main.tex",
   "output": "joc-submission.tex",
-  "output_sha256": "57ff79e41a790c0c9cae21a6de771096064267089c49f6f5c5e41bf94a66dded",
+  "output_sha256": "f56a4bc622063640d22c56d36cc8f24d80e882e6be28110765434bc2c6abd082",
   "inputs": {
     "acquisition-nonadditivity.tex": {
       "sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
       "bytes": 2722
     },
     "artifact-map.tex": {
-      "sha256": "c97c63162e301538bdb656dd81955c4be23ae2db56a761382d9d9eef9244d6fd",
-      "bytes": 29631
+      "sha256": "04c753484f052918fdc27e1bc80a851f70591c3ecb8844c694cd4a21a11ab8d9",
+      "bytes": 30224
     },
     "bootstrap-authentication.tex": {
       "sha256": "9622e924761b46033821a5207f2539e31f2af3452d884a2705101c9c2ff679f1",
@@ -65,12 +65,12 @@
       "bytes": 6429
     },
     "evaluation.tex": {
-      "sha256": "d20194ccd12bc9616e3ac28f3c328e8077ba8418331d5b91467b7367bc305fab",
-      "bytes": 10864
+      "sha256": "62e27bda1ffb6f2be7ce68dcf96f586fd864742d9f0bd2abbba9ba510e953472",
+      "bytes": 13508
     },
     "guarded-provenance.tex": {
-      "sha256": "e36afe2f8c381cb1c15ff303a8f10cccc48aae375808c7f297320428583bb27b",
-      "bytes": 9079
+      "sha256": "c6310397b5892bf2f6875d942cef1b2adb8a6f6e962810bb9c3c1e1a7f68fba0",
+      "bytes": 12078
     },
     "introduction.tex": {
       "sha256": "fbc9813ebd23884e2da1827d7ce34fe566024ec524acc6257c18287b3b7067f0",

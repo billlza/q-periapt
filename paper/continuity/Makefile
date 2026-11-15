@@ -23,6 +23,8 @@ check: continuity.pdf
 	mkdir -p "$(BUILD)"
 	$(PYTHON) "$(CURDIR)/artifacts/chain-prefix/check_prefix.py"
 	$(PYTHON) "$(CURDIR)/artifacts/native-online-chain/check_native_chain.py"
+	$(PYTHON) "$(CURDIR)/artifacts/guarded-provenance/check_indexed_exposure.py" --output "$(CURDIR)/$(BUILD)/indexed-exposure.json"
+	$(PYTHON) "$(CURDIR)/artifacts/guarded-provenance/review_indexed_exposure.py" --output "$(CURDIR)/$(BUILD)/indexed-exposure-review.json"
 	$(PYTHON) "$(CURDIR)/artifacts/bootstrap/entry/check_entry.py" --source-root "$(CURDIR)/artifacts/bootstrap/entry/source" --output "$(CURDIR)/$(BUILD)/bootstrap-entry.json"
 	$(PYTHON) "$(CURDIR)/artifacts/bootstrap/terminal/check_connection.py" --source-root "$(CURDIR)/artifacts/bootstrap/terminal/source" --output "$(CURDIR)/$(BUILD)/bootstrap-terminal.json"
 	$(PYTHON) "$(CURDIR)/artifacts/bootstrap/reply/check_source_adapter.py" --source-root "$(CURDIR)/artifacts/bootstrap/reply/source" --output "$(CURDIR)/$(BUILD)/bootstrap-reply.json"
