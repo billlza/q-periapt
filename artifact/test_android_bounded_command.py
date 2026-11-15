@@ -1063,6 +1063,7 @@ class AndroidBoundedCommandTests(unittest.TestCase):
                         "emulator-diagnostics",
                         "register-emulator",
                         "framework-readiness",
+                        "emulator-gc-preparation",
                     },
                 )
                 self.assertGreaterEqual(spec.timeout_maximum, spec.timeout_seconds)
@@ -4780,6 +4781,411 @@ esac
         self.assertEqual(rejected.exception.code, 2)
         invoke.assert_not_called()
 
+    def _gc_guest_sample(
+        self, *, configure: bool = False, collector: str = "CollectorTypeCMC",
+        flag: str = "", boot_id: str = "aa3edfbe-8ad3-4104-859f-c1219bf21b2b",
+        page_size: str = "16384", package: str = "", collector_pid: int = 3160,
+        set_status: int = 0, put_status: int = 0, getprop_status: int = 0,
+    ) -> BoundedResult:
+        fields = ["S"] + ["0"] * 49
+        fields[19] = "600"
+        process_stat = "3160 (system_server) " + " ".join(fields)
+        with tempfile.TemporaryDirectory(dir=self.root) as temporary:
+            directory = pathlib.Path(temporary)
+            fixture = r'''#!/bin/sh
+case "${0##*/}:$*" in
+  "pgrep:^system_server$") printf '3160\n' ;;
+  "cat:/proc/sys/kernel/random/boot_id") printf '%s\n' "$TEST_BOOT" ;;
+  "cat:/proc/3160/stat") printf '%s\n' "$TEST_STAT" ;;
+  "getprop:ro.kernel.qemu") printf '1\n' ;;
+  "getprop:ro.product.cpu.abi") printf 'x86_64\n' ;;
+  "getprop:ro.build.version.sdk") printf '35\n' ;;
+  "getprop:persist.device_config.runtime_native_boot.force_disable_uffd_gc") printf '%s\n' "$TEST_FLAG"; exit "$TEST_GETPROP_STATUS" ;;
+  "getconf:PAGE_SIZE") printf '%s\n' "$TEST_PAGE" ;;
+  "logcat:-d -b main -v brief --pid 3160 system_server:I *:S")
+    printf '%s\n' '--------- beginning of main'
+    printf 'I/system_server( %s): Using %s GC.\n' "$TEST_COLLECTOR_PID" "$TEST_COLLECTOR" ;;
+  "pm:list packages dev.qperiapt.androidsmoke") printf '%s' "$TEST_PACKAGE" ;;
+  "device_config:set_sync_disabled_for_tests persistent") exit "$TEST_SET_STATUS" ;;
+  "device_config:put runtime_native_boot force_disable_uffd_gc true") exit "$TEST_PUT_STATUS" ;;
+  "sleep:0.1") : ;;
+  *) printf 'unexpected fixed probe: %s\n' "$*" >&2; exit 99 ;;
+esac
+'''
+            for name in ("pgrep", "cat", "getprop", "getconf", "logcat", "pm", "device_config", "sleep"):
+                executable = directory / name
+                executable.write_text(fixture)
+                executable.chmod(0o700)
+            builder = commands._configure_emulator_gc_argv if configure else commands._emulator_gc_state_argv
+            arguments = builder(self.load_capability())
+            program = " ".join(arguments[arguments.index("shell") + 1:])
+            raw = self.run_guest_fixture(["/bin/sh", "-c", program], {
+                "PATH": str(directory) + ":/usr/bin:/bin", "TEST_STAT": process_stat,
+                "TEST_BOOT": boot_id, "TEST_FLAG": flag, "TEST_PAGE": page_size,
+                "TEST_COLLECTOR": collector, "TEST_COLLECTOR_PID": str(collector_pid),
+                "TEST_PACKAGE": package, "TEST_SET_STATUS": str(set_status),
+                "TEST_PUT_STATUS": str(put_status),
+                "TEST_GETPROP_STATUS": str(getprop_status),
+            })
+            self.assertEqual(raw.stderr, b"")
+            return BoundedResult(raw.returncode, raw.stdout)
+
+    def test_emulator_gc_probe_reads_current_collector_and_keeps_runtime_constraints(self) -> None:
+        for collector in ("CollectorTypeCMC", "CollectorTypeCC"):
+            sample = self._gc_guest_sample(collector=collector)
+            for output in (sample.stdout, sample.stdout.replace(b"\n", b"\r\n")):
+                identity, observed, flag = commands._emulator_gc_observation(BoundedResult(0, output), self.run_id)
+                self.assertEqual(identity, ("aa3edfbe-8ad3-4104-859f-c1219bf21b2b", 3160, 600))
+                self.assertEqual(observed, collector)
+                self.assertEqual(flag, b"\n")
+        for fields in ({"page_size": "4096"}, {"package": "package:dev.qperiapt.androidsmoke\n"},
+                       {"collector_pid": 3161}, {"collector": ""}):
+            with self.subTest(fields=fields), self.assertRaises(commands.AndroidCommandError):
+                commands._emulator_gc_observation(self._gc_guest_sample(**fields), self.run_id)
+        sample = self._gc_guest_sample()
+        for output in (sample.stdout[:-1], sample.stdout + b"trailing\n",
+                       sample.stdout.replace(self.run_id.encode(), b"b" * 32),
+                       sample.stdout.replace(b"device-sdk\n35\n", b"device-sdk\n36\n"),
+                       sample.stdout.replace(b"device-abi\nx86_64\n", b"device-abi\narm64-v8a\n"),
+                       sample.stdout.replace(b"qemu-kind\n1\n", b"qemu-kind\n0\n")):
+            with self.subTest(output=output[-120:]), self.assertRaises(commands.AndroidCommandError):
+                commands._emulator_gc_observation(BoundedResult(0, output), self.run_id)
+
+    def test_emulator_gc_configuration_preserves_each_failure_and_requires_native_mirror(self) -> None:
+        for arguments, expected in (({"flag": "true"}, 0), ({"flag": "false"}, 66),
+                                    ({"flag": "true", "set_status": 7}, 7),
+                                    ({"flag": "true", "put_status": 9}, 9),
+                                    ({"flag": "true", "getprop_status": 8}, 8)):
+            with self.subTest(arguments=arguments):
+                sample = self._gc_guest_sample(configure=True, **arguments)
+                self.assertEqual(sample.returncode, expected)
+                self.assertEqual(commands._parse_guest_completion(sample.stdout, self.run_id, "gc-config"), (expected, b""))
+
+    def _gc_owner_fixture(self):
+        context, process = self._framework_owner_fixture()
+        receipt = state.load_owned_runtime_receipt()
+        receipt = replace(receipt, adb_profile="linux-system", device_abi="x86_64",
+                          avd_name="QPeriapt_Release_16K_API_35_CI_V1")
+        capability = replace(self.load_capability(), adb_profile="linux-system")
+        context = replace(context, capability=replace(context.capability, adb_profile="linux-system"))
+        return receipt, capability, context, process
+
+    def test_emulator_gc_preparation_requires_a_new_boot_and_actual_cc_before_sdk(self) -> None:
+        before = self._gc_guest_sample()
+        after = self._gc_guest_sample(collector="CollectorTypeCC", flag="true",
+                                      boot_id="bb3edfbe-8ad3-4104-859f-c1219bf21b2b")
+        configured = self._gc_guest_sample(configure=True, flag="true")
+        receipt, capability, context, process = self._gc_owner_fixture()
+        transcript = io.StringIO()
+        with (
+            contextlib.redirect_stdout(transcript),
+            mock.patch.object(state, "load_owned_runtime_receipt", return_value=receipt),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+            mock.patch.object(commands, "_same_receipt_process", return_value=process),
+            mock.patch.object(commands, "_revalidate_emulator_transport_identity") as guard,
+            mock.patch.object(commands, "_wait_framework_ready", return_value=BoundedResult(0)) as ready,
+            mock.patch.object(commands, "capture_stdout", side_effect=[before, configured, BoundedResult(0), after]) as capture,
+            mock.patch.object(commands, "run") as install,
+        ):
+            result = commands._prepare_16k_emulator_gc(self.layout, capability, timeout_seconds=300)
+            self.assertEqual(result.returncode, 0)
+            with self.assertRaises(FileExistsError):
+                commands._prepare_16k_emulator_gc(self.layout, capability, timeout_seconds=300)
+        self.assertEqual(ready.call_count, 2)
+        self.assertEqual(ready.call_args_list[1].kwargs["previous_boot_id"], "aa3edfbe-8ad3-4104-859f-c1219bf21b2b")
+        self.assertEqual(capture.call_count, 4)
+        self.assertEqual(capture.call_args_list[2].args[0], commands._device(capability, "reboot"))
+        self.assertEqual(guard.call_count, 10)
+        self.assertTrue(all(call.kwargs["timeout_seconds"] <= 15 for call in capture.call_args_list))
+        self.assertEqual([call.kwargs["timeout_seconds"] for call in ready.call_args_list], [120, 120])
+        self.assertIn('"collector": "CollectorTypeCC"', transcript.getvalue())
+        self.assertIn('"preparatory_reboots": 1', transcript.getvalue())
+        install.assert_not_called()
+
+    def test_emulator_gc_preparation_never_reboots_an_already_compatible_runtime(self) -> None:
+        sample = self._gc_guest_sample(collector="CollectorTypeCC")
+        receipt, capability, context, process = self._gc_owner_fixture()
+        with (
+            contextlib.redirect_stdout(io.StringIO()),
+            mock.patch.object(state, "load_owned_runtime_receipt", return_value=receipt),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+            mock.patch.object(commands, "_same_receipt_process", return_value=process),
+            mock.patch.object(commands, "_revalidate_emulator_transport_identity"),
+            mock.patch.object(commands, "_wait_framework_ready", return_value=BoundedResult(0)),
+            mock.patch.object(commands, "capture_stdout", return_value=sample) as capture,
+        ):
+            self.assertEqual(commands._prepare_16k_emulator_gc(self.layout, capability, timeout_seconds=300).returncode, 0)
+        self.assertEqual(capture.call_count, 1)
+
+    def test_emulator_gc_preparation_rejects_wrong_lane_and_owner_before_mutation(self) -> None:
+        receipt, capability, context, process = self._gc_owner_fixture()
+        with (
+            mock.patch.object(state, "load_owned_runtime_receipt", return_value=receipt),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(commands, "capture_stdout") as capture,
+        ):
+            for rejected in (replace(capability, device_kind="physical"),
+                             replace(capability, adb_profile="macos-account")):
+                with self.assertRaisesRegex(commands.AndroidCommandError, "owned Linux emulator"):
+                    commands._prepare_16k_emulator_gc(self.layout, rejected, timeout_seconds=300)
+            with mock.patch.object(state, "load_owned_runtime_receipt", return_value=replace(receipt, avd_name="QPeriapt_SDK_4K_API_23_CI_V1")):
+                with self.assertRaisesRegex(commands.AndroidCommandError, "API35/x86_64/16K"):
+                    commands._prepare_16k_emulator_gc(self.layout, capability, timeout_seconds=300)
+            with mock.patch.object(commands, "_validate_recovery_receipt", return_value=context), mock.patch.object(commands, "_same_receipt_process", return_value=None):
+                with self.assertRaisesRegex(commands.AndroidCommandError, "live backend"):
+                    commands._prepare_16k_emulator_gc(self.layout, capability, timeout_seconds=300)
+        capture.assert_not_called()
+
+    def test_emulator_gc_preparation_rejects_failed_configuration_reboot_and_unchanged_collector(self) -> None:
+        before = self._gc_guest_sample()
+        configured = self._gc_guest_sample(configure=True, flag="true")
+        changed_boot = "bb3edfbe-8ad3-4104-859f-c1219bf21b2b"
+        failures = (
+            ([before, BoundedResult(7)], "configuration failed"),
+            ([before, BoundedResult(0, configured.stdout.replace(b":0\n", b":66\n"))], "boot property was not applied"),
+            ([before, configured, BoundedResult(1)], "reboot failed"),
+            ([before, configured, BoundedResult(0), self._gc_guest_sample(collector="CollectorTypeCC", flag="true")], "did not change the boot"),
+            ([before, configured, BoundedResult(0), self._gc_guest_sample(flag="true", boot_id=changed_boot)], "did not activate"),
+            ([before, configured, BoundedResult(0), self._gc_guest_sample(collector="CollectorTypeCC", boot_id=changed_boot)], "did not activate"),
+        )
+        receipt, capability, context, process = self._gc_owner_fixture()
+        for observations, expected in failures:
+            (self.work / "emulator-gc-preparation.started").unlink(missing_ok=True)
+            with (
+                self.subTest(expected=expected), contextlib.redirect_stdout(io.StringIO()),
+                mock.patch.object(state, "load_owned_runtime_receipt", return_value=receipt),
+                mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+                mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+                mock.patch.object(commands, "_same_receipt_process", return_value=process),
+                mock.patch.object(commands, "_revalidate_emulator_transport_identity"),
+                mock.patch.object(commands, "_wait_framework_ready", return_value=BoundedResult(0)),
+                mock.patch.object(commands, "capture_stdout", side_effect=observations) as capture,
+                self.assertRaisesRegex(commands.AndroidCommandError, expected),
+            ):
+                commands._prepare_16k_emulator_gc(self.layout, capability, timeout_seconds=300)
+            self.assertEqual(capture.call_count, len(observations))
+
+    def test_prepared_framework_wait_cannot_accept_the_original_boot(self) -> None:
+        original = self._framework_guest_sample()
+        rebooted = self._framework_guest_sample(boot_id="bb3edfbe-8ad3-4104-859f-c1219bf21b2b")
+        context, process = self._framework_owner_fixture()
+        clock = [0.0]
+        transcript = io.StringIO()
+        with (
+            contextlib.redirect_stdout(transcript),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+            mock.patch.object(commands, "_same_receipt_process", return_value=process),
+            mock.patch.object(commands, "_verify_recovery_listeners"),
+            mock.patch.object(commands.time, "monotonic", side_effect=lambda: clock[0]),
+            mock.patch.object(commands.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)),
+            mock.patch.object(commands, "capture_stdout", side_effect=[original] * 20 + [rebooted] * 6) as capture,
+        ):
+            result = commands._wait_framework_ready(self.layout, self.load_capability(), timeout_seconds=120,
+                                                    previous_boot_id="aa3edfbe-8ad3-4104-859f-c1219bf21b2b")
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(capture.call_count, 26)
+        self.assertEqual(clock[0], 25)
+        self.assertEqual(transcript.getvalue().count('"reason": "awaiting-prepared-reboot"'), 20)
+
+    def test_prepared_framework_wait_reregisters_absent_transport_and_restarts_stability(self) -> None:
+        rebooted = self._framework_guest_sample(boot_id="bb3edfbe-8ad3-4104-859f-c1219bf21b2b")
+        context, process = self._framework_owner_fixture()
+        capability = self.load_capability()
+        clock = [0.0]
+        counts = {"framework": 0, "register": 0, "offline": 0}
+        registration = self.proof / "adb-emulator-registration.txt"
+        registration.write_bytes(b"original authenticated registration\n")
+        registration.chmod(0o600)
+
+        def capture(argv, **arguments):
+            self.assertLessEqual(arguments["timeout_seconds"], int(30 - clock[0]))
+            self.assertEqual(arguments["environment"], commands._client_environment(capability))
+            if argv == commands._framework_readiness_argv(capability):
+                counts["framework"] += 1
+                if counts["framework"] <= 2:
+                    return rebooted
+                if counts["register"] == 0:
+                    return BoundedResult(1, b"device 'emulator-5584' not found\n")
+                if counts["offline"] == 0:
+                    counts["offline"] += 1
+                    return BoundedResult(1, b"device offline\n")
+                return rebooted
+            if argv == commands._adb(capability, "devices"):
+                if counts["register"] == 0:
+                    return BoundedResult(0, b"List of devices attached\n\n")
+                return BoundedResult(0, b"List of devices attached\nemulator-5584\toffline\n\n")
+            if argv == commands.OPERATION_SPECS[commands.AndroidOperation.REGISTER_EMULATOR].build_argv(capability):
+                counts["register"] += 1
+                return BoundedResult(0, b"Connected to emulator on ports 5584,5585\n")
+            if argv == commands._device(capability, "get-state"):
+                return BoundedResult(1, b"device offline\n")
+            self.fail(f"unexpected prepared-boot command: {argv}")
+
+        transcript = io.StringIO()
+        with (
+            contextlib.redirect_stdout(transcript),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+            mock.patch.object(commands, "_same_receipt_process", return_value=process),
+            mock.patch.object(commands, "_verify_recovery_listeners"),
+            mock.patch.object(commands, "_verify_owned_emulator_console_name") as console,
+            mock.patch.object(commands.time, "monotonic", side_effect=lambda: clock[0]),
+            mock.patch.object(commands.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)),
+            mock.patch.object(commands, "capture_stdout", side_effect=capture),
+            mock.patch.object(commands, "run") as install,
+        ):
+            result = commands._wait_framework_ready(self.layout, capability, timeout_seconds=30,
+                                                    previous_boot_id="aa3edfbe-8ad3-4104-859f-c1219bf21b2b")
+        self.assertEqual(result, BoundedResult(0, b"ready\n"))
+        self.assertEqual(counts, {"framework": 10, "register": 1, "offline": 1})
+        records = [json.loads(line.split(" ", 1)[1]) for line in transcript.getvalue().splitlines()
+                   if line.startswith("ANDROID_FRAMEWORK_OBSERVATION ")]
+        self.assertEqual([record["consecutive"] for record in records], [1, 2, 0, 0, 1, 2, 3, 4, 5, 6])
+        self.assertEqual(records[-1]["stable_seconds"], 5)
+        self.assertEqual(clock[0], 9)
+        self.assertEqual(console.call_count, 2)
+        self.assertIn('"outcome": "retryable:post-state-unavailable"', transcript.getvalue())
+        self.assertIn('"outcome": "retryable:transport-inconclusive"', transcript.getvalue())
+        self.assertEqual(registration.read_bytes(), b"original authenticated registration\n")
+        install.assert_not_called()
+
+    def test_prepared_framework_wait_observes_registration_race_without_connecting(self) -> None:
+        rebooted = self._framework_guest_sample(boot_id="bb3edfbe-8ad3-4104-859f-c1219bf21b2b")
+        context, process = self._framework_owner_fixture()
+        capability = self.load_capability()
+        clock = [0.0]
+        observations = [0]
+
+        def capture(argv, **_arguments):
+            if argv == commands._framework_readiness_argv(capability):
+                return rebooted if observations[0] >= 2 else BoundedResult(1, b"device not found\n")
+            if argv == commands._adb(capability, "devices"):
+                observations[0] += 1
+                return BoundedResult(0, b"List of devices attached\n\n" if observations[0] == 1
+                                     else b"List of devices attached\nemulator-5584\tdevice\n\n")
+            if argv == commands._device(capability, "get-state"):
+                return BoundedResult(0, b"device\n")
+            self.fail(f"registration race must not execute a connect: {argv}")
+
+        transcript = io.StringIO()
+        with (
+            contextlib.redirect_stdout(transcript),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+            mock.patch.object(commands, "_same_receipt_process", return_value=process),
+            mock.patch.object(commands, "_verify_recovery_listeners"),
+            mock.patch.object(commands, "_verify_owned_emulator_console_name"),
+            mock.patch.object(commands.time, "monotonic", side_effect=lambda: clock[0]),
+            mock.patch.object(commands.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)),
+            mock.patch.object(commands, "capture_stdout", side_effect=capture),
+        ):
+            result = commands._wait_framework_ready(self.layout, capability, timeout_seconds=20,
+                                                    previous_boot_id="aa3edfbe-8ad3-4104-859f-c1219bf21b2b")
+        self.assertEqual(result, BoundedResult(0, b"ready\n"))
+        self.assertEqual(observations[0], 2)
+        self.assertEqual(clock[0], 6)
+        self.assertIn('"outcome": "race-device"', transcript.getvalue())
+
+    def test_framework_recovery_does_not_mutate_ordinary_offline_or_unauthorized_waits(self) -> None:
+        context, process = self._framework_owner_fixture()
+        capability = self.load_capability()
+        for prepared, transport in ((False, "absent"), (True, "offline"), (True, "unauthorized")):
+            clock = [0.0]
+            commands_seen = []
+
+            def capture(argv, **_arguments):
+                commands_seen.append(argv)
+                if argv == commands._framework_readiness_argv(capability):
+                    return BoundedResult(1, b"device unavailable\n")
+                if prepared and argv == commands._adb(capability, "devices"):
+                    return BoundedResult(0, f"List of devices attached\nemulator-5584\t{transport}\n\n".encode())
+                self.fail(f"unavailable framework must not mutate its transport: {argv}")
+
+            with (
+                self.subTest(prepared=prepared, transport=transport),
+                contextlib.redirect_stdout(io.StringIO()),
+                mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+                mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+                mock.patch.object(commands, "_same_receipt_process", return_value=process),
+                mock.patch.object(commands, "_verify_recovery_listeners"),
+                mock.patch.object(commands, "_verify_owned_emulator_console_name"),
+                mock.patch.object(commands.time, "monotonic", side_effect=lambda: clock[0]),
+                mock.patch.object(commands.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)),
+                mock.patch.object(commands, "capture_stdout", side_effect=capture),
+            ):
+                result = commands._wait_framework_ready(self.layout, capability, timeout_seconds=4,
+                    previous_boot_id="aa3edfbe-8ad3-4104-859f-c1219bf21b2b" if prepared else None)
+            self.assertEqual(result, BoundedResult(1))
+            self.assertEqual(clock[0], 4)
+            self.assertEqual(len(commands_seen), 8 if prepared else 4)
+
+    def test_prepared_framework_recovery_keeps_outer_deadline_and_receipt_binding(self) -> None:
+        context, process = self._framework_owner_fixture()
+        capability = self.load_capability()
+        receipt = state.load_owned_runtime_receipt()
+        clock = [100.0]
+        recoveries = []
+
+        def recover(layout, selected, *, timeout_seconds, deadline, expected_receipt_sha256):
+            self.assertEqual((layout, selected), (self.layout, capability))
+            self.assertEqual(deadline, 107.0)
+            self.assertEqual(expected_receipt_sha256, receipt.snapshot_sha256)
+            self.assertLessEqual(timeout_seconds, int(deadline - clock[0]))
+            recoveries.append(clock[0])
+            clock[0] += 1
+            return BoundedResult(0, b"retryable:registration-failed\n")
+
+        with (
+            contextlib.redirect_stdout(io.StringIO()),
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+            mock.patch.object(commands, "_same_receipt_process", return_value=process),
+            mock.patch.object(commands, "_verify_recovery_listeners"),
+            mock.patch.object(commands, "_recover_owned_emulator_transport", side_effect=recover),
+            mock.patch.object(commands.time, "monotonic", side_effect=lambda: clock[0]),
+            mock.patch.object(commands.time, "sleep", side_effect=lambda seconds: clock.__setitem__(0, clock[0] + seconds)),
+            mock.patch.object(commands, "capture_stdout", return_value=BoundedResult(1, b"device not found\n")),
+        ):
+            result = commands._wait_framework_ready(self.layout, capability, timeout_seconds=7,
+                                                    previous_boot_id="aa3edfbe-8ad3-4104-859f-c1219bf21b2b")
+        self.assertEqual(result, BoundedResult(1))
+        self.assertEqual(recoveries, [100.0, 102.0, 104.0, 106.0])
+        self.assertEqual(clock[0], 107)
+
+    def test_nested_transport_recovery_refuses_a_replacement_receipt_before_commands(self) -> None:
+        self._framework_owner_fixture()
+        with (
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client"),
+            mock.patch.object(commands, "capture_stdout") as capture,
+            self.assertRaisesRegex(commands.AndroidCommandError, "prepared-boot receipt"),
+        ):
+            commands._recover_owned_emulator_transport(self.layout, self.load_capability(), timeout_seconds=5,
+                                                       expected_receipt_sha256="0" * 64)
+        capture.assert_not_called()
+
+    def test_nested_transport_recovery_never_extends_its_outer_deadline(self) -> None:
+        context, process = self._framework_owner_fixture()
+        receipt = state.load_owned_runtime_receipt()
+        clock = [100.0]
+        with (
+            mock.patch.object(commands, "_validate_owned_adb_server_for_client") as guard,
+            mock.patch.object(commands, "_validate_recovery_receipt", return_value=context),
+            mock.patch.object(commands, "_same_receipt_process", return_value=process),
+            mock.patch.object(commands, "_verify_recovery_listeners"),
+            mock.patch.object(commands, "_verify_owned_emulator_console_name"),
+            mock.patch.object(commands, "_observe_expected_transport", return_value=commands.ExpectedTransportState.OTHER),
+            mock.patch.object(commands.time, "monotonic", side_effect=lambda: clock[0]),
+            mock.patch.object(commands, "capture_stdout") as capture,
+        ):
+            result = commands._recover_owned_emulator_transport(self.layout, self.load_capability(), timeout_seconds=15,
+                deadline=103.5, expected_receipt_sha256=receipt.snapshot_sha256)
+        self.assertEqual(result, BoundedResult(0, b"retryable:transport-inconclusive\n"))
+        self.assertEqual({call.kwargs["deadline"] for call in guard.call_args_list}, {103.5})
+        capture.assert_not_called()
+
     def test_minimum_page_probe_parses_complete_aux_vectors_and_refuses_failure(self) -> None:
         def vector(width, entries):
             return b"".join(value.to_bytes(width, "little") for entry in entries for value in entry)
@@ -5966,7 +6372,7 @@ exit "$QPERIAPT_TEST_DUMP_STATUS"
                     "-no-boot-anim",
                     "-show-kernel",
                     "-logcat",
-                    "lmkd:V lowmemorykiller:V adbd:V init:I libc:F DEBUG:V AndroidRuntime:E ActivityManager:I *:S",
+                    "lmkd:V lowmemorykiller:V adbd:V init:I libc:F DEBUG:V AndroidRuntime:E ActivityManager:I system_server:I zygote64:I *:S",
                     "-logcat-output",
                     str(self.layout.proof / "emulator-guest-logcat.txt"),
                     "-no-direct-adb",

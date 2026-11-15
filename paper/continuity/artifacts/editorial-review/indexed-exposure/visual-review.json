@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "pdf_sha256": "0b765bfb85ed01ce1a49a8a25916e0957ce97007f4842cf1ac182936d30320ef",
+  "pages": 123,
+  "rendered_and_visually_inspected_pages": [
+    17,
+    18,
+    91,
+    92,
+    93,
+    104,
+    108
+  ],
+  "render_resolution_dpi": 110,
+  "scope": "New proposition and proof, finite-check/evaluation boundaries and work-count table, primary reference, and artifact/reproduction map.",
+  "observations": "No clipping, overlap, unresolved references or equation/table overflow observed on the inspected pages.",
+  "all_fonts_embedded": true,
+  "font_count": 48,
+  "undefined_references_or_citations": 0,
+  "overfull_boxes": 0,
+  "underfull_box_notices": 137
+}

@@ -73,7 +73,7 @@ PINNED_CHECKOUT_ACTION = (
     "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1"
 )
 PINNED_DOWNLOAD_ARTIFACT_ACTION = (
-    "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1"
+    "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2"
 )
 PINNED_UPLOAD_ARTIFACT_ACTION = (
     "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2"
@@ -2413,6 +2413,7 @@ class BoundVerifierWiringTests(unittest.TestCase):
             "          path: |\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-package-state-observation.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-framework-readiness.log\n"
+            "            target/qperiapt-android-device-smoke-runs/*/proof/adb-emulator-gc-preparation.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-start.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/adb-server.log\n"
             "            target/qperiapt-android-device-smoke-runs/*/proof/emulator.log\n"
@@ -2465,7 +2466,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
 
         proof_upload = extract_named_workflow_step(job, "Retain Android SDK package and runtime evidence")
         for leaf in ("emulator-memory-runtime.txt", "emulator-memory-runtime.err",
-                     "adb-framework-readiness.log", "emulator.log", "emulator-guest-logcat.txt"):
+                     "adb-framework-readiness.log", "adb-emulator-gc-preparation.log",
+                     "emulator.log", "emulator-guest-logcat.txt"):
             self.assertIn(f"target/qperiapt-android-device-smoke-runs/*/proof/{leaf}\n", proof_upload)
         self.assertIn(
             f"        uses: {PINNED_UPLOAD_ARTIFACT_ACTION}\n", proof_upload

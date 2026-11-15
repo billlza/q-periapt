@@ -63,6 +63,11 @@ jobs:
       - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
         with:
           packages: platform-tools emulator system-images;android-35;google_apis_ps16k;x86_64
+      - name: Install the emulator's host runtime dependency
+        run: |
+          # The emulator's version query loads QEMU's PulseAudio client library.
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libpulse0
       - name: Prepare this runner's KVM access
         run: |
           test -c /dev/kvm

@@ -98,6 +98,8 @@ jobs:
             paper/continuity/build/finite-model/python-version.txt
             paper/continuity/build/finite-model/results.json
             paper/continuity/build/finite-model/review_results.json
+            paper/continuity/build/indexed-exposure.json
+            paper/continuity/build/indexed-exposure-review.json
             paper/continuity/build/contextbound-check.json
             paper/continuity/build/confirmation-traffic-check.json
             paper/continuity/build/source-attribution-check.json
@@ -120,6 +122,8 @@ jobs:
             paper/continuity/build/*.log
             paper/continuity/build/*.blg
             paper/continuity/build/build-check.json
+            paper/continuity/build/indexed-exposure.json
+            paper/continuity/build/indexed-exposure-review.json
             paper/continuity/build/source-commit.txt
             paper/continuity/build/native-source-commit.txt
           if-no-files-found: warn

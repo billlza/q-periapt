@@ -1,0 +1,38 @@
+{
+  "status": "passed",
+  "scope": "Editorial revision; existing manuscript make/source and clean export checks",
+  "commands": [
+    {
+      "command": "make source PYTHON=\"sh <isolated-checkout>/artifact/python-run.sh\"",
+      "exit_code": 0,
+      "includes": "Existing chain-prefix, native-online-chain, four bootstrap source checks, matched comparisons/input controls, retry analysis, document check and nine-file source package."
+    },
+    {
+      "command": "sh artifact/python-run.sh paper/continuity/artifacts/bootstrap/verify_source_export.py --archive <build>/joc-source.zip --reading-copy <paper>/continuity.pdf --work-directory <build>/source-export --output <build>/source-export-check.json",
+      "exit_code": 0
+    },
+    {
+      "command": "sh artifact/python-run.sh paper/continuity/check_build.py",
+      "exit_code": 0,
+      "stage": "Final frozen PDF after source export"
+    }
+  ],
+  "make_source_stdout_sha256": "60e898a4483e2fa6dc7908c52c88a53a0d12a0b2742f108d8f73ffe209f2b791",
+  "build_receipt_sha256": "934c059e6942a5d09e34815f775003c6bef6618df795503edb872883019c7987",
+  "source_export_receipt_sha256": "ac853bdd3fa578414507fd623741d9b24a90a58163dfc563f83c30a0bd197d69",
+  "source_preservation_receipt_sha256": "4fc4aa5ac147c2e4cc5f63a591abacb13bb84f6b649d383606ad51247e4da6a5",
+  "reviewed_pages": [
+    1,
+    2,
+    3,
+    4,
+    67,
+    68,
+    69,
+    70
+  ],
+  "visual_result": "No clipping, overlap, equation overflow or unresolved reference observed on the rendered review pages. Final table formatting inspected on pages 69-70.",
+  "tex_environment": "Installed pdfTeX 1.40.26 / LaTeX2e 2024-11-01 patch level 2; missing generated format and font maps repaired in task-local TEXMF without modifying class, styles, figure or sources.",
+  "native_runs_repeated": false,
+  "formal_provers_repeated": false
+}

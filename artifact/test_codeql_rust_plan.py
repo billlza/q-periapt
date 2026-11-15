@@ -160,10 +160,10 @@ class ProductionOfficialTests(unittest.TestCase):
             "[2026-11-11 12:00:00] This is codeql execute queries -J-Xmx3356M --off-heap-ram=9329",
         ]
         for name in self.queries:
-            lines.extend([
-                "[PROGRESS] Loaded " + str((self.pack / name).with_suffix(".qlx")) + ".",
-                "[PROGRESS] Starting evaluation of " + name + ".",
-            ])
+            lines.append("[PROGRESS] Loaded " + str((self.pack / name).with_suffix(".qlx")) + ".")
+            if not (self.inject == "missing_internal_start" and
+                    name == "queries/security/CWE-312/CleartextLogging.ql"):
+                lines.append("[PROGRESS] Starting evaluation of " + name + ".")
             if not (self.inject == "missing_internal_completions" and
                     name in ("queries/security/CWE-295/DisabledCertificateCheck.ql",
                              "queries/security/CWE-319/UseOfHttp.ql")):
@@ -180,10 +180,15 @@ class ProductionOfficialTests(unittest.TestCase):
         # Original successful command stderr from run 43032937156; its internal
         # log omitted two completion messages while stderr retained all 39.
         stderr = Path(__file__).with_name("codeql-fixtures").joinpath(
-            "rust-analyze-2.27.2.stderr").read_bytes()
+            "rust-analyze-2.27.4-windows.stderr" if self.inject == "missing_internal_start"
+            else "rust-analyze-2.27.2.stderr").read_bytes()
         if self.inject == "missing_stderr_completion":
             stderr = b"\n".join(line for line in stderr.split(b"\n")
                                   if b"[39/39 eval " not in line)
+        if self.inject == "missing_stderr_start":
+            stderr = b"\n".join(line for line in stderr.split(b"\n")
+                                  if line != b"Starting evaluation of codeql/rust-queries/"
+                                             b"queries/security/CWE-312/CleartextLogging.ql.")
         write(self.run.evidence / "analyze.stderr", stderr)
         if self.inject in ("runtime_mutation", "primary_and_postcheck_failure"):
             write(self.private_root / "tool/codeql/tools/codeql.jar", b"different runtime")
@@ -218,7 +223,9 @@ class ProductionOfficialTests(unittest.TestCase):
         record = json.loads((self.run.evidence / plan.PLAN_RECEIPT).read_text())
         self.assertEqual(record["schema"], 2)
         self.assertEqual(record["observations"]["query_completions"], 39)
+        self.assertEqual(record["completion_stderr"]["schema"], 2)
         self.assertEqual(record["completion_stderr"]["queries"], sorted(self.queries))
+        self.assertEqual(record["completion_stderr"]["started_queries"], sorted(self.queries))
         self.assertEqual(record["completion_stderr"]["sha256"],
                          digest((self.run.evidence / "analyze.stderr").read_bytes()))
         self.assertEqual(len(record["observations"]["logs"]), 1)
@@ -242,6 +249,38 @@ class ProductionOfficialTests(unittest.TestCase):
             self.analyze()
         self.assertFalse((self.run.evidence / plan.PLAN_RECEIPT).exists())
         self.assertFalse((self.run.evidence / "ANALYSIS.json").exists())
+
+    def test_original_windows_stderr_keeps_missing_internal_start_visible(self) -> None:
+        self.inject = "missing_internal_start"
+        analysis = self.analyze()
+        record = json.loads((self.run.evidence / plan.PLAN_RECEIPT).read_text())
+        self.assertEqual(record["observations"]["query_starts"], 38)
+        self.assertEqual(record["observations"]["query_completions"], 39)
+        self.assertEqual(record["completion_stderr"]["started_queries"], sorted(self.queries))
+        self.assertEqual(record["completion_stderr"]["queries"], sorted(self.queries))
+        plan.validate_publication(self.run.evidence, analysis, expected_mode="official")
+
+    def test_missing_stderr_start_blocks_success_despite_all_internal_messages(self) -> None:
+        self.inject = "missing_stderr_start"
+        with self.assertRaisesRegex(ValueError, "no earlier admitted start"):
+            self.analyze()
+        self.assertFalse((self.run.evidence / plan.PLAN_RECEIPT).exists())
+        self.assertFalse((self.run.evidence / "ANALYSIS.json").exists())
+
+    def test_publication_rejects_missing_start_after_stderr_digest_rebinding(self) -> None:
+        analysis = self.analyze()
+        stderr = self.run.evidence / "analyze.stderr"
+        stderr.write_bytes(b"\n".join(line for line in stderr.read_bytes().split(b"\n")
+                                        if line != b"Starting evaluation of codeql/rust-queries/"
+                                                   b"queries/security/CWE-312/CleartextLogging.ql."))
+        record_path = self.run.evidence / plan.PLAN_RECEIPT
+        record = json.loads(record_path.read_text())
+        record["completion_stderr"].update(bytes=stderr.stat().st_size,
+                                            sha256=digest(stderr.read_bytes()))
+        replace_fixture(record_path, json.dumps(record).encode())
+        analysis["analysis_plan_sha256"] = digest(record_path.read_bytes())
+        with self.assertRaisesRegex(ValueError, "no earlier admitted start"):
+            plan.validate_publication(self.run.evidence, analysis, expected_mode="official")
 
     def test_publication_rereads_the_complete_original_stderr(self) -> None:
         analysis = self.analyze()
@@ -298,6 +337,9 @@ class ProductionOfficialTests(unittest.TestCase):
             ("compilation", lambda value: set_path(value, ("observations", "query_compilations"), 1)),
             ("completion", lambda value: set_path(value, ("completion_stderr", "queries"),
                                                     sorted(self.queries)[:-1])),
+            ("start", lambda value: set_path(value, ("completion_stderr", "started_queries"),
+                                               sorted(self.queries)[:-1])),
+            ("internal_start", lambda value: set_path(value, ("observations", "query_starts"), 40)),
             ("internal_completion", lambda value: set_path(value, ("observations", "query_completions"), 40)),
             ("completion_source", lambda value: set_path(value, ("completion_stderr", "source"), "other.stderr")),
             ("heap", lambda value: set_path(value, ("observations", "jvm_heap_mb_arguments"), [3355])),

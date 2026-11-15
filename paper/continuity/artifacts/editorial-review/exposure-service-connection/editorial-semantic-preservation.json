@@ -1,0 +1,767 @@
+{
+  "schema": "q-periapt/independent-editorial-semantic-preservation/v1",
+  "review_date": "2026-11-15",
+  "base_commit": "4b8cda65727e91508a4d258d550d9de610a21815",
+  "candidate_directory": "/workspace/scratch/a71865d4660c/paper-nov15/paper/continuity",
+  "module_count": 40,
+  "counts": {
+    "statements": 57,
+    "proofs": 52,
+    "displays": 169
+  },
+  "statement_blocks_unchanged": 55,
+  "proof_blocks_unchanged": 51,
+  "display_blocks_unchanged": 169,
+  "changed_blocks": [
+    {
+      "path": "established-results.tex",
+      "kind": "statements",
+      "ordinal": 2,
+      "before": "\\begin{proposition}[Execution-time and counter-based separation]\n\\label{prop:counter-separation}\nIn the native executions, computing a KEM after restart, completing\nthe target epoch, and subsequently reopening the journal do not make a\npreviously disclosed reservation an independent secret contribution.\nMoreover, $\\min(c_A,c_B)+1$ is not a universal upper bound on exposed epochs.\n\\end{proposition}",
+      "after": "\\begin{proposition}[Execution-time and counter-based separation]\n\\label{prop:counter-separation}\nIn the native executions, computing a KEM after restart, completing\nthe target epoch, and subsequently reopening the journal do not make a\npreviously disclosed reservation an independent secret contribution.\nMoreover, $\\min(c_A,c_B)+1$ is not a universal upper bound on the index of\nan exposed epoch.\n\\end{proposition}"
+    },
+    {
+      "path": "guarded-provenance.tex",
+      "kind": "statements",
+      "ordinal": 2,
+      "before": "\\begin{corollary}[Copies, deletion and late disclosure]\n\\label{cor:guarded-history}\nExposure is monotone under additional acquisitions, direct disclosures\nand key disclosures.  Copying or rewrapping a source adds routes to the\nsame source identity.  Local deletion of a record previously acquired\ndoes not remove its routes from adversarial knowledge.  In particular,\na later matching-key disclosure can expose a source in a ciphertext\nacquired before that disclosure and deleted locally in the meantime.\n\\end{corollary}",
+      "after": "\\begin{corollary}[Copies, deletion and late disclosure]\n\\label{cor:guarded-history}\nExposure is monotone under additional acquisitions, direct disclosures\nand key disclosures. Copying or rewrapping a source preserves existing\nroutes and may add routes to the same source identity.\nLocal deletion of a record previously acquired\ndoes not remove its routes from adversarial knowledge.  In particular,\na later matching-key disclosure can expose a source in a ciphertext\nacquired before that disclosure and deleted locally in the meantime.\n\\end{corollary}"
+    },
+    {
+      "path": "guarded-provenance.tex",
+      "kind": "proofs",
+      "ordinal": 2,
+      "before": "\\begin{proof}\nThe cumulative sets and their key closure only grow, and every predicate\nin (GP) is positive.  A source-preserving copy changes a route's record\nidentity or key guards but not its terminal source.  Local deletion\nrestricts future acquisition from that local store; it removes no member\nof $A_t$ and therefore cannot invalidate a satisfied route.\n\\end{proof}",
+      "after": "\\begin{proof}\nThe cumulative sets and their key closure only grow, and every predicate\nin (GP) is positive. An exact ciphertext copy reuses its record identity\nand route. Source-preserving rewrapping may change record identities or\nkey guards while retaining the terminal source. Local deletion\nrestricts future acquisition from that local store; it removes no member\nof $A_t$ and therefore cannot invalidate a satisfied route.\n\\end{proof}"
+    }
+  ],
+  "modules": [
+    {
+      "path": "acquisition-nonadditivity.tex",
+      "base_sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+      "candidate_sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+      "text_changed": false,
+      "statements": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 5,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "artifact-map.tex",
+      "base_sha256": "c97c63162e301538bdb656dd81955c4be23ae2db56a761382d9d9eef9244d6fd",
+      "candidate_sha256": "c97c63162e301538bdb656dd81955c4be23ae2db56a761382d9d9eef9244d6fd",
+      "text_changed": false,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 0,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "bootstrap-authentication.tex",
+      "base_sha256": "9622e924761b46033821a5207f2539e31f2af3452d884a2705101c9c2ff679f1",
+      "candidate_sha256": "9622e924761b46033821a5207f2539e31f2af3452d884a2705101c9c2ff679f1",
+      "text_changed": false,
+      "statements": {
+        "count": 7,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 6,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 11,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "bootstrap-entry.tex",
+      "base_sha256": "c97d14ab80160319d2d87f563f349566961e3f585ef4604417b8c87cce02af2e",
+      "candidate_sha256": "c97d14ab80160319d2d87f563f349566961e3f585ef4604417b8c87cce02af2e",
+      "text_changed": false,
+      "statements": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 5,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "bootstrap-initial-source.tex",
+      "base_sha256": "f20c4944424d6ff5ac9fff6513eda5faaea265c135d3b71d2cd4fd45b9b95812",
+      "candidate_sha256": "f20c4944424d6ff5ac9fff6513eda5faaea265c135d3b71d2cd4fd45b9b95812",
+      "text_changed": false,
+      "statements": {
+        "count": 4,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 4,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 8,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "candidate-local-accounting.tex",
+      "base_sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "candidate_sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "text_changed": false,
+      "statements": {
+        "count": 3,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 3,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 9,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "chain-prefix-continuation.tex",
+      "base_sha256": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
+      "candidate_sha256": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
+      "text_changed": false,
+      "statements": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 4,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "common-virtual-accounting.tex",
+      "base_sha256": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
+      "candidate_sha256": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
+      "text_changed": false,
+      "statements": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 5,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "computational-roadmap.tex",
+      "base_sha256": "26533cacec6b94b4b6cf0b83778aa538e7ba0f690c2f6b42409524dd3464db76",
+      "candidate_sha256": "26533cacec6b94b4b6cf0b83778aa538e7ba0f690c2f6b42409524dd3464db76",
+      "text_changed": false,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 0,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "confirmation-traffic.tex",
+      "base_sha256": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
+      "candidate_sha256": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
+      "text_changed": false,
+      "statements": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 6,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "construction.tex",
+      "base_sha256": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
+      "candidate_sha256": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
+      "text_changed": false,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 2,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "contextbound-connection.tex",
+      "base_sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+      "candidate_sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+      "text_changed": false,
+      "statements": {
+        "count": 3,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 3,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 7,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "declarations.tex",
+      "base_sha256": "f5bd2d2e1433dd8ae1fc19ce8a871eb9a663518a54b70d62cdc994cab4fbaf2a",
+      "candidate_sha256": "f5bd2d2e1433dd8ae1fc19ce8a871eb9a663518a54b70d62cdc994cab4fbaf2a",
+      "text_changed": false,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 0,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "discussion.tex",
+      "base_sha256": "4042b5a6d3d04f28db062abad7a9022ced67c4313702402d85bfbaf06224e7ca",
+      "candidate_sha256": "49894911efe956f8afa662f3725218a28a670f7083b8851cb1d8a87de7985ef5",
+      "text_changed": true,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 1,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "established-results.tex",
+      "base_sha256": "85c1bdb0047823a3c7d637c819369ad1f653df6a1e02cf8fe8c3c3b6b0f6fb41",
+      "candidate_sha256": "396c1203b5a902d1e12c2dc2d8390c94429dcdb6aecaa77a803d33e2ccfd1255",
+      "text_changed": true,
+      "statements": {
+        "count": 2,
+        "changed_blocks": [
+          2
+        ]
+      },
+      "proofs": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 1,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "evaluation.tex",
+      "base_sha256": "77a783600c6a0a48a2969c7baa2110eb69f7686b9068441ba181f49f20c30dfe",
+      "candidate_sha256": "d20194ccd12bc9616e3ac28f3c328e8077ba8418331d5b91467b7367bc305fab",
+      "text_changed": true,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 0,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "guarded-provenance.tex",
+      "base_sha256": "129d36e1b1b30e7377e76552ab20567d4710a1c1975498844a4b07fbba418136",
+      "candidate_sha256": "e36afe2f8c381cb1c15ff303a8f10cccc48aae375808c7f297320428583bb27b",
+      "text_changed": true,
+      "statements": {
+        "count": 2,
+        "changed_blocks": [
+          2
+        ]
+      },
+      "proofs": {
+        "count": 2,
+        "changed_blocks": [
+          2
+        ]
+      },
+      "displays": {
+        "count": 4,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "introduction.tex",
+      "base_sha256": "fbc9813ebd23884e2da1827d7ce34fe566024ec524acc6257c18287b3b7067f0",
+      "candidate_sha256": "fbc9813ebd23884e2da1827d7ce34fe566024ec524acc6257c18287b3b7067f0",
+      "text_changed": false,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 0,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "joint-continuation.tex",
+      "base_sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+      "candidate_sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+      "text_changed": false,
+      "statements": {
+        "count": 3,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 3,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 13,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "joint-primitive-bounds.tex",
+      "base_sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+      "candidate_sha256": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
+      "text_changed": false,
+      "statements": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 15,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "kem-ordinary-bridge.tex",
+      "base_sha256": "871a4a3a0a8744f0288a5a9c8adee47dd8738d0c341f333a8ed465d7fafd025f",
+      "candidate_sha256": "871a4a3a0a8744f0288a5a9c8adee47dd8738d0c341f333a8ed465d7fafd025f",
+      "text_changed": false,
+      "statements": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 4,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "live-core-instantiation.tex",
+      "base_sha256": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+      "candidate_sha256": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+      "text_changed": false,
+      "statements": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 2,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "main.tex",
+      "base_sha256": "6cd59ec3cf8fce94a84579449686d088420a2836e2b86355b31b50631254bd3e",
+      "candidate_sha256": "6cd59ec3cf8fce94a84579449686d088420a2836e2b86355b31b50631254bd3e",
+      "text_changed": false,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 0,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "matched-opportunities.tex",
+      "base_sha256": "f119af537ad701301511d35395f6ba6c477dc691fb412f985436e6bb61793fd4",
+      "candidate_sha256": "ae042652493acb5d0d8328071988867a8eae00e752e02d441eef4f14a800b437",
+      "text_changed": true,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 0,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "matched-opportunity-tables.tex",
+      "base_sha256": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
+      "candidate_sha256": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
+      "text_changed": false,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 0,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "multiple-root-entry.tex",
+      "base_sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+      "candidate_sha256": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
+      "text_changed": false,
+      "statements": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 4,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "native-authentication.tex",
+      "base_sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+      "candidate_sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
+      "text_changed": false,
+      "statements": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 1,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 8,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "native-chain-composition.tex",
+      "base_sha256": "6670da70f63e544bea8bb7786b31db8324bd23c26bbaefa2a9e96642c05e5030",
+      "candidate_sha256": "6670da70f63e544bea8bb7786b31db8324bd23c26bbaefa2a9e96642c05e5030",
+      "text_changed": false,
+      "statements": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 5,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "native-correspondence.tex",
+      "base_sha256": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
+      "candidate_sha256": "334d6e29f4ada5a07e2b82fd08b426b86ce8809a01fb52a29d9b0a085b854c3a",
+      "text_changed": false,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 0,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "opaque-rendering.tex",
+      "base_sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+      "candidate_sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+      "text_changed": false,
+      "statements": {
+        "count": 3,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 3,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 6,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "primitive-inputs.tex",
+      "base_sha256": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
+      "candidate_sha256": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
+      "text_changed": false,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 7,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "reference-schedule-table.tex",
+      "base_sha256": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9",
+      "candidate_sha256": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9",
+      "text_changed": false,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 0,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "related-work.tex",
+      "base_sha256": "79986b07fb2984f048337edb6c06abeb59cda5087fc227cc5bab3fb4a12b71c8",
+      "candidate_sha256": "79986b07fb2984f048337edb6c06abeb59cda5087fc227cc5bab3fb4a12b71c8",
+      "text_changed": false,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 0,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "report-composition.tex",
+      "base_sha256": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
+      "candidate_sha256": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
+      "text_changed": false,
+      "statements": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 8,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "reservation-signature-bridge.tex",
+      "base_sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+      "candidate_sha256": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
+      "text_changed": false,
+      "statements": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 7,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "retry-readiness-table.tex",
+      "base_sha256": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5",
+      "candidate_sha256": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5",
+      "text_changed": false,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 0,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "retry-readiness.tex",
+      "base_sha256": "35b1f1aa5eb5be7c306de857bfce361685c8dfc216315fc77149d47e00bbc516",
+      "candidate_sha256": "35b1f1aa5eb5be7c306de857bfce361685c8dfc216315fc77149d47e00bbc516",
+      "text_changed": false,
+      "statements": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 0,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 0,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "sdk-purpose-connection.tex",
+      "base_sha256": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+      "candidate_sha256": "7d2b287bfff0458e034ff42b7fa8af8053d0f2a59eed034d5ff30183d2de63bc",
+      "text_changed": false,
+      "statements": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 6,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "security-model.tex",
+      "base_sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+      "candidate_sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+      "text_changed": false,
+      "statements": {
+        "count": 5,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 2,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 10,
+        "changed_blocks": []
+      }
+    },
+    {
+      "path": "source-attribution.tex",
+      "base_sha256": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
+      "candidate_sha256": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
+      "text_changed": false,
+      "statements": {
+        "count": 4,
+        "changed_blocks": []
+      },
+      "proofs": {
+        "count": 4,
+        "changed_blocks": []
+      },
+      "displays": {
+        "count": 6,
+        "changed_blocks": []
+      }
+    }
+  ],
+  "assessment": "Three expressly authorized natural-language clarifications: exact ciphertext-copy route idempotence and source-preserving rewrapping; exposed epoch index. Mathematical assumptions, quantities, displayed equations and proof steps retain their meaning. Other formal blocks are byte-identical."
+}

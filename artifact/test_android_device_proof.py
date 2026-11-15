@@ -1442,6 +1442,8 @@ class AndroidDeviceProofProvenanceTests(unittest.TestCase):
         *,
         device_kind: str = "emulator",
         runtime_profile: str = "api35-16k",
+        adb_profile: str = "macos-account",
+        device_abi: str = "arm64-v8a",
         log_status: int = 0,
         device_epoch: str = "1786240000.123",
     ) -> tuple[subprocess.CompletedProcess[bytes], list[str], dict[str, bytes]]:
@@ -1471,6 +1473,8 @@ CALLS={shlex.quote(str(calls))}
 FAIL_OPERATION={shlex.quote(failing_operation or "")}
 DEVICE_KIND={shlex.quote(device_kind)}
 ANDROID_RUNTIME_PROFILE={shlex.quote(runtime_profile)}
+ADB_PROFILE={shlex.quote(adb_profile)}
+DEVICE_ABI={shlex.quote(device_abi)}
 DEVICE_EPOCH={shlex.quote(device_epoch)}
 LOG_STATUS={log_status}
 ANDROID_CONSUMER_PROFILE=legacy_full
@@ -1503,6 +1507,7 @@ android_command() {{
         printf 'bounded diagnostic for %s\\n' "$operation" >&2
         case "$operation" in
             device-time) return 17 ;;
+            prepare-16k-emulator-gc) return 25 ;;
             capture-emulator-baseline) return 18 ;;
             capture-emulator-memory-runtime) return 20 ;;
             wait-framework-ready)
@@ -1681,6 +1686,48 @@ android_command() {{
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertNotIn("capture-emulator-memory-runtime", calls)
             self.assertIn("install-apk", calls)
+
+    def test_hosted_16k_qualifies_the_default_runtime_without_gc_mutation(self) -> None:
+        arguments = {"adb_profile": "linux-system", "device_abi": "x86_64"}
+        # An explicit collector experiment must not become a prerequisite for
+        # qualifying the shipped image and executing the SDK exactly once.
+        for failing_operation in (None, "prepare-16k-emulator-gc"):
+            with self.subTest(failing_operation=failing_operation):
+                result, calls, files = self._run_fresh_install_runtime_steps(failing_operation, **arguments)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(calls[:2], ["preinstall", "device-time"])
+                self.assertNotIn("prepare-16k-emulator-gc", calls)
+                self.assertNotIn("adb-emulator-gc-preparation.log", files)
+                self.assertEqual(calls.count("install-apk"), 1)
+                self.assertEqual(calls.count("start-app"), 1)
+                self.assertLess(calls.index("wait-framework-ready"), calls.index("install-apk"))
+                self.assertLess(calls.index("capture-emulator-memory-runtime"), calls.index("install-apk"))
+        for kind, profile, abi in (("physical", "api35-16k", "x86_64"),
+                                   ("emulator", "api23-4k", "x86_64"),
+                                   ("emulator", "api35-16k", "arm64-v8a")):
+            result, calls, _ = self._run_fresh_install_runtime_steps(
+                None, device_kind=kind, runtime_profile=profile, adb_profile="linux-system", device_abi=abi,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotIn("prepare-16k-emulator-gc", calls)
+            self.assertEqual(calls.count("install-apk"), 1)
+
+    def test_hosted_16k_preserves_framework_and_sdk_failures_without_gc_override(self) -> None:
+        arguments = {"adb_profile": "linux-system", "device_abi": "x86_64"}
+        for operation, status in (("wait-framework-ready", 24), ("install-apk", 1), ("start-app", 1)):
+            with self.subTest(operation=operation):
+                result, calls, files = self._run_fresh_install_runtime_steps(operation, **arguments)
+                self.assertEqual(result.returncode, status, result.stderr)
+                self.assertNotIn("prepare-16k-emulator-gc", calls)
+                self.assertEqual(calls.count(operation), 1)
+                self.assertIn("capture-emulator-diagnostics", calls)
+                if operation == "wait-framework-ready":
+                    self.assertNotIn("install-apk", calls)
+                    self.assertEqual(files["cleanup-state.txt"], b"armed=0 confirmed=0\n")
+                else:
+                    self.assertEqual(calls.count("install-apk"), 1)
+                    log_name = "adb-install.log" if operation == "install-apk" else "adb-start.log"
+                    self.assertIn(f"bounded diagnostic for {operation}".encode(), files[log_name])
 
     def test_failed_or_invalid_clock_does_not_arm_cleanup_or_install(self) -> None:
         cases = (("device-time", "1786240000.123"), (None, ""), (None, "1786240000"),

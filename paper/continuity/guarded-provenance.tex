@@ -102,32 +102,89 @@ definition.  Both inclusions hold for each fixed prefix; no independence
 or advance choice of the acquisition schedule was used.
 \end{proof}
 
-\paragraph{Efficient evaluation.}
+\paragraph{Incremental evaluation.}
 Equation (GP) is a declarative normal form: a compressed record DAG can
-have exponentially many paths.  An efficient leakage evaluator instead
-computes the iterative decryption and key-derivation fixed point, without
-enumerating those paths.  Let $N$ be the total number of record, key and
-source atoms, and let $M$ count rule and payload incidences.  There are at
-most $N$ strict-growth rounds; repeated rule scans therefore take
-$O(N(N+M))$ time and $O(N+M)$ space under standard indexed set and
-dictionary representations, with source-dictionary operations included
-in this accounting.  The finite checker materializes the route table only
-for its declared small fixtures, to compare that normal form against the
-forward evaluator.
+have exponentially many paths. Its exposure set can instead be maintained
+directly from the decryption rules. The evaluator specializes indexed
+forward chaining for Horn rules~\cite[Section~4]{dowlingGallier1984}
+to cumulative record acquisitions and disclosures. Put
+\[
+\begin{aligned}
+ N&=|\mathcal R|+|\mathcal K|+|\Omega_{\rm src}|,\\
+ M&=|\mathcal D|+\sum_{r\in\mathcal R}
+       \bigl(1+|\operatorname{child}(r)|+|\operatorname{orig}(r)|\bigr).
+\end{aligned}
+\]
+The unit in each summand counts the record's matching-key incidence.
+In an adjacency-list representation, repeated incidences are counted with
+multiplicity in $M$.
+
+\begin{proposition}[Incremental exposure evaluation]
+\label{prop:guarded-worklist}
+For the fixed record and key-derivation graphs above, the exact exposure
+set at every prefix of a cumulative acquisition and disclosure history
+can be maintained with $O(N+M)$ preprocessing, $O(N+M+U)$ total time and
+$O(N+M)$ working space, where $U$ counts input acquisition, key-disclosure
+and direct-source-disclosure events, including repetitions. These bounds
+use indexed atom identities with constant-time membership and insertion;
+they include reporting each newly exposed source once. Exporting complete
+sets at selected prefixes adds their total output size.
+\end{proposition}
+\begin{proof}
+Index each key's outgoing derivation edges and the records having that
+matching key. Maintain known keys, available records, opened records and
+exposed sources. Enqueue a key or record only when it first becomes known
+or available. A key event propagates its outgoing derivations and checks
+its indexed records. A record event checks its matching key. When both
+the record and its key are present, open the record once, making its
+children available and its sources exposed. Direct disclosures insert
+their sources immediately. Drain the queue after each input event.
+
+Every insertion is an instance of a stated derivation rule, so all
+maintained facts belong to the least closure. At an empty queue, every
+derivation edge with a known parent has been processed. For a record
+whose two premises hold, the later arrival of those premises triggers
+its opening unless it was already opened. Thus every enabled rule has
+fired, and the maintained facts are exactly the least closure. Applying
+this argument after each input event and using
+Theorem~\ref{thm:guarded-normalization} gives the exposure set (GP) at
+every prefix, including adaptively chosen prefixes.
+
+Each key and record is queued at most once. Each key-derivation and
+matching-key incidence is scanned at most once from its key, each
+record's key is tested once from its record, and each opened record's
+payload incidences are processed once. Repeated input events take
+constant time. The total work is therefore $O(N+M+U)$, and the indexes,
+sets and queue occupy $O(N+M)$ space. Each source enters the incremental
+output at most once; complete-set exports are charged separately.
+\end{proof}
+
+The graphs are fixed throughout this bound. Local deletion changes future
+acquisition availability and leaves the cumulative closure intact. A new
+record or derivation edge changes the indexed input and requires its own
+update accounting. An implementation using dictionaries has the
+corresponding expected bounds under constant expected lookup and insertion
+costs; normalization of external identities is charged separately.
+The finite checker retains explicit route enumeration
+for its small fixtures, where it compares the guarded normal form with
+forward decryption. The indexed evaluator avoids that enumeration;
+materializing all route witnesses can itself require exponential output.
 
 \begin{corollary}[Copies, deletion and late disclosure]
 \label{cor:guarded-history}
 Exposure is monotone under additional acquisitions, direct disclosures
-and key disclosures.  Copying or rewrapping a source adds routes to the
-same source identity.  Local deletion of a record previously acquired
+and key disclosures. Copying or rewrapping a source preserves existing
+routes and may add routes to the same source identity.
+Local deletion of a record previously acquired
 does not remove its routes from adversarial knowledge.  In particular,
 a later matching-key disclosure can expose a source in a ciphertext
 acquired before that disclosure and deleted locally in the meantime.
 \end{corollary}
 \begin{proof}
 The cumulative sets and their key closure only grow, and every predicate
-in (GP) is positive.  A source-preserving copy changes a route's record
-identity or key guards but not its terminal source.  Local deletion
+in (GP) is positive. An exact ciphertext copy reuses its record identity
+and route. Source-preserving rewrapping may change record identities or
+key guards while retaining the terminal source. Local deletion
 restricts future acquisition from that local store; it removes no member
 of $A_t$ and therefore cannot invalidate a satisfied route.
 \end{proof}

@@ -2611,6 +2611,10 @@ if ! : >"$DIST/adb-uninstall-cleanup.log"; then
 	printf 'error: cannot reset Android app cleanup log\n' >&2
 	exit 1
 fi
+# Qualify the system image with its default ART runtime. The explicit GC
+# preparation command is a platform diagnostic: the switched r5 guest repeatedly
+# crashed before SDK installation. Preserve the native
+# runtime, its guest logs, and the framework/SDK checks below.
 if observe_preinstall_package_absence; then
 	:
 else

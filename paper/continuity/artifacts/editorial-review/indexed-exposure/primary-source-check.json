@@ -1,0 +1,28 @@
+{
+  "checked_on": "2026-11-15",
+  "citation_key": "dowlingGallier1984",
+  "publication": {
+    "authors": [
+      "William F. Dowling",
+      "Jean H. Gallier"
+    ],
+    "title": "Linear-Time Algorithms for Testing the Satisfiability of Propositional Horn Formulae",
+    "journal": "The Journal of Logic Programming",
+    "volume": 1,
+    "issue": 3,
+    "pages": "267-284",
+    "year": 1984,
+    "doi": "10.1016/0743-1066(84)90014-1"
+  },
+  "sources": [
+    {
+      "url": "https://www.sciencedirect.com/science/article/pii/0743106684900141",
+      "scope": "Publisher title, journal, issue, pages, date, DOI and abstract."
+    },
+    {
+      "url": "https://www.seas.upenn.edu/~cis5110/Dowling-Gallier-Horn-sat.pdf",
+      "scope": "Original paper Section 4, Algorithm 2 and Section 4.2: indexed forward propagation, incidence accounting and representation assumptions."
+    }
+  ],
+  "use": "Credit the established indexed Horn forward-chaining method. The manuscript proves its stated specialization to cumulative record/key/source exposure and separately validates the implementation."
+}

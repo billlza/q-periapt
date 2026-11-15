@@ -376,7 +376,7 @@ backend is a zero-sized type implementing a core trait:
 | `X25519` | X25519 ECDH-as-KEM | `x25519-dalek` 3.0.0 | `Kem`, default-false first-slot capabilities; deterministic from a 32-byte scalar. Canonical X-Wing uses it in the absorbed traditional slot. |
 | `Sha3_256Xof` | SHA3-256 | RustCrypto `sha3` 0.10.9 | `Xof256`; byte-identical public/secret absorption with fail-closed selective staging erasure. |
 | `MlDsa65` | ML-DSA-65 (FIPS 204) | `fips204` 0.5.0 | `Signer` + `Verifier`; external/pure, context, hedged, and SHAKE-128 pre-hash modes are wired. The deprecated internal API is deliberately not exposed. Signing uses FIPS 204 rejection sampling and therefore has a documented variable-iteration boundary; verification is the ABI2 product path. |
-| `SlhDsaSha2_128s/192s/256s` | SLH-DSA (FIPS 205) | `fips205` 0.4.1 | **feature `slh-dsa`** (off by default). |
+| `SlhDsaSha2_128s/192s/256s` | SLH-DSA (FIPS 205) | `fips205` 0.5.0 | **feature `slh-dsa`** (off by default). |
 
 These backends are reused by `q-periapt-ffi`, `q-periapt-wasm`,
 `q-periapt-rustls`, the non-publishable `q-periapt-tls-demo`, the binding test-vector

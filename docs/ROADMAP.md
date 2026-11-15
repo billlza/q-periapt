@@ -154,7 +154,7 @@ the shipped path:
   source-CT/hax assurance from a replaced backend is inherited.
 - **X25519** via `x25519-dalek` 3.0.0 (`default-features = false`, `static_secrets`).
 - **SHA3-256 / SHAKE-256** via RustCrypto `sha3` 0.10.9.
-- **SLH-DSA** (FIPS 205) via `fips205 0.4.1`, **off by default** behind the
+- **SLH-DSA** (FIPS 205) via `fips205 0.5.0`, **off by default** behind the
   `slh-dsa` feature. The former `pqcrypto-hqc`/PQClean dependencies and `hqc` feature
   are removed rather than advisory-suppressed. `research/hqc-fips207-candidate`
   separately exercises RustCrypto `hqc-kem 0.1.0-rc.0` against the HQC v5 /

@@ -311,21 +311,22 @@ def validate_observations(value: object, pack: Path, queries: dict, heap_mb: int
                                          for relative in queries])
     require(all(type(value[key]) is int for key in
                 ("query_starts", "query_completions", "query_compilations", "evaluator_start_lines"))
-            and value["query_starts"] == 39 and 0 <= value["query_completions"] <= 39
+            and 0 <= value["query_starts"] <= 39 and 0 <= value["query_completions"] <= 39
             and value["query_compilations"] == 0 and value["evaluator_start_lines"] == 1,
             "production evaluator execution census differs")
-    # Internal logs can omit a completion progress message even when the CLI
-    # retains it on stderr. Preserve that log count, and bind the complete
-    # per-query completion set to the independently read original stderr.
+    # Internal logs can omit start or completion progress messages while the
+    # same command's original stderr retains them. Preserve both observed
+    # counts and require each admitted start before its completion in stderr.
     require(isinstance(completion, dict) and set(completion) == {
-                "schema", "source", "bytes", "sha256", "queries"}
-            and type(completion["schema"]) is int and completion["schema"] == 1
+                "schema", "source", "bytes", "sha256", "queries", "started_queries"}
+            and type(completion["schema"]) is int and completion["schema"] == 2
             and completion["source"] == "analyze.stderr"
             and type(completion["bytes"]) is int and 0 < completion["bytes"] <= 16 * 1024**2
             and isinstance(completion["sha256"], str)
             and re.fullmatch(r"[0-9a-f]{64}", completion["sha256"]) is not None
-            and completion["queries"] == sorted(queries) and len(queries) == 39,
-            "production stderr completion census or identity differs")
+            and completion["queries"] == completion["started_queries"] == sorted(queries)
+            and len(queries) == 39,
+            "production stderr execution census or identity differs")
     require(type(heap_mb) is int and 0 < heap_mb <= 14000 - 9329
             and value["jvm_heap_mb_arguments"] == [heap_mb]
             and value["off_heap_mb_observed"] == [9329],
@@ -359,7 +360,8 @@ def complete(run, context: AnalysisContext, analysis: dict, command: list[str], 
     observed = evaluator_logs.observe(context.root, pattern="execute-queries-*.log",
                                       stdio_prefix=None, capture_invocation=True)
     observations = {key: observed[key] for key in OBSERVATION_FIELDS}
-    completion = evaluator_logs.read_completion_receipt(run.evidence / "analyze.stderr", queries)
+    completion = evaluator_logs.read_completion_receipt(
+        run.evidence / "analyze.stderr", queries, require_starts=True)
     memory = parse_strict_json_bytes(read_regular_snapshot(
         run.evidence / "QUERY_MEMORY.json", maximum=64 * 1024,
         label="analysis memory receipt").data, label="analysis memory receipt")
@@ -456,7 +458,8 @@ def validate_publication(directory: Path, analysis: dict, *, expected_mode: str 
     memory = parse_strict_json_bytes(read_regular_snapshot(
         directory / "QUERY_MEMORY.json", maximum=64 * 1024,
         label="published analysis memory receipt").data, label="published analysis memory receipt")
-    completion = evaluator_logs.read_completion_receipt(directory / "analyze.stderr", queries)
+    completion = evaluator_logs.read_completion_receipt(
+        directory / "analyze.stderr", queries, require_starts=True)
     require(record["completion_stderr"] == completion,
             "published completion stderr differs from its bound receipt")
     validate_observations(record["observations"], context.pack, queries, memory["heap_mb"],
