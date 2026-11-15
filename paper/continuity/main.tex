@@ -40,32 +40,29 @@
 % The alternative address is retained in author-metadata.json.
 \author*[1]{\fnm{Ziang} \sur{Li}}\email{2403871950@qq.com}
 \affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
-\abstract{Cryptographic operations that retain randomness across crashes can complete
-after compromise while depending on a previously exposed secret source. We
-develop an original-source exposure condition for recovery and connect it to
-computational security in persistent messaging. The model assigns immutable origins to reservations and tracks
-acquisition of encrypted records together with later key disclosures. Alias
-normalization preserves those origins through copying and resealing; a
-guarded-path characterization captures how records and keys jointly reveal
-them. The main computational construction simulates retained private records
-and causally dependent authentication reports when a reduction holds public
-operation outputs without the original random tape. Candidate-local accounting
-then preserves the native experiment's adaptively selected compromise cut.
-Applied to Q-Periapt Continuity, the construction establishes confidentiality
-and selected-message integrity after the next rekey of an established session,
-including online selection of an uncomputed message step after earlier-key
-disclosure. Component bridges connect the
-operational interfaces to ordinary key encapsulation and hedged-signature security, while
-joint key-entry comparisons retain the complete confirmation and traffic
-schedule in the stated quantum random-oracle models. Complementary bootstrap
-instances protect either original contribution and preserve historical
-activation of the complete signed transcript. A mechanized symbolic theorem
-establishes multi-epoch secrecy under the provenance condition. Native
-executions demonstrate traffic reconstruction from pre-restart reservations,
-aggregate copies and delayed receipts. Independent finite checks and 49 matched
-native/reference executions validate the exposure semantics and quantify
-reconstructed message sets alongside admitted service, communication and
-persistence work.}
+\abstract{Persistent recovery can execute a cryptographic operation after compromise
+using randomness exposed before the crash. We formalize recovery eligibility
+through original sampling events and acquisition of saved session versions,
+and construct a reduction that preserves this history while simulating private
+records from public operation outputs. The simulation maintains record
+equality, public commitments, exact retries and durable outcomes when the
+selected random tape is unavailable to the reduction. Candidate-local
+stopping supports a compromise cut selected after interaction.
+For Q-Periapt Continuity, we prove confidentiality and fresh-message integrity
+after the next rekey of an established session. A previously uncomputed target
+step may be selected online after earlier-key disclosures, with a declared successor-seed
+projection and adversarial crash, network and recovery schedules. The bound
+combines explicit record and source-attribution costs with ordinary ML-KEM
+key-encapsulation and hedged ML-DSA signature security, shared-oracle
+key-schedule comparisons and authenticated encryption in the stated quantum
+random-oracle models. Alias and guarded-path normalization characterize the
+joint effect of copied records and later key disclosures. A mechanized
+symbolic theorem establishes multi-epoch secrecy under the provenance
+condition. Native executions demonstrate traffic reconstruction from
+pre-restart reservations, delayed receipts and aggregate copies. Independent
+finite checks and 49 matched native/reference executions evaluate exposure,
+admitted service and resource use; a paired 28-run retry ablation measures the
+service effect of public retry readiness.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
 

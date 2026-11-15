@@ -75,7 +75,7 @@ def validate_resolution(metadata: dict, consumer: Path, lock: bytes, original: b
     resolved, expected = sdk.external_lock(lock), sdk.external_lock(original)
     sdk.require(all(expected.get(k) == v for k, v in resolved.items()),
                 "maintenance consumer changed external dependency identities")
-    sdk.require({("redb", "2.6.4"), ("redb", "4.3.0"), ("twox-hash", "2.1.4")} <= resolved.keys(),
+    sdk.require({("redb", "2.6.4"), ("redb", "4.3.0"), ("twox-hash", "2.1.5")} <= resolved.keys(),
                 "maintenance dependency closure is incomplete")
     return {"local_packages": sorted(local), "external_packages": len(resolved),
             "lockfile_sha256": hashlib.sha256(lock).hexdigest()}

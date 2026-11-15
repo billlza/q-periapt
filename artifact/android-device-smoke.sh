@@ -2611,6 +2611,20 @@ if ! : >"$DIST/adb-uninstall-cleanup.log"; then
 	printf 'error: cannot reset Android app cleanup log\n' >&2
 	exit 1
 fi
+if [ "$DEVICE_KIND" = "emulator" ] && [ "$ADB_PROFILE" = "linux-system" ] && \
+	[ "$DEVICE_ABI" = "x86_64" ] && [ "$ANDROID_RUNTIME_PROFILE" = "api35-16k" ]; then
+	# The API35 x86 16K image predates the kernel's UFFD compatibility fix.
+	# Select ART's supported CC collector once, before any SDK installation;
+	# the bounded operation verifies a new boot and the actual collector.
+	if android_command prepare-16k-emulator-gc >"$DIST/adb-emulator-gc-preparation.log" 2>&1; then
+		:
+	else
+		emulator_gc_status=$?
+		printf 'error: owned 16K emulator GC preparation failed (exit=%s); see %s\n' \
+			"$emulator_gc_status" "$DIST/adb-emulator-gc-preparation.log" >&2
+		exit "$emulator_gc_status"
+	fi
+fi
 if observe_preinstall_package_absence; then
 	:
 else

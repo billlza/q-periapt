@@ -29,7 +29,16 @@ class MaintenancePackageTests(unittest.TestCase):
             'source="registry+https://github.com/rust-lang/crates.io-index"\n'
             f'checksum="{letter * 64}"\n'
             for name, version, letter in [('redb', '2.6.4', 'a'), ('redb', '4.3.0', 'b'),
-                                         ('twox-hash', '2.1.4', 'c')])).encode()
+                                         ('twox-hash', '2.1.5', 'c')])).encode()
+
+    def test_current_workspace_lock_supplies_the_maintenance_closure(self):
+        lock = (maintenance.ROOT / "Cargo.lock").read_bytes()
+        maintenance.validate_resolution(self.metadata(), self.root, lock, lock)
+
+    def test_stale_hash_dependency_is_rejected_even_with_a_matching_lock(self):
+        lock = self.lock().replace(b'version="2.1.5"', b'version="2.1.4"')
+        with self.assertRaisesRegex(ValueError, "dependency closure is incomplete"):
+            maintenance.validate_resolution(self.metadata(), self.root, lock, lock)
 
     def test_resolution_rejects_wrong_paths_features_and_external_identity(self):
         original = self.metadata()

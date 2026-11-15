@@ -1,19 +1,23 @@
-\section{Validation of exposure semantics}
+\section{Exposure, communication and admitted service}
 \label{sec:evaluation}
 
-The validation asks how the formal exposure conditions appear in executable
-state and communication histories. We use four complementary designs.
-First, the native executions in Section~\ref{sec:established} vary the time
-of reservation use, acknowledgement delivery and aggregate rewriting while
-retaining the original secret source. Second, two implementations of record
-readability are checked against each other and against independently stated
-expected results. Third, a reference corpus records the message keys derivable
-from actual component snapshots under fixed communication schedules.
-Fourth, native and reference executions share a directed opportunity budget
-and report exposure jointly with admitted service and communication work.
-A paired native ablation within this design isolates application-retry
-readiness while retaining the protocol and the opportunity list.
-Table~\ref{tab:validation-questions} relates each design to the question it answers.
+The preceding results identify recovery through original reservation events
+and the acquisition history of saved versions. The experiments follow those
+objects into executable state: the separating runs in
+Section~\ref{sec:established} reconstruct traffic from the captured original
+inputs, and finite-record checks test the closure of acquired objects and
+disclosed keys. Reference snapshots measure reconstructed component keys;
+the common-opportunity executions then measure admitted applications and
+completed service under the same offered workload.
+
+We report reconstructed sets together with first commitments, logical
+deliveries, emitted bytes and persistence work. This joint accounting exposes
+the effect of the native send budget on current-epoch capacity and the effect
+of retry readiness on the use of transmission opportunities. Pinned reference
+snapshots supply the complete seven-schedule component comparison; the common
+opportunity experiment and its paired retry ablation retain the actual
+protocol services and their admission boundaries. Table~\ref{tab:validation-questions}
+locates the corresponding validation objects and interventions.
 
 \begin{table}[t]
 \centering
@@ -38,6 +42,10 @@ indexed by direction, epoch and message number.\\
 How does a recovery budget trade exposure for service? &
 Native and reference runs under common directed opportunities, with separate
 first commitments, logical deliveries, derived sets and full-frame costs.\\
+How does retry readiness affect completed service? &
+Paired native immediate and age-four policies with the same protocol, send
+budget, request stream and opportunity list; complete frame and durability
+accounting.\\
 \bottomrule
 \end{tabularx}
 \end{table}

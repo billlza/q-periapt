@@ -88,7 +88,8 @@ responder snapshot.
 In the native executions, computing a KEM after restart, completing
 the target epoch, and subsequently reopening the journal do not make a
 previously disclosed reservation an independent secret contribution.
-Moreover, $\min(c_A,c_B)+1$ is not a universal upper bound on exposed epochs.
+Moreover, $\min(c_A,c_B)+1$ is not a universal upper bound on the index of
+an exposed epoch.
 \end{proposition}
 \begin{proof}
 At both process-cut boundaries the captured reservation reconstructs the later
@@ -109,8 +110,12 @@ messages in each build profile. The new global revision and outer encryption
 nonce coexist with the old target reservation. This execution instantiates the
 alias/provenance distinction in the record model.
 
-The native executions isolate the reservation and acquisition conditions
-used in Theorem~\ref{thm:symbolic}. Section~\ref{sec:computation} gives the
-record simulations and common-experiment accounting for the corresponding
-computational interfaces.
+The positive symbolic execution establishes joint satisfiability of the
+modeled recovery premises, and the delayed-receipt witness identifies the
+reservation-order condition on which its secrecy conclusion depends. The
+native reconstructions bind that distinction to retained tapes and process
+recovery; the aggregate execution shows how the same source survives a new
+physical image. Section~\ref{sec:evaluation} follows these histories into
+record-readability checks and measured application exposure, service and
+communication work.
 

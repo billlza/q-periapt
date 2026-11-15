@@ -2,9 +2,10 @@
 \label{sec:discussion}
 
 \paragraph{A recovery condition attached to original operations.}
-The model distinguishes creation of an operation's random input, its first
-durable reservation, the acquisition of a retained representation, and the
-later availability of the matching decryption material. This distinction
+The model distinguishes an operation's original entropy reservation, the
+first save of a session-record version, acquisition of a retained
+representation, and later availability of matching decryption material.
+This distinction
 makes exact replay compatible with precise recovery statements: retries and
 aggregate writes preserve the original source, while fresh operations obtain
 new origins. The guarded characterization explains how records and keys
@@ -13,31 +14,22 @@ this conjunction and the original event history matter at the persistence
 and asynchronous-confirmation boundaries.
 
 \paragraph{From a recovered epoch to application security.}
-The computational argument follows a selected original contribution
-through the complete tuple, root initialization, confirmation, traffic
-material and message chain. The joint comparison preserves real
-confirmation and ACK verification, successor-root disclosure and the
-selected message's next-chain-seed disclosure
-(Theorem~\ref{thm:joint-message-leaf}). The online extension permits earlier
-message keys to influence the selected index, with selection fixed before
-its first private computation across all aliases
-(Theorem~\ref{thm:online-chain-leaf}). Exact retries reuse that original
-computation, and real suffix processing continues from the disclosed
-successor seed.
+The computational composition carries an original contribution through its
+root, confirmation, traffic material and selected message. Its native
+controller fixes the target before that step's first private computation
+across endpoint aliases, including receive advances followed by failed
+authentication or persistence. Earlier message keys may inform that choice;
+the paired successor seed may then be disclosed and used for real suffix
+computation. Exact retries retain the original computation.
 
-The native composition assigns these primitive interfaces to the actual
-send and receive order, including receive-side advances followed by
-failed authentication or persistence. Candidate-local stops retain the
-complete-image acquisition condition; the permitted individual key
-observations enter through their named interfaces. The resulting
-confidentiality and selected-message integrity bounds
-(Theorem~\ref{thm:native-online-message}) therefore apply to the original
-eligible application send. The selected-root authentication theorem
-also accounts for its earlier confirmation history
-(Theorem~\ref{thm:native-selected-authentication}). Each terminal event
-is recomputed in the compared execution, with its own component adapter
-and whole-execution budgets. Table~\ref{tab:computational-dependencies}
-records the shared dependencies.
+Theorem~\ref{thm:native-online-message} applies confidentiality and fresh-message
+integrity to the resulting eligible send, while
+Theorem~\ref{thm:native-selected-authentication} accounts for the selected
+root's earlier confirmation history. Candidate-local stopping preserves the
+original acquisition condition through these observations. Each terminal
+event is evaluated in its own comparison world with complete-execution
+resources. Table~\ref{tab:native-online-substitutions} makes the ordinary
+primitive and record costs visible beside the main theorem.
 
 \paragraph{Primitive instantiation and reusable interfaces.}
 For root derivation, the placement of a surviving secret determines the
@@ -79,50 +71,54 @@ supplies recovered secret material, and the signature bridge supplies
 its original-source attribution.
 
 \paragraph{From original bootstrap sources to peer activation.}
-The bootstrap connection follows a distinct source order: initial confirmation
-uses the first contribution before the response contribution exists, and the
-pending root is retained before message activation. The joint short/long
-entry preserves that cross-use. An unused private root-table value can then
-be assigned at its first activation, permitting online protection at the
-actual ACK boundary. Complete signed-wire classes are reconciled with
-effective pad descriptors by an explicit collision witness. The resulting
-comparison changes the ACK alone while retaining the actual sibling outputs.
+The bootstrap connection preserves the source order in which initial
+confirmation uses the first contribution before the response contribution
+exists. Its joint short/long entry retains that shared use, and the terminal
+comparison protects the ACK while preserving sibling outputs. The reply-source
+profile establishes the expected responder's historical activation of the
+exact transcript even when the first contribution and initiator signing
+identity are disclosed. The initial-source profile supplies the complementary
+case with the responder identity and later reply contributions available.
 
-The original reply-source adapter connects this schedule to retained KEM
-tapes and restored-owner validation, with acquisition measured on immutable
-versions in both compared histories. It establishes a concrete surviving-PQ
-profile even when the first contribution and initiator signing identity
-are disclosed. Its terminal conclusion is the expected responder's historical
-activation of the exact transcript, which remains meaningful under retries
-and delayed READY delivery. The initial-source construction supplies the
-complementary profile with the responder signing identity and later reply
-contributions available. It first replaces the original source's complete
-short/long service, then partitions its private long-PRK table by online
-allocation rank. This order isolates the family multiplicity to the
-subsequent tail terms while preserving initial confirmation and
-source-specific lifetime budgets. A broader captured-byte simulation has the
-specific joint journal/derived-key interface described in
-Section~\ref{sec:bootstrap-authentication}; the present bound records its
-acquisition contribution explicitly.
+These conclusions retain meaning through exact retries and delayed READY
+delivery because the original sources and complete signed transcript remain
+fixed. In the initial-source composition, replacing the complete joint entry
+before partitioning reply families confines the family multiplicity to the
+later tail terms. Each profile keeps its own immutable-version acquisition
+contribution. Section~\ref{sec:bootstrap-authentication} specifies the joint
+journal/derived-key interface for a broader captured-byte simulation.
 
 \paragraph{Exposure budgets and completed service.}
-The matched executions make the two-chain current-epoch capacity visible
-under a common communication budget. At the declared capture cut, budgets
-32 and 64 yield 63 and 127 reconstructed future applications in alternating
-traffic, while completing 688 and 718 applications. Reporting the admitted
-denominator alongside the reconstructed set exposes the cost of more frequent
-rekey work. The one-way control reaches its admission cap with both confirmed
-epochs still zero and with every admitted post-capture key reconstructed.
-These observations connect the provenance condition to a concrete accounting
-of recovery, service and queued demand. The frame partition further identifies
-the selected immediate-retry policy's contribution to communication cost.
-A paired native ablation changes application-retry readiness using a public
-sender-turn clock. Under the same 2,048 opportunities, it raises alternating
-deliveries to 971 and 999 while the derived counts remain 63 and 127.
-All twelve bidirectional or resumed budget--schedule pairs deliver more
-applications, with their full byte accounting reporting both reductions
-and increases in cost per delivery. This separates a controllable scheduling
-cost from the allocation envelope and the one-way admission boundary.
+The send budget and retry readiness control different parts of the native
+execution. The budget $b$ caps first allocations in each direction of the
+captured epoch, with alternating derived sets at the declared cut attaining
+$2b-1$. Reducing $b$ from 64 to 32 changes that observed set from 127 to 63
+applications. Under immediate retry readiness, the same change reduces
+completed service from 718 to 688 and increases emitted bytes from 407,596 to
+565,288 as the endpoints complete more rekeys. The original-source condition
+identifies recovery on later eligible sends; the admission denominator and
+backlog retain the service consequence of the selected budget.
+
+Retry readiness determines when an existing ciphertext competes for another
+transmission opportunity. Holding $b$ and the opportunity list fixed, the
+age-four intervention increases alternating deliveries from 688 to 971 and
+from 718 to 999, with the same respective derived counts of 63 and 127.
+Application retries fall from 604 to 16 and from 579 to 8. Total communication
+and persistence work increase with the additional service. At $b=32$, the
+reduction of 588 application retries is balanced by 283 additional first
+applications, 265 ACKs and 40 control frames; the four frame classes still
+sum to 2,048 (Appendix~\ref{app:retry-readiness}). Bytes and
+\texttt{sync\_data} calls per delivered application decrease in these
+alternating runs. Across all twelve bidirectional or resumed pairs, delivered
+service increases and the complete byte accounting retains the measured
+schedule-dependent unit costs.
+
+The one-way control completes the budget's 32 or 64 applications, retains
+the remaining offered demand in its queue and leaves both confirmed epochs
+at zero under either retry policy. Every admitted post-capture key is
+reconstructed there. Recording allocations, completed service and queued
+demand together therefore distinguishes the effects of the admission rule,
+the actual exchange schedule and the sender's retry policy.
 
 \paragraph{Conclusion.}
 Persistent recovery is governed by original secret sources and their
