@@ -110,7 +110,7 @@ test -S "$work/adb.sock"
 # the default ADB port; connect only this freshly launched loopback transport.
 ANDROID_ADB_SERVER_PORT=5586 "$emulator" -avd PlatformProbe35 -port 5584 \
     -no-snapshot -read-only -no-window -no-audio -no-boot-anim \
-    -no-direct-adb -adb-path "$adb" -gpu swiftshader &
+    -no-direct-adb -adb-path "$adb" -gpu swiftshader -memory 4096 &
 emulator_pid=$!
 adb_call() {
     timeout --foreground 5 "$adb" -L "$socket" "$@"
