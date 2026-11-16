@@ -1,0 +1,167 @@
+Running queries.
+Resolving data extensions.
+Finished resolving data extensions.
+Merging data extensions.
+Finished merging data extensions.
+[1/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/ExtractedFiles.qlx.
+[2/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/ExtractionErrors.qlx.
+[3/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/ExtractionWarnings.qlx.
+[4/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/AstConsistencyCounts.qlx.
+[5/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/SsaConsistencyCounts.qlx.
+[6/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/CfgConsistencyCounts.qlx.
+[7/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/UnextractedElements.qlx.
+[8/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/UnresolvedMacroCalls.qlx.
+[9/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/TypeInferenceConsistencyCounts.qlx.
+[10/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/DataFlowConsistencyCounts.qlx.
+[11/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-078/CommandInjection.qlx.
+[12/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-020/RegexInjection.qlx.
+[13/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-022/TaintedPath.qlx.
+[14/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-079/XSS.qlx.
+[15/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-117/LogInjection.qlx.
+[16/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-089/SqlInjection.qlx.
+[17/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-295/DisabledCertificateCheck.qlx.
+[18/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-311/CleartextTransmission.qlx.
+[19/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-312/CleartextLogging.qlx.
+[20/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-312/CleartextStorageDatabase.qlx.
+[21/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-327/BrokenCryptoAlgorithm.qlx.
+[22/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-319/UseOfHttp.qlx.
+[23/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-770/UncontrolledAllocationSize.qlx.
+[24/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-327/WeakSensitiveDataHashing.qlx.
+[25/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-798/HardcodedCryptographicValue.qlx.
+[26/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-825/AccessAfterLifetime.qlx.
+[27/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-614/InsecureCookie.qlx.
+[28/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/LinesOfCode.qlx.
+[29/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/LinesOfUserCode.qlx.
+[30/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/NumberOfFilesExtractedWithErrors.qlx.
+[31/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/NodesWithTypeAtLengthLimit.qlx.
+[32/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/NumberOfSuccessfullyExtractedFiles.qlx.
+[33/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-825/AccessInvalidPointer.qlx.
+[34/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/QuerySinkCounts.qlx.
+[35/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-918/RequestForgery.qlx.
+[36/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/telemetry/DatabaseQualityDiagnostics.qlx.
+[37/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/telemetry/ExtractorInformation.qlx.
+[38/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/SummaryStatsReduced.qlx.
+[39/39] Loaded /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/SummaryStats.qlx.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.ql.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.ql.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.ql.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractedFiles.ql.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractionErrors.ql.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/ExtractionWarnings.ql.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.ql.
+[1/39 eval 27.1s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/AstConsistencyCounts.bqrs.
+[2/39 eval 37.3s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractedFiles.bqrs.
+[3/39 eval 41.6s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionErrors.bqrs.
+[4/39 eval 41.6s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/ExtractionWarnings.bqrs.
+[5/39 eval 51.9s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/CfgConsistencyCounts.bqrs.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.ql.
+[6/39 eval 1m4s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/SsaConsistencyCounts.bqrs.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/UnextractedElements.ql.
+Starting evaluation of codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.ql.
+[7/39 eval 3ms] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnextractedElements.bqrs.
+[8/39 eval 1m8s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/DataFlowConsistencyCounts.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-020/RegexInjection.ql.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-022/TaintedPath.ql.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-078/CommandInjection.ql.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-079/XSS.ql.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-089/SqlInjection.ql.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-117/LogInjection.ql.
+[9/39 eval 2.8s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/UnresolvedMacroCalls.bqrs.
+[10/39 eval 4.7s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-020/RegexInjection.bqrs.
+[11/39 eval 13.5s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-089/SqlInjection.bqrs.
+[12/39 eval 16.1s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-079/XSS.bqrs.
+[13/39 eval 23.2s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-022/TaintedPath.bqrs.
+[14/39 eval 23.3s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-078/CommandInjection.bqrs.
+[15/39 eval 22.9s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-117/LogInjection.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.ql.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.ql.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-312/CleartextLogging.ql.
+[16/39 eval 6.9s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-295/DisabledCertificateCheck.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.ql.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.ql.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-319/UseOfHttp.ql.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.ql.
+[17/39 eval 1.6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-319/UseOfHttp.bqrs.
+[18/39 eval 8.6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/BrokenCryptoAlgorithm.bqrs.
+[19/39 eval 22.6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-311/CleartextTransmission.bqrs.
+[20/39 eval 15.7s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextStorageDatabase.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-614/InsecureCookie.ql.
+[21/39 eval 290ms] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-614/InsecureCookie.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.ql.
+[22/39 eval 22.9s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-312/CleartextLogging.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.ql.
+[23/39 eval 26.1s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-327/WeakSensitiveDataHashing.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.ql.
+[24/39 eval 7.6s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-770/UncontrolledAllocationSize.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.ql.
+[25/39 eval 1m17s] Evaluation done; writing results to codeql/rust-queries/queries/diagnostics/TypeInferenceConsistencyCounts.bqrs.
+Starting evaluation of codeql/rust-queries/queries/security/CWE-918/RequestForgery.ql.
+[26/39 eval 1.7s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-918/RequestForgery.bqrs.
+Starting evaluation of codeql/rust-queries/queries/summary/LinesOfCode.ql.
+[27/39 eval 4.4s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessInvalidPointer.bqrs.
+[28/39 eval 7.9s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-825/AccessAfterLifetime.bqrs.
+Starting evaluation of codeql/rust-queries/queries/summary/LinesOfUserCode.ql.
+Starting evaluation of codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.ql.
+[29/39 eval 2.9s] Evaluation done; writing results to codeql/rust-queries/queries/summary/NodesWithTypeAtLengthLimit.bqrs.
+Starting evaluation of codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.ql.
+Starting evaluation of codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.ql.
+[30/39 eval 973ms] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfFilesExtractedWithErrors.bqrs.
+[31/39 eval 974ms] Evaluation done; writing results to codeql/rust-queries/queries/summary/NumberOfSuccessfullyExtractedFiles.bqrs.
+[32/39 eval 17.1s] Evaluation done; writing results to codeql/rust-queries/queries/security/CWE-798/HardcodedCryptographicValue.bqrs.
+Starting evaluation of codeql/rust-queries/queries/summary/SummaryStats.ql.
+Starting evaluation of codeql/rust-queries/queries/summary/QuerySinkCounts.ql.
+Starting evaluation of codeql/rust-queries/queries/summary/SummaryStatsReduced.ql.
+[33/39 eval 9.1s] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfCode.bqrs.
+[34/39 eval 7.8s] Evaluation done; writing results to codeql/rust-queries/queries/summary/LinesOfUserCode.bqrs.
+Starting evaluation of codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.ql.
+[35/39 eval 41.1s] Evaluation done; writing results to codeql/rust-queries/queries/summary/QuerySinkCounts.bqrs.
+[36/39 eval 45s] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/DatabaseQualityDiagnostics.bqrs.
+Starting evaluation of codeql/rust-queries/queries/telemetry/ExtractorInformation.ql.
+[37/39 eval 54.9s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStatsReduced.bqrs.
+[38/39 eval 12.1s] Evaluation done; writing results to codeql/rust-queries/queries/telemetry/ExtractorInformation.bqrs.
+[39/39 eval 2m25s] Evaluation done; writing results to codeql/rust-queries/queries/summary/SummaryStats.bqrs.
+Shutting down query evaluator.
+Interpreting results.
+Resolving extensions
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/AstConsistencyCounts.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/CfgConsistencyCounts.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/DataFlowConsistencyCounts.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/ExtractedFiles.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/ExtractionErrors.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/ExtractionWarnings.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/SsaConsistencyCounts.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/TypeInferenceConsistencyCounts.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/UnextractedElements.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/diagnostics/UnresolvedMacroCalls.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-020/RegexInjection.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-022/TaintedPath.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-078/CommandInjection.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-079/XSS.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-089/SqlInjection.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-117/LogInjection.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-295/DisabledCertificateCheck.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-311/CleartextTransmission.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-312/CleartextLogging.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-312/CleartextStorageDatabase.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-319/UseOfHttp.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-327/BrokenCryptoAlgorithm.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-327/WeakSensitiveDataHashing.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-614/InsecureCookie.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-770/UncontrolledAllocationSize.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-798/HardcodedCryptographicValue.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-825/AccessAfterLifetime.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-825/AccessInvalidPointer.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/security/CWE-918/RequestForgery.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/LinesOfCode.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/LinesOfUserCode.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/NodesWithTypeAtLengthLimit.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/NumberOfFilesExtractedWithErrors.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/NumberOfSuccessfullyExtractedFiles.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/QuerySinkCounts.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/SummaryStats.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/summary/SummaryStatsReduced.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/telemetry/DatabaseQualityDiagnostics.ql...
+Interpreting /home/runner/work/_temp/qperiapt-codeql-windows/analysis-plan/tool/codeql/qlpacks/codeql/rust-queries/0.1.46/queries/telemetry/ExtractorInformation.ql...
+Reading source archive /home/runner/work/_temp/qperiapt-codeql-database/rust/src.zip
+Exporting results to SARIF...
+Exported results to SARIF (1s).

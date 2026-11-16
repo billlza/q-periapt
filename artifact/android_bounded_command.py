@@ -182,6 +182,7 @@ class AndroidOperation(str, enum.Enum):
     DEVICE_STATE = "device-state"
     BOOT_COMPLETED = "boot-completed"
     WAIT_FRAMEWORK_READY = "wait-framework-ready"
+    PREPARE_16K_EMULATOR_GC = "prepare-16k-emulator-gc"
     QEMU_KIND = "qemu-kind"
     DEVICE_ABI = "device-abi"
     PAGE_SIZE = "page-size"
@@ -240,6 +241,7 @@ class OperationSpec:
         "emulator-diagnostics",
         "register-emulator",
         "framework-readiness",
+        "emulator-gc-preparation",
     ]
     timeout_seconds: int
     timeout_maximum: int
@@ -673,6 +675,68 @@ def _framework_readiness_argv(
     )
 
 
+EMULATOR_GC_PROBES = (
+    ("identity-before", ("qperiapt_framework_identity",)),
+    ("qemu-kind", ("getprop", "ro.kernel.qemu")),
+    ("device-abi", ("getprop", "ro.product.cpu.abi")),
+    ("device-sdk", ("getprop", "ro.build.version.sdk")),
+    ("page-size", ("getconf", "PAGE_SIZE")),
+    ("force-disable-uffd-gc", ("getprop", "persist.device_config.runtime_native_boot.force_disable_uffd_gc")),
+    ("collector", ("qperiapt_collector",)),
+    ("package-absence", ("pm", "list", "packages", PACKAGE)),
+    ("identity-after", ("qperiapt_framework_identity",)),
+)
+
+
+def _emulator_gc_state_argv(
+    capability: runtime_state.AndroidAdbCapability,
+) -> tuple[str, ...]:
+    prelude = (
+        "qperiapt_framework_identity() { "
+        "qperiapt_system_pid=$(pgrep '^system_server$'); qperiapt_pid_status=$?; "
+        '[ "$qperiapt_pid_status" -eq 0 ] || return "$qperiapt_pid_status"; '
+        'case "$qperiapt_system_pid" in ""|*[!0-9]*) return 65;; esac; '
+        "printf 'pid=%s\\n' \"$qperiapt_system_pid\"; "
+        "cat /proc/sys/kernel/random/boot_id || return $?; "
+        'cat "/proc/$qperiapt_system_pid/stat"; }; '
+        "qperiapt_collector() { "
+        'logcat -d -b main -v brief --pid "$qperiapt_system_pid" '
+        "'system_server:I' '*:S'; }; "
+    )
+    return _native_diagnostic_argv(
+        capability, EMULATOR_GC_PROBES,
+        header="QPERIAPT_EMULATOR_GC_VERSION=1",
+        completion="QPERIAPT_EMULATOR_GC_EXIT", prelude=prelude,
+    )
+
+
+def _configure_emulator_gc_argv(
+    capability: runtime_state.AndroidAdbCapability,
+) -> tuple[str, ...]:
+    # AOSP ART's supported boot flag selects CC instead of UFFD/CMC. Wait for
+    # SettingsToPropertiesMapper's native mirror before rebooting: ART reads
+    # the cached boot properties, not the live DeviceConfig database.
+    program = (
+        "qperiapt_gc_status=0; "
+        "device_config set_sync_disabled_for_tests persistent && "
+        "device_config put runtime_native_boot force_disable_uffd_gc true "
+        "|| qperiapt_gc_status=$?; "
+        'if [ "$qperiapt_gc_status" -eq 0 ]; then '
+        "qperiapt_gc_status=66; qperiapt_gc_attempt=0; "
+        'while [ "$qperiapt_gc_attempt" -lt 100 ]; do '
+        "qperiapt_gc_flag=$(getprop persist.device_config.runtime_native_boot.force_disable_uffd_gc); "
+        "qperiapt_gc_probe_status=$?; "
+        'if [ "$qperiapt_gc_probe_status" -ne 0 ]; then '
+        "qperiapt_gc_status=$qperiapt_gc_probe_status; break; fi; "
+        'if [ "$qperiapt_gc_flag" = true ]; then '
+        "qperiapt_gc_status=0; break; fi; "
+        "qperiapt_gc_attempt=$((qperiapt_gc_attempt + 1)); sleep 0.1; done; fi; "
+        f"printf '\\nQPERIAPT_EMULATOR_GC_CONFIG_EXIT:{capability.run_id}:%d\\n' "
+        '\"$qperiapt_gc_status\"; exit \"$qperiapt_gc_status\"'
+    )
+    return _device(capability, "shell", "sh", "-c", shlex.quote(program))
+
+
 def _emulator_state_argv(
     capability: runtime_state.AndroidAdbCapability,
 ) -> tuple[str, ...]:
@@ -867,6 +931,9 @@ def _operation_specs() -> Mapping[AndroidOperation, OperationSpec]:
         ),
         AndroidOperation.WAIT_FRAMEWORK_READY: OperationSpec(
             "framework-readiness", 120, 120, None, _framework_readiness_argv,
+        ),
+        AndroidOperation.PREPARE_16K_EMULATOR_GC: OperationSpec(
+            "emulator-gc-preparation", 300, 300, None, _emulator_gc_state_argv,
         ),
         AndroidOperation.QEMU_KIND: OperationSpec(
             "capture",
@@ -1391,7 +1458,7 @@ def exec_emulator(
         "-no-boot-anim",
         "-show-kernel",
         "-logcat",
-        "lmkd:V lowmemorykiller:V adbd:V init:I libc:F DEBUG:V AndroidRuntime:E ActivityManager:I *:S",
+        "lmkd:V lowmemorykiller:V adbd:V init:I libc:F DEBUG:V AndroidRuntime:E ActivityManager:I system_server:I zygote64:I *:S",
         "-logcat-output",
         str(guest_logcat),
         "-no-direct-adb",
@@ -3971,7 +4038,7 @@ def _observe_exact_device_state(
 
 
 def _parse_guest_completion(
-    output: bytes, run_id: str, kind: Literal["package-state", "emulator-state", "boot-state", "framework-state", "app-exit-info", "memory-runtime"],
+    output: bytes, run_id: str, kind: Literal["package-state", "emulator-state", "boot-state", "framework-state", "app-exit-info", "memory-runtime", "gc-state", "gc-config"],
 ) -> tuple[int, bytes]:
     marker = {
         "package-state": b"QPERIAPT_PACKAGE_QUERY_EXIT:",
@@ -3980,6 +4047,8 @@ def _parse_guest_completion(
         "framework-state": b"QPERIAPT_FRAMEWORK_STATE_EXIT:",
         "app-exit-info": b"QPERIAPT_APP_EXIT_INFO_EXIT:",
         "memory-runtime": b"QPERIAPT_EMULATOR_MEMORY_RUNTIME_EXIT:",
+        "gc-state": b"QPERIAPT_EMULATOR_GC_EXIT:",
+        "gc-config": b"QPERIAPT_EMULATOR_GC_CONFIG_EXIT:",
     }[kind]
     parts = output.rsplit(b"\n", 2)
     _require(
@@ -4094,6 +4163,7 @@ def _wait_framework_ready(
     layout: runtime_state.AndroidRunLayout,
     capability: runtime_state.AndroidCommandCapability,
     *, timeout_seconds: int,
+    previous_boot_id: str | None = None,
 ) -> BoundedResult:
     """Admit one owned emulator after a bounded, stable service observation."""
     _require(capability.device_kind == "emulator", "framework readiness requires an owned emulator")
@@ -4156,6 +4226,30 @@ def _wait_framework_ready(
         else:
             _require(raw is not None, "Android framework query produced no result")
             reason, observed = _framework_readiness_observation(raw, capability.run_id)
+        if observed is not None and observed[0] == previous_boot_id:
+            reason, observed = "awaiting-prepared-reboot", None
+        if previous_boot_id is not None and reason in {"query-nonzero", "query-timeout"}:
+            # This private server deliberately disables emulator auto-scanning.
+            # A preparatory reboot can therefore remove its sole transport.
+            # The existing recovery path reconnects only after authenticated
+            # ownership checks and two exact absence observations; an offline
+            # or unauthorized device is left untouched. Recovery never counts
+            # as a ready sample or refreshes this boot's observation budget.
+            recovery_timeout = _remaining_observation_timeout(deadline)
+            if recovery_timeout is not None:
+                recovery = _recover_owned_emulator_transport(
+                    layout, capability, timeout_seconds=recovery_timeout,
+                    deadline=deadline, expected_receipt_sha256=receipt.snapshot_sha256,
+                )
+                _require(
+                    recovery.returncode == 0 and recovery.stdout in {
+                        (outcome.value + "\n").encode("ascii") for outcome in EmulatorTransportRecovery
+                    },
+                    "prepared-boot transport recovery returned an invalid result",
+                )
+                print("ANDROID_FRAMEWORK_TRANSPORT_RECOVERY " + json.dumps({
+                    "attempt": attempt, "outcome": recovery.stdout.decode("ascii").rstrip("\n"),
+                }, sort_keys=True), flush=True)
         now = time.monotonic()
         if observed is None:
             identity, stable_since, consecutive = None, None, 0
@@ -4175,6 +4269,148 @@ def _wait_framework_ready(
         time.sleep(min(1.0, deadline - now))
     print("ANDROID_FRAMEWORK_READINESS_DEADLINE", flush=True)
     return BoundedResult(1)
+
+
+def _emulator_gc_observation(
+    result: BoundedResult, run_id: str,
+) -> tuple[tuple[str, int, int], str, bytes]:
+    _require(result.returncode == 0, "owned emulator GC query failed")
+    status, payload = _parse_guest_completion(result.stdout, run_id, "gc-state")
+    pattern = rb"QPERIAPT_EMULATOR_GC_VERSION=1\n"
+    for label, _ in EMULATOR_GC_PROBES:
+        name = label.encode("ascii")
+        pattern += (rb"\nQPERIAPT_STATE_PROBE:" + name + rb"\n(.*?)"
+                    rb"\nQPERIAPT_STATE_STATUS:" + name + rb":(0|[1-9][0-9]{0,2})\n")
+    matched = re.fullmatch(pattern, payload.replace(b"\r\n", b"\n"), re.DOTALL)
+    _require(matched is not None, "owned emulator GC query framing is malformed")
+    values = {label: matched[2 * index + 1] for index, (label, _) in enumerate(EMULATOR_GC_PROBES)}
+    statuses = [int(matched[2 * index + 2]) for index in range(len(EMULATOR_GC_PROBES))]
+    _require(status == 0 and all(value == 0 for value in statuses), "owned emulator GC guest query failed")
+    before, before_live = _framework_process_identity(values["identity-before"])
+    after, after_live = _framework_process_identity(values["identity-after"])
+    _require(before_live and after_live and before == after,
+             "Android framework changed during its GC observation")
+    for label, expected in (("qemu-kind", b"1\n"), ("device-abi", b"x86_64\n"),
+                            ("device-sdk", b"35\n"), ("page-size", b"16384\n")):
+        _require(values[label] == expected, f"owned emulator GC {label} differs from API35/x86_64/16K")
+    _require(values["package-absence"] == b"", "Android smoke package appeared before GC preparation")
+    collectors = re.findall(
+        rb"^I/system_server\(\s*([1-9][0-9]{0,9})\): Using (CollectorType[A-Za-z]+) GC\.$",
+        values["collector"], re.MULTILINE,
+    )
+    _require(len(collectors) == 1 and int(collectors[0][0]) == before[1],
+             "current Android system_server collector is missing or ambiguous")
+    return before, collectors[0][1].decode("ascii"), values["force-disable-uffd-gc"]
+
+
+def _prepare_16k_emulator_gc(
+    layout: runtime_state.AndroidRunLayout,
+    capability: runtime_state.AndroidCommandCapability,
+    *, timeout_seconds: int,
+) -> BoundedResult:
+    """Explicitly probe ART CC once on the owned x86 16K image.
+
+    AOSP kernel 38447e018c92f6ae182067a02a6954fa92b33a73 disables UFFD for
+    x86's 16K emulation. API35 image r5 still carries the older 2024-10-18
+    kernel. ART's force_disable_uffd_gc boot flag provides the same collector
+    selection without replacing the image/kernel or changing guest privileges.
+    This diagnostic is not part of normal SDK qualification: the r5 image has
+    exhibited system_server crashes after the switch, before SDK installation.
+    """
+    _require(capability.device_kind == "emulator" and capability.adb_profile == "linux-system",
+             "GC preparation requires the owned Linux emulator")
+    deadline = time.monotonic() + timeout_seconds
+    _validate_owned_adb_server_for_client(capability, deadline=deadline)
+    receipt = runtime_state.load_owned_runtime_receipt()
+    _require(receipt is not None and receipt.run_id == layout.run_id
+             and receipt.phase is runtime_state.RuntimePhase.EMULATOR_CHILD_REGISTERED
+             and receipt.adb_profile == "linux-system" and receipt.device_abi == "x86_64"
+             and runtime_state.owned_avd_profile(receipt.adb_profile, receipt.device_abi,
+                                                 receipt.avd_name) == "api35-16k",
+             "GC preparation requires this run's active API35/x86_64/16K emulator receipt")
+    context = _validate_recovery_receipt(receipt)
+    _require(context.layout == layout and _command_capability_adb_identity(context.capability)
+             == _command_capability_adb_identity(capability),
+             "GC preparation capability differs from its receipt")
+    process = _same_receipt_process(receipt)
+    _require(process is not None and context.backend is not None and process.executable == context.backend,
+             "GC preparation requires the receipt-bound live backend")
+
+    def guard() -> None:
+        _revalidate_emulator_transport_identity(layout, capability, context, receipt, process, deadline=deadline)
+
+    def remaining(maximum: int) -> int:
+        # The package-observation helper caps individual ADB probes at 15s.
+        # A framework boot window retains its existing 120s bound instead.
+        seconds = deadline - time.monotonic()
+        _require(math.isfinite(seconds) and seconds >= 1,
+                 "owned emulator GC preparation deadline expired")
+        return min(int(seconds), maximum)
+
+    def capture(label: str, arguments: tuple[str, ...], maximum_bytes: int = 65536) -> BoundedResult:
+        guard()
+        raw: BoundedResult | None = None
+        primary: BaseException | None = None
+        try:
+            raw = capture_stdout(arguments, timeout_seconds=remaining(15),
+                                 maximum_bytes=maximum_bytes, stderr=subprocess.STDOUT,
+                                 environment=_client_environment(capability))
+            return raw
+        except BaseException as exc:
+            primary = exc
+            raise
+        finally:
+            print("ANDROID_EMULATOR_GC_COMMAND " + json.dumps({
+                "phase": label, "returncode": None if raw is None else raw.returncode,
+                "output": "" if raw is None else raw.stdout.decode("utf-8", "replace"),
+            }, sort_keys=True), flush=True)
+            try:
+                guard()
+            except BaseException as exc:
+                if primary is None:
+                    raise
+                primary.add_note(f"emulator GC preparation identity postcheck also failed: {exc}")
+
+    # This exclusive marker is retained on failure. A second invocation cannot
+    # reset the boot or turn a failed SDK run into a new observation.
+    guard()
+    directory_fd = _output_directory(layout, OutputRoot.WORK)
+    try:
+        descriptor = os.open("emulator-gc-preparation.started",
+                             os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+                             0o600, dir_fd=directory_fd)
+        os.close(descriptor)
+    finally:
+        os.close(directory_fd)
+    ready = _wait_framework_ready(layout, capability, timeout_seconds=remaining(120))
+    _require(ready.returncode == 0, "Android framework unavailable before GC preparation")
+    before, collector, _flag = _emulator_gc_observation(
+        capture("before", _emulator_gc_state_argv(capability), 1048576), capability.run_id,
+    )
+    _require(collector in {"CollectorTypeCC", "CollectorTypeCMC"}, "unexpected Android emulator collector")
+    if collector == "CollectorTypeCC":
+        print("ANDROID_EMULATOR_GC_READY " + json.dumps({
+            "collector": collector, "identity": before, "preparatory_reboots": 0,
+        }, sort_keys=True), flush=True)
+        return BoundedResult(0)
+    configured = capture("configure", _configure_emulator_gc_argv(capability))
+    _require(configured.returncode == 0, "Android emulator GC configuration failed")
+    status, _ = _parse_guest_completion(configured.stdout, capability.run_id, "gc-config")
+    _require(status == 0, "Android emulator GC boot property was not applied")
+    restarted = capture("reboot", _device(capability, "reboot"))
+    _require(restarted.returncode == 0, "Android emulator preparation reboot failed")
+    ready = _wait_framework_ready(layout, capability, timeout_seconds=remaining(120), previous_boot_id=before[0])
+    _require(ready.returncode == 0, "Android emulator did not reach its prepared boot")
+    after, collector, flag = _emulator_gc_observation(
+        capture("after", _emulator_gc_state_argv(capability), 1048576), capability.run_id,
+    )
+    _require(after[0] != before[0], "Android emulator preparation did not change the boot identity")
+    _require(flag == b"true\n" and collector == "CollectorTypeCC",
+             "Android emulator did not activate the prepared CC collector")
+    print("ANDROID_EMULATOR_GC_READY " + json.dumps({
+        "collector": collector, "identity": after, "preparatory_reboots": 1,
+    }, sort_keys=True), flush=True)
+    return BoundedResult(0)
 
 
 def _observe_package_state(
@@ -4364,10 +4600,13 @@ def _recover_owned_emulator_transport(
     capability: runtime_state.AndroidCommandCapability,
     *,
     timeout_seconds: int,
+    deadline: float | None = None,
+    expected_receipt_sha256: str | None = None,
 ) -> BoundedResult:
     """Attempt one authenticated re-registration without changing proof evidence."""
 
-    deadline = time.monotonic() + timeout_seconds
+    attempt_deadline = time.monotonic() + timeout_seconds
+    deadline = attempt_deadline if deadline is None else min(attempt_deadline, deadline)
     _validate_owned_adb_server_for_client(capability, deadline=deadline)
     result: BoundedResult | None = None
     primary: BaseException | None = None
@@ -4379,6 +4618,10 @@ def _recover_owned_emulator_transport(
             and receipt.phase is runtime_state.RuntimePhase.EMULATOR_CHILD_REGISTERED
             and receipt.device_kind == "emulator",
             "emulator transport recovery lacks this run's active emulator receipt",
+        )
+        _require(
+            expected_receipt_sha256 is None or receipt.snapshot_sha256 == expected_receipt_sha256,
+            "emulator transport recovery differs from the prepared-boot receipt",
         )
         context = _validate_recovery_receipt(receipt)
         _require(
@@ -4699,6 +4942,8 @@ def invoke_operation(
         )
     if spec.mode == "framework-readiness":
         return _wait_framework_ready(layout, capability, timeout_seconds=timeout)
+    if spec.mode == "emulator-gc-preparation":
+        return _prepare_16k_emulator_gc(layout, capability, timeout_seconds=timeout)
     if spec.mode == "package-state":
         return _invoke_package_state(
             capability,

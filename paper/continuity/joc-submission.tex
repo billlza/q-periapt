@@ -154,6 +154,13 @@ public key derivations, guarded paths exactly characterize iterative
 decryption (Theorem~\ref{thm:guarded-normalization}): acquired ciphertexts and
 disclosed keys may jointly reveal a source, with alternative copies providing
 additional routes to that source.
+For fixed indexed graphs, an incremental evaluator maintains this exposure
+set at every acquisition/disclosure prefix in cumulative $O(N+M+U)$ work
+(Proposition~\ref{prop:guarded-worklist}). Here $N$ counts atoms, $M$ stored
+incidences with multiplicity, and $U$ input events including repetitions;
+complete-state exports add their output size. The construction specializes
+indexed Horn propagation~\cite{dowlingGallier1984} to the record, key and
+source sorts, preserving both arrival orders of a record and its matching key.
 
 Successive Extract and Expand comparisons isolate the online selected key
 while preserving earlier-key observations, its disclosed successor seed and
@@ -193,15 +200,14 @@ sender turns increases completed service in every measured bidirectional or
 resumed schedule, retaining the alternating exposure counts and recording
 schedule-dependent communication costs.
 
-The same simulation method also supports dependent authentication reports,
-whose immutable rows are simulated in reverse causal order. Further
-instances cover multiple root entries and SDK purpose keys, with equal-input
-aliases and separate returned-owner lifecycles. The two bootstrap profiles
-protect the original inventory source or reply source and establish
+Further instances simulate dependent authentication reports in reverse causal
+order and cover multiple root entries and SDK purpose keys, preserving
+equal-input aliases and separate returned-owner lifecycles. The two bootstrap
+profiles protect the original inventory source or reply source and establish
 historical activation of the complete signed transcript
 (Corollary~\ref{cor:bootstrap-initial-terminal} and
-Theorem~\ref{thm:bootstrap-terminal}). These extensions retain their explicit
-interfaces and proof connections in the final computational subsections.
+Theorem~\ref{thm:bootstrap-terminal}). The final computational subsections
+develop these interfaces and proof connections.
 
 \paragraph{Security model and organization.}
 Section~\ref{sec:construction} describes the construction;
@@ -6431,9 +6437,18 @@ This distinction
 makes exact replay compatible with precise recovery statements: retries and
 aggregate writes preserve the original source, while fresh operations obtain
 new origins. The guarded characterization explains how records and keys
-combine to expose that source. The native executions demonstrate why both
-this conjunction and the original event history matter at the persistence
-and asynchronous-confirmation boundaries.
+combine to expose that source. On a fixed indexed graph,
+Proposition~\ref{prop:guarded-worklist} maintains the exact readable-source set
+through cumulative acquisitions and disclosures, reporting each newly exposed
+source once. Its total work follows the stored incidences and input events,
+with complete-set exports charged by their output size.
+
+The recovery experiment binds its selected send and cut to the original
+reservation and first-save events through~\eqref{eq:eligibility}.
+The graph closure supplies the record model's source-readability semantics;
+the native proof preserves those original event predicates through each
+comparison. The native executions demonstrate their operational significance
+at the persistence and asynchronous-confirmation boundaries.
 
 \paragraph{From a recovered epoch to application security.}
 The computational composition carries an original contribution through its
@@ -6544,7 +6559,10 @@ the actual exchange schedule and the sender's retry policy.
 
 \paragraph{Conclusion.}
 Persistent recovery is governed by original secret sources and their
-acquisition histories. An exact record-exposure semantics and constructive
+acquisition histories. Exact record-exposure semantics identifies readable
+sources, and its indexed realization processes cumulative acquisitions and
+disclosures with
+total work linear in the fixed stored graph and input history. Constructive
 record/report simulations connect an eligible native rekey to confidentiality
 and authentication of its marked message. Original-operation and shared-XOF
 reductions preserve source attribution through retained randomizers and exact

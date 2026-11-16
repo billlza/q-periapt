@@ -1,0 +1,154 @@
+{
+  "reviewer": "/root/theory_nov16",
+  "date_utc": "2026-11-16",
+  "baseline_main": "9d49c678565d3d9d8ca7d001a117781917e3782c",
+  "paper_commit": "f93fb5903a5a39edbbdb9a9340f52dfb2e706a93",
+  "review_tree": "/workspace/scratch/a71865d4660c/paper-nov16",
+  "mode": "Independent read-only source and derivation audit; no remote writes or theorem/code modifications by this reviewer.",
+  "scope": "Theorem 5.28 and its candidate-local eligibility/stopping, online-selected chain and AEAD continuation; Proposition 4.5 and implementation/evidence interface; final introduction/discussion patch. This is a scoped audit, not a universal proof certification.",
+  "outcome": "No demonstrated defect found in the inspected derivation and cost-accounting path. Final two-module editorial patch approved.",
+  "reviewed_formal_modules_unchanged": true,
+  "reviewed_artifact_sources_unchanged": true,
+  "findings": [
+    {
+      "topic": "Acquisition eligibility and source readability",
+      "result": "The definitions implement distinct, compatible predicates. Guarded closure computes source derivability in the fixed graph. Native eligibility binds the chosen accepted message and cut to original reservation events and acquired-session first-save metadata. The new discussion preserves this distinction instead of deriving eligibility directly from source-set membership.",
+      "locations": [
+        "security-model.tex:422-477 (eq:eligibility)",
+        "guarded-provenance.tex:123 (prop:guarded-worklist)",
+        "discussion.tex:12-23"
+      ]
+    },
+    {
+      "topic": "Candidate selection and stopping",
+      "result": "The free stopping certificate is candidate-local and anchored to original acquisition/save/reservation metadata. It applies to all eligible continuations of that candidate even when the final cut or other origin has not yet been selected. Localization is performed in the original game, and modified-world selectors are recomputed. No global-stop substitution or conditioning by eligibility probability was found in this inspected proof path.",
+      "locations": [
+        "candidate-local-accounting.tex (Origin-anchored adaptive stopping; signed score accounting)",
+        "security-model.tex:487-546",
+        "native-chain-composition.tex:189-277 (thm:native-online-message)"
+      ]
+    },
+    {
+      "topic": "Online mark and chain hybrids",
+      "result": "The first-computation ledger includes receiving-side and failed transaction computations. Repeated computation does not open a new marking opportunity. The hybrids retain the continuation and the stated query budgets; their index-wise sum does not insert an unsupported extra guessing claim. The selected-key AEAD continuation explicitly supplies the pre-encryption decryption interface.",
+      "locations": [
+        "native-chain-composition.tex:24-105",
+        "chain-prefix-continuation.tex",
+        "joint-continuation.tex (application secrecy and selected-key AEAD continuation)"
+      ]
+    },
+    {
+      "topic": "Signed score and candidate costs",
+      "result": "The inspected signed-score comparisons consistently account for two-sided difference costs and the final one-half conversion to conventional advantage. Original attribution and later simulation residuals are localized separately; the derivation does not partition probabilities across unrelated altered worlds.",
+      "locations": [
+        "candidate-local-accounting.tex",
+        "native-chain-composition.tex:189-277",
+        "common-virtual-accounting.tex"
+      ]
+    },
+    {
+      "topic": "Incremental closure cost and implementation",
+      "result": "The fixed-graph worklist maintains exactly the least closure through cumulative record acquisitions and key/source disclosures. Separate key/record arrival handling covers both orders. The opened latch prevents repeated payload scans. Incidence multiplicity, duplicate input events, and complete-state export cost agree with Proposition 4.5 and the new introductory statement. The lazy reference-path helpers are outside the incremental worklist path.",
+      "locations": [
+        "guarded-provenance.tex:123 (prop:guarded-worklist)",
+        "artifacts/guarded-provenance/indexed_exposure.py",
+        "introduction.tex:87-94"
+      ]
+    },
+    {
+      "topic": "Empirical linkage and independent checks",
+      "result": "Source inspection confirms that the independent reviewer computes Horn-model intersections over sort-tagged atoms, while directed fixtures cover alias sorts, repeated incidences, both arrival orders, and no-record key cycles. These support implementation/semantics alignment. This review does not introduce new execution counts or claim that those scripts were rerun by this reviewer.",
+      "locations": [
+        "artifacts/guarded-provenance/review_indexed_exposure.py",
+        "artifacts/guarded-provenance/check_indexed_exposure.py"
+      ]
+    },
+    {
+      "topic": "Two-module editorial patch",
+      "result": "Approved. The introduction now presents an already-established algorithmic result with N/M/U definitions and output-size accounting. The discussion connects graph semantics to the separate native proof interface. The conclusion explicitly retains the fixed-graph condition. The condensed extensions paragraph preserves its theorem references and technical claims.",
+      "locations": [
+        "introduction.tex:87-94",
+        "introduction.tex:133-140",
+        "discussion.tex:12-23",
+        "discussion.tex:133-142"
+      ]
+    }
+  ],
+  "snapshots": {
+    "paper/continuity/native-chain-composition.tex": {
+      "sha256": "6670da70f63e544bea8bb7786b31db8324bd23c26bbaefa2a9e96642c05e5030",
+      "baseline_sha256": "6670da70f63e544bea8bb7786b31db8324bd23c26bbaefa2a9e96642c05e5030",
+      "identical_to_baseline": true
+    },
+    "paper/continuity/chain-prefix-continuation.tex": {
+      "sha256": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
+      "baseline_sha256": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
+      "identical_to_baseline": true
+    },
+    "paper/continuity/security-model.tex": {
+      "sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+      "baseline_sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+      "identical_to_baseline": true
+    },
+    "paper/continuity/candidate-local-accounting.tex": {
+      "sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "baseline_sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "identical_to_baseline": true
+    },
+    "paper/continuity/common-virtual-accounting.tex": {
+      "sha256": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
+      "baseline_sha256": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
+      "identical_to_baseline": true
+    },
+    "paper/continuity/guarded-provenance.tex": {
+      "sha256": "c6310397b5892bf2f6875d942cef1b2adb8a6f6e962810bb9c3c1e1a7f68fba0",
+      "baseline_sha256": "c6310397b5892bf2f6875d942cef1b2adb8a6f6e962810bb9c3c1e1a7f68fba0",
+      "identical_to_baseline": true
+    },
+    "paper/continuity/joint-continuation.tex": {
+      "sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+      "baseline_sha256": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
+      "identical_to_baseline": true
+    },
+    "paper/continuity/contextbound-connection.tex": {
+      "sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+      "baseline_sha256": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
+      "identical_to_baseline": true
+    },
+    "paper/continuity/live-core-instantiation.tex": {
+      "sha256": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+      "baseline_sha256": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
+      "identical_to_baseline": true
+    },
+    "paper/continuity/artifacts/guarded-provenance/indexed_exposure.py": {
+      "sha256": "2096c4d30902671eadf1282c3f7ff1ed6a54f3d374c706cefad2c2131ba8211c",
+      "baseline_sha256": "2096c4d30902671eadf1282c3f7ff1ed6a54f3d374c706cefad2c2131ba8211c",
+      "identical_to_baseline": true
+    },
+    "paper/continuity/artifacts/guarded-provenance/check_exposure.py": {
+      "sha256": "f1d099836194f17a165527d5a2296c06a7d2bd44bf187c1ab9c7456e4beeb92c",
+      "baseline_sha256": "f1d099836194f17a165527d5a2296c06a7d2bd44bf187c1ab9c7456e4beeb92c",
+      "identical_to_baseline": true
+    },
+    "paper/continuity/artifacts/guarded-provenance/review_indexed_exposure.py": {
+      "sha256": "8cec1e769a7b582107d35315946929bb80816abea804271c9938a5d2edc74991",
+      "baseline_sha256": "8cec1e769a7b582107d35315946929bb80816abea804271c9938a5d2edc74991",
+      "identical_to_baseline": true
+    },
+    "paper/continuity/artifacts/guarded-provenance/check_indexed_exposure.py": {
+      "sha256": "11ff9e6f9089e359313243a8622fc83b9f2e2319d8307b19797abde8b7e17a84",
+      "baseline_sha256": "11ff9e6f9089e359313243a8622fc83b9f2e2319d8307b19797abde8b7e17a84",
+      "identical_to_baseline": true
+    },
+    "paper/continuity/introduction.tex": {
+      "sha256": "4d79744628d36d87e5eb992dce3edc1808fd9ff5dad727865f389a460783fe19",
+      "baseline_sha256": "fbc9813ebd23884e2da1827d7ce34fe566024ec524acc6257c18287b3b7067f0",
+      "identical_to_baseline": false
+    },
+    "paper/continuity/discussion.tex": {
+      "sha256": "dfaa695269f67083043a1c7da176ff24c7c9343f842352587c8b8da757f1a25c",
+      "baseline_sha256": "49894911efe956f8afa662f3725218a28a670f7083b8851cb1d8a87de7985ef5",
+      "identical_to_baseline": false
+    }
+  }
+}

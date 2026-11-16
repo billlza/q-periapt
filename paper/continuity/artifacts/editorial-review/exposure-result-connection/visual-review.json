@@ -1,0 +1,33 @@
+{
+  "status": "passed",
+  "pdf_sha256": "33ee3036e577bf3c8323a61d2cf9403367b871eb77d99aeca45b14998771216c",
+  "pages": 123,
+  "rendered_and_visually_inspected_pages": [
+    2,
+    3,
+    4,
+    98,
+    99,
+    100,
+    101,
+    102
+  ],
+  "render_long_dimension_pixels": 1450,
+  "scope": "Introduction and supporting-results transition; discussion and conclusion with adjacent evaluation, declaration and reference pages.",
+  "observations": "No clipping, overlap, unresolved references or equation/table overflow observed on the inspected pages. Section hierarchy, page numbers and paragraph transitions remain readable.",
+  "all_fonts_embedded": true,
+  "font_count": 48,
+  "undefined_references_or_citations": 0,
+  "overfull_boxes": 0,
+  "underfull_box_notices": 137,
+  "rendered_page_sha256": {
+    "discussion-098.png": "9fb847d2ff8f405645439f592ad8a749526cf7124df4bafd401c4d51d71ae240",
+    "discussion-099.png": "4108dbe6774834d92f3411b203572a5fb2c86d84a39a8e28532450e94fc4347b",
+    "discussion-100.png": "03f46bfff182315e6ee51d0de37956d355a86b3ea4e303904776f81ca0c1deda",
+    "discussion-101.png": "f0ce97afef014441c842ccaa79c1d2f39d4f9503ca8d7a11e5dc367d937fc0f2",
+    "discussion-102.png": "77f94ba26b92b57069f57dfa1b93bc8648e2c1280a5ba3a9b60739ece74b6a65",
+    "introduction-002.png": "a8d075626ec10e6d9cef4cceec6d0ce74d72f01ed57f6297b4c33f05feb9edaf",
+    "introduction-003.png": "916b9a103c22d0501cf5aefb163eece151686066cf0798ed3b34ddab3c42f5b5",
+    "introduction-004.png": "1696061c9383bfb55da18e8d23a47eb4edd2bdda40bd4bb6f8b1e7d554420c8d"
+  }
+}

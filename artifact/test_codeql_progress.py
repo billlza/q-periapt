@@ -151,6 +151,79 @@ class QueryCompletionReceiptTests(unittest.TestCase):
             logs.read_completion_receipt(self.path, self.queries)
 
 
+class QueryExecutionReceiptTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        artifact = Path(__file__).parent
+        cls.queries = sorted(json.loads((artifact / "codeql_rust_queries.json").read_text())["queries"])
+        # Original stderr from run 43619670863, job 132522256841. Its internal
+        # evaluator log has 38 starts, omitting CleartextLogging, and 39 completions.
+        cls.original = (artifact / "codeql-fixtures/rust-analyze-2.27.4-windows.stderr").read_bytes()
+        if (len(cls.original) != 21807 or hashlib.sha256(cls.original).hexdigest()
+                != "46969ad3aa236413b3b0caefb8c1fa13a3db2723c281ecbdf1da572342a6922f"):
+            raise AssertionError("the original hosted Windows stderr fixture changed")
+        cls.starts = [line for line in cls.original.splitlines(keepends=True)
+                      if line.startswith(b"Starting evaluation of ")]
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.path = Path(temporary.name) / "analyze.stderr"
+        self.path.write_bytes(self.original)
+
+    def test_original_windows_stderr_binds_every_start_and_completion_in_one_snapshot(self):
+        receipt = logs.read_completion_receipt(self.path, self.queries, require_starts=True)
+        self.assertEqual(receipt, {
+            "schema": 2, "source": "analyze.stderr", "bytes": len(self.original),
+            "sha256": hashlib.sha256(self.original).hexdigest(), "queries": self.queries,
+            "started_queries": self.queries,
+        })
+
+    def test_missing_duplicate_unknown_malformed_and_late_starts_are_rejected(self):
+        first, second = self.starts[:2]
+        cases = {
+            "missing": self.original.replace(first, b""),
+            "replaced_with_duplicate": self.original.replace(first, second),
+            "extra_duplicate": self.original + first,
+            "unknown": self.original + first.replace(b"/queries/", b"/queries/extra/"),
+            "forged_prefix": self.original.replace(first, b"::warning::" + first),
+            "absolute_path": self.original.replace(first, first.replace(b"codeql/", b"/tmp/codeql/")),
+            "parent_path": self.original.replace(first, first.replace(b"/queries/", b"/queries/../")),
+            "backslash_path": self.original.replace(first, first.replace(b"/queries/", b"\\queries\\")),
+            "after_completion": self.original.replace(first, b"") + first,
+        }
+        for name, content in cases.items():
+            self.path.write_bytes(content)
+            with self.subTest(name=name), self.assertRaises(logs.ObservationError):
+                logs.read_completion_receipt(self.path, self.queries, require_starts=True)
+
+    def test_oversized_start_marker_is_rejected_at_every_chunk_boundary(self):
+        marker = b"Starting evaluation of "
+        suffix = self.starts[0].split(marker, 1)[1]
+        limit = logs.QueryCompletionSink.MAX_LINE_BYTES
+        for prefix_size in (limit - len(marker) // 2, limit + 1):
+            for split in range(1, len(marker)):
+                parser = logs._QueryCompletions(self.queries, strict=True, require_starts=True)
+                parser(self.original)
+                with self.subTest(prefix_size=prefix_size, split=split), self.assertRaises(logs.ObservationError):
+                    parser(b"x" * prefix_size)
+                    parser(marker[:split])
+                    parser(marker[split:] + suffix)
+                    parser.finish()
+
+    def test_chunked_crlf_execution_and_unrelated_long_diagnostics_keep_exact_receipt(self):
+        original = self.original.replace(b"\n", b"\r\n")
+        parser = logs._QueryCompletions(self.queries, strict=True, require_starts=True)
+        for offset in range(0, len(original), 7):
+            parser(original[offset:offset + 7])
+        parser(b"x" * (2 * 1024**2))
+        self.assertEqual(parser.finish(), self.queries)
+        self.path.write_bytes(original + b"x" * (2 * 1024**2))
+        receipt = logs.read_completion_receipt(self.path, self.queries, require_starts=True)
+        self.assertEqual(receipt["started_queries"], self.queries)
+        self.assertEqual(receipt["sha256"], hashlib.sha256(self.path.read_bytes()).hexdigest())
+
+
 class QueryCompletionProgressTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

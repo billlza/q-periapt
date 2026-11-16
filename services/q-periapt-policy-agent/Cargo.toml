@@ -38,7 +38,7 @@ rustix = { version = "=1.1.6", features = ["event", "fs", "net", "process"] }
 # not wrap: installing a handler is `unsafe` by nature, and the quarantined
 # `signals` module carries that review. This exact version is already in the
 # workspace lockfile through the test toolchain.
-libc = "=0.2.189"
+libc = "=0.2.191"
 
 [dev-dependencies]
 tempfile = "=3.27.0"

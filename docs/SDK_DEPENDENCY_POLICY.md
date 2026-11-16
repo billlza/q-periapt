@@ -81,14 +81,14 @@ format conversion alone cannot establish freshness. See [host storage](SDK_HOST_
 The optional CLI `policy-store-migration` feature pins redb 2.6.4 solely for
 explicit offline conversion of the original host policy image. That legacy
 provider is absent from the default CLI and native SDK dependency graphs.
-twox-hash 2.1.4 checks commit-slot corruption before dispatch; it does not supply
+twox-hash 2.1.5 checks commit-slot corruption before dispatch; it does not supply
 cryptographic authentication. This deliberate compatibility dependency does not
 change the selected 4.3.0 runtime provider or authorize an old-reader fallback
 inside a host process. See the [maintenance command](../crates/q-periapt-cli/README.md#offline-host-policy-store-upgrade).
 
 ## Deliberate version boundaries
 
-- `fips204` 0.5.0 and `fips205` 0.4.1 retain their upstream SHA3 0.10 and
+- `fips204` 0.5.0 and `fips205` 0.5.0 retain their upstream SHA3 0.10 and
   rand_core 0.6 contracts. Their transitive traits cannot be replaced by forcing
   unrelated major versions. The ML-DSA adapter computes its 32-byte SHAKE128
   pre-hash before calling the 0.5 digest/OID interface, preserving the existing
