@@ -16,6 +16,9 @@ read retains its five-second timeout, and both reads and the grace period stay
 within the unchanged 360-second supervisor deadline. An absent
 or incomplete backtrace remains visible in the retained log. Diagnostic reads
 and the grace period do not change the original failure outcome.
+The package-absence checks before and after sampling use the same diagnostic
+capture on failure, before cleanup removes the guest. An unavailable package
+service remains a failed observation even when all sixty feature queries passed.
 
 The [Android 15 AIDL](https://android.googlesource.com/platform/frameworks/base/+/android-15.0.0_r1/core/java/android/security/IFileIntegrityService.aidl)
 places `isApkVeritySupported()` first. Its

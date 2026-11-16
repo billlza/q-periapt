@@ -5,6 +5,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import signal
 import tempfile
 import time
@@ -100,6 +101,7 @@ class PlatformProbeTests(unittest.TestCase):
             reply = Path(directory) / "reply"
             driver.write_text("set -euo pipefail\nfixture=$1\nquery_status=$2\n"
                               "guest() { /bin/cat \"$fixture\"; return \"$query_status\"; }\n"
+                              "capture_failure() { :; }\n"
                               + guard + "\nconfirm_no_sdk_package\n")
             for payload, query_status, expected in ((b"", 0, 0), (b"", 17, 1),
                                                     (b"package:dev.qperiapt.androidsmoke\n", 0, 1),
@@ -109,6 +111,53 @@ class PlatformProbeTests(unittest.TestCase):
                     result = capture_stdout(["/bin/bash", str(driver), str(reply), str(query_status)],
                                             timeout_seconds=5, maximum_bytes=4096)
                     self.assertEqual(result.returncode, expected, result.stdout)
+
+    def test_absence_failures_capture_diagnostics_at_both_call_sites(self):
+        script = (PROBE / "run.sh").read_text()
+        # Keep the production definitions and both invocations in their actual
+        # order, including the guard before the first platform sample.
+        pieces = []
+        for name in ("capture_failure", "confirm_no_sdk_package"):
+            start = script.index(name + "() {")
+            end = script.index("\n}\n", start) + 3
+            pieces.append((start, script[start:end]))
+        calls = list(re.finditer(r"(?m)^confirm_no_sdk_package$", script))
+        self.assertEqual(len(calls), 2)
+        pieces.extend((match.start(), match.group() + "\n") for match in calls)
+        body = "\n".join(value for _, value in sorted(pieces))
+        with tempfile.TemporaryDirectory() as directory:
+            counter = Path(directory) / "queries"
+            driver = Path(directory) / "absence-boundaries.sh"
+            driver.write_text(
+                "set -euo pipefail\nserial=emulator-5584\n"
+                "counter=$1\nfailed_query=$2\ndiagnostic_status=$3\n"
+                "guest() {\n"
+                "  test \"$*\" = 'pm list packages dev.qperiapt'\n"
+                "  count=$(( $(/bin/cat \"$counter\") + 1 ))\n"
+                "  printf '%s\\n' \"$count\" > \"$counter\"\n"
+                "  if [ \"$count\" -eq \"$failed_query\" ]; then return 17; fi\n"
+                "}\n"
+                "adb_call() { printf 'DIAGNOSTIC_READ\\n'; return \"$diagnostic_status\"; }\n"
+                "sleep() { test \"$1\" = 10; printf 'GRACE_WINDOW\\n'; }\n"
+                + body)
+            for failed_query in (0, 1, 2):
+                for diagnostic_status in (0, 9):
+                    with self.subTest(failed_query=failed_query, diagnostic_status=diagnostic_status):
+                        counter.write_text("0\n")
+                        result = capture_stdout(
+                            ["/bin/bash", str(driver), str(counter), str(failed_query),
+                             str(diagnostic_status)], timeout_seconds=5, maximum_bytes=8192)
+                        self.assertEqual(result.returncode, 1 if failed_query else 0, result.stdout)
+                        self.assertEqual(counter.read_text(), "1\n" if failed_query == 1 else "2\n")
+                        self.assertEqual(result.stdout.count(b"DIAGNOSTIC_READ\n"),
+                                         2 if failed_query else 0, result.stdout)
+                        if failed_query:
+                            self.assertIn(b"PLATFORM_PACKAGE_ABSENCE_UNCONFIRMED\n", result.stdout)
+                            self.assertEqual(result.stdout.count(b"GRACE_WINDOW\n"), 1)
+                            marker = b"UNAVAILABLE" if diagnostic_status else b"CAPTURED"
+                            for phase in (b"immediate", b"deferred"):
+                                self.assertIn(b"PLATFORM_FAILURE_LOG_" + marker + b" phase="
+                                              + phase + b"\n", result.stdout)
 
     def test_local_invocation_refuses_before_creating_state(self):
         spec = importlib.util.spec_from_file_location("android_platform_probe", PROBE / "run.py")
