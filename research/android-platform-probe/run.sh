@@ -123,7 +123,7 @@ capture_failure() {
     # debuggerd writes the native backtrace asynchronously after libc reports
     # the fatal signal. Keep the owned emulator alive for one bounded grace
     # period, then read the crash buffer again before cleanup terminates it.
-    # Both reads retain adb_call's five-second timeout. The reads and grace
+    # Every read retains adb_call's five-second timeout. The reads and grace
     # period remain inside the unchanged outer 360-second supervision deadline.
     for phase in immediate deferred; do
         if [ "$phase" = deferred ]; then
@@ -133,7 +133,15 @@ capture_failure() {
             fi
         fi
         printf 'PLATFORM_FAILURE_CAPTURE phase=%s\n' "$phase"
-        if adb_call -s "$serial" logcat -d -b main -b system -b crash -v threadtime \
+        # logd applies the tail limit before logcat filters tags. Read crash
+        # independently and first, so noisy main/system context cannot consume
+        # its tail window or precede it in the supervisor's bounded output.
+        if adb_call -s "$serial" logcat -d -b crash -v threadtime -t 1000 '*:V'; then
+            printf 'PLATFORM_FAILURE_CRASH_CAPTURED phase=%s\n' "$phase"
+        else
+            printf 'PLATFORM_FAILURE_CRASH_UNAVAILABLE phase=%s\n' "$phase"
+        fi
+        if adb_call -s "$serial" logcat -d -b main -b system -v threadtime \
             -t 1000 -s 'DEBUG:*' 'tombstoned:*' 'crash_dump64:*' \
             'AndroidRuntime:E' 'ActivityManager:I' 'Zygote:E' 'libc:F' '*:S'; then
             printf 'PLATFORM_FAILURE_LOG_CAPTURED phase=%s\n' "$phase"
