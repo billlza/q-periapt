@@ -27,39 +27,95 @@ class PlatformProbeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             driver = Path(directory) / "capture.sh"
             driver.write_text(
-                "set -euo pipefail\nserial=emulator-5584\nreads=0\n"
-                "first_status=$1\nlast_status=$2\ngrace_status=$3\n"
+                "set -euo pipefail\nserial=emulator-5584\nreads=0\ngraced=0\n"
+                "statuses=(\"$1\" \"$2\" \"$3\" \"$4\")\ngrace_status=$5\n"
                 "adb_call() {\n"
+                "  status=${statuses[$reads]}\n"
                 "  reads=$((reads + 1))\n"
-                "  if [ \"$reads\" -eq 1 ]; then\n"
-                "    printf 'Fatal signal 11 (system_server)\\n'\n"
-                "    return \"$first_status\"\n"
-                "  fi\n"
-                "  printf 'backtrace: frame_00 retained after grace\\n'\n"
-                "  return \"$last_status\"\n"
+                "  case \" $* \" in\n"
+                "    *' -b main '*|*' -b system '*) printf 'ActivityManager context\\n' ;;\n"
+                "    *' -b crash '*)\n"
+                "      if [ \"$graced\" -eq 0 ]; then\n"
+                "        printf 'Fatal signal 11 (system_server)\\n'\n"
+                "      else\n"
+                "        printf 'backtrace: frame_00 retained after grace\\n'\n"
+                "      fi ;;\n"
+                "    *) return 99 ;;\n"
+                "  esac\n"
+                "  return \"$status\"\n"
                 "}\n"
-                "sleep() { test \"$1\" = 10; printf 'GRACE_WINDOW\\n'; "
+                "sleep() { test \"$1\" = 10; graced=1; printf 'GRACE_WINDOW\\n'; "
                 "return \"$grace_status\"; }\n"
                 + capture + "\ncapture_failure\nexit 23\n")
-            for first, last in ((0, 0), (1, 0), (0, 1), (1, 1)):
-                with self.subTest(first=first, last=last):
+            # Fail each read independently and all reads together. A failed
+            # crash read must still allow context and the deferred retry.
+            for statuses in ((0, 0, 0, 0), (7, 0, 0, 0), (0, 9, 0, 0),
+                             (0, 0, 11, 0), (0, 0, 0, 13), (7, 9, 11, 13)):
+                with self.subTest(statuses=statuses):
                     result = capture_stdout(
-                        ["/bin/bash", str(driver), str(first), str(last), "0"],
+                        ["/bin/bash", str(driver), *(str(value) for value in statuses), "0"],
                         timeout_seconds=5, maximum_bytes=4096)
                     self.assertEqual(result.returncode, 23, result.stdout)
                     self.assertEqual(result.stdout.count(b"GRACE_WINDOW\n"), 1)
+                    self.assertIn(b"Fatal signal 11 (system_server)\n", result.stdout)
+                    self.assertEqual(result.stdout.count(b"ActivityManager context\n"), 2)
                     self.assertIn(b"PLATFORM_FAILURE_CAPTURE phase=deferred\n", result.stdout)
                     self.assertLess(result.stdout.index(b"GRACE_WINDOW\n"),
                                     result.stdout.index(b"backtrace: frame_00"))
-                    marker = b"UNAVAILABLE" if last else b"CAPTURED"
-                    self.assertIn(b"PLATFORM_FAILURE_LOG_" + marker +
-                                  b" phase=deferred\n", result.stdout)
+                    for status, (kind, phase) in zip(statuses, (
+                            (b"CRASH", b"immediate"), (b"LOG", b"immediate"),
+                            (b"CRASH", b"deferred"), (b"LOG", b"deferred"))):
+                        marker = b"UNAVAILABLE" if status else b"CAPTURED"
+                        self.assertIn(b"PLATFORM_FAILURE_" + kind + b"_" + marker +
+                                      b" phase=" + phase + b"\n", result.stdout)
             interrupted = capture_stdout(
-                ["/bin/bash", str(driver), "0", "0", "1"],
+                ["/bin/bash", str(driver), "0", "0", "0", "0", "1"],
                 timeout_seconds=5, maximum_bytes=4096)
             self.assertEqual(interrupted.returncode, 23, interrupted.stdout)
             self.assertIn(b"PLATFORM_FAILURE_GRACE_INTERRUPTED\n", interrupted.stdout)
             self.assertNotIn(b"phase=deferred", interrupted.stdout)
+
+    def test_failure_capture_preserves_crash_before_context_exhausts_output(self):
+        script = (PROBE / "run.sh").read_text()
+        start = script.index("capture_failure() {")
+        end = script.index("\n}\n", start) + 3
+        capture = script[start:end]
+        with tempfile.TemporaryDirectory() as directory:
+            acknowledged = Path(directory) / "crash-retained"
+            driver = Path(directory) / "noisy-context.sh"
+            driver.write_text(
+                "set -euo pipefail\nserial=emulator-5584\nacknowledged=$1\n"
+                "adb_call() {\n"
+                "  case \" $* \" in\n"
+                # A combined tail can contain only recent context, even when
+                # an older fatal signal is still in the separate crash buffer.
+                "    *' -b main '*|*' -b system '*)\n"
+                "      for line in {1..1000}; do\n"
+                "        printf 'ActivityManager: noisy context occupies the log tail\\n'\n"
+                "      done ;;\n"
+                "    *' -b crash '*)\n"
+                "      printf 'Fatal signal 11 (system_server) [crash buffer]\\n'\n"
+                # Synchronize with the bounded reader, without depending on
+                # pipe chunk sizes or scheduler timing before context floods.
+                "      for attempt in {1..100}; do\n"
+                "        if [ -f \"$acknowledged\" ]; then return 0; fi\n"
+                "        /bin/sleep 0.01\n"
+                "      done\n"
+                "      return 99 ;;\n"
+                "    *) return 99 ;;\n"
+                "  esac\n"
+                "}\n"
+                "sleep() { :; }\n" + capture + "\ncapture_failure\nexit 23\n")
+            retained = bytearray()
+            def retain(chunk):
+                retained.extend(chunk)
+                if b"Fatal signal 11 (system_server) [crash buffer]\n" in retained:
+                    acknowledged.touch()
+            with self.assertRaises(BoundedProcessError) as failure:
+                capture_stdout(["/bin/bash", str(driver), str(acknowledged)],
+                               timeout_seconds=5, maximum_bytes=4096, output_sink=retain)
+            self.assertEqual(failure.exception.kind, "output_limit")
+            self.assertIn(b"Fatal signal 11 (system_server) [crash buffer]\n", retained)
 
     def test_fresh_checkout_records_a_failed_driver_without_a_target_directory(self):
         spec = importlib.util.spec_from_file_location("android_platform_probe_fresh", PROBE / "run.py")
@@ -150,14 +206,15 @@ class PlatformProbeTests(unittest.TestCase):
                         self.assertEqual(result.returncode, 1 if failed_query else 0, result.stdout)
                         self.assertEqual(counter.read_text(), "1\n" if failed_query == 1 else "2\n")
                         self.assertEqual(result.stdout.count(b"DIAGNOSTIC_READ\n"),
-                                         2 if failed_query else 0, result.stdout)
+                                         4 if failed_query else 0, result.stdout)
                         if failed_query:
                             self.assertIn(b"PLATFORM_PACKAGE_ABSENCE_UNCONFIRMED\n", result.stdout)
                             self.assertEqual(result.stdout.count(b"GRACE_WINDOW\n"), 1)
                             marker = b"UNAVAILABLE" if diagnostic_status else b"CAPTURED"
                             for phase in (b"immediate", b"deferred"):
-                                self.assertIn(b"PLATFORM_FAILURE_LOG_" + marker + b" phase="
-                                              + phase + b"\n", result.stdout)
+                                for kind in (b"CRASH", b"LOG"):
+                                    self.assertIn(b"PLATFORM_FAILURE_" + kind + b"_" + marker +
+                                                  b" phase=" + phase + b"\n", result.stdout)
 
     def test_local_invocation_refuses_before_creating_state(self):
         spec = importlib.util.spec_from_file_location("android_platform_probe", PROBE / "run.py")
