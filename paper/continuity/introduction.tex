@@ -84,6 +84,13 @@ public key derivations, guarded paths exactly characterize iterative
 decryption (Theorem~\ref{thm:guarded-normalization}): acquired ciphertexts and
 disclosed keys may jointly reveal a source, with alternative copies providing
 additional routes to that source.
+For fixed indexed graphs, an incremental evaluator maintains this exposure
+set at every acquisition/disclosure prefix in cumulative $O(N+M+U)$ work
+(Proposition~\ref{prop:guarded-worklist}). Here $N$ counts atoms, $M$ stored
+incidences with multiplicity, and $U$ input events including repetitions;
+complete-state exports add their output size. The construction specializes
+indexed Horn propagation~\cite{dowlingGallier1984} to the record, key and
+source sorts, preserving both arrival orders of a record and its matching key.
 
 Successive Extract and Expand comparisons isolate the online selected key
 while preserving earlier-key observations, its disclosed successor seed and
@@ -123,15 +130,14 @@ sender turns increases completed service in every measured bidirectional or
 resumed schedule, retaining the alternating exposure counts and recording
 schedule-dependent communication costs.
 
-The same simulation method also supports dependent authentication reports,
-whose immutable rows are simulated in reverse causal order. Further
-instances cover multiple root entries and SDK purpose keys, with equal-input
-aliases and separate returned-owner lifecycles. The two bootstrap profiles
-protect the original inventory source or reply source and establish
+Further instances simulate dependent authentication reports in reverse causal
+order and cover multiple root entries and SDK purpose keys, preserving
+equal-input aliases and separate returned-owner lifecycles. The two bootstrap
+profiles protect the original inventory source or reply source and establish
 historical activation of the complete signed transcript
 (Corollary~\ref{cor:bootstrap-initial-terminal} and
-Theorem~\ref{thm:bootstrap-terminal}). These extensions retain their explicit
-interfaces and proof connections in the final computational subsections.
+Theorem~\ref{thm:bootstrap-terminal}). The final computational subsections
+develop these interfaces and proof connections.
 
 \paragraph{Security model and organization.}
 Section~\ref{sec:construction} describes the construction;

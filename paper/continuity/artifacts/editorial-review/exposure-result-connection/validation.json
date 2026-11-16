@@ -1,0 +1,53 @@
+{
+  "schema": "qperiapt-exposure-result-connection/1",
+  "status": "passed",
+  "completed_at_utc": "2026-11-16T17:30:34.489536+00:00",
+  "base_commit": "9d49c678565d3d9d8ca7d001a117781917e3782c",
+  "previous_paper_commit": "f93fb5903a5a39edbbdb9a9340f52dfb2e706a93",
+  "scope": "Two-module exposition of established results; formal and experimental source identities retained.",
+  "make_source": {
+    "status": "passed",
+    "command": "make -C paper/continuity source PYTHON=\"sh <repository>/artifact/python-run.sh\"",
+    "log_sha256": "b88cb8e5bc41ee0aab7d4f4a63a8b2bf49fadba4477cc4376a64eb095e01e506",
+    "checks": [
+      "chain-prefix finite controls",
+      "native online-chain controls",
+      "four bootstrap source packet checks",
+      "49 matched profile/schedule rows and directed input controls",
+      "28 native retry executions / 14 pairs retained analysis",
+      "indexed closure equivalence, histories, expected cases, input rejection and structural-work controls",
+      "independent typed-Horn least-model enumeration",
+      "manuscript build and source identity",
+      "nine-file single-source export"
+    ],
+    "environment": "Installed pdfTeX 1.40.26 / LaTeX2e 2024-11-01 patch level 2 with the existing task-local format and font maps and explicit TeX search paths."
+  },
+  "build_check": {
+    "path": "build-check.json",
+    "sha256": "d0c11830cd5d1f2016277bbdcb838d883b855ec960a97f9d3aa24144fceefcd2"
+  },
+  "source_export_check": {
+    "path": "source-export-check.json",
+    "sha256": "61ef461a8eb7b20671f2392b0bead77742aa2ad4ca730dbaa4dedd6c33cbe8b0"
+  },
+  "source_preservation": {
+    "path": "source-preservation.json",
+    "sha256": "368c0006d1fffb8b67df9c55283c0576c462305c2eb8088dcc0935008102e805"
+  },
+  "independent_methodology_review": {
+    "path": "methodology-review.json",
+    "sha256": "f0684e592f5f02011c9a2ec98e6f5f9be63e58766bcb92d61ab5d23c53f58483",
+    "reviewer": "/root/theory_nov16",
+    "final_module_digests_match": true
+  },
+  "visual_review": {
+    "path": "visual-review.json",
+    "sha256": "6782a7e4662ac5faf7c2c951ab796f218359758ce9a78522810cbca794cc38c8"
+  },
+  "pdf_sha256": "33ee3036e577bf3c8323a61d2cf9403367b871eb77d99aeca45b14998771216c",
+  "source_zip_sha256": "c6694092ca326fd7833a2a7fa6c9c0a08fda62a6b56f30a54a98529d0a10d64b",
+  "new_native_experiments": false,
+  "new_mathematical_results": false,
+  "historical_artifact_files_retained": 693,
+  "hosted_ci": "Hosted CI attaches to the subsequently published exact head; this receipt records completed local checks."
+}
