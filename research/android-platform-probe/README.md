@@ -1,5 +1,9 @@
 # Android system-service reproduction
 
+This experimental branch extends observation to 120 queries under the same
+360-second deadline. Its receipts identify the longer window separately from
+the retained 60-query baseline. It is not a replacement SDK acceptance gate.
+
 This isolated diagnostic investigates the API 35 / 16 KiB `system_server`
 crash captured at SDK source `a07789f`. It installs no app and loads no
 Q-Periapt code. After one cold boot of the same r5 image, it calls the read-only

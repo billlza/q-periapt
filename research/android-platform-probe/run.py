@@ -43,7 +43,7 @@ def main() -> int:
               "status": "not_completed",
               "release_claim_eligible": False, "timeout_seconds": 360,
               "output_limit_bytes": 2 * 1024 * 1024,
-              "scope": "one cold API 35 / 16 KiB boot and read-only file_integrity queries; no SDK qualification"}
+              "scope": "extended observation control: one cold API 35 / 16 KiB boot and 120 read-only file_integrity queries; no SDK qualification"}
     status = 1
     try:
         with (OUTPUT / "commands.log").open("xb") as log:

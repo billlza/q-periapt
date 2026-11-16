@@ -180,7 +180,7 @@ guest cat /proc/uptime
 guest cat /proc/meminfo
 guest sha256sum /apex/com.android.art/lib64/libart.so
 
-for sample in {1..60}; do
+for sample in {1..120}; do
     # IFileIntegrityService's first AIDL method is isApkVeritySupported().
     # No APK is installed and no Q-Periapt classes/native libraries are loaded.
     if reply=$(guest service call file_integrity 1) &&
@@ -205,4 +205,4 @@ for sample in {1..60}; do
     sleep 1
 done
 confirm_no_sdk_package
-printf 'PLATFORM_OBSERVATIONS_COMPLETED samples=60 sdk_installed=false\n'
+printf 'PLATFORM_OBSERVATIONS_COMPLETED samples=120 sdk_installed=false\n'
