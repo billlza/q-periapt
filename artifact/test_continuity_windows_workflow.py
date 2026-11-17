@@ -136,15 +136,16 @@ class WindowsWorkflowInputsTests(unittest.TestCase):
         cls.paths = event_paths(cls.text)["push"]
         cls.inputs = required_inputs(ROOT)
 
-    def test_pull_requests_to_the_integration_branches_use_the_same_inputs(self):
+    def test_main_and_release_admission_keep_the_same_source_bound_windows_execution(self):
         header = self.text.split("\npermissions:\n", 1)[0]
         push, pr = header.split("\n  pull_request:\n", 1)
         triggers = event_paths(self.text)
         self.assertEqual(triggers["push"], triggers["pull_request"])
         self.assertEqual(re.findall(r"(?m)^    branches: ([^\n]+)$", push),
-                         ["[lza/windows-private-store]"])
+                         ["[main, lza/windows-private-store]"])
         self.assertEqual(re.findall(r"(?m)^    branches: ([^\n]+)$", pr),
-                         ["[lza/windows-private-store, feat/continuity-publication-verification]"])
+                         ["[main, 'release/**', lza/windows-private-store, feat/continuity-publication-verification]"])
+        self.assertIn("\n  workflow_dispatch:\n", header)
         self.assertNotIn("pull_request_target:", header)
 
     def test_same_run_producer_and_commit_admission(self):
