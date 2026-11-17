@@ -1,0 +1,11 @@
+{
+  "profile": "sdk-020",
+  "state": "absent",
+  "tag_refs": [
+    "refs/tags/v0.2.0",
+    "refs/tags/abi2-platforms-v0.2.0"
+  ],
+  "observation_sha256": "0013a5ef37b7e8fc2708f9d254cfaa60ce2af1ece5a2f22f48cd44fee1852bdf",
+  "cli_sha256": "5f8d7527e2bdf584249b030cdd1550c91d75e8afb40aa3c11573d416817a1260",
+  "remote_mutations_performed": false
+}

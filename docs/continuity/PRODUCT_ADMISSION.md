@@ -8,6 +8,14 @@ candidate interface and protocol are not frozen or admitted for publication.
 Product ABI major 2 and the existing KEM/KAT contracts remain unchanged.
 The complete [release scope](RELEASE_0_2_SCOPE.md) still governs.
 
+The current delivery review is the internal code/security and maintainability
+gate in the [SDK release requirements](../SDK_0_2_RELEASE_READINESS.md).
+The [current internal assessment](RELEASE_0_2_INTERNAL_ASSESSMENT.md) binds the
+completed construction and policy inputs to the selected source and identifies
+the remaining final-artifact work. Independent external review is a separate
+user-managed track. Historical checkpoints below retain their source-specific
+outcomes and do not override this review boundary.
+
 The agreed Android physical-device acceptance scope is the single selected phone,
 now running API 37 after its system upgrade. That device gate is satisfied by the
 retained successful acceptance runs. An API 36 phone, a second device or a stable
@@ -56,7 +64,7 @@ public-readback jobs. These hosted results qualify this Windows cohort. Earlier
 failed jobs and historical package cohorts retain their own outcomes and inputs.
 
 This update does not mark the surrounding main CI wave complete. Protocol,
-product ABI and resource-contract admission and the external security review
+product ABI, resource-contract admission and internal code/security review
 still follow the existing release scope; the source and package identities must
 be reconciled again for the final candidate.
 

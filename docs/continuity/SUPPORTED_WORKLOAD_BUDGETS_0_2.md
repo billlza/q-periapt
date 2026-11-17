@@ -9,11 +9,11 @@ regression budgets for the precisely defined desktop reference workloads below.
 Each number is identified as an implementation limit, an observation or a
 selected policy value. The retained capacity, original-ID
 recovery, complete-interval throughput and explicit fanout retirement results
-already provide the corresponding evidence. `BUDGETS_V1.json` remains schema 3
-with `frozen_product_contract=false`; this document changes no runtime limit,
-platform scope or publication status. The budget selection is complete; final
-chosen-artifact verification and coordinated specification/release freezing
-remain in the existing admission sequence.
+already provide the corresponding evidence. The [coordinated adoption](ADOPTION_0_2.md)
+binds this policy and the schema-3 budgets into the normative lock without
+changing a runtime limit or platform scope. The budget selection is complete;
+final chosen-artifact verification and publication retain their independent
+evidence in the admission sequence.
 
 The source map and independently recomputed tables are retained in the
 [budget-review packet](../../research/sdk-alpha1/evidence/20261109-workload-budget-review/README.md).
@@ -266,7 +266,7 @@ the existing release sequence:
 | Existing final execution | Result to record |
 | --- | --- |
 | Verify the final chosen artifact under the existing admission plan | Bind the selected budgets and exact reference-workload definition to the chosen package/source identities and affected installed/replacement receipts. Reuse unchanged-component receipts with their actual provenance and source correspondence. |
-| Complete the coordinated specification and release lock | Record the completed verification with the specification/package identities and this selected policy. Set `frozen_product_contract=true` only in that coordinated admission change. |
+| Bind the selected artifact to the coordinated specification lock | Retain the actual verification with the selected source/package identities and this policy. The adopted descriptor and interface snapshot select `frozen_product_contract=true`; that flag alone does not qualify a binary. |
 
 This is the workload-budget part of the existing
 [admission sequence](RELEASE_0_2_ADMISSION_PLAN.md). The independent construction

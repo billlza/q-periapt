@@ -1,0 +1,32 @@
+{
+  "files": {
+    "gh_2.103.3_checksums.txt": {
+      "bytes": 1971,
+      "sha256": "f756e7859d90dbb5e85aae5194206c37da220bec9bac23d3d659078a8e766fdc"
+    },
+    "github-cli-sdk020-identity.json": {
+      "bytes": 408,
+      "sha256": "c2171fcadde881f06f6345932b8951ae763016cd5a56312e633a87274c13b4b6"
+    },
+    "sdk-cli-predecessor-readback.json": {
+      "bytes": 558,
+      "sha256": "50596c3d306f589741ffe5cf80d5d6000cb9d0bc8ca4dda8227c74566cbab4cd"
+    },
+    "sdk-cli-predecessor-release-verification.json": {
+      "bytes": 4844,
+      "sha256": "53c9d5c760a4c8f69f5a32d4ab84de8d714bf6b5dfde9ed3fdabc5572f6629dd"
+    },
+    "sdk-cli-predecessor-release-view.json": {
+      "bytes": 2190,
+      "sha256": "08223f9b2a19d706deee9260dc81c8477f83ee1d1877118fd9a3bd69a3a1647b"
+    },
+    "sdk-github-tag-readback.json": {
+      "bytes": 346,
+      "sha256": "5b55ff51939704dac35d835898aadc254c22be46d4134af6eedeedb3e17c5319"
+    }
+  },
+  "kind": "qperiapt.sdk_publication_profile_readback",
+  "remote_mutations_performed": false,
+  "schema_version": 1,
+  "sdk_020_publication_performed": false
+}

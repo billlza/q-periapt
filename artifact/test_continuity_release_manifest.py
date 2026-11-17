@@ -13,6 +13,85 @@ import continuity_contract
 import continuity_release_manifest as manifest
 
 
+class AdoptedSpecificationTests(unittest.TestCase):
+    def test_actual_frozen_graph_accepts_complete_release_identity_inputs(self):
+        """Real frozen metadata with explicitly synthetic, non-qualifying payloads."""
+        source_root = Path(__file__).resolve().parent.parent
+        graph = json.loads((source_root / "docs/continuity/PACKAGE_GRAPH_0_2.json").read_bytes())
+        lock_path = "docs/continuity/SPEC_LOCK_0_2.json"
+        lock = json.loads((source_root / lock_path).read_bytes())
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+
+            def write(path, data):
+                target = root / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
+                return {"path": path, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+
+            def document(path, value):
+                return write(path, manifest.canonical_json_bytes(value))
+
+            refs = [*lock["normative_files"].values(), *lock["supporting_files"], lock["compiled_descriptor"]]
+            refs.extend(row["contract"] for row in graph["interfaces"].values())
+            for row in graph["packages"]:
+                if row["format"] != "distribution":
+                    refs.append(row["metadata"])
+                if row["workspace"] is not None:
+                    refs.append(row["workspace"])
+            for ref in refs:
+                write(ref["path"], (source_root / ref["path"]).read_bytes())
+            source = {"commit": "a" * 40, "tree": "b" * 40}
+            artifact = write("synthetic/package.bin", b"Synthetic identity control, not a release artifact.\n")
+            assessment = document("synthetic/assessment.json", {
+                "kind": "unit.synthetic_identity_assessment", "completed": True,
+                "scope": "No production, installation or qualification has run in this fixture."})
+            for row in graph["packages"]:
+                row.update(artifacts=[artifact], assessments=[assessment])
+                if row["format"] == "distribution":
+                    row["metadata"] = document(row["metadata"]["path"], {
+                        "schema_version": 1, "kind": "qperiapt.continuity_distribution_identity",
+                        "name": row["name"], "version": row["version"], "source": source,
+                        "dependencies": row["dependencies"], "interfaces": row["interfaces"],
+                        "artifacts": row["artifacts"]})
+            selected = document("MANIFEST.json", {
+                "schema_version": 1, "kind": manifest.MANIFEST_KIND, "stage": "release",
+                "product_version": "0.2.0", "source": source,
+                "spec_lock": write(lock_path, (source_root / lock_path).read_bytes()),
+                "packages": graph["packages"], "interfaces": graph["interfaces"],
+                "release_claim_eligible": False, "publication_performed": False})
+            result = manifest.verify_manifest(root, selected["path"], expected_sha256=selected["sha256"],
+                                              source_commit=source["commit"], source_tree=source["tree"], stage="release")
+            self.assertEqual(result["packages"], 21)
+            self.assertEqual(result["exports"], {"sdk_c": 51, "continuity_c": 158})
+            self.assertFalse(result["release_claim_eligible"])
+
+    def test_locked_current_sources_interfaces_and_compiled_values_agree(self):
+        root = Path(__file__).resolve().parent.parent
+        lock = json.loads((root / "docs/continuity/SPEC_LOCK_0_2.json").read_bytes())
+        graph = json.loads((root / "docs/continuity/PACKAGE_GRAPH_0_2.json").read_bytes())
+        self.assertEqual((lock["schema_version"], lock["stage"], lock["product_version"]), (2, "release", "0.2.0"))
+        self.assertIs(lock["frozen_product_contract"], True)
+        inputs = manifest.Inputs(root)
+        for reference in [*lock["normative_files"].values(), *lock["supporting_files"]]:
+            inputs.read(reference)
+        reviewed = inputs.json(lock["normative_files"]["budgets"])
+        compiled = inputs.json(lock["compiled_descriptor"])
+        continuity_contract.compare(reviewed, compiled, stage="release")
+        self.assertEqual(manifest._interfaces(graph["interfaces"], inputs, frozen=True),
+                         {"sdk_c": 51, "continuity_c": 158})
+        self.assertEqual(manifest.canonical_digest(graph["interfaces"]), lock["interfaces_sha256"])
+        packages = graph["packages"]
+        self.assertEqual(len(packages), 21)
+        self.assertEqual(manifest.package_graph_digest(packages, schema_version=2), lock["package_graph_sha256"])
+        cargo = {row["name"]: row for row in packages if row["format"] == "cargo"}
+        npm = {row["name"]: row for row in packages if row["format"] == "npm"}
+        for row in packages:
+            if row["format"] != "distribution":
+                manifest._package_identity(row, inputs, cargo, npm, {})
+        inputs.unchanged()
+
+
 class ContinuityReleaseManifestTests(unittest.TestCase):
     """All temporary packages/assessments are synthetic unit fixtures."""
 
@@ -23,6 +102,7 @@ class ContinuityReleaseManifestTests(unittest.TestCase):
         self.source = {"commit": hashlib.sha1(b"unit-fixture-commit").hexdigest(),
                        "tree": hashlib.sha1(b"unit-fixture-tree").hexdigest()}
         self.budgets = json.loads(continuity_contract.BUDGETS.read_text())
+        self.budgets["frozen_product_contract"] = False  # Explicit historical candidate unit fixture.
         self.sdk_abi = {"schema": 1, "kind": "qperiapt.c_abi_contract",
                         "package": {"semver": "0.2.0", "abi_major": 2},
                         "abi": {"major": 2, "exports": [
@@ -477,6 +557,47 @@ class ContinuityReleaseManifestTests(unittest.TestCase):
         self.assertEqual(result["missing_release_roles"], [])
         self.assertFalse(result["release_claim_eligible"])
         self.assertFalse(result["publication_performed"])
+
+    def test_release_private_reference_source_is_closed_and_not_a_distribution_exception(self):
+        self.release_fixture()
+        engine = next(row for row in self.document["packages"] if row["role"] == "engine")
+        source = self.cargo("reference-source", "service", "q-periapt-continuity-reference-app", "0.0.0",
+                            dependencies=[engine])
+        original = (self.root / source["metadata"]["path"]).read_bytes()
+        original = original.replace(b"[dependencies]", b"publish = false\n[dependencies]")
+        source["metadata"] = self.file("research/continuity-reference-app/Cargo.toml", original)
+        source.update(artifacts=engine["artifacts"], assessments=engine["assessments"])
+        self.document["packages"].append(source)
+        self.save()
+        self.assertTrue(self.verify()["completed"])
+
+        for replacement in (b"publish = true", b"publish = []", b'publish = ["crates-io"]', b""):
+            with self.subTest(publish=replacement):
+                source["metadata"] = self.file(source["metadata"]["path"], original.replace(b"publish = false", replacement))
+                self.save()
+                with self.assertRaisesRegex(ValueError, "source must remain private"):
+                    self.verify()
+        source["metadata"] = self.file(source["metadata"]["path"], original)
+        for key, changed in (("name", "q-periapt-other-service"), ("version", "0.2.0"),
+                             ("interfaces", ["continuity_c"])):
+            previous = source[key]
+            with self.subTest(field=key):
+                source[key] = changed
+                self.save()
+                with self.assertRaisesRegex(ValueError, "private reference source identity"):
+                    self.verify()
+                source[key] = previous
+        source["metadata"] = self.file("another-reference/Cargo.toml", original)
+        self.save()
+        with self.assertRaisesRegex(ValueError, "private reference source identity"):
+            self.verify()
+        self.document["packages"].pop()
+        distribution = next(row for row in self.document["packages"] if row["id"] == "service")
+        distribution["version"] = "0.0.0"
+        self.refresh_distribution_metadata(distribution)
+        self.save()
+        with self.assertRaisesRegex(ValueError, "product package version differs"):
+            self.verify()
 
     def test_release_requires_all_selected_artifacts_and_completed_assessments(self):
         self.release_fixture()

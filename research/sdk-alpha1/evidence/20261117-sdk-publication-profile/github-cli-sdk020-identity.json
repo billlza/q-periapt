@@ -1,0 +1,10 @@
+{
+  "version": "2.103.3",
+  "release_url": "https://github.com/cli/cli/releases/tag/v2.103.3",
+  "immutable": true,
+  "archive_sha256": "d700207eae9ae98fe2b89535c2c087c07823d4628c56364695a5a07ef311c062",
+  "binary_sha256": "5f8d7527e2bdf584249b030cdd1550c91d75e8afb40aa3c11573d416817a1260",
+  "binary_bytes": 38931264,
+  "installed_binary_matches_official_archive": true,
+  "installation_performed": false
+}

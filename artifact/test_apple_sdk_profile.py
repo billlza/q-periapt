@@ -1,5 +1,6 @@
 """Alpha Swift packages cannot reuse legacy receipts or accept altered payloads."""
 import copy
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -113,8 +114,11 @@ class AppleSDKProfileTests(unittest.TestCase):
                         payload.getvalue(), require_signature=False, profile=other)
                 if profile == "legacy":
                     apple_distribution._validate_xcframework_zip_bytes(payload.getvalue(), require_signature=False)
-        with self.assertRaisesRegex(apple_distribution.AppleDistributionError, "SDK signing contract"):
-            apple_distribution._expected_archive_entries(True, profile="sdk-020")
+        # An SDK signature is a separate closed layout. An unsigned package
+        # remains invalid when its caller requires a signed distribution.
+        with self.assertRaisesRegex(apple_distribution.AppleDistributionError, "exact static-only layout"):
+            apple_distribution._validate_xcframework_zip_bytes(
+                payload.getvalue(), require_signature=True, profile="sdk-020")
         with self.assertRaisesRegex(apple_distribution.AppleDistributionError, "unsupported XCFramework profile"):
             apple_distribution._expected_archive_entries(False, profile="unknown")
 
@@ -189,9 +193,9 @@ class AppleSDKProfileTests(unittest.TestCase):
                     self.assertEqual(r.returncode, 2)
                     self.assertEqual(r.stdout, "")
 
-    def test_legacy_signing_mode_and_unknown_profiles_fail_before_build(self):
+    def test_direct_signing_mode_and_unknown_profiles_fail_before_build(self):
         environment = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-        for arguments, mode, expected in ((["--profile", "sdk-020"], "1", "legacy receipts cannot admit it"),
+        for arguments, mode, expected in ((["--profile", "sdk-020"], "1", "available only through artifact/swift-xcframework-release.sh"),
                                           (["--profile", "abi3"], "0", "accepts only --profile sdk-020")):
             with self.subTest(arguments=arguments):
                 result = subprocess.run(["sh", str(sdk.ROOT / "artifact/swift-xcframework.sh"), *arguments],
@@ -246,6 +250,38 @@ class AppleSDKProfileTests(unittest.TestCase):
             for digest in ("", "0" * 63, "A" * 64):
                 with self.subTest(digest=digest), self.assertRaisesRegex(ValueError, "canonical SHA-256"):
                     sdk.verified_xcframework_files(path, digest)
+
+    def test_signed_native_inventory_requires_explicit_signature_selection(self):
+        from test_apple_distribution import ZipFixture
+        fixture = ZipFixture()
+        fixture.setUp()
+        self.addCleanup(fixture.tearDown)
+        fixture.write_archive(signed=True, sdk_020=True)
+        digest = hashlib.sha256(fixture.archive.read_bytes()).hexdigest()
+        files = sdk.verified_xcframework_files(fixture.archive, digest, require_signature=True)
+        self.assertTrue({"Binaries/" + name for name in apple_distribution.EXPECTED_SIGNATURE_FILES} <= files.keys())
+        with self.assertRaises(apple_distribution.AppleDistributionError):
+            sdk.verified_xcframework_files(fixture.archive, digest)
+        fixture.write_archive(signed=False, sdk_020=True)
+        digest = hashlib.sha256(fixture.archive.read_bytes()).hexdigest()
+        with self.assertRaises(apple_distribution.AppleDistributionError):
+            sdk.verified_xcframework_files(fixture.archive, digest, require_signature=True)
+
+    def test_unsigned_contents_cannot_be_reused_as_signed_package_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            package = Path(temporary)
+            (package / "Package.swift").write_text(sdk.PACKAGE)
+            identity = {"rust_workspace_build_inputs": "a" * 64, "files": {}}
+            document = {"schema_version": 1, "kind": "qperiapt.swift_sdk_contents", "profile": sdk.PROFILE,
+                        "version": sdk.VERSION, "abi_major": 2, "source_inputs": identity,
+                        "files": sdk.inventory(package)}
+            for changed in (document, dict(document, schema_version=2),
+                            dict(document, schema_version=2, signature_required=1),
+                            dict(document, schema_version=2, signature_required=False)):
+                (package / sdk.CONTENTS).write_bytes(sdk.canonical_json(changed))
+                with self.subTest(manifest=changed), self.assertRaisesRegex(ValueError, "contents/source manifest differs"):
+                    sdk.verify_package(package, identity, cargo_lock=None,
+                                       expected_native_files={}, require_signature=True)
 
     def test_symlinked_package_entries_and_root_are_not_followed(self):
         with tempfile.TemporaryDirectory() as temporary:

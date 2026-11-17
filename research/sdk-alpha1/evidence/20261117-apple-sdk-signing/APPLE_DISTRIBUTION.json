@@ -1,0 +1,95 @@
+{
+  "artifact": {
+    "path": "CQPeriapt.xcframework.zip",
+    "sha256": "a64889174ff3490ad0da72a3cdad8c311a3e7a28b61ca921769861a695bc0f06",
+    "size": 14207346,
+    "swiftpm_checksum": "a64889174ff3490ad0da72a3cdad8c311a3e7a28b61ca921769861a695bc0f06"
+  },
+  "consumer_responsibilities": {
+    "ios_final_product": [
+      "sign",
+      "provision"
+    ],
+    "macos_final_product": [
+      "sign",
+      "notarize"
+    ]
+  },
+  "format": {
+    "archive_entry_count": 22,
+    "container": "xcframework",
+    "distribution": "swiftpm_remote_binary_target",
+    "linkage": "static",
+    "standalone_executable_count": 0,
+    "static_archive_count": 3
+  },
+  "kind": "qperiapt.apple_static_xcframework_distribution",
+  "notarization": {
+    "applicability": "not_applicable_static_sdk_payload",
+    "notarized": false,
+    "reason_code": "static_xcframework_contains_no_standalone_executable_or_notarizable_bundle",
+    "stapled": false,
+    "submission_performed": false,
+    "ticket_expected": false,
+    "ticket_generated": false
+  },
+  "origin_signature": {
+    "certificate": {
+      "issuer": "/CN=Developer ID Certification Authority/OU=Apple Certification Authority/O=Apple Inc./C=US",
+      "notAfter": "Feb  1 22:12:15 2027 GMT",
+      "notBefore": "Oct 28 20:11:01 2026 GMT",
+      "serial": "59517E25D89503E7",
+      "sha1": "4c727f97a10e1721685e13d339d04047265eeccf",
+      "sha256": "6c8412fd1c9faeb286eefe4518d20d500ed911cfe5695020f125b73b89a509b3",
+      "subject": "/UID=YKUPL7Z869/CN=Developer ID Application: Zi ang Li (YKUPL7Z869)/OU=YKUPL7Z869/O=Zi ang Li/C=US"
+    },
+    "kind": "qperiapt.apple_xcframework_signature",
+    "profile": "sdk-020",
+    "schema_version": 2,
+    "sealed_resources": {
+      "code_resources_sha256": "d242e014d3f396766bde239a6a9665efd300ab68ed298ad6d992f3aa95f2e350",
+      "static_libraries": {
+        "ios-arm64/libq_periapt_ffi_abi2.a": "4d54fc608d986f25eee3a63816c815790548ff4a3f607ac7809bcb4c9bb69b2c",
+        "ios-arm64_x86_64-simulator/libq_periapt_ffi_abi2.a": "f10c5f664b9fc491e97b15f654bbbf7addb8503199f82802c11e5b94e0dac0e6",
+        "macos-arm64/libq_periapt_ffi_abi2.a": "2c46dd5d37024ef5d0132480b880750c929af20ec9c60ce80ebdb3b0ce1ad6ce"
+      }
+    },
+    "signature": {
+      "authority": "Developer ID Application: Zi ang Li (YKUPL7Z869)",
+      "authority_chain": [
+        "Developer ID Application: Zi ang Li (YKUPL7Z869)",
+        "Developer ID Certification Authority",
+        "Apple Root CA"
+      ],
+      "cdhash": "568abf095818dd6f1353bfcf8dfdcd7f73da1ace",
+      "code_directory_flags": "none",
+      "format": "bundle",
+      "hardened_runtime": false,
+      "identifier": "CQPeriapt",
+      "identity_class": "Developer ID Application",
+      "secure_timestamp": "17 Nov 2026 at 01:59:35",
+      "strict_verification": true,
+      "team_id": "YKUPL7Z869"
+    }
+  },
+  "path_hygiene": {
+    "allowed_upstream_toolchain_path_rules": [],
+    "artifact_scan": {
+      "forbidden_match_count": 0,
+      "scope": "all_decompressed_regular_zip_entries"
+    },
+    "policy": "qperiapt.apple_static_archive_build_paths.v2",
+    "synthetic_build_path_prefix": "/__qperiapt__/"
+  },
+  "profile": "sdk-020",
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "release_identity": {
+    "product_version": "0.2.0",
+    "revision": "r1",
+    "tag": "v0.2.0",
+    "url": "https://github.com/billlza/q-periapt/releases/tag/v0.2.0"
+  },
+  "schema_version": 4,
+  "source_commit": "b327970189259ac3a5dd2353db4a90b178a72431"
+}

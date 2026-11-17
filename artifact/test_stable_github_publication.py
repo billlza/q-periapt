@@ -178,8 +178,9 @@ def fixture_snapshot(
             len(plan.platform.assets),
             index - 2 - len(plan.apple.assets),
         )
-    apple_public = index >= publication.MAX_ACTIONS - 1
-    platform_public = index == publication.MAX_ACTIONS
+    expected_action_count = len(plan.apple.assets) + len(plan.platform.assets) + 4
+    apple_public = index >= expected_action_count - 1
+    platform_public = index == expected_action_count
 
     def view(
         release: publication.ReleasePlan,
@@ -241,7 +242,8 @@ def fixture_snapshot(
         "latest_tag": (
             plan.apple.tag
             if apple_public
-            else apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"]
+            else ("v0.1.5" if isinstance(plan, publication.SdkPublicationPlan)
+                  else apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"])
         ),
         "releases": [
             None if apple is None else json.loads(apple.canonical),
@@ -2415,6 +2417,11 @@ class StableGitHubPublicationTests(unittest.TestCase):
                     ),
                 ) as build,
                 mock.patch.object(
+                    publication,
+                    "_validate_plan_against_current_pending",
+                    return_value=None,
+                ) as revalidate,
+                mock.patch.object(
                     publication.platform_distribution,
                     "find_selected_release_candidate_bundle",
                     side_effect=stage_platform,
@@ -2448,6 +2455,7 @@ class StableGitHubPublicationTests(unittest.TestCase):
                 repository_root=None,
             )
             platform_stager.assert_called_once()
+            revalidate.assert_called_once_with(self.plan, repository_root=None)
             credential_boundary.assert_not_called()
             remote_observer.assert_not_called()
             staged = expected / publication.STAGING_DIRECTORY

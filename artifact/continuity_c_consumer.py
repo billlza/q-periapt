@@ -454,7 +454,7 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         if path.is_file():
             sdk.copy(path, consumer / path.relative_to(FIXTURE))
     from continuity_c_abi import load as load_abi_contract
-    load_abi_contract(consumer)
+    load_abi_contract(consumer, stage="release")
     template_hashes = {p.relative_to(consumer).as_posix(): sdk.snapshot(p).sha256
                        for p in consumer.rglob("*") if p.is_file()}
     sdk.extract_recorded_crates(consumer, sdk_output, records)
@@ -576,7 +576,7 @@ def _qualify_c(outside: Path, output: Path, cargo: list[str], environment: dict,
         from continuity_c_abi import qualify as qualify_abi
         result.setdefault("abi_contract", {})[profile] = qualify_abi(
             consumer, installed, cc, platform_flags, profile, unit_test, run,
-            darwin=darwin, runtime=runtime, filename=filename)
+            darwin=darwin, runtime=runtime, filename=filename, stage="release")
         authority_fixture = outside / ("c-" + profile + "-authority-fixture")
         authority_fixture.mkdir(mode=0o700)
         checked = run([str(unit_test)], "admission-" + profile,

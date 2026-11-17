@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "kind": "qperiapt.maintenance_preparation_fixture_qualification",
+  "ci_source_commit": "008d323106284de5775213d5ee4a809288ed1f36",
+  "pull_request_head": "42c357ae6b2eb887849cbc1381f6003302c019d5",
+  "run_id": 44021520630,
+  "job_id": 133831994332,
+  "artifact_id": 14301409469,
+  "artifact_sha256": "ef7708387d6acdcd1b5c0b4c6711a991d7f5bfd8d7e5c972bd37adfbdb49296a",
+  "artifact_bytes": 104369,
+  "hosted_tests": 4013,
+  "errors": 1,
+  "skipped": 3,
+  "root_cause": "The synthetic offline maintenance staging fixture had not modeled the new shared committed-admission recheck. The real reader correctly refused the fake fixture digest against current artifact/results.json.",
+  "repair": "Explicit synthetic admission model, with rejected-admission no-write control, followed by the original exact staged asset/request/account-lock assertions.",
+  "validation": {
+    "tests": 256,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "seconds": 242.388,
+    "warnings": "errors",
+    "log_sha256": "0fb70843d16818ad1d71fdf306ad650ae9e89e1fb6846f5a4c3bc68f2112ff87",
+    "test_file_sha256": "37de27793c48df3b7c5ffcda7ba1b0b7546378d1a2b05dee4ee50d338b2502f1"
+  },
+  "production_validation_weakened": false,
+  "publication_performed": false
+}

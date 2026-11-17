@@ -1,0 +1,22 @@
+E
+======================================================================
+ERROR: test_actual_frozen_graph_accepts_complete_release_identity_inputs (test_continuity_release_manifest.AdoptedSpecificationTests.test_actual_frozen_graph_accepts_complete_release_identity_inputs)
+Real frozen metadata with explicitly synthetic, non-qualifying payloads.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/artifact/test_continuity_release_manifest.py", line 64, in test_actual_frozen_graph_accepts_complete_release_identity_inputs
+    result = manifest.verify_manifest(root, selected["path"], expected_sha256=selected["sha256"],
+                                      source_commit=source["commit"], source_tree=source["tree"], stage="release")
+  File "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/artifact/continuity_release_manifest.py", line 529, in verify_manifest
+    summary = _packages(manifest["packages"], inputs, stage=stage, source=expected_source, interfaces=manifest["interfaces"])
+  File "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/artifact/continuity_release_manifest.py", line 432, in _packages
+    require(row["version"] == VERSION, "product package version differs")
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/artifact/continuity_release_manifest.py", line 50, in require
+    raise ValueError(message)
+ValueError: product package version differs
+
+----------------------------------------------------------------------
+Ran 1 test in 0.162s
+
+FAILED (errors=1)

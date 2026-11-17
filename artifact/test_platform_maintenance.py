@@ -961,10 +961,14 @@ class PlatformMaintenanceTransactionTests(unittest.TestCase):
                 ),
             ),
             mock.patch.object(
+                publication,
+                "_validate_plan_against_current_pending",
+            ) as revalidate,
+            mock.patch.object(
                 publication.platform_distribution,
                 "find_selected_release_candidate_bundle",
                 side_effect=stage_platform,
-            ),
+            ) as stager,
             mock.patch.object(
                 github,
                 "github_cli_environment",
@@ -976,10 +980,32 @@ class PlatformMaintenanceTransactionTests(unittest.TestCase):
                 side_effect=AssertionError("offline prepare accessed GitHub"),
             ) as observer,
         ):
+            # This is an offline staging fixture. Model its synthetic pending
+            # admission at the shared boundary, and prove a refused admission
+            # cannot stage bytes or leave a prepared plan.
+            revalidate.side_effect = publication.StableGitHubPublicationError(
+                "synthetic pending admission was refused"
+            )
+            with self.assertRaisesRegex(
+                publication.StableGitHubPublicationError, "pending admission was refused"
+            ):
+                publication.prepare_plan(
+                    self.plan.results_sha256, state_root=self.root, profile=PROFILE
+                )
+            stager.assert_not_called()
+            self.assertFalse((self.root / publication.PLAN_LEAF).exists())
+            self.assertFalse((self.root / publication.PREPARATION_INTENT_LEAF).exists())
+            self.assertEqual([], list((self.root / publication.STAGING_DIRECTORY).iterdir()))
+            revalidate.side_effect = None
             result = publication.prepare_plan(
                 self.plan.results_sha256, state_root=self.root, profile=PROFILE
             )
         self.assertEqual(self.plan, result)
+        self.assertEqual(revalidate.call_args_list, [
+            mock.call(self.plan, repository_root=None),
+            mock.call(self.plan, repository_root=None),
+        ])
+        stager.assert_called_once()
         credentials.assert_not_called()
         observer.assert_not_called()
         staged = self.root / publication.STAGING_DIRECTORY

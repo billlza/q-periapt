@@ -1,0 +1,71 @@
+{
+  "cargo": "cargo 1.90.0 (840b83a10 2025-07-30)",
+  "completed": true,
+  "host_arch": "x86_64",
+  "host_os": "Linux",
+  "kind": "qperiapt.rust_sdk_msrv_qualification",
+  "native_abi_major": 2,
+  "outside_checkout": "/tmp/qperiapt-rust-sdk-msrv-m2q7d_vt",
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "resolution": {
+    "external_packages": 101,
+    "lockfile_sha256": "5a1585c238df318c9cafc490425874ffa2cccc34079e53d622d64702de56158c",
+    "product_crates": 9
+  },
+  "rust_report_sha256": "8a61e5a0a5584df9128b5bfdcff72211bd96f09435b52e019e405a06680a0a5a",
+  "rustc": "rustc 1.90.0 (1159e78c4 2025-09-14)\nbinary: rustc\ncommit-hash: 1159e78c4747b02ef996e55082b704c09b970588\ncommit-date: 2025-09-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.90.0\nLLVM version: 20.1.8\n",
+  "schema_version": 1,
+  "scope": "public APIs from nine pinned archives on this host; not full workspace development tests or a platform matrix",
+  "source_inputs": {
+    "files": {
+      "README.md": "3ae4478913d57706e05eaa6db23fc50d893efb29c2c4018149ee7f392f3900ad",
+      "artifact/bounded_process.py": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45",
+      "artifact/c_package_manifest.py": "30274edd771c6c3200685f5595ca972478d0c5d099821018cf383fb4e833aa97",
+      "artifact/crates_io_registry_metadata.py": "f4a16e59e4218c4339a38abcb0542a9616e1735bf8d743b5c24e54c5216aa777",
+      "artifact/evidence_io.py": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d",
+      "artifact/git_provenance.py": "8bb64d7f43d1ffa00a39b31a174e8667d4d2cfb1f8c42a019a32627f6a065f3f",
+      "artifact/installed_rust_graph.py": "0150573580c4acab5b0e542b28e31278a8eeeeff65594bef322001801ee6b42c",
+      "artifact/python-env.sh": "dd73b7c30ea167bc52ff0a267420175127caf96a1f26249678a1ae9345532e49",
+      "artifact/python-run.sh": "fbca9e98e1e7827d5bcdbf3540f3e8f6b2dbdb6e407b9e99bc541f782f784255",
+      "artifact/python_bootstrap.py": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe",
+      "artifact/rust-publish-contract.sh": "1bbf6e141abb5fd5892d281066994f81a98158367a3918148752a09a234ed6fd",
+      "artifact/rust_publish_contract.py": "c44b7fba48c83eac8c6e3b1e9c0ed2134a3d3d0e340a90a2a856954060d04612",
+      "artifact/rust_sdk_msrv.py": "3180cde3c6f5e507859935615c96bcd378d1b98c09d1a38fb50c893e4c2efb62",
+      "artifact/rust_sdk_profile.py": "f23d73ec6afabaee763328557c93f4bf542365384ed8ee10b386b6d697ed7af5",
+      "bindings/rust/SDKPackageConsumer/Cargo.toml": "d48d8b1e24a610ba72ac28c9f4af70aa1757c8163b877645b0d3ca784d008719",
+      "bindings/rust/SDKPackageConsumer/fixtures/README.md": "13dfffdfbea6b474b56f9552f955d34b7109b8792e5f10a92a0bf9e8e8bb47cd",
+      "bindings/rust/SDKPackageConsumer/fixtures/client.der": "7996323125beb371e63f45dc38798d339c2fbc3bb2b0d51f57d1e77de90f0e3c",
+      "bindings/rust/SDKPackageConsumer/fixtures/client.key.der": "5319d21790dda809339d5f5f2fc377df97016af8d3c33acd717712907f612afe",
+      "bindings/rust/SDKPackageConsumer/fixtures/server.der": "699c14c660013e3edb92913bbe50916f1d1f121fe8934c694e6ac145cd99f7b3",
+      "bindings/rust/SDKPackageConsumer/fixtures/server.key.der": "086f61cd8f9d9999e684b99422b4ff13bc18623408622e22e54af7a3a4c5691f",
+      "bindings/rust/SDKPackageConsumer/src/lib.rs": "a82a100086738223dadca880c166190e0ec8d45874438ff037825b125e05eb20",
+      "bindings/sdk-policy-revocation-vectors.json": "ffa88a68b549ccd72fa2b10d7b6015435f43187239c80f552ea4fee475a61add",
+      "bindings/sdk-policy-update-vectors.json": "9c1d14716b51d0d687f1877a8c65bb119494ef2c0e8606e89337ba0c57b0aa47",
+      "bindings/signed-policy-vectors.json": "83110fa4c73679e7b4b8d117cffe4f8388408500de2a354fb3d7982a129382f5"
+    },
+    "rust_workspace_sha256": "5ae84fea7013592154311994c971892417bd334786128e02326a788100f6b1e2"
+  },
+  "sources_unchanged": true,
+  "tests": [
+    "owned_roundtrip_derivation_transfer_and_revocation",
+    "private_store_restart_rollback_rejection_and_reenable",
+    "public_reference_connection_with_mutual_identity_and_fragmented_io",
+    "signed_policy_failures_and_explicit_transition"
+  ],
+  "tool_binaries": {
+    "cargo": {
+      "path": "/home/runner/.rustup/toolchains/1.90.0-x86_64-unknown-linux-gnu/bin/cargo",
+      "sha256": "51de284e8bb0d03dcee595a0fb1cb3a952fe9e7e4b953a8b1467b7f71725b561"
+    },
+    "rustc": {
+      "path": "/home/runner/.rustup/toolchains/1.90.0-x86_64-unknown-linux-gnu/bin/rustc",
+      "sha256": "e6abf55ab1859e7c990be77fd593f51661ea99fb2fde626ae9f4108aaa34e7fa"
+    },
+    "rustdoc": {
+      "path": "/home/runner/.rustup/toolchains/1.90.0-x86_64-unknown-linux-gnu/bin/rustdoc",
+      "sha256": "137b0d30154d749e2422baeb1dc2a0d4329c9ab1ed44814fcf7d36d65c6ce312"
+    }
+  },
+  "version": "0.2.0"
+}

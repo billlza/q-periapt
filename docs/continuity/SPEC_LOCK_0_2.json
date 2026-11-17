@@ -1,0 +1,198 @@
+{
+  "compiled_descriptor": {
+    "bytes": 2086,
+    "path": "docs/continuity/CONTRACT_0_2.json",
+    "sha256": "74c21058c23dd25f0a59294f3ec6b24e68b476961674152f2f1e794e44f4c5ac"
+  },
+  "frozen_product_contract": true,
+  "interfaces_sha256": "701641b4cfd8c2dfbf8a7e33d17fb85fb683dcd3ef650112fcce44bba7d9e3a8",
+  "kind": "qperiapt.continuity_spec_lock",
+  "normative_files": {
+    "budgets": {
+      "bytes": 2485,
+      "path": "docs/continuity/BUDGETS_V1.json",
+      "sha256": "4045ec6157ba82a16c5268199f3267c11585467caf1654cebf69651e2bc6409c"
+    },
+    "metadata": {
+      "bytes": 9991,
+      "path": "docs/continuity/METADATA_PRIVACY_V1.md",
+      "sha256": "832ef6e16a3511318d8e4e6bbbb78432394f586111f1c279c74f6b8beb1a2f6d"
+    },
+    "protocol": {
+      "bytes": 18504,
+      "path": "docs/continuity/PROTOCOL_V1.md",
+      "sha256": "541a3900725159d692c47b47938651b5a59ef17e0174455d546620b7ae35f970"
+    },
+    "state": {
+      "bytes": 22150,
+      "path": "docs/continuity/STATE_MACHINE_V1.md",
+      "sha256": "25baeab049ca6d3ed57adb25ac6ae6ea69d29c72e39816ee78ea7e2cee61c95e"
+    },
+    "storage": {
+      "bytes": 19938,
+      "path": "docs/continuity/STORAGE_RECOVERY_V1.md",
+      "sha256": "fd8b516759d5852cb7ab8f80c165c755d84daf3dd2bc73e24030c3584b326c9a"
+    },
+    "upgrade": {
+      "bytes": 13760,
+      "path": "docs/continuity/UPGRADE_MAINTENANCE_V1.md",
+      "sha256": "e7af991ead126dc593168b35bc7e3c6e68e468c8261a46ed453914a30c56e7ea"
+    },
+    "wire": {
+      "bytes": 25905,
+      "path": "docs/continuity/WIRE_V1.md",
+      "sha256": "aaa14d0ee975c4fbcc67ba7e0aef6cbfec1c3bf461a25f3c325d052fea2d27c2"
+    }
+  },
+  "package_graph_sha256": "f625f772a0ec557c59f7b962800d77ef90c1b09dc1a952f47f126204713c362a",
+  "product_version": "0.2.0",
+  "schema_version": 2,
+  "stage": "release",
+  "supporting_files": [
+    {
+      "bytes": 8296,
+      "path": "docs/continuity/PREKEY_SELECTION_V1.md",
+      "sha256": "80837b194fb9eee2655853f807552605a1c1fe0f6774f9872fced1db94d06b39"
+    },
+    {
+      "bytes": 9337,
+      "path": "docs/continuity/SEND_PROGRESS_V1.md",
+      "sha256": "deb8a1b6e7936f8bb0c13e72925c0599481e7453ba25e89e115b18650ef587f9"
+    },
+    {
+      "bytes": 14986,
+      "path": "docs/continuity/G1_EFFECT_LIFECYCLE.md",
+      "sha256": "98a4478a2ada45be16a355966d97d7e1d0b6df8de8a118f42310a66996000baa"
+    },
+    {
+      "bytes": 7986,
+      "path": "docs/PRIVATE_PUBLICATION_MAINTENANCE.md",
+      "sha256": "3e4f7e01c20b88c1e437f8706633a3d9c7160ae142734a14bfcbfa5892b2ee1e"
+    },
+    {
+      "bytes": 15218,
+      "path": "docs/SDK_CONNECTION.md",
+      "sha256": "db476e1f16282bf799cbe650fc79c5f4f76b6662a59c1bdc954ea9a73f4327ac"
+    },
+    {
+      "bytes": 63955,
+      "path": "research/continuity-identity-candidate/ENROLLMENT.md",
+      "sha256": "d915352705ac8473ce021555fc04f553d0591b3947c745aa1b7ba99e3de48608"
+    },
+    {
+      "bytes": 12047,
+      "path": "research/continuity-identity-candidate/BOOTSTRAP.md",
+      "sha256": "a88d611949860ccedc8912ecc9c4c61502eec53e51930eeb6a00714e8edd30f7"
+    },
+    {
+      "bytes": 35612,
+      "path": "research/continuity-identity-candidate/CREDENTIAL_RENEWAL.md",
+      "sha256": "3fc6ed23491feec0bb40dacfad3bde5ccaf7908898f85ccb43f8ce858b2bd9a6"
+    },
+    {
+      "bytes": 63175,
+      "path": "research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md",
+      "sha256": "ec6203b3249f85b09005b06d6c14470a1af83f465dd8b479d75807c67d1c9563"
+    },
+    {
+      "bytes": 149814,
+      "path": "research/continuity-identity-candidate/ANCHOR_WITNESS.md",
+      "sha256": "9a34194eb6ceb4411a795f5f3b616b424b01281a6bc8c034c1e847f5fb917b7e"
+    },
+    {
+      "bytes": 13225,
+      "path": "research/continuity-identity-candidate/REKEY_OFFERS.md",
+      "sha256": "d912f740a888269853b8a4f46d3e8d7d2774dc25c30a3debdab577e495c0a3bb"
+    },
+    {
+      "bytes": 9242,
+      "path": "research/continuity-identity-candidate/MESSAGES.md",
+      "sha256": "56ea60583218a287307e602c83a45c4131ba74693b88c2bb59ac858c7fef2d65"
+    },
+    {
+      "bytes": 21105,
+      "path": "research/continuity-identity-candidate/WRITE_INTENTS.md",
+      "sha256": "5a5105f169aa32459857d6895af6efb9ff1a0ee6730423464754bd360e82c19d"
+    },
+    {
+      "bytes": 13005,
+      "path": "research/continuity-identity-candidate/PENDING_WRITE_RECOVERY.md",
+      "sha256": "4930dd3bba8f48df23cfb9c23abef8686ec8a34e0bd31cb8e6e779bd74781282"
+    },
+    {
+      "bytes": 27288,
+      "path": "research/continuity-identity-candidate/POLICY_CONTINUATION.md",
+      "sha256": "c94c8ef6d34920e0c0e28a8ca3875ce0d6ca58a35bd4473540132d7b1dcc30fc"
+    },
+    {
+      "bytes": 10896,
+      "path": "research/continuity-identity-candidate/FANOUT.md",
+      "sha256": "1bb156e56b94b4a28c39ed55063ea20103ab1e757a9a56424f8ac0eda0e2ffab"
+    },
+    {
+      "bytes": 8429,
+      "path": "research/continuity-identity-candidate/CONTROL_PROGRESS.md",
+      "sha256": "0e11c7cfcb497cc9a4a354efb8f277f2bd357c1af2e96012d5cef5afa7b44e7a"
+    },
+    {
+      "bytes": 7136,
+      "path": "research/continuity-reference-app/DIRECTORY_LEASES.md",
+      "sha256": "b8137d5f881396b93ca3c60aa5fffa474a4ffdb52d24f88fc9a7ca87053d5482"
+    },
+    {
+      "bytes": 20070,
+      "path": "docs/continuity/SUPPORTED_WORKLOAD_BUDGETS_0_2.md",
+      "sha256": "ec9845abcf373b958cd5072e2fe79590e535c4cf66f3900668ac5533d5be94f3"
+    },
+    {
+      "bytes": 14312,
+      "path": "docs/continuity/COMPATIBILITY_0_2.md",
+      "sha256": "bde8e73f8ae912f0a38b724ad4d16fd81eb0ce573561aa0fa52b1b64ff8af50e"
+    },
+    {
+      "bytes": 7880,
+      "path": "docs/continuity/SOURCE_DISTRIBUTION_0_2.md",
+      "sha256": "e15db6d14b148175882006dc504b3ea1731decfb1fdab1d7f796ea39fd2a3c53"
+    },
+    {
+      "bytes": 3719,
+      "path": "docs/continuity/NATIVE_DISTRIBUTION_0_2.md",
+      "sha256": "3fbb450edbe0872894bef45bd033b0424be3f7ee1ac3dedadd8867a1de280514"
+    },
+    {
+      "bytes": 6454,
+      "path": "docs/continuity/SERVICE_DISTRIBUTION_0_2.md",
+      "sha256": "51687f0ab954e355060568608e99b8190485bb7f088e3ae91abcb6a2cddd01b7"
+    },
+    {
+      "bytes": 17541,
+      "path": "docs/continuity/ANDROID_DISTRIBUTION_0_2.md",
+      "sha256": "7ed859024ffdc6d879d88aa6727490e72d8c2493ac1e0451804652c76c64b1ac"
+    },
+    {
+      "bytes": 5249,
+      "path": "docs/continuity/ADOPTION_0_2.md",
+      "sha256": "239fc9a4206a4df4c056a9fbe1f16083d7d294092df4ab0e50770d243c782492"
+    },
+    {
+      "bytes": 15016,
+      "path": "docs/continuity/RECOVERY_CONDITIONS_V1.md",
+      "sha256": "2503f4d902bb7ef5afbdb699cd33ddf50eed3e87d57a900817387099d9c3c410"
+    },
+    {
+      "bytes": 20842,
+      "path": "docs/continuity/RECOVERY_DEPENDENCIES_V1.md",
+      "sha256": "49eb156588897e47a1e41012e23cb5920a36c1984cf9cc63079b6b61bf45a4fa"
+    },
+    {
+      "bytes": 36931,
+      "path": "docs/continuity/COMPUTATIONAL_RECOVERY_V1.md",
+      "sha256": "9bc1fbb089aa4756f6145357bee4b88022f8defb9cff8b19b6e286a76b0c7519"
+    },
+    {
+      "bytes": 22491,
+      "path": "docs/continuity/PACKAGE_GRAPH_0_2.json",
+      "sha256": "e29ff3a8fb42b27307067917a229e3dad582fa1c39617290c293b108326d9cc8"
+    }
+  ]
+}

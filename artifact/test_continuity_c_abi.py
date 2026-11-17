@@ -2,6 +2,7 @@
 import copy
 import json
 from pathlib import Path
+import re
 import tempfile
 import unittest
 
@@ -14,16 +15,22 @@ class ContractTests(unittest.TestCase):
     def setUpClass(cls):
         cls.fixture = consumer.FIXTURE
         cls.header = (cls.fixture / "qpc_owner.h").read_text()
-        cls.document = json.loads((cls.fixture / abi.CONTRACT).read_bytes())
-        cls.contract = abi.load(cls.fixture)
+        cls.product_document = json.loads((cls.fixture / abi.CONTRACT).read_bytes())
+        cls.document = dict(cls.product_document, frozen_product_contract=False)
+        cls.contract = abi.load(cls.fixture, stage="release")
 
-    def check_copy(self, *, header=None, document=None):
+    def test_current_product_requires_the_release_reader(self):
+        self.assertIs(self.product_document["frozen_product_contract"], True)
+        with self.assertRaisesRegex(ValueError, "identity"):
+            abi.load(self.fixture)
+
+    def check_copy(self, *, header=None, document=None, **kwargs):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "abi").mkdir()
             (root / abi.CONTRACT).write_text(json.dumps(self.document if document is None else document))
             (root / "qpc_owner.h").write_text(self.header if header is None else header)
-            return abi.load(root)
+            return abi.load(root, **kwargs)
 
     def test_complete_header_and_existing_export_census_agree(self):
         self.assertEqual(set(self.contract["functions"]), consumer.EXPORTS)
@@ -71,6 +78,106 @@ class ContractTests(unittest.TestCase):
                            ("frozen_product_contract", True), ("extra", 1)):
             with self.subTest(key=key, value=value), self.assertRaises(ValueError):
                 self.check_copy(document=dict(self.document, **{key: value}))
+
+    def test_release_stage_accepts_only_explicit_frozen_current_identity(self):
+        frozen = dict(self.document, frozen_product_contract=True)
+        original = copy.deepcopy(frozen)
+        self.assertEqual(self.check_copy(document=frozen, stage="release"), self.contract)
+        self.assertEqual(frozen, original)
+        for kwargs in ({}, {"stage": "candidate"}):
+            with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+                self.check_copy(document=frozen, **kwargs)
+        for field, value in (("schema_version", True), ("schema_version", 2),
+                             ("abi", "qpc-owner/2"), ("package_version", "0.0.0"),
+                             ("package_version", "0.2.0-alpha.1"), ("extra", True)):
+            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                self.check_copy(document=dict(frozen, **{field: value}), stage="release")
+        with self.assertRaisesRegex(ValueError, "reviewed declaration snapshot"):
+            self.check_copy(document=frozen, stage="release",
+                            header=self.header.replace("int32_t code;", "uint32_t code;", 1))
+
+    def test_stage_and_freeze_flags_do_not_allow_fallback_or_truthiness(self):
+        for stage in (None, True, "", "auto", "Release", []):
+            with self.subTest(stage=stage), self.assertRaisesRegex(ValueError, "stage"):
+                self.check_copy(stage=stage)
+        for stage, invalid in (("candidate", [True]), ("release", [False])):
+            for flag in [*invalid, 0, 1, 0.0, 1.0, None, "false", "true"]:
+                with self.subTest(stage=stage, flag=flag), self.assertRaises(ValueError):
+                    self.check_copy(document=dict(self.document, frozen_product_contract=flag), stage=stage)
+
+    def test_qualification_reports_selected_stage_and_rejects_input_changes(self):
+        # Deterministic compiler transcripts exercise the real declaration,
+        # layout, linkage and identity readers without building native fixtures.
+        def transcript(contract, *, rust):
+            types = {name: "fixture::" + name for name in contract["records"] | contract["callbacks"]}
+            def native_type(value):
+                return re.sub(r"qpc_[a-z0-9_]+", lambda match: types[match[0]], value) if rust else value
+            rows = ["QPC_ABI target 8 8"]
+            rows.extend(f"QPC_ABI {name} 8 8" for name in contract["callbacks"])
+            for name, fields in contract["records"].items():
+                observations = " ".join(
+                    f"{field}:{index * 8}:8:{native_type(contract['field_types'][name][field])}"
+                    for index, field in enumerate(fields))
+                rows.append(f"QPC_ABI {name} {len(fields) * 8} 8 {observations}")
+            rows.extend(f"QPC_ABI_FUNCTION {name} {' '.join(native_type(kind) for kind in signature)}"
+                        for name, signature in contract["signatures"].items())
+            if rust:
+                rows.extend(f"QPC_ABI_NATIVE {name} {kind}" for name, kind in types.items())
+                rows = ["running 1 test", f"test {abi.TEST} ... " + rows[0], *rows[1:], "ok",
+                        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.00s"]
+            return ("\n".join(rows) + "\n").encode()
+
+        for stage in ("candidate", "release"):
+            for mutate in (False, True):
+                with self.subTest(stage=stage, mutate=mutate), tempfile.TemporaryDirectory() as temporary:
+                    root = Path(temporary).resolve()
+                    source = root / "consumer"
+                    (source / "abi").mkdir(parents=True)
+                    document = dict(self.document, frozen_product_contract=(stage == "release"))
+                    original = json.dumps(document).encode()
+                    (source / abi.CONTRACT).write_bytes(original)
+                    (source / "qpc_owner.h").write_text(self.header)
+                    installed = root / "installed"
+                    installed.mkdir()
+                    filename = "libq_periapt_continuity_c_consumer.so"
+                    (installed / filename).write_bytes(b"library fixture")
+                    unit_test = root / "unit-test"
+                    unit_test.write_bytes(b"Rust test fixture")
+                    runtime = {"fixture": "owned runtime"}
+                    calls = []
+
+                    def run(argv, label, **kwargs):
+                        calls.append(label)
+                        if label == "abi-contract-compile-release":
+                            (installed / "qpc-abi-contract").write_bytes(b"C probe fixture")
+                            return b""
+                        if label == "abi-contract-dependencies-release":
+                            return f"(NEEDED) [{filename}]\n(RUNPATH) [$ORIGIN]\n".encode()
+                        self.assertIs(kwargs["runtime"], runtime)
+                        if label == "abi-contract-c-release":
+                            return transcript(self.contract, rust=False)
+                        self.assertEqual(label, "abi-contract-rust-release")
+                        if mutate:
+                            (source / abi.CONTRACT).write_text(json.dumps(
+                                dict(document, frozen_product_contract=not document["frozen_product_contract"])))
+                        return transcript(self.contract, rust=True)
+
+                    kwargs = {"stage": stage} if stage == "release" else {}
+                    if mutate:
+                        with self.assertRaisesRegex(ValueError, "qualification inputs changed"):
+                            abi.qualify(source, installed, Path("/fixture/cc"), [], "release", unit_test,
+                                        run, darwin=False, runtime=runtime, filename=filename, **kwargs)
+                    else:
+                        report = abi.qualify(source, installed, Path("/fixture/cc"), [], "release", unit_test,
+                                             run, darwin=False, runtime=runtime, filename=filename, **kwargs)
+                        self.assertTrue(report["completed"])
+                        self.assertEqual(report["stage"], stage)
+                        self.assertIs(report["frozen_product_contract"], stage == "release")
+                        self.assertIs(report["release_claim_eligible"], False)
+                        self.assertEqual(report["identities"]["contract"],
+                                         consumer.sdk.snapshot(source / abi.CONTRACT).sha256)
+                        self.assertEqual((source / abi.CONTRACT).read_bytes(), original)
+                    self.assertEqual(len(calls), 4)
 
     def test_probe_retains_all_real_symbol_references_and_field_observations(self):
         source = abi.c_probe(self.contract).decode()

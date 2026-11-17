@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .join(",");
     println!(
         concat!(
-            "{{\"schema_version\":3,\"frozen_product_contract\":false,",
+            "{{\"schema_version\":3,\"frozen_product_contract\":true,",
             "\"signature_context\":\"{}\",\"rekey_profile\":\"{}\",",
             "\"rekey_profile_sha3_256\":\"{}\",\"message_domain\":\"{}\",",
             "\"signature_purposes\":{{{}}},",

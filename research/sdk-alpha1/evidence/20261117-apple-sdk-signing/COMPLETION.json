@@ -1,0 +1,20 @@
+{
+  "kind": "qperiapt.apple_static_xcframework_release_completion",
+  "profile": "sdk-020",
+  "public_assets_sha256": {
+    "APPLE_DISTRIBUTION.json": "0da5c27cf09cec2c945258b04fc03c9e126405f1ab961d75f01a7c8b92776683",
+    "CQPeriapt.xcframework.zip": "a64889174ff3490ad0da72a3cdad8c311a3e7a28b61ca921769861a695bc0f06",
+    "MANIFEST.json": "24be43ffc3df1ba19d0d568d1385d5d98b90ef17aa6f66dde4cf9ee074b5812a",
+    "QPeriapt-Swift-SDK-0.2.0.zip": "8278a687e0c6253f7254f864748a56d005257ede4a17ab758678a524d8d2bb2a",
+    "SHA256SUMS": "bf956a4bb52275bb18fe55ca83bfbdcda956c3f97a7ceb78afb113c8011b0ac8"
+  },
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "release_identity": {
+    "product_version": "0.2.0",
+    "revision": "r1",
+    "tag": "v0.2.0"
+  },
+  "schema_version": 3,
+  "source_commit": "b327970189259ac3a5dd2353db4a90b178a72431"
+}

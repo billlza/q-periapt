@@ -75,10 +75,6 @@ if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 	ABI_CONTRACT_RELATIVE="crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json"
 	EXPECTED_ABI_EXPORT_COUNT=51
 	EXPECTED_CONSUMER_TESTS=6
-	if [ "$APPLE_RELEASE_MODE" != "0" ]; then
-		printf 'error: SDK alpha signing/publication requires its new release receipt profile; legacy receipts cannot admit it\n' >&2
-		exit 2
-	fi
 fi
 RELEASE_REVISION="r1"
 RELEASE_TAG="v$EXPECTED_PRODUCT_VERSION"
@@ -90,6 +86,11 @@ EXPECTED_RELEASE_RUST_HOST="aarch64-apple-darwin"
 EXPECTED_SWIFT_VERSION="swift-driver version: 1.148.6 Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101) Target: arm64-apple-macosx28.0"
 EXPECTED_XCODE_VERSION='Xcode 26.6
 Build version 17F113'
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
+	EXPECTED_SWIFT_VERSION="swift-driver version: 1.168.6 Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1) Target: arm64-apple-macosx26.0"
+	EXPECTED_XCODE_VERSION='Xcode 27.2
+Build version 27B52'
+fi
 case "$APPLE_RELEASE_MODE" in
 	0) ;;
 	1)
@@ -103,6 +104,14 @@ case "$APPLE_RELEASE_MODE" in
 		exit 2
 		;;
 esac
+SDK_SIGNATURE_ARGUMENT=
+REQUIRE_DUAL_MACOS_RUNTIME=$APPLE_RELEASE_MODE
+if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
+	REQUIRE_DUAL_MACOS_RUNTIME=0
+	if [ "$APPLE_RELEASE_MODE" = "1" ]; then
+		SDK_SIGNATURE_ARGUMENT=--require-signature
+	fi
+fi
 
 need() {
 	if ! command -v "$1" >/dev/null 2>&1; then
@@ -984,6 +993,7 @@ if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 	cmp "$SLICE_HASHES_BEFORE" "$SLICE_HASHES_AFTER"
 
 	PYTHONPATH=artifact python3 artifact/apple_distribution.py signing-evidence \
+		--profile "$APPLE_PACKAGE_PROFILE" \
 		--xcframework "$XCFRAMEWORK" \
 		--codesign-display "$CODESIGN_DISPLAY" \
 		--certificate "${CERTIFICATE_PREFIX}0" \
@@ -1028,7 +1038,8 @@ printf '\n=== Generate isolated SwiftPM binary consumer ===\n'
 if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 	mkdir "$OUT_ROOT/sdk-layout"
 	python3 artifact/apple_sdk_profile.py prepare --xcframework-zip "$ZIP_PATH" \
-		--parent "$OUT_ROOT/sdk-layout" --host-target "$RUST_HOST" >"$OUT_ROOT/sdk-layout/WRAPPER_INPUTS.json"
+		--parent "$OUT_ROOT/sdk-layout" --host-target "$RUST_HOST" \
+		${SDK_SIGNATURE_ARGUMENT:+"$SDK_SIGNATURE_ARGUMENT"} >"$OUT_ROOT/sdk-layout/WRAPPER_INPUTS.json"
 	CONSUMER_XCFRAMEWORK="$OUT_ROOT/sdk-layout/QPeriapt/Binaries/CQPeriapt.xcframework"
 else
 mkdir -p \
@@ -1105,7 +1116,7 @@ fi
 printf 'SWIFT_BINARY_CONSUMER_PASS\n'
 
 printf '\n=== Link exact XCFramework ZIP in iOS consumers ===\n'
-QPERIAPT_INTERNAL_REQUIRE_DUAL_MACOS_RUNTIME="$APPLE_RELEASE_MODE" \
+QPERIAPT_INTERNAL_REQUIRE_DUAL_MACOS_RUNTIME="$REQUIRE_DUAL_MACOS_RUNTIME" \
 QPERIAPT_INTERNAL_APPLE_PACKAGE_PROFILE="$APPLE_PACKAGE_PROFILE" \
 sh artifact/swift-xcframework-consumer-check.sh \
 	"$CONSUMER" "$APPLE_CONSUMER_EVIDENCE" "$CONSUMER_XCFRAMEWORK"
@@ -1115,6 +1126,7 @@ if [ "$APPLE_PACKAGE_PROFILE" = "sdk-020" ]; then
 	python3 artifact/apple_sdk_profile.py finish --parent "$OUT_ROOT/sdk-layout" \
 		--dist "$DIST" --source-snapshot "$OUT_ROOT/SOURCE_INPUTS.before.json" \
 		--xcframework-zip "$ZIP_PATH" --xcframework-sha256 "$SWIFTPM_CHECKSUM" \
+		${SDK_SIGNATURE_ARGUMENT:+"$SDK_SIGNATURE_ARGUMENT"} \
 		>"$OUT_ROOT/sdk-layout/SDK_PACKAGE.json"
 	printf 'SWIFT_SDK_INSTALLED_CONSUMER_PASS\n'
 fi
@@ -1124,6 +1136,7 @@ if [ "$APPLE_RELEASE_MODE" = "1" ]; then
 	printf '\n=== Apple static SDK distribution evidence ===\n'
 	assert_release_source_snapshot
 	PYTHONPATH=artifact python3 artifact/apple_distribution.py apple-distribution-evidence \
+		--profile "$APPLE_PACKAGE_PROFILE" \
 		--artifact "$ZIP_PATH" \
 		--source-commit "$SOURCE_COMMIT" \
 		--swiftpm-checksum "$SWIFTPM_CHECKSUM" \
@@ -1378,8 +1391,13 @@ manifest = {
 }
 if apple_release_mode:
     distribution = json.loads(apple_distribution_path.read_text(encoding="utf-8"))
-    if distribution.get("schema_version") != 3:
+    if distribution.get("schema_version") != (4 if package_profile == "sdk-020" else 3):
         raise SystemExit("error: Apple distribution evidence has the wrong schema")
+    if package_profile == "sdk-020" and (
+            distribution.get("profile") != "sdk-020"
+            or distribution.get("release_claim_eligible") is not False
+            or distribution.get("publication_performed") is not False):
+        raise SystemExit("error: SDK signature evidence does not establish product admission or publication")
     if distribution.get("kind") != "qperiapt.apple_static_xcframework_distribution":
         raise SystemExit("error: Apple distribution evidence has the wrong kind")
     if distribution.get("source_commit") != source_commit:
@@ -1418,13 +1436,12 @@ if apple_release_mode:
         "path": "APPLE_DISTRIBUTION.json",
         "sha256": sha(apple_distribution_path),
     }
-    manifest["consumer_verification"]["macos_dual_arch_runtime"] = {
-        "executed_architectures": ["arm64", "x86_64"],
-        "warning_or_error_diagnostics": 0,
-        "log_sha256": sha(
-            apple_consumer_evidence / "MACOS_UNIVERSAL-runtime.log"
-        ),
-    }
+    if package_profile == "legacy":
+        manifest["consumer_verification"]["macos_dual_arch_runtime"] = {
+            "executed_architectures": ["arm64", "x86_64"],
+            "warning_or_error_diagnostics": 0,
+            "log_sha256": sha(apple_consumer_evidence / "MACOS_UNIVERSAL-runtime.log"),
+        }
     manifest["source_inputs"]["apple_distribution_verifier_sha256"] = sha(
         root / "artifact/apple_distribution.py"
     )

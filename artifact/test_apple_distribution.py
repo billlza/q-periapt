@@ -459,6 +459,7 @@ class ZipFixture(unittest.TestCase):
         metadata_extra_name: str | None = None,
         non_unix_origin_name: str | None = None,
         compression: int = zipfile.ZIP_DEFLATED,
+        sdk_020: bool = False,
     ) -> dict[str, str]:
         entries = set(
             apple_distribution.EXPECTED_XCFRAMEWORK_DIRECTORIES
@@ -467,6 +468,10 @@ class ZipFixture(unittest.TestCase):
         if signed:
             entries.update(apple_distribution.EXPECTED_SIGNATURE_DIRECTORIES)
             entries.update(apple_distribution.EXPECTED_SIGNATURE_FILES)
+        libraries = apple_distribution.EXPECTED_XCFRAMEWORK_LIBRARIES
+        if sdk_020:
+            entries = {name.replace("macos-arm64_x86_64", "macos-arm64") for name in entries}
+            libraries = {name.replace("macos-arm64_x86_64", "macos-arm64") for name in libraries}
         if extra_name:
             entries.add(extra_name)
         library_hashes: dict[str, str] = {}
@@ -486,7 +491,7 @@ class ZipFixture(unittest.TestCase):
                     )
                     continue
                 relative = name.removeprefix("CQPeriapt.xcframework/")
-                if relative in apple_distribution.EXPECTED_XCFRAMEWORK_LIBRARIES:
+                if relative in libraries:
                     data = archive_bytes(relative)
                     if library_override and relative == library_override[0]:
                         data = library_override[1]
@@ -496,7 +501,7 @@ class ZipFixture(unittest.TestCase):
                     data = f"fixture:{name}".encode("utf-8")
                 if file_override and name == file_override[0]:
                     data = file_override[1]
-                if relative in apple_distribution.EXPECTED_XCFRAMEWORK_LIBRARIES:
+                if relative in libraries:
                     library_hashes[relative] = hashlib.sha256(data).hexdigest()
                 mode = stat.S_IFREG | (
                     0o755 if name == executable_name else 0o644
@@ -1000,7 +1005,7 @@ class SigningEvidenceTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temporary.cleanup()
 
-    def build(self) -> dict[str, object]:
+    def build(self, *, profile: str = "legacy") -> dict[str, object]:
         metadata = {
             "subject": f"CN=Developer ID Application: Example ({TEAM_ID})",
             "issuer": "CN=Developer ID Certification Authority",
@@ -1020,6 +1025,7 @@ class SigningEvidenceTests(unittest.TestCase):
                 expected_team_id=TEAM_ID,
                 expected_identity_sha1=self.identity_sha1,
                 expected_certificate_sha256=self.certificate_sha256,
+                profile=profile,
             )
 
     def test_binds_exact_layout_certificate_and_static_slice_hashes(self) -> None:
@@ -1063,6 +1069,18 @@ class SigningEvidenceTests(unittest.TestCase):
                 expected_identity_sha1=self.identity_sha1,
                 expected_certificate_sha256="00" * 32,
             )
+
+    def test_sdk_signing_requires_its_exact_layout_and_separate_profile(self) -> None:
+        with self.assertRaises(apple_distribution.AppleDistributionError):
+            self.build(profile="sdk-020")
+        (self.xcframework / "macos-arm64_x86_64").rename(self.xcframework / "macos-arm64")
+        evidence = self.build(profile="sdk-020")
+        self.assertEqual((evidence["schema_version"], evidence["profile"]), (2, "sdk-020"))
+        apple_distribution._validate_signing_evidence(evidence, profile="sdk-020")
+        with self.assertRaises(apple_distribution.AppleDistributionError):
+            apple_distribution._validate_signing_evidence(evidence)
+        with self.assertRaises(apple_distribution.AppleDistributionError):
+            self.build()
 
 
 class DistributionEvidenceTests(ZipFixture):
@@ -1154,6 +1172,13 @@ class DistributionEvidenceTests(ZipFixture):
         ):
             self.build()
 
+    def test_rejects_changed_signature_resources_even_when_libraries_match(self) -> None:
+        self.write_archive(signed=True, file_override=(
+            "CQPeriapt.xcframework/_CodeSignature/CodeResources", b"changed-seal"))
+        self.digest = hashlib.sha256(self.archive.read_bytes()).hexdigest()
+        with self.assertRaisesRegex(apple_distribution.AppleDistributionError, "CodeResources hash differs"):
+            self.build()
+
     def test_rejects_notarized_or_accepted_injected_into_signing_evidence(self) -> None:
         for field, value in (("notarized", True), ("status", "Accepted")):
             with self.subTest(field=field):
@@ -1163,6 +1188,56 @@ class DistributionEvidenceTests(ZipFixture):
                 ):
                     self.build()
                 del self.signing[field]
+
+
+class SdkDistributionEvidenceTests(ZipFixture):
+    def setUp(self) -> None:
+        super().setUp()
+        hashes = self.write_archive(signed=True, sdk_020=True)
+        self.signing = dict(signing_evidence(hashes), schema_version=2, profile="sdk-020")
+
+    def build(self, *, profile="sdk-020"):
+        return apple_distribution.build_static_xcframework_distribution_evidence(
+            artifact=self.archive, source_commit=SOURCE_COMMIT,
+            swiftpm_checksum=hashlib.sha256(self.archive.read_bytes()).hexdigest(),
+            signing_evidence=self.signing, profile=profile)
+
+    def test_exact_sdk_signature_binds_020_without_admitting_legacy_or_publication(self):
+        result = self.build()
+        self.assertEqual(result["schema_version"], 4)
+        self.assertEqual(result["profile"], "sdk-020")
+        self.assertEqual(result["release_identity"]["product_version"], "0.2.0")
+        self.assertEqual(result["release_identity"]["tag"], "v0.2.0")
+        self.assertFalse(result["release_claim_eligible"])
+        self.assertFalse(result["publication_performed"])
+        self.assertFalse(result["notarization"]["notarized"])
+        with self.assertRaises(apple_distribution.AppleDistributionError):
+            self.build(profile="legacy")
+
+    def test_sdk_refuses_missing_signature_and_cross_profile_signature_receipts(self):
+        original = copy.deepcopy(self.signing)
+        for changed in (dict(original, schema_version=True), dict(original, schema_version=1),
+                        dict(original, profile="legacy"),
+                        {key: value for key, value in original.items() if key != "profile"}):
+            with self.subTest(receipt=changed):
+                self.signing = changed
+                with self.assertRaises(apple_distribution.AppleDistributionError):
+                    self.build()
+        self.signing = original
+        self.write_archive(signed=False, sdk_020=True)
+        with self.assertRaises(apple_distribution.AppleDistributionError):
+            self.build()
+
+    def test_sdk_refuses_changed_native_bytes_and_signature_resources(self):
+        library = "macos-arm64/libq_periapt_ffi_abi2.a"
+        self.signing["sealed_resources"]["static_libraries"][library] = "00" * 32
+        with self.assertRaisesRegex(apple_distribution.AppleDistributionError, "library hashes differ"):
+            self.build()
+        hashes = self.write_archive(signed=True, sdk_020=True)
+        self.signing = dict(signing_evidence(hashes), schema_version=2, profile="sdk-020")
+        self.signing["sealed_resources"]["code_resources_sha256"] = "00" * 32
+        with self.assertRaisesRegex(apple_distribution.AppleDistributionError, "CodeResources hash differs"):
+            self.build()
 
 
 class ReleaseAssetVerificationTests(ZipFixture):

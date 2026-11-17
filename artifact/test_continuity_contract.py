@@ -18,10 +18,123 @@ from evidence_io import parse_strict_json_bytes
 
 class ContinuityWireContractTests(unittest.TestCase):
     def setUp(self):
-        self.expected = parse_strict_json_bytes(contract.snapshot(contract.BUDGETS).data, label="budgets")
+        self.product = parse_strict_json_bytes(contract.snapshot(contract.BUDGETS).data, label="budgets")
+        # Preserve the historical default-reader controls with an explicit
+        # candidate fixture, independently of the current product's stage.
+        self.expected = dict(self.product, frozen_product_contract=False)
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        budgets = Path(temporary.name) / "candidate-budgets.json"
+        budgets.write_text(json.dumps(self.expected))
+        patcher = patch.object(contract, "BUDGETS", budgets)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_current_product_requires_the_release_reader(self):
+        self.assertIs(self.product["frozen_product_contract"], True)
+        self.assertIs(contract.validate(self.product, stage="release"), self.product)
+        with self.assertRaisesRegex(ValueError, "candidate cannot claim"):
+            contract.validate(self.product)
 
     def test_complete_exact_descriptor_matches(self):
         self.assertEqual(contract.compare(self.expected, copy.deepcopy(self.expected)), self.expected)
+
+    def test_release_requires_explicit_stage_and_preserves_input_descriptors(self):
+        frozen = copy.deepcopy(self.expected)
+        frozen["frozen_product_contract"] = True
+        original = copy.deepcopy(frozen)
+        actual = copy.deepcopy(frozen)
+        self.assertIs(contract.validate(frozen, stage="release"), frozen)
+        self.assertIs(contract.compare(frozen, actual, stage="release"), actual)
+        self.assertEqual(frozen, original)
+        self.assertEqual(actual, original)
+        for kwargs in ({}, {"stage": "candidate"}):
+            with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+                contract.compare(frozen, actual, **kwargs)
+        with self.assertRaises(ValueError):
+            contract.compare(self.expected, self.expected, stage="release")
+        for expected, observed in ((self.expected, frozen), (frozen, self.expected)):
+            with self.subTest(expected=expected["frozen_product_contract"]), self.assertRaises(ValueError):
+                contract.compare(expected, observed, stage="release")
+
+    def test_stage_and_freeze_state_are_closed_and_exactly_typed(self):
+        for stage in (None, True, "", "auto", "Release", []):
+            with self.subTest(stage=stage), self.assertRaisesRegex(ValueError, "stage"):
+                contract.validate(self.expected, stage=stage)
+        for stage in ("candidate", "release"):
+            for frozen in (0, 1, 0.0, 1.0, None, "false", "true"):
+                changed = dict(self.expected, frozen_product_contract=frozen)
+                with self.subTest(stage=stage, frozen=frozen), self.assertRaises(ValueError):
+                    contract.compare(changed, changed, stage=stage)
+
+    def test_release_keeps_complete_schema_limits_and_profile_commitment(self):
+        frozen = copy.deepcopy(self.expected)
+        frozen["frozen_product_contract"] = True
+        mutations = [dict(frozen, schema_version=True), dict(frozen, schema_version=2),
+                     dict(frozen, package_version="0.2.0"),
+                     dict(frozen, rekey_profile_sha3_256="0" * 64),
+                     dict(frozen, signature_context="bad\0context"),
+                     dict(frozen, signature_purposes={"First": 1, "Second": 1}),
+                     dict(frozen, maximums=dict(frozen["maximums"], plaintext_bytes=True))]
+        for changed in mutations:
+            with self.subTest(changed=changed), self.assertRaises(ValueError):
+                contract.compare(changed, copy.deepcopy(changed), stage="release")
+        for name in contract.LIMITS:
+            changed = copy.deepcopy(frozen)
+            changed["maximums"][name] += 1
+            with self.subTest(limit=name), self.assertRaisesRegex(ValueError, "compiled contract differs"):
+                contract.compare(frozen, changed, stage="release")
+
+    def test_main_stage_selection_reports_only_validated_freeze_without_release_claim(self):
+        cases = [(None, False, False, True), ("candidate", False, False, True),
+                 ("release", True, True, True), (None, True, True, False),
+                 ("release", False, False, False), ("release", True, False, False),
+                 ("release", False, True, False)]
+        for stage, reviewed_frozen, compiled_frozen, succeeds in cases:
+            with self.subTest(stage=stage, reviewed=reviewed_frozen, compiled=compiled_frozen), \
+                    tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary).resolve()
+                budgets = root / "budgets.json"
+                reviewed = dict(self.expected, frozen_product_contract=reviewed_frozen)
+                original = json.dumps(reviewed).encode()
+                budgets.write_bytes(original)
+                executable = root / "consumer"
+                executable.write_bytes(b"compiled contract fixture")
+                output = root / "output"
+                argv = ["continuity_contract", "--consumer", str(executable), "--output", str(output)]
+                if stage is not None:
+                    argv.extend(["--stage", stage])
+                result = BoundedResult(returncode=0, stderr=b"", stdout=json.dumps(
+                    dict(self.expected, frozen_product_contract=compiled_frozen)).encode())
+                with patch("sys.argv", argv), patch.object(contract, "BUDGETS", budgets), \
+                        patch.object(contract, "capture_output", return_value=result), \
+                        contextlib.redirect_stdout(io.StringIO()):
+                    if succeeds:
+                        contract.main()
+                    else:
+                        with self.assertRaises(ValueError):
+                            contract.main()
+                report = json.loads((output / "CONTRACT.json").read_bytes())
+                self.assertEqual(report["stage"], stage or "candidate")
+                self.assertIs(report["completed"], succeeds)
+                self.assertIs(report["release_claim_eligible"], False)
+                if succeeds:
+                    self.assertIs(report["frozen_product_contract"], compiled_frozen)
+                    self.assertEqual(report["contract"], reviewed)
+                else:
+                    self.assertNotIn("frozen_product_contract", report)
+                    self.assertNotIn("contract", report)
+                self.assertEqual(budgets.read_bytes(), original)
+                self.assertEqual(executable.read_bytes(), b"compiled contract fixture")
+
+    def test_main_rejects_unknown_stage_before_executing_consumer(self):
+        with patch("sys.argv", ["continuity_contract", "--consumer", "/unused/consumer",
+                                "--output", "/unused/output", "--stage", "auto"]), \
+                patch.object(contract, "capture_output") as capture, \
+                contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:
+            contract.main()
+        self.assertEqual(raised.exception.code, 2)
+        capture.assert_not_called()
 
     def test_each_limit_change_is_rejected(self):
         for name in contract.LIMITS:

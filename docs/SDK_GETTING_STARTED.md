@@ -61,10 +61,15 @@ application cipher needs them. Close owners explicitly when finished. The
 language, and the [host store](SDK_HOST_STORE.md) provides durable policy state
 for Rust, C and Swift.
 
-The supplied persistent-store adapter currently supports macOS and Linux.
-Windows store calls explicitly report an unsupported platform; a Windows host
-must provide its own durable policy-state storage before relying on rollback
-protection across restarts.
+The SDK C persistent-runtime entry points currently support macOS and Linux;
+their Windows calls explicitly report an unsupported platform. Separately, the
+Rust host-store and native Continuity implementation support private storage on
+local NTFS under the [host-store ownership/DACL contract](SDK_HOST_STORE.md).
+The retained
+[Windows qualification](continuity/PRODUCT_ADMISSION.md#hosted-windows-qualification-2026-11-06)
+records that native storage and lifecycle evidence. A Windows application using
+the SDK C runtime must still supply durable policy-state storage before relying
+on rollback protection across restarts.
 
 The checked-in policies, roots and TLS identities are public test material for
 examples. They do not provision an application's trust. Runtime revocation

@@ -19,7 +19,7 @@ import subprocess
 import tempfile
 import zipfile
 
-from apple_distribution import MAX_ARTIFACT_BYTES, _validate_xcframework_zip_bytes
+from apple_distribution import MAX_ARTIFACT_BYTES, EXPECTED_SIGNATURE_FILES, _validate_xcframework_zip_bytes
 from c_abi_contract import load_contract, verify_header, verify_static_library
 from c_package_manifest import rust_workspace_source_digest
 from deterministic_archive import ArchiveLimits, create_zip, extract_zip
@@ -220,7 +220,7 @@ def prepare_consumer(consumer: Path) -> None:
         copy_regular(ROOT / "bindings" / name, resources / name)
 
 
-def prepare(xcframework_zip: Path, parent: Path, host_target: str) -> dict:
+def prepare(xcframework_zip: Path, parent: Path, host_target: str, *, require_signature: bool = False) -> dict:
     """Create the self-contained Swift package and its public-API consumer."""
     parent = parent.resolve(strict=True)
     if host_target not in HOST_TARGETS:
@@ -237,7 +237,7 @@ def prepare(xcframework_zip: Path, parent: Path, host_target: str) -> dict:
     if contract.document["package"]["semver"] != VERSION or len(contract.export_names) != 51:
         raise ValueError("alpha SDK ABI contract differs")
     snapshot = read_regular_snapshot(xcframework_zip, maximum=MAX_ARTIFACT_BYTES, label="SDK XCFramework ZIP")
-    _validate_xcframework_zip_bytes(snapshot.data, require_signature=False, profile=PROFILE)
+    _validate_xcframework_zip_bytes(snapshot.data, require_signature=require_signature, profile=PROFILE)
     package.mkdir(mode=0o700)
     binaries = package / "Binaries"
     binaries.mkdir()
@@ -295,26 +295,30 @@ def inventory(package: Path) -> dict[str, str]:
     return result
 
 
-def verified_xcframework_files(path: Path, expected_sha256: str) -> dict[str, str]:
+def verified_xcframework_files(path: Path, expected_sha256: str, *,
+                              require_signature: bool = False) -> dict[str, str]:
     """Freeze the already checked native artifact as the package's byte origin."""
     if re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is None:
         raise ValueError("expected XCFramework digest must be canonical SHA-256")
     snapshot = read_regular_snapshot(path, maximum=MAX_ARTIFACT_BYTES, label="verified SDK XCFramework ZIP")
     if snapshot.sha256 != expected_sha256:
         raise ValueError("SDK XCFramework ZIP changed after native verification")
-    _validate_xcframework_zip_bytes(snapshot.data, require_signature=False, profile=PROFILE)
+    _validate_xcframework_zip_bytes(snapshot.data, require_signature=require_signature, profile=PROFILE)
     with zipfile.ZipFile(io.BytesIO(snapshot.data)) as archive:
         return {"Binaries/" + entry.filename: hashlib.sha256(archive.read(entry)).hexdigest()
                 for entry in archive.infolist() if not entry.is_dir()}
 
 
 def verify_package(package: Path, expected_source: dict, *, cargo_lock: Path | None,
-                   expected_native_files: dict[str, str]) -> dict:
+                   expected_native_files: dict[str, str], require_signature: bool = False) -> dict:
     manifest = load_json_object_snapshot(package / CONTENTS, maximum=2 * 1024 * 1024,
                                          label="Swift SDK contents").value
     actual = inventory(package)
-    expected = {"schema_version": 1, "kind": "qperiapt.swift_sdk_contents", "profile": PROFILE,
+    expected = {"schema_version": 2 if require_signature else 1,
+                "kind": "qperiapt.swift_sdk_contents", "profile": PROFILE,
                 "version": VERSION, "abi_major": 2, "source_inputs": expected_source, "files": actual}
+    if require_signature:
+        expected["signature_required"] = True
     if canonical_json(manifest) != canonical_json(expected):
         raise ValueError("Swift SDK contents/source manifest differs from the actual package")
     native_files = {name: digest for name, digest in actual.items() if name.startswith("Binaries/")}
@@ -325,6 +329,8 @@ def verify_package(package: Path, expected_source: dict, *, cargo_lock: Path | N
     for slice_name in SLICES:
         for leaf in ("libq_periapt_ffi_abi2.a", "Headers/q_periapt.h", "Headers/module.modulemap"):
             required.add(f"Binaries/CQPeriapt.xcframework/{slice_name}/{leaf}")
+    if require_signature:
+        required.update("Binaries/" + name for name in EXPECTED_SIGNATURE_FILES)
     for target in TARGETS:
         prefix = f"Notices/{target}"
         notices = verify_licenses(package / prefix, expected_target=target)
@@ -346,7 +352,8 @@ def verify_package(package: Path, expected_source: dict, *, cargo_lock: Path | N
 
 
 def installed_consumer(archive: Path, archive_sha: str, expected_source: dict,
-                       expected_native_files: dict[str, str], evidence: Path) -> dict:
+                       expected_native_files: dict[str, str], evidence: Path, *,
+                       require_signature: bool = False) -> dict:
     """Execute only an extracted package from a fresh directory outside the checkout."""
     evidence.mkdir(mode=0o700)
     temporary = Path(tempfile.mkdtemp(prefix="qperiapt-sdk-install-")).resolve()
@@ -358,7 +365,8 @@ def installed_consumer(archive: Path, archive_sha: str, expected_source: dict,
     extract_zip(archive, temporary / "install", root_name="QPeriapt", mtime=MTIME,
                 expected_sha256=archive_sha, limits=LIMITS)
     package = temporary / "install/QPeriapt"
-    verify_package(package, expected_source, cargo_lock=ROOT / "Cargo.lock", expected_native_files=expected_native_files)
+    verify_package(package, expected_source, cargo_lock=ROOT / "Cargo.lock",
+                   expected_native_files=expected_native_files, require_signature=require_signature)
     consumer = temporary / "install/consumer"
     prepare_consumer(consumer)
     environment = {key: value for key, value in os.environ.items()
@@ -380,6 +388,9 @@ def installed_consumer(archive: Path, archive_sha: str, expected_source: dict,
         return result.stdout
 
     arguments = ["--package-path", str(consumer), "--scratch-path", str(temporary / "build")]
+    if require_signature:
+        run("codesign-before", ["/usr/bin/codesign", "--verify", "--strict", "--verbose=4",
+                                str(package / "Binaries/CQPeriapt.xcframework")])
     tests = run("swift-test", ["swift", "test", *arguments, "-Xswiftc", "-strict-concurrency=complete",
                                 "-Xswiftc", "-warnings-as-errors"])
     if b"Executed 6 tests, with 0 failures" not in tests:
@@ -395,7 +406,11 @@ def installed_consumer(archive: Path, archive_sha: str, expected_source: dict,
     if selected.sha256 != read_regular_snapshot(expected_library, maximum=LIMITS.maximum_member_bytes,
                                                label="installed SDK archive").sha256:
         raise ValueError("installed SwiftPM selection differs from the exact packaged macOS slice")
-    verify_package(package, expected_source, cargo_lock=ROOT / "Cargo.lock", expected_native_files=expected_native_files)
+    verify_package(package, expected_source, cargo_lock=ROOT / "Cargo.lock",
+                   expected_native_files=expected_native_files, require_signature=require_signature)
+    if require_signature:
+        run("codesign-after", ["/usr/bin/codesign", "--verify", "--strict", "--verbose=4",
+                               str(package / "Binaries/CQPeriapt.xcframework")])
     return {"kind": "qperiapt.swift_sdk_installed_consumer", "outside_source_checkout": True,
             "archive_sha256": archive_sha, "executed_tests": 6, "failures": 0,
             "warning_or_error_diagnostics": 0, "log_sha256": records,
@@ -404,21 +419,26 @@ def installed_consumer(archive: Path, archive_sha: str, expected_source: dict,
 
 
 def finish(parent: Path, dist: Path, source_snapshot: Path, xcframework_zip: Path,
-           xcframework_sha256: str) -> dict:
+           xcframework_sha256: str, *, require_signature: bool = False) -> dict:
     identity = check_source_snapshot(source_snapshot)
-    native_files = verified_xcframework_files(xcframework_zip, xcframework_sha256)
+    native_files = verified_xcframework_files(xcframework_zip, xcframework_sha256,
+                                             require_signature=require_signature)
     package = parent / "QPeriapt"
-    manifest = {"schema_version": 1, "kind": "qperiapt.swift_sdk_contents", "profile": PROFILE,
+    manifest = {"schema_version": 2 if require_signature else 1,
+                "kind": "qperiapt.swift_sdk_contents", "profile": PROFILE,
                 "version": VERSION, "abi_major": 2, "source_inputs": identity, "files": inventory(package)}
+    if require_signature:
+        manifest["signature_required"] = True
     with (package / CONTENTS).open("xb") as out:
         out.write(canonical_json(manifest))
-    verify_package(package, identity, cargo_lock=ROOT / "Cargo.lock", expected_native_files=native_files)
+    verify_package(package, identity, cargo_lock=ROOT / "Cargo.lock",
+                   expected_native_files=native_files, require_signature=require_signature)
     archive = dist / ARCHIVE_NAME
     if archive.exists():
         raise ValueError("SDK product archive already exists")
     audit = create_zip(package, archive, root_name="QPeriapt", mtime=MTIME, limits=LIMITS)
     installation = installed_consumer(archive, audit.archive_sha256, identity, native_files,
-                                      parent / "installed-consumer-evidence")
+                                      parent / "installed-consumer-evidence", require_signature=require_signature)
     check_source_snapshot(source_snapshot)
     for path, expected_digest in ((archive, audit.archive_sha256), (xcframework_zip, xcframework_sha256)):
         if read_regular_snapshot(path, maximum=MAX_ARTIFACT_BYTES, label="verified SDK artifact").sha256 != expected_digest:
@@ -449,19 +469,22 @@ def main() -> None:
     prepare_parser.add_argument("--xcframework-zip", type=Path, required=True)
     prepare_parser.add_argument("--parent", type=Path, required=True)
     prepare_parser.add_argument("--host-target", choices=HOST_TARGETS, required=True)
+    prepare_parser.add_argument("--require-signature", action="store_true")
     complete = sub.add_parser("finish")
     complete.add_argument("--parent", type=Path, required=True)
     complete.add_argument("--dist", type=Path, required=True)
     complete.add_argument("--source-snapshot", type=Path, required=True)
     complete.add_argument("--xcframework-zip", type=Path, required=True)
     complete.add_argument("--xcframework-sha256", required=True)
+    complete.add_argument("--require-signature", action="store_true")
     args = parser.parse_args()
     if args.command == "snapshot":
         result = source_identity()
     elif args.command == "check-source":
         result = check_source_snapshot(args.snapshot)
     elif args.command == "prepare":
-        result = prepare(args.xcframework_zip, args.parent, args.host_target)
+        result = prepare(args.xcframework_zip, args.parent, args.host_target,
+                         require_signature=args.require_signature)
     elif args.command == "check-exports":
         result = verify_apple_exports(args.library, args.llvm_nm)
     elif args.command == "check-link-map":
@@ -470,7 +493,8 @@ def main() -> None:
         print(select_consumer_scheme(args.inventory))
         return
     else:
-        result = finish(args.parent, args.dist, args.source_snapshot, args.xcframework_zip, args.xcframework_sha256)
+        result = finish(args.parent, args.dist, args.source_snapshot, args.xcframework_zip,
+                        args.xcframework_sha256, require_signature=args.require_signature)
     print(json.dumps(result, indent=2, sort_keys=True))
 
 

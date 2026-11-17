@@ -6,6 +6,31 @@ This is the concrete integration plan for the already agreed
 below record the selected changes, with the current implementation and completed
 qualification retained as their starting point.
 
+## Current admission and review boundary
+
+The [coordinated normative adoption](ADOPTION_0_2.md) now records the selected
+contract, compiled descriptor, separate interfaces and schema-2 lock. The
+[current source review](../../research/sdk-alpha1/evidence/20261117-release020-internal-review/REVIEW.md)
+reconciles the nine archived analyses at its named source. The remaining final
+source CI/delta review, actual artifact binding and publication receipts remain
+explicit release work. Earlier dated checkpoints below retain their original
+candidate and execution states.
+
+The [current release requirements](../SDK_0_2_RELEASE_READINESS.md) select
+internal cryptographic-boundary, ownership/error-path, code-quality and
+maintainability review, source-bound qualification and the release transaction.
+The user manages independent external security review separately. The
+[external-review brief](EXTERNAL_REVIEW_BRIEF.md) remains useful handoff material;
+it does not add an external-report prerequisite to automated delivery.
+
+The [source-bound internal assessment](RELEASE_0_2_INTERNAL_ASSESSMENT.md)
+reconciles both completed U2 original-source adapters, the joint entry and
+terminal connection, U3, workload and compatibility decisions against
+`8abbf8d2e73a27af7794528fd92d13fe3be2942d`. It records the actual source deltas
+and the remaining qualification, finding-reconciliation, artifact and freeze
+work. Earlier checkpoints below retain their original source and execution
+identities; their historical pending labels do not reopen completed inputs.
+
 ## Package identity checkpoint — 9 November 2026
 
 The [source distribution contract](SOURCE_DISTRIBUTION_0_2.md) selects
@@ -237,28 +262,31 @@ archives/binaries and accepted qualification receipts. Keeping these two layers
 separate avoids a self-referential source-commit or self-hash requirement and
 lets later compatible builds retain the same normative contract.
 
-`BUDGETS_V1.json` and the current contract checker deliberately describe an
-unfrozen candidate. Formal adoption must update the mode, compiled descriptor,
-lock verification and interface metadata together while retaining the historical
-candidate reader behavior.
+The coordinated adoption updates `BUDGETS_V1.json`, the actual compiled descriptor,
+interface metadata, selected qualification callers and schema-2 lock together.
+The contract checker's historical candidate default remains strict; current
+qualification selects `--stage release` explicitly.
 
 ## Concrete execution order
 
-1. Complete the current-source CI qualification and the full SummaryStats
-   execution repair. The retained-database allocation control is implemented;
-   its measured outcome informs the production setting. Retain the successful,
-   failed and incomplete runs with their original source identities.
+1. Complete and retain the selected-source CI qualification, including the
+   installed consumer partitions and their source-matched aggregate, applicable
+   platform execution, and the complete CodeQL analysis/publication contracts.
+   Keep earlier SummaryStats experiments and repairs with their original source,
+   budgets and outcomes; a historical timeout is not a new failure of the selected
+   source. Required PR merge checks and the full release evidence have different
+   scopes.
 2. Complete the package/export manifest using the selected Rust source archive
    channel and implemented versioned metadata. Bind remaining native, Android
    and service distribution identities and the adopted compatibility policy to
    their actual artifacts.
-3. Integrate both completed bootstrap U2 original-source compositions and
-   their exact record terms into the source-level assessment. The stage matrix,
-   U3 correspondence and workload-budget selection are already recorded.
-   Include the stated operation surface, applicable captured-byte/report
-   extensions and completed terminal conversion in the existing external-review
-   package, then retain the actual assessed scope, findings and required fix
-   rechecks.
+3. Use the source-bound internal assessment for both completed bootstrap U2
+   original-source compositions, their exact record terms, the terminal
+   conversion and U3 correspondence. Keep the stated operation surface and
+   applicable captured-byte/report interfaces explicit. Reconcile findings
+   against the final selected source and retain required fix rechecks. The
+   workload and compatibility policies are selected; the external-review
+   handoff remains a separate user-managed track.
 4. Generate the normative lock and final release manifest; run the affected
    contract, packaging, installation and replacement checks on the selected
    source. Preserve unchanged-component receipts with their actual provenance.

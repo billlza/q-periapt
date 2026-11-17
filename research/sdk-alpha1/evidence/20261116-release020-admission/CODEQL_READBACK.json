@@ -1,0 +1,309 @@
+{
+  "artifact": {
+    "api_digest_matched": true,
+    "bytes": 363771,
+    "id": 14275579692,
+    "name": "codeql-results-python-43964930828-1",
+    "run_id": 43964930828,
+    "sha256": "cea2d0f0e89125af5d0020fe63bd624f99f842785549f1e31cb701147319e016"
+  },
+  "bounded_process_emitted_representative_code_flows": 4,
+  "bounded_process_related_origins": [
+    {
+      "id": 1,
+      "line": 434,
+      "path": "artifact/android_runtime_control.py"
+    },
+    {
+      "id": 2,
+      "line": 193,
+      "path": "artifact/android_sdk_package.py"
+    },
+    {
+      "id": 3,
+      "line": 308,
+      "path": "artifact/android_sdk_package.py"
+    },
+    {
+      "id": 4,
+      "line": 458,
+      "path": "artifact/apple_sdk_profile.py"
+    },
+    {
+      "id": 5,
+      "line": 78,
+      "path": "artifact/ci_protoc.py"
+    },
+    {
+      "id": 6,
+      "line": 330,
+      "path": "artifact/codeql_memory_control.py"
+    },
+    {
+      "id": 7,
+      "line": 917,
+      "path": "artifact/codeql_summary_control.py"
+    },
+    {
+      "id": 8,
+      "line": 430,
+      "path": "artifact/continuity_android_build.py"
+    },
+    {
+      "id": 9,
+      "line": 226,
+      "path": "artifact/continuity_host_exchange.py"
+    },
+    {
+      "id": 10,
+      "line": 92,
+      "path": "artifact/continuity_independent_install.py"
+    },
+    {
+      "id": 11,
+      "line": 437,
+      "path": "artifact/continuity_independent_python_run.py"
+    },
+    {
+      "id": 12,
+      "line": 646,
+      "path": "artifact/continuity_package.py"
+    },
+    {
+      "id": 13,
+      "line": 258,
+      "path": "artifact/continuity_recovery_proof.py"
+    },
+    {
+      "id": 14,
+      "line": 171,
+      "path": "artifact/fanout_latency_review.py"
+    },
+    {
+      "id": 15,
+      "line": 212,
+      "path": "artifact/fanout_latency.py"
+    },
+    {
+      "id": 16,
+      "line": 358,
+      "path": "artifact/jvm_sdk_package.py"
+    },
+    {
+      "id": 17,
+      "line": 502,
+      "path": "artifact/jvm_sdk_package.py"
+    },
+    {
+      "id": 18,
+      "line": 274,
+      "path": "artifact/policy_maintenance_package.py"
+    },
+    {
+      "id": 19,
+      "line": 64,
+      "path": "artifact/sdk_connection_performance.py"
+    },
+    {
+      "id": 20,
+      "line": 246,
+      "path": "artifact/sdk_installed_connection.py"
+    },
+    {
+      "id": 21,
+      "line": 364,
+      "path": "artifact/test_codeql_rust_profile.py"
+    },
+    {
+      "id": 22,
+      "line": 235,
+      "path": "research/continuity-identity-candidate/scripts/verify_anchor_vectors.py"
+    },
+    {
+      "id": 23,
+      "line": 385,
+      "path": "research/continuity-identity-candidate/scripts/verify_public_vectors.py"
+    },
+    {
+      "id": 24,
+      "line": 328,
+      "path": "artifact/wasm_sdk_package.py"
+    }
+  ],
+  "command_sink_review": {
+    "additional_origins_traced": 20,
+    "all_raw_results_disposed": false,
+    "path": "CODEQL_SINK_REVIEW.md",
+    "related_origins_reviewed": 24,
+    "sha256": "e2d47fd151ff764d162f5a25b8f3e0c5c041bac21d1f1795fc1dec040fb8754c"
+  },
+  "completed": true,
+  "fixture_dispositions": [
+    {
+      "disposition": "Deliberately written public synthetic token in a private temporary test directory; the test asserts the release scanner rejects it without echoing its bytes. No production credential was read.",
+      "line": 210,
+      "path": "artifact/test_release_binary_scan.py",
+      "rule": "py/clear-text-storage-sensitive-data"
+    },
+    {
+      "disposition": "SHA-1 compatibility identity over a hard-coded synthetic certificate with usedforsecurity=False; the fixture separately retains SHA-256 and exercises Apple distribution verification.",
+      "line": 996,
+      "path": "artifact/test_apple_distribution.py",
+      "rule": "py/weak-sensitive-data-hashing"
+    }
+  ],
+  "historical_core_review_correspondence": {
+    "current_source": "8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+    "identical_files": [
+      {
+        "git_blob": "63bc8ff305c80721469e9f46f480395c8a036b76",
+        "path": "artifact/bounded_process.py"
+      },
+      {
+        "git_blob": "55e2d783ea31043b097804ffa2c640803eca299e",
+        "path": "artifact/python_bootstrap.py"
+      },
+      {
+        "git_blob": "abca87c463429b8b2182b5f1fa47635272667199",
+        "path": "artifact/git_provenance.py"
+      },
+      {
+        "git_blob": "889e21179d3279c5ac5840cb43d6c145232e65e2",
+        "path": "artifact/android_runtime_control.py"
+      },
+      {
+        "git_blob": "8a601ec9d05ff095311e9b2a7126f24adbdb5976",
+        "path": "artifact/android_sdk_package.py"
+      },
+      {
+        "git_blob": "2d77eb92e935530b1a210957a0496af580646433",
+        "path": "artifact/apple_sdk_profile.py"
+      }
+    ],
+    "original_source": "834c67183c403fd10d65600252ecbcb950c1af11"
+  },
+  "kind": "qperiapt.release020_codeql_python_readback",
+  "observed_at": "2026-11-17T00:06:20.761819+00:00",
+  "publication_performed": false,
+  "raw_results": 1415,
+  "raw_rule_counts": {
+    "py/clear-text-storage-sensitive-data": 1,
+    "py/code-injection": 1,
+    "py/command-line-injection": 52,
+    "py/overly-permissive-file": 53,
+    "py/path-injection": 1307,
+    "py/weak-sensitive-data-hashing": 1
+  },
+  "release_claim_eligible": false,
+  "review_source_inputs": {
+    "artifact/android_runtime_control.py": {
+      "bytes": 24417,
+      "sha256": "a8c0949de1c105ef4050cde6a5142d7532dfbbf1949e9ac62bc5783bb63129f1"
+    },
+    "artifact/android_sdk_package.py": {
+      "bytes": 20116,
+      "sha256": "faf1a9cd6176cc85b60b6f80fc75696df3fd8676286448d68680494dfb885b56"
+    },
+    "artifact/apple_sdk_profile.py": {
+      "bytes": 27209,
+      "sha256": "f85c2a8f3ae7b530410c2602b906fb508da9855e276b8e131ffaf2852d8170cf"
+    },
+    "artifact/bounded_process.py": {
+      "bytes": 51311,
+      "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45"
+    },
+    "artifact/ci_protoc.py": {
+      "bytes": 4209,
+      "sha256": "6ea077eee5b7d9853546baed0e9b39afdba76dd572f274629c1b4a9e2a62d4ae"
+    },
+    "artifact/codeql_memory_control.py": {
+      "bytes": 16760,
+      "sha256": "e545c5173dbe653e2151aa1985ae5fae57e7f36f90b2b5ebb4b556e3cc32d39e"
+    },
+    "artifact/codeql_summary_control.py": {
+      "bytes": 55906,
+      "sha256": "c29735cf2097b948b2bdcf983f26cf7fe6e01571eed15f58f805be0785b36af5"
+    },
+    "artifact/continuity_android_build.py": {
+      "bytes": 28528,
+      "sha256": "fa2003ea9816f3a6ca42bbe362d6b5d2a988019426d9d8b858db8d115eada478"
+    },
+    "artifact/continuity_host_exchange.py": {
+      "bytes": 17441,
+      "sha256": "4add7457fc307470cc60040823c2263fca72f3ff2c43384909521be796785443"
+    },
+    "artifact/continuity_independent_install.py": {
+      "bytes": 4899,
+      "sha256": "f01b6acc202d2449abbe2c529929f3767a31a983e423d644bac08279a0960936"
+    },
+    "artifact/continuity_independent_python_run.py": {
+      "bytes": 30572,
+      "sha256": "1418f8ff43d594a0c4897f8d5d27f45d989f18eb0b041bc23f35826acaa2f7c6"
+    },
+    "artifact/continuity_package.py": {
+      "bytes": 47147,
+      "sha256": "1e19d5e6d20354dc7407b1981b1e04767e6cc8f9171ea41a25595796f694ed29"
+    },
+    "artifact/continuity_recovery_proof.py": {
+      "bytes": 12764,
+      "sha256": "01202321fdef1ca9d4f68791fe9bc106830f7a5f29dce1e0b6dfe40c32880687"
+    },
+    "artifact/fanout_latency.py": {
+      "bytes": 12309,
+      "sha256": "8225a7d176eb8040fc456461c5c7248458435fe3eead64800091e4267763b4d8"
+    },
+    "artifact/fanout_latency_review.py": {
+      "bytes": 9730,
+      "sha256": "4b29ef558747bdf4ff2639224a7de2c1e3756ac182079627510eac290203c62a"
+    },
+    "artifact/jvm_sdk_package.py": {
+      "bytes": 30385,
+      "sha256": "556ef77e912426bdc32fcb1b34d9837aab9061d94791ef3245ae79132666a193"
+    },
+    "artifact/policy_maintenance_package.py": {
+      "bytes": 17188,
+      "sha256": "f15ffff1b260993ebadb6352aeb84aae7e5a1bc8a79131d33333a6a4b204734c"
+    },
+    "artifact/python_bootstrap.py": {
+      "bytes": 3068,
+      "sha256": "ba214d93402e5c5805bf84af2874875ea1f0cde49366bdfe41b04f956c744dfe"
+    },
+    "artifact/sdk_connection_performance.py": {
+      "bytes": 11833,
+      "sha256": "aea25ecc74114f5afe7869f2ff655d14e8f7d158aff7e218a86c0c5ef0f9526e"
+    },
+    "artifact/sdk_installed_connection.py": {
+      "bytes": 15647,
+      "sha256": "e201d8f5bd8ba48d45d1f2813ebcd36f0c5f834c86278a1f7b9f358ad146ad71"
+    },
+    "artifact/test_apple_distribution.py": {
+      "bytes": 136038,
+      "sha256": "d2dbf76bbeae3417f49bdbe0f9a9d2d11c8b3ef04d6bfc5e32a91567d62354e5"
+    },
+    "artifact/test_codeql_rust_profile.py": {
+      "bytes": 52348,
+      "sha256": "ea53833f1ae0f0d4bd304f61d88de9c02b516d1540ac2dc831a4f14807142c3f"
+    },
+    "artifact/test_release_binary_scan.py": {
+      "bytes": 24832,
+      "sha256": "1bdc184ddcafe5adb53145632fb1b91ecf76dbda0a80ec596925276c2116cf01"
+    },
+    "artifact/wasm_sdk_package.py": {
+      "bytes": 19525,
+      "sha256": "11f38206ff221dcf4e459e546b0b602d8fedf723636f783ddcf2b1bf58978432"
+    },
+    "research/continuity-identity-candidate/scripts/verify_anchor_vectors.py": {
+      "bytes": 13881,
+      "sha256": "122f2f411d9cf47ac922d75d7bb2ab6fecf74f0a826ed4695c312b67343ae59b"
+    },
+    "research/continuity-identity-candidate/scripts/verify_public_vectors.py": {
+      "bytes": 28728,
+      "sha256": "994c68dd66158fd10852e091fbbaacbe2f164423e6d9242d164148fd040f6aee"
+    }
+  },
+  "sarif_sha256": "ad91ba72797b72a29f7f94ca94ffc5e58c51f0a16e2f95d6c4fa8165b501fba1",
+  "schema_version": 1,
+  "scope": "Full raw Python SARIF inventory and exact source pins for the separately recorded bounded command-sink review. A completed readback is not disposition of every raw result, zero-alert status, or aggregate release approval.",
+  "source_commit": "8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+  "source_identity_text": "8abbf8d2e73a27af7794528fd92d13fe3be2942d\n733e2e6e17be2241d85264ea5e15e07a35f04527\n"
+}

@@ -1,0 +1,46 @@
+{
+  "authoring_checkout_claimed_clean": false,
+  "capture_script_sha256": "af4bbeb215603c604de314bec4757fadd4f3b8100313d8d168c88dc9662b1358",
+  "compiled_descriptor": {
+    "bytes": 2086,
+    "path": "docs/continuity/CONTRACT_0_2.json",
+    "sha256": "74c21058c23dd25f0a59294f3ec6b24e68b476961674152f2f1e794e44f4c5ac"
+  },
+  "compiled_execution": {
+    "consumer_sha256": "24018db9a64b4472e75bc9aa9a112f62844d66072ceb11f7bf046ea8f96cf1df",
+    "report_sha256": "2b06615a8c766116453131f9b1be30d9a5e86dc0b0acc50a6726144969aa45e1",
+    "returncode": 0,
+    "stderr_bytes": 0,
+    "stdout_sha256": "74c21058c23dd25f0a59294f3ec6b24e68b476961674152f2f1e794e44f4c5ac"
+  },
+  "completed": true,
+  "exports": {
+    "continuity_c": 158,
+    "sdk_c": 51
+  },
+  "final_release_source_commit": null,
+  "implementation_limits": 21,
+  "kind": "qperiapt.continuity_normative_freeze_capture",
+  "owner_declarations_unchanged": true,
+  "package_graph": {
+    "bytes": 22491,
+    "path": "docs/continuity/PACKAGE_GRAPH_0_2.json",
+    "sha256": "e29ff3a8fb42b27307067917a229e3dad582fa1c39617290c293b108326d9cc8"
+  },
+  "packages": 21,
+  "prior_manifest_sha256": "4f4b8c034adbb32abbc25856c762f759671be3d4de532e918783c271fb8268f7",
+  "prior_source_commit": "8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+  "protocol_values_unchanged_except_freeze_state": true,
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "schema_version": 1,
+  "scope": "Compiled descriptor equality, unchanged protocol/declaration values, selected package graph and normative input identity; not final release qualification.",
+  "selected_final_archives": 0,
+  "selected_final_assessments": 0,
+  "signature_purposes": 39,
+  "spec_lock": {
+    "bytes": 7124,
+    "path": "docs/continuity/SPEC_LOCK_0_2.json",
+    "sha256": "e409baccd1b1ec66dbe79f49f07d24653859e3a16e6ff13a18e3ac45bdf83d09"
+  }
+}
