@@ -8,6 +8,12 @@ use std::{
     time::{Duration, Instant},
 };
 
+fn diagnostic(stage: &str, error: &io::Error) {
+    if error.raw_os_error() == Some(997) {
+        eprintln!("IO_DIAGNOSTIC stage={stage} error={error:?}");
+    }
+}
+
 const POLL_INTERVAL: Duration = Duration::from_millis(25);
 
 fn remaining(deadline: Instant, cancel: &Cancellation) -> io::Result<Duration> {
@@ -38,11 +44,13 @@ fn observing_start(
     observed: &mut impl FnMut(bool) -> io::Result<()>,
 ) -> io::Result<TcpStream> {
     remaining(deadline, cancel)?;
-    let mut poll = Poll::new().inspect_err(|e| eprintln!("IO_DIAGNOSTIC poll-new: {e:?}"))?;
+    let mut poll = Poll::new().inspect_err(|e| diagnostic("poll-new", e))?;
     remaining(deadline, cancel)?;
-    let mut stream = mio::net::TcpStream::connect(address).inspect_err(|e| eprintln!("IO_DIAGNOSTIC connect: {e:?}"))?;
+    let mut stream =
+        mio::net::TcpStream::connect(address).inspect_err(|e| diagnostic("connect", e))?;
     poll.registry()
-        .register(&mut stream, Token(0), Interest::WRITABLE).inspect_err(|e| eprintln!("IO_DIAGNOSTIC register: {e:?}"))?;
+        .register(&mut stream, Token(0), Interest::WRITABLE)
+        .inspect_err(|e| diagnostic("register", e))?;
     // Some platforms start the OS connect during registration. Tests synchronize
     // after that real operation, without replacing its socket or outcome.
     let pending = match stream.peer_addr() {
@@ -60,7 +68,10 @@ fn observing_start(
         // On Darwin a completed refusal can make getpeername return EINVAL.
         // Preserve the original socket error instead of classifying that
         // secondary observation as the connection outcome.
-        Err(error) => { eprintln!("IO_DIAGNOSTIC peer-address: {error:?}"); return Err(stream.take_error()?.unwrap_or(error)); },
+        Err(error) => {
+            diagnostic("peer-address", &error);
+            return Err(stream.take_error()?.unwrap_or(error));
+        }
     };
     observed(pending)?;
     let mut events = Events::with_capacity(4);
@@ -69,7 +80,10 @@ fn observing_start(
         match poll.poll(&mut events, Some(wait)) {
             Ok(()) => {}
             Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
-            Err(error) => { eprintln!("IO_DIAGNOSTIC poll: {error:?}"); return Err(error); },
+            Err(error) => {
+                diagnostic("poll", &error);
+                return Err(error);
+            }
         }
         remaining(deadline, cancel)?;
         if events.is_empty() {
@@ -80,7 +94,11 @@ fn observing_start(
         }
         // Readiness can be spurious. SO_ERROR == 0 alone is not evidence that
         // TCP connected; validate both the original socket error and peer state.
-        if let Some(error) = stream.take_error().inspect_err(|e| eprintln!("IO_DIAGNOSTIC take-error-query: {e:?}"))? { eprintln!("IO_DIAGNOSTIC take-error-result: {error:?}");
+        if let Some(error) = stream
+            .take_error()
+            .inspect_err(|e| diagnostic("take-error-query", e))?
+        {
+            diagnostic("take-error-result", &error);
             return Err(error);
         }
         match stream.peer_addr() {
@@ -93,12 +111,19 @@ fn observing_start(
                         | io::ErrorKind::Interrupted
                 ) => {}
             // The socket can fail after the SO_ERROR check above as well.
-            Err(error) => { eprintln!("IO_DIAGNOSTIC peer-address: {error:?}"); return Err(stream.take_error()?.unwrap_or(error)); },
+            Err(error) => {
+                diagnostic("peer-address", &error);
+                return Err(stream.take_error()?.unwrap_or(error));
+            }
         }
     }
-    poll.registry().deregister(&mut stream).inspect_err(|e| eprintln!("IO_DIAGNOSTIC deregister: {e:?}"))?;
+    poll.registry()
+        .deregister(&mut stream)
+        .inspect_err(|e| diagnostic("deregister", e))?;
     let stream: TcpStream = stream.into();
-    stream.set_nonblocking(false).inspect_err(|e| eprintln!("IO_DIAGNOSTIC blocking: {e:?}"))?;
+    stream
+        .set_nonblocking(false)
+        .inspect_err(|e| diagnostic("blocking", e))?;
     remaining(deadline, cancel)?;
     Ok(stream)
 }
@@ -272,7 +297,10 @@ mod tests {
             // Cancellation may close the socket before TCP completes. In that
             // case the server has no accepted connection or application data.
             Err(error) if error.kind() == io::ErrorKind::WouldBlock => {}
-            Err(error) => { eprintln!("IO_DIAGNOSTIC poll: {error:?}"); return Err(error); },
+            Err(error) => {
+                diagnostic("poll", &error);
+                return Err(error);
+            }
         }
         eprintln!("OS connect pending at observation: {was_pending}; expired={expire}");
         Ok(())
@@ -313,7 +341,10 @@ mod tests {
                     });
                 }
                 Err(error) if error.kind() == io::ErrorKind::ConnectionRefused => {}
-                Err(error) => { eprintln!("IO_DIAGNOSTIC poll: {error:?}"); return Err(error); },
+                Err(error) => {
+                    diagnostic("poll", &error);
+                    return Err(error);
+                }
                 Ok(_) => {
                     return Err(io::Error::other(
                         "bound-only endpoint unexpectedly connected",
@@ -335,7 +366,10 @@ mod tests {
                             address,
                         });
                     }
-                    Err(error) => { eprintln!("IO_DIAGNOSTIC poll: {error:?}"); return Err(error); },
+                    Err(error) => {
+                        diagnostic("poll", &error);
+                        return Err(error);
+                    }
                 }
             }
             Err(io::Error::other(

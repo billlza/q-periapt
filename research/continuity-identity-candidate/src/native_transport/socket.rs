@@ -6,6 +6,12 @@ use std::io::{Read, Write};
 #[cfg(test)]
 mod tests;
 
+fn diagnostic(stage: &str, error: &io::Error) {
+    if error.raw_os_error() == Some(997) {
+        eprintln!("IO_DIAGNOSTIC stage={stage} error={error:?}");
+    }
+}
+
 pub(crate) struct Request {
     id: u64,
     wire: Vec<u8>,
@@ -37,8 +43,12 @@ impl Drop for Channel {
 }
 impl Channel {
     pub(crate) fn new(stream: TcpStream, engine: Connection) -> Result<Self, Error> {
-        stream.set_nodelay(true).inspect_err(|e| eprintln!("IO_DIAGNOSTIC nodelay: {e:?}"))?;
-        stream.set_nonblocking(false).inspect_err(|e| eprintln!("IO_DIAGNOSTIC blocking: {e:?}"))?;
+        stream
+            .set_nodelay(true)
+            .inspect_err(|e| diagnostic("nodelay", e))?;
+        stream
+            .set_nonblocking(false)
+            .inspect_err(|e| diagnostic("blocking", e))?;
         Ok(Self {
             stream,
             engine,
@@ -88,8 +98,14 @@ impl Channel {
                 let budget = remaining(deadline)?
                     .min(remaining(phase_deadline)?)
                     .min(Duration::from_millis(25));
-                self.stream.set_write_timeout(Some(budget))?;
-                match self.stream.write(pending).inspect_err(|e| {if !matches!(e.kind(),io::ErrorKind::Interrupted|io::ErrorKind::WouldBlock|io::ErrorKind::TimedOut) {eprintln!("IO_DIAGNOSTIC write: {e:?}");}}) {
+                self.stream
+                    .set_write_timeout(Some(budget))
+                    .inspect_err(|e| diagnostic("write-timeout", e))?;
+                match self
+                    .stream
+                    .write(pending)
+                    .inspect_err(|e| diagnostic("write", e))
+                {
                     Ok(0) => return Err(Error::Io(io::ErrorKind::WriteZero.into())),
                     Ok(written) => pending = pending.get(written..).ok_or(Error::Protocol)?,
                     Err(e)
@@ -122,7 +138,11 @@ impl Channel {
             }
             self.stream
                 .set_read_timeout(Some(self.budget(deadline, progress.remaining_ms)?))?;
-            match self.stream.read(&mut buffer).inspect_err(|e| {if !matches!(e.kind(),io::ErrorKind::Interrupted|io::ErrorKind::WouldBlock|io::ErrorKind::TimedOut) {eprintln!("IO_DIAGNOSTIC read: {e:?}");}}) {
+            match self
+                .stream
+                .read(&mut buffer)
+                .inspect_err(|e| diagnostic("read", e))
+            {
                 Ok(0) => {
                     self.engine.end_of_input()?;
                     return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into());
