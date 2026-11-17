@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare a compiled candidate's shared contract with the reviewed wire budgets."""
+"""Compare a compiled contract with reviewed budgets at an explicit admission stage."""
 from __future__ import annotations
 
 import argparse
@@ -30,11 +30,15 @@ def require(value: bool, message: str) -> None:
         raise ValueError(message)
 
 
-def validate(value: object) -> dict:
+def validate(value: object, *, stage: str = "candidate") -> dict:
+    require(type(stage) is str and stage in ("candidate", "release"),
+            "contract validation stage differs")
     require(type(value) is dict and set(value) == FIELDS, "contract fields differ")
     require(type(value["schema_version"]) is int and value["schema_version"] == 3,
             "contract schema differs")
-    require(value["frozen_product_contract"] is False, "candidate cannot claim a product freeze")
+    require(value["frozen_product_contract"] is (stage == "release"),
+            "candidate cannot claim a product freeze" if stage == "candidate"
+            else "release requires a frozen product contract")
     for name in ("signature_context", "rekey_profile", "rekey_profile_sha3_256", "message_domain"):
         text = value[name]
         require(type(text) is str and 0 < len(text) <= 512 and all(0x21 <= ord(c) <= 0x7e for c in text),
@@ -58,9 +62,9 @@ def validate(value: object) -> dict:
     return value
 
 
-def compare(expected: object, actual: object) -> dict:
-    expected = validate(expected)
-    actual = validate(actual)
+def compare(expected: object, actual: object, *, stage: str = "candidate") -> dict:
+    expected = validate(expected, stage=stage)
+    actual = validate(actual, stage=stage)
     require(actual == expected, "compiled contract differs from reviewed wire budgets")
     return actual
 
@@ -73,12 +77,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--consumer", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--stage", choices=("candidate", "release"), default="candidate",
+                        help="require the selected freeze state; this does not authorize publication")
     args = parser.parse_args()
     expected = snapshot(BUDGETS)
     executable = snapshot(args.consumer, 256 * 1024**2)
     output = args.output.absolute()
     output.mkdir(parents=True, mode=0o700, exist_ok=False)
     report = {"kind": "qperiapt.continuity_wire_contract", "completed": False,
+              "stage": args.stage,
               "release_claim_eligible": False, "budgets_sha256": expected.sha256,
               "consumer_sha256": executable.sha256, "consumer": str(executable.path)}
     try:
@@ -90,11 +97,13 @@ def main() -> None:
         report.update(argv=argv, returncode=result.returncode)
         require(result.returncode == 0 and result.stderr == b"", "compiled contract command failed or emitted diagnostics")
         actual = compare(parse_strict_json_bytes(expected.data, label="reviewed wire budgets"),
-                         parse_strict_json_bytes(result.stdout, label="compiled wire contract"))
+                         parse_strict_json_bytes(result.stdout, label="compiled wire contract"),
+                         stage=args.stage)
         require(snapshot(BUDGETS).sha256 == expected.sha256
                 and snapshot(args.consumer, 256 * 1024**2).sha256 == executable.sha256,
                 "contract inputs changed during verification")
-        report.update(completed=True, contract=actual)
+        report.update(completed=True, contract=actual,
+                      frozen_product_contract=actual["frozen_product_contract"])
     except BaseException as error:
         # Cancellation still retains an incomplete report before propagating unchanged.
         report.update(completed=False, failure=str(error))

@@ -182,12 +182,18 @@ artifact pins still require independent selection; a `completed` report field is
 not treated as broad security or publication approval. The verifier's result
 remains an identity-consistency result with release eligibility false.
 
-The original `continuity_contract.validate` and C candidate reader are unchanged.
-The new verifier checks the selected freeze state separately and reuses the
-candidate descriptor grammar on an in-memory validation copy. It never rewrites
-the candidate budget or declaration files. Moving from candidate to release
-therefore requires the actual coordinated admission change, not relabeling this
-manifest.
+The wire-contract and C declaration readers retain their strict `candidate`
+default. Their explicit `release` mode requires the frozen descriptor or
+declaration snapshot, with the same complete grammar, limits, profile commitment
+and interface checks. The manifest verifier selects that mode directly and
+validates the original descriptor without rewriting its freeze flag. A reader's
+successful release-mode check still grants no publication authority.
+
+The committed budgets, compiled Rust descriptor and C declaration snapshot remain
+unfrozen. Moving the product from candidate to release therefore still requires
+the coordinated admission change: update those three identities, the selected
+qualification callers and the normative lock together, then bind actual artifacts
+and accepted assessments. Adding a validation mode does not freeze the product.
 
 ## Running the check
 
