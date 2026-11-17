@@ -1,6 +1,6 @@
-# Continuity candidate metadata and privacy boundary
+# Continuity metadata and privacy boundary
 
-Status: **implementation inventory, not a frozen product privacy claim**. Source
+Status: **adopted in the [0.2.0 normative lock](ADOPTION_0_2.md)**. Original source
 baseline: `e00281ec`, with the formats in [WIRE_V1.md](WIRE_V1.md). The target
 authenticates accountable bootstrap/control transitions; it does not promise
 anonymous participants, deniable control signatures, hidden device membership,

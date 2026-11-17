@@ -164,9 +164,9 @@ def _source(value: object) -> dict:
 def _contract(value: object, *, frozen: bool) -> dict:
     require(type(value) is dict and value.get("frozen_product_contract") is frozen,
             "descriptor freeze state differs from the selected stage")
-    # Reuse the existing grammar and profile commitment, without changing that
-    # historical candidate validator's mandatory false flag or the input bytes.
-    continuity_contract.validate(dict(value, frozen_product_contract=False))
+    # Validate the selected stage directly. Historical callers keep the strict
+    # candidate default; a release descriptor must retain its actual freeze flag.
+    continuity_contract.validate(value, stage="release" if frozen else "candidate")
     return value
 
 

@@ -1,0 +1,38 @@
+{
+  "artifacts": 0,
+  "assessments": [],
+  "compiled_descriptor_matched": false,
+  "completed": true,
+  "exports": {
+    "continuity_c": 158,
+    "sdk_c": 51
+  },
+  "files": 57,
+  "interfaces_sha256": "6b7b23a794f9e071e8632a5ee46e11d0d2c3baa1c1edb720b5686dba485edda3",
+  "kind": "qperiapt.continuity_release_manifest_verification",
+  "manifest_sha256": "4f4b8c034adbb32abbc25856c762f759671be3d4de532e918783c271fb8268f7",
+  "missing_release_roles": [],
+  "package_graph_sha256": "b9057b9a79f92c52267dd51ea90fc8e4845453e97bf09c0ae7c6154037942ea7",
+  "packages": 21,
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "roles": [
+    "android",
+    "browser",
+    "engine",
+    "kotlin",
+    "native",
+    "sdk",
+    "service",
+    "swift"
+  ],
+  "schema_version": 1,
+  "scope": "Pinned manifest, normative-file, package-definition, artifact and export identity consistency. Assessment records retain their own scope; this check does not execute their validators, establish a clean checkout, authorize a release, or perform publication.",
+  "source": {
+    "commit": "8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+    "tree": "733e2e6e17be2241d85264ea5e15e07a35f04527"
+  },
+  "spec_lock_schema_version": 2,
+  "spec_lock_sha256": "90268033a927806d313198045ebc499de503633656106130fa0dcaf16e87ec73",
+  "stage": "candidate"
+}

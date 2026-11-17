@@ -107,7 +107,7 @@ def verify_package(root: Path, expected: dict) -> None:
     files = inventory(root)
     files.pop(CONTENTS)
     sdk.require(files == expected["files"], "native package members or bytes changed")
-    contract = abi.load(root / "include")
+    contract = abi.load(root / "include", stage="release")
     sdk.require(len(contract["functions"]) == 158, "native package owner ABI differs")
     licenses.verify(root / "LICENSES/dependencies", expected_target=expected["target"], root_package=c.NAME)
 

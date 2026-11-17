@@ -44,6 +44,7 @@ jobs:
             models
             services
             bindings
+            docs
             LICENSES
             research/continuity-identity-candidate
             research/continuity-reference-app
@@ -70,6 +71,13 @@ jobs:
         run: |
           set -euo pipefail
           sh artifact/python-run.sh -m unittest -v \
+            test_continuity_contract \
+            test_continuity_c_abi \
+            test_continuity_release_manifest \
+            test_continuity_package_identity \
+            test_continuity_native_package \
+            test_continuity_android_distribution \
+            test_continuity_windows_bundle \
             test_continuity_c_account_tls \
             test_continuity_c_account_tls_loss \
             test_continuity_c_account_delivery \

@@ -2,7 +2,7 @@ name: Installed Windows Continuity lifecycle
 
 on:
   push:
-    branches: [lza/windows-private-store]
+    branches: [main, lza/windows-private-store]
     # SDK packaging reads the workspace, public fixtures and fuzz audit inputs.
     # Artifact helpers form one maintained boundary, including transitive readers.
     paths:
@@ -28,7 +28,7 @@ on:
       - bindings/rust/SDKPackageConsumer/**
       - bindings/*-vectors.json
   pull_request:
-    branches: [lza/windows-private-store, feat/continuity-publication-verification]
+    branches: [main, 'release/**', lza/windows-private-store, feat/continuity-publication-verification]
     paths:
       - Cargo.toml
       - Cargo.lock
@@ -51,6 +51,8 @@ on:
       - bindings/c/ContinuityPackageConsumer/**
       - bindings/rust/SDKPackageConsumer/**
       - bindings/*-vectors.json
+
+  workflow_dispatch:
 
 permissions:
   contents: read

@@ -138,7 +138,7 @@ class ContinuityPackageIdentityTests(unittest.TestCase):
             self.assertEqual(patch, {"path": f"packages/{name}-{sdk.VERSION}"})
 
     def test_adapter_versions_keep_the_separate_owner_abi_and_existing_exports(self):
-        owner = c_abi.load(ROOT / "bindings/c/ContinuityPackageConsumer")
+        owner = c_abi.load(ROOT / "bindings/c/ContinuityPackageConsumer", stage="release")
         self.assertEqual(len(owner["functions"]), 158)
         self.assertEqual(len(owner["records"]), 70)
         self.assertEqual(len(owner["constants"]), 112)

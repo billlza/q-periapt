@@ -1,0 +1,59 @@
+{
+  "compiled_contract": {
+    "actual_candidate_reader_refused": true,
+    "completed": true,
+    "consumer_sha256": "24018db9a64b4472e75bc9aa9a112f62844d66072ceb11f7bf046ea8f96cf1df",
+    "producer_command": "cargo build --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --all-features --example contract_report",
+    "rustflags": "-D warnings",
+    "stage": "release",
+    "toolchain": "1.98.1"
+  },
+  "consolidated_python_tests": {
+    "failed": 0,
+    "passed": 117,
+    "ran": 121,
+    "skip_reason": "Linux C compiler controls on macOS; still required in hosted qualification",
+    "skipped": 4,
+    "warnings_as_errors": true
+  },
+  "exact_source_mirror_files": 3028,
+  "initial_errors": {
+    "installed_windows_reader": "corrected to explicit release stage",
+    "source_enumeration": "local ignored build product; original retained, actual controlled source mirrored"
+  },
+  "kind": "qperiapt.continuity_normative_freeze_validation",
+  "observed_at": "2026-11-17T03:26:46.367828+00:00",
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "retained_private_log_pins": {
+    "freeze-candidate-refusal.log": {
+      "bytes": 1889,
+      "sha256": "c5a8abafc7a826f1614da15bc373dae5e6ec8d7a89b1aedd3cb32e9ef50272c3"
+    },
+    "freeze-contract-build.log": {
+      "bytes": 4611,
+      "sha256": "f426d5478a5f84e3414baf4aead87f16961aab1d888d471589166c3c6090cac4"
+    },
+    "freeze-lock-tests.log": {
+      "bytes": 7899,
+      "sha256": "b09dd723c1d5c4c10538a9bcc61c30bf2ef90e2d7b9293c13c62173bd47773d4"
+    },
+    "freeze-python-final.log": {
+      "bytes": 23388,
+      "sha256": "c9c59b230e2cfddfaaa2942f4a43b051be77521a00334a9a0217a1034f7347f5"
+    },
+    "freeze-python-tests-mirror.log": {
+      "bytes": 23190,
+      "sha256": "58d48dbbc5b6321d235f3366749240c45109fe1040464f524730e025d73b98bf"
+    },
+    "freeze-python-tests.log": {
+      "bytes": 3800,
+      "sha256": "9ef9e955dd79c0b07a442358e990773ded66d1cebcad174b4c0f7436f6dc9298"
+    },
+    "freeze-test-source-final-pins.json": {
+      "bytes": 421352,
+      "sha256": "88d9b8a917198a62f662032de9a85a0c11fce6bf2d6adab05895ac7a4ca93ece"
+    }
+  },
+  "schema_version": 1
+}

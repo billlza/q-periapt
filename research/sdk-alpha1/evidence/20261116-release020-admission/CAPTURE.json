@@ -1,0 +1,500 @@
+{
+  "assessment_receipts_selected": false,
+  "built_artifacts_selected": false,
+  "candidate_distribution_projections": [
+    {
+      "built_artifacts_selected": false,
+      "definitions": [
+        {
+          "bytes": 16747,
+          "path": "artifact/continuity_native_package.py",
+          "sha256": "e0eb021b19f3f5fd2922f54d0eade0d0e91d54f027cfd43523ee7ff41872068a"
+        }
+      ],
+      "metadata": {
+        "bytes": 386,
+        "path": "research/sdk-alpha1/evidence/20261116-release020-admission/distributions/continuity-native.json",
+        "sha256": "5b1ccee525c8ec5fbfe537477fd750ed186f5eec1f2f1a13746b9b919cbc9503"
+      },
+      "package": "continuity-native",
+      "producer_executed_by_capture": false
+    },
+    {
+      "built_artifacts_selected": false,
+      "definitions": [
+        {
+          "bytes": 16889,
+          "path": "artifact/continuity_apple_package.py",
+          "sha256": "07c6e755a34c555da377ef6b76c98534d3a777810028cb18a103f9863344fdfd"
+        }
+      ],
+      "metadata": {
+        "bytes": 377,
+        "path": "research/sdk-alpha1/evidence/20261116-release020-admission/distributions/continuity-swift.json",
+        "sha256": "33dedbbaf2119f19eb7c638f10ec541e77c899b77f0e5bb7fbd7f415648e4575"
+      },
+      "package": "continuity-swift",
+      "producer_executed_by_capture": false
+    },
+    {
+      "built_artifacts_selected": false,
+      "definitions": [
+        {
+          "bytes": 1853,
+          "path": "bindings/kotlin/ContinuityPackageConsumer/build.gradle.kts",
+          "sha256": "19e488bfdb8e4fba78597f3daeec0eeb360bb88673c26307d95ba78faf486db4"
+        },
+        {
+          "bytes": 49,
+          "path": "bindings/kotlin/ContinuityPackageConsumer/settings.gradle.kts",
+          "sha256": "7631f4aedfae8f369d4c4ab84784d0bf270922eb889c5e4b2a6e345021adf4db"
+        },
+        {
+          "bytes": 62911,
+          "path": "artifact/continuity_kotlin_consumer.py",
+          "sha256": "e551fa9b79935f660b0bf721dda9cd949c98f73aed1f6af1dc121e3cefdf160d"
+        }
+      ],
+      "metadata": {
+        "bytes": 386,
+        "path": "research/sdk-alpha1/evidence/20261116-release020-admission/distributions/continuity-kotlin.json",
+        "sha256": "4e461801f30c4e89859fb50d5d4d363fedf06b5e28419defb09350f3d1930553"
+      },
+      "package": "continuity-kotlin",
+      "producer_executed_by_capture": false
+    },
+    {
+      "built_artifacts_selected": false,
+      "definitions": [
+        {
+          "bytes": 32093,
+          "path": "artifact/continuity_android_distribution.py",
+          "sha256": "d43b11cf9eba9c1947c0501088d8a0ff4cbda64dd395e68bcd03bff5ece856ab"
+        }
+      ],
+      "metadata": {
+        "bytes": 387,
+        "path": "research/sdk-alpha1/evidence/20261116-release020-admission/distributions/continuity-android.json",
+        "sha256": "b9ea2e52ae9ae90161b31fadd6fc1760093938bbadda85a6623ec12e6d204fc3"
+      },
+      "package": "continuity-android",
+      "producer_executed_by_capture": false
+    },
+    {
+      "built_artifacts_selected": false,
+      "definitions": [
+        {
+          "bytes": 23383,
+          "path": "artifact/continuity_service_package.py",
+          "sha256": "813216de90a9231c569b4c11edfa1d6b8070251e0e4227cbf16097500473c032"
+        }
+      ],
+      "metadata": {
+        "bytes": 366,
+        "path": "research/sdk-alpha1/evidence/20261116-release020-admission/distributions/continuity-services.json",
+        "sha256": "6f991ec09ecd34acf62235896a8346aff0c74e0ec20a6d263cdca86f919a308d"
+      },
+      "package": "continuity-services",
+      "producer_executed_by_capture": false
+    }
+  ],
+  "captured_at": "2026-11-17T00:02:56.697640+00:00",
+  "compiled_descriptor_selected": false,
+  "completed": true,
+  "frozen_product_contract": false,
+  "kind": "qperiapt.continuity_candidate_inventory_capture",
+  "manifest": {
+    "bytes": 24723,
+    "path": "research/sdk-alpha1/evidence/20261116-release020-admission/MANIFEST.json",
+    "sha256": "4f4b8c034adbb32abbc25856c762f759671be3d4de532e918783c271fb8268f7"
+  },
+  "publication_performed": false,
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "release_claim_eligible": false,
+  "schema_version": 1,
+  "scope": "Selected source bytes match the pinned Git blobs; prepared distribution identities contain no built artifacts or assessments. No whole-checkout, runtime-qualification, security-admission or publication claim.",
+  "script_sha256": "761863d39ce7cf497cf72b962eb4b8a77da1b9466bc7e3322aa07c2c9fb04f4f",
+  "source": {
+    "commit": "8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+    "tree": "733e2e6e17be2241d85264ea5e15e07a35f04527"
+  },
+  "source_files": [
+    {
+      "bytes": 2030,
+      "git_blob": "9781f4181ece3f47f27e487f49f6dd837bcc88ae",
+      "path": "Cargo.toml",
+      "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+    },
+    {
+      "bytes": 32093,
+      "git_blob": "4f5857f322e2df740a02f528bd5afc5d7ebea529",
+      "path": "artifact/continuity_android_distribution.py",
+      "sha256": "d43b11cf9eba9c1947c0501088d8a0ff4cbda64dd395e68bcd03bff5ece856ab"
+    },
+    {
+      "bytes": 16889,
+      "git_blob": "e9cb5e3821f24cb19e0a3a1ba3a3962349c33ab7",
+      "path": "artifact/continuity_apple_package.py",
+      "sha256": "07c6e755a34c555da377ef6b76c98534d3a777810028cb18a103f9863344fdfd"
+    },
+    {
+      "bytes": 5860,
+      "git_blob": "c908e0e2359ffb0cad6bd7f927c7af54bdf53cb3",
+      "path": "artifact/continuity_contract.py",
+      "sha256": "8ce01e4c052adc403a23157760d28b6a305b054a267dc3a78828aa5ec5256e64"
+    },
+    {
+      "bytes": 62911,
+      "git_blob": "64b51f5fea109825d7ba7145a9d07352043ba0f2",
+      "path": "artifact/continuity_kotlin_consumer.py",
+      "sha256": "e551fa9b79935f660b0bf721dda9cd949c98f73aed1f6af1dc121e3cefdf160d"
+    },
+    {
+      "bytes": 16747,
+      "git_blob": "95c1b9ab1d034e652ec0e585380e0522245656d7",
+      "path": "artifact/continuity_native_package.py",
+      "sha256": "e0eb021b19f3f5fd2922f54d0eade0d0e91d54f027cfd43523ee7ff41872068a"
+    },
+    {
+      "bytes": 32998,
+      "git_blob": "fdb12bcf5fedf3fa203d66a5b39b4663723b6e96",
+      "path": "artifact/continuity_release_manifest.py",
+      "sha256": "c67b7d29fd91139c80204418a8393847f13d22a7c586f675eae819fdde8c30b2"
+    },
+    {
+      "bytes": 23383,
+      "git_blob": "cdeee0174cab42834c587d525292fb20a8ec7604",
+      "path": "artifact/continuity_service_package.py",
+      "sha256": "813216de90a9231c569b4c11edfa1d6b8070251e0e4227cbf16097500473c032"
+    },
+    {
+      "bytes": 44308,
+      "git_blob": "a0358296cc398609c048e56cbcd960ff81fe7d27",
+      "path": "artifact/evidence_io.py",
+      "sha256": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d"
+    },
+    {
+      "bytes": 144156,
+      "git_blob": "4f27b7840b5090d67d1e9224e1dd8c25736a00f1",
+      "path": "artifact/publication_receipt_io.py",
+      "sha256": "3430d9596e4ce5d9e875e724e0c3366734c1760099c4250e1fbcc23f560922e1"
+    },
+    {
+      "bytes": 27974,
+      "git_blob": "444902870f0689291c635a88f87e2ecf6bfb6bfa",
+      "path": "artifact/rust_sdk_profile.py",
+      "sha256": "f23d73ec6afabaee763328557c93f4bf542365384ed8ee10b386b6d697ed7af5"
+    },
+    {
+      "bytes": 43163,
+      "git_blob": "987994a50b778a6ce49f5ef06057a32bdd3a9c0c",
+      "path": "bindings/c/ContinuityPackageConsumer/abi/qpc-owner-v1.json",
+      "sha256": "7e3d77d595c16ba111303c8f4330063dfdefbe54ac78df3fe6e6037e3498e618"
+    },
+    {
+      "bytes": 1853,
+      "git_blob": "44cdea969eaca0816087e56e4ba1df3a328741a7",
+      "path": "bindings/kotlin/ContinuityPackageConsumer/build.gradle.kts",
+      "sha256": "19e488bfdb8e4fba78597f3daeec0eeb360bb88673c26307d95ba78faf486db4"
+    },
+    {
+      "bytes": 49,
+      "git_blob": "ad02d46b63e575113490ab22fd6227ae947bc12d",
+      "path": "bindings/kotlin/ContinuityPackageConsumer/settings.gradle.kts",
+      "sha256": "7631f4aedfae8f369d4c4ab84784d0bf270922eb889c5e4b2a6e345021adf4db"
+    },
+    {
+      "bytes": 4733,
+      "git_blob": "3f1476c2a5a8d3e89c4bd3d65ca6ddfb566de2ab",
+      "path": "crates/q-periapt-backends/Cargo.toml",
+      "sha256": "7583379f4ed02e2a13e24064292548a2389fa76e2abec19b567cc2942c3f4d67"
+    },
+    {
+      "bytes": 3981,
+      "git_blob": "a16aecee7a2a01a87f2e602730c8ff7a31fbd86f",
+      "path": "crates/q-periapt-cli/Cargo.toml",
+      "sha256": "f8371f5bc18236d4f4a9b9c6f47bd9c5ed32d4d6a2771498ff2dc5d22b4cb469"
+    },
+    {
+      "bytes": 614,
+      "git_blob": "4f50d58762dbb178b8e20e19aff6cfcfb9eafbcd",
+      "path": "crates/q-periapt-core/Cargo.toml",
+      "sha256": "86eda915b3a03f4881195ae3c3a138a5e0dc43d5e3011e10ddfd46fd95169397"
+    },
+    {
+      "bytes": 1458,
+      "git_blob": "2cb5261964b7b57a76b6ea71ca2739ef07e34525",
+      "path": "crates/q-periapt-ffi/Cargo.toml",
+      "sha256": "c05ce7a8bce93016b6a1167bbf7b43867385d9ca6aca6cca32d0986363ea096c"
+    },
+    {
+      "bytes": 21767,
+      "git_blob": "aab55e523ff1ef3f9413151078f4839d19f579c7",
+      "path": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json",
+      "sha256": "f39be62e663e95291d37f0acdb5aa0f2375cdee3e93ac6de0cef322c287e9836"
+    },
+    {
+      "bytes": 1405,
+      "git_blob": "3ac4873f28d3063e409f9de96bfe1c89c73745ca",
+      "path": "crates/q-periapt-host-store/Cargo.toml",
+      "sha256": "7fb688641b6eb4b5590b78053e97a78caa109e9561deed951a5f9e12d91c1b36"
+    },
+    {
+      "bytes": 629,
+      "git_blob": "c782450fd13bac305714af004b417344ac8bda9c",
+      "path": "crates/q-periapt-kem/Cargo.toml",
+      "sha256": "cf1bd572b390dea2118bfcadcfdfdd37d1aaa087cafa10ae0775f7dcb5a40562"
+    },
+    {
+      "bytes": 1459,
+      "git_blob": "9d4ef09d266e1a35b56a2754b97354ac028d7838",
+      "path": "crates/q-periapt-mlkem-native-sys/Cargo.toml",
+      "sha256": "831fca720d89a2a213d5538ab163e9d1d8319bd81af176ac3b1196a14f62a4d1"
+    },
+    {
+      "bytes": 1166,
+      "git_blob": "af05262c2e73da2957f3e6fbe36149dd49a551ed",
+      "path": "crates/q-periapt-policy/Cargo.toml",
+      "sha256": "4d151697af8aa70cef16ccf22cf081cbc4afc052cb164678840861337cbd0db4"
+    },
+    {
+      "bytes": 2287,
+      "git_blob": "cc9bf6475182030caec9081361fc38b267d322e0",
+      "path": "crates/q-periapt-rustls/Cargo.toml",
+      "sha256": "1412368dc001ecfecc5664e33976c571e8cda1b30a39014ad45bc42454880d38"
+    },
+    {
+      "bytes": 1106,
+      "git_blob": "acd6bf844bc84f7cca832c8243e562f5444052b2",
+      "path": "crates/q-periapt-sdk-wasm/Cargo.toml",
+      "sha256": "4c875d354b0ea1c4cabf299b65a33558a015a33a949931d4bf5a4744ee404508"
+    },
+    {
+      "bytes": 1089,
+      "git_blob": "accfcf42ce9e6a3397b1ad693ee19de2cb9c8137",
+      "path": "crates/q-periapt-sdk-wasm/package/package.json",
+      "sha256": "551effef9caf7d0ee5d3b3fa96a27765a909a1edd1304791f284f12e9b04ce54"
+    },
+    {
+      "bytes": 1430,
+      "git_blob": "6e1df3c1fcf34e9caac81cbfd71b9f1027ba7e65",
+      "path": "crates/q-periapt-sdk/Cargo.toml",
+      "sha256": "77e4e27c16ef2867a61511f5839cd57be8959691f05e8422aa4c63a49faba142"
+    },
+    {
+      "bytes": 662,
+      "git_blob": "302902373516c39fd9c935c81a086da0870f7679",
+      "path": "crates/q-periapt-sig/Cargo.toml",
+      "sha256": "7faa1ac3323ed8eaf8be3e498b0a9fa99b25ed9d19a1f856e132a86ffd13a03d"
+    },
+    {
+      "bytes": 1447,
+      "git_blob": "4d2259160eb4733d5f4cd4e596e7cd895e75ddf4",
+      "path": "crates/q-periapt-wasm/Cargo.toml",
+      "sha256": "fd5d592bdafe6badf2d5d2e84491bbbdf23f4bda120a445f6297fd6def184c44"
+    },
+    {
+      "bytes": 7986,
+      "git_blob": "bb7f2bf6bf23d7265a443d33eeb4692ea0b4edd7",
+      "path": "docs/PRIVATE_PUBLICATION_MAINTENANCE.md",
+      "sha256": "3e4f7e01c20b88c1e437f8706633a3d9c7160ae142734a14bfcbfa5892b2ee1e"
+    },
+    {
+      "bytes": 15218,
+      "git_blob": "fcdf4a0b87799d6620107000c4e12383cdca9769",
+      "path": "docs/SDK_CONNECTION.md",
+      "sha256": "db476e1f16282bf799cbe650fc79c5f4f76b6662a59c1bdc954ea9a73f4327ac"
+    },
+    {
+      "bytes": 17621,
+      "git_blob": "fc14d531f39e6a2fe1ce0707d95cd796722cd471",
+      "path": "docs/continuity/ANDROID_DISTRIBUTION_0_2.md",
+      "sha256": "741d136b213f69fb20a9143d5d98f3d0586d48fd6449a3b7e51c32f66bf2068a"
+    },
+    {
+      "bytes": 2486,
+      "git_blob": "44125af737b91219e6af074683cc28c73c50bfe6",
+      "path": "docs/continuity/BUDGETS_V1.json",
+      "sha256": "f6719f14103f28bdf8d9fa1da6f42bb98c7b44b0d6f70d534dd75238ed51ef6c"
+    },
+    {
+      "bytes": 14229,
+      "git_blob": "83235841077f57540e9e0129265df342ffd1d5de",
+      "path": "docs/continuity/COMPATIBILITY_0_2.md",
+      "sha256": "fdcb808d0a68df678fbb88ee5db501ba0d9e64df411bf50dc3ac6770a47e979d"
+    },
+    {
+      "bytes": 14986,
+      "git_blob": "9b7a6d6c2634c7dbd04c0fa7b94a5ab5b9480284",
+      "path": "docs/continuity/G1_EFFECT_LIFECYCLE.md",
+      "sha256": "98a4478a2ada45be16a355966d97d7e1d0b6df8de8a118f42310a66996000baa"
+    },
+    {
+      "bytes": 9998,
+      "git_blob": "362f4a85822e829c2c3ead475544ef61fa1e2f66",
+      "path": "docs/continuity/METADATA_PRIVACY_V1.md",
+      "sha256": "9893f1c6fa2c820688c1f2cf66b621c47cdf2ab04e68d5cd1623b27a2481858c"
+    },
+    {
+      "bytes": 3719,
+      "git_blob": "bf09fac8e62b51e337c9697d840d0b0860a35ee3",
+      "path": "docs/continuity/NATIVE_DISTRIBUTION_0_2.md",
+      "sha256": "3fbb450edbe0872894bef45bd033b0424be3f7ee1ac3dedadd8867a1de280514"
+    },
+    {
+      "bytes": 8296,
+      "git_blob": "29bd402f106b7ac117c4b115ba811eea99096c73",
+      "path": "docs/continuity/PREKEY_SELECTION_V1.md",
+      "sha256": "80837b194fb9eee2655853f807552605a1c1fe0f6774f9872fced1db94d06b39"
+    },
+    {
+      "bytes": 19341,
+      "git_blob": "def22fc441e66938052698e7fbe08c742308b33f",
+      "path": "docs/continuity/PROTOCOL_V1.md",
+      "sha256": "6378ccd095da6479fec77bef838e2a6448a24e6ef6c54a29d482ad7a66a95b55"
+    },
+    {
+      "bytes": 9337,
+      "git_blob": "b7bdcc7ebb87af289fc204b77d4d8c27a42d1ca8",
+      "path": "docs/continuity/SEND_PROGRESS_V1.md",
+      "sha256": "deb8a1b6e7936f8bb0c13e72925c0599481e7453ba25e89e115b18650ef587f9"
+    },
+    {
+      "bytes": 6454,
+      "git_blob": "e0b90f59e15947e6ced269e56db0ddacc5cde006",
+      "path": "docs/continuity/SERVICE_DISTRIBUTION_0_2.md",
+      "sha256": "51687f0ab954e355060568608e99b8190485bb7f088e3ae91abcb6a2cddd01b7"
+    },
+    {
+      "bytes": 7880,
+      "git_blob": "f95b5ecd664bd1c755b73a263507bbd9051b10b6",
+      "path": "docs/continuity/SOURCE_DISTRIBUTION_0_2.md",
+      "sha256": "e15db6d14b148175882006dc504b3ea1731decfb1fdab1d7f796ea39fd2a3c53"
+    },
+    {
+      "bytes": 22010,
+      "git_blob": "a5b85a8f9c42449053f9bf00f818837b6eff347e",
+      "path": "docs/continuity/STATE_MACHINE_V1.md",
+      "sha256": "859976a170ec3bbfdd1ce6c10fb1ec9874065ecc6040986052d5a0f76ef1dfc1"
+    },
+    {
+      "bytes": 19946,
+      "git_blob": "0bd455bfb841d25b806ac52553206b3a2421f3e8",
+      "path": "docs/continuity/STORAGE_RECOVERY_V1.md",
+      "sha256": "670dd002dfd3119ac879360bf48e04b35596233ade78b0f95d43442bf3ad791e"
+    },
+    {
+      "bytes": 20022,
+      "git_blob": "dbe8859c9cd63231a319e75c08b47102a34287be",
+      "path": "docs/continuity/SUPPORTED_WORKLOAD_BUDGETS_0_2.md",
+      "sha256": "ad6c82cdb5dd460886b3a182f1b0fd00d3217624da39cdb413904e1c729d59f4"
+    },
+    {
+      "bytes": 13735,
+      "git_blob": "27fda9ce52eadb6f3e351dc50e73ddef6107a93a",
+      "path": "docs/continuity/UPGRADE_MAINTENANCE_V1.md",
+      "sha256": "56979a02a17d4f8227c3e6254ef1c6fe7f72e8fb7962319101e42d8098ae02aa"
+    },
+    {
+      "bytes": 25882,
+      "git_blob": "75b2377418cba8a3880dd21e0a2e0b571c46d34d",
+      "path": "docs/continuity/WIRE_V1.md",
+      "sha256": "e1b1f4c25bdffebfe1a4be30f05a88947fcca12253d2f3bdfd57e2937648f1df"
+    },
+    {
+      "bytes": 149814,
+      "git_blob": "0e6e0f2e99f146631fd85484908bbf600001373b",
+      "path": "research/continuity-identity-candidate/ANCHOR_WITNESS.md",
+      "sha256": "9a34194eb6ceb4411a795f5f3b616b424b01281a6bc8c034c1e847f5fb917b7e"
+    },
+    {
+      "bytes": 63175,
+      "git_blob": "35ff8208b674ba0e4469b8674d19e51872706cc5",
+      "path": "research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md",
+      "sha256": "ec6203b3249f85b09005b06d6c14470a1af83f465dd8b479d75807c67d1c9563"
+    },
+    {
+      "bytes": 12047,
+      "git_blob": "326f3b5c2fb07f09adf7fa1241fb02586d80aabc",
+      "path": "research/continuity-identity-candidate/BOOTSTRAP.md",
+      "sha256": "a88d611949860ccedc8912ecc9c4c61502eec53e51930eeb6a00714e8edd30f7"
+    },
+    {
+      "bytes": 8429,
+      "git_blob": "e957c628cebc5830b9d3bef703fdc499340a37dc",
+      "path": "research/continuity-identity-candidate/CONTROL_PROGRESS.md",
+      "sha256": "0e11c7cfcb497cc9a4a354efb8f277f2bd357c1af2e96012d5cef5afa7b44e7a"
+    },
+    {
+      "bytes": 35612,
+      "git_blob": "cb9d7eb86664fef647f378203ad120def159e1bb",
+      "path": "research/continuity-identity-candidate/CREDENTIAL_RENEWAL.md",
+      "sha256": "3fc6ed23491feec0bb40dacfad3bde5ccaf7908898f85ccb43f8ce858b2bd9a6"
+    },
+    {
+      "bytes": 3429,
+      "git_blob": "c695092a9a92c462c50154404560508b14036542",
+      "path": "research/continuity-identity-candidate/Cargo.toml",
+      "sha256": "9bc73696980974a17cfdcb243292ee1148d7db34a4205cc496c861eff79b1fe8"
+    },
+    {
+      "bytes": 63955,
+      "git_blob": "67536d2ed466761dbe98875ca530dd87a8f6c91d",
+      "path": "research/continuity-identity-candidate/ENROLLMENT.md",
+      "sha256": "d915352705ac8473ce021555fc04f553d0591b3947c745aa1b7ba99e3de48608"
+    },
+    {
+      "bytes": 10896,
+      "git_blob": "077894dedbcafe30532a09052100a71c2f9fa925",
+      "path": "research/continuity-identity-candidate/FANOUT.md",
+      "sha256": "1bb156e56b94b4a28c39ed55063ea20103ab1e757a9a56424f8ac0eda0e2ffab"
+    },
+    {
+      "bytes": 9242,
+      "git_blob": "aa910bf5d88dafe71fa0363cc591a8ed6a1f491a",
+      "path": "research/continuity-identity-candidate/MESSAGES.md",
+      "sha256": "56ea60583218a287307e602c83a45c4131ba74693b88c2bb59ac858c7fef2d65"
+    },
+    {
+      "bytes": 13005,
+      "git_blob": "697894ea143d612f6fa3d9d693ee4af1b460c7a6",
+      "path": "research/continuity-identity-candidate/PENDING_WRITE_RECOVERY.md",
+      "sha256": "4930dd3bba8f48df23cfb9c23abef8686ec8a34e0bd31cb8e6e779bd74781282"
+    },
+    {
+      "bytes": 27288,
+      "git_blob": "5d81a6a05505d004eca80c6269578e4eddb3402a",
+      "path": "research/continuity-identity-candidate/POLICY_CONTINUATION.md",
+      "sha256": "c94c8ef6d34920e0c0e28a8ca3875ce0d6ca58a35bd4473540132d7b1dcc30fc"
+    },
+    {
+      "bytes": 13225,
+      "git_blob": "d4e5b9931def76baf200aa2198c542e1b1895119",
+      "path": "research/continuity-identity-candidate/REKEY_OFFERS.md",
+      "sha256": "d912f740a888269853b8a4f46d3e8d7d2774dc25c30a3debdab577e495c0a3bb"
+    },
+    {
+      "bytes": 21105,
+      "git_blob": "fc8e595e70d171449cc7684c651d9ed3382c07d0",
+      "path": "research/continuity-identity-candidate/WRITE_INTENTS.md",
+      "sha256": "5a5105f169aa32459857d6895af6efb9ff1a0ee6730423464754bd360e82c19d"
+    },
+    {
+      "bytes": 2050,
+      "git_blob": "02cf12262aecee32ea2aff0b459cf3a4ada274f5",
+      "path": "research/continuity-reference-app/Cargo.toml",
+      "sha256": "2b067ec6ab2da760f4df62f24e2b219874d1f775db2b83286f3e21759712ba0c"
+    },
+    {
+      "bytes": 7136,
+      "git_blob": "9b600e4370e9bce2ba0fd6ab4378b5c4df5f11a5",
+      "path": "research/continuity-reference-app/DIRECTORY_LEASES.md",
+      "sha256": "b8137d5f881396b93ca3c60aa5fffa474a4ffdb52d24f88fc9a7ca87053d5482"
+    }
+  ],
+  "verification": {
+    "bytes": 1335,
+    "path": "research/sdk-alpha1/evidence/20261116-release020-admission/VERIFICATION.json",
+    "sha256": "2044b5eab3cc2bd4c2e855d27629de99412dea99a39b82abde35b65227a4bbf9"
+  }
+}

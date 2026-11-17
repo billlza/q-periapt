@@ -1,5 +1,21 @@
 # External security review preparation
 
+## Current delivery boundary
+
+This is preparation for the user's separate independent-review track. The
+[current SDK release requirements](../SDK_0_2_RELEASE_READINESS.md) select
+internal code/security and maintainability review, source-bound tests, platform
+execution and the release transaction as the delivery gates. An external report
+is not an automated-delivery prerequisite. The
+[source-bound internal assessment](RELEASE_0_2_INTERNAL_ASSESSMENT.md) records the
+current construction correspondence and remaining admission work.
+
+The historical review plans and executions below retain their dates and scope.
+They neither establish that an external review occurred nor replace the current
+delivery policy. If the user proceeds with that engagement, retain the actual
+reviewer's scope, findings and rechecks separately; any demonstrated defect
+affecting a release promise must still be fixed and rechecked.
+
 ## Added review material — 10 November 2026
 
 The [bootstrap joint-schedule assessment](BOOTSTRAP_JOINT_SCHEDULE_REVIEW_V1.md)
@@ -71,7 +87,7 @@ recorded through that process.
 
 ## Original review scope and retained execution history
 
-Planning snapshot: 2026-11-04. This prepares the independent review required by
+Planning snapshot: 2026-11-04. This prepares the user-managed independent review of
 [the 0.2.0 release scope](RELEASE_0_2_SCOPE.md). The user identified **魏庄坤教授**
 as the designated reviewer on this date. No narrower agreed scope or special
 material requirements were supplied, so the proposed scope below follows the
@@ -383,8 +399,8 @@ lifecycle partitions and both independent public readbacks.
 These results close the Windows runtime gap for this input tree. The older
 `93aa0582` installed receipt remains historical and is not relabelled as the
 current source. The other platform jobs, complete final CI, formal contract
-admission and source-bound external review remain separate obligations. This
-cohort must be included when selecting the exact review revision.
+admission and source-bound internal review remain delivery obligations. This
+cohort also belongs in the separately selected external-review revision.
 
 ## Handoff to 魏庄坤教授
 
@@ -410,7 +426,8 @@ and [terminal-agreement invariant](BOOTSTRAP_TERMINAL_AGREEMENT_V1.md):
 Record the reviewer's actual assessed scope, methods, assumptions, exclusions,
 source revision, findings and subsequent fix rechecks. Retain each finding's
 reproduction or reasoning and its disposition. A designation alone does not
-close the external-review gate or authorize a release transaction.
+establish completion of that external assessment or authorize a release
+transaction.
 
 ## Proposed technical scope
 
@@ -537,6 +554,9 @@ scope, methods, assumptions, findings, reproducible evidence, impact and fixes;
 explicitly record inconclusive areas and remaining risk. Findings affecting a
 declared security promise must be fixed and rechecked before release. Agree on
 retest coverage and how security-significant changes invalidate earlier review.
-Internal analysis, this preparation and a report's mere existence do not satisfy
-the external-review gate. Final CI, package identity checks and explicit release
-authorization still follow that gate.
+Internal analysis, this preparation and a report's mere existence do not
+establish completion of an external assessment. The current delivery gates are
+the internal review, final qualification, package/specification identity and
+release transaction recorded in the admission plan. The user-managed external
+engagement retains its own scope and outcome without blocking that work by
+default.

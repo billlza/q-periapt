@@ -1,0 +1,13 @@
+{
+  "profile": "sdk-020",
+  "tag": "v0.1.5",
+  "release_id": 383170350,
+  "cli_sha256": "5f8d7527e2bdf584249b030cdd1550c91d75e8afb40aa3c11573d416817a1260",
+  "assets": 4,
+  "tag_object": "47162c5cc4d5d64d2c6d1c6f178db0a176e419bf",
+  "verification_record_sha256": "b44bbfb0401c3a6b0192e13d6eb5f91c7658d5b975011c9daf23d11c40ec701a",
+  "verified_timestamp": "2026-09-05T09:48:01Z",
+  "raw_verification_sha256": "53c9d5c760a4c8f69f5a32d4ab84de8d714bf6b5dfde9ed3fdabc5572f6629dd",
+  "remote_mutations_performed": false,
+  "sdk_020_publication_performed": false
+}

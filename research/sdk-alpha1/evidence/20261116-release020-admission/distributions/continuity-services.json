@@ -1,0 +1,15 @@
+{
+  "artifacts": [],
+  "dependencies": [
+    "continuity-engine"
+  ],
+  "interfaces": [],
+  "kind": "qperiapt.continuity_distribution_identity",
+  "name": "q-periapt-continuity-services",
+  "schema_version": 1,
+  "source": {
+    "commit": "8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+    "tree": "733e2e6e17be2241d85264ea5e15e07a35f04527"
+  },
+  "version": "0.2.0"
+}

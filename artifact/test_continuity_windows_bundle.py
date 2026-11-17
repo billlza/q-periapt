@@ -50,7 +50,7 @@ class WindowsBundleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             installed = Path(directory) / 'consumer'
             archive.unpack(archive.archive(files), hashes(files), installed)
-            contract = abi.load(installed)
+            contract = abi.load(installed, stage="release")
             self.assertEqual(len(contract['functions']), 158)
             self.assertEqual(len(contract['records']), 70)
             self.assertEqual((installed / 'src/abi_contract.rs').read_bytes(), files['src/abi_contract.rs'])

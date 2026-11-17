@@ -1,10 +1,10 @@
 # Continuity wire contract, revision 1
 
-This specifies the currently implemented identity candidate and its v6 rekey
-profile. It is the byte contract for adapter work, not the completed product
-protocol freeze or a security proof. The independent identifiers below are part
+This specifies the implemented identity protocol and its v6 rekey profile,
+selected by the [0.2.0 normative adoption](ADOPTION_0_2.md). The independent identifiers below are part
 of cryptographic inputs; an SDK version, C ABI major **2**, or a successful TLS
-handshake does not select or replace them. The candidate is still unpublished.
+handshake does not select or replace them. Specification adoption is separate
+from the final archive qualification, security-argument scope and publication.
 
 The [shared Rust contract](../../research/continuity-identity-candidate/src/contract.rs)
 supplies the bounds actually used by its codecs, journal and carriers.
