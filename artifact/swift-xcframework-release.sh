@@ -393,8 +393,13 @@ release_worktree_python \
 	--artifact "$PUBLIC_DIST/CQPeriapt.xcframework.zip" --require-signature --profile "$APPLE_RELEASE_PROFILE"
 if [ "$APPLE_RELEASE_PROFILE" = "sdk-020" ]; then
 	mkdir "$PUBLIC_OUT/evidence"
-	ditto "$SOURCE_OUT/apple-consumer-evidence" "$PUBLIC_OUT/evidence/apple-consumer-evidence"
-	ditto "$SOURCE_OUT/sdk-layout/installed-consumer-evidence" "$PUBLIC_OUT/evidence/installed-consumer-evidence"
+	mkdir "$PUBLIC_OUT/evidence/apple-consumer-evidence" "$PUBLIC_OUT/evidence/installed-consumer-evidence"
+	for evidence_file in SCHEMES.json SCHEMES.log MACOS_ARM64-arm64.log MACOS_ARM64-arm64.linkmap IOS_DEVICE.log IOS_SIMULATOR.log IOS_DEVICE-arm64 IOS_SIMULATOR-arm64 IOS_SIMULATOR-x86_64; do
+		cp "$SOURCE_OUT/apple-consumer-evidence/$evidence_file" "$PUBLIC_OUT/evidence/apple-consumer-evidence/$evidence_file"
+	done
+	for evidence_file in codesign-before.log codesign-after.log swift-test.log swift-bin.log link-probe.log install-location.txt; do
+		cp "$SOURCE_OUT/sdk-layout/installed-consumer-evidence/$evidence_file" "$PUBLIC_OUT/evidence/installed-consumer-evidence/$evidence_file"
+	done
 	for evidence_file in SDK_PACKAGE.json WRAPPER_INPUTS.json; do
 		cp "$SOURCE_OUT/sdk-layout/$evidence_file" "$PUBLIC_OUT/evidence/$evidence_file"
 	done
