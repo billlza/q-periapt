@@ -411,6 +411,21 @@ def _package_identity(row: dict, inputs: Inputs, cargo_names: dict[str, dict], n
                 and document["artifacts"] == row["artifacts"], "distribution identity binding differs")
 
 
+def _release_package_version(row: dict, inputs: Inputs) -> None:
+    if row["role"] == "service" and row["format"] == "cargo":
+        # The frozen graph and SERVICE_DISTRIBUTION_0_2 contract retain this
+        # private source identity. The executable distribution is still 0.2.0.
+        require(row["name"] == "q-periapt-continuity-reference-app"
+                and row["version"] == "0.0.0" and row["interfaces"] == []
+                and row["metadata"]["path"] == "research/continuity-reference-app/Cargo.toml",
+                "private reference source identity differs")
+        document = tomllib.loads(inputs.read(row["metadata"]).data.decode("utf-8"))
+        require(type(document.get("package")) is dict and document["package"].get("publish") is False,
+                "reference source must remain private")
+    else:
+        require(row["version"] == VERSION, "product package version differs")
+
+
 def _packages(value: object, inputs: Inputs, *, stage: str, source: dict, interfaces: dict) -> dict:
     packages = _sequence(value, 64, "package inventory", nonempty=True)
     by_id, by_identity, cargo_names, npm_names = {}, {}, {}, {}
@@ -429,7 +444,7 @@ def _packages(value: object, inputs: Inputs, *, stage: str, source: dict, interf
         require(type(row["version"]) is str and re.fullmatch(r"[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}", row["version"]),
                 "package version is not an exact version")
         if row["role"] == "sdk" or (stage == "release" and row["role"] != "independent"):
-            require(row["version"] == VERSION, "product package version differs")
+            _release_package_version(row, inputs)
         dependencies = _names(row["dependencies"], 64, "package dependencies")
         require(all(name in by_id for name in dependencies), "package dependency is missing, cyclic or out of build order")
         if row["role"] == "sdk":

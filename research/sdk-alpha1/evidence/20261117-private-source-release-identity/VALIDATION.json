@@ -1,0 +1,39 @@
+{
+  "base_commit": "ebd7793095214fa2257b0fbecd7089971b077c15",
+  "base_source_cohort": "723c1fe5ceefb9c83dce0683c48935742a894d86",
+  "completed": true,
+  "files": {
+    "artifact/continuity_release_manifest.py": {
+      "bytes": 33889,
+      "sha256": "78dbdfc30045a2bd14f7d57809acf133fa1ec5fbee29ff2f0f007304b3dd54de"
+    },
+    "artifact/test_continuity_release_manifest.py": {
+      "bytes": 44358,
+      "sha256": "8a122aec7d12b5621f013ed0feb3cb29248fc12141232e393d4d9699ba5a8fab"
+    },
+    "docs/continuity/PACKAGE_GRAPH_0_2.json": {
+      "bytes": 22491,
+      "sha256": "e29ff3a8fb42b27307067917a229e3dad582fa1c39617290c293b108326d9cc8"
+    },
+    "docs/continuity/SERVICE_DISTRIBUTION_0_2.md": {
+      "bytes": 6454,
+      "sha256": "51687f0ab954e355060568608e99b8190485bb7f088e3ae91abcb6a2cddd01b7"
+    },
+    "docs/continuity/SPEC_LOCK_0_2.json": {
+      "bytes": 7124,
+      "sha256": "e409baccd1b1ec66dbe79f49f07d24653859e3a16e6ff13a18e3ac45bdf83d09"
+    }
+  },
+  "kind": "qperiapt.private_reference_source_identity_regression",
+  "publication_performed": false,
+  "schema_version": 1,
+  "scope": "The real frozen 21-row package graph and exact normative files now pass the release identity verifier with explicitly synthetic package/assessment payloads. This is not package production, installation or release admission. Private source substitutions and publication-enabled Cargo metadata remain rejected.",
+  "test_result": {
+    "elapsed_seconds": 100.765,
+    "errors": 0,
+    "failures": 0,
+    "skips": 0,
+    "tests": 70,
+    "warnings": "errors"
+  }
+}
