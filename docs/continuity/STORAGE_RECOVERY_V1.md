@@ -1,6 +1,6 @@
-# Continuity candidate storage and recovery contract
+# Continuity storage and recovery contract
 
-Status: **implemented candidate, not a frozen product contract**. Original contract
+Status: **adopted in the [0.2.0 normative lock](ADOPTION_0_2.md)**. Original contract
 baseline: `e00281ec`; the image-envelope selection below is checked against
 `ca7e13fa`. The v21 journal table supports the feature-selected image variants
 listed below. Unsupported images are refused without implicit migration or reset.

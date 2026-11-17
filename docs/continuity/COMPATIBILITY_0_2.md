@@ -9,8 +9,9 @@ procedure, explicit maintenance operations and preview dispositions for
 selected distribution will bind its own source, artifact digests, applicable
 qualification and specification-lock identity under the existing
 [admission plan](RELEASE_0_2_ADMISSION_PLAN.md).
-`BUDGETS_V1.json` retains `frozen_product_contract=false` until that coordinated
-admission change.
+The [coordinated adoption](ADOPTION_0_2.md) now binds this policy into the normative
+lock. It changes neither the retained execution identities nor the selected
+reader/writer edges.
 
 The [source distribution](SOURCE_DISTRIBUTION_0_2.md) retains the existing Rust
 library target and versioned Continuity `qpc-owner/1` interface alongside SDK C

@@ -8,6 +8,14 @@ qualification retained as their starting point.
 
 ## Current admission and review boundary
 
+The [coordinated normative adoption](ADOPTION_0_2.md) now records the selected
+contract, compiled descriptor, separate interfaces and schema-2 lock. The
+[current source review](../../research/sdk-alpha1/evidence/20261117-release020-internal-review/REVIEW.md)
+reconciles the nine archived analyses at its named source. The remaining final
+source CI/delta review, actual artifact binding and publication receipts remain
+explicit release work. Earlier dated checkpoints below retain their original
+candidate and execution states.
+
 The [current release requirements](../SDK_0_2_RELEASE_READINESS.md) select
 internal cryptographic-boundary, ownership/error-path, code-quality and
 maintainability review, source-bound qualification and the release transaction.
@@ -254,10 +262,10 @@ archives/binaries and accepted qualification receipts. Keeping these two layers
 separate avoids a self-referential source-commit or self-hash requirement and
 lets later compatible builds retain the same normative contract.
 
-`BUDGETS_V1.json` and the current contract checker deliberately describe an
-unfrozen candidate. Formal adoption must update the mode, compiled descriptor,
-lock verification and interface metadata together while retaining the historical
-candidate reader behavior.
+The coordinated adoption updates `BUDGETS_V1.json`, the actual compiled descriptor,
+interface metadata, selected qualification callers and schema-2 lock together.
+The contract checker's historical candidate default remains strict; current
+qualification selects `--stage release` explicitly.
 
 ## Concrete execution order
 

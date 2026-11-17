@@ -13,6 +13,33 @@ import continuity_contract
 import continuity_release_manifest as manifest
 
 
+class AdoptedSpecificationTests(unittest.TestCase):
+    def test_locked_current_sources_interfaces_and_compiled_values_agree(self):
+        root = Path(__file__).resolve().parent.parent
+        lock = json.loads((root / "docs/continuity/SPEC_LOCK_0_2.json").read_bytes())
+        graph = json.loads((root / "docs/continuity/PACKAGE_GRAPH_0_2.json").read_bytes())
+        self.assertEqual((lock["schema_version"], lock["stage"], lock["product_version"]), (2, "release", "0.2.0"))
+        self.assertIs(lock["frozen_product_contract"], True)
+        inputs = manifest.Inputs(root)
+        for reference in [*lock["normative_files"].values(), *lock["supporting_files"]]:
+            inputs.read(reference)
+        reviewed = inputs.json(lock["normative_files"]["budgets"])
+        compiled = inputs.json(lock["compiled_descriptor"])
+        continuity_contract.compare(reviewed, compiled, stage="release")
+        self.assertEqual(manifest._interfaces(graph["interfaces"], inputs, frozen=True),
+                         {"sdk_c": 51, "continuity_c": 158})
+        self.assertEqual(manifest.canonical_digest(graph["interfaces"]), lock["interfaces_sha256"])
+        packages = graph["packages"]
+        self.assertEqual(len(packages), 21)
+        self.assertEqual(manifest.package_graph_digest(packages, schema_version=2), lock["package_graph_sha256"])
+        cargo = {row["name"]: row for row in packages if row["format"] == "cargo"}
+        npm = {row["name"]: row for row in packages if row["format"] == "npm"}
+        for row in packages:
+            if row["format"] != "distribution":
+                manifest._package_identity(row, inputs, cargo, npm, {})
+        inputs.unchanged()
+
+
 class ContinuityReleaseManifestTests(unittest.TestCase):
     """All temporary packages/assessments are synthetic unit fixtures."""
 
@@ -23,6 +50,7 @@ class ContinuityReleaseManifestTests(unittest.TestCase):
         self.source = {"commit": hashlib.sha1(b"unit-fixture-commit").hexdigest(),
                        "tree": hashlib.sha1(b"unit-fixture-tree").hexdigest()}
         self.budgets = json.loads(continuity_contract.BUDGETS.read_text())
+        self.budgets["frozen_product_contract"] = False  # Explicit historical candidate unit fixture.
         self.sdk_abi = {"schema": 1, "kind": "qperiapt.c_abi_contract",
                         "package": {"semver": "0.2.0", "abi_major": 2},
                         "abi": {"major": 2, "exports": [

@@ -189,11 +189,12 @@ and interface checks. The manifest verifier selects that mode directly and
 validates the original descriptor without rewriting its freeze flag. A reader's
 successful release-mode check still grants no publication authority.
 
-The committed budgets, compiled Rust descriptor and C declaration snapshot remain
-unfrozen. Moving the product from candidate to release therefore still requires
-the coordinated admission change: update those three identities, the selected
-qualification callers and the normative lock together, then bind actual artifacts
-and accepted assessments. Adding a validation mode does not freeze the product.
+The [coordinated adoption](ADOPTION_0_2.md) selects frozen budgets, the actually
+compiled descriptor and the C declaration snapshot, with explicit release-stage
+qualification callers and the schema-2 `SPEC_LOCK_0_2.json`. Historical candidate
+readers keep their strict default. Final release selection must still bind actual
+artifacts and accepted assessments; neither a validation mode nor the lock
+supplies missing execution evidence.
 
 ## Running the check
 

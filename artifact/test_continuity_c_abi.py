@@ -15,8 +15,14 @@ class ContractTests(unittest.TestCase):
     def setUpClass(cls):
         cls.fixture = consumer.FIXTURE
         cls.header = (cls.fixture / "qpc_owner.h").read_text()
-        cls.document = json.loads((cls.fixture / abi.CONTRACT).read_bytes())
-        cls.contract = abi.load(cls.fixture)
+        cls.product_document = json.loads((cls.fixture / abi.CONTRACT).read_bytes())
+        cls.document = dict(cls.product_document, frozen_product_contract=False)
+        cls.contract = abi.load(cls.fixture, stage="release")
+
+    def test_current_product_requires_the_release_reader(self):
+        self.assertIs(self.product_document["frozen_product_contract"], True)
+        with self.assertRaisesRegex(ValueError, "identity"):
+            abi.load(self.fixture)
 
     def check_copy(self, *, header=None, document=None, **kwargs):
         with tempfile.TemporaryDirectory() as directory:

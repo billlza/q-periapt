@@ -18,7 +18,23 @@ from evidence_io import parse_strict_json_bytes
 
 class ContinuityWireContractTests(unittest.TestCase):
     def setUp(self):
-        self.expected = parse_strict_json_bytes(contract.snapshot(contract.BUDGETS).data, label="budgets")
+        self.product = parse_strict_json_bytes(contract.snapshot(contract.BUDGETS).data, label="budgets")
+        # Preserve the historical default-reader controls with an explicit
+        # candidate fixture, independently of the current product's stage.
+        self.expected = dict(self.product, frozen_product_contract=False)
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        budgets = Path(temporary.name) / "candidate-budgets.json"
+        budgets.write_text(json.dumps(self.expected))
+        patcher = patch.object(contract, "BUDGETS", budgets)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_current_product_requires_the_release_reader(self):
+        self.assertIs(self.product["frozen_product_contract"], True)
+        self.assertIs(contract.validate(self.product, stage="release"), self.product)
+        with self.assertRaisesRegex(ValueError, "candidate cannot claim"):
+            contract.validate(self.product)
 
     def test_complete_exact_descriptor_matches(self):
         self.assertEqual(contract.compare(self.expected, copy.deepcopy(self.expected)), self.expected)

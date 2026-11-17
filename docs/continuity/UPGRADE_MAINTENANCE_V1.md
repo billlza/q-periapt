@@ -1,8 +1,9 @@
 # Continuity upgrade and maintenance admission contract
 
-Status: **candidate admission requirements and current compatibility evidence**.
-This document makes the version boundary explicit; it does not freeze the
-candidate, admit its ABI into the product, or declare a published 0.2.0 release.
+Status: **adopted in the [0.2.0 normative lock](ADOPTION_0_2.md)**.
+This document makes the selected version boundary explicit. Its historical
+execution records keep their original sources; adoption does not declare a
+published release or a new migration edge.
 The [product admission](PRODUCT_ADMISSION.md),
 [storage recovery](STORAGE_RECOVERY_V1.md) and
 [security maintenance policy](../../SECURITY.md) remain applicable.
