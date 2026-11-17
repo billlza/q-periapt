@@ -1,0 +1,167 @@
+﻿2026-11-17T17:20:32.8379835Z Current runner version: '2.338.2'
+2026-11-17T17:20:32.8406098Z ##[group]Runner Image Provisioner
+2026-11-17T17:20:32.8407099Z Hosted Compute Agent
+2026-11-17T17:20:32.8408127Z Version: 20261103.629
+2026-11-17T17:20:32.8409278Z Commit: 15dbd9ccb5dbf34fae002b6ed1a2670f52df37bc
+2026-11-17T17:20:32.8410130Z Build Date: 2026-11-03T17:26:59Z
+2026-11-17T17:20:32.8410831Z Worker ID: {a0f10dcc-1381-4c3f-9a6e-771e889596a0}
+2026-11-17T17:20:32.8411635Z Region: southcentralus
+2026-11-17T17:20:32.8412339Z Cloud: Azure
+2026-11-17T17:20:32.8412920Z ##[endgroup]
+2026-11-17T17:20:32.8414474Z ##[group]Operating System
+2026-11-17T17:20:32.8415228Z Ubuntu
+2026-11-17T17:20:32.8415868Z 24.04.5
+2026-11-17T17:20:32.8416394Z LTS
+2026-11-17T17:20:32.8417005Z ##[endgroup]
+2026-11-17T17:20:32.8418069Z ##[group]Runner Image
+2026-11-17T17:20:32.8418688Z Image: ubuntu-24.04
+2026-11-17T17:20:32.8419367Z Version: 20261111.370.1
+2026-11-17T17:20:32.8420635Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261111.370/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-17T17:20:32.8422343Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261111.370
+2026-11-17T17:20:32.8423310Z ##[endgroup]
+2026-11-17T17:20:32.8424473Z ##[group]GITHUB_TOKEN Permissions
+2026-11-17T17:20:32.8426679Z Contents: read
+2026-11-17T17:20:32.8427805Z Metadata: read
+2026-11-17T17:20:32.8428442Z ##[endgroup]
+2026-11-17T17:20:32.8430660Z Secret source: Actions
+2026-11-17T17:20:32.8431680Z Cache mode: write
+2026-11-17T17:20:32.8432792Z Prepare workflow directory
+2026-11-17T17:20:32.8966592Z Prepare all required actions
+2026-11-17T17:20:32.9016461Z Getting action download info
+2026-11-17T17:20:33.1802258Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-11-17T17:20:33.3353293Z Download action repository 'dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c' (SHA:2c7215f132e9ebf062739d9130488b56d53c060c)
+2026-11-17T17:20:33.5064876Z Download action repository 'actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1' (SHA:ece7cb06caefa5fff74198d8649806c4678c61a1)
+2026-11-17T17:20:33.5812949Z Download action repository 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9' (SHA:cf430e030ddbb5b0abf93d22962f4752f3646cd9)
+2026-11-17T17:20:33.7900652Z Uses: billlza/q-periapt/.github/workflows/reference-root.yml@refs/tags/v0.2.0 (7c154548d03354a03e91f086b000197026884c0f)
+2026-11-17T17:20:33.7905385Z ##[group] Inputs
+2026-11-17T17:20:33.7905915Z   lane: continuation
+2026-11-17T17:20:33.7906393Z ##[endgroup]
+2026-11-17T17:20:33.7906993Z Complete job name: root-continuation / root (ubuntu-24.04, x86_64)
+2026-11-17T17:20:33.8739911Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-11-17T17:20:33.8740992Z with:
+2026-11-17T17:20:33.8741443Z   persist-credentials: false
+2026-11-17T17:20:33.8741980Z   repository: billlza/q-periapt
+2026-11-17T17:20:33.8745953Z   token: ***
+2026-11-17T17:20:33.8746381Z   ssh-strict: true
+2026-11-17T17:20:33.8746825Z   ssh-user: git
+2026-11-17T17:20:33.8747442Z   clean: true
+2026-11-17T17:20:33.8747901Z   sparse-checkout-cone-mode: true
+2026-11-17T17:20:33.8748439Z   fetch-depth: 1
+2026-11-17T17:20:33.8748877Z   fetch-tags: false
+2026-11-17T17:20:33.8749314Z   show-progress: true
+2026-11-17T17:20:33.8749755Z   lfs: false
+2026-11-17T17:20:33.8750162Z   submodules: false
+2026-11-17T17:20:33.8750608Z   set-safe-directory: true
+2026-11-17T17:20:33.8751115Z   allow-unsafe-pr-checkout: false
+2026-11-17T17:20:33.8751889Z env:
+2026-11-17T17:20:33.8752318Z   RUSTFLAGS: -D warnings
+2026-11-17T17:20:33.8752793Z   CARGO_TERM_COLOR: never
+2026-11-17T17:20:33.8753307Z   CARGO_NET_RETRY: 10
+2026-11-17T17:20:33.8753783Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-17T17:20:33.8754301Z   ROOT_LANE: continuation
+2026-11-17T17:20:33.8754768Z ##[endgroup]
+2026-11-17T17:20:34.1474772Z Syncing repository: billlza/q-periapt
+2026-11-17T17:20:34.1476527Z ##[group]Getting Git version info
+2026-11-17T17:20:34.1478012Z Working directory is '/home/runner/work/q-periapt/q-periapt'
+2026-11-17T17:20:34.1479058Z [command]/usr/bin/git version
+2026-11-17T17:20:34.1570773Z git version 2.56.1
+2026-11-17T17:20:34.1598515Z ##[endgroup]
+2026-11-17T17:20:34.1606466Z Temporarily overriding HOME='/home/runner/work/_temp/2a5801bf-ad8b-4795-abe4-427ba608df25' before making global git config changes
+2026-11-17T17:20:34.1609678Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-17T17:20:34.1612783Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-17T17:20:34.1666012Z Deleting the contents of '/home/runner/work/q-periapt/q-periapt'
+2026-11-17T17:20:34.1692381Z ##[group]Determining repository object format
+2026-11-17T17:20:34.1694499Z ##[endgroup]
+2026-11-17T17:20:34.1696517Z ##[group]Initializing the repository
+2026-11-17T17:20:34.1703430Z [command]/usr/bin/git init /home/runner/work/q-periapt/q-periapt
+2026-11-17T17:20:34.1819178Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-17T17:20:34.1821403Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-17T17:20:34.1823208Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-17T17:20:34.1824873Z hint: call:
+2026-11-17T17:20:34.1825817Z hint:
+2026-11-17T17:20:34.1827079Z hint: 	git config --global init.defaultBranch <name>
+2026-11-17T17:20:34.1828595Z hint:
+2026-11-17T17:20:34.1829946Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-17T17:20:34.1831519Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-17T17:20:34.1832340Z hint:
+2026-11-17T17:20:34.1832773Z hint: 	git branch -m <name>
+2026-11-17T17:20:34.1833263Z hint:
+2026-11-17T17:20:34.1833934Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-17T17:20:34.1834952Z Initialized empty Git repository in /home/runner/work/q-periapt/q-periapt/.git/
+2026-11-17T17:20:34.1848238Z [command]/usr/bin/git remote add origin https://github.com/billlza/q-periapt
+2026-11-17T17:20:34.1908232Z ##[endgroup]
+2026-11-17T17:20:34.1909581Z ##[group]Disabling automatic garbage collection
+2026-11-17T17:20:34.1912590Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-17T17:20:34.1951622Z ##[endgroup]
+2026-11-17T17:20:34.1953310Z ##[group]Setting up auth
+2026-11-17T17:20:34.1954313Z Removing SSH command configuration
+2026-11-17T17:20:34.1959979Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-17T17:20:34.2006935Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-17T17:20:34.2431050Z Removing HTTP extra header
+2026-11-17T17:20:34.2437049Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-17T17:20:34.2482506Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-17T17:20:34.2721791Z Removing includeIf entries pointing to credentials config files
+2026-11-17T17:20:34.2734293Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-17T17:20:34.2780736Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-17T17:20:34.3024309Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-0edb75dd-ed83-4583-a094-e7c7d61d3f5e.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-17T17:20:34.3073523Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path /home/runner/work/_temp/git-credentials-0edb75dd-ed83-4583-a094-e7c7d61d3f5e.config
+2026-11-17T17:20:34.3118529Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-0edb75dd-ed83-4583-a094-e7c7d61d3f5e.config
+2026-11-17T17:20:34.3249945Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-0edb75dd-ed83-4583-a094-e7c7d61d3f5e.config
+2026-11-17T17:20:34.3252704Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-0edb75dd-ed83-4583-a094-e7c7d61d3f5e.config
+2026-11-17T17:20:34.3262989Z ##[endgroup]
+2026-11-17T17:20:34.3264337Z ##[group]Fetching the repository
+2026-11-17T17:20:34.3271800Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +refs/tags/v0.2.0:refs/tags/v0.2.0
+2026-11-17T18:20:32.2614502Z ##[error]The operation was canceled.
+2026-11-17T18:20:32.2767810Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-11-17T18:20:32.2768307Z with:
+2026-11-17T18:20:32.2768575Z   name: reference-root-continuation-ubuntu-24.04
+2026-11-17T18:20:32.2768920Z   path: target/reference-root-ci/
+2026-11-17T18:20:32.2769197Z   if-no-files-found: error
+2026-11-17T18:20:32.2769449Z   compression-level: 6
+2026-11-17T18:20:32.2769685Z   overwrite: false
+2026-11-17T18:20:32.2769912Z   include-hidden-files: false
+2026-11-17T18:20:32.2770160Z   archive: true
+2026-11-17T18:20:32.2770358Z env:
+2026-11-17T18:20:32.2770563Z   RUSTFLAGS: -D warnings
+2026-11-17T18:20:32.2770814Z   CARGO_TERM_COLOR: never
+2026-11-17T18:20:32.2771071Z   CARGO_NET_RETRY: 10
+2026-11-17T18:20:32.2771321Z   CARGO_HTTP_MULTIPLEXING: false
+2026-11-17T18:20:32.2771605Z   ROOT_LANE: continuation
+2026-11-17T18:20:32.2771832Z ##[endgroup]
+2026-11-17T18:20:32.4320391Z ##[error]No files were found with the provided path: target/reference-root-ci/. No artifacts will be uploaded.
+2026-11-17T18:20:32.4653352Z Post job cleanup.
+2026-11-17T18:20:32.5688536Z [command]/usr/bin/git version
+2026-11-17T18:20:32.5738357Z git version 2.56.1
+2026-11-17T18:20:32.5834979Z Temporarily overriding HOME='/home/runner/work/_temp/192b6882-d691-4c9c-aba7-bd2c4de93a62' before making global git config changes
+2026-11-17T18:20:32.5835791Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-17T18:20:32.5836420Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/q-periapt/q-periapt
+2026-11-17T18:20:32.5837679Z Removing SSH command configuration
+2026-11-17T18:20:32.5838134Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-17T18:20:32.5887816Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-17T18:20:32.6236098Z Removing HTTP extra header
+2026-11-17T18:20:32.6238192Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-17T18:20:32.6278183Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-17T18:20:32.6708629Z Removing includeIf entries pointing to credentials config files
+2026-11-17T18:20:32.6739154Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-17T18:20:32.6756675Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-17T18:20:32.6758396Z includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-17T18:20:32.6759648Z includeif.gitdir:/github/workspace/.git.path
+2026-11-17T18:20:32.6760318Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-17T18:20:32.6762283Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path
+2026-11-17T18:20:32.6803710Z /home/runner/work/_temp/git-credentials-0edb75dd-ed83-4583-a094-e7c7d61d3f5e.config
+2026-11-17T18:20:32.6822046Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-0edb75dd\-ed83\-4583\-a094\-e7c7d61d3f5e\.config
+2026-11-17T18:20:32.6913982Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path
+2026-11-17T18:20:32.6984404Z /home/runner/work/_temp/git-credentials-0edb75dd-ed83-4583-a094-e7c7d61d3f5e.config
+2026-11-17T18:20:32.6996167Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/q-periapt/q-periapt/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-0edb75dd\-ed83\-4583\-a094\-e7c7d61d3f5e\.config
+2026-11-17T18:20:32.7053981Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-17T18:20:32.7096493Z /github/runner_temp/git-credentials-0edb75dd-ed83-4583-a094-e7c7d61d3f5e.config
+2026-11-17T18:20:32.7108068Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-0edb75dd\-ed83\-4583\-a094\-e7c7d61d3f5e\.config
+2026-11-17T18:20:32.7165297Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-17T18:20:32.7207546Z /github/runner_temp/git-credentials-0edb75dd-ed83-4583-a094-e7c7d61d3f5e.config
+2026-11-17T18:20:32.7218086Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-0edb75dd\-ed83\-4583\-a094\-e7c7d61d3f5e\.config
+2026-11-17T18:20:32.7273139Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-17T18:20:32.7523312Z Removing credentials config '/home/runner/work/_temp/git-credentials-0edb75dd-ed83-4583-a094-e7c7d61d3f5e.config'
+2026-11-17T18:20:32.7694390Z Cleaning up orphan processes
+2026-11-17T18:20:32.7959301Z Terminate orphan process: pid (2351) (git)
+2026-11-17T18:20:32.8064288Z Terminate orphan process: pid (2352) (git)
+2026-11-17T18:20:32.8149924Z Terminate orphan process: pid (2353) (git-remote-https)

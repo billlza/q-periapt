@@ -1,0 +1,19 @@
+{
+  "action": "Rerun only the cancelled checkout job once using the official GitHub job rerun API.",
+  "attempts_requested": 1,
+  "job_timeout_minutes": 60,
+  "kind": "qperiapt.bounded_post_tag_checkout_retry",
+  "maximum_additional_attempts": 1,
+  "observation": "Original workflow and job logs are retained; the stalled-fetch root cause is not established.",
+  "original_job": 134225192922,
+  "requested_at": "2026-11-17T19:30:50.732942+00:00",
+  "response": {
+    "is_error": false,
+    "success": true
+  },
+  "schema_version": 1,
+  "scope": "Additional metadata-tag observation. The selected source CI qualification remains separately bound.",
+  "source_commit": "7c154548d03354a03e91f086b000197026884c0f",
+  "trigger": "Original job remained in shallow tag fetch for approximately 60 minutes and was cancelled before toolchain setup or product execution. Its always-run retention step then failed because no product output existed.",
+  "workflow_run": 44135891311
+}

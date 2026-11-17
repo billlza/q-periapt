@@ -1,0 +1,18 @@
+{"phase": "local_inputs", "completed": false, "error_type": "RustPublishContractError", "message": "Rust package source worktree is dirty: repository Python bytecode caches can replace source imports: target/__pycache__/commit_verified_cohort.cpython-314.pyc, target/__pycache__/stage_verified_cohort.cpython-314.pyc"}
+Traceback (most recent call last):
+  File "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/cohort-source-af4618c8/target/diagnose_registry_readback.py", line 14, in <module>
+    evidence = registry.load_evidence(
+        root / "target/ci-rust-cohort/sdk-rust-package/RUST_SDK_PACKAGE.json",
+        "2ddc710ac97a56d4ee006a2a1adcf860ab451f4b192433b739f6db0e767040a6",
+        "af4618c8065d7133adfb86e1d116577089161ff0",
+    )
+  File "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/cohort-source-af4618c8/artifact/rust_sdk_publication.py", line 175, in load_evidence
+    source = validate_current_source(report, source_commit)
+  File "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/cohort-source-af4618c8/artifact/rust_sdk_publication.py", line 111, in validate_current_source
+    current, dirty = sdk.inspect_package_source(sdk.ROOT, allow_dirty=False)
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/cohort-source-af4618c8/artifact/rust_publish_contract.py", line 420, in inspect_package_source
+    raise RustPublishContractError(
+        f"Rust package source worktree is dirty: {reasons}"
+    )
+rust_publish_contract.RustPublishContractError: Rust package source worktree is dirty: repository Python bytecode caches can replace source imports: target/__pycache__/commit_verified_cohort.cpython-314.pyc, target/__pycache__/stage_verified_cohort.cpython-314.pyc

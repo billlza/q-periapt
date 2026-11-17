@@ -1,0 +1,636 @@
+PLATFORM_HOST_TOOLS
+Android Debug Bridge version 1.0.41
+Version 37.0.1-15733141
+Installed as /usr/local/lib/android/sdk/platform-tools/adb
+Running on Linux 7.0.0-1017-azure (x86_64)
+Android emulator version 37.2.13.0 (build_id 16740729) (CL:N/A)
+Copyright (C) 2006-2024 The Android Open Source Project and many others.
+This program is a derivative of the QEMU CPU emulator (www.qemu.org).
+
+  This software is licensed under the terms of the GNU General Public
+  License version 2, as published by the Free Software Foundation, and
+  may be copied, distributed, and modified under those terms.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+a902be8f45c6c62e76c9efaf6947a0fa747c9cabd89a2ac8e0d16ecb30b3ed01  /usr/local/lib/android/sdk/platform-tools/adb
+1ac258315d123bfcf7637396d710b0a1b3237ef77113917612f7d3b38a7697b7  /usr/local/lib/android/sdk/emulator/emulator
+PLATFORM_HOST_MEMORY
+MemTotal:       16367528 kB
+MemFree:         1630732 kB
+MemAvailable:   15205992 kB
+Buffers:           48008 kB
+Cached:         13477912 kB
+SwapCached:           84 kB
+Active:           555588 kB
+Inactive:       13241380 kB
+Active(anon):     210284 kB
+Inactive(anon):   120068 kB
+Active(file):     345304 kB
+Inactive(file): 13121312 kB
+Unevictable:       46728 kB
+Mlocked:           43656 kB
+SwapTotal:       3145724 kB
+SwapFree:        3145640 kB
+Zswap:                 0 kB
+Zswapped:              0 kB
+Dirty:            229492 kB
+Writeback:             0 kB
+AnonPages:        317728 kB
+Mapped:           331940 kB
+Shmem:             50556 kB
+KReclaimable:     454572 kB
+Slab:             578212 kB
+SReclaimable:     454572 kB
+SUnreclaim:       123640 kB
+KernelStack:        4336 kB
+PageTables:         6636 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:    11329488 kB
+Committed_AS:    2152116 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:       42756 kB
+VmallocChunk:          0 kB
+Percpu:             2352 kB
+HardwareCorrupted:     0 kB
+AnonHugePages:         0 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+FileHugePages:     67584 kB
+FilePmdMapped:         0 kB
+CmaTotal:              0 kB
+CmaFree:          485504 kB
+Unaccepted:            0 kB
+Balloon:               0 kB
+GPUActive:             0 kB
+GPUReclaim:            0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:               0 kB
+DirectMap4k:      142464 kB
+DirectMap2M:     4046848 kB
+DirectMap1G:    14680064 kB
+11-17 17:33:40.654  3209  3209 D adb     : auth.cpp:62 generate_key(/home/runner/work/q-periapt/q-periapt/target/android-platform-probe/work/user/adbkey)...
+Loading local repository...                                                     [=========                              ] 25% Loading local repository...       Auto-selecting single ABI x86_64
+PLATFORM_ADB_SOCKET_READY attempt=2
+Could not connect to emulator on ports 5584,5585: Connection refused
+adb: device 'emulator-5584' not found
+INFO         | Android emulator version 37.2.13.0 (build_id 16740729) (CL:N/A)
+INFO         | Graphics backend: gfxstream
+INFO         | Found systemPath /usr/local/lib/android/sdk/system-images/android-35/google_apis_ps16k/x86_64/
+INFO         | Saving last run QEMU version for the AVD to 2
+INFO         | Increasing RAM size to 2560MB
+##############################################################################
+##                        WARNING - ACTION REQUIRED                         ##
+##  Consider using the '-metrics-collection' flag to help improve the       ##
+##  emulator by sending anonymized usage data. Or use the '-no-metrics'     ##
+##  flag to bypass this warning and turn off the metrics collection.        ##
+##  In a future release this warning will turn into a one-time blocking     ##
+##  prompt to ask for explicit user input regarding metrics collection.     ##
+##                                                                          ##
+##  Please see '-help-metrics-collection' for more details. You can use     ##
+##  '-metrics-to-file' or '-metrics-to-console' flags to see what type of   ##
+##  data is being collected by emulator as part of usage statistics.        ##
+##############################################################################
+INFO         | Guest GLES Driver: Auto (ext controls)
+INFO         | emuglConfig_init: vulkan_mode_selected:swiftshader gles_mode_selected:swiftshader
+INFO         | Checking system compatibility:
+INFO         |   Checking: hasSufficientDiskSpace
+INFO         |      Ok: Disk space requirements to run avd: `PlatformProbe35` are met
+INFO         |   Checking: hasSufficientHwGpu
+INFO         |      Ok: Hardware GPU compatibility checks are not required
+INFO         |   Checking: hasSufficientSystem
+INFO         |      Ok: System requirements to run avd: `PlatformProbe35` are met
+WARNING      | Feature QuickbootFileBacked is disabled due to stability issues, if you really want that, the environment variable ANDROID_EMU_FORCE_QUICKBOOT_FILE_BACKED need to set to 1
+ERROR        | Unable to connect to adb daemon on port: 5586
+INFO         | Storing crashdata in: /tmp/android-unknown/emu-crash-37.2.13.db, detection is enabled for process: 3286
+INFO         | Initializing gfxstream backend
+INFO         | startOpenglesRendererImpl: gpu info
+INFO         | 
+INFO         | initIcdPaths: ICD set to 'swiftshader', using Swiftshader ICD
+INFO         | Setting ICD filenames for the loader = /usr/local/lib/android/sdk/emulator/lib64/vulkan/vk_swiftshader_icd.json
+INFO         | SharedLibrary::open for [/usr/local/lib/android/sdk/emulator/qemu/linux-x86_64/lib64/vulkan/libvulkan.so]
+INFO         | SharedLibrary::open for [/usr/local/lib/android/sdk/emulator/qemu/linux-x86_64/lib64/vulkan/libvulkan.so.1]
+INFO         | SharedLibrary::open for [/usr/local/lib/android/sdk/emulator/lib64/vulkan/libvulkan.so]
+INFO         | Added library: /usr/local/lib/android/sdk/emulator/lib64/vulkan/libvulkan.so
+INFO         | Selecting Vulkan device: SwiftShader Device (Subzero), Version: 1.3.0
+INFO         | Using Vulkan externalMemoryMode: OpaqueFd for VkEmulation
+INFO         | Format VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16 does not support YCbCr sampler conversion
+INFO         | SharedLibrary::open for [libX11]
+WARNING      | Could not open libX11.so, try libX11.so.6
+INFO         | SharedLibrary::open for [libX11.so.6]
+INFO         | SharedLibrary::open for [libX11-xcb]
+WARNING      | Could not open libX11-xcb.so, try libX11-xcb.so.1
+INFO         | SharedLibrary::open for [libX11-xcb.so.1]
+INFO         | Initializing VkEmulation features:
+INFO         |     glInteropSupported: false
+INFO         |     useDeferredCommands: true
+INFO         |     createResourceWithRequirements: true
+INFO         |     useVulkanComposition: false
+INFO         |     useVulkanNativeSwapchain: false
+INFO         |     enable guestRenderDoc: false
+INFO         |     ASTC LDR emulation mode: Gpu
+INFO         |     enable ETC2 emulation: true
+INFO         |     enable Ycbcr emulation: false
+INFO         |     guestVulkanOnly: false
+INFO         |     useDedicatedAllocations: false
+INFO         |     guestVulkanMaxApiVersion: 1.3.0
+INFO         |     enableProtectedMemoryEmulation: false
+INFO         | Graphics Adapter Vendor Google (Google Inc.)
+INFO         | Graphics Adapter Android Emulator OpenGL ES Translator (Google SwiftShader)
+INFO         | Graphics API Version OpenGL ES 3.0 (OpenGL ES 3.0 SwiftShader 4.0.0.1)
+INFO         | Graphics API Extensions GL_OES_EGL_sync GL_OES_EGL_image GL_OES_EGL_image_external GL_OES_depth24 GL_OES_depth32 GL_OES_element_index_uint GL_OES_texture_float GL_OES_texture_float_linear GL_OES_compressed_paletted_texture GL_OES_compressed_ETC1_RGB8_texture GL_OES_depth_texture GL_OES_texture_half_float GL_OES_texture_half_float_linear GL_OES_packed_depth_stencil GL_OES_vertex_half_float GL_OES_standard_derivatives GL_OES_texture_npot GL_OES_rgb8_rgba8 GL_EXT_color_buffer_float GL_EXT_color_buffer_half_float GL_EXT_texture_format_BGRA8888 GL_APPLE_texture_format_BGRA8888 
+INFO         | Graphics Device Extensions N/A
+INFO         | Disabling sparse binding feature support
+INFO         | Sending adb public key [QAAAAC1Qu65bgCTpYWw0va41SoRnneYtecK5n8xMC6xUzGYfcbfaKbsx/16xQ14jWCuCO/5meDPnOSJx+Wrqv4O7PkPQF916hZE+ni3NcIbRKXalgChHJG8ktiKrvoQA0p50vzzXjoxBY7fyKqiTj0NxB8qirW2SQFRmzyXTO++/DRnOp+3cSX9zNxuy+hktyzvwazG0taUhaIv/coKWz0NK2rZRW6IC8lO+3SXe3sMGCtEOn1DoXoUKv814m2oAonR4GZFVlJf0Gh2CbHcIFo48yhmtYoyAVWB8rbQxmvpa8pR+y/PHCrYNYDiSQTFAf9jbsMbtC5bkggtpTF8HTPHieu07xxTBUxnvRZugyM4E70MsxqVzJgINaPQx/NQj0UZzOJmGxLUStIMi9zT2GBcT3Bo6ctq4bjUEXIEnLZn8ohpMa0DIzNx3CsOKobtdbXr7s7nfVQ67NkE7UESlWe+Bj2JeM32NmB9YkMPxVZOwCKHPmUn71nXQNqnFRldZRlvgCUi4of4I4NEDsP8HAtqiXR7xFuXIfP12Z7N5GhklFgVyl4vtSnJqHAl6Vo1UaLys+tDATd/on5Ee0OGJqm1ncfVbR5kuZLUTZHoT7g73TTvxzfRIVicXKu3tgUtabNti/jEqCIrlL2tfLKb9wth0+zl4Z/PXWwLCZP4MNHdVrXCSGUxPUAEAAQA= @unknown]
+INFO         | Userspace boot properties:
+INFO         |   androidboot.boot_devices=pci0000:00/0000:00:03.0 pci0000:00/0000:00:06.0
+INFO         |   androidboot.dalvik.vm.heapsize=576m
+INFO         |   androidboot.debug.hwui.renderer=skiagl
+INFO         |   androidboot.debug.sf.nobootanimation=1
+INFO         |   androidboot.hardware=ranchu
+INFO         |   androidboot.hardware.gltransport=pipe
+INFO         |   androidboot.hardware.vulkan=ranchu
+INFO         |   androidboot.logcat=*:V
+INFO         |   androidboot.opengles.version=196608
+INFO         |   androidboot.qemu=1
+INFO         |   androidboot.qemu.adb.pubkey=QAAAAC1Qu65bgCTpYWw0va41SoRnneYtecK5n8xMC6xUzGYfcbfaKbsx/16xQ14jWCuCO/5meDPnOSJx+Wrqv4O7PkPQF916hZE+ni3NcIbRKXalgChHJG8ktiKrvoQA0p50vzzXjoxBY7fyKqiTj0NxB8qirW2SQFRmzyXTO++/DRnOp+3cSX9zNxuy+hktyzvwazG0taUhaIv/coKWz0NK2rZRW6IC8lO+3SXe3sMGCtEOn1DoXoUKv814m2oAonR4GZFVlJf0Gh2CbHcIFo48yhmtYoyAVWB8rbQxmvpa8pR+y/PHCrYNYDiSQTFAf9jbsMbtC5bkggtpTF8HTPHieu07xxTBUxnvRZugyM4E70MsxqVzJgINaPQx/NQj0UZzOJmGxLUStIMi9zT2GBcT3Bo6ctq4bjUEXIEnLZn8ohpMa0DIzNx3CsOKobtdbXr7s7nfVQ67NkE7UESlWe+Bj2JeM32NmB9YkMPxVZOwCKHPmUn71nXQNqnFRldZRlvgCUi4of4I4NEDsP8HAtqiXR7xFuXIfP12Z7N5GhklFgVyl4vtSnJqHAl6Vo1UaLys+tDATd/on5Ee0OGJqm1ncfVbR5kuZLUTZHoT7g73TTvxzfRIVicXKu3tgUtabNti/jEqCIrlL2tfLKb9wth0+zl4Z/PXWwLCZP4MNHdVrXCSGUxPUAEAAQA= @unknown
+INFO         |   androidboot.qemu.avd_name=PlatformProbe35
+INFO         |   androidboot.qemu.camera_hq_edge_processing=0
+INFO         |   androidboot.qemu.camera_protocol_ver=1
+INFO         |   androidboot.qemu.cpuvulkan.version=4206592
+INFO         |   androidboot.qemu.gltransport.drawFlushInterval=800
+INFO         |   androidboot.qemu.gltransport.name=pipe
+INFO         |   androidboot.qemu.hwcodec.avcdec=2
+INFO         |   androidboot.qemu.hwcodec.hevcdec=2
+INFO         |   androidboot.qemu.hwcodec.vpxdec=2
+INFO         |   androidboot.qemu.settings.system.screen_off_timeout=2147483647
+INFO         |   androidboot.qemu.skin=1080x2400
+INFO         |   androidboot.qemu.virtiowifi=1
+INFO         |   androidboot.qemu.vsync=60
+INFO         |   androidboot.serialno=EMULATOR37X2X13X0
+INFO         |   androidboot.vbmeta.digest=2c9cddc5782070a7bad50e8178173f45bc36ec4603add76004d09e3bfce71eea
+INFO         |   androidboot.vbmeta.hash_alg=sha256
+INFO         |   androidboot.vbmeta.size=6784
+INFO         |   androidboot.veritymode=enforcing
+Could not connect to emulator on ports 5584,5585: Connection refused
+adb: device 'emulator-5584' not found
+INFO         | Activated packet streamer for bluetooth emulation
+Could not connect to emulator on ports 5584,5585: Connection refused
+adb: device 'emulator-5584' not found
+Could not connect to emulator on ports 5584,5585: Connection refused
+adb: device 'emulator-5584' not found
+Could not connect to emulator on ports 5584,5585: Connection refused
+adb: device 'emulator-5584' not found
+Could not connect to emulator on ports 5584,5585: Connection refused
+adb: device 'emulator-5584' not found
+WARNING: cannnot unmap ptr 0x7fc39c201000 as it is in the protected range from 0x7fc2fc200000 to 0x7fc39c400000
+INFO         | Monitoring duration of emulator setup.
+INFO         | Successfully initialized netsim WiFi
+INFO         | Setting display: 0 configuration to: 1080x2400, dpi: 420x420 
+INFO         | setDisplayActiveConfig: id:0, 1080x2400
+INFO         | emulatorSetupEnvironment: Environment scene is not required
+USER_INFO    | Emulator is performing a full startup. This may take upto two minutes, or more.
+WARNING      | Failed to process .ini file /home/runner/work/q-periapt/q-periapt/target/android-platform-probe/work/emulator/emu-update-last-check.ini for reading.
+WARNING      | Failed to process .ini file /home/runner/work/q-periapt/q-periapt/target/android-platform-probe/work/emulator/emu-update-last-check.ini for reading.
+Connected to emulator on ports 5584,5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+INFO         | Boot completed in 37096 ms
+INFO         | Increasing screen off timeout, logcat buffer size to 2M.
+Emulator already registered on port 5585
+PLATFORM_BASELINE boot=7c8cd528-5738-49b5-9683-9a8b6a5a4b0f system_server=548 fingerprint=google/sdk_gphone16k_x86_64/emu64xa16k:15/AE3A.240806.043/12960925:userdebug/dev-keys
+31.80 8.87
+MemTotal:        2532420 kB
+MemFree:          106012 kB
+MemAvailable:    1650100 kB
+Buffers:           21432 kB
+Cached:          1659328 kB
+SwapCached:            0 kB
+Active:          1580756 kB
+Inactive:         612600 kB
+Active(anon):     520032 kB
+Inactive(anon):     1540 kB
+Active(file):    1060724 kB
+Inactive(file):   611060 kB
+Unevictable:        4692 kB
+Mlocked:            4692 kB
+SwapTotal:       1899296 kB
+SwapFree:        1899296 kB
+Dirty:             46328 kB
+Writeback:            48 kB
+AnonPages:        517324 kB
+Mapped:           610004 kB
+Shmem:              5644 kB
+KReclaimable:      38012 kB
+Slab:             127104 kB
+SReclaimable:      38012 kB
+SUnreclaim:        89092 kB
+KernelStack:       15840 kB
+PageTables:        39464 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:     3165504 kB
+Committed_AS:   44947836 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:       38604 kB
+VmallocChunk:          0 kB
+Percpu:             2216 kB
+AnonHugePages:         0 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+FileHugePages:         0 kB
+FilePmdMapped:         0 kB
+CmaTotal:              0 kB
+CmaFree:               0 kB
+DirectMap4k:       48984 kB
+DirectMap2M:     2572288 kB
+6ac4d052d0cf6f7d69ff817444f610afa25e583bb032d2a0e310346c0f8b7133  /apex/com.android.art/lib64/libart.so
+PLATFORM_SAMPLE sample=1 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=2 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=3 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=4 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=5 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=6 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=7 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=8 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=9 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=10 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=11 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=12 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=13 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=14 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=15 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=16 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=17 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=18 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=19 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=20 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=21 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=22 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=23 system_server=548 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=24 system_server=548 4239 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_PROCESS_IDENTITY_CHANGED sample=24
+PLATFORM_FAILURE_CAPTURE phase=immediate
+--------- beginning of crash
+11-17 17:34:43.990   548   564 F libc    : Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0xc in tid 564 (HeapTaskDaemon), pid 548 (system_server)
+PLATFORM_FAILURE_CRASH_CAPTURED phase=immediate
+--------- beginning of main
+11-17 17:34:45.369  4124  4124 E crash_dump64: failed to get the guest state header for thread 854: Bad address
+11-17 17:34:45.383  4124  4124 E crash_dump64: failed to get the guest state header for thread 855: Bad address
+11-17 17:34:45.428  4124  4124 E crash_dump64: failed to get the guest state header for thread 856: Bad address
+11-17 17:34:45.428  4124  4124 E crash_dump64: failed to get the guest state header for thread 857: Bad address
+11-17 17:34:45.428  4124  4124 E crash_dump64: failed to get the guest state header for thread 858: Bad address
+11-17 17:34:45.428  4124  4124 E crash_dump64: failed to get the guest state header for thread 859: Bad address
+11-17 17:34:45.428  4124  4124 E crash_dump64: failed to get the guest state header for thread 860: Bad address
+11-17 17:34:45.430  4124  4124 E crash_dump64: failed to get the guest state header for thread 861: Bad address
+11-17 17:34:45.463  4124  4124 E crash_dump64: failed to get the guest state header for thread 862: Bad address
+11-17 17:34:45.474  4124  4124 E crash_dump64: failed to get the guest state header for thread 863: Bad address
+11-17 17:34:45.474  4124  4124 E crash_dump64: failed to get the guest state header for thread 864: Bad address
+11-17 17:34:45.479  4124  4124 E crash_dump64: failed to get the guest state header for thread 865: Bad address
+11-17 17:34:45.484  4124  4124 E crash_dump64: failed to get the guest state header for thread 866: Bad address
+11-17 17:34:45.556  4124  4124 E crash_dump64: failed to get the guest state header for thread 867: Bad address
+11-17 17:34:45.572  4124  4124 E crash_dump64: failed to get the guest state header for thread 868: Bad address
+11-17 17:34:45.624  4124  4124 E crash_dump64: failed to get the guest state header for thread 869: Bad address
+11-17 17:34:45.632  4124  4124 E crash_dump64: failed to get the guest state header for thread 870: Bad address
+11-17 17:34:45.635  4124  4124 E crash_dump64: failed to get the guest state header for thread 871: Bad address
+11-17 17:34:45.639  4124  4124 E crash_dump64: failed to get the guest state header for thread 872: Bad address
+11-17 17:34:45.641  4124  4124 E crash_dump64: failed to get the guest state header for thread 873: Bad address
+11-17 17:34:45.643  4124  4124 E crash_dump64: failed to get the guest state header for thread 874: Bad address
+11-17 17:34:45.647  4124  4124 E crash_dump64: failed to get the guest state header for thread 875: Bad address
+11-17 17:34:45.647  4124  4124 E crash_dump64: failed to get the guest state header for thread 876: Bad address
+11-17 17:34:45.648  4124  4124 E crash_dump64: failed to get the guest state header for thread 877: Bad address
+11-17 17:34:45.653  4124  4124 E crash_dump64: failed to get the guest state header for thread 878: Bad address
+11-17 17:34:45.653  4124  4124 E crash_dump64: failed to get the guest state header for thread 879: Bad address
+11-17 17:34:45.653  4124  4124 E crash_dump64: failed to get the guest state header for thread 880: Bad address
+11-17 17:34:45.655  4124  4124 E crash_dump64: failed to get the guest state header for thread 882: Bad address
+11-17 17:34:45.655  4124  4124 E crash_dump64: failed to get the guest state header for thread 886: Bad address
+11-17 17:34:45.658  4124  4124 E crash_dump64: failed to get the guest state header for thread 887: Bad address
+11-17 17:34:45.660  4124  4124 E crash_dump64: failed to get the guest state header for thread 888: Bad address
+11-17 17:34:45.660  4124  4124 E crash_dump64: failed to get the guest state header for thread 893: Bad address
+11-17 17:34:45.660  4124  4124 E crash_dump64: failed to get the guest state header for thread 894: Bad address
+11-17 17:34:45.668  4124  4124 E crash_dump64: failed to get the guest state header for thread 895: Bad address
+11-17 17:34:45.669  4124  4124 E crash_dump64: failed to get the guest state header for thread 897: Bad address
+11-17 17:34:45.671  4124  4124 E crash_dump64: failed to get the guest state header for thread 898: Bad address
+11-17 17:34:45.673  4124  4124 E crash_dump64: failed to get the guest state header for thread 899: Bad address
+11-17 17:34:45.681  4124  4124 E crash_dump64: failed to get the guest state header for thread 900: Bad address
+11-17 17:34:45.682  4124  4124 E crash_dump64: failed to get the guest state header for thread 902: Bad address
+11-17 17:34:45.689  4124  4124 E crash_dump64: failed to get the guest state header for thread 907: Bad address
+11-17 17:34:45.693  4124  4124 E crash_dump64: failed to get the guest state header for thread 908: Bad address
+11-17 17:34:45.700  4124  4124 E crash_dump64: failed to get the guest state header for thread 909: Bad address
+11-17 17:34:45.700  4124  4124 E crash_dump64: failed to get the guest state header for thread 910: Bad address
+11-17 17:34:45.702  4124  4124 E crash_dump64: failed to get the guest state header for thread 911: Bad address
+11-17 17:34:45.703  4124  4124 E crash_dump64: failed to get the guest state header for thread 916: Bad address
+11-17 17:34:45.704  4124  4124 E crash_dump64: failed to get the guest state header for thread 917: Bad address
+11-17 17:34:45.709  4124  4124 E crash_dump64: failed to get the guest state header for thread 918: Bad address
+11-17 17:34:45.730  4124  4124 E crash_dump64: failed to get the guest state header for thread 920: Bad address
+11-17 17:34:45.730  4124  4124 E crash_dump64: failed to get the guest state header for thread 921: Bad address
+11-17 17:34:45.731  4124  4124 E crash_dump64: failed to get the guest state header for thread 922: Bad address
+11-17 17:34:45.737  4124  4124 E crash_dump64: failed to get the guest state header for thread 924: Bad address
+11-17 17:34:45.737  4124  4124 E crash_dump64: failed to get the guest state header for thread 925: Bad address
+11-17 17:34:45.738  4124  4124 E crash_dump64: failed to get the guest state header for thread 926: Bad address
+11-17 17:34:45.746  4124  4124 E crash_dump64: failed to get the guest state header for thread 928: Bad address
+11-17 17:34:45.750  4124  4124 E crash_dump64: failed to get the guest state header for thread 930: Bad address
+11-17 17:34:45.750  4124  4124 E crash_dump64: failed to get the guest state header for thread 931: Bad address
+11-17 17:34:45.751  4124  4124 E crash_dump64: failed to get the guest state header for thread 933: Bad address
+11-17 17:34:45.755  4124  4124 E crash_dump64: failed to get the guest state header for thread 934: Bad address
+11-17 17:34:45.755  4124  4124 E crash_dump64: failed to get the guest state header for thread 935: Bad address
+11-17 17:34:45.755  4124  4124 E crash_dump64: failed to get the guest state header for thread 936: Bad address
+11-17 17:34:45.755  4124  4124 E crash_dump64: failed to get the guest state header for thread 937: Bad address
+11-17 17:34:45.755  4124  4124 E crash_dump64: failed to get the guest state header for thread 944: Bad address
+11-17 17:34:45.757  4124  4124 E crash_dump64: failed to get the guest state header for thread 965: Bad address
+11-17 17:34:45.759  4124  4124 E crash_dump64: failed to get the guest state header for thread 973: Bad address
+11-17 17:34:45.760  4124  4124 E crash_dump64: failed to get the guest state header for thread 1002: Bad address
+11-17 17:34:45.760  4124  4124 E crash_dump64: failed to get the guest state header for thread 1003: Bad address
+11-17 17:34:45.760  4124  4124 E crash_dump64: failed to get the guest state header for thread 1004: Bad address
+11-17 17:34:45.760  4124  4124 E crash_dump64: failed to get the guest state header for thread 1014: Bad address
+11-17 17:34:45.760  4124  4124 E crash_dump64: failed to get the guest state header for thread 1015: Bad address
+11-17 17:34:45.760  4124  4124 E crash_dump64: failed to get the guest state header for thread 1017: Bad address
+11-17 17:34:45.762  4124  4124 E crash_dump64: failed to get the guest state header for thread 1020: Bad address
+11-17 17:34:45.762  4124  4124 E crash_dump64: failed to get the guest state header for thread 1031: Bad address
+11-17 17:34:45.765  4124  4124 E crash_dump64: failed to get the guest state header for thread 1038: Bad address
+11-17 17:34:45.773  4124  4124 E crash_dump64: failed to get the guest state header for thread 1045: Bad address
+11-17 17:34:45.778  4124  4124 E crash_dump64: failed to get the guest state header for thread 1063: Bad address
+11-17 17:34:45.779  4124  4124 E crash_dump64: failed to get the guest state header for thread 1182: Bad address
+11-17 17:34:45.789  4124  4124 E crash_dump64: failed to get the guest state header for thread 1202: Bad address
+11-17 17:34:45.803  4124  4124 E crash_dump64: failed to get the guest state header for thread 1212: Bad address
+11-17 17:34:45.803  4124  4124 E crash_dump64: failed to get the guest state header for thread 1242: Bad address
+11-17 17:34:45.803  4124  4124 E crash_dump64: failed to get the guest state header for thread 1243: Bad address
+11-17 17:34:45.803  4124  4124 E crash_dump64: failed to get the guest state header for thread 1244: Bad address
+11-17 17:34:45.803  4124  4124 E crash_dump64: failed to get the guest state header for thread 1245: Bad address
+11-17 17:34:45.805  4124  4124 E crash_dump64: failed to get the guest state header for thread 1246: Bad address
+11-17 17:34:45.805  4124  4124 E crash_dump64: failed to get the guest state header for thread 1247: Bad address
+11-17 17:34:45.805  4124  4124 E crash_dump64: failed to get the guest state header for thread 1268: Bad address
+11-17 17:34:45.808  4124  4124 E crash_dump64: failed to get the guest state header for thread 1363: Bad address
+11-17 17:34:45.808  4124  4124 E crash_dump64: failed to get the guest state header for thread 1366: Bad address
+11-17 17:34:45.814  4124  4124 E crash_dump64: failed to get the guest state header for thread 1367: Bad address
+11-17 17:34:45.817  4124  4124 E crash_dump64: failed to get the guest state header for thread 1369: Bad address
+11-17 17:34:45.826  4124  4124 E crash_dump64: failed to get the guest state header for thread 1414: Bad address
+11-17 17:34:45.826  4124  4124 E crash_dump64: failed to get the guest state header for thread 1433: Bad address
+11-17 17:34:45.826  4124  4124 E crash_dump64: failed to get the guest state header for thread 1469: Bad address
+11-17 17:34:45.831  4124  4124 E crash_dump64: failed to get the guest state header for thread 1524: Bad address
+11-17 17:34:45.831  4124  4124 E crash_dump64: failed to get the guest state header for thread 1525: Bad address
+11-17 17:34:45.831  4124  4124 E crash_dump64: failed to get the guest state header for thread 1540: Bad address
+11-17 17:34:45.831  4124  4124 E crash_dump64: failed to get the guest state header for thread 1541: Bad address
+11-17 17:34:45.832  4124  4124 E crash_dump64: failed to get the guest state header for thread 1560: Bad address
+11-17 17:34:45.832  4124  4124 E crash_dump64: failed to get the guest state header for thread 1590: Bad address
+11-17 17:34:45.832  4124  4124 E crash_dump64: failed to get the guest state header for thread 1605: Bad address
+11-17 17:34:45.832  4124  4124 E crash_dump64: failed to get the guest state header for thread 1606: Bad address
+11-17 17:34:45.832  4124  4124 E crash_dump64: failed to get the guest state header for thread 1621: Bad address
+11-17 17:34:45.832  4124  4124 E crash_dump64: failed to get the guest state header for thread 1626: Bad address
+11-17 17:34:45.835  4124  4124 E crash_dump64: failed to get the guest state header for thread 1631: Bad address
+11-17 17:34:45.839  4124  4124 E crash_dump64: failed to get the guest state header for thread 1803: Bad address
+11-17 17:34:45.841  4124  4124 E crash_dump64: failed to get the guest state header for thread 1807: Bad address
+11-17 17:34:45.842  4124  4124 E crash_dump64: failed to get the guest state header for thread 1873: Bad address
+11-17 17:34:45.842  4124  4124 E crash_dump64: failed to get the guest state header for thread 1912: Bad address
+11-17 17:34:45.842  4124  4124 E crash_dump64: failed to get the guest state header for thread 1932: Bad address
+11-17 17:34:45.844  4124  4124 E crash_dump64: failed to get the guest state header for thread 1934: Bad address
+11-17 17:34:45.846  4124  4124 E crash_dump64: failed to get the guest state header for thread 1936: Bad address
+11-17 17:34:45.846  4124  4124 E crash_dump64: failed to get the guest state header for thread 1944: Bad address
+11-17 17:34:45.851  4124  4124 E crash_dump64: failed to get the guest state header for thread 1957: Bad address
+11-17 17:34:45.851  4124  4124 E crash_dump64: failed to get the guest state header for thread 1974: Bad address
+11-17 17:34:45.852  4124  4124 E crash_dump64: failed to get the guest state header for thread 1999: Bad address
+11-17 17:34:45.852  4124  4124 E crash_dump64: failed to get the guest state header for thread 2002: Bad address
+11-17 17:34:45.852  4124  4124 E crash_dump64: failed to get the guest state header for thread 2028: Bad address
+11-17 17:34:45.853  4124  4124 E crash_dump64: failed to get the guest state header for thread 2075: Bad address
+11-17 17:34:45.853  4124  4124 E crash_dump64: failed to get the guest state header for thread 2113: Bad address
+11-17 17:34:45.853  4124  4124 E crash_dump64: failed to get the guest state header for thread 2133: Bad address
+11-17 17:34:45.855  4124  4124 E crash_dump64: failed to get the guest state header for thread 2178: Bad address
+11-17 17:34:45.855  4124  4124 E crash_dump64: failed to get the guest state header for thread 2209: Bad address
+11-17 17:34:45.862  4124  4124 E crash_dump64: failed to get the guest state header for thread 2237: Bad address
+11-17 17:34:45.863  4124  4124 E crash_dump64: failed to get the guest state header for thread 2238: Bad address
+11-17 17:34:45.864  4124  4124 E crash_dump64: failed to get the guest state header for thread 2316: Bad address
+11-17 17:34:45.864  4124  4124 E crash_dump64: failed to get the guest state header for thread 2379: Bad address
+11-17 17:34:45.864  4124  4124 E crash_dump64: failed to get the guest state header for thread 2434: Bad address
+11-17 17:34:45.865  4124  4124 E crash_dump64: failed to get the guest state header for thread 2522: Bad address
+11-17 17:34:45.865  4124  4124 E crash_dump64: failed to get the guest state header for thread 2723: Bad address
+11-17 17:34:45.865  4124  4124 E crash_dump64: failed to get the guest state header for thread 2755: Bad address
+11-17 17:34:45.865  4124  4124 E crash_dump64: failed to get the guest state header for thread 2761: Bad address
+11-17 17:34:45.865  4124  4124 E crash_dump64: failed to get the guest state header for thread 2821: Bad address
+11-17 17:34:45.865  4124  4124 E crash_dump64: failed to get the guest state header for thread 2823: Bad address
+11-17 17:34:45.865  4124  4124 E crash_dump64: failed to get the guest state header for thread 2837: Bad address
+11-17 17:34:45.866  4124  4124 E crash_dump64: failed to get the guest state header for thread 2877: Bad address
+11-17 17:34:45.866  4124  4124 E crash_dump64: failed to get the guest state header for thread 3518: Bad address
+11-17 17:34:45.886  4124  4124 E crash_dump64: failed to get the guest state header for thread 3827: Bad address
+11-17 17:34:45.895  4124  4124 E crash_dump64: failed to get the guest state header for thread 3879: Bad address
+11-17 17:34:45.895  4124  4124 E crash_dump64: failed to get the guest state header for thread 3885: Bad address
+11-17 17:34:45.895  4124  4124 E crash_dump64: failed to get the guest state header for thread 3887: Bad address
+11-17 17:34:45.895  4124  4124 E crash_dump64: failed to get the guest state header for thread 3889: Bad address
+11-17 17:34:45.896  4124  4124 E crash_dump64: failed to get the guest state header for thread 3890: Bad address
+11-17 17:34:45.897  4124  4124 E crash_dump64: failed to get the guest state header for thread 4042: Bad address
+11-17 17:34:45.898  4124  4124 E crash_dump64: failed to get the guest state header for thread 4044: Bad address
+11-17 17:34:45.898  4124  4124 W crash_dump64: failed to attach to thread 4047: No such process
+11-17 17:34:45.898  4124  4124 E crash_dump64: failed to interrupt 4047 to detach: No such process
+11-17 17:34:45.898  4124  4124 W crash_dump64: failed to ptrace interrupt thread 4047: No such process
+11-17 17:34:45.917  4124  4124 I crash_dump64: obtaining output fd from tombstoned, type: kDebuggerdTombstoneProto
+11-17 17:34:45.919   203   203 I tombstoned: received crash request for pid 564
+--------- beginning of system
+11-17 17:34:45.926   548  2028 W ActivityManager: Unable to start service Intent { act=com.google.android.play.core.splitinstall.BIND_SPLIT_INSTALL_SERVICE pkg=com.android.vending } U=0: not found
+11-17 17:34:45.939   548   585 W ActivityManager: Slow operation: 582ms so far, now at startProcess: asking zygote to start proc
+11-17 17:34:45.941  4124  4124 I crash_dump64: performing dump of process 548 (target tid = 564)
+11-17 17:34:45.963   548   585 W ActivityManager: Slow operation: 599ms so far, now at startProcess: returned from zygote!
+11-17 17:34:45.974   548   584 W ActivityManager: Rescheduling restart of crashed service com.google.android.googlequicksearchbox/com.google.android.voiceinteraction.GsaVoiceInteractionService in 0ms for other
+11-17 17:34:45.974   548   584 W ActivityManager: Rescheduling restart of crashed service com.google.android.googlequicksearchbox/com.google.android.apps.gsa.shared.util.keepalive.StandaloneKeepAlive$KeepAliveService in 0ms for other
+11-17 17:34:45.976   548   584 W ActivityManager: Rescheduling restart of crashed service com.google.android.apps.nexuslauncher/com.android.launcher3.notification.NotificationListener in 102839ms for other
+11-17 17:34:45.980   548   583 W ActivityManager: Rescheduling restart of crashed service com.google.android.googlequicksearchbox/com.google.android.voiceinteraction.GsaVoiceInteractionService in 0ms for mem-pressure-event
+11-17 17:34:45.980   548   583 W ActivityManager: Rescheduling restart of crashed service com.google.android.googlequicksearchbox/com.google.android.apps.gsa.shared.util.keepalive.StandaloneKeepAlive$KeepAliveService in 0ms for mem-pressure-event
+11-17 17:34:45.980   548   583 W ActivityManager: Rescheduling restart of crashed service com.google.android.apps.nexuslauncher/com.android.launcher3.notification.NotificationListener in 102830ms for mem-pressure-event
+11-17 17:34:46.021   548   585 W ActivityManager: Slow operation: 664ms so far, now at startProcess: done updating battery stats
+11-17 17:34:46.021   548   585 W ActivityManager: Slow operation: 664ms so far, now at startProcess: building log message
+11-17 17:34:46.021   548   585 I ActivityManager: Start proc 4241:com.android.imsserviceentitlement/u0a129 for service {com.android.imsserviceentitlement/com.android.imsserviceentitlement.fcm.FcmRegistrationService}
+11-17 17:34:46.021   548   585 W ActivityManager: Slow operation: 665ms so far, now at startProcess: starting to update pids map
+11-17 17:34:46.024   548   585 W ActivityManager: Slow operation: 667ms so far, now at startProcess: done updating pids map
+11-17 17:34:46.024   548   585 W ActivityManager: Slow operation: 594ms so far, now at startProcess: asking zygote to start proc
+11-17 17:34:46.038   548   585 W ActivityManager: Slow operation: 608ms so far, now at startProcess: returned from zygote!
+11-17 17:34:46.078   548  1932 W ActivityManager: Unable to start service Intent { act=com.google.android.play.core.splitinstall.BIND_SPLIT_INSTALL_SERVICE pkg=com.android.vending } U=0: not found
+11-17 17:34:46.136   548   585 W ActivityManager: Slow operation: 706ms so far, now at startProcess: done updating battery stats
+11-17 17:34:46.136   548   585 W ActivityManager: Slow operation: 706ms so far, now at startProcess: building log message
+11-17 17:34:46.136   548   585 I ActivityManager: Start proc 4258:com.google.android.as.oss/u0a135 for service {com.google.android.as.oss/com.google.android.apps.miphone.astrea.grpc.AstreaGrpcService}
+11-17 17:34:46.136   548   585 W ActivityManager: Slow operation: 706ms so far, now at startProcess: starting to update pids map
+11-17 17:34:46.136   548   585 W ActivityManager: Slow operation: 706ms so far, now at startProcess: done updating pids map
+11-17 17:34:46.140   548   585 W ActivityManager: Slow operation: 514ms so far, now at startProcess: asking zygote to start proc
+11-17 17:34:46.158   548   585 W ActivityManager: Slow operation: 531ms so far, now at startProcess: returned from zygote!
+11-17 17:34:46.200   548   585 W ActivityManager: Slow operation: 573ms so far, now at startProcess: done updating battery stats
+11-17 17:34:46.200   548   585 W ActivityManager: Slow operation: 573ms so far, now at startProcess: building log message
+11-17 17:34:46.200   548   585 I ActivityManager: Start proc 4275:com.google.android.permissioncontroller/u0a202 for service {com.google.android.permissioncontroller/com.android.permissioncontroller.permission.service.v33.SafetyCenterQsTileService}
+11-17 17:34:46.200   548   585 W ActivityManager: Slow operation: 573ms so far, now at startProcess: starting to update pids map
+11-17 17:34:46.203   548   585 W ActivityManager: Slow operation: 576ms so far, now at startProcess: done updating pids map
+11-17 17:34:46.203   548   585 W ActivityManager: Slow operation: 111ms so far, now at startProcess: asking zygote to start proc
+11-17 17:34:46.217   548   585 W ActivityManager: Slow operation: 125ms so far, now at startProcess: returned from zygote!
+11-17 17:34:46.246   548   585 W ActivityManager: Slow operation: 155ms so far, now at startProcess: done updating battery stats
+11-17 17:34:46.246   548   585 W ActivityManager: Slow operation: 155ms so far, now at startProcess: building log message
+11-17 17:34:46.246   548   585 I ActivityManager: Start proc 4290:com.google.android.cellbroadcastreceiver/u0a187 for broadcast {com.google.android.cellbroadcastreceiver/com.android.cellbroadcastreceiver.CellBroadcastReceiver}
+11-17 17:34:46.246   548   585 W ActivityManager: Slow operation: 155ms so far, now at startProcess: starting to update pids map
+11-17 17:34:46.247   548   585 W ActivityManager: Slow operation: 156ms so far, now at startProcess: done updating pids map
+11-17 17:34:46.248   548   585 W ActivityManager: Slow operation: 121ms so far, now at startProcess: asking zygote to start proc
+11-17 17:34:46.265   548   585 W ActivityManager: Slow operation: 138ms so far, now at startProcess: returned from zygote!
+11-17 17:34:46.281   548   585 W ActivityManager: Slow operation: 154ms so far, now at startProcess: done updating battery stats
+11-17 17:34:46.281   548   585 W ActivityManager: Slow operation: 154ms so far, now at startProcess: building log message
+11-17 17:34:46.281   548   585 I ActivityManager: Start proc 4300:com.google.android.googlequicksearchbox:interactor/u0a144 for service {com.google.android.googlequicksearchbox/com.google.android.voiceinteraction.GsaVoiceInteractionService}
+11-17 17:34:46.281   548   585 W ActivityManager: Slow operation: 154ms so far, now at startProcess: starting to update pids map
+11-17 17:34:46.281   548   585 W ActivityManager: Slow operation: 154ms so far, now at startProcess: done updating pids map
+11-17 17:34:46.281   548   585 W ActivityManager: Slow operation: 146ms so far, now at startProcess: asking zygote to start proc
+11-17 17:34:46.317   548   585 W ActivityManager: Slow operation: 182ms so far, now at startProcess: returned from zygote!
+11-17 17:34:46.337   548   585 W ActivityManager: Slow operation: 202ms so far, now at startProcess: done updating battery stats
+11-17 17:34:46.337   548   585 W ActivityManager: Slow operation: 202ms so far, now at startProcess: building log message
+11-17 17:34:46.337   548   585 I ActivityManager: Start proc 4306:com.google.android.googlequicksearchbox:search/u0a144 for service {com.google.android.googlequicksearchbox/com.google.android.apps.gsa.shared.util.keepalive.StandaloneKeepAlive$KeepAliveService}
+11-17 17:34:46.342   548   585 W ActivityManager: Slow operation: 207ms so far, now at startProcess: starting to update pids map
+11-17 17:34:46.342   548   585 W ActivityManager: Slow operation: 207ms so far, now at startProcess: done updating pids map
+11-17 17:34:46.382   548   585 W ActivityManager: Slow operation: 55ms so far, now at startProcess: returned from zygote!
+11-17 17:34:46.383   548   585 W ActivityManager: Slow operation: 55ms so far, now at startProcess: done updating battery stats
+11-17 17:34:46.383   548   585 W ActivityManager: Slow operation: 55ms so far, now at startProcess: building log message
+11-17 17:34:46.383   548   585 I ActivityManager: Start proc 4313:com.google.android.tts/u0a155 for service {com.google.android.tts/com.google.android.apps.speech.tts.googletts.service.GoogleTtsService}
+11-17 17:34:46.383   548   585 W ActivityManager: Slow operation: 55ms so far, now at startProcess: starting to update pids map
+11-17 17:34:46.404   548   585 W ActivityManager: Slow operation: 77ms so far, now at startProcess: done updating pids map
+PLATFORM_FAILURE_LOG_CAPTURED phase=immediate
+PLATFORM_FAILURE_CAPTURE phase=deferred
+--------- beginning of crash
+11-17 17:34:43.990   548   564 F libc    : Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0xc in tid 564 (HeapTaskDaemon), pid 548 (system_server)
+11-17 17:34:47.848  4124  4124 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+11-17 17:34:47.848  4124  4124 F DEBUG   : Build fingerprint: 'google/sdk_gphone16k_x86_64/emu64xa16k:15/AE3A.240806.043/12960925:userdebug/dev-keys'
+11-17 17:34:47.848  4124  4124 F DEBUG   : Revision: '0'
+11-17 17:34:47.848  4124  4124 F DEBUG   : ABI: 'x86_64'
+11-17 17:34:47.848  4124  4124 F DEBUG   : Timestamp: 2026-11-17 17:34:46.005170899+0000
+11-17 17:34:47.848  4124  4124 F DEBUG   : Process uptime: 47s
+11-17 17:34:47.848  4124  4124 F DEBUG   : Page size: 16384 bytes
+11-17 17:34:47.848  4124  4124 F DEBUG   : Cmdline: system_server
+11-17 17:34:47.848  4124  4124 F DEBUG   : pid: 548, tid: 564, name: HeapTaskDaemon  >>> system_server <<<
+11-17 17:34:47.848  4124  4124 F DEBUG   : uid: 1000
+11-17 17:34:47.848  4124  4124 F DEBUG   : signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x000000000000000c
+11-17 17:34:47.848  4124  4124 F DEBUG   : Cause: null pointer dereference
+11-17 17:34:47.848  4124  4124 F DEBUG   :     rax 0000000000000000  rbx 00000000151939a0  rcx 0000000000004221  rdx 0000000000004220
+11-17 17:34:47.848  4124  4124 F DEBUG   :     r8  00007122057082d0  r9  0000712115660840  r10 0000000000000000  r11 000071200d15c698
+11-17 17:34:47.848  4124  4124 F DEBUG   :     r12 0000712115660850  r13 0000712115660840  r14 00007121a56595c8  r15 0000712115660840
+11-17 17:34:47.848  4124  4124 F DEBUG   :     rdi 0000712115660840  rsi 00000000151939a0
+11-17 17:34:47.848  4124  4124 F DEBUG   :     rbp 0000712115660b60  rsp 0000711fc808c1c0  rip 000071200c991f94
+11-17 17:34:47.848  4124  4124 F DEBUG   : 17 total frames
+11-17 17:34:47.848  4124  4124 F DEBUG   : backtrace:
+11-17 17:34:47.848  4124  4124 F DEBUG   :       #00 pc 0000000000641f94  /apex/com.android.art/lib64/libart.so (void art::gc::collector::MarkCompact::ScanObject<true>(art::mirror::Object*)+36) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+11-17 17:34:47.848  4124  4124 F DEBUG   :       #01 pc 0000000000636b3d  /apex/com.android.art/lib64/libart.so (art::gc::collector::MarkCompact::MarkingPhase()+1165) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+11-17 17:34:47.848  4124  4124 F DEBUG   :       #02 pc 00000000006356c3  /apex/com.android.art/lib64/libart.so (art::gc::collector::MarkCompact::RunPhases()+451) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+11-17 17:34:47.848  4124  4124 F DEBUG   :       #03 pc 000000000062eb37  /apex/com.android.art/lib64/libart.so (art::gc::collector::GarbageCollector::Run(art::gc::GcCause, bool)+311) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+11-17 17:34:47.848  4124  4124 F DEBUG   :       #04 pc 000000000066aaeb  /apex/com.android.art/lib64/libart.so (art::gc::Heap::CollectGarbageInternal(art::gc::collector::GcType, art::gc::GcCause, bool, unsigned int)+2683) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+11-17 17:34:47.848  4124  4124 F DEBUG   :       #05 pc 0000000000682ebb  /apex/com.android.art/lib64/libart.so (art::gc::Heap::ConcurrentGCTask::Run(art::Thread*)+171) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+11-17 17:34:47.848  4124  4124 F DEBUG   :       #06 pc 00000000006be615  /apex/com.android.art/lib64/libart.so (art::gc::TaskProcessor::RunAllTasks(art::Thread*)+501) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+11-17 17:34:47.848  4124  4124 F DEBUG   :       #07 pc 00000000000161d3  /system/framework/x86_64/boot-core-libart.oat (art_jni_trampoline+131) (BuildId: 2745a90d2047b0ef078df0f659dab52c701a4608)
+11-17 17:34:47.848  4124  4124 F DEBUG   :       #08 pc 0000000000048cbc  /system/framework/x86_64/boot-core-libart.oat (java.lang.Daemons$HeapTaskDaemon.runInternal+188) (BuildId: 2745a90d2047b0ef078df0f659dab52c701a4608)
+11-17 17:34:47.848  4124  4124 F DEBUG   :       #09 pc 0000000000023b58  /system/framework/x86_64/boot-core-libart.oat (java.lang.Daemons$Daemon.run+120) (BuildId: 2745a90d2047b0ef078df0f659dab52c701a4608)
+11-17 17:34:47.849  4124  4124 F DEBUG   :       #10 pc 000000000015c3ba  /system/framework/x86_64/boot.oat (java.lang.Thread.run+74) (BuildId: 68b5d9df423be4ebd4a6c38087fc90e635afb135)
+11-17 17:34:47.849  4124  4124 F DEBUG   :       #11 pc 0000000000212154  /apex/com.android.art/lib64/libart.so (art_quick_invoke_stub+756) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+11-17 17:34:47.849  4124  4124 F DEBUG   :       #12 pc 0000000000563fd5  /apex/com.android.art/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+181) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+11-17 17:34:47.849  4124  4124 F DEBUG   :       #13 pc 00000000009b5243  /apex/com.android.art/lib64/libart.so (art::Thread::CreateCallback(void*)+1427) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+11-17 17:34:47.849  4124  4124 F DEBUG   :       #14 pc 00000000009b4ca5  /apex/com.android.art/lib64/libart.so (art::Thread::CreateCallbackWithUffdGc(void*)+5) (BuildId: e4a3c6c284a8b17d09fd84d661cf181b)
+11-17 17:34:47.849  4124  4124 F DEBUG   :       #15 pc 000000000006d62a  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+58) (BuildId: eb58b4d427279994f00c0e1818477e4f)
+11-17 17:34:47.849  4124  4124 F DEBUG   :       #16 pc 0000000000060348  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+56) (BuildId: eb58b4d427279994f00c0e1818477e4f)
+11-17 17:34:47.947  4300  4300 E AndroidRuntime: FATAL EXCEPTION: main
+11-17 17:34:47.947  4300  4300 E AndroidRuntime: Process: com.google.android.googlequicksearchbox:interactor, PID: 4300
+11-17 17:34:47.947  4300  4300 E AndroidRuntime: DeadSystemException: The system died; earlier logs will point to the root cause
+11-17 17:34:48.081  1466  1690 E AndroidRuntime: FATAL EXCEPTION: fg
+11-17 17:34:48.081  1466  1690 E AndroidRuntime: Process: com.google.android.providers.media.module, PID: 1466
+11-17 17:34:48.081  1466  1690 E AndroidRuntime: DeadSystemException: The system died; earlier logs will point to the root cause
+11-17 17:34:48.541  4530  4530 E AndroidRuntime: FATAL EXCEPTION: main
+11-17 17:34:48.541  4530  4530 E AndroidRuntime: Process: com.google.android.gms, PID: 4530
+11-17 17:34:48.541  4530  4530 E AndroidRuntime: DeadSystemException: The system died; earlier logs will point to the root cause
+PLATFORM_FAILURE_CRASH_CAPTURED phase=deferred
+--------- beginning of system
+11-17 17:34:54.882  4658  5080 W ActivityManager: Unable to start service Intent { act=android.service.smartspace.SmartspaceService cmp=com.google.android.as/com.google.android.apps.miphone.aiai.app.AiAiSmartspaceService } U=0: not found
+11-17 17:34:54.963  4658  5080 W ActivityManager: Unable to start service Intent { act=android.service.smartspace.SmartspaceService cmp=com.google.android.as/com.google.android.apps.miphone.aiai.app.AiAiSmartspaceService } U=0: not found
+11-17 17:34:54.963  4658  4658 W ActivityManager: Unbind failed: could not find connection for android.app.LoadedApk$ServiceDispatcher$InnerConnection@85d4f8c
+11-17 17:34:54.964  4658  4950 W ActivityManager: Unable to start service Intent { act=android.service.smartspace.SmartspaceService cmp=com.google.android.as/com.google.android.apps.miphone.aiai.app.AiAiSmartspaceService } U=0: not found
+11-17 17:34:54.964  4658  4950 W ActivityManager: Unable to start service Intent { act=android.service.smartspace.SmartspaceService cmp=com.google.android.as/com.google.android.apps.miphone.aiai.app.AiAiSmartspaceService } U=0: not found
+11-17 17:34:54.971  4658  4695 W ActivityManager: Slow operation: 104ms so far, now at startProcess: returned from zygote!
+11-17 17:34:54.972  4658  4695 W ActivityManager: Slow operation: 104ms so far, now at startProcess: done updating battery stats
+11-17 17:34:54.972  4658  4695 W ActivityManager: Slow operation: 104ms so far, now at startProcess: building log message
+11-17 17:34:54.972  4658  4695 I ActivityManager: Start proc 5307:com.google.android.inputmethod.latin/u0a164 for service {com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME}
+11-17 17:34:54.972  4658  4695 W ActivityManager: Slow operation: 104ms so far, now at startProcess: starting to update pids map
+11-17 17:34:54.972  4658  4695 W ActivityManager: Slow operation: 104ms so far, now at startProcess: done updating pids map
+11-17 17:34:54.991  4658  4658 W ActivityManager: Unbind failed: could not find connection for android.app.LoadedApk$ServiceDispatcher$InnerConnection@551eb51
+11-17 17:34:54.991  4658  4658 W ActivityManager: Unbind failed: could not find connection for android.app.LoadedApk$ServiceDispatcher$InnerConnection@b3a0fb6
+11-17 17:34:54.991  4658  4658 W ActivityManager: Unbind failed: could not find connection for android.app.LoadedApk$ServiceDispatcher$InnerConnection@54654b7
+11-17 17:34:55.795  4658  4681 I ActivityManager: User 0 state changed from BOOTING to RUNNING_LOCKED
+11-17 17:34:55.848  4658  4695 W ActivityManager: Slow operation: 76ms so far, now at startProcess: done updating battery stats
+11-17 17:34:55.848  4658  4695 W ActivityManager: Slow operation: 76ms so far, now at startProcess: building log message
+11-17 17:34:55.848  4658  4695 I ActivityManager: Start proc 5332:com.google.android.apps.wellbeing/u0a133 for on-hold
+11-17 17:34:55.848  4658  4695 W ActivityManager: Slow operation: 76ms so far, now at startProcess: starting to update pids map
+11-17 17:34:55.848  4658  4695 W ActivityManager: Slow operation: 76ms so far, now at startProcess: done updating pids map
+11-17 17:34:56.092  4658  4678 I ActivityManager: User 0 state changed from RUNNING_LOCKED to RUNNING_UNLOCKING
+11-17 17:34:56.108  4658  4949 W ActivityManager: Slow operation: 61ms so far, now at attachApplicationLocked: before bindApplication
+11-17 17:34:56.379  4658  4949 W ActivityManager: Slow operation: 333ms so far, now at attachApplicationLocked: immediately before bindApplication
+11-17 17:34:56.380  4658  4949 W ActivityManager: Slow operation: 333ms so far, now at attachApplicationLocked: immediately after bindApplication
+11-17 17:34:56.380  4658  4949 W ActivityManager: Slow operation: 333ms so far, now at attachApplicationLocked: after updateLruProcessLocked
+11-17 17:34:56.398  4658  4949 W ActivityManager: Slow operation: 351ms so far, now at attachApplicationLocked: after updateOomAdjLocked
+11-17 17:34:56.658  4658  4695 W ActivityManager: Slow operation: 84ms so far, now at startProcess: asking zygote to start proc
+11-17 17:34:56.676  4658  4695 W ActivityManager: Slow operation: 102ms so far, now at startProcess: returned from zygote!
+11-17 17:34:56.783  4658  4695 W ActivityManager: Slow operation: 105ms so far, now at startProcess: done updating battery stats
+11-17 17:34:56.863  4658  4695 W ActivityManager: Slow operation: 288ms so far, now at startProcess: building log message
+11-17 17:34:56.863  4658  4695 I ActivityManager: Start proc 5369:com.google.android.as/u0a136 for service {com.google.android.as/com.google.android.apps.miphone.aiai.app.AiAiSmartspaceService}
+11-17 17:34:56.863  4658  4695 W ActivityManager: Slow operation: 289ms so far, now at startProcess: starting to update pids map
+11-17 17:34:56.863  4658  4695 W ActivityManager: Slow operation: 289ms so far, now at startProcess: done updating pids map
+11-17 17:34:56.863  4658  4695 W ActivityManager: Slow operation: 231ms so far, now at startProcess: asking zygote to start proc
+11-17 17:34:56.890  4658  4949 I ActivityManager: Process com.google.android.cellbroadcastreceiver (pid 5201) has died: cch+5 CEM 
+11-17 17:34:56.903  4658  4695 W ActivityManager: Slow operation: 263ms so far, now at startProcess: returned from zygote!
+11-17 17:34:56.903  4658  4695 W ActivityManager: Slow operation: 271ms so far, now at startProcess: done updating battery stats
+11-17 17:34:56.903  4658  4695 W ActivityManager: Slow operation: 271ms so far, now at startProcess: building log message
+11-17 17:34:56.903  4658  4695 I ActivityManager: Start proc 5387:com.google.android.providers.media.module/u0a184 for service {com.google.android.providers.media.module/com.android.providers.media.fuse.ExternalStorageServiceImpl}
+11-17 17:34:56.903  4658  4695 W ActivityManager: Slow operation: 271ms so far, now at startProcess: starting to update pids map
+11-17 17:34:56.903  4658  4695 W ActivityManager: Slow operation: 271ms so far, now at startProcess: done updating pids map
+11-17 17:34:56.903  4658  4695 W ActivityManager: Slow operation: 267ms so far, now at startProcess: asking zygote to start proc
+PLATFORM_FAILURE_LOG_CAPTURED phase=deferred
+INFO         | Wait for emulator (pid 3286) 20 seconds to shutdown gracefully before kill;you can set environment variable ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL(in seconds) to change the default value (20 seconds)
+
+USER_INFO    | Snapshots have been disabled by the user, save request is ignored.
+WARNING      | Netsim Wifi ipv6:%5B::1%5D:43925 is gone due to CANCELLED
+INFO         | Saving snapshot 'default_boot' took 0 ms
+INFO         | ipv6:%5B::1%5D:43925: Got goaway [2] err=UNAVAILABLE:GOAWAY received; Error code: 2; Debug Text: Cancelling all calls {http2_error:2}
+ERROR        | stop: Not implemented
+WARNING      | Emulator client has not yet been configured.. Call configure me first!
+INFO         | removeAll

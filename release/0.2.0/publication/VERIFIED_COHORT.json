@@ -1,0 +1,189 @@
+{
+  "admission_sha256": "a80a2545a6333fa784565278c4bb11274889148fa57300c9e9335ba09223704e",
+  "completed": true,
+  "github_public_assets": 67,
+  "kind": "qperiapt.verified_release_cohort",
+  "observed_at": "2026-11-17T20:10:34.160544+00:00",
+  "plan_sha256": "25f0435b71af046b9b348b1ad8898770d86006da3a188e8c209227c63bdbeef6",
+  "records": [
+    {
+      "bytes": 3547,
+      "path": "release/0.2.0/publication/README.md",
+      "sha256": "86029a15b8dada3c43950283e32d2b10df75082c4b652352379aa0706a605588"
+    },
+    {
+      "bytes": 150045,
+      "path": "release/0.2.0/publication/additional-tag-workflows.json",
+      "sha256": "064d2c60c0bc0a0b627ed0a5cec7d32a0fc2f3b7ead105b4f8bc122ac611d855"
+    },
+    {
+      "bytes": 2302,
+      "path": "release/0.2.0/publication/android-platform/ARTIFACTS.json",
+      "sha256": "63c145cd01abb8f7e2ccb0cde31552420824923a22e877125c813e077f7cbdf4"
+    },
+    {
+      "bytes": 6494,
+      "path": "release/0.2.0/publication/android-platform/DISPOSITION.json",
+      "sha256": "30a0e9cf44614d5661245d0d12a0be54710b88d8b640467b9a62485d532ac9a7"
+    },
+    {
+      "bytes": 20561,
+      "path": "release/0.2.0/publication/android-platform/WORKFLOW_JOBS.json",
+      "sha256": "2e82dd0404cf1f8a7372d12dd52402a0b42bd7c4aa06ac1bc4a9b29cfc32a26a"
+    },
+    {
+      "bytes": 6752,
+      "path": "release/0.2.0/publication/android-platform/android-platform-reproduction-1-14354530962.zip",
+      "sha256": "4760f7257098f719234cd1240cad93006a52b86d573585eb0f0bc81cd0d42083"
+    },
+    {
+      "bytes": 23389,
+      "path": "release/0.2.0/publication/android-platform/android-platform-reproduction-1/commands.log",
+      "sha256": "ba027867029a21ea0899bd7ccd377847732c47446c34b29d9ad4b5fa1ba9dc4e"
+    },
+    {
+      "bytes": 591,
+      "path": "release/0.2.0/publication/android-platform/android-platform-reproduction-1/observation.json",
+      "sha256": "48b69a38caad12a0ac3ef5aa1f228a0012499b1349b865b175c895916619f4ba"
+    },
+    {
+      "bytes": 6529,
+      "path": "release/0.2.0/publication/android-platform/android-platform-reproduction-2-14354741145.zip",
+      "sha256": "2927d5aa1aedc5331e7e516262f515c44c1146edab932fab888a12684120b4ea"
+    },
+    {
+      "bytes": 22844,
+      "path": "release/0.2.0/publication/android-platform/android-platform-reproduction-2/commands.log",
+      "sha256": "68970a5d288b4d01792b91625897eeca10dbc58d9e8f75150f305d5f827e30dd"
+    },
+    {
+      "bytes": 591,
+      "path": "release/0.2.0/publication/android-platform/android-platform-reproduction-2/observation.json",
+      "sha256": "6de5db5bcc0170f5a38ae41c42fb9aac929add6c64775468120e1641c4782f58"
+    },
+    {
+      "bytes": 10862,
+      "path": "release/0.2.0/publication/android-platform/android-platform-reproduction-3-14354225260.zip",
+      "sha256": "0c072857324c4f5b572529e62fa114757b2e018c09a74750cc236711e950e3ea"
+    },
+    {
+      "bytes": 57654,
+      "path": "release/0.2.0/publication/android-platform/android-platform-reproduction-3/commands.log",
+      "sha256": "0082ec2888eedc8db1a0a9a4594fde609db11e90217dc01fb49efa017812370b"
+    },
+    {
+      "bytes": 587,
+      "path": "release/0.2.0/publication/android-platform/android-platform-reproduction-3/observation.json",
+      "sha256": "20f39466d7b5e1c4b7a71016cf9374affd0dbda03f48b4a1c6c3b54b272b5e57"
+    },
+    {
+      "bytes": 35067,
+      "path": "release/0.2.0/publication/github/PUBLICATION_VERIFICATION.json",
+      "sha256": "79c8d142ef7fdfbc3135e030f79c9b1541c8251aaba515738184406839a0b767"
+    },
+    {
+      "bytes": 5115,
+      "path": "release/0.2.0/publication/github/apple--release-verification.json",
+      "sha256": "39256e1a13967f5940abb37fbdf9191315af956942333ba23cb1cdc7049f268d"
+    },
+    {
+      "bytes": 23939,
+      "path": "release/0.2.0/publication/github/platform--release-verification.json",
+      "sha256": "6e3de37b23828ccf90cbc77a6ff1a4679f8fb5c3e36aaaa640f42272816de50b"
+    },
+    {
+      "bytes": 2961,
+      "path": "release/0.2.0/publication/reference-checkout/DISPOSITION.json",
+      "sha256": "991634084dce156762f3e7598f3788664a1c8c38245576a5498906fd80488806"
+    },
+    {
+      "bytes": 14636,
+      "path": "release/0.2.0/publication/reference-checkout/JOB.log",
+      "sha256": "99c6d8f707a2ef295ba107d59eaf0f5a7950f32dc5d58ff631965bb80cb3e8a3"
+    },
+    {
+      "bytes": 37726,
+      "path": "release/0.2.0/publication/reference-checkout/JOBS.json",
+      "sha256": "3aade4e57ee4d7443e94aa3ff04ade1e82fd76d21ced1e2f465181b4df3aa26c"
+    },
+    {
+      "bytes": 707,
+      "path": "release/0.2.0/publication/reference-checkout/RERUN_ARTIFACT_METADATA.json",
+      "sha256": "69f6eb0b09a954c3a64b0e424cf0e86b6d75be9a0756cc996a78bb174680e812"
+    },
+    {
+      "bytes": 57678,
+      "path": "release/0.2.0/publication/reference-checkout/RERUN_JOB.log",
+      "sha256": "df60868743f0e6d7da1d4b6d509516956b5b283ceb877ce0073ba2dac3cf349c"
+    },
+    {
+      "bytes": 37961,
+      "path": "release/0.2.0/publication/reference-checkout/RERUN_JOBS.json",
+      "sha256": "b77bbc21c2fa17132eebf6514721652ce05367350c9f77bfe10d72da98c4dbc3"
+    },
+    {
+      "bytes": 971,
+      "path": "release/0.2.0/publication/reference-checkout/RERUN_REQUEST.json",
+      "sha256": "1aee771b4d97162d5f7537480face63878954bf9cd086e797fd757a083d19599"
+    },
+    {
+      "bytes": 12488,
+      "path": "release/0.2.0/publication/reference-checkout/RERUN_RUN.json",
+      "sha256": "8ac3790e8df623877105e260af734f2ae8e676a88fb78ba013e286bf5888c375"
+    },
+    {
+      "bytes": 12410,
+      "path": "release/0.2.0/publication/reference-checkout/RUN.json",
+      "sha256": "42a7e520b7b1a42b13b0f7acfda367e5aa6a23c4782d9d93b3ba8111664f07a9"
+    },
+    {
+      "bytes": 7425,
+      "path": "release/0.2.0/publication/registry/REGISTRY_ARCHIVE_DOWNLOADS.json",
+      "sha256": "c7fe147b4abd459bcd71bc1991084eb18708cd66eb945509b56d3712a96309df"
+    },
+    {
+      "bytes": 10680,
+      "path": "release/0.2.0/publication/registry/crates-io-v0.2.0-publication-receipt.json",
+      "sha256": "3e14c44a1356037ea5dad22f2a4827847715f633c6ce65b7adc7fe5bcab09d87"
+    },
+    {
+      "bytes": 1397,
+      "path": "release/0.2.0/publication/registry/readback-attempt01/REPAIR.json",
+      "sha256": "3c6234e725af33329871cc7ad46dd60e5592ff851d951cb37f47d19e2b4376a8"
+    },
+    {
+      "bytes": 897,
+      "path": "release/0.2.0/publication/registry/readback-attempt01/RESOLUTION.json",
+      "sha256": "3bb2e710bb4048486c318bbd70b67c5741b1cd316c29683231f4d7033ac1f582"
+    },
+    {
+      "bytes": 68,
+      "path": "release/0.2.0/publication/registry/readback-attempt01/registry-public-verification.stderr",
+      "sha256": "fccfd79f371ac23d291eacaa82defa92c8622a8d9300309319650ac7c6fe0352"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/publication/registry/readback-attempt01/registry-public-verification.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1881,
+      "path": "release/0.2.0/publication/registry/readback-attempt01/registry-readback-local-diagnostic.log",
+      "sha256": "79538f2f8dca47532a7459cd3471f3988fe56ed6fb0d1dcf51e314be5221b5b3"
+    }
+  ],
+  "registry_versions": 12,
+  "release_commit": "7c154548d03354a03e91f086b000197026884c0f",
+  "release_tree": "86fc2fa060088a980efd80e881fb56f954468339",
+  "schema_version": 1,
+  "scope": "Actual immutable GitHub attestations and fresh public bytes, registry observations and retained platform diagnostic outcomes. Existing source/runtime qualifications retain their separately admitted scope.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "stable_tags": [
+    "v0.2.0",
+    "abi2-platforms-v0.2.0"
+  ],
+  "verification_tag": "v0.2.0-verified-cohort"
+}

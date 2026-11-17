@@ -1,0 +1,71 @@
+{
+  "artifact_downloaded_by_this_observation": false,
+  "disposition": "The original shallow tag fetch consumed the 60-minute job bound before product execution. The one bounded rerun completed checkout, actual root lifecycle build/consumer checks, and output retention successfully. Original cancelled checkout and absent-output retention failure remain preserved; no timeout, assertion, source, or workflow was weakened.",
+  "kind": "qperiapt.post_tag_reference_checkout_disposition",
+  "observed_at": "2026-11-17T19:57:44.792209+00:00",
+  "original_conclusion": "cancelled",
+  "original_job": 134225192922,
+  "original_product_execution_reached": false,
+  "original_retention_step_conclusion": "failure",
+  "other_nine_jobs_rerun": false,
+  "raw_records": [
+    {
+      "bytes": 14636,
+      "path": "JOB.log",
+      "sha256": "99c6d8f707a2ef295ba107d59eaf0f5a7950f32dc5d58ff631965bb80cb3e8a3"
+    },
+    {
+      "bytes": 37726,
+      "path": "JOBS.json",
+      "sha256": "3aade4e57ee4d7443e94aa3ff04ade1e82fd76d21ced1e2f465181b4df3aa26c"
+    },
+    {
+      "bytes": 707,
+      "path": "RERUN_ARTIFACT_METADATA.json",
+      "sha256": "69f6eb0b09a954c3a64b0e424cf0e86b6d75be9a0756cc996a78bb174680e812"
+    },
+    {
+      "bytes": 57678,
+      "path": "RERUN_JOB.log",
+      "sha256": "df60868743f0e6d7da1d4b6d509516956b5b283ceb877ce0073ba2dac3cf349c"
+    },
+    {
+      "bytes": 37961,
+      "path": "RERUN_JOBS.json",
+      "sha256": "b77bbc21c2fa17132eebf6514721652ce05367350c9f77bfe10d72da98c4dbc3"
+    },
+    {
+      "bytes": 971,
+      "path": "RERUN_REQUEST.json",
+      "sha256": "1aee771b4d97162d5f7537480face63878954bf9cd086e797fd757a083d19599"
+    },
+    {
+      "bytes": 12488,
+      "path": "RERUN_RUN.json",
+      "sha256": "8ac3790e8df623877105e260af734f2ae8e676a88fb78ba013e286bf5888c375"
+    },
+    {
+      "bytes": 12410,
+      "path": "RUN.json",
+      "sha256": "42a7e520b7b1a42b13b0f7acfda367e5aa6a23c4782d9d93b3ba8111664f07a9"
+    }
+  ],
+  "retry_attempts_requested": 1,
+  "retry_checkout_completed_at": "2026-11-17T19:33:31Z",
+  "retry_completed_at": "2026-11-17T19:52:05Z",
+  "retry_conclusion": "success",
+  "retry_job": 134308415137,
+  "retry_observation_completed": true,
+  "retry_run_attempt": 2,
+  "retry_started_at": "2026-11-17T19:30:25Z",
+  "schema_version": 1,
+  "scope": "Additional metadata-tag observation only. The original selected-source CI qualification and admitted artifacts are unchanged. The later hosted archive is identified by official metadata and job output; this observation did not download or substitute it for the admitted source-bound artifacts.",
+  "source_commit": "7c154548d03354a03e91f086b000197026884c0f",
+  "uncertainties": [
+    "The root cause of the original stalled Git fetch is not established.",
+    "A successful rerun does not prove absence of future checkout failures."
+  ],
+  "workflow_latest_conclusion": "success",
+  "workflow_latest_successful_jobs": 10,
+  "workflow_run": 44135891311
+}

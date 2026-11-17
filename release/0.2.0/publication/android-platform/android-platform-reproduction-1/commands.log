@@ -1,0 +1,366 @@
+PLATFORM_HOST_TOOLS
+Android Debug Bridge version 1.0.41
+Version 37.0.1-15733141
+Installed as /usr/local/lib/android/sdk/platform-tools/adb
+Running on Linux 7.0.0-1017-azure (x86_64)
+Android emulator version 37.2.13.0 (build_id 16740729) (CL:N/A)
+Copyright (C) 2006-2024 The Android Open Source Project and many others.
+This program is a derivative of the QEMU CPU emulator (www.qemu.org).
+
+  This software is licensed under the terms of the GNU General Public
+  License version 2, as published by the Free Software Foundation, and
+  may be copied, distributed, and modified under those terms.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+a902be8f45c6c62e76c9efaf6947a0fa747c9cabd89a2ac8e0d16ecb30b3ed01  /usr/local/lib/android/sdk/platform-tools/adb
+1ac258315d123bfcf7637396d710b0a1b3237ef77113917612f7d3b38a7697b7  /usr/local/lib/android/sdk/emulator/emulator
+PLATFORM_HOST_MEMORY
+MemTotal:       16367520 kB
+MemFree:         1600864 kB
+MemAvailable:   15207380 kB
+Buffers:           50188 kB
+Cached:         13507280 kB
+SwapCached:           84 kB
+Active:           551264 kB
+Inactive:       13278012 kB
+Active(anon):     213316 kB
+Inactive(anon):   117048 kB
+Active(file):     337948 kB
+Inactive(file): 13160964 kB
+Unevictable:       46728 kB
+Mlocked:           43656 kB
+SwapTotal:       3145724 kB
+SwapFree:        3145640 kB
+Zswap:                 0 kB
+Zswapped:              0 kB
+Dirty:            228980 kB
+Writeback:             0 kB
+AnonPages:        318464 kB
+Mapped:           329784 kB
+Shmem:             49820 kB
+KReclaimable:     453532 kB
+Slab:             575692 kB
+SReclaimable:     453532 kB
+SUnreclaim:       122160 kB
+KernelStack:        4256 kB
+PageTables:         6600 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:    11329484 kB
+Committed_AS:    2141132 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:       38980 kB
+VmallocChunk:          0 kB
+Percpu:             2352 kB
+HardwareCorrupted:     0 kB
+AnonHugePages:         0 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+FileHugePages:     67584 kB
+FilePmdMapped:         0 kB
+CmaTotal:              0 kB
+CmaFree:          452880 kB
+Unaccepted:            0 kB
+Balloon:               0 kB
+GPUActive:             0 kB
+GPUReclaim:            0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:               0 kB
+DirectMap4k:      113792 kB
+DirectMap2M:     4075520 kB
+DirectMap1G:    14680064 kB
+11-17 17:40:32.917  3252  3252 D adb     : auth.cpp:62 generate_key(/home/runner/work/q-periapt/q-periapt/target/android-platform-probe/work/user/adbkey)...
+Loading local repository...                                                     [=========                              ] 25% Loading local repository...       Auto-selecting single ABI x86_64
+PLATFORM_ADB_SOCKET_READY attempt=2
+Could not connect to emulator on ports 5584,5585: Connection refused
+adb: device 'emulator-5584' not found
+INFO         | Android emulator version 37.2.13.0 (build_id 16740729) (CL:N/A)
+INFO         | Graphics backend: gfxstream
+INFO         | Found systemPath /usr/local/lib/android/sdk/system-images/android-35/google_apis_ps16k/x86_64/
+INFO         | Saving last run QEMU version for the AVD to 2
+INFO         | Increasing RAM size to 2560MB
+##############################################################################
+##                        WARNING - ACTION REQUIRED                         ##
+##  Consider using the '-metrics-collection' flag to help improve the       ##
+##  emulator by sending anonymized usage data. Or use the '-no-metrics'     ##
+##  flag to bypass this warning and turn off the metrics collection.        ##
+##  In a future release this warning will turn into a one-time blocking     ##
+##  prompt to ask for explicit user input regarding metrics collection.     ##
+##                                                                          ##
+##  Please see '-help-metrics-collection' for more details. You can use     ##
+##  '-metrics-to-file' or '-metrics-to-console' flags to see what type of   ##
+##  data is being collected by emulator as part of usage statistics.        ##
+##############################################################################
+INFO         | Guest GLES Driver: Auto (ext controls)
+INFO         | emuglConfig_init: vulkan_mode_selected:swiftshader gles_mode_selected:swiftshader
+INFO         | Checking system compatibility:
+INFO         |   Checking: hasSufficientDiskSpace
+INFO         |      Ok: Disk space requirements to run avd: `PlatformProbe35` are met
+INFO         |   Checking: hasSufficientHwGpu
+INFO         |      Ok: Hardware GPU compatibility checks are not required
+INFO         |   Checking: hasSufficientSystem
+INFO         |      Ok: System requirements to run avd: `PlatformProbe35` are met
+WARNING      | Feature QuickbootFileBacked is disabled due to stability issues, if you really want that, the environment variable ANDROID_EMU_FORCE_QUICKBOOT_FILE_BACKED need to set to 1
+ERROR        | Unable to connect to adb daemon on port: 5586
+INFO         | Storing crashdata in: /tmp/android-unknown/emu-crash-37.2.13.db, detection is enabled for process: 3328
+INFO         | Initializing gfxstream backend
+INFO         | startOpenglesRendererImpl: gpu info
+INFO         | 
+INFO         | initIcdPaths: ICD set to 'swiftshader', using Swiftshader ICD
+INFO         | Setting ICD filenames for the loader = /usr/local/lib/android/sdk/emulator/lib64/vulkan/vk_swiftshader_icd.json
+INFO         | SharedLibrary::open for [/usr/local/lib/android/sdk/emulator/qemu/linux-x86_64/lib64/vulkan/libvulkan.so]
+INFO         | SharedLibrary::open for [/usr/local/lib/android/sdk/emulator/qemu/linux-x86_64/lib64/vulkan/libvulkan.so.1]
+INFO         | SharedLibrary::open for [/usr/local/lib/android/sdk/emulator/lib64/vulkan/libvulkan.so]
+INFO         | Added library: /usr/local/lib/android/sdk/emulator/lib64/vulkan/libvulkan.so
+INFO         | Selecting Vulkan device: SwiftShader Device (Subzero), Version: 1.3.0
+INFO         | Using Vulkan externalMemoryMode: OpaqueFd for VkEmulation
+INFO         | Format VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16 does not support YCbCr sampler conversion
+INFO         | SharedLibrary::open for [libX11]
+WARNING      | Could not open libX11.so, try libX11.so.6
+INFO         | SharedLibrary::open for [libX11.so.6]
+INFO         | SharedLibrary::open for [libX11-xcb]
+WARNING      | Could not open libX11-xcb.so, try libX11-xcb.so.1
+INFO         | SharedLibrary::open for [libX11-xcb.so.1]
+INFO         | Initializing VkEmulation features:
+INFO         |     glInteropSupported: false
+INFO         |     useDeferredCommands: true
+INFO         |     createResourceWithRequirements: true
+INFO         |     useVulkanComposition: false
+INFO         |     useVulkanNativeSwapchain: false
+INFO         |     enable guestRenderDoc: false
+INFO         |     ASTC LDR emulation mode: Gpu
+INFO         |     enable ETC2 emulation: true
+INFO         |     enable Ycbcr emulation: false
+INFO         |     guestVulkanOnly: false
+INFO         |     useDedicatedAllocations: false
+INFO         |     guestVulkanMaxApiVersion: 1.3.0
+INFO         |     enableProtectedMemoryEmulation: false
+INFO         | Graphics Adapter Vendor Google (Google Inc.)
+INFO         | Graphics Adapter Android Emulator OpenGL ES Translator (Google SwiftShader)
+INFO         | Graphics API Version OpenGL ES 3.0 (OpenGL ES 3.0 SwiftShader 4.0.0.1)
+INFO         | Graphics API Extensions GL_OES_EGL_sync GL_OES_EGL_image GL_OES_EGL_image_external GL_OES_depth24 GL_OES_depth32 GL_OES_element_index_uint GL_OES_texture_float GL_OES_texture_float_linear GL_OES_compressed_paletted_texture GL_OES_compressed_ETC1_RGB8_texture GL_OES_depth_texture GL_OES_texture_half_float GL_OES_texture_half_float_linear GL_OES_packed_depth_stencil GL_OES_vertex_half_float GL_OES_standard_derivatives GL_OES_texture_npot GL_OES_rgb8_rgba8 GL_EXT_color_buffer_float GL_EXT_color_buffer_half_float GL_EXT_texture_format_BGRA8888 GL_APPLE_texture_format_BGRA8888 
+INFO         | Graphics Device Extensions N/A
+INFO         | Disabling sparse binding feature support
+INFO         | Sending adb public key [QAAAABXME6nDXEQXC5u8teD6tCMpCLg+mn//pG6/Y/0/Y8dwQJhyacqUfjWSsCwha1nx7IwfOu3EL3SyOAYDeSJqiB5i+h6IwqcK6HL3wNkGH2Z6SC5K/AAxLZ/2ScQ6u1+7cy88zc2SbudRR4h01/sZrqHkq78zPpmoj7m6zbLhg67/st7IHTrwmqZhU42JOlcCfjEowNLnwLUoOjxqfEXQXtqwN3wFnGDVZzG6pWF8qU5rQXG0k4uKi47BZS+mf7FL9dLGfge5i9RFFBSCIm3UFh4V3/ALN4otgkxkdgcpipYKHkNRiVkMHqIHmOwNYd9cmXgZ8O29rX83wY3f/fw3MIUtnO7QStRmTkKAlJwikpCebpj0IUuIO2VI6ixpGsGeazThijojwN7QVtyMushb0KhXwGqWBewOfps/ifueRNqm9Ne0SOtbMS64mVLegK3bRLxFwPkwus0yaJXDlKvxEMRB3e5riuDoXcEjx1xlBV+YcGvoFxAPucvoyy6pT13/i864dJY23R0fcLBvPaL1mvHNrpRN9+q05tRshi5KcsgEGywSRph3AXfc90hT4zyZCqUsqjkV3yV9lctfk18hzsnJ72QR/jEjRFCiq96NePLOAlG89onBVnvCUEhL3vOTUKhCyhbJagJYJXQBWz2pTRq/u7vZGFQ4YZ8TYD/9FtlfSBJDmgEAAQA= @unknown]
+INFO         | Userspace boot properties:
+INFO         |   androidboot.boot_devices=pci0000:00/0000:00:03.0 pci0000:00/0000:00:06.0
+INFO         |   androidboot.dalvik.vm.heapsize=576m
+INFO         |   androidboot.debug.hwui.renderer=skiagl
+INFO         |   androidboot.debug.sf.nobootanimation=1
+INFO         |   androidboot.hardware=ranchu
+INFO         |   androidboot.hardware.gltransport=pipe
+INFO         |   androidboot.hardware.vulkan=ranchu
+INFO         |   androidboot.logcat=*:V
+INFO         |   androidboot.opengles.version=196608
+INFO         |   androidboot.qemu=1
+INFO         |   androidboot.qemu.adb.pubkey=QAAAABXME6nDXEQXC5u8teD6tCMpCLg+mn//pG6/Y/0/Y8dwQJhyacqUfjWSsCwha1nx7IwfOu3EL3SyOAYDeSJqiB5i+h6IwqcK6HL3wNkGH2Z6SC5K/AAxLZ/2ScQ6u1+7cy88zc2SbudRR4h01/sZrqHkq78zPpmoj7m6zbLhg67/st7IHTrwmqZhU42JOlcCfjEowNLnwLUoOjxqfEXQXtqwN3wFnGDVZzG6pWF8qU5rQXG0k4uKi47BZS+mf7FL9dLGfge5i9RFFBSCIm3UFh4V3/ALN4otgkxkdgcpipYKHkNRiVkMHqIHmOwNYd9cmXgZ8O29rX83wY3f/fw3MIUtnO7QStRmTkKAlJwikpCebpj0IUuIO2VI6ixpGsGeazThijojwN7QVtyMushb0KhXwGqWBewOfps/ifueRNqm9Ne0SOtbMS64mVLegK3bRLxFwPkwus0yaJXDlKvxEMRB3e5riuDoXcEjx1xlBV+YcGvoFxAPucvoyy6pT13/i864dJY23R0fcLBvPaL1mvHNrpRN9+q05tRshi5KcsgEGywSRph3AXfc90hT4zyZCqUsqjkV3yV9lctfk18hzsnJ72QR/jEjRFCiq96NePLOAlG89onBVnvCUEhL3vOTUKhCyhbJagJYJXQBWz2pTRq/u7vZGFQ4YZ8TYD/9FtlfSBJDmgEAAQA= @unknown
+INFO         |   androidboot.qemu.avd_name=PlatformProbe35
+INFO         |   androidboot.qemu.camera_hq_edge_processing=0
+INFO         |   androidboot.qemu.camera_protocol_ver=1
+INFO         |   androidboot.qemu.cpuvulkan.version=4206592
+INFO         |   androidboot.qemu.gltransport.drawFlushInterval=800
+INFO         |   androidboot.qemu.gltransport.name=pipe
+INFO         |   androidboot.qemu.hwcodec.avcdec=2
+INFO         |   androidboot.qemu.hwcodec.hevcdec=2
+INFO         |   androidboot.qemu.hwcodec.vpxdec=2
+INFO         |   androidboot.qemu.settings.system.screen_off_timeout=2147483647
+INFO         |   androidboot.qemu.skin=1080x2400
+INFO         |   androidboot.qemu.virtiowifi=1
+INFO         |   androidboot.qemu.vsync=60
+INFO         |   androidboot.serialno=EMULATOR37X2X13X0
+INFO         |   androidboot.vbmeta.digest=2c9cddc5782070a7bad50e8178173f45bc36ec4603add76004d09e3bfce71eea
+INFO         |   androidboot.vbmeta.hash_alg=sha256
+INFO         |   androidboot.vbmeta.size=6784
+INFO         |   androidboot.veritymode=enforcing
+Could not connect to emulator on ports 5584,5585: Connection refused
+adb: device 'emulator-5584' not found
+INFO         | Activated packet streamer for bluetooth emulation
+Could not connect to emulator on ports 5584,5585: Connection refused
+adb: device 'emulator-5584' not found
+Could not connect to emulator on ports 5584,5585: Connection refused
+adb: device 'emulator-5584' not found
+Could not connect to emulator on ports 5584,5585: Connection refused
+adb: device 'emulator-5584' not found
+Could not connect to emulator on ports 5584,5585: Connection refused
+adb: device 'emulator-5584' not found
+WARNING: cannnot unmap ptr 0x7f7bbac01000 as it is in the protected range from 0x7f7b1ac00000 to 0x7f7bbae00000
+INFO         | Monitoring duration of emulator setup.
+INFO         | Successfully initialized netsim WiFi
+INFO         | Setting display: 0 configuration to: 1080x2400, dpi: 420x420 
+INFO         | setDisplayActiveConfig: id:0, 1080x2400
+INFO         | emulatorSetupEnvironment: Environment scene is not required
+USER_INFO    | Emulator is performing a full startup. This may take upto two minutes, or more.
+WARNING      | Failed to process .ini file /home/runner/work/q-periapt/q-periapt/target/android-platform-probe/work/emulator/emu-update-last-check.ini for reading.
+WARNING      | Failed to process .ini file /home/runner/work/q-periapt/q-periapt/target/android-platform-probe/work/emulator/emu-update-last-check.ini for reading.
+Connected to emulator on ports 5584,5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+adb: device offline
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+Emulator already registered on port 5585
+INFO         | Boot completed in 36916 ms
+INFO         | Increasing screen off timeout, logcat buffer size to 2M.
+Emulator already registered on port 5585
+PLATFORM_BASELINE boot=22e57868-2685-4473-923d-0cc97acceb45 system_server=730 fingerprint=google/sdk_gphone16k_x86_64/emu64xa16k:15/AE3A.240806.043/12960925:userdebug/dev-keys
+31.64 8.60
+MemTotal:        2532420 kB
+MemFree:          109364 kB
+MemAvailable:    1646584 kB
+Buffers:           22284 kB
+Cached:          1651748 kB
+SwapCached:            0 kB
+Active:          1576516 kB
+Inactive:         614240 kB
+Active(anon):     524208 kB
+Inactive(anon):     1688 kB
+Active(file):    1052308 kB
+Inactive(file):   612552 kB
+Unevictable:        4576 kB
+Mlocked:            4576 kB
+SwapTotal:       1899296 kB
+SwapFree:        1899296 kB
+Dirty:             48016 kB
+Writeback:             0 kB
+AnonPages:        521348 kB
+Mapped:           595840 kB
+Shmem:              5832 kB
+KReclaimable:      38124 kB
+Slab:             127052 kB
+SReclaimable:      38124 kB
+SUnreclaim:        88928 kB
+KernelStack:       16580 kB
+PageTables:        39460 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:     3165504 kB
+Committed_AS:   44666132 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:       39336 kB
+VmallocChunk:          0 kB
+Percpu:             2216 kB
+AnonHugePages:         0 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+FileHugePages:         0 kB
+FilePmdMapped:         0 kB
+CmaTotal:              0 kB
+CmaFree:               0 kB
+DirectMap4k:       63320 kB
+DirectMap2M:     2557952 kB
+6ac4d052d0cf6f7d69ff817444f610afa25e583bb032d2a0e310346c0f8b7133  /apex/com.android.art/lib64/libart.so
+PLATFORM_SAMPLE sample=1 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=2 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=3 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=4 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=5 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=6 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=7 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=8 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=9 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=10 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=11 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=12 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=13 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=14 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=15 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=16 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=17 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=18 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=19 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=20 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=21 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=22 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=23 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=24 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=25 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=26 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=27 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=28 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=29 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=30 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=31 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=32 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=33 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=34 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=35 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=36 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=37 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=38 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=39 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=40 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=41 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=42 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=43 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=44 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=45 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=46 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=47 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=48 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=49 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=50 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=51 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=52 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=53 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=54 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=55 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=56 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=57 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=58 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=59 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_SAMPLE sample=60 system_server=730 reply=Result: Parcel(	00000000 00000001   '........')
+PLATFORM_OBSERVATIONS_COMPLETED samples=60 sdk_installed=false
+INFO         | Wait for emulator (pid 3328) 20 seconds to shutdown gracefully before kill;you can set environment variable ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL(in seconds) to change the default value (20 seconds)
+
+USER_INFO    | Snapshots have been disabled by the user, save request is ignored.
+INFO         | Saving snapshot 'default_boot' took 2 ms
+WARNING      | Netsim Wifi ipv6:%5B::1%5D:35521 is gone due to CANCELLED
+INFO         | ipv6:%5B::1%5D:35521: Got goaway [2] err=UNAVAILABLE:GOAWAY received; Error code: 2; Debug Text: Cancelling all calls {http2_error:2}
+[3338:3338:20261117,174217.296808:WARNING process_reader_linux.cc:146] no stack mapping
+[3338:3338:20261117,174217.302482:ERROR file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq: No such file or directory (2)
+[3338:3338:20261117,174217.302506:ERROR file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq: No such file or directory (2)
+/home/runner/work/q-periapt/q-periapt/research/android-platform-probe/run.sh: line 76:  3328 Killed                  ANDROID_ADB_SERVER_PORT=5586 "$emulator" -avd PlatformProbe35 -port 5584 -no-snapshot -read-only -no-window -no-audio -no-boot-anim -no-direct-adb -adb-path "$adb" -gpu swiftshader

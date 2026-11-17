@@ -1,0 +1,173 @@
+{
+  "completed": true,
+  "completed_at": "2026-11-17T17:29:23.013376+00:00",
+  "crates": [
+    {
+      "admitted_artifact": {
+        "bytes": 218952,
+        "path": "release/0.2.0/assets/platform/q-periapt-mlkem-native-sys-0.2.0.crate",
+        "sha256": "f97dd8fda79f8135d4ada959f7955189ed664aecf7dd67f4f3e3f487f4448c7c"
+      },
+      "bytes": 218952,
+      "file": "q-periapt-mlkem-native-sys-0.2.0.crate",
+      "name": "q-periapt-mlkem-native-sys",
+      "sha256": "f97dd8fda79f8135d4ada959f7955189ed664aecf7dd67f4f3e3f487f4448c7c",
+      "url": "https://static.crates.io/crates/q-periapt-mlkem-native-sys/q-periapt-mlkem-native-sys-0.2.0.crate",
+      "version": "0.2.0"
+    },
+    {
+      "admitted_artifact": {
+        "bytes": 44791,
+        "path": "release/0.2.0/assets/platform/q-periapt-core-0.2.0.crate",
+        "sha256": "3032dd7d6bf7c4851cde1858794a19a3f4ef03a5e07680b70b3d918eb2faa59d"
+      },
+      "bytes": 44791,
+      "file": "q-periapt-core-0.2.0.crate",
+      "name": "q-periapt-core",
+      "sha256": "3032dd7d6bf7c4851cde1858794a19a3f4ef03a5e07680b70b3d918eb2faa59d",
+      "url": "https://static.crates.io/crates/q-periapt-core/q-periapt-core-0.2.0.crate",
+      "version": "0.2.0"
+    },
+    {
+      "admitted_artifact": {
+        "bytes": 38241,
+        "path": "release/0.2.0/assets/platform/q-periapt-kem-0.2.0.crate",
+        "sha256": "75f43ce3b1dde4ae97200c57070a245be8a7da3113c515d3b0ab6385d5c46ef3"
+      },
+      "bytes": 38241,
+      "file": "q-periapt-kem-0.2.0.crate",
+      "name": "q-periapt-kem",
+      "sha256": "75f43ce3b1dde4ae97200c57070a245be8a7da3113c515d3b0ab6385d5c46ef3",
+      "url": "https://static.crates.io/crates/q-periapt-kem/q-periapt-kem-0.2.0.crate",
+      "version": "0.2.0"
+    },
+    {
+      "admitted_artifact": {
+        "bytes": 33549,
+        "path": "release/0.2.0/assets/platform/q-periapt-sig-0.2.0.crate",
+        "sha256": "e74facff7f24b37e93cb5ec3e9756328b1053ae9e9b622946021c4fc96a67653"
+      },
+      "bytes": 33549,
+      "file": "q-periapt-sig-0.2.0.crate",
+      "name": "q-periapt-sig",
+      "sha256": "e74facff7f24b37e93cb5ec3e9756328b1053ae9e9b622946021c4fc96a67653",
+      "url": "https://static.crates.io/crates/q-periapt-sig/q-periapt-sig-0.2.0.crate",
+      "version": "0.2.0"
+    },
+    {
+      "admitted_artifact": {
+        "bytes": 4971402,
+        "path": "release/0.2.0/assets/platform/q-periapt-backends-0.2.0.crate",
+        "sha256": "f090b62366c6cbb555a2e06885944c72a5a20a76b8b16af7fffa70d29fd04666"
+      },
+      "bytes": 4971402,
+      "file": "q-periapt-backends-0.2.0.crate",
+      "name": "q-periapt-backends",
+      "sha256": "f090b62366c6cbb555a2e06885944c72a5a20a76b8b16af7fffa70d29fd04666",
+      "url": "https://static.crates.io/crates/q-periapt-backends/q-periapt-backends-0.2.0.crate",
+      "version": "0.2.0"
+    },
+    {
+      "admitted_artifact": {
+        "bytes": 48041,
+        "path": "release/0.2.0/assets/platform/q-periapt-policy-0.2.0.crate",
+        "sha256": "c3553382a37bc0ac09da88d5b33c3f515da8c6215988ecbd211b59a704153b84"
+      },
+      "bytes": 48041,
+      "file": "q-periapt-policy-0.2.0.crate",
+      "name": "q-periapt-policy",
+      "sha256": "c3553382a37bc0ac09da88d5b33c3f515da8c6215988ecbd211b59a704153b84",
+      "url": "https://static.crates.io/crates/q-periapt-policy/q-periapt-policy-0.2.0.crate",
+      "version": "0.2.0"
+    },
+    {
+      "admitted_artifact": {
+        "bytes": 34712,
+        "path": "release/0.2.0/assets/platform/q-periapt-sdk-0.2.0.crate",
+        "sha256": "c05b3125d6c8e86ce1a7f88479f8fffd709551aed42b6921cf81ab3c863160cc"
+      },
+      "bytes": 34712,
+      "file": "q-periapt-sdk-0.2.0.crate",
+      "name": "q-periapt-sdk",
+      "sha256": "c05b3125d6c8e86ce1a7f88479f8fffd709551aed42b6921cf81ab3c863160cc",
+      "url": "https://static.crates.io/crates/q-periapt-sdk/q-periapt-sdk-0.2.0.crate",
+      "version": "0.2.0"
+    },
+    {
+      "admitted_artifact": {
+        "bytes": 97639,
+        "path": "release/0.2.0/assets/platform/q-periapt-host-store-0.2.0.crate",
+        "sha256": "8f6f54e3f9380cca8f538ee96c5829b17bf63c1a5ea49fbad6b1413d066a25b4"
+      },
+      "bytes": 97639,
+      "file": "q-periapt-host-store-0.2.0.crate",
+      "name": "q-periapt-host-store",
+      "sha256": "8f6f54e3f9380cca8f538ee96c5829b17bf63c1a5ea49fbad6b1413d066a25b4",
+      "url": "https://static.crates.io/crates/q-periapt-host-store/q-periapt-host-store-0.2.0.crate",
+      "version": "0.2.0"
+    },
+    {
+      "admitted_artifact": {
+        "bytes": 77863,
+        "path": "release/0.2.0/assets/platform/q-periapt-rustls-0.2.0.crate",
+        "sha256": "165c5b9e6d6f8c91c7d7cf6383ca18d0739d18e298baf01bc9efd49724edb644"
+      },
+      "bytes": 77863,
+      "file": "q-periapt-rustls-0.2.0.crate",
+      "name": "q-periapt-rustls",
+      "sha256": "165c5b9e6d6f8c91c7d7cf6383ca18d0739d18e298baf01bc9efd49724edb644",
+      "url": "https://static.crates.io/crates/q-periapt-rustls/q-periapt-rustls-0.2.0.crate",
+      "version": "0.2.0"
+    },
+    {
+      "admitted_artifact": {
+        "bytes": 124092,
+        "path": "release/0.2.0/assets/platform/q-periapt-ffi-0.2.0.crate",
+        "sha256": "66c9d32802fddc4234deea082919ae84ba54118f1c1da0549fe16df0c2719d51"
+      },
+      "bytes": 124092,
+      "file": "q-periapt-ffi-0.2.0.crate",
+      "name": "q-periapt-ffi",
+      "sha256": "66c9d32802fddc4234deea082919ae84ba54118f1c1da0549fe16df0c2719d51",
+      "url": "https://static.crates.io/crates/q-periapt-ffi/q-periapt-ffi-0.2.0.crate",
+      "version": "0.2.0"
+    },
+    {
+      "admitted_artifact": {
+        "bytes": 23238,
+        "path": "release/0.2.0/assets/platform/q-periapt-wasm-0.2.0.crate",
+        "sha256": "884a56bf8892f39a2c90a9cf7db14398d03ae116b3e34f1ac0a40b274e7721ef"
+      },
+      "bytes": 23238,
+      "file": "q-periapt-wasm-0.2.0.crate",
+      "name": "q-periapt-wasm",
+      "sha256": "884a56bf8892f39a2c90a9cf7db14398d03ae116b3e34f1ac0a40b274e7721ef",
+      "url": "https://static.crates.io/crates/q-periapt-wasm/q-periapt-wasm-0.2.0.crate",
+      "version": "0.2.0"
+    },
+    {
+      "admitted_artifact": {
+        "bytes": 57036,
+        "path": "release/0.2.0/assets/platform/q-periapt-cli-0.2.0.crate",
+        "sha256": "683e3eb30271996bf0cec549ab13bc6fc161db523cc552d1588700683d88f8e1"
+      },
+      "bytes": 57036,
+      "file": "q-periapt-cli-0.2.0.crate",
+      "name": "q-periapt-cli",
+      "sha256": "683e3eb30271996bf0cec549ab13bc6fc161db523cc552d1588700683d88f8e1",
+      "url": "https://static.crates.io/crates/q-periapt-cli/q-periapt-cli-0.2.0.crate",
+      "version": "0.2.0"
+    }
+  ],
+  "kind": "qperiapt.registry_public_archive_verification",
+  "manifest_sha256": "d356332ccc5008c61b8c8bec6c9a3abb120f58623c66da63b47ad0848435f07c",
+  "registry_publication_receipt_sha256": "06c31b2069eeeccb19b437d4dbddd5d0720a1027a225f8b56d6a352b0c1f3bef",
+  "schema_version": 1,
+  "scope": "Fresh unauthenticated downloads from the official static.crates.io endpoint match every admitted original archive byte count and SHA-256. API/sparse-index non-yanked status remains a separate fresh registry observation; no upload or consumer execution was performed by this reader.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "started_at": "2026-11-17T17:29:22.443180+00:00",
+  "tag_commit": "7c154548d03354a03e91f086b000197026884c0f"
+}

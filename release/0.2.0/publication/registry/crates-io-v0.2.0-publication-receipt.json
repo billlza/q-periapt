@@ -1,0 +1,316 @@
+{
+  "boundary": "Q-Periapt 0.2.0 ABI 2 Rust package publication. The selected clean source, package report and exact archives remain bound throughout the transaction. Published crates form a dependency-safe prefix and require matching non-yanked checksums from both the official API and sparse index. Upload success or an unknown outcome alone is not a published observation.",
+  "crates": [
+    {
+      "crate_file": "q-periapt-mlkem-native-sys-0.2.0.crate",
+      "crate_sha256": "f97dd8fda79f8135d4ada959f7955189ed664aecf7dd67f4f3e3f487f4448c7c",
+      "crate_size": 218952,
+      "crates_io_api": {
+        "checksum": "f97dd8fda79f8135d4ada959f7955189ed664aecf7dd67f4f3e3f487f4448c7c",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "dependencies": [],
+      "name": "q-periapt-mlkem-native-sys",
+      "sparse_index": {
+        "checksum": "f97dd8fda79f8135d4ada959f7955189ed664aecf7dd67f4f3e3f487f4448c7c",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "state": "published_verified",
+      "verified_at": "2026-11-17T20:08:59Z",
+      "version": "0.2.0"
+    },
+    {
+      "crate_file": "q-periapt-core-0.2.0.crate",
+      "crate_sha256": "3032dd7d6bf7c4851cde1858794a19a3f4ef03a5e07680b70b3d918eb2faa59d",
+      "crate_size": 44791,
+      "crates_io_api": {
+        "checksum": "3032dd7d6bf7c4851cde1858794a19a3f4ef03a5e07680b70b3d918eb2faa59d",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "dependencies": [],
+      "name": "q-periapt-core",
+      "sparse_index": {
+        "checksum": "3032dd7d6bf7c4851cde1858794a19a3f4ef03a5e07680b70b3d918eb2faa59d",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "state": "published_verified",
+      "verified_at": "2026-11-17T20:09:00Z",
+      "version": "0.2.0"
+    },
+    {
+      "crate_file": "q-periapt-kem-0.2.0.crate",
+      "crate_sha256": "75f43ce3b1dde4ae97200c57070a245be8a7da3113c515d3b0ab6385d5c46ef3",
+      "crate_size": 38241,
+      "crates_io_api": {
+        "checksum": "75f43ce3b1dde4ae97200c57070a245be8a7da3113c515d3b0ab6385d5c46ef3",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "dependencies": [
+        "q-periapt-core"
+      ],
+      "name": "q-periapt-kem",
+      "sparse_index": {
+        "checksum": "75f43ce3b1dde4ae97200c57070a245be8a7da3113c515d3b0ab6385d5c46ef3",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "state": "published_verified",
+      "verified_at": "2026-11-17T20:09:01Z",
+      "version": "0.2.0"
+    },
+    {
+      "crate_file": "q-periapt-sig-0.2.0.crate",
+      "crate_sha256": "e74facff7f24b37e93cb5ec3e9756328b1053ae9e9b622946021c4fc96a67653",
+      "crate_size": 33549,
+      "crates_io_api": {
+        "checksum": "e74facff7f24b37e93cb5ec3e9756328b1053ae9e9b622946021c4fc96a67653",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "dependencies": [
+        "q-periapt-core"
+      ],
+      "name": "q-periapt-sig",
+      "sparse_index": {
+        "checksum": "e74facff7f24b37e93cb5ec3e9756328b1053ae9e9b622946021c4fc96a67653",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "state": "published_verified",
+      "verified_at": "2026-11-17T20:09:02Z",
+      "version": "0.2.0"
+    },
+    {
+      "crate_file": "q-periapt-backends-0.2.0.crate",
+      "crate_sha256": "f090b62366c6cbb555a2e06885944c72a5a20a76b8b16af7fffa70d29fd04666",
+      "crate_size": 4971402,
+      "crates_io_api": {
+        "checksum": "f090b62366c6cbb555a2e06885944c72a5a20a76b8b16af7fffa70d29fd04666",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "dependencies": [
+        "q-periapt-mlkem-native-sys",
+        "q-periapt-core",
+        "q-periapt-sig"
+      ],
+      "name": "q-periapt-backends",
+      "sparse_index": {
+        "checksum": "f090b62366c6cbb555a2e06885944c72a5a20a76b8b16af7fffa70d29fd04666",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "state": "published_verified",
+      "verified_at": "2026-11-17T20:09:03Z",
+      "version": "0.2.0"
+    },
+    {
+      "crate_file": "q-periapt-policy-0.2.0.crate",
+      "crate_sha256": "c3553382a37bc0ac09da88d5b33c3f515da8c6215988ecbd211b59a704153b84",
+      "crate_size": 48041,
+      "crates_io_api": {
+        "checksum": "c3553382a37bc0ac09da88d5b33c3f515da8c6215988ecbd211b59a704153b84",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-sig"
+      ],
+      "name": "q-periapt-policy",
+      "sparse_index": {
+        "checksum": "c3553382a37bc0ac09da88d5b33c3f515da8c6215988ecbd211b59a704153b84",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "state": "published_verified",
+      "verified_at": "2026-11-17T20:09:03Z",
+      "version": "0.2.0"
+    },
+    {
+      "crate_file": "q-periapt-sdk-0.2.0.crate",
+      "crate_sha256": "c05b3125d6c8e86ce1a7f88479f8fffd709551aed42b6921cf81ab3c863160cc",
+      "crate_size": 34712,
+      "crates_io_api": {
+        "checksum": "c05b3125d6c8e86ce1a7f88479f8fffd709551aed42b6921cf81ab3c863160cc",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-kem",
+        "q-periapt-backends",
+        "q-periapt-policy"
+      ],
+      "name": "q-periapt-sdk",
+      "sparse_index": {
+        "checksum": "c05b3125d6c8e86ce1a7f88479f8fffd709551aed42b6921cf81ab3c863160cc",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "state": "published_verified",
+      "verified_at": "2026-11-17T20:09:04Z",
+      "version": "0.2.0"
+    },
+    {
+      "crate_file": "q-periapt-host-store-0.2.0.crate",
+      "crate_sha256": "8f6f54e3f9380cca8f538ee96c5829b17bf63c1a5ea49fbad6b1413d066a25b4",
+      "crate_size": 97639,
+      "crates_io_api": {
+        "checksum": "8f6f54e3f9380cca8f538ee96c5829b17bf63c1a5ea49fbad6b1413d066a25b4",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-sig",
+        "q-periapt-backends",
+        "q-periapt-policy",
+        "q-periapt-sdk"
+      ],
+      "name": "q-periapt-host-store",
+      "sparse_index": {
+        "checksum": "8f6f54e3f9380cca8f538ee96c5829b17bf63c1a5ea49fbad6b1413d066a25b4",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "state": "published_verified",
+      "verified_at": "2026-11-17T20:09:05Z",
+      "version": "0.2.0"
+    },
+    {
+      "crate_file": "q-periapt-rustls-0.2.0.crate",
+      "crate_sha256": "165c5b9e6d6f8c91c7d7cf6383ca18d0739d18e298baf01bc9efd49724edb644",
+      "crate_size": 77863,
+      "crates_io_api": {
+        "checksum": "165c5b9e6d6f8c91c7d7cf6383ca18d0739d18e298baf01bc9efd49724edb644",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-kem",
+        "q-periapt-backends",
+        "q-periapt-policy",
+        "q-periapt-sdk"
+      ],
+      "name": "q-periapt-rustls",
+      "sparse_index": {
+        "checksum": "165c5b9e6d6f8c91c7d7cf6383ca18d0739d18e298baf01bc9efd49724edb644",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "state": "published_verified",
+      "verified_at": "2026-11-17T20:09:06Z",
+      "version": "0.2.0"
+    },
+    {
+      "crate_file": "q-periapt-ffi-0.2.0.crate",
+      "crate_sha256": "66c9d32802fddc4234deea082919ae84ba54118f1c1da0549fe16df0c2719d51",
+      "crate_size": 124092,
+      "crates_io_api": {
+        "checksum": "66c9d32802fddc4234deea082919ae84ba54118f1c1da0549fe16df0c2719d51",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-kem",
+        "q-periapt-backends",
+        "q-periapt-policy",
+        "q-periapt-sdk",
+        "q-periapt-host-store",
+        "q-periapt-rustls"
+      ],
+      "name": "q-periapt-ffi",
+      "sparse_index": {
+        "checksum": "66c9d32802fddc4234deea082919ae84ba54118f1c1da0549fe16df0c2719d51",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "state": "published_verified",
+      "verified_at": "2026-11-17T20:09:07Z",
+      "version": "0.2.0"
+    },
+    {
+      "crate_file": "q-periapt-wasm-0.2.0.crate",
+      "crate_sha256": "884a56bf8892f39a2c90a9cf7db14398d03ae116b3e34f1ac0a40b274e7721ef",
+      "crate_size": 23238,
+      "crates_io_api": {
+        "checksum": "884a56bf8892f39a2c90a9cf7db14398d03ae116b3e34f1ac0a40b274e7721ef",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-kem",
+        "q-periapt-backends",
+        "q-periapt-policy"
+      ],
+      "name": "q-periapt-wasm",
+      "sparse_index": {
+        "checksum": "884a56bf8892f39a2c90a9cf7db14398d03ae116b3e34f1ac0a40b274e7721ef",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "state": "published_verified",
+      "verified_at": "2026-11-17T20:09:09Z",
+      "version": "0.2.0"
+    },
+    {
+      "crate_file": "q-periapt-cli-0.2.0.crate",
+      "crate_sha256": "683e3eb30271996bf0cec549ab13bc6fc161db523cc552d1588700683d88f8e1",
+      "crate_size": 57036,
+      "crates_io_api": {
+        "checksum": "683e3eb30271996bf0cec549ab13bc6fc161db523cc552d1588700683d88f8e1",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-sig",
+        "q-periapt-backends",
+        "q-periapt-policy",
+        "q-periapt-sdk",
+        "q-periapt-host-store",
+        "q-periapt-rustls"
+      ],
+      "name": "q-periapt-cli",
+      "sparse_index": {
+        "checksum": "683e3eb30271996bf0cec549ab13bc6fc161db523cc552d1588700683d88f8e1",
+        "version": "0.2.0",
+        "yanked": false
+      },
+      "state": "published_verified",
+      "verified_at": "2026-11-17T20:09:09Z",
+      "version": "0.2.0"
+    }
+  ],
+  "identity": {
+    "abi_version": 2,
+    "product_version": "0.2.0",
+    "publication_key": "crates_io_v0_2_0",
+    "registry": "https://crates.io"
+  },
+  "kind": "qperiapt.sdk_crates_io_publication_receipt",
+  "observation": {
+    "observed_at": "2026-11-17T20:09:09Z",
+    "package_contract": {
+      "completed_at": "2026-11-17T07:16:20Z",
+      "report_sha256": "2ddc710ac97a56d4ee006a2a1adcf860ab451f4b192433b739f6db0e767040a6",
+      "source_commit": "af4618c8065d7133adfb86e1d116577089161ff0"
+    },
+    "source": {
+      "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+      "source_inputs_sha256": "00ea7779219482e8b79ce863296d20956839e69b2bd21d9338c60bafcfebf22d",
+      "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+    }
+  },
+  "schema_version": 1,
+  "status": "published_verified"
+}

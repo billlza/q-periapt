@@ -1,0 +1,159 @@
+{
+  "artifact_metadata": {
+    "bytes": 2302,
+    "path": "tag-R-android-platform-reproduction/ARTIFACTS.json",
+    "sha256": "63c145cd01abb8f7e2ccb0cde31552420824923a22e877125c813e077f7cbdf4"
+  },
+  "disposition": "Retain the failed SDK-free default-memory platform observation and both successful trials. The completed SDK qualification retains its actual explicit emulator configurations. This diagnostic is not converted to a pass and does not add default-memory or physical-device qualification. No source, test, release admission, or protected stable tag is changed.",
+  "kind": "qperiapt.post_tag_android_platform_diagnostic_disposition",
+  "observations": {
+    "baseline_system_server_pid": 548,
+    "crash": {
+      "deferred_crash_log_lines": [
+        539,
+        575
+      ],
+      "fault_address": "0xc",
+      "library": "/apex/com.android.art/lib64/libart.so",
+      "library_build_id": "e4a3c6c284a8b17d09fd84d661cf181b",
+      "process": "system_server",
+      "reported_cause": "null pointer dereference",
+      "signal": "SIGSEGV",
+      "thread": "HeapTaskDaemon",
+      "top_frame": "art::gc::collector::MarkCompact::ScanObject<true>(art::mirror::Object*)+36"
+    },
+    "emulator_abi": "x86_64",
+    "emulator_api": 35,
+    "emulator_reported_memory_mib": 2560,
+    "failed_trial": 3,
+    "failure_marker_line": 324,
+    "failure_sample": 24,
+    "observed_system_server_pids": [
+      548,
+      4239
+    ],
+    "page_size_bytes": 16384,
+    "sdk_installation_attempted": false
+  },
+  "observed_at": "2026-11-17T18:10:34.033321+00:00",
+  "publication_claim": "This file is a post-tag diagnostic disposition, not a replacement CI qualification or a GitHub publication verification receipt.",
+  "qualified_product_source": "af4618c8065d7133adfb86e1d116577089161ff0",
+  "qualified_sdk_comparison": {
+    "actual_runtime_reexecution_by_this_analysis": false,
+    "api35_emulator_memory_mib": 4096,
+    "completed_profiles": 4,
+    "memory_configuration_source": {
+      "lines": [
+        1470,
+        1477
+      ],
+      "path": "artifact/android_bounded_command.py"
+    },
+    "readback": {
+      "bytes": 6260,
+      "path": "publication-checkout/release/0.2.0/evidence/sdk-android/READBACK.json",
+      "sha256": "2c412c48dc0285b5b7d36084e2417a5e9966fd48086f76aa123f9f7d826a56f1"
+    }
+  },
+  "schema_version": 1,
+  "source_commit": "7c154548d03354a03e91f086b000197026884c0f",
+  "source_files": [
+    {
+      "bytes": 3492,
+      "commit": "7c154548d03354a03e91f086b000197026884c0f",
+      "path": "research/android-platform-probe/run.py",
+      "sha256": "d78f68d2b430e6048f2b4f3779742e488f157dbcaba494ff0336288e69474bcb"
+    },
+    {
+      "bytes": 8726,
+      "commit": "7c154548d03354a03e91f086b000197026884c0f",
+      "path": "research/android-platform-probe/run.sh",
+      "sha256": "9a63a047a0136ae787680ed3e7a4f1af74f6e7dbc4839326ea510659bcd03d36"
+    },
+    {
+      "bytes": 214801,
+      "commit": "7c154548d03354a03e91f086b000197026884c0f",
+      "path": "artifact/android_bounded_command.py",
+      "sha256": "3caf501c77d101715f1422a5509a2f04c934c9eeb0575ab299b2de8c8c3e11de"
+    },
+    {
+      "bytes": 3160,
+      "commit": "7c154548d03354a03e91f086b000197026884c0f",
+      "path": ".github/workflows/android-platform-probe.yml",
+      "sha256": "43fb762ee6b16e30396f209ea2a9974a597f17d6e6e2d1f59911525733edd7c3"
+    }
+  ],
+  "trials": [
+    {
+      "archive": {
+        "bytes": 6752,
+        "path": "tag-R-android-platform-reproduction/android-platform-reproduction-1-14354530962.zip",
+        "sha256": "4760f7257098f719234cd1240cad93006a52b86d573585eb0f0bc81cd0d42083"
+      },
+      "artifact_id": 14354530962,
+      "commands": {
+        "bytes": 23389,
+        "path": "tag-R-android-platform-reproduction/android-platform-reproduction-1/commands.log",
+        "sha256": "ba027867029a21ea0899bd7ccd377847732c47446c34b29d9ad4b5fa1ba9dc4e"
+      },
+      "driver_exit_status": 0,
+      "observation": {
+        "bytes": 591,
+        "path": "tag-R-android-platform-reproduction/android-platform-reproduction-1/observation.json",
+        "sha256": "48b69a38caad12a0ac3ef5aa1f228a0012499b1349b865b175c895916619f4ba"
+      },
+      "status": "observations_completed",
+      "trial": "android-platform-reproduction-1"
+    },
+    {
+      "archive": {
+        "bytes": 6529,
+        "path": "tag-R-android-platform-reproduction/android-platform-reproduction-2-14354741145.zip",
+        "sha256": "2927d5aa1aedc5331e7e516262f515c44c1146edab932fab888a12684120b4ea"
+      },
+      "artifact_id": 14354741145,
+      "commands": {
+        "bytes": 22844,
+        "path": "tag-R-android-platform-reproduction/android-platform-reproduction-2/commands.log",
+        "sha256": "68970a5d288b4d01792b91625897eeca10dbc58d9e8f75150f305d5f827e30dd"
+      },
+      "driver_exit_status": 0,
+      "observation": {
+        "bytes": 591,
+        "path": "tag-R-android-platform-reproduction/android-platform-reproduction-2/observation.json",
+        "sha256": "6de5db5bcc0170f5a38ae41c42fb9aac929add6c64775468120e1641c4782f58"
+      },
+      "status": "observations_completed",
+      "trial": "android-platform-reproduction-2"
+    },
+    {
+      "archive": {
+        "bytes": 10862,
+        "path": "tag-R-android-platform-reproduction/android-platform-reproduction-3-14354225260.zip",
+        "sha256": "0c072857324c4f5b572529e62fa114757b2e018c09a74750cc236711e950e3ea"
+      },
+      "artifact_id": 14354225260,
+      "commands": {
+        "bytes": 57654,
+        "path": "tag-R-android-platform-reproduction/android-platform-reproduction-3/commands.log",
+        "sha256": "0082ec2888eedc8db1a0a9a4594fde609db11e90217dc01fb49efa017812370b"
+      },
+      "driver_exit_status": 1,
+      "observation": {
+        "bytes": 587,
+        "path": "tag-R-android-platform-reproduction/android-platform-reproduction-3/observation.json",
+        "sha256": "20f39466d7b5e1c4b7a71016cf9374affd0dbda03f48b4a1c6c3b54b272b5e57"
+      },
+      "status": "observation_failed",
+      "trial": "android-platform-reproduction-3"
+    }
+  ],
+  "uncertainties": [
+    "The root cause of the ART crash is not established or fixed by this observation.",
+    "The effect of memory size on this crash is not isolated by these three same-configuration trials.",
+    "Two successful trials do not establish absence of the platform failure."
+  ],
+  "workflow_conclusion": "failure",
+  "workflow_run": 44135891255,
+  "workflow_url": "https://github.com/billlza/q-periapt/actions/runs/44135891255"
+}

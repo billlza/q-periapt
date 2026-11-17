@@ -1,0 +1,14 @@
+{
+  "commands_sha256": "0082ec2888eedc8db1a0a9a4594fde609db11e90217dc01fb49efa017812370b",
+  "driver_exit_status": 1,
+  "kind": "qperiapt.android_platform_reproduction",
+  "output_limit_bytes": 2097152,
+  "release_claim_eligible": false,
+  "routing": "private_unix_adb_with_emulator_registration",
+  "schema_version": 1,
+  "scope": "one cold API 35 / 16 KiB boot and read-only file_integrity queries; no SDK qualification",
+  "sdk_installation_attempted": false,
+  "source_commit": "7c154548d03354a03e91f086b000197026884c0f",
+  "status": "observation_failed",
+  "timeout_seconds": 360
+}

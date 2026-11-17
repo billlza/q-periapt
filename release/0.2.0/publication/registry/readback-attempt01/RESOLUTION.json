@@ -1,0 +1,15 @@
+{
+  "completed": true,
+  "guard_changed": false,
+  "kind": "qperiapt.registry_readback_local_integrity_resolution",
+  "observed_at": "2026-11-17T20:10:31.672758+00:00",
+  "product_source_changed": false,
+  "registry_status": "published_verified",
+  "schema_version": 1,
+  "scope": "After preserving and relocating exactly the two task-generated Python cache files, the unchanged owning read-only CLI passed its complete local source guards and fresh official API/sparse-index observations. The original failure remains recorded in REPAIR.json and the diagnostic log.",
+  "source_commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+  "upload_attempts": 0,
+  "verified_receipt_path": "release/0.2.0/publication/registry/crates-io-v0.2.0-publication-receipt.json",
+  "verified_receipt_sha256": "3e14c44a1356037ea5dad22f2a4827847715f633c6ce65b7adc7fe5bcab09d87",
+  "verified_registry_versions": 12
+}

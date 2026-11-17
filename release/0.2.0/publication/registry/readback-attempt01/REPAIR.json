@@ -1,0 +1,27 @@
+{
+  "cause": "Task-local isolated py_compile generated two .pyc files under the selected source target directory. The existing package source identity guard rejects repository Python bytecode caches because they can replace source imports.",
+  "evidence": "registry-readback-local-diagnostic.log",
+  "failed_phase": "local source integrity before registry observation",
+  "guard_changed": false,
+  "kind": "qperiapt.registry_readback_local_integrity_repair",
+  "moved_files": [
+    {
+      "bytes": 9905,
+      "original_path": "target/__pycache__/commit_verified_cohort.cpython-314.pyc",
+      "preserved_path": "bytecode/commit_verified_cohort.cpython-314.pyc",
+      "sha256": "4c0023e40903d560cac61ed02b5186290194284d7b407aa5a2a2a36843e38e36"
+    },
+    {
+      "bytes": 16493,
+      "original_path": "target/__pycache__/stage_verified_cohort.cpython-314.pyc",
+      "preserved_path": "bytecode/stage_verified_cohort.cpython-314.pyc",
+      "sha256": "caa45e192229ccaa8cb28813b57fc925575a75d5ebbe44d0c7d8c657473b61b4"
+    }
+  ],
+  "next_verification_completed": false,
+  "observed_at": "2026-11-17T20:07:56.323276+00:00",
+  "product_source_changed": false,
+  "registry_mutations_performed": false,
+  "repair": "Preserve the two generated cache files and failing diagnostic outside the selected-source checkout, then run the unchanged owning read-only verifier again.",
+  "schema_version": 1
+}
