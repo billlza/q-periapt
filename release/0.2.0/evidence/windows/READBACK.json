@@ -1,0 +1,25 @@
+{
+  "completed": true,
+  "kind": "qperiapt.windows_lifecycle_archive_readback",
+  "producer_run": 44036376236,
+  "producer_source_files_rechecked": 128,
+  "profiles": {
+    "windows-2022": {
+      "original_review_sha256": "ac2820010b9aa587e8abea3794f03aa4cddca598b492cb4582e4c6617fe33303",
+      "producer_input_sha256": "6d79620284081b9d024a49b7da245c053bbc5d50c5e7b428898b93bd10a1c19b",
+      "replayed_review_sha256": "ac2820010b9aa587e8abea3794f03aa4cddca598b492cb4582e4c6617fe33303"
+    },
+    "windows-2025": {
+      "original_review_sha256": "db6ac76200ea622fd6b1a8839ba6f5d9c0017d7838289ba3bd3b50b709e5e7bc",
+      "producer_input_sha256": "6d79620284081b9d024a49b7da245c053bbc5d50c5e7b428898b93bd10a1c19b",
+      "replayed_review_sha256": "db6ac76200ea622fd6b1a8839ba6f5d9c0017d7838289ba3bd3b50b709e5e7bc"
+    }
+  },
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "All four original Windows native profile exports freshly unpacked; exact producer/SDK/source pins and every original public Rust/C lifecycle, root and configuration reader replayed. Results equal the two original Linux public-readback jobs. Actual Windows execution remains the completed native jobs.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

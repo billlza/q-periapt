@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    {
+      "bytes": 4124727,
+      "path": "release/0.2.0/assets/platform/q-periapt-continuity-android-0.2.0-maven.zip",
+      "sha256": "2813a053a1c7e0fa6e6dc19db7995ea2c632d4af2d47007728ff7e18e10f105d"
+    },
+    {
+      "bytes": 10843367,
+      "path": "release/0.2.0/assets/platform/q-periapt-continuity-android-0.2.0.aar",
+      "sha256": "6818d28a97b8db1810c16c0f981e380c627be4056b884d810161f6ce9642b5b4"
+    }
+  ],
+  "dependencies": [
+    "continuity-native"
+  ],
+  "interfaces": [
+    "continuity_c"
+  ],
+  "kind": "qperiapt.continuity_distribution_identity",
+  "name": "q-periapt-continuity-android",
+  "schema_version": 1,
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "version": "0.2.0"
+}

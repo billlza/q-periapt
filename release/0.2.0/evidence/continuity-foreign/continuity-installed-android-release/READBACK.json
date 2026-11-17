@@ -1,0 +1,96 @@
+{
+  "archive_members": 33413,
+  "artifact": {
+    "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14330149124/zip",
+    "created_at": "2026-11-17T13:08:43Z",
+    "digest": "sha256:27379fe56b47c1311ac5094a11729f128ebe914f7b79636125851eb3793fb9eb",
+    "expired": false,
+    "expires_at": "2027-02-15T07:08:17Z",
+    "id": 14330149124,
+    "name": "continuity-installed-android-release",
+    "size_in_bytes": 82624891,
+    "updated_at": "2026-11-17T13:08:43Z",
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14330149124",
+    "workflow_run": {
+      "head_branch": "release/0.2-finalization",
+      "head_repository_id": 1279236693,
+      "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+      "id": 44036376133,
+      "repository_id": 1279236693
+    }
+  },
+  "checks": {
+    "classes": {
+      "callbacks": {
+        "fail": "(Ljava/lang/String;I[BZ)V",
+        "invokeCommit": "(Ljava/lang/Object;[B[B[B)I",
+        "validCommit": "(Ljava/lang/Object;)Z"
+      },
+      "class_major": 55,
+      "classes": 131,
+      "native_methods": 23
+    },
+    "jar_sha256": "4d4c77e63975a693155e3693e6c76349e8df54c930af3a807b31529800126d0a"
+  },
+  "completed": true,
+  "consumer": "android",
+  "engine_archive_sha256": "fd51d1ef614b6143867e381cc7b7099081fd259d7ee5145083db0a4d9d9bc6c9",
+  "expanded_bytes": 114977275,
+  "fresh_inspection_commands": [],
+  "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+  "original_records": [
+    {
+      "bytes": 482026,
+      "path": "ANDROID_JNI_CONSUMER.json",
+      "sha256": "698eaa24e5ee8dcb4b8e8226a97e6e861e1d08fda68c1de054656757a8bc5d98"
+    },
+    {
+      "bytes": 4819585,
+      "path": "CONTINUITY_PACKAGE.json",
+      "sha256": "b5fd650722627198df5be201e6bfa7bf1e40527773930221cbdd2409902805c5"
+    },
+    {
+      "bytes": 3879610,
+      "path": "C_CONSUMER.json",
+      "sha256": "17aca870a81646cb751b67d2a4026775d6d1704bd0df8aca639539fb79328be9"
+    },
+    {
+      "bytes": 42536,
+      "path": "c-consumer-Cargo.lock",
+      "sha256": "ee6ecf5c8907bc8576063f59915444c7b7abf7d7ee1b07883898e4edbf910987"
+    },
+    {
+      "bytes": 42495,
+      "path": "consumer-Cargo.lock",
+      "sha256": "6387c8120f1c00a366f46625c953c855ff3413aabf7bd7e0301eb516e61c300f"
+    },
+    {
+      "bytes": 110,
+      "path": "location.json",
+      "sha256": "7754c73473d80ab30ea41fca16d492aeebcfd177eb19180f41ff6042fc054532"
+    },
+    {
+      "bytes": 216976,
+      "path": "sources-after.json",
+      "sha256": "a29d3883be1d634ef6cac898b3eb4a19bf753bb64dfc0a7aa05bf9a00b80ef8b"
+    },
+    {
+      "bytes": 216976,
+      "path": "sources-before.json",
+      "sha256": "a29d3883be1d634ef6cac898b3eb4a19bf753bb64dfc0a7aa05bf9a00b80ef8b"
+    }
+  ],
+  "original_report_sha256": "b5fd650722627198df5be201e6bfa7bf1e40527773930221cbdd2409902805c5",
+  "packages": [],
+  "producer_run": 44036376133,
+  "profile": "release",
+  "profile_union_completed": false,
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "Fresh original-container digest/CRC and bounded member checks, unchanged source/report/engine bindings and actual package/license/interface readback for one explicitly selected hosted profile. Original reports remain completed=false partition receipts. Static Mach-O/Java inspection where applicable does not re-execute the original runtime. Complete six-profile union is a separate qualification; no physical-device or independent-engine execution is inferred.",
+  "sdk_report_sha256": "cb3432eec1ca03e5c7bda55b1c44b9384b0f6779eba6e466e32871acf56a6bc1",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

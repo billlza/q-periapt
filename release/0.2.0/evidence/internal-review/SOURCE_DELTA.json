@@ -1,0 +1,79 @@
+{
+  "old_source": "8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+  "source_commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+  "same_source_file_inventory": true,
+  "changed_files": {
+    "artifact/apple_sdk_profile.py": {
+      "before": {
+        "bytes": 27209,
+        "sha256": "f85c2a8f3ae7b530410c2602b906fb508da9855e276b8e131ffaf2852d8170cf"
+      },
+      "after": {
+        "bytes": 28792,
+        "sha256": "14ac8eea92bd3247d135cc92569f38372efb467bce6863f0228f5abd4f4dfb98"
+      }
+    },
+    "artifact/continuity_android_distribution.py": {
+      "before": {
+        "bytes": 32093,
+        "sha256": "d43b11cf9eba9c1947c0501088d8a0ff4cbda64dd395e68bcd03bff5ece856ab"
+      },
+      "after": {
+        "bytes": 32110,
+        "sha256": "a5d4a7ad63f19b062b45ce8ae8d2fe97b924374c2bf48ea7faa32df94ddf2fda"
+      }
+    },
+    "artifact/continuity_c_abi.py": {
+      "before": {
+        "bytes": 17406,
+        "sha256": "4c94ac91d7d57ed1f37b2264bb5a99d0d05394ca29fcfa63fc6c8af1e44ad965"
+      },
+      "after": {
+        "bytes": 17642,
+        "sha256": "29bf0806fb97f39dc1fc6e729774d7b695c75387505d6d7c3c4677f5d199dd08"
+      }
+    },
+    "artifact/continuity_c_consumer.py": {
+      "before": {
+        "bytes": 71634,
+        "sha256": "c8638ea7cffd34b9aeb38e3c31dd36313ca6868ed26a013d39d6798e73c9ab34"
+      },
+      "after": {
+        "bytes": 71668,
+        "sha256": "4b2c4a78a9366badf70e1cce2cb4e96a2dd292e0b6164bd35caa23b1015a7634"
+      }
+    },
+    "artifact/continuity_native_package.py": {
+      "before": {
+        "bytes": 16747,
+        "sha256": "e0eb021b19f3f5fd2922f54d0eade0d0e91d54f027cfd43523ee7ff41872068a"
+      },
+      "after": {
+        "bytes": 16764,
+        "sha256": "3ff072c71aa0d58f7659b2f7433922452dc703b42331e1ad254357758b804e7f"
+      }
+    },
+    "artifact/continuity_windows_consume.py": {
+      "before": {
+        "bytes": 27303,
+        "sha256": "a84379741de0f48b45100f346abdeef693a88b3ebfd0848b1e1db3e9c71e752d"
+      },
+      "after": {
+        "bytes": 27339,
+        "sha256": "ce6c929037050b668e4f15f047564147b0f2151af70b8684d19dda2f1bc8aac3"
+      }
+    },
+    "artifact/test_apple_distribution.py": {
+      "before": {
+        "bytes": 136038,
+        "sha256": "d2dbf76bbeae3417f49bdbe0f9a9d2d11c8b3ef04d6bfc5e32a91567d62354e5"
+      },
+      "after": {
+        "bytes": 140289,
+        "sha256": "d96b7846f77ab07a7faece51b94a81ef681dc76a3db789203d079cdcdc1273f6"
+      }
+    }
+  },
+  "unchanged_source_files": 519,
+  "scope": "Complete analysis location and related-location source census; manual delta review remains distinct."
+}

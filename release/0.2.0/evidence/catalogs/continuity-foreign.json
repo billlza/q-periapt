@@ -1,0 +1,343 @@
+{
+  "assets": [
+    {
+      "file": {
+        "bytes": 163930607,
+        "path": "release/0.2.0/assets/platform/CONTINUITY_SWIFT_DEBUG_LIFECYCLE_EVIDENCE.zip",
+        "sha256": "288ef96aae9c3726be5b23611917db475c9dbbee04b723849faab1d88f73ee72"
+      },
+      "name": "CONTINUITY_SWIFT_DEBUG_LIFECYCLE_EVIDENCE.zip"
+    },
+    {
+      "file": {
+        "bytes": 18887580,
+        "path": "release/0.2.0/assets/platform/q-periapt-continuity-swift-0.2.0-debug.zip",
+        "sha256": "114c0f0ef4654fb2f8a38de095a10e9b9e41f006df27902ba74af89b6dbd226a"
+      },
+      "name": "q-periapt-continuity-swift-0.2.0-debug.zip"
+    },
+    {
+      "file": {
+        "bytes": 163032910,
+        "path": "release/0.2.0/assets/platform/CONTINUITY_SWIFT_RELEASE_LIFECYCLE_EVIDENCE.zip",
+        "sha256": "23f6a3a63f80d813b63ac3b5bd20d428b55d5e0ba0007e4700d6f14350bf9673"
+      },
+      "name": "CONTINUITY_SWIFT_RELEASE_LIFECYCLE_EVIDENCE.zip"
+    },
+    {
+      "file": {
+        "bytes": 12129332,
+        "path": "release/0.2.0/assets/platform/q-periapt-continuity-swift-0.2.0-release.zip",
+        "sha256": "5d878b5734849ed86b69cc0fdc04a69f70b0a371e7a269498d1d360ae87dee37"
+      },
+      "name": "q-periapt-continuity-swift-0.2.0-release.zip"
+    },
+    {
+      "file": {
+        "bytes": 30423594,
+        "path": "release/0.2.0/assets/platform/QPeriaptContinuity-Apple-0.2.0.zip",
+        "sha256": "1766fa787498ae074fb9eec6cefc5e246805ea8f6dd4766445f49132cad1c8f1"
+      },
+      "name": "QPeriaptContinuity-Apple-0.2.0.zip"
+    },
+    {
+      "file": {
+        "bytes": 136122792,
+        "path": "release/0.2.0/assets/platform/CONTINUITY_KOTLIN_DEBUG_LIFECYCLE_EVIDENCE.zip",
+        "sha256": "66b88166deaf29dbb9e5a8bffd8bcc8b2607af6ba4daa9c3b6f0ded828e96eca"
+      },
+      "name": "CONTINUITY_KOTLIN_DEBUG_LIFECYCLE_EVIDENCE.zip"
+    },
+    {
+      "file": {
+        "bytes": 19080378,
+        "path": "release/0.2.0/assets/platform/q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-debug.zip",
+        "sha256": "c1182b564a861892dd4503b63dcc6ee521dfd7d91923bab65376226af640d8ac"
+      },
+      "name": "q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-debug.zip"
+    },
+    {
+      "file": {
+        "bytes": 135117541,
+        "path": "release/0.2.0/assets/platform/CONTINUITY_KOTLIN_RELEASE_LIFECYCLE_EVIDENCE.zip",
+        "sha256": "e47194aec52e639d617fe31db01c629e61effaca3b3120bee8073404929fa3c3"
+      },
+      "name": "CONTINUITY_KOTLIN_RELEASE_LIFECYCLE_EVIDENCE.zip"
+    },
+    {
+      "file": {
+        "bytes": 12322130,
+        "path": "release/0.2.0/assets/platform/q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-release.zip",
+        "sha256": "fc02d49dcde8be7f629ef88eb7c22b7d481b722d35e4cbb5c094e7fa80fe438c"
+      },
+      "name": "q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-release.zip"
+    },
+    {
+      "file": {
+        "bytes": 82487125,
+        "path": "release/0.2.0/assets/platform/CONTINUITY_ANDROID_DEBUG_LIFECYCLE_EVIDENCE.zip",
+        "sha256": "acdbd4421264a86d7ff6afc6c7ef884de6de3c678f9692ee64293d1afcca3b7e"
+      },
+      "name": "CONTINUITY_ANDROID_DEBUG_LIFECYCLE_EVIDENCE.zip"
+    },
+    {
+      "file": {
+        "bytes": 82624891,
+        "path": "release/0.2.0/assets/platform/CONTINUITY_ANDROID_RELEASE_LIFECYCLE_EVIDENCE.zip",
+        "sha256": "27379fe56b47c1311ac5094a11729f128ebe914f7b79636125851eb3793fb9eb"
+      },
+      "name": "CONTINUITY_ANDROID_RELEASE_LIFECYCLE_EVIDENCE.zip"
+    },
+    {
+      "file": {
+        "bytes": 841087,
+        "path": "release/0.2.0/assets/platform/CONTINUITY_FOREIGN_READBACK.zip",
+        "sha256": "0195dc1bb9624a75557bf3bd36038eb5f72196f3675db42101c880bc431ffba7"
+      },
+      "name": "CONTINUITY_FOREIGN_READBACK.zip"
+    }
+  ],
+  "completed": true,
+  "kind": "qperiapt.continuity_foreign_release_component",
+  "package_bindings": {
+    "continuity-android": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 2116,
+          "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+          "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+        },
+        {
+          "bytes": 3718,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-debug/READBACK.json",
+          "sha256": "4507364ef0b49329ab3ca5f9c99a52531ab6f21d04ca1f202f113ca4c49c82ca"
+        },
+        {
+          "bytes": 3722,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-release/READBACK.json",
+          "sha256": "695dfa6acb0cef94748d2b9406fe369311886d7ccea83ccd03a7e614d8b170cf"
+        }
+      ]
+    },
+    "continuity-engine": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 2116,
+          "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+          "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+        },
+        {
+          "bytes": 11591,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-debug/READBACK.json",
+          "sha256": "e19bf3f9ea8ab306521fa91640e6c6d28ab31e0b28832257ca174b4c10e95fba"
+        },
+        {
+          "bytes": 11623,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-release/READBACK.json",
+          "sha256": "b60dd22afd43dd8758b40b9b9cf6b6a46fe5dedf1d6eb16e0885352a4224bdf1"
+        },
+        {
+          "bytes": 10430,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-debug/READBACK.json",
+          "sha256": "92b622c5856a2cf608d6b98607c9a9fc7ab00f5b55605d1009a714f4a78f3eef"
+        },
+        {
+          "bytes": 10442,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-release/READBACK.json",
+          "sha256": "c29c13e4d04b32304b298502be3fc3fa8f87b8e799871ace9c051f4724b85d39"
+        },
+        {
+          "bytes": 3718,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-debug/READBACK.json",
+          "sha256": "4507364ef0b49329ab3ca5f9c99a52531ab6f21d04ca1f202f113ca4c49c82ca"
+        },
+        {
+          "bytes": 3722,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-release/READBACK.json",
+          "sha256": "695dfa6acb0cef94748d2b9406fe369311886d7ccea83ccd03a7e614d8b170cf"
+        }
+      ]
+    },
+    "continuity-kotlin": {
+      "artifacts": [
+        {
+          "bytes": 19080378,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-debug.zip",
+          "sha256": "c1182b564a861892dd4503b63dcc6ee521dfd7d91923bab65376226af640d8ac"
+        },
+        {
+          "bytes": 12322130,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-release.zip",
+          "sha256": "fc02d49dcde8be7f629ef88eb7c22b7d481b722d35e4cbb5c094e7fa80fe438c"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 2116,
+          "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+          "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+        },
+        {
+          "bytes": 10430,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-debug/READBACK.json",
+          "sha256": "92b622c5856a2cf608d6b98607c9a9fc7ab00f5b55605d1009a714f4a78f3eef"
+        },
+        {
+          "bytes": 10442,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-release/READBACK.json",
+          "sha256": "c29c13e4d04b32304b298502be3fc3fa8f87b8e799871ace9c051f4724b85d39"
+        }
+      ],
+      "metadata": {
+        "bytes": 856,
+        "path": "release/0.2.0/distributions/continuity-kotlin.json",
+        "sha256": "b07c6f80edf587a22a86f3575cc21bd7edd37a0fbd86605702cb05d531ebf429"
+      }
+    },
+    "continuity-native": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 2116,
+          "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+          "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+        },
+        {
+          "bytes": 11591,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-debug/READBACK.json",
+          "sha256": "e19bf3f9ea8ab306521fa91640e6c6d28ab31e0b28832257ca174b4c10e95fba"
+        },
+        {
+          "bytes": 11623,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-release/READBACK.json",
+          "sha256": "b60dd22afd43dd8758b40b9b9cf6b6a46fe5dedf1d6eb16e0885352a4224bdf1"
+        },
+        {
+          "bytes": 10430,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-debug/READBACK.json",
+          "sha256": "92b622c5856a2cf608d6b98607c9a9fc7ab00f5b55605d1009a714f4a78f3eef"
+        },
+        {
+          "bytes": 10442,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-release/READBACK.json",
+          "sha256": "c29c13e4d04b32304b298502be3fc3fa8f87b8e799871ace9c051f4724b85d39"
+        },
+        {
+          "bytes": 3718,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-debug/READBACK.json",
+          "sha256": "4507364ef0b49329ab3ca5f9c99a52531ab6f21d04ca1f202f113ca4c49c82ca"
+        },
+        {
+          "bytes": 3722,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-release/READBACK.json",
+          "sha256": "695dfa6acb0cef94748d2b9406fe369311886d7ccea83ccd03a7e614d8b170cf"
+        }
+      ]
+    },
+    "continuity-swift": {
+      "artifacts": [
+        {
+          "bytes": 30423594,
+          "path": "release/0.2.0/assets/platform/QPeriaptContinuity-Apple-0.2.0.zip",
+          "sha256": "1766fa787498ae074fb9eec6cefc5e246805ea8f6dd4766445f49132cad1c8f1"
+        },
+        {
+          "bytes": 18887580,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-swift-0.2.0-debug.zip",
+          "sha256": "114c0f0ef4654fb2f8a38de095a10e9b9e41f006df27902ba74af89b6dbd226a"
+        },
+        {
+          "bytes": 12129332,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-swift-0.2.0-release.zip",
+          "sha256": "5d878b5734849ed86b69cc0fdc04a69f70b0a371e7a269498d1d360ae87dee37"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 2116,
+          "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+          "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+        },
+        {
+          "bytes": 11591,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-debug/READBACK.json",
+          "sha256": "e19bf3f9ea8ab306521fa91640e6c6d28ab31e0b28832257ca174b4c10e95fba"
+        },
+        {
+          "bytes": 11623,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-release/READBACK.json",
+          "sha256": "b60dd22afd43dd8758b40b9b9cf6b6a46fe5dedf1d6eb16e0885352a4224bdf1"
+        }
+      ],
+      "metadata": {
+        "bytes": 1006,
+        "path": "release/0.2.0/distributions/continuity-swift.json",
+        "sha256": "c902b57dc6715c103b6ac0354fc935664c873f4c17675dd590e8f967ddcffb45"
+      }
+    }
+  },
+  "records": [
+    {
+      "bytes": 2116,
+      "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+      "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+    },
+    {
+      "bytes": 743,
+      "path": "release/0.2.0/evidence/continuity-foreign/COVERAGE_ARTIFACT.json",
+      "sha256": "143488981d54eb6cf2c73b9360191426db25f251fce9963dd5bafd6fbc2e7ff2"
+    },
+    {
+      "bytes": 2116,
+      "path": "release/0.2.0/evidence/continuity-foreign/FRESH_PROFILE_COVERAGE.json",
+      "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+    },
+    {
+      "bytes": 11591,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-debug/READBACK.json",
+      "sha256": "e19bf3f9ea8ab306521fa91640e6c6d28ab31e0b28832257ca174b4c10e95fba"
+    },
+    {
+      "bytes": 11623,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-release/READBACK.json",
+      "sha256": "b60dd22afd43dd8758b40b9b9cf6b6a46fe5dedf1d6eb16e0885352a4224bdf1"
+    },
+    {
+      "bytes": 10430,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-debug/READBACK.json",
+      "sha256": "92b622c5856a2cf608d6b98607c9a9fc7ab00f5b55605d1009a714f4a78f3eef"
+    },
+    {
+      "bytes": 10442,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-release/READBACK.json",
+      "sha256": "c29c13e4d04b32304b298502be3fc3fa8f87b8e799871ace9c051f4724b85d39"
+    },
+    {
+      "bytes": 3718,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-debug/READBACK.json",
+      "sha256": "4507364ef0b49329ab3ca5f9c99a52531ab6f21d04ca1f202f113ca4c49c82ca"
+    },
+    {
+      "bytes": 3722,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-release/READBACK.json",
+      "sha256": "695dfa6acb0cef94748d2b9406fe369311886d7ccea83ccd03a7e614d8b170cf"
+    },
+    {
+      "bytes": 11414,
+      "path": "release/0.2.0/evidence/continuity-foreign/ORIGINAL_CAPTURES.json",
+      "sha256": "987eb2a63cf91b5e9a9a8923c11ef83378ecc14dddf7e7f324888a4e3b797255"
+    },
+    {
+      "bytes": 14084,
+      "path": "release/0.2.0/evidence/continuity-foreign/staging-operator.py",
+      "sha256": "bc2eb0ae3d0a0d39af397abff0cb3a579953a7f8bfc9631f8ebcf63180834da7"
+    }
+  ],
+  "scope": "Six complete original hosted captures are preserved. The main evidence archive retains their readback decisions and the byte-identical hosted profile join, without duplicating nested multi-megabyte execution reports already present in the complete public captures. Fresh static inspection stdout/stderr and the reader are retained separately. This packaging adds no runtime or physical-device claim.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

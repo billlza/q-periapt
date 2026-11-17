@@ -1,0 +1,1052 @@
+{
+  "canonical_artifact_id": 14307717155,
+  "canonical_producer_run": 44036376236,
+  "canonical_report_sha256": "2ddc710ac97a56d4ee006a2a1adcf860ab451f4b192433b739f6db0e767040a6",
+  "completed": true,
+  "crates": {
+    "q-periapt-backends": {
+      "bytes": 4971402,
+      "path": "release/0.2.0/assets/platform/q-periapt-backends-0.2.0.crate",
+      "sha256": "f090b62366c6cbb555a2e06885944c72a5a20a76b8b16af7fffa70d29fd04666"
+    },
+    "q-periapt-cli": {
+      "bytes": 57036,
+      "path": "release/0.2.0/assets/platform/q-periapt-cli-0.2.0.crate",
+      "sha256": "683e3eb30271996bf0cec549ab13bc6fc161db523cc552d1588700683d88f8e1"
+    },
+    "q-periapt-core": {
+      "bytes": 44791,
+      "path": "release/0.2.0/assets/platform/q-periapt-core-0.2.0.crate",
+      "sha256": "3032dd7d6bf7c4851cde1858794a19a3f4ef03a5e07680b70b3d918eb2faa59d"
+    },
+    "q-periapt-ffi": {
+      "bytes": 124092,
+      "path": "release/0.2.0/assets/platform/q-periapt-ffi-0.2.0.crate",
+      "sha256": "66c9d32802fddc4234deea082919ae84ba54118f1c1da0549fe16df0c2719d51"
+    },
+    "q-periapt-host-store": {
+      "bytes": 97639,
+      "path": "release/0.2.0/assets/platform/q-periapt-host-store-0.2.0.crate",
+      "sha256": "8f6f54e3f9380cca8f538ee96c5829b17bf63c1a5ea49fbad6b1413d066a25b4"
+    },
+    "q-periapt-kem": {
+      "bytes": 38241,
+      "path": "release/0.2.0/assets/platform/q-periapt-kem-0.2.0.crate",
+      "sha256": "75f43ce3b1dde4ae97200c57070a245be8a7da3113c515d3b0ab6385d5c46ef3"
+    },
+    "q-periapt-mlkem-native-sys": {
+      "bytes": 218952,
+      "path": "release/0.2.0/assets/platform/q-periapt-mlkem-native-sys-0.2.0.crate",
+      "sha256": "f97dd8fda79f8135d4ada959f7955189ed664aecf7dd67f4f3e3f487f4448c7c"
+    },
+    "q-periapt-policy": {
+      "bytes": 48041,
+      "path": "release/0.2.0/assets/platform/q-periapt-policy-0.2.0.crate",
+      "sha256": "c3553382a37bc0ac09da88d5b33c3f515da8c6215988ecbd211b59a704153b84"
+    },
+    "q-periapt-rustls": {
+      "bytes": 77863,
+      "path": "release/0.2.0/assets/platform/q-periapt-rustls-0.2.0.crate",
+      "sha256": "165c5b9e6d6f8c91c7d7cf6383ca18d0739d18e298baf01bc9efd49724edb644"
+    },
+    "q-periapt-sdk": {
+      "bytes": 34712,
+      "path": "release/0.2.0/assets/platform/q-periapt-sdk-0.2.0.crate",
+      "sha256": "c05b3125d6c8e86ce1a7f88479f8fffd709551aed42b6921cf81ab3c863160cc"
+    },
+    "q-periapt-sig": {
+      "bytes": 33549,
+      "path": "release/0.2.0/assets/platform/q-periapt-sig-0.2.0.crate",
+      "sha256": "e74facff7f24b37e93cb5ec3e9756328b1053ae9e9b622946021c4fc96a67653"
+    },
+    "q-periapt-wasm": {
+      "bytes": 23238,
+      "path": "release/0.2.0/assets/platform/q-periapt-wasm-0.2.0.crate",
+      "sha256": "884a56bf8892f39a2c90a9cf7db14398d03ae116b3e34f1ac0a40b274e7721ef"
+    }
+  },
+  "kind": "qperiapt.rust_sdk_release_assessment",
+  "records": [
+    {
+      "bytes": 22554,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/RUST_SDK_PACKAGE.json",
+      "sha256": "2ddc710ac97a56d4ee006a2a1adcf860ab451f4b192433b739f6db0e767040a6"
+    },
+    {
+      "bytes": 124,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/audit-version.json",
+      "sha256": "3316ac303abfcccba59ba1e4c612b0b678e2dfc0ce77add31362c714a695a7d7"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/audit-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 19,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/audit-version.stdout",
+      "sha256": "8748580845bee726903e69bc4543958fb01e2594317e6c68bf80114bff13d541"
+    },
+    {
+      "bytes": 118,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/cargo-version.json",
+      "sha256": "77d02d5f4057e4855db6458432bf7d5a600f43765467a7a0d1dfed47e48c6019"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/cargo-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 36,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/cargo-version.stdout",
+      "sha256": "9950bbb2d5c3417b1a068f0e81f6d3cac991a363193bdf2a22d447f5acf8b503"
+    },
+    {
+      "bytes": 494,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/classification.json",
+      "sha256": "6cfcadba936bc4aaa405642e6b8075b7db406212544fa3dc376015bfab3f07ff"
+    },
+    {
+      "bytes": 25119,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/consumer-Cargo.lock",
+      "sha256": "5a1585c238df318c9cafc490425874ffa2cccc34079e53d622d64702de56158c"
+    },
+    {
+      "bytes": 345,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/consumer-audit.json",
+      "sha256": "c34e81da24eee5d0f30331edb26cb8a1a6f3ecb5c6370b6e131e71f8e9dfb2b2"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/consumer-audit.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 314,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/consumer-audit.stdout",
+      "sha256": "b63bb1e9d871f5e43c9e9cb2600b120fdf0d27fc3f8ddf981523210fec51ee1a"
+    },
+    {
+      "bytes": 227,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/consumer-clippy.json",
+      "sha256": "7c21bfc822b0b49153f07c5f4764cced2b7a45128ed17d65c85363622f2c82a6"
+    },
+    {
+      "bytes": 2960,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/consumer-clippy.stderr",
+      "sha256": "c7f0a5980b343f05cd09234a49fed2b66270450480a6a5fc66bd537f09f84041"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/consumer-clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 57,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/consumer-location.json",
+      "sha256": "7ac0d96ac2e0b748e6351c49196fef766f7d3a1911e1947b6db55bf192969c93"
+    },
+    {
+      "bytes": 186,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/consumer-metadata.json",
+      "sha256": "ffae38573d57a10e92983a15a0c1e842353c9c7092cb274b2213288098bcb2da"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/consumer-metadata.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 471286,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/consumer-metadata.stdout",
+      "sha256": "1e33399288c8e18d40e2bd1e1088bb90e35f42ccee9cf7cda1fcde42a00e0f80"
+    },
+    {
+      "bytes": 152,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/consumer-test.json",
+      "sha256": "102506c31fac824b656f98211e314c67dadda8d543ffd5844ffae055fa073655"
+    },
+    {
+      "bytes": 3684,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/consumer-test.stderr",
+      "sha256": "ae6d77ffcbb7e6bb4315b9bf9cf581bacecabcfe4d46e93b398ce239abd56bd5"
+    },
+    {
+      "bytes": 521,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/consumer-test.stdout",
+      "sha256": "df028c53026a058a1da5d595b822b08b321de332fe087142e0c3daa972a63321"
+    },
+    {
+      "bytes": 176,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/fetch-fuzz.json",
+      "sha256": "09c22801cefa5eeed0118c3eeb39579ef6d7cefd57412adef716898fca8ea708"
+    },
+    {
+      "bytes": 206,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/fetch-fuzz.stderr",
+      "sha256": "0ffe16aeb1511a7fcbbf427b14e475e8caf6a1824f08e5d0ff5080baddc5d107"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/fetch-fuzz.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 130,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/fetch.json",
+      "sha256": "f9f1ba0e5ed2f5860aca77a7abccc2ddefb119af449690226ff5c8bf1e52a5fd"
+    },
+    {
+      "bytes": 8592,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/fetch.stderr",
+      "sha256": "b7e007add312e7ab109441dcff7f95e8d84e8b5e2c591fa2a4295f2163a894a7"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/fetch.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 349,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/fuzz-audit.json",
+      "sha256": "70e471394b646ba9c907472f5740ad1621c78b92e03ed65856d41cf27c339391"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/fuzz-audit.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 313,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/fuzz-audit.stdout",
+      "sha256": "9b01bc48f28e91193744ee19615247b748589ff039e587cb5bcfe8be811ea255"
+    },
+    {
+      "bytes": 234,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-backends.json",
+      "sha256": "58eaad65ecf785e9790f87dc443d11d07fa396e00ecdc5d4583b95eda774c668"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-backends.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 984,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-backends.stdout",
+      "sha256": "5bfb1c01cb5adbd416a89ed841364d370fe52c01539ddad4d6141adb26814a69"
+    },
+    {
+      "bytes": 229,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-cli.json",
+      "sha256": "2320cf06c55f03b02a7f8f2afe42ac1c90e3297e24c1843748ca62b10246a012"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-cli.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 298,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-cli.stdout",
+      "sha256": "d182ab3e588c1d5828b427fe2028de62143e9603c5bd0144631c39ec5ab7878e"
+    },
+    {
+      "bytes": 230,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-core.json",
+      "sha256": "81759240261ec745a249370407eca430482eee3b06678c7c80e1ff84713ef2b5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-core.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 115,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-core.stdout",
+      "sha256": "befc04b62e2c7f927354352447702746aa6bf9e52b575f182f9214f063dfa73c"
+    },
+    {
+      "bytes": 229,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-ffi.json",
+      "sha256": "328669e626717e84e5ade6b3b9e8c7cf2bf88104eca9f4197630af8d108becfe"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-ffi.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 640,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-ffi.stdout",
+      "sha256": "2c838c555ff6be01df3faebf82041910f518934dff9c1a86d94ceeba61a78456"
+    },
+    {
+      "bytes": 236,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-host-store.json",
+      "sha256": "a2e129a854e6e62c6b5eb579719357dc9da120942c67a6941b0b1a1ee037da39"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-host-store.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1021,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-host-store.stdout",
+      "sha256": "36ed0af3724f6f77514022d42f765e927f3f51959fb1b28c44d4bfffb5ad74c9"
+    },
+    {
+      "bytes": 229,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-kem.json",
+      "sha256": "a9f1fd85f6b47621b3641f7c7ed85dff993961e938ae3aee163336cdfd21d61e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-kem.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 115,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-kem.stdout",
+      "sha256": "befc04b62e2c7f927354352447702746aa6bf9e52b575f182f9214f063dfa73c"
+    },
+    {
+      "bytes": 242,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-mlkem-native-sys.json",
+      "sha256": "c6c9ed88e299572e1cf4dd9292b4655eb3b7737b6dbd27a55c3fa07551c815d9"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-mlkem-native-sys.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 7678,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-mlkem-native-sys.stdout",
+      "sha256": "c91df500ce587a1d4007638354c5d75aeaa211a7ff9d82232a62c2d6d5e5ebcf"
+    },
+    {
+      "bytes": 232,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-policy.json",
+      "sha256": "bce607e43edf2aa40403078a5fe825af1fb3d921fd3d2c003155cb548ba97626"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-policy.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 115,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-policy.stdout",
+      "sha256": "befc04b62e2c7f927354352447702746aa6bf9e52b575f182f9214f063dfa73c"
+    },
+    {
+      "bytes": 232,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-rustls.json",
+      "sha256": "b8bb5ac50a4f3d0dc5d8c5f4ede22bfcf50629e3939501c3c842afc847ca43c2"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-rustls.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 320,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-rustls.stdout",
+      "sha256": "07e14b79ce92e7388957a2dfc2925bb50428dc5f9ff5bb762820ff6aab5bdbd4"
+    },
+    {
+      "bytes": 229,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-sdk.json",
+      "sha256": "9733c26cba6fbfcfad12fa76972174bdbd031e7a260b9e49b2204cd54999c67f"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-sdk.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 199,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-sdk.stdout",
+      "sha256": "f0940b2ed995131623cbcb8b611d1d548dd6dd4a7ad99ed64fd086a33b744c26"
+    },
+    {
+      "bytes": 229,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-sig.json",
+      "sha256": "45e42e5423dec37b8d2bdc4c6fc6af1f4c303738a8c8027fffefdc0f99e79f06"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-sig.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 115,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-sig.stdout",
+      "sha256": "befc04b62e2c7f927354352447702746aa6bf9e52b575f182f9214f063dfa73c"
+    },
+    {
+      "bytes": 230,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-wasm.json",
+      "sha256": "b7a36fce3e16e9b1de0791837fee40303ba317ab3e0f2711a68be21d6660e2e5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-wasm.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 115,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/list-q-periapt-wasm.stdout",
+      "sha256": "befc04b62e2c7f927354352447702746aa6bf9e52b575f182f9214f063dfa73c"
+    },
+    {
+      "bytes": 200,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/metadata.json",
+      "sha256": "5195f69fc18e0f16dc4e83ffa6403e6544861f8886d18909e9ed5d72a0b73337"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/metadata.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 61136,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/metadata.stdout",
+      "sha256": "4cb5435e1c6ebc0f447a79b035dee4dd2626de50fb70a072f8e155747780a5ab"
+    },
+    {
+      "bytes": 789,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/package.json",
+      "sha256": "4b51ede0cca261e5ecb52daff7765681d3163f86856493b47e415d78e56a64f2"
+    },
+    {
+      "bytes": 12442,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/package.stderr",
+      "sha256": "174fac72c049d0a1eed84f778a7c5b8452366656acbb7264f209bb3b5f90d035"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/package.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 118,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/rustc-version.json",
+      "sha256": "379c41cd0322927e1709a1460c8bf52ad4e86a63658066aafeaef445a7582bc1"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/rustc-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 36,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/rustc-version.stdout",
+      "sha256": "2073de5abf149185c2f4d7473dc833bc921b99135560d24ae7b2293f33a9c376"
+    },
+    {
+      "bytes": 2385,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/sources-after.json",
+      "sha256": "00ea7779219482e8b79ce863296d20956839e69b2bd21d9338c60bafcfebf22d"
+    },
+    {
+      "bytes": 2385,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/sources-before.json",
+      "sha256": "00ea7779219482e8b79ce863296d20956839e69b2bd21d9338c60bafcfebf22d"
+    },
+    {
+      "bytes": 194,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/vendor.json",
+      "sha256": "7231f86c92fe6dd4bc39e22f905ff2082861e410b6e3d8518eb46cbe150ebf12"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/vendor.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 80,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/vendor.stdout",
+      "sha256": "44ecc06085af8b00a93abf47738b92dfc42334e1c83534686e2a8c319e480c8d"
+    },
+    {
+      "bytes": 321,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/workspace-audit.json",
+      "sha256": "0391d21f79d27d04f6e2522c92bfb73d157bc35d4bc157f7d265455d6b873ed1"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/workspace-audit.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 375,
+      "path": "release/0.2.0/evidence/rust/canonical-linux/workspace-audit.stdout",
+      "sha256": "c8815b4b0963afa5c83889ad19d2e9a49836b0ef813ae4f4a3875f958f690f8c"
+    },
+    {
+      "bytes": 22606,
+      "path": "release/0.2.0/evidence/rust/local-macos/RUST_SDK_PACKAGE.json",
+      "sha256": "e2c365ecef981288afa267852db602b2da26c212c9b3a2172105dc121d013a34"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/advisory-db..lock",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 185,
+      "path": "release/0.2.0/evidence/rust/local-macos/audit-version.json",
+      "sha256": "0156defd5ce6785158353bb6b055ec19730f87dfb094ed238476101c166822cd"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/audit-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 19,
+      "path": "release/0.2.0/evidence/rust/local-macos/audit-version.stdout",
+      "sha256": "8748580845bee726903e69bc4543958fb01e2594317e6c68bf80114bff13d541"
+    },
+    {
+      "bytes": 179,
+      "path": "release/0.2.0/evidence/rust/local-macos/cargo-version.json",
+      "sha256": "052dfae33d6fb79a71f7a8b81323b76813309d7c42229d5cdfbcd8df280fb7ff"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/cargo-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 36,
+      "path": "release/0.2.0/evidence/rust/local-macos/cargo-version.stdout",
+      "sha256": "9950bbb2d5c3417b1a068f0e81f6d3cac991a363193bdf2a22d447f5acf8b503"
+    },
+    {
+      "bytes": 494,
+      "path": "release/0.2.0/evidence/rust/local-macos/classification.json",
+      "sha256": "6cfcadba936bc4aaa405642e6b8075b7db406212544fa3dc376015bfab3f07ff"
+    },
+    {
+      "bytes": 25119,
+      "path": "release/0.2.0/evidence/rust/local-macos/consumer-Cargo.lock",
+      "sha256": "5a1585c238df318c9cafc490425874ffa2cccc34079e53d622d64702de56158c"
+    },
+    {
+      "bytes": 510,
+      "path": "release/0.2.0/evidence/rust/local-macos/consumer-audit.json",
+      "sha256": "bde9d01b9ebb5864c85b5d3d2e2504fa1d064acaab5e0a10b4b2f74afe26fa28"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/consumer-audit.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 314,
+      "path": "release/0.2.0/evidence/rust/local-macos/consumer-audit.stdout",
+      "sha256": "b63bb1e9d871f5e43c9e9cb2600b120fdf0d27fc3f8ddf981523210fec51ee1a"
+    },
+    {
+      "bytes": 279,
+      "path": "release/0.2.0/evidence/rust/local-macos/consumer-clippy.json",
+      "sha256": "6a5bc6b7d9f0d2f640a565c859fd2c487326d0ca148af349792e07e9feb24769"
+    },
+    {
+      "bytes": 3505,
+      "path": "release/0.2.0/evidence/rust/local-macos/consumer-clippy.stderr",
+      "sha256": "fb9db017c5ab0cad61fb2a43c48c251f9a08bdc78b61161c45e6e7c922e8c4cd"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/consumer-clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 109,
+      "path": "release/0.2.0/evidence/rust/local-macos/consumer-location.json",
+      "sha256": "05d4438d1e6d0aa695f92b6545887157562f99e18e3643997d364ece61b703d7"
+    },
+    {
+      "bytes": 238,
+      "path": "release/0.2.0/evidence/rust/local-macos/consumer-metadata.json",
+      "sha256": "efc33eb10dd1d69c783a1dd91b5a488df644ad7fab3cee2a33962ed51955e348"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/consumer-metadata.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 506485,
+      "path": "release/0.2.0/evidence/rust/local-macos/consumer-metadata.stdout",
+      "sha256": "2bf822b101255a106b65bb608d2b167b56a394df2fe21e332a075bb1f535397c"
+    },
+    {
+      "bytes": 204,
+      "path": "release/0.2.0/evidence/rust/local-macos/consumer-test.json",
+      "sha256": "6083baf4634b907bdb515b628e2dec3831ca215a2f2c49f546cf327d0c7cb2b9"
+    },
+    {
+      "bytes": 4246,
+      "path": "release/0.2.0/evidence/rust/local-macos/consumer-test.stderr",
+      "sha256": "25c61e0eec284d93f5ba09a37ca27a2d68116186122dcd641ccff4652fc65199"
+    },
+    {
+      "bytes": 521,
+      "path": "release/0.2.0/evidence/rust/local-macos/consumer-test.stdout",
+      "sha256": "9f9253896e2784c8407a831bdab136720eff3d3b47e3467ebd0be1960d4f14d6"
+    },
+    {
+      "bytes": 237,
+      "path": "release/0.2.0/evidence/rust/local-macos/fetch-fuzz.json",
+      "sha256": "428863bc52d1bb03dac615f7456414deb821533f5d4af28601d640521a038c42"
+    },
+    {
+      "bytes": 206,
+      "path": "release/0.2.0/evidence/rust/local-macos/fetch-fuzz.stderr",
+      "sha256": "aec6aec31ce5a41a0bb08befbb88db25148db5e8f0738fd40accf9d1a4362ce1"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/fetch-fuzz.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 191,
+      "path": "release/0.2.0/evidence/rust/local-macos/fetch.json",
+      "sha256": "0d0296bd12c424b422cb23e75fa4f8cd35e95809e8a3fce1122c7d1537324632"
+    },
+    {
+      "bytes": 8592,
+      "path": "release/0.2.0/evidence/rust/local-macos/fetch.stderr",
+      "sha256": "a95d126f007c81eb9ce23e32046a13fd82998dc3a55aa7b19dcdb0ceee7d4c91"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/fetch.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 532,
+      "path": "release/0.2.0/evidence/rust/local-macos/fuzz-audit.json",
+      "sha256": "b7b8c56388baea2763abb5ae55ffabf5e3c1576b923227e23d14c11333ca1562"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/fuzz-audit.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 313,
+      "path": "release/0.2.0/evidence/rust/local-macos/fuzz-audit.stdout",
+      "sha256": "9b01bc48f28e91193744ee19615247b748589ff039e587cb5bcfe8be811ea255"
+    },
+    {
+      "bytes": 295,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-backends.json",
+      "sha256": "6ff7595c6304410d5668b63c46da50536091044507d6dcc91dbcbe0bbce8d661"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-backends.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 984,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-backends.stdout",
+      "sha256": "5bfb1c01cb5adbd416a89ed841364d370fe52c01539ddad4d6141adb26814a69"
+    },
+    {
+      "bytes": 290,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-cli.json",
+      "sha256": "58cf769ca6079a5cfb6ff377ed334cfe7bb4ad78f71d577ffdbf4802162002b9"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-cli.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 298,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-cli.stdout",
+      "sha256": "d182ab3e588c1d5828b427fe2028de62143e9603c5bd0144631c39ec5ab7878e"
+    },
+    {
+      "bytes": 291,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-core.json",
+      "sha256": "34c6b539cbeae4c417a820e5fecb7e2f93f4255993896bfd4b9d1366cb9ff8f5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-core.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 115,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-core.stdout",
+      "sha256": "befc04b62e2c7f927354352447702746aa6bf9e52b575f182f9214f063dfa73c"
+    },
+    {
+      "bytes": 290,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-ffi.json",
+      "sha256": "1897396d1ea4aa3a0f1e90cb371d162d09af40e13a92815f561568aef36073ac"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-ffi.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 640,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-ffi.stdout",
+      "sha256": "2c838c555ff6be01df3faebf82041910f518934dff9c1a86d94ceeba61a78456"
+    },
+    {
+      "bytes": 297,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-host-store.json",
+      "sha256": "d444d9e45f5abf8a44c5ba5231a5ebda32c5a156484af2e998214cfe9a75a9e0"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-host-store.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1021,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-host-store.stdout",
+      "sha256": "36ed0af3724f6f77514022d42f765e927f3f51959fb1b28c44d4bfffb5ad74c9"
+    },
+    {
+      "bytes": 290,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-kem.json",
+      "sha256": "4ee576830f97ec778d9f42fb86ebf86f083eabb0eff4fe649478b0c1a45d95fd"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-kem.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 115,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-kem.stdout",
+      "sha256": "befc04b62e2c7f927354352447702746aa6bf9e52b575f182f9214f063dfa73c"
+    },
+    {
+      "bytes": 303,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-mlkem-native-sys.json",
+      "sha256": "423dd52f19e41048c59b59885353e542ed48f359d94f2425c431c111fb62256d"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-mlkem-native-sys.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 7678,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-mlkem-native-sys.stdout",
+      "sha256": "c91df500ce587a1d4007638354c5d75aeaa211a7ff9d82232a62c2d6d5e5ebcf"
+    },
+    {
+      "bytes": 293,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-policy.json",
+      "sha256": "7c62b81f05c1ad6430ef49079108bf947a6e2b6bb91d903a45c1f5da244ff67f"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-policy.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 115,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-policy.stdout",
+      "sha256": "befc04b62e2c7f927354352447702746aa6bf9e52b575f182f9214f063dfa73c"
+    },
+    {
+      "bytes": 293,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-rustls.json",
+      "sha256": "b404ea5415a88e90dad4ed9cb158815c4554cff302f47c87c12f6125e3b54171"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-rustls.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 320,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-rustls.stdout",
+      "sha256": "07e14b79ce92e7388957a2dfc2925bb50428dc5f9ff5bb762820ff6aab5bdbd4"
+    },
+    {
+      "bytes": 290,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-sdk.json",
+      "sha256": "b7b6a7dfb9378d70a98a2156bb97a90815fecc955969c009882de2a3b516e770"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-sdk.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 199,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-sdk.stdout",
+      "sha256": "f0940b2ed995131623cbcb8b611d1d548dd6dd4a7ad99ed64fd086a33b744c26"
+    },
+    {
+      "bytes": 290,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-sig.json",
+      "sha256": "5c1457527cbf05131471c94d0bd6e0016f1ffd4de18907441727b814b311b18d"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-sig.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 115,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-sig.stdout",
+      "sha256": "befc04b62e2c7f927354352447702746aa6bf9e52b575f182f9214f063dfa73c"
+    },
+    {
+      "bytes": 291,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-wasm.json",
+      "sha256": "9030874be7d7298ab15d2a74577666bfa9c453ff2ba96d77b3ea678b7e1ef486"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-wasm.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 115,
+      "path": "release/0.2.0/evidence/rust/local-macos/list-q-periapt-wasm.stdout",
+      "sha256": "befc04b62e2c7f927354352447702746aa6bf9e52b575f182f9214f063dfa73c"
+    },
+    {
+      "bytes": 261,
+      "path": "release/0.2.0/evidence/rust/local-macos/metadata.json",
+      "sha256": "00c13bd754bc5c352facd0daf1b8c8318da2d09302f09d756e465b3030e7b070"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/metadata.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 73336,
+      "path": "release/0.2.0/evidence/rust/local-macos/metadata.stdout",
+      "sha256": "b8bafad2f5a91b54f73fc2b067b8b59b61da982cf5ffcdc366b825f5e07d5c37"
+    },
+    {
+      "bytes": 911,
+      "path": "release/0.2.0/evidence/rust/local-macos/package.json",
+      "sha256": "e2f054193e0ab53b90ae4d54c68b38efd7450cc7a44148979075d123f088da43"
+    },
+    {
+      "bytes": 15851,
+      "path": "release/0.2.0/evidence/rust/local-macos/package.stderr",
+      "sha256": "80284fab72b471860111c8e3c9b9c951de262ef8c00ea3b4c08067e0fe9d7534"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/package.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 179,
+      "path": "release/0.2.0/evidence/rust/local-macos/rustc-version.json",
+      "sha256": "17f754801ff88cb165ec9f4cc49f73c5b0f468021644efc7689252db57f698c8"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/rustc-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 36,
+      "path": "release/0.2.0/evidence/rust/local-macos/rustc-version.stdout",
+      "sha256": "2073de5abf149185c2f4d7473dc833bc921b99135560d24ae7b2293f33a9c376"
+    },
+    {
+      "bytes": 2385,
+      "path": "release/0.2.0/evidence/rust/local-macos/sources-after.json",
+      "sha256": "00ea7779219482e8b79ce863296d20956839e69b2bd21d9338c60bafcfebf22d"
+    },
+    {
+      "bytes": 2385,
+      "path": "release/0.2.0/evidence/rust/local-macos/sources-before.json",
+      "sha256": "00ea7779219482e8b79ce863296d20956839e69b2bd21d9338c60bafcfebf22d"
+    },
+    {
+      "bytes": 255,
+      "path": "release/0.2.0/evidence/rust/local-macos/vendor.json",
+      "sha256": "0471f97ed925d13ffe0ecc0519adc1ded9594ca20f0704b977f9fc0214d86296"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/vendor.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 80,
+      "path": "release/0.2.0/evidence/rust/local-macos/vendor.stdout",
+      "sha256": "44ecc06085af8b00a93abf47738b92dfc42334e1c83534686e2a8c319e480c8d"
+    },
+    {
+      "bytes": 504,
+      "path": "release/0.2.0/evidence/rust/local-macos/workspace-audit.json",
+      "sha256": "b200a22950999ec821e5e4931f12645f99ea76fa8161a165abac6fc36386b3fa"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-macos/workspace-audit.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 375,
+      "path": "release/0.2.0/evidence/rust/local-macos/workspace-audit.stdout",
+      "sha256": "c8815b4b0963afa5c83889ad19d2e9a49836b0ef813ae4f4a3875f958f690f8c"
+    },
+    {
+      "bytes": 4968,
+      "path": "release/0.2.0/evidence/rust/local-msrv/RUST_SDK_MSRV.json",
+      "sha256": "92f3d7ede05f76ed3ac73332d9bd393224af814323fe6ff56da0a69194eab0f9"
+    },
+    {
+      "bytes": 304,
+      "path": "release/0.2.0/evidence/rust/local-msrv/cargo.json",
+      "sha256": "a32eebbcbb8a8fab8d5f1d93d16d6e36e577f215be7ea32dd6ed69901d462009"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-msrv/cargo.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 36,
+      "path": "release/0.2.0/evidence/rust/local-msrv/cargo.stdout",
+      "sha256": "5f9bdc5e0a6960db4a3cc66e9b3ae15bad5b9b506e8b7c49739c88dc5355c3f1"
+    },
+    {
+      "bytes": 25119,
+      "path": "release/0.2.0/evidence/rust/local-msrv/consumer-Cargo.lock",
+      "sha256": "5a1585c238df318c9cafc490425874ffa2cccc34079e53d622d64702de56158c"
+    },
+    {
+      "bytes": 351,
+      "path": "release/0.2.0/evidence/rust/local-msrv/consumer-test.json",
+      "sha256": "4f8ef190afe2e5818b377cceecd54eaa9ae826d518cbbcb80cdbb41b5043c810"
+    },
+    {
+      "bytes": 4253,
+      "path": "release/0.2.0/evidence/rust/local-msrv/consumer-test.stderr",
+      "sha256": "57228b4aab292a589515d827e8c72e0b17661bb17e21b10d6e37a6bcbcd5838e"
+    },
+    {
+      "bytes": 521,
+      "path": "release/0.2.0/evidence/rust/local-msrv/consumer-test.stdout",
+      "sha256": "6cd61c1f0e5882b560d61fbaccee9c648a4cf75fd4c09938bd8ee5ccd0ad2323"
+    },
+    {
+      "bytes": 105,
+      "path": "release/0.2.0/evidence/rust/local-msrv/location.json",
+      "sha256": "ccff8cd0a14f3b2416344e98e6ace51835a2241a2d3b2255530034c785ad86aa"
+    },
+    {
+      "bytes": 353,
+      "path": "release/0.2.0/evidence/rust/local-msrv/metadata.json",
+      "sha256": "fd77b94acb2d2fb8907ae3f5e5ff319f90b0af7079da42f7adf531e0eac16121"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-msrv/metadata.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 506858,
+      "path": "release/0.2.0/evidence/rust/local-msrv/metadata.stdout",
+      "sha256": "de87936b8728f0cf9b8db6437df43aa7cd1e1617a33faed1eb719f1c4f0db83c"
+    },
+    {
+      "bytes": 321,
+      "path": "release/0.2.0/evidence/rust/local-msrv/rustc.json",
+      "sha256": "059871887eeb02bb901dffe74d9f2ad44dc56956aadcbc294152106dba0dfa89"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/rust/local-msrv/rustc.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 192,
+      "path": "release/0.2.0/evidence/rust/local-msrv/rustc.stdout",
+      "sha256": "69369fec0fad824e6cb2d5b8d1fb0e42094942bbe950f1cb28a6f03ad5495225"
+    },
+    {
+      "bytes": 2786,
+      "path": "release/0.2.0/evidence/rust/local-msrv/sources-after.json",
+      "sha256": "9aea71ba7c9dfd85428bf5ed08dec4377b723baa369d446d79e1461cb7b72c0e"
+    },
+    {
+      "bytes": 2786,
+      "path": "release/0.2.0/evidence/rust/local-msrv/sources-before.json",
+      "sha256": "9aea71ba7c9dfd85428bf5ed08dec4377b723baa369d446d79e1461cb7b72c0e"
+    },
+    {
+      "bytes": 527,
+      "path": "release/0.2.0/evidence/rust/operator/rust-publication-af4618c8-dry-run.json",
+      "sha256": "568567a61592473c3854d210b1a7861fbb6fb322b3c434758ae40f0fa2581627"
+    },
+    {
+      "bytes": 732,
+      "path": "release/0.2.0/evidence/rust/operator/rust-ci-vs-mac.json",
+      "sha256": "553546e0841a4178ce513984a7ddaff78a10b91278fb63cc6371e6e5c1b5a8fa"
+    },
+    {
+      "bytes": 1341,
+      "path": "release/0.2.0/evidence/rust/operator/uploader-runtime-af4618c8-binding.json",
+      "sha256": "939fd3f237fef4b3b5478ea190f47d335822118623b875ecb7a9f944384dbd8e"
+    },
+    {
+      "bytes": 815,
+      "path": "release/0.2.0/evidence/rust/operator/uploader-runtime-af4618c8-preflight.json",
+      "sha256": "eab395ed29e8f33db0b6768699f833d9c2a840b7fabd516a5752b8675a498ccd"
+    },
+    {
+      "bytes": 158,
+      "path": "release/0.2.0/evidence/rust/operator/uploader-runtime-af4618c8-preflight.stdout",
+      "sha256": "a6799678966652e6339b91a69cbeed4a746f4831ffdfee4b002eddf0ebebe0c2"
+    },
+    {
+      "bytes": 62,
+      "path": "release/0.2.0/evidence/rust/operator/uploader-runtime-af4618c8-preflight.stderr",
+      "sha256": "935180ea3a3b1a76c9022a6a1f3046229cab86d18ecb08589d58c4e9322ff8b2"
+    },
+    {
+      "bytes": 353,
+      "path": "release/0.2.0/evidence/rust/operator/uploader-runtime-af4618c8-materialization.log",
+      "sha256": "59ee468061daa31adf8c68d86c9c9f8ae62ae0cb2ad9ce55e8af815ea0d871a3"
+    },
+    {
+      "bytes": 8519,
+      "path": "release/0.2.0/evidence/rust/operator/uploader-runtime-regressions.log",
+      "sha256": "b2fba566cfca7fbf24f067f5515f2e7a6f6a233f5477d1cfbea770ede6a20053"
+    },
+    {
+      "bytes": 86,
+      "path": "release/0.2.0/evidence/rust/operator/uploader-runtime-tls-readback.json",
+      "sha256": "d164dbf84ccb8ed1f9cbfed8f673542bda3e4062b036a26db3afc6bcfb78779b"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "Twelve exact clean-source SDK Cargo archives from the completed Linux producer in the Windows lifecycle workflow. All twelve equal the separately completed macOS producer bytes; the retained Rust 1.90 macOS consumer used those identical archives under its own original report digest. Actual exact-uploader materialization and no-credential preflight are separate from publication. No registry upload is claimed.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

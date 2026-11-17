@@ -1,0 +1,83 @@
+{
+  "artifact_sha256": {
+    "APPLE_DISTRIBUTION.json": "9037068a49f503da76934a02d58a486e0d92208fe5cd9cea100a79fe2a9b8343",
+    "CQPeriapt.xcframework.zip": "6a1847df8d7fc76892769a5fd92655eeda571dc224d53da483fddc66e2f3397b",
+    "MANIFEST.json": "d7f2ed5c2530f641b205c966eb5197b4371543ac7d8223d04f2791eb49671151",
+    "QPeriapt-Swift-SDK-0.2.0.zip": "599786db581f641525353f32ac7c63b2c0f69fcbb70f159a82c5d1e1b47d2706",
+    "SHA256SUMS": "59a576cf8c826cb3bcc658f0b5d789a73ed2cac3a4026b3b2ea018f771e4856e"
+  },
+  "certificate_sha256": "6c8412fd1c9faeb286eefe4518d20d500ed911cfe5695020f125b73b89a509b3",
+  "codesign_returncode": 0,
+  "completed": true,
+  "kind": "qperiapt.sdk020_apple_signing_readback",
+  "native_file_count": 14,
+  "package_file_count": 607,
+  "producer_consumer_verification": {
+    "installed_swift_sdk": {
+      "archive_sha256": "599786db581f641525353f32ac7c63b2c0f69fcbb70f159a82c5d1e1b47d2706",
+      "executed_tests": 6,
+      "failures": 0,
+      "kind": "qperiapt.swift_sdk_installed_consumer",
+      "log_sha256": {
+        "codesign-after.log": "12d23d3d6164a89eeb4d3e1737a39fd071859538e86fc9dfdbc9b117143cf89c",
+        "codesign-before.log": "12d23d3d6164a89eeb4d3e1737a39fd071859538e86fc9dfdbc9b117143cf89c",
+        "link-probe.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "swift-bin.log": "4d654598cc87323f6cd4fade7a7835849fab2131e0a58319bddb8eaf7a9f797e",
+        "swift-test.log": "8fcb3d2096dd50838f5590953b45fae0235798a9346ece829bc731dc808a8f49"
+      },
+      "outside_source_checkout": true,
+      "probe_sha256": "8d20657e20f206ad98b89a43c61c08a1bc93c537abb63f7031e79e4820a3ff17",
+      "selected_static_archive_sha256": "2c46dd5d37024ef5d0132480b880750c929af20ec9c60ce80ebdb3b0ce1ad6ce",
+      "warning_or_error_diagnostics": 0
+    },
+    "ios_consumer_scheme_inventory_sha256": "81e38cb70fa0bf262316c1afc56a29b22bfeedc9c8b57320417e3362ee89ed5d",
+    "ios_device_link": {
+      "architectures": [
+        "arm64"
+      ],
+      "deployment_target": "16.0",
+      "log_sha256": "56d732d2281df6cc1407a68272bfc69ac0f8fa01985e726ad3f901ae8974c447",
+      "platform": "IOS",
+      "warning_or_error_diagnostics": 0
+    },
+    "ios_simulator_link": {
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "deployment_target": "16.0",
+      "log_sha256": "ef805c80f72374b65503e0e8abc61dcc4f5b30bd930e8dfb668abfea9a834d2d",
+      "platform": "IOSSIMULATOR",
+      "warning_or_error_diagnostics": 0
+    },
+    "macos_link": {
+      "architectures": [
+        "arm64"
+      ],
+      "deployment_target": "13.0",
+      "link_map_sha256": {
+        "arm64": "dd4190632a466966985de24a83687958ac3da4627f7a1a9a44693d76213bc955"
+      },
+      "logs_sha256": {
+        "arm64": "f19b6a99ffc5aa9f7ab363415aab09bfbdc9d0ddcce762c18ebec6fa9d53bd58"
+      },
+      "platform": "MACOS",
+      "warning_or_error_diagnostics": 0
+    },
+    "macos_runtime_tests": {
+      "executed": 6,
+      "failures": 0,
+      "log_sha256": "01a200c6eb02b950cbefa03f8155b4732e96d6cbfded9722c49c6b309918a90c",
+      "warning_or_error_diagnostics": 0
+    }
+  },
+  "publication_performed": false,
+  "readback_scope": "Fresh signed-package extraction, strict signature verification, exact source and file identities, and original consumer log hashes. Consumer tests are the producer's retained executions, not newly rerun here.",
+  "release_claim_eligible": false,
+  "rust_workspace_build_inputs": "5ae84fea7013592154311994c971892417bd334786128e02326a788100f6b1e2",
+  "schema_version": 1,
+  "signed_at": "17 Nov 2026 at 07:17:39",
+  "source_commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+  "source_file_count": 565,
+  "source_tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+}

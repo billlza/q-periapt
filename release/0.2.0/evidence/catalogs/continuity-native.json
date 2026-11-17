@@ -1,0 +1,257 @@
+{
+  "assets": [
+    {
+      "file": {
+        "bytes": 4962274,
+        "path": "release/0.2.0/assets/platform/q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip",
+        "sha256": "2c316e88772b2e0813d3c93497f0bd627cb8f7eaf95a48011ed33749fa49f1ac"
+      },
+      "name": "q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip"
+    },
+    {
+      "file": {
+        "bytes": 98123501,
+        "path": "release/0.2.0/assets/platform/CONTINUITY_LINUX_LIFECYCLE_EVIDENCE.zip",
+        "sha256": "7d3c101d6cfa39036c1e7fb21f12cd1d58019b48af646e362be7d6846a12db6f"
+      },
+      "name": "CONTINUITY_LINUX_LIFECYCLE_EVIDENCE.zip"
+    }
+  ],
+  "completed": true,
+  "kind": "qperiapt.continuity_native_release_component",
+  "package_bindings": {
+    "continuity-engine": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 7833116,
+          "path": "release/0.2.0/evidence/continuity-native/producer/CONTINUITY_PACKAGE.json",
+          "sha256": "36f2ff5f192227c3c8a34b0a48df57fc594469c49125741b41c6d17aa983b891"
+        },
+        {
+          "bytes": 4275,
+          "path": "release/0.2.0/evidence/continuity-native/readback/READBACK.json",
+          "sha256": "7edac1159a86744e85d883a6c328c0708f74d28e0854cfe085cfa65a34a9793b"
+        }
+      ]
+    },
+    "continuity-native": {
+      "artifacts": [
+        {
+          "bytes": 4962274,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip",
+          "sha256": "2c316e88772b2e0813d3c93497f0bd627cb8f7eaf95a48011ed33749fa49f1ac"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 1862,
+          "path": "release/0.2.0/evidence/continuity-native/producer/CONTINUITY_NATIVE_PACKAGE.json",
+          "sha256": "9c0d26502c9b075b5fdd0f4fc103b9b1b84735dd88a0a1c2bce9f1b5d70014fe"
+        },
+        {
+          "bytes": 4275,
+          "path": "release/0.2.0/evidence/continuity-native/readback/READBACK.json",
+          "sha256": "7edac1159a86744e85d883a6c328c0708f74d28e0854cfe085cfa65a34a9793b"
+        }
+      ],
+      "metadata": {
+        "bytes": 618,
+        "path": "release/0.2.0/distributions/continuity-native.json",
+        "sha256": "2b97f5b5d59a561b4b287d95599b06c92c07b7c47d07c5745ab1ac8bd63d86f9"
+      }
+    }
+  },
+  "records": [
+    {
+      "bytes": 7833116,
+      "path": "release/0.2.0/evidence/continuity-native/producer/CONTINUITY_PACKAGE.json",
+      "sha256": "36f2ff5f192227c3c8a34b0a48df57fc594469c49125741b41c6d17aa983b891"
+    },
+    {
+      "bytes": 7223574,
+      "path": "release/0.2.0/evidence/continuity-native/producer/C_CONSUMER.json",
+      "sha256": "db0a385e30b1b419556fd5b21c88cdab781fb2a8086d107425d67d3c3edff161"
+    },
+    {
+      "bytes": 1862,
+      "path": "release/0.2.0/evidence/continuity-native/producer/CONTINUITY_NATIVE_PACKAGE.json",
+      "sha256": "9c0d26502c9b075b5fdd0f4fc103b9b1b84735dd88a0a1c2bce9f1b5d70014fe"
+    },
+    {
+      "bytes": 588,
+      "path": "release/0.2.0/evidence/continuity-native/producer/CONTINUITY_NATIVE_DISTRIBUTION.json",
+      "sha256": "e886b2c19a3847b049ef877c222efeb131e780187707515a5633ee6fde86cb16"
+    },
+    {
+      "bytes": 835,
+      "path": "release/0.2.0/evidence/continuity-native/producer/CONTINUITY_NATIVE_PACKAGE_ROW.json",
+      "sha256": "345dc0c0169b628063874a837df6947a95b1765ab9e38948fae94b9fef05303c"
+    },
+    {
+      "bytes": 216976,
+      "path": "release/0.2.0/evidence/continuity-native/producer/sources-before.json",
+      "sha256": "a29d3883be1d634ef6cac898b3eb4a19bf753bb64dfc0a7aa05bf9a00b80ef8b"
+    },
+    {
+      "bytes": 216976,
+      "path": "release/0.2.0/evidence/continuity-native/producer/sources-after.json",
+      "sha256": "a29d3883be1d634ef6cac898b3eb4a19bf753bb64dfc0a7aa05bf9a00b80ef8b"
+    },
+    {
+      "bytes": 42495,
+      "path": "release/0.2.0/evidence/continuity-native/producer/consumer-Cargo.lock",
+      "sha256": "6387c8120f1c00a366f46625c953c855ff3413aabf7bd7e0301eb516e61c300f"
+    },
+    {
+      "bytes": 42536,
+      "path": "release/0.2.0/evidence/continuity-native/producer/c-consumer-Cargo.lock",
+      "sha256": "ee6ecf5c8907bc8576063f59915444c7b7abf7d7ee1b07883898e4edbf910987"
+    },
+    {
+      "bytes": 58,
+      "path": "release/0.2.0/evidence/continuity-native/producer/location.json",
+      "sha256": "f2a0e57a805a36c5e2f57a4777123d8ce722ecc04b56d43d4b5773ac73b09bcb"
+    },
+    {
+      "bytes": 334,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/dynamic.json",
+      "sha256": "4c8f1ec19fdd9d2b8a1422fab90777af8bc9af49b8cc0366a30a2e61ba063cb3"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/dynamic.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 8647,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/dynamic.stdout",
+      "sha256": "11b6dac30b04ac6bdeda341d0c9bdf4f18e7a332437047c9b0ca48046f580292"
+    },
+    {
+      "bytes": 341,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/exports.json",
+      "sha256": "acc3d40dcb67ba785cb0b658515dff9de8acc24e2ac42244c45f14cc5c8c4db2"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/exports.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 7619,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/exports.stdout",
+      "sha256": "527e15b31d75b884fd958887153a5af1f9732456c695a296bd3389eda7a2bbe6"
+    },
+    {
+      "bytes": 344,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/installed-dynamic.json",
+      "sha256": "abf323598fc7ec3c8ce83686202af28bc94cd079bbb3bb657f83a0ca1e66ae76"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/installed-dynamic.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 8647,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/installed-dynamic.stdout",
+      "sha256": "11b6dac30b04ac6bdeda341d0c9bdf4f18e7a332437047c9b0ca48046f580292"
+    },
+    {
+      "bytes": 351,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/installed-exports.json",
+      "sha256": "534a429015b4facd9fe1f5c036b072df2f3fcacc8f8c75fee5b570edfb9954fd"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/installed-exports.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 7619,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/installed-exports.stdout",
+      "sha256": "527e15b31d75b884fd958887153a5af1f9732456c695a296bd3389eda7a2bbe6"
+    },
+    {
+      "bytes": 323,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/licenses.json",
+      "sha256": "5d7c6dc9f54d67dcf442c36c8254d37a946457362be719689f286d4078b299ed"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/licenses.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 664433,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/licenses.stdout",
+      "sha256": "d9019e337f16713e613250871af08767224f92a1679179b09eda5b238d72b24b"
+    },
+    {
+      "bytes": 858,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/probe-build.json",
+      "sha256": "0cc4f44efefe61f07b45a35b0c86a27bc058f34428bdbd6224cf7ed69800fe5b"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/probe-build.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/probe-build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 378,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/probe-run.json",
+      "sha256": "8a94aeb82498fa8f63c32441f103a92483ba376a63ad285b72edbb5517f33d69"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/probe-run.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 63,
+      "path": "release/0.2.0/evidence/continuity-native/producer/native-package/probe-run.stdout",
+      "sha256": "037bb67fb6f2e7ee03af41b2ee47dd1ebb0fef3f4eb1108c1c02d44a62e57bb4"
+    },
+    {
+      "bytes": 4275,
+      "path": "release/0.2.0/evidence/continuity-native/readback/READBACK.json",
+      "sha256": "7edac1159a86744e85d883a6c328c0708f74d28e0854cfe085cfa65a34a9793b"
+    },
+    {
+      "bytes": 7619,
+      "path": "release/0.2.0/evidence/continuity-native/readback/exports.stdout",
+      "sha256": "527e15b31d75b884fd958887153a5af1f9732456c695a296bd3389eda7a2bbe6"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-native/readback/exports.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 8482,
+      "path": "release/0.2.0/evidence/continuity-native/readback/dynamic.stdout",
+      "sha256": "25eabdc7693caa024ba720c0a06db7573d1f145509bc9e1519a36ac6d6d54f73"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-native/readback/dynamic.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6094,
+      "path": "release/0.2.0/evidence/continuity-native/readback/operator.py",
+      "sha256": "c5ec4110187668d7b211c940f0ded846d445974ed3989a7d8d552cd0918db417"
+    }
+  ],
+  "scope": "Original complete Linux Debug/Release Rust/C installed qualification and relocated native owner probe are source/archive-bound. Fresh deterministic extraction, exact package/ABI/license inventory and actual cross-format LLVM inspection verify all 158 exports, ELF target, SONAME/dependencies and symbol-version requirements. The native library exactly matches the original executed Release C owner. Linux runtime execution is the original CI run; this macOS readback does not execute an ELF binary.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

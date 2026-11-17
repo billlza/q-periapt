@@ -1,0 +1,128 @@
+{
+  "aar_manifest_sha256": "0248b09fb72ab1a5de02c0356355bd3fd4532a25e299dc058f50f8da3e35a8a8",
+  "aar_sha256": "10b0e67c1bf8515fbf95ab9b738ae110168a14af8b874d06eb878687d372723c",
+  "archives": [
+    {
+      "bytes": 6480271,
+      "manifest_sha256": "075c908a1d80f619b51efc3272629ab1c52864952451f2e2fd15fe3e6c116a94",
+      "path": "abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/q-periapt-android-sdk-0.2.0.tar.gz",
+      "sha256": "73453f34381ea6ddfe5c6532f98aa9c5848d630bb17a9d678f1d70038c75b31f"
+    },
+    {
+      "bytes": 6480271,
+      "manifest_sha256": "075c908a1d80f619b51efc3272629ab1c52864952451f2e2fd15fe3e6c116a94",
+      "path": "abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/q-periapt-android-sdk-0.2.0.tar.gz",
+      "sha256": "73453f34381ea6ddfe5c6532f98aa9c5848d630bb17a9d678f1d70038c75b31f"
+    }
+  ],
+  "completed": true,
+  "kind": "qperiapt.android_sdk_archive_readback",
+  "linux_sdk_tools_reexecuted_locally": false,
+  "producer_run": 44036376133,
+  "profiles": [
+    {
+      "aar_manifest_sha256": "0248b09fb72ab1a5de02c0356355bd3fd4532a25e299dc058f50f8da3e35a8a8",
+      "aar_sha256": "10b0e67c1bf8515fbf95ab9b738ae110168a14af8b874d06eb878687d372723c",
+      "agp_version": "9.4.1",
+      "apk_sha256": "f525ee41cfd5dfaf107c8fa08e94f713130beb2ec72b59f79a9186eb7f5fc967",
+      "build_receipt_sha256": "df1ab5a1af2d1c094b958d37a818669fcf383a6593901f2165a32f8b00de87c7",
+      "gradle_version": "9.7.1",
+      "passed_tests": [
+        "sdkOwnersAndPurposeKeys",
+        "sdkExpertCancellationAndInputSnapshot",
+        "sdkSignedPolicyRevocationAndRecovery"
+      ],
+      "profile": "agp_sdk_full_release",
+      "proof_sha256": "57dcb77c08f810b5e8b81e3e02fddaec6b557a2dc1e86fb366c1d8fb4a4d9da4",
+      "result_json_sha256": "f9d405c4efed1fc487cb6d4ea6560fa6a5cad0568e33d5833400dcb6bb1372f9",
+      "run_id": "a6a08d236fa8b354083b5caca49ba353",
+      "runtime_target": {
+        "abi": "x86_64",
+        "kind": "emulator",
+        "page_size": 4096,
+        "sdk": 23
+      },
+      "source_commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+      "source_tree_sha256": "79a8cd5981c83f1f1ab7571ca35ae876201ea0466dfbccd793b9daee57872427"
+    },
+    {
+      "aar_manifest_sha256": "0248b09fb72ab1a5de02c0356355bd3fd4532a25e299dc058f50f8da3e35a8a8",
+      "aar_sha256": "10b0e67c1bf8515fbf95ab9b738ae110168a14af8b874d06eb878687d372723c",
+      "agp_version": "9.4.1",
+      "apk_sha256": "849c6a84f81f0748029321a40f6d40faedd986ff934ac52a2d67a6b609de282b",
+      "build_receipt_sha256": "b4ee0d101b648e06fa8b456c206b766522ab5aeaa004b6fb8133e71b55900790",
+      "gradle_version": "9.7.1",
+      "passed_tests": [
+        "runtimeVersionOnly"
+      ],
+      "profile": "agp_sdk_minimal_release",
+      "proof_sha256": "8856ea71f04a3b1ee94c89d45981806a9238bd0edd6fd2ce94d17555bfafc83b",
+      "result_json_sha256": "c1f9dd95de608424f30733692a8a9776c55d05b1284a64dc98fcebccb9963ffb",
+      "run_id": "dc29743b7599777d8cf13721b879e8db",
+      "runtime_target": {
+        "abi": "x86_64",
+        "kind": "emulator",
+        "page_size": 4096,
+        "sdk": 23
+      },
+      "source_commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+      "source_tree_sha256": "79a8cd5981c83f1f1ab7571ca35ae876201ea0466dfbccd793b9daee57872427"
+    },
+    {
+      "aar_manifest_sha256": "0248b09fb72ab1a5de02c0356355bd3fd4532a25e299dc058f50f8da3e35a8a8",
+      "aar_sha256": "10b0e67c1bf8515fbf95ab9b738ae110168a14af8b874d06eb878687d372723c",
+      "agp_version": "9.4.1",
+      "apk_sha256": "bc3918182bcbbef55bbb41485e2d2de11e6a5d4072ee9c1704ef625c271b2f7e",
+      "build_receipt_sha256": "77424d13a41fdd4049521a1d04eeb3dcb39be29aa04e38626522609d8510057d",
+      "gradle_version": "9.7.1",
+      "passed_tests": [
+        "sdkOwnersAndPurposeKeys",
+        "sdkExpertCancellationAndInputSnapshot",
+        "sdkSignedPolicyRevocationAndRecovery"
+      ],
+      "profile": "agp_sdk_full_release",
+      "proof_sha256": "3b14eab4dfb51f6783f7de5c62845eb79594b20cce942ca4248c3e0075b7b173",
+      "result_json_sha256": "384cc1d8bca92bd797195616c778fb5d0e7959b9d9517ce21efe7f26553a0aa5",
+      "run_id": "82e78aebe92f925422af44b0d52bb7b4",
+      "runtime_target": {
+        "abi": "x86_64",
+        "kind": "emulator",
+        "page_size": 16384,
+        "sdk": 35
+      },
+      "source_commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+      "source_tree_sha256": "79a8cd5981c83f1f1ab7571ca35ae876201ea0466dfbccd793b9daee57872427"
+    },
+    {
+      "aar_manifest_sha256": "0248b09fb72ab1a5de02c0356355bd3fd4532a25e299dc058f50f8da3e35a8a8",
+      "aar_sha256": "10b0e67c1bf8515fbf95ab9b738ae110168a14af8b874d06eb878687d372723c",
+      "agp_version": "9.4.1",
+      "apk_sha256": "15fa9c4ac821703193aa8d25db6efb009a2c15bea41c5bd2f1e80c5914f2342a",
+      "build_receipt_sha256": "287dbddac622c088255b13e915b534be75ce2a5935e0a83c35a40ada4b208de6",
+      "gradle_version": "9.7.1",
+      "passed_tests": [
+        "runtimeVersionOnly"
+      ],
+      "profile": "agp_sdk_minimal_release",
+      "proof_sha256": "73ab5e5044192dd8cd6381f3b8cf96028d538634bede4f310904e8e22547692a",
+      "result_json_sha256": "2d1c810b3c6b10d86b58e68c7e21c9fa84a8de334eaf5d4b3bae6011f591c50f",
+      "run_id": "34bc560d7dc3484fe4745f8ee4f44fe5",
+      "runtime_target": {
+        "abi": "x86_64",
+        "kind": "emulator",
+        "page_size": 16384,
+        "sdk": 35
+      },
+      "source_commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+      "source_tree_sha256": "79a8cd5981c83f1f1ab7571ca35ae876201ea0466dfbccd793b9daee57872427"
+    }
+  ],
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "Fresh exact Maven/AAR/source/ELF inventories; original minified APK/build/runtime/instrumentation readers; all exported bytes matched to both completed independent Linux SDK-tool replay reports. Linux exact-tool execution remains those original hosted jobs, not a macOS replay. API23/4KiB and API35/16KiB x86_64 emulators, full and minimal SDK workloads; no new physical-device qualification.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "source_tree_sha256": "79a8cd5981c83f1f1ab7571ca35ae876201ea0466dfbccd793b9daee57872427"
+}

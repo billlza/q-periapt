@@ -1,0 +1,20 @@
+{
+  "archive": {
+    "bytes": 2099624,
+    "path": "q-periapt-sdk-wasm-0.2.0.tgz",
+    "sha256": "09786cd0d5191222e7208b5235121b8530f0481046f35f97bfd81ca2b9a64b24"
+  },
+  "artifact_id": 14307957471,
+  "completed": true,
+  "kind": "qperiapt.wasm_sdk_archive_readback",
+  "manifest_sha256": "e49b858bf2942cee3b7553ffd696b9ada7add94cd954e64466a54ef06dd4a792",
+  "package_files": 242,
+  "producer_run": 44036376133,
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "Fresh archive/source/license/package and Node/minimum-Node input binding; original complete browser storage, real quota/deadline, enrollment and bidirectional native/restart/required-Witness transcript readers replayed on retained public bytes. Original CI executed the runtimes. Shared browser/native engine is not an independent implementation; no TLS, Passkey, physical-device or power-loss claim.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

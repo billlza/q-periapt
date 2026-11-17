@@ -1,0 +1,33 @@
+{
+  "artifacts": [
+    {
+      "bytes": 30423594,
+      "path": "release/0.2.0/assets/platform/QPeriaptContinuity-Apple-0.2.0.zip",
+      "sha256": "1766fa787498ae074fb9eec6cefc5e246805ea8f6dd4766445f49132cad1c8f1"
+    },
+    {
+      "bytes": 18887580,
+      "path": "release/0.2.0/assets/platform/q-periapt-continuity-swift-0.2.0-debug.zip",
+      "sha256": "114c0f0ef4654fb2f8a38de095a10e9b9e41f006df27902ba74af89b6dbd226a"
+    },
+    {
+      "bytes": 12129332,
+      "path": "release/0.2.0/assets/platform/q-periapt-continuity-swift-0.2.0-release.zip",
+      "sha256": "5d878b5734849ed86b69cc0fdc04a69f70b0a371e7a269498d1d360ae87dee37"
+    }
+  ],
+  "dependencies": [
+    "continuity-engine"
+  ],
+  "interfaces": [
+    "continuity_c"
+  ],
+  "kind": "qperiapt.continuity_distribution_identity",
+  "name": "QPeriaptContinuity",
+  "schema_version": 1,
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "version": "0.2.0"
+}

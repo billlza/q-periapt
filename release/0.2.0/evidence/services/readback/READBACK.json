@@ -1,0 +1,19 @@
+{
+  "archive": {
+    "bytes": 7033426,
+    "path": "q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+    "sha256": "a7f0d7a3694331d1353a51617e21c074625ffb92f2f89bcd11fb4e8552a4615d"
+  },
+  "binaries_rechecked": 5,
+  "completed": true,
+  "files_rechecked": 412,
+  "kind": "qperiapt.service_archive_readback",
+  "original_installation_completed": true,
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "Fresh deterministic archive extraction, complete file/license/source-document identities and ELF bytes with original retained loader-inspection text; original Linux execution remains separately pinned.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

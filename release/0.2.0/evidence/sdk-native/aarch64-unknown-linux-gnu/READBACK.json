@@ -1,0 +1,21 @@
+{
+  "archive": {
+    "bytes": 6784730,
+    "path": "q-periapt-c-abi2-0.2.0-aarch64-unknown-linux-gnu.tar.gz",
+    "sha256": "a89484c0c1007657111845b91a10dcef569ad7675f7043ad135c6e7a1a410381"
+  },
+  "artifact_id": 14307294104,
+  "completed": true,
+  "hosted_archive_sha256": "c24e3e97e6db9427a9216ea7397ae353cb618c3813aab0e2e9852d4e46281a60",
+  "kind": "qperiapt.native_sdk_portable_readback",
+  "manifest_sha256": "dc4cffabad69eadad7d9b581416d7c4dc54e92355e0b8d93e2e908409ff985a2",
+  "producer_run": 44036376133,
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "Fresh deterministic extraction and the source's complete portable package verifier: exact source/manifest/files, ABI, licenses and BOM; Windows PE inspection uses fresh binary bytes. Linux runtime/loader and Windows native execution remain the separately selected successful CI jobs.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "target": "aarch64-unknown-linux-gnu"
+}

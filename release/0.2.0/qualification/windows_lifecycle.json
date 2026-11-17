@@ -1,0 +1,43 @@
+{
+  "completed": true,
+  "kind": "qperiapt.sdk_release_qualification",
+  "records": [
+    {
+      "bytes": 4931,
+      "path": "release/0.2.0/evidence/catalogs/windows.json",
+      "sha256": "fe8b2400804205105d3d914decb905875751ab35a7865d310e6f8e8a287150a0"
+    },
+    {
+      "bytes": 50573,
+      "path": "release/0.2.0/evidence/windows/HOSTED_RUN.json",
+      "sha256": "a171aed8ee78483594059d24dc60fd234362656132f4cce43ad5f292bfb0c6d9"
+    },
+    {
+      "bytes": 1329,
+      "path": "release/0.2.0/evidence/windows/READBACK.json",
+      "sha256": "368fd156ac94ddedb781fddae4d84de13eb3e26a4b51480138ab2134190fc394"
+    },
+    {
+      "bytes": 5552,
+      "path": "release/0.2.0/evidence/windows/ARTIFACTS.json",
+      "sha256": "19f7961f37fdadfa904866ee14fca3da3c8ca7cfa5c86f9113b6678e7ab29ac9"
+    },
+    {
+      "bytes": 424602,
+      "path": "release/0.2.0/evidence/windows/windows-2022/NETWORK_REVIEW.json",
+      "sha256": "ac2820010b9aa587e8abea3794f03aa4cddca598b492cb4582e4c6617fe33303"
+    },
+    {
+      "bytes": 424601,
+      "path": "release/0.2.0/evidence/windows/windows-2025/NETWORK_REVIEW.json",
+      "sha256": "db6ac76200ea622fd6b1a8839ba6f5d9c0017d7838289ba3bd3b50b709e5e7bc"
+    }
+  ],
+  "role": "windows_lifecycle",
+  "schema_version": 1,
+  "scope": "Selected unmodified source completes Windows 2022/2025 Debug/Release native lifecycle execution and both independent public readbacks in run 44036376236. Fresh retained-byte replay matches the original readers. The separate public evidence archive preserves all original exports and the prior source's OS997 failure without asserting a fix or external cause.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

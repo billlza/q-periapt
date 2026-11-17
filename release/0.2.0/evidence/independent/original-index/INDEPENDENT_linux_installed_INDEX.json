@@ -1,0 +1,62 @@
+{
+  "completed": true,
+  "exact_reconstruction_verified": true,
+  "kind": "qperiapt.original_hosted_artifact_slices",
+  "original": {
+    "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310516465/zip",
+    "created_at": "2026-11-17T08:01:42Z",
+    "digest": "sha256:6598ab4080543f5c477252e63f9c393a20d7dfb7dabb761ac13acb3a2d90bd47",
+    "expired": false,
+    "expires_at": "2027-02-15T07:11:58Z",
+    "id": 14310516465,
+    "name": "independent-bootstrap-ubuntu-24.04-installed",
+    "size_in_bytes": 319412165,
+    "updated_at": "2026-11-17T08:01:42Z",
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310516465",
+    "workflow_run": {
+      "head_branch": "release/0.2-cohort-af4618c8",
+      "head_repository_id": 1279236693,
+      "head_sha": "af4618c8065d7133adfb86e1d116577089161ff0",
+      "id": 44036838778,
+      "repository_id": 1279236693
+    }
+  },
+  "parts": [
+    {
+      "asset": {
+        "file": {
+          "bytes": 191186876,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_linux_installed_part01.zip",
+          "sha256": "6545ca05d3df5e043d674634ccab53067c38349a02bd25daf1dede0e959b43f5"
+        },
+        "name": "INDEPENDENT_linux_installed_part01.zip"
+      },
+      "bytes": 201326592,
+      "offset": 0,
+      "ordinal": 1,
+      "sha256": "b8917cbb8d7933ecc6920a88f04dc5dd823a410cf238ac72daa900ae6044050c",
+      "zip_member": "INDEPENDENT_linux_installed_part01/CAPTURE.part"
+    },
+    {
+      "asset": {
+        "file": {
+          "bytes": 104851511,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_linux_installed_part02.zip",
+          "sha256": "769d4c79bc32da416e85cbba818002d2614d962cbaeb9f61eee24589391fe0b5"
+        },
+        "name": "INDEPENDENT_linux_installed_part02.zip"
+      },
+      "bytes": 118085573,
+      "offset": 201326592,
+      "ordinal": 2,
+      "sha256": "0e69a104bdfb3abfe168eb9f8e4ac2464fb97b9b6206e1dcdda79eab8c38be22",
+      "zip_member": "INDEPENDENT_linux_installed_part02/CAPTURE.part"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "Each ordinary ZIP envelope contains one unmodified contiguous byte range of the original hosted capture. Extract the named CAPTURE.part members, concatenate them in ordinal order, then require the original byte count and SHA-256 before opening the restored ZIP. This preserves the entire original container and every retained runtime record; it is transport packaging, not a new execution or a complete cross-host qualification.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

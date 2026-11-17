@@ -1,0 +1,604 @@
+{
+  "assets": {
+    "apple": [
+      {
+        "file": {
+          "bytes": 3506,
+          "path": "release/0.2.0/assets/apple/APPLE_DISTRIBUTION.json",
+          "sha256": "9037068a49f503da76934a02d58a486e0d92208fe5cd9cea100a79fe2a9b8343"
+        },
+        "name": "APPLE_DISTRIBUTION.json"
+      },
+      {
+        "file": {
+          "bytes": 14207351,
+          "path": "release/0.2.0/assets/apple/CQPeriapt.xcframework.zip",
+          "sha256": "6a1847df8d7fc76892769a5fd92655eeda571dc224d53da483fddc66e2f3397b"
+        },
+        "name": "CQPeriapt.xcframework.zip"
+      },
+      {
+        "file": {
+          "bytes": 75351,
+          "path": "release/0.2.0/assets/apple/MANIFEST.json",
+          "sha256": "d7f2ed5c2530f641b205c966eb5197b4371543ac7d8223d04f2791eb49671151"
+        },
+        "name": "MANIFEST.json"
+      },
+      {
+        "file": {
+          "bytes": 15754808,
+          "path": "release/0.2.0/assets/apple/QPeriapt-Swift-SDK-0.2.0.zip",
+          "sha256": "599786db581f641525353f32ac7c63b2c0f69fcbb70f159a82c5d1e1b47d2706"
+        },
+        "name": "QPeriapt-Swift-SDK-0.2.0.zip"
+      },
+      {
+        "file": {
+          "bytes": 357,
+          "path": "release/0.2.0/assets/apple/SHA256SUMS",
+          "sha256": "59a576cf8c826cb3bcc658f0b5d789a73ed2cac3a4026b3b2ea018f771e4856e"
+        },
+        "name": "SHA256SUMS"
+      }
+    ],
+    "platform": [
+      {
+        "file": {
+          "bytes": 10497199,
+          "path": "release/0.2.0/assets/platform/CONTINUITY_ANDROID_BUILD_EVIDENCE.zip",
+          "sha256": "3a344b14e0f10b1f89179ec8d7ddb1294bac2a9756f63349ba11912a05423449"
+        },
+        "name": "CONTINUITY_ANDROID_BUILD_EVIDENCE.zip"
+      },
+      {
+        "file": {
+          "bytes": 82487125,
+          "path": "release/0.2.0/assets/platform/CONTINUITY_ANDROID_DEBUG_LIFECYCLE_EVIDENCE.zip",
+          "sha256": "acdbd4421264a86d7ff6afc6c7ef884de6de3c678f9692ee64293d1afcca3b7e"
+        },
+        "name": "CONTINUITY_ANDROID_DEBUG_LIFECYCLE_EVIDENCE.zip"
+      },
+      {
+        "file": {
+          "bytes": 82624891,
+          "path": "release/0.2.0/assets/platform/CONTINUITY_ANDROID_RELEASE_LIFECYCLE_EVIDENCE.zip",
+          "sha256": "27379fe56b47c1311ac5094a11729f128ebe914f7b79636125851eb3793fb9eb"
+        },
+        "name": "CONTINUITY_ANDROID_RELEASE_LIFECYCLE_EVIDENCE.zip"
+      },
+      {
+        "file": {
+          "bytes": 841087,
+          "path": "release/0.2.0/assets/platform/CONTINUITY_FOREIGN_READBACK.zip",
+          "sha256": "0195dc1bb9624a75557bf3bd36038eb5f72196f3675db42101c880bc431ffba7"
+        },
+        "name": "CONTINUITY_FOREIGN_READBACK.zip"
+      },
+      {
+        "file": {
+          "bytes": 136122792,
+          "path": "release/0.2.0/assets/platform/CONTINUITY_KOTLIN_DEBUG_LIFECYCLE_EVIDENCE.zip",
+          "sha256": "66b88166deaf29dbb9e5a8bffd8bcc8b2607af6ba4daa9c3b6f0ded828e96eca"
+        },
+        "name": "CONTINUITY_KOTLIN_DEBUG_LIFECYCLE_EVIDENCE.zip"
+      },
+      {
+        "file": {
+          "bytes": 135117541,
+          "path": "release/0.2.0/assets/platform/CONTINUITY_KOTLIN_RELEASE_LIFECYCLE_EVIDENCE.zip",
+          "sha256": "e47194aec52e639d617fe31db01c629e61effaca3b3120bee8073404929fa3c3"
+        },
+        "name": "CONTINUITY_KOTLIN_RELEASE_LIFECYCLE_EVIDENCE.zip"
+      },
+      {
+        "file": {
+          "bytes": 98123501,
+          "path": "release/0.2.0/assets/platform/CONTINUITY_LINUX_LIFECYCLE_EVIDENCE.zip",
+          "sha256": "7d3c101d6cfa39036c1e7fb21f12cd1d58019b48af646e362be7d6846a12db6f"
+        },
+        "name": "CONTINUITY_LINUX_LIFECYCLE_EVIDENCE.zip"
+      },
+      {
+        "file": {
+          "bytes": 163930607,
+          "path": "release/0.2.0/assets/platform/CONTINUITY_SWIFT_DEBUG_LIFECYCLE_EVIDENCE.zip",
+          "sha256": "288ef96aae9c3726be5b23611917db475c9dbbee04b723849faab1d88f73ee72"
+        },
+        "name": "CONTINUITY_SWIFT_DEBUG_LIFECYCLE_EVIDENCE.zip"
+      },
+      {
+        "file": {
+          "bytes": 163032910,
+          "path": "release/0.2.0/assets/platform/CONTINUITY_SWIFT_RELEASE_LIFECYCLE_EVIDENCE.zip",
+          "sha256": "23f6a3a63f80d813b63ac3b5bd20d428b55d5e0ba0007e4700d6f14350bf9673"
+        },
+        "name": "CONTINUITY_SWIFT_RELEASE_LIFECYCLE_EVIDENCE.zip"
+      },
+      {
+        "file": {
+          "bytes": 1184197,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_CAPTURE_NOTICES.zip",
+          "sha256": "96e188cc3233ce31903b3efcb2c901cdd9aaf6e926fb8a4faf728bf6af6e6d61"
+        },
+        "name": "INDEPENDENT_CAPTURE_NOTICES.zip"
+      },
+      {
+        "file": {
+          "bytes": 2661,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_linux_installed_INDEX.json",
+          "sha256": "8e46762eadb1d4981b0ce48536080f21b7ce8eeed6fa60e4f9aa3db1503aac35"
+        },
+        "name": "INDEPENDENT_linux_installed_INDEX.json"
+      },
+      {
+        "file": {
+          "bytes": 191186876,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_linux_installed_part01.zip",
+          "sha256": "6545ca05d3df5e043d674634ccab53067c38349a02bd25daf1dede0e959b43f5"
+        },
+        "name": "INDEPENDENT_linux_installed_part01.zip"
+      },
+      {
+        "file": {
+          "bytes": 104851511,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_linux_installed_part02.zip",
+          "sha256": "769d4c79bc32da416e85cbba818002d2614d962cbaeb9f61eee24589391fe0b5"
+        },
+        "name": "INDEPENDENT_linux_installed_part02.zip"
+      },
+      {
+        "file": {
+          "bytes": 2640,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_linux_source_INDEX.json",
+          "sha256": "52fd5e071ece98de33d78c24dc32b08bdc315cd94ed0a21c23f38c9fd6f7bcd3"
+        },
+        "name": "INDEPENDENT_linux_source_INDEX.json"
+      },
+      {
+        "file": {
+          "bytes": 190388737,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_linux_source_part01.zip",
+          "sha256": "29c89e02fee2712a3a12fd06a1f1950a76bd7c4ad6731912664e3940121f5999"
+        },
+        "name": "INDEPENDENT_linux_source_part01.zip"
+      },
+      {
+        "file": {
+          "bytes": 157684617,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_linux_source_part02.zip",
+          "sha256": "e5c10f08e5d111c59f8fb713070943d4b075e213ce4e8fce29e82682d89335c4"
+        },
+        "name": "INDEPENDENT_linux_source_part02.zip"
+      },
+      {
+        "file": {
+          "bytes": 2657,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_macos_installed_INDEX.json",
+          "sha256": "7d89edba81367fd993181b02b39357b6d0ab4b4a043119be2865c6937e69a411"
+        },
+        "name": "INDEPENDENT_macos_installed_INDEX.json"
+      },
+      {
+        "file": {
+          "bytes": 191275795,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_macos_installed_part01.zip",
+          "sha256": "b32242b709fbc46a7b028fc670edb622a6749b7c7c18b548d5e37ded611e3e41"
+        },
+        "name": "INDEPENDENT_macos_installed_part01.zip"
+      },
+      {
+        "file": {
+          "bytes": 104478076,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_macos_installed_part02.zip",
+          "sha256": "b590ca46de51f04b45d8abde8ff6eec869b43fe979e4b1e40f04967831638ef1"
+        },
+        "name": "INDEPENDENT_macos_installed_part02.zip"
+      },
+      {
+        "file": {
+          "bytes": 2636,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_macos_source_INDEX.json",
+          "sha256": "128006d1d1d8cdabdcb6e35d92dd4b8b7496e7eb9a3ce2dc59eccf871f8a67ce"
+        },
+        "name": "INDEPENDENT_macos_source_INDEX.json"
+      },
+      {
+        "file": {
+          "bytes": 190412308,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_macos_source_part01.zip",
+          "sha256": "3c05e0c03b6edf3f42aa17bdaeaa1def2fdea61173857f5ea107369cc1dfbc5d"
+        },
+        "name": "INDEPENDENT_macos_source_part01.zip"
+      },
+      {
+        "file": {
+          "bytes": 157019728,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_macos_source_part02.zip",
+          "sha256": "eba628bc8e9f2ec895bcfae13bb5f900e91a25384441919fae82f65193b621c8"
+        },
+        "name": "INDEPENDENT_macos_source_part02.zip"
+      },
+      {
+        "file": {
+          "bytes": 30423594,
+          "path": "release/0.2.0/assets/platform/QPeriaptContinuity-Apple-0.2.0.zip",
+          "sha256": "1766fa787498ae074fb9eec6cefc5e246805ea8f6dd4766445f49132cad1c8f1"
+        },
+        "name": "QPeriaptContinuity-Apple-0.2.0.zip"
+      },
+      {
+        "file": {
+          "bytes": 28506379,
+          "path": "release/0.2.0/assets/platform/RELEASE_EVIDENCE.zip",
+          "sha256": "c4e4361045e5103df0559abd051c0ed5d0a9509ce70c79b291458fecddca35ab"
+        },
+        "name": "RELEASE_EVIDENCE.zip"
+      },
+      {
+        "file": {
+          "bytes": 6556,
+          "path": "release/0.2.0/assets/platform/SHA256SUMS",
+          "sha256": "41728e1d81d8036af2838754748451759e1696707cfcb1dd95e2238e453bda11"
+        },
+        "name": "SHA256SUMS"
+      },
+      {
+        "file": {
+          "bytes": 110266672,
+          "path": "release/0.2.0/assets/platform/WINDOWS_LIFECYCLE_EVIDENCE.zip",
+          "sha256": "aa6f2e730319d9a869727c2bcc3af544cc1e0f7a884861062a7d470db3dff407"
+        },
+        "name": "WINDOWS_LIFECYCLE_EVIDENCE.zip"
+      },
+      {
+        "file": {
+          "bytes": 52615278,
+          "path": "release/0.2.0/assets/platform/abi2-android-sdk-020-export-api23-4k-x86_64.zip",
+          "sha256": "c13d9ea5230fb458fc890d3be5a5fc6ef2c4f842ea67192358050a6663f8548c"
+        },
+        "name": "abi2-android-sdk-020-export-api23-4k-x86_64.zip"
+      },
+      {
+        "file": {
+          "bytes": 52615224,
+          "path": "release/0.2.0/assets/platform/abi2-android-sdk-020-export-api35-16k-x86_64.zip",
+          "sha256": "43d9a34c1c9bc5a6d3ac231ea10079216fb4f72aa03bceaab4b3020684510ea6"
+        },
+        "name": "abi2-android-sdk-020-export-api35-16k-x86_64.zip"
+      },
+      {
+        "file": {
+          "bytes": 72572459,
+          "path": "release/0.2.0/assets/platform/abi2-android-sdk-020-runtime-api23-4k-x86_64.zip",
+          "sha256": "7b4bf8ec6d0952a50782d182e2f84fe11aa5893d064002b5f8bc2251cb62f59b"
+        },
+        "name": "abi2-android-sdk-020-runtime-api23-4k-x86_64.zip"
+      },
+      {
+        "file": {
+          "bytes": 73825628,
+          "path": "release/0.2.0/assets/platform/abi2-android-sdk-020-runtime-api35-16k-x86_64.zip",
+          "sha256": "65c355cfa72aa5eb965777322ca434c4f5e3994bafc2b9bd3e66173ebd1b706f"
+        },
+        "name": "abi2-android-sdk-020-runtime-api35-16k-x86_64.zip"
+      },
+      {
+        "file": {
+          "bytes": 16203246,
+          "path": "release/0.2.0/assets/platform/q-periapt-android-0.2.0.aar",
+          "sha256": "10b0e67c1bf8515fbf95ab9b738ae110168a14af8b874d06eb878687d372723c"
+        },
+        "name": "q-periapt-android-0.2.0.aar"
+      },
+      {
+        "file": {
+          "bytes": 6480271,
+          "path": "release/0.2.0/assets/platform/q-periapt-android-sdk-0.2.0.tar.gz",
+          "sha256": "73453f34381ea6ddfe5c6532f98aa9c5848d630bb17a9d678f1d70038c75b31f"
+        },
+        "name": "q-periapt-android-sdk-0.2.0.tar.gz"
+      },
+      {
+        "file": {
+          "bytes": 4971402,
+          "path": "release/0.2.0/assets/platform/q-periapt-backends-0.2.0.crate",
+          "sha256": "f090b62366c6cbb555a2e06885944c72a5a20a76b8b16af7fffa70d29fd04666"
+        },
+        "name": "q-periapt-backends-0.2.0.crate"
+      },
+      {
+        "file": {
+          "bytes": 6236447,
+          "path": "release/0.2.0/assets/platform/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin.tar.gz",
+          "sha256": "3f949a7cf0b7f7b07579c70465741e7c0549fe10528cf400e0f58de1b4261def"
+        },
+        "name": "q-periapt-c-abi2-0.2.0-aarch64-apple-darwin.tar.gz"
+      },
+      {
+        "file": {
+          "bytes": 6784730,
+          "path": "release/0.2.0/assets/platform/q-periapt-c-abi2-0.2.0-aarch64-unknown-linux-gnu.tar.gz",
+          "sha256": "a89484c0c1007657111845b91a10dcef569ad7675f7043ad135c6e7a1a410381"
+        },
+        "name": "q-periapt-c-abi2-0.2.0-aarch64-unknown-linux-gnu.tar.gz"
+      },
+      {
+        "file": {
+          "bytes": 6669291,
+          "path": "release/0.2.0/assets/platform/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip",
+          "sha256": "16761e440bff52e7e89ab8c1d2c3cadb787ef8f96c49f8b6bb007764a9fd4e3e"
+        },
+        "name": "q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip"
+      },
+      {
+        "file": {
+          "bytes": 7087387,
+          "path": "release/0.2.0/assets/platform/q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "6fecb40b4f3390be5759c4f026865b25db19587102ef1a1c72cea5be4da8edb6"
+        },
+        "name": "q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu.tar.gz"
+      },
+      {
+        "file": {
+          "bytes": 57036,
+          "path": "release/0.2.0/assets/platform/q-periapt-cli-0.2.0.crate",
+          "sha256": "683e3eb30271996bf0cec549ab13bc6fc161db523cc552d1588700683d88f8e1"
+        },
+        "name": "q-periapt-cli-0.2.0.crate"
+      },
+      {
+        "file": {
+          "bytes": 1956038,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-0.2.0.crate",
+          "sha256": "fd51d1ef614b6143867e381cc7b7099081fd259d7ee5145083db0a4d9d9bc6c9"
+        },
+        "name": "q-periapt-continuity-0.2.0.crate"
+      },
+      {
+        "file": {
+          "bytes": 4124727,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-android-0.2.0-maven.zip",
+          "sha256": "2813a053a1c7e0fa6e6dc19db7995ea2c632d4af2d47007728ff7e18e10f105d"
+        },
+        "name": "q-periapt-continuity-android-0.2.0-maven.zip"
+      },
+      {
+        "file": {
+          "bytes": 10843367,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-android-0.2.0.aar",
+          "sha256": "6818d28a97b8db1810c16c0f981e380c627be4056b884d810161f6ce9642b5b4"
+        },
+        "name": "q-periapt-continuity-android-0.2.0.aar"
+      },
+      {
+        "file": {
+          "bytes": 19080378,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-debug.zip",
+          "sha256": "c1182b564a861892dd4503b63dcc6ee521dfd7d91923bab65376226af640d8ac"
+        },
+        "name": "q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-debug.zip"
+      },
+      {
+        "file": {
+          "bytes": 12322130,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-release.zip",
+          "sha256": "fc02d49dcde8be7f629ef88eb7c22b7d481b722d35e4cbb5c094e7fa80fe438c"
+        },
+        "name": "q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-release.zip"
+      },
+      {
+        "file": {
+          "bytes": 4962274,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip",
+          "sha256": "2c316e88772b2e0813d3c93497f0bd627cb8f7eaf95a48011ed33749fa49f1ac"
+        },
+        "name": "q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip"
+      },
+      {
+        "file": {
+          "bytes": 7033426,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "a7f0d7a3694331d1353a51617e21c074625ffb92f2f89bcd11fb4e8552a4615d"
+        },
+        "name": "q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz"
+      },
+      {
+        "file": {
+          "bytes": 18887580,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-swift-0.2.0-debug.zip",
+          "sha256": "114c0f0ef4654fb2f8a38de095a10e9b9e41f006df27902ba74af89b6dbd226a"
+        },
+        "name": "q-periapt-continuity-swift-0.2.0-debug.zip"
+      },
+      {
+        "file": {
+          "bytes": 12129332,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-swift-0.2.0-release.zip",
+          "sha256": "5d878b5734849ed86b69cc0fdc04a69f70b0a371e7a269498d1d360ae87dee37"
+        },
+        "name": "q-periapt-continuity-swift-0.2.0-release.zip"
+      },
+      {
+        "file": {
+          "bytes": 44791,
+          "path": "release/0.2.0/assets/platform/q-periapt-core-0.2.0.crate",
+          "sha256": "3032dd7d6bf7c4851cde1858794a19a3f4ef03a5e07680b70b3d918eb2faa59d"
+        },
+        "name": "q-periapt-core-0.2.0.crate"
+      },
+      {
+        "file": {
+          "bytes": 124092,
+          "path": "release/0.2.0/assets/platform/q-periapt-ffi-0.2.0.crate",
+          "sha256": "66c9d32802fddc4234deea082919ae84ba54118f1c1da0549fe16df0c2719d51"
+        },
+        "name": "q-periapt-ffi-0.2.0.crate"
+      },
+      {
+        "file": {
+          "bytes": 97639,
+          "path": "release/0.2.0/assets/platform/q-periapt-host-store-0.2.0.crate",
+          "sha256": "8f6f54e3f9380cca8f538ee96c5829b17bf63c1a5ea49fbad6b1413d066a25b4"
+        },
+        "name": "q-periapt-host-store-0.2.0.crate"
+      },
+      {
+        "file": {
+          "bytes": 7172962,
+          "path": "release/0.2.0/assets/platform/q-periapt-jvm-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "3b5e70272e48983fc76bb2b884200caff1a11feb395c947183687174d264e78d"
+        },
+        "name": "q-periapt-jvm-0.2.0-x86_64-unknown-linux-gnu.tar.gz"
+      },
+      {
+        "file": {
+          "bytes": 38241,
+          "path": "release/0.2.0/assets/platform/q-periapt-kem-0.2.0.crate",
+          "sha256": "75f43ce3b1dde4ae97200c57070a245be8a7da3113c515d3b0ab6385d5c46ef3"
+        },
+        "name": "q-periapt-kem-0.2.0.crate"
+      },
+      {
+        "file": {
+          "bytes": 218952,
+          "path": "release/0.2.0/assets/platform/q-periapt-mlkem-native-sys-0.2.0.crate",
+          "sha256": "f97dd8fda79f8135d4ada959f7955189ed664aecf7dd67f4f3e3f487f4448c7c"
+        },
+        "name": "q-periapt-mlkem-native-sys-0.2.0.crate"
+      },
+      {
+        "file": {
+          "bytes": 48041,
+          "path": "release/0.2.0/assets/platform/q-periapt-policy-0.2.0.crate",
+          "sha256": "c3553382a37bc0ac09da88d5b33c3f515da8c6215988ecbd211b59a704153b84"
+        },
+        "name": "q-periapt-policy-0.2.0.crate"
+      },
+      {
+        "file": {
+          "bytes": 1267861,
+          "path": "release/0.2.0/assets/platform/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin.tar.gz",
+          "sha256": "3657af4d6a66f8ce5f47e058a0e427d287a496976d8a31372f17c5521421d957"
+        },
+        "name": "q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin.tar.gz"
+      },
+      {
+        "file": {
+          "bytes": 1349320,
+          "path": "release/0.2.0/assets/platform/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu.tar.gz",
+          "sha256": "545cb4c3bca90045aaf4d5b8dcb724e8c4c00fc04b8dff8a29804a0c87e92afd"
+        },
+        "name": "q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu.tar.gz"
+      },
+      {
+        "file": {
+          "bytes": 1415739,
+          "path": "release/0.2.0/assets/platform/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "5abc4d9b2fcb596d20bce66dd2a4158a28e1f93fa3f942c640123b455971d72e"
+        },
+        "name": "q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu.tar.gz"
+      },
+      {
+        "file": {
+          "bytes": 77863,
+          "path": "release/0.2.0/assets/platform/q-periapt-rustls-0.2.0.crate",
+          "sha256": "165c5b9e6d6f8c91c7d7cf6383ca18d0739d18e298baf01bc9efd49724edb644"
+        },
+        "name": "q-periapt-rustls-0.2.0.crate"
+      },
+      {
+        "file": {
+          "bytes": 34712,
+          "path": "release/0.2.0/assets/platform/q-periapt-sdk-0.2.0.crate",
+          "sha256": "c05b3125d6c8e86ce1a7f88479f8fffd709551aed42b6921cf81ab3c863160cc"
+        },
+        "name": "q-periapt-sdk-0.2.0.crate"
+      },
+      {
+        "file": {
+          "bytes": 2099624,
+          "path": "release/0.2.0/assets/platform/q-periapt-sdk-wasm-0.2.0.tgz",
+          "sha256": "09786cd0d5191222e7208b5235121b8530f0481046f35f97bfd81ca2b9a64b24"
+        },
+        "name": "q-periapt-sdk-wasm-0.2.0.tgz"
+      },
+      {
+        "file": {
+          "bytes": 33549,
+          "path": "release/0.2.0/assets/platform/q-periapt-sig-0.2.0.crate",
+          "sha256": "e74facff7f24b37e93cb5ec3e9756328b1053ae9e9b622946021c4fc96a67653"
+        },
+        "name": "q-periapt-sig-0.2.0.crate"
+      },
+      {
+        "file": {
+          "bytes": 23238,
+          "path": "release/0.2.0/assets/platform/q-periapt-wasm-0.2.0.crate",
+          "sha256": "884a56bf8892f39a2c90a9cf7db14398d03ae116b3e34f1ac0a40b274e7721ef"
+        },
+        "name": "q-periapt-wasm-0.2.0.crate"
+      }
+    ]
+  },
+  "boundary": "One source-bound Q-Periapt 0.2.0 SDK and Continuity publication. The reviewed admission commit adds only release evidence to the qualified source. Both drafts precede all uploads; complete Apple and platform asset inventories precede publication. Every mutation uses the shared durable journal and exact remote reconciliation; unknown outcomes are never retried automatically. Original releases remain unchanged.",
+  "kind": "qperiapt.sdk_release_admission",
+  "manifest": {
+    "bytes": 50191,
+    "path": "release/0.2.0/RELEASE_MANIFEST.json",
+    "sha256": "d356332ccc5008c61b8c8bec6c9a3abb120f58623c66da63b47ad0848435f07c"
+  },
+  "product_version": "0.2.0",
+  "qualifications": {
+    "apple_signing": {
+      "bytes": 1602,
+      "path": "release/0.2.0/qualification/apple_signing.json",
+      "sha256": "34d3c83b8b721acbc313562d8047df03949778961aa5010447e77f68be536618"
+    },
+    "ci": {
+      "bytes": 3402,
+      "path": "release/0.2.0/qualification/ci.json",
+      "sha256": "a496517b7e3e95c50ef0d07775898354b21aebf28487972b389713441ecad28b"
+    },
+    "codeql": {
+      "bytes": 1519,
+      "path": "release/0.2.0/qualification/codeql.json",
+      "sha256": "f6b690353b2103d470cb7994941d01ada7b9310495d8d57a1ffa968d008cdab3"
+    },
+    "independent": {
+      "bytes": 4051,
+      "path": "release/0.2.0/qualification/independent.json",
+      "sha256": "fb0425f10971ef01f7e6789b3624523d24493269111cc45df88709464c2cb424"
+    },
+    "installed_coverage": {
+      "bytes": 3065,
+      "path": "release/0.2.0/qualification/installed_coverage.json",
+      "sha256": "079018bc9b382525ab08c188d4cfa19d64117dce4a569b115b454881f2f60c66"
+    },
+    "internal_review": {
+      "bytes": 1477,
+      "path": "release/0.2.0/qualification/internal_review.json",
+      "sha256": "9fde6cf7e56b61782a9fa71e9a9c1ae5318fc231d2b3400e1dc6a8943c0c97f7"
+    },
+    "package_readback": {
+      "bytes": 12181,
+      "path": "release/0.2.0/qualification/package_readback.json",
+      "sha256": "ac11ad043c31cca470668a3f383cf35ddd58decca825c4ed138beb488ccfb86d"
+    },
+    "services": {
+      "bytes": 1416,
+      "path": "release/0.2.0/qualification/services.json",
+      "sha256": "93d1809b7791c5e8fbc1d0862575633d1f43371830117f856d052fcb8d8a73b2"
+    },
+    "windows_lifecycle": {
+      "bytes": 1770,
+      "path": "release/0.2.0/qualification/windows_lifecycle.json",
+      "sha256": "38f35ef2f723d3c72cfaada337d8f311557b5dd63cff6ecfddfe0b47aa20125f"
+    }
+  },
+  "schema_version": 1,
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

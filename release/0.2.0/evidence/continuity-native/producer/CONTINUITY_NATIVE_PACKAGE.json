@@ -1,0 +1,66 @@
+{
+  "abi": "qpc-owner/1",
+  "archive": {
+    "bytes": 4962274,
+    "path": "q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip",
+    "sha256": "2c316e88772b2e0813d3c93497f0bd627cb8f7eaf95a48011ed33749fa49f1ac"
+  },
+  "c_execution": {
+    "bytes": 7223574,
+    "file": "C_CONSUMER.json",
+    "sha256": "db0a385e30b1b419556fd5b21c88cdab781fb2a8086d107425d67d3c3edff161"
+  },
+  "completed": true,
+  "installed_members_verified": true,
+  "installed_probe": {
+    "completed": true,
+    "sha256": "1cead62d35e461d7a0a8d18b5892d68d0bf6f6bd767dc8059000f88ff0d49337"
+  },
+  "kind": "qperiapt.continuity_native_package",
+  "name": "q-periapt-continuity-native",
+  "native": {
+    "bytes": 10850040,
+    "loader_search_path": null,
+    "needed": [
+      "ld-linux-x86-64.so.2",
+      "libc.so.6",
+      "libgcc_s.so.1"
+    ],
+    "owner_exports": 158,
+    "sha256": "5c27a67dbfd5bc080d571f12befaef17db511aa2355af3c4e14f765db66e60d3",
+    "soname": "libq_periapt_continuity_c_consumer.so",
+    "symbol_versions": [
+      "GCC_3.0",
+      "GCC_3.3",
+      "GCC_4.2.0",
+      "GLIBC_2.10",
+      "GLIBC_2.14",
+      "GLIBC_2.16",
+      "GLIBC_2.17",
+      "GLIBC_2.18",
+      "GLIBC_2.2.5",
+      "GLIBC_2.25",
+      "GLIBC_2.28",
+      "GLIBC_2.3",
+      "GLIBC_2.3.2",
+      "GLIBC_2.3.4",
+      "GLIBC_2.30",
+      "GLIBC_2.33",
+      "GLIBC_2.34",
+      "GLIBC_2.38",
+      "GLIBC_2.4",
+      "GLIBC_2.9"
+    ]
+  },
+  "publication_performed": false,
+  "qualified_library_unchanged": true,
+  "release_claim_eligible": false,
+  "schema_version": 1,
+  "scope": "unchanged qualified Linux Release C owner, deterministic archive readback and relocated public C probe",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "target": "x86_64-unknown-linux-gnu",
+  "version": "0.2.0"
+}

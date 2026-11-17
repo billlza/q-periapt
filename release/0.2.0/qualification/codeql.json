@@ -1,0 +1,38 @@
+{
+  "completed": true,
+  "kind": "qperiapt.sdk_release_qualification",
+  "records": [
+    {
+      "bytes": 3652,
+      "path": "release/0.2.0/evidence/catalogs/internal-review.json",
+      "sha256": "72ec083af3699a2ef873407fca023bcedd6c5561017ee7f8a19b11f75f8f68f7"
+    },
+    {
+      "bytes": 80276,
+      "path": "release/0.2.0/evidence/internal-review/HOSTED_RUN.json",
+      "sha256": "5f5add957936f487c3871eb2e2d4f72dc3187b5dbb88276a07b8a1f350f74faf"
+    },
+    {
+      "bytes": 7114,
+      "path": "release/0.2.0/evidence/internal-review/ARTIFACTS.json",
+      "sha256": "22a235b370752451151ab0cba92a7711c763708292fbf9a34ffb2ee6191d6c85"
+    },
+    {
+      "bytes": 2986605,
+      "path": "release/0.2.0/evidence/internal-review/INVENTORY.json",
+      "sha256": "ff365a77b7cb634cddb7b64b17f216716c2dcbe4d1dbfc8b6b2639c1b7e97606"
+    },
+    {
+      "bytes": 2591,
+      "path": "release/0.2.0/evidence/internal-review/SOURCE_DELTA.json",
+      "sha256": "6937381c77c18c9528ded6e961866e52581ad25fcc4216257349b85e959f47cc"
+    }
+  ],
+  "role": "codeql",
+  "schema_version": 1,
+  "scope": "Full manual CodeQL run 44036831452 at the selected source: all eleven jobs complete, nine original analysis archives retained, 5,012 actual results reconciled. The PR differential scan is not substituted for the full census; finding disposition remains the separately pinned internal review.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

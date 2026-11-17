@@ -1,0 +1,78 @@
+{
+  "completed": true,
+  "kind": "qperiapt.sdk_release_qualification",
+  "records": [
+    {
+      "bytes": 404738,
+      "path": "release/0.2.0/evidence/ci/FINAL_HOSTED_RUN.json",
+      "sha256": "10c8584bacb60f1e42e513aa7aef9c3dd6024f30e7a6a98dd1415055a18b3854"
+    },
+    {
+      "bytes": 6594,
+      "path": "release/0.2.0/evidence/catalogs/ci-original-records.json",
+      "sha256": "98e45c625edfe5e091729319da310cdf75f319e9a454552c25a0f578398358b3"
+    },
+    {
+      "bytes": 3349,
+      "path": "release/0.2.0/evidence/catalogs/coordinated-freeze.json",
+      "sha256": "14dd16ac1b9a9567b0a2bf73bb777d5af915dc776062e037f773dd772002c2a3"
+    },
+    {
+      "bytes": 4894,
+      "path": "release/0.2.0/evidence/catalogs/rust-ci-equality.json",
+      "sha256": "81898cbb0d35d6f632a2515c8afb02d5332cec3f21bbc151b2396de01209c5e9"
+    },
+    {
+      "bytes": 36044,
+      "path": "release/0.2.0/evidence/catalogs/policy-maintenance.json",
+      "sha256": "066128a6df92ed230e8b9f6b99751231bf7d7af706ab3467e7a0131ab73eba72"
+    },
+    {
+      "bytes": 14409,
+      "path": "release/0.2.0/evidence/catalogs/continuity-foreign.json",
+      "sha256": "4a5cc2e528836ea139d4ca80aaa3e75c2dcc38997c3191658d16943ed21afff9"
+    },
+    {
+      "bytes": 15334,
+      "path": "release/0.2.0/evidence/ci/DUPLICATE_CI_QUEUE_CLEANUP.json",
+      "sha256": "9c334dcb30ee91b744928179bb9ae74b560672df948ed5031f9acf8fbea213a8"
+    },
+    {
+      "bytes": 22554,
+      "path": "release/0.2.0/evidence/rust/additional-ci/RUST_SDK_PACKAGE.json",
+      "sha256": "cb3432eec1ca03e5c7bda55b1c44b9384b0f6779eba6e466e32871acf56a6bc1"
+    },
+    {
+      "bytes": 1146,
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "bytes": 41047,
+      "path": "release/0.2.0/evidence/ci/SMALL_RECORDS_READBACK.json",
+      "sha256": "4ac02c3a2510a785058394219afa7743d59703677bc2a971c1c37cc3f8991d8e"
+    },
+    {
+      "bytes": 1378,
+      "path": "release/0.2.0/evidence/freeze/READBACK.json",
+      "sha256": "dd03c503a6df2aca508a773e2418620292e05fabb5b71378483d487b8b126f24"
+    },
+    {
+      "bytes": 3928,
+      "path": "release/0.2.0/evidence/MAIN_INTEGRATION.json",
+      "sha256": "e2bee30d68f0c85a8f324d16b2259cfb871fba0ed578af5eb505cbb4f1cb1d66"
+    },
+    {
+      "bytes": 5098,
+      "path": "release/0.2.0/evidence/ci/qualification-operator.py",
+      "sha256": "ffde05e73171523131e440c3f17ea50d54ccb3100b780902cc79964cfbc119bf"
+    }
+  ],
+  "role": "ci",
+  "schema_version": 1,
+  "scope": "Full selected CI run 44036376133 completed all 72 jobs successfully, including six foreign Debug/Release partitions and their required coverage join. GitHub records the PR head 8c77ea7153d5a1396f204bab2ad126a435f92644; actual selected producer/checkout records name its merge source af4618c8065d7133adfb86e1d116577089161ff0. These identities are not relabelled. The later main integration has the identical source tree and keeps its own commit. Native/source, packaging, installed consumers and original public records retain each lane's runtime/negative-control scope. Full CodeQL, Windows, independent and service runs are admitted by their separate selected qualifications.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    {
+      "bytes": 19080378,
+      "path": "release/0.2.0/assets/platform/q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-debug.zip",
+      "sha256": "c1182b564a861892dd4503b63dcc6ee521dfd7d91923bab65376226af640d8ac"
+    },
+    {
+      "bytes": 12322130,
+      "path": "release/0.2.0/assets/platform/q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-release.zip",
+      "sha256": "fc02d49dcde8be7f629ef88eb7c22b7d481b722d35e4cbb5c094e7fa80fe438c"
+    }
+  ],
+  "dependencies": [
+    "continuity-engine"
+  ],
+  "interfaces": [
+    "continuity_c"
+  ],
+  "kind": "qperiapt.continuity_distribution_identity",
+  "name": "q-periapt-continuity-kotlin",
+  "schema_version": 1,
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "version": "0.2.0"
+}

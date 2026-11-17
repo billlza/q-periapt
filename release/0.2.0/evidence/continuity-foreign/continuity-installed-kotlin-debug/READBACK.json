@@ -1,0 +1,256 @@
+{
+  "archive_members": 39386,
+  "artifact": {
+    "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14348687065/zip",
+    "created_at": "2026-11-17T16:41:34Z",
+    "digest": "sha256:66b88166deaf29dbb9e5a8bffd8bcc8b2607af6ba4daa9c3b6f0ded828e96eca",
+    "expired": false,
+    "expires_at": "2027-02-15T07:08:17Z",
+    "id": 14348687065,
+    "name": "continuity-installed-kotlin-debug",
+    "size_in_bytes": 136122792,
+    "updated_at": "2026-11-17T16:41:34Z",
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14348687065",
+    "workflow_run": {
+      "head_branch": "release/0.2-finalization",
+      "head_repository_id": 1279236693,
+      "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+      "id": 44036376133,
+      "repository_id": 1279236693
+    }
+  },
+  "checks": {
+    "consumer_files": 279,
+    "license_packages": 106,
+    "maven": {
+      "classes": 241,
+      "coordinate": "dev.qperiapt:q-periapt-continuity-kotlin:0.2.0",
+      "jar_sha256": "f24e8418015872d1d417246f8c53dd425e422bf85f51ef1204a0b3d5162ed532",
+      "jvm_version": 25
+    },
+    "native_exports": 158,
+    "native_library_sha256": "0484bdc8ddbec80ca347052263b2d63c13279140950a2c4bc1a627dcbe01a057",
+    "owner_tests": {
+      "debug": {
+        "suites": {
+          "AccountAuthorityTests": {
+            "report_sha256": "4e68b1431c0524d5fe09e8b56109d81553e27891f47bb353f7a7093329335b4e",
+            "tests": 4
+          },
+          "ConfigurationTests": {
+            "report_sha256": "42cbd5cc8da4ede62595e29526e56e03a7dafb5830015d1a3954a84fe0e753e0",
+            "tests": 4
+          },
+          "CredentialRenewalTests": {
+            "report_sha256": "99a35ddfbfe0ec1209862f091d5ba8752315d652efbdd403f5e893c0601c2bbb",
+            "tests": 6
+          },
+          "CredentialRequestTests": {
+            "report_sha256": "c376c1f34035087143365f681be6f66d6762c6791970b9a15bac1bbd34b3c533",
+            "tests": 3
+          },
+          "IndependentPolicyTests": {
+            "report_sha256": "d24bb66acf5a19399e5d6477876c2e7b1da92cad550a73fcfcc97b0e7da2f9dc",
+            "tests": 5
+          },
+          "OwnerTests": {
+            "report_sha256": "ed4ffb7e6bcdbac716c4a6b408f713c262bdd92c92f9791c7e1449e91ddead3d",
+            "tests": 20
+          },
+          "PeerConfigurationTests": {
+            "report_sha256": "beadfb878556946bde8533f1f41a95140f69640d784143c656bbd29be03ef3a9",
+            "tests": 2
+          },
+          "PendingWriteRecoveryTests": {
+            "report_sha256": "61cef5761e12b13028b325a2b52cd1eff7d9b7a50a03a3b3e9124eed6646deaa",
+            "tests": 3
+          },
+          "PolicyContinuationTests": {
+            "report_sha256": "868a7bb7ddb5791631e4258dbd9f6edfbe3ff6ae315b3a4b9d9d30d93d038694",
+            "tests": 6
+          },
+          "PolicyRenewalTests": {
+            "report_sha256": "6cea5395cd5f135fb539745548376506813d3702997f110ec69495287628b9f1",
+            "tests": 6
+          },
+          "PublicationTests": {
+            "report_sha256": "30becddfd5a539118bf313df6c164392bd8a58551c1a2b2631498a31052eb5db",
+            "tests": 4
+          },
+          "RetirementTests": {
+            "report_sha256": "03a5d3952abd3ed4cfaa58b481340a0edeeb1424e05803af0f76d28271606c99",
+            "tests": 4
+          },
+          "RootReplacementTests": {
+            "report_sha256": "5a28649a06ddb107142a5ad2dc656b96cce6bc8d0a5098707eafd803c05769e0",
+            "tests": 3
+          },
+          "RosterRefreshTests": {
+            "report_sha256": "e76c2e169e522143411b20afabb57e7fd9cbcb723b7f8963428521ded8376929",
+            "tests": 5
+          },
+          "RosterResolutionTests": {
+            "report_sha256": "32ca2bce20430772d49ef172022414f3fc444ae7179810859e4ab51b61527662",
+            "tests": 4
+          }
+        },
+        "tests": 79
+      },
+      "publication": {
+        "suites": {
+          "AccountAuthorityTests": {
+            "report_sha256": "9e7264072b16c9e7a80bf56e9a79268ac863b279f44bdd6f40eab8e0eb529bfd",
+            "tests": 4
+          },
+          "ConfigurationTests": {
+            "report_sha256": "d4e2df91664fecff1eab97a05fc6cdcf0ecc56b98c53996ec1a97327d918faf6",
+            "tests": 4
+          },
+          "CredentialRenewalTests": {
+            "report_sha256": "0b27375d973bc37fc787fe9066eb0973e467b11ce524e42ea430b4ac5070bf06",
+            "tests": 6
+          },
+          "CredentialRequestTests": {
+            "report_sha256": "ae76de2b1a269b511723ade42925a32fe6495a0ef6e5f8b1148f9c9f22c462f0",
+            "tests": 3
+          },
+          "IndependentPolicyTests": {
+            "report_sha256": "483799f8927f17e2f18427273a1e4f9be97cba1242bfa13feb4234e9ba5f93cd",
+            "tests": 5
+          },
+          "OwnerTests": {
+            "report_sha256": "dbc54cc73397b89d5359399c4ea337feb388070f362c84d362e7ad55e773dcb0",
+            "tests": 20
+          },
+          "PeerConfigurationTests": {
+            "report_sha256": "a6dc332997c055fefa25830f02cd468411af8b33da47d00867a309ba39b81a08",
+            "tests": 2
+          },
+          "PendingWriteRecoveryTests": {
+            "report_sha256": "16ef63352ccee802c782bf45bc2dcb02d92878d9e48a24639870553546255d2e",
+            "tests": 3
+          },
+          "PolicyContinuationTests": {
+            "report_sha256": "8dc508ba0b6ac10fddfc859c12c241e31bd91c24affd65528f77ca394fecf59c",
+            "tests": 6
+          },
+          "PolicyRenewalTests": {
+            "report_sha256": "fdcd05d2564a2b7187896d18655f20c916ec8f6985c05de6a0a48ba2bb7cac93",
+            "tests": 6
+          },
+          "PublicationTests": {
+            "report_sha256": "a4734d4bbbab765204bd2c1b4e25adddde4d832f5f619fc6780a42cadb39db55",
+            "tests": 4
+          },
+          "RetirementTests": {
+            "report_sha256": "62b9d24dd39d605dd3f7e5896d9bb1e56af6410f4f8f5dc1fa8e0dbdaffe5843",
+            "tests": 4
+          },
+          "RootReplacementTests": {
+            "report_sha256": "8e01db2a88f57d67a883ed01dee1ae5982c5128c43594775c297dc10e8e40d20",
+            "tests": 3
+          },
+          "RosterRefreshTests": {
+            "report_sha256": "e674bea19530e16a641b9c61ee20dbc31e8e1931e5b49d76a201eb5ab025ffa7",
+            "tests": 5
+          },
+          "RosterResolutionTests": {
+            "report_sha256": "15e58812ff8c4cf28bf4b05dfb8c70cf7c5fc1dc7fdb202c833d660b885626c5",
+            "tests": 4
+          }
+        },
+        "tests": 79
+      }
+    }
+  },
+  "completed": true,
+  "consumer": "kotlin",
+  "engine_archive_sha256": "fd51d1ef614b6143867e381cc7b7099081fd259d7ee5145083db0a4d9d9bc6c9",
+  "expanded_bytes": 362345937,
+  "fresh_inspection_commands": [
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "lipo",
+        "-archs",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-kotlin-debug/fresh-consumer/native/lib/libq_periapt_continuity_c_consumer.dylib"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "c1669e1d8edca98769c37d494b76442a1d6e5ffffd7b4da1fb63aef8ebaf6f01"
+    },
+    {
+      "argv": [
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/rustup/toolchains/1.98.1-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-nm",
+        "--defined-only",
+        "--extern-only",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-kotlin-debug/fresh-consumer/native/lib/libq_periapt_continuity_c_consumer.dylib"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "eba007032b750a17ab0788794a6f11f8d2c71de205339807b23fd6ab12577fb2"
+    }
+  ],
+  "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+  "original_records": [
+    {
+      "bytes": 11046447,
+      "path": "CONTINUITY_PACKAGE.json",
+      "sha256": "619ba8542f7d19b1b124b76bd01a43b7040b768fb2d678c7a3c9bc4869019e45"
+    },
+    {
+      "bytes": 3867880,
+      "path": "C_CONSUMER.json",
+      "sha256": "7990e98b26bcabfed9f70ba2576e3bb8bb471d2f55aa05318854dcac16d10ef6"
+    },
+    {
+      "bytes": 6583880,
+      "path": "KOTLIN_CONSUMER.json",
+      "sha256": "08414fd9b864021e4292fc08c42f89a205350e65db8e232fab9627e47f820b7d"
+    },
+    {
+      "bytes": 42536,
+      "path": "c-consumer-Cargo.lock",
+      "sha256": "ee6ecf5c8907bc8576063f59915444c7b7abf7d7ee1b07883898e4edbf910987"
+    },
+    {
+      "bytes": 42495,
+      "path": "consumer-Cargo.lock",
+      "sha256": "6387c8120f1c00a366f46625c953c855ff3413aabf7bd7e0301eb516e61c300f"
+    },
+    {
+      "bytes": 110,
+      "path": "location.json",
+      "sha256": "f9ab4f33d744b6cbc5ecde509d7834c8dabf195c01e680cedd41cbe788d47ba8"
+    },
+    {
+      "bytes": 216976,
+      "path": "sources-after.json",
+      "sha256": "a29d3883be1d634ef6cac898b3eb4a19bf753bb64dfc0a7aa05bf9a00b80ef8b"
+    },
+    {
+      "bytes": 216976,
+      "path": "sources-before.json",
+      "sha256": "a29d3883be1d634ef6cac898b3eb4a19bf753bb64dfc0a7aa05bf9a00b80ef8b"
+    }
+  ],
+  "original_report_sha256": "619ba8542f7d19b1b124b76bd01a43b7040b768fb2d678c7a3c9bc4869019e45",
+  "packages": [
+    {
+      "bytes": 19080378,
+      "file": "q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-debug.zip",
+      "sha256": "c1182b564a861892dd4503b63dcc6ee521dfd7d91923bab65376226af640d8ac"
+    }
+  ],
+  "producer_run": 44036376133,
+  "profile": "debug",
+  "profile_union_completed": false,
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "Fresh original-container digest/CRC and bounded member checks, unchanged source/report/engine bindings and actual package/license/interface readback for one explicitly selected hosted profile. Original reports remain completed=false partition receipts. Static Mach-O/Java inspection where applicable does not re-execute the original runtime. Complete six-profile union is a separate qualification; no physical-device or independent-engine execution is inferred.",
+  "sdk_report_sha256": "cb3432eec1ca03e5c7bda55b1c44b9384b0f6779eba6e466e32871acf56a6bc1",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

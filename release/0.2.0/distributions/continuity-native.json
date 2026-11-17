@@ -1,0 +1,23 @@
+{
+  "artifacts": [
+    {
+      "bytes": 4962274,
+      "path": "release/0.2.0/assets/platform/q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip",
+      "sha256": "2c316e88772b2e0813d3c93497f0bd627cb8f7eaf95a48011ed33749fa49f1ac"
+    }
+  ],
+  "dependencies": [
+    "continuity-engine"
+  ],
+  "interfaces": [
+    "continuity_c"
+  ],
+  "kind": "qperiapt.continuity_distribution_identity",
+  "name": "q-periapt-continuity-native",
+  "schema_version": 1,
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "version": "0.2.0"
+}

@@ -1,0 +1,240 @@
+{
+  "archive_members": 37058,
+  "artifact": {
+    "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14330974085/zip",
+    "created_at": "2026-11-17T13:20:12Z",
+    "digest": "sha256:288ef96aae9c3726be5b23611917db475c9dbbee04b723849faab1d88f73ee72",
+    "expired": false,
+    "expires_at": "2027-02-15T07:08:17Z",
+    "id": 14330974085,
+    "name": "continuity-installed-swift-debug",
+    "size_in_bytes": 163930607,
+    "updated_at": "2026-11-17T13:20:12Z",
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14330974085",
+    "workflow_run": {
+      "head_branch": "release/0.2-finalization",
+      "head_repository_id": 1279236693,
+      "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+      "id": 44036376133,
+      "repository_id": 1279236693
+    }
+  },
+  "checks": {
+    "apple_package_files": 895,
+    "consumer_files": 292,
+    "license_packages": 106,
+    "minimum_root_package_sha256": "b7a58102c23faa0c782155bc4bb5101b8c4817d48c670276b231c78627d4ee44",
+    "native_exports": 158,
+    "native_library_sha256": "ffef533801b5f9affc65b1a37ac397c67bb1da468e17ab8294f9621d92a3e847"
+  },
+  "completed": true,
+  "consumer": "swift",
+  "engine_archive_sha256": "fd51d1ef614b6143867e381cc7b7099081fd259d7ee5145083db0a4d9d9bc6c9",
+  "expanded_bytes": 230634791,
+  "fresh_inspection_commands": [
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "lipo",
+        "-archs",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-swift-debug/fresh-consumer/native/lib/libq_periapt_continuity_c_consumer.dylib"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "c1669e1d8edca98769c37d494b76442a1d6e5ffffd7b4da1fb63aef8ebaf6f01"
+    },
+    {
+      "argv": [
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/rustup/toolchains/1.98.1-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-nm",
+        "--defined-only",
+        "--extern-only",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-swift-debug/fresh-consumer/native/lib/libq_periapt_continuity_c_consumer.dylib"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "eba007032b750a17ab0788794a6f11f8d2c71de205339807b23fd6ab12577fb2"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "lipo",
+        "-archs",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-swift-debug/fresh-apple/QPeriaptContinuity/CQPCOwner.xcframework/ios-arm64/libq_periapt_continuity_c_consumer.a"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "c1669e1d8edca98769c37d494b76442a1d6e5ffffd7b4da1fb63aef8ebaf6f01"
+    },
+    {
+      "argv": [
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/rustup/toolchains/1.98.1-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-nm",
+        "--defined-only",
+        "--extern-only",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-swift-debug/fresh-apple/QPeriaptContinuity/CQPCOwner.xcframework/ios-arm64/libq_periapt_continuity_c_consumer.a"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "0fae0e03c4a5ee3e0514e0e9078ba33a657dd5117de1ef65596a675f02df473f",
+      "stdout_sha256": "1dfdb271e2b9356b1efee2ec5739e9c4ffec448eda6951669b9df88424ebc767"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "lipo",
+        "-archs",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-swift-debug/fresh-apple/QPeriaptContinuity/CQPCOwner.xcframework/ios-arm64_x86_64-simulator/libq_periapt_continuity_c_consumer.a"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "9cb483fd3739db2602d4c5bf672f4af954dc6dad82b36e8642b034af58f11c11"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "lipo",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-swift-debug/fresh-apple/QPeriaptContinuity/CQPCOwner.xcframework/ios-arm64_x86_64-simulator/libq_periapt_continuity_c_consumer.a",
+        "-thin",
+        "arm64",
+        "-output",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-swift-debug/aarch64-apple-ios-sim.a"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/rustup/toolchains/1.98.1-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-nm",
+        "--defined-only",
+        "--extern-only",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-swift-debug/aarch64-apple-ios-sim.a"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "92eaa8c3ef08f547934620d7d43b746695b838c3e16b91a70922931f134a1376",
+      "stdout_sha256": "5ffa6163afeaafa1955071591288ac0c9a676c8d038db6637c6ed0243a452e78"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "lipo",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-swift-debug/fresh-apple/QPeriaptContinuity/CQPCOwner.xcframework/ios-arm64_x86_64-simulator/libq_periapt_continuity_c_consumer.a",
+        "-thin",
+        "x86_64",
+        "-output",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-swift-debug/x86_64-apple-ios.a"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/rustup/toolchains/1.98.1-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-nm",
+        "--defined-only",
+        "--extern-only",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-swift-debug/x86_64-apple-ios.a"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "fbec8874dd3c34f8c526a423e806a7c1f53e39f59909a62d5bd3d1f2531ad214",
+      "stdout_sha256": "d65959a8f4c2f11a9679f353caa05cccae28a51e7513f51bd34607ce4dc4f134"
+    },
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "lipo",
+        "-archs",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-swift-debug/fresh-apple/QPeriaptContinuity/CQPCOwner.xcframework/macos-arm64/libq_periapt_continuity_c_consumer.a"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "c1669e1d8edca98769c37d494b76442a1d6e5ffffd7b4da1fb63aef8ebaf6f01"
+    },
+    {
+      "argv": [
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/rustup/toolchains/1.98.1-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-nm",
+        "--defined-only",
+        "--extern-only",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-swift-debug/fresh-apple/QPeriaptContinuity/CQPCOwner.xcframework/macos-arm64/libq_periapt_continuity_c_consumer.a"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "8440bd131779f01f83398d6bd9d542e1df9ae45899bea29f17390508e17a8326",
+      "stdout_sha256": "640e31ac1ccd2ac39952a999d59db2ddb9ffd278ee2b0e7ac6b1523ebb86541f"
+    }
+  ],
+  "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+  "original_records": [
+    {
+      "bytes": 190012,
+      "path": "CONTINUITY_APPLE_PACKAGE.json",
+      "sha256": "23e0d34860889d75f14b5544c67bfe4ba653c7125b24b26ab18af25e411d92e7"
+    },
+    {
+      "bytes": 9134904,
+      "path": "CONTINUITY_PACKAGE.json",
+      "sha256": "ea92dab72eecd71c5effaa6266ca9001ad168cb4d0ba2a430e97fb162b5594c8"
+    },
+    {
+      "bytes": 3867867,
+      "path": "C_CONSUMER.json",
+      "sha256": "03daf263ee0de7cd00db1c9831f093f700501b14241d3b270e9bc934390ac663"
+    },
+    {
+      "bytes": 4515850,
+      "path": "SWIFT_CONSUMER.json",
+      "sha256": "d429b30595180a5c36cae648d67057660be1b9fef94d90a6ecf3d662aa9f9217"
+    },
+    {
+      "bytes": 645407,
+      "path": "SWIFT_ROOT_MINIMUM.json",
+      "sha256": "a80f547e9920722b091f213d47fa3272a7f73ba37bd72e9b0c5941d7cf643d11"
+    },
+    {
+      "bytes": 42536,
+      "path": "c-consumer-Cargo.lock",
+      "sha256": "ee6ecf5c8907bc8576063f59915444c7b7abf7d7ee1b07883898e4edbf910987"
+    },
+    {
+      "bytes": 42495,
+      "path": "consumer-Cargo.lock",
+      "sha256": "6387c8120f1c00a366f46625c953c855ff3413aabf7bd7e0301eb516e61c300f"
+    },
+    {
+      "bytes": 110,
+      "path": "location.json",
+      "sha256": "761e75729b49ee8607653b9b4e35c2060295fff844547320a7dfbd65ad301da2"
+    },
+    {
+      "bytes": 216976,
+      "path": "sources-after.json",
+      "sha256": "a29d3883be1d634ef6cac898b3eb4a19bf753bb64dfc0a7aa05bf9a00b80ef8b"
+    },
+    {
+      "bytes": 216976,
+      "path": "sources-before.json",
+      "sha256": "a29d3883be1d634ef6cac898b3eb4a19bf753bb64dfc0a7aa05bf9a00b80ef8b"
+    }
+  ],
+  "original_report_sha256": "ea92dab72eecd71c5effaa6266ca9001ad168cb4d0ba2a430e97fb162b5594c8",
+  "packages": [
+    {
+      "bytes": 18887580,
+      "file": "q-periapt-continuity-swift-0.2.0-debug.zip",
+      "sha256": "114c0f0ef4654fb2f8a38de095a10e9b9e41f006df27902ba74af89b6dbd226a"
+    },
+    {
+      "bytes": 30421229,
+      "file": "QPeriaptContinuity-Apple-0.2.0.zip",
+      "sha256": "6ca756bbc932d7ff20d2c830c8c7ee2fb7f234a632df5c6d5767a0c3e860b026"
+    }
+  ],
+  "producer_run": 44036376133,
+  "profile": "debug",
+  "profile_union_completed": false,
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "Fresh original-container digest/CRC and bounded member checks, unchanged source/report/engine bindings and actual package/license/interface readback for one explicitly selected hosted profile. Original reports remain completed=false partition receipts. Static Mach-O/Java inspection where applicable does not re-execute the original runtime. Complete six-profile union is a separate qualification; no physical-device or independent-engine execution is inferred.",
+  "sdk_report_sha256": "cb3432eec1ca03e5c7bda55b1c44b9384b0f6779eba6e466e32871acf56a6bc1",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

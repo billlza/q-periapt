@@ -1,0 +1,1334 @@
+{
+  "assets": [
+    {
+      "file": {
+        "bytes": 52615224,
+        "path": "release/0.2.0/assets/platform/abi2-android-sdk-020-export-api35-16k-x86_64.zip",
+        "sha256": "43d9a34c1c9bc5a6d3ac231ea10079216fb4f72aa03bceaab4b3020684510ea6"
+      },
+      "name": "abi2-android-sdk-020-export-api35-16k-x86_64.zip"
+    },
+    {
+      "file": {
+        "bytes": 72572459,
+        "path": "release/0.2.0/assets/platform/abi2-android-sdk-020-runtime-api23-4k-x86_64.zip",
+        "sha256": "7b4bf8ec6d0952a50782d182e2f84fe11aa5893d064002b5f8bc2251cb62f59b"
+      },
+      "name": "abi2-android-sdk-020-runtime-api23-4k-x86_64.zip"
+    },
+    {
+      "file": {
+        "bytes": 52615278,
+        "path": "release/0.2.0/assets/platform/abi2-android-sdk-020-export-api23-4k-x86_64.zip",
+        "sha256": "c13d9ea5230fb458fc890d3be5a5fc6ef2c4f842ea67192358050a6663f8548c"
+      },
+      "name": "abi2-android-sdk-020-export-api23-4k-x86_64.zip"
+    },
+    {
+      "file": {
+        "bytes": 73825628,
+        "path": "release/0.2.0/assets/platform/abi2-android-sdk-020-runtime-api35-16k-x86_64.zip",
+        "sha256": "65c355cfa72aa5eb965777322ca434c4f5e3994bafc2b9bd3e66173ebd1b706f"
+      },
+      "name": "abi2-android-sdk-020-runtime-api35-16k-x86_64.zip"
+    },
+    {
+      "file": {
+        "bytes": 6480271,
+        "path": "release/0.2.0/assets/platform/q-periapt-android-sdk-0.2.0.tar.gz",
+        "sha256": "73453f34381ea6ddfe5c6532f98aa9c5848d630bb17a9d678f1d70038c75b31f"
+      },
+      "name": "q-periapt-android-sdk-0.2.0.tar.gz"
+    },
+    {
+      "file": {
+        "bytes": 16203246,
+        "path": "release/0.2.0/assets/platform/q-periapt-android-0.2.0.aar",
+        "sha256": "10b0e67c1bf8515fbf95ab9b738ae110168a14af8b874d06eb878687d372723c"
+      },
+      "name": "q-periapt-android-0.2.0.aar"
+    }
+  ],
+  "completed": true,
+  "kind": "qperiapt.android_sdk_release_component",
+  "package_bindings": {
+    "q-periapt-ffi": {
+      "artifacts": [
+        {
+          "bytes": 6480271,
+          "path": "release/0.2.0/assets/platform/q-periapt-android-sdk-0.2.0.tar.gz",
+          "sha256": "73453f34381ea6ddfe5c6532f98aa9c5848d630bb17a9d678f1d70038c75b31f"
+        },
+        {
+          "bytes": 16203246,
+          "path": "release/0.2.0/assets/platform/q-periapt-android-0.2.0.aar",
+          "sha256": "10b0e67c1bf8515fbf95ab9b738ae110168a14af8b874d06eb878687d372723c"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 6260,
+          "path": "release/0.2.0/evidence/sdk-android/READBACK.json",
+          "sha256": "2c412c48dc0285b5b7d36084e2417a5e9966fd48086f76aa123f9f7d826a56f1"
+        }
+      ]
+    }
+  },
+  "records": [
+    {
+      "bytes": 2815,
+      "path": "release/0.2.0/evidence/sdk-android/abi2-android-sdk-020-replay-api23-4k-x86_64/REPORT.json",
+      "sha256": "65d8c3316a04a8b8059761a8166fd389c109a74e37fc54fd13e412057f35273e"
+    },
+    {
+      "bytes": 1177,
+      "path": "release/0.2.0/evidence/sdk-android/abi2-android-sdk-020-replay-api23-4k-x86_64-14310441133.zip",
+      "sha256": "5563b172217d6117c08ea29fc4cedb0905d82200e9dc09129c2062ef333abeeb"
+    },
+    {
+      "bytes": 10366,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/android-sdk-runtime-stage-api23-4k/REPORT.json",
+      "sha256": "1bfa29d5a70a45a808ba1e48ad9fb53d1e87bae5169826606c05b0235866232f"
+    },
+    {
+      "bytes": 8620,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/adb-framework-readiness.log",
+      "sha256": "e504b80817b960014c86c0f22cef1664d5a28643b5ab78f6de7aab6670847aac"
+    },
+    {
+      "bytes": 8,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/adb-package-query-cleanup-1-attempt-1.txt",
+      "sha256": "14bca160a84ec9e8e5b25cb86ec8b0945f870b8781c8e94ef883b58d27b508db"
+    },
+    {
+      "bytes": 8,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/adb-package-query-cleanup-1-attempt-2.txt",
+      "sha256": "14bca160a84ec9e8e5b25cb86ec8b0945f870b8781c8e94ef883b58d27b508db"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/adb-package-query-cleanup-1-attempt-3.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/adb-package-query-cleanup-1-attempt-4.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/adb-package-query-cleanup-1-attempt-5.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/adb-package-query-preinstall-attempt-1.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/adb-package-query-preinstall-attempt-2.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/adb-package-query-preinstall-attempt-3.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 1160,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/adb-package-state-observation.log",
+      "sha256": "5d44dbbfffe78867703c59dc6ad838ac095104b6870cd7cde54c6e7cae8b2992"
+    },
+    {
+      "bytes": 351,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/build/build-jvm.json",
+      "sha256": "b603b3efd89dc12267d756b5e0b7a35deeda068119385fdf58bbd4ce2f6203b8"
+    },
+    {
+      "bytes": 349,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/build/compilation-inputs.txt",
+      "sha256": "444e8faa0882ba9c178d651f761785d26b231b0795c19d162a3f89e1b2352d1a"
+    },
+    {
+      "bytes": 3201,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/build/default-proguard.txt",
+      "sha256": "0c2037f6eca949ee82dad4ade741ad1e3fcb7a5d98e4b31d08be89b26cf0d7d0"
+    },
+    {
+      "bytes": 87290,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/build/dexdump.txt",
+      "sha256": "92ec5215ebb812417891b27ca7729b30bc671043a9dd6be9ba61b2f2295160ff"
+    },
+    {
+      "bytes": 2460,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/build/gradle-build.log",
+      "sha256": "07c288939534e558174cd51713652a5256e76b30571453da8c22533c2bab18dc"
+    },
+    {
+      "bytes": 527,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/build/gradle-version.txt",
+      "sha256": "a9daf2997ec6f938d980c60483a21cb1212b978c469405078b9ad1ea4150f703"
+    },
+    {
+      "bytes": 1805,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/build/manifest-dump.txt",
+      "sha256": "cd6166d5a4f72ca32a48c31333e87e17b0d914008f9a7630747cdeba26465c3a"
+    },
+    {
+      "bytes": 156,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/build/manifest-proguard.txt",
+      "sha256": "08f572b7a5a5989b360dcef2d4fde7a5c184f008e6c3f969cac8bdde2d2eab8c"
+    },
+    {
+      "bytes": 53088,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/build/mapping.txt",
+      "sha256": "f28c14df14c2d28d2d68fbe2f3c22c3655b9638be9ca659231b8fa2242c2c4c8"
+    },
+    {
+      "bytes": 4791,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/build/r8-configuration.txt",
+      "sha256": "1abe735fbcba7bafba2bc9e674398b95df3e35e1b4533579ee965fe4efd0e4b0"
+    },
+    {
+      "bytes": 7829,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/build/receipt.json",
+      "sha256": "df1ab5a1af2d1c094b958d37a818669fcf383a6593901f2165a32f8b00de87c7"
+    },
+    {
+      "bytes": 624,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/instrumentation.txt",
+      "sha256": "0d489516ad02d9464ee65cfe2ff03f8fcad343e1575e05656a631d19fe1c91e5"
+    },
+    {
+      "bytes": 10881,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/proof.json",
+      "sha256": "57dcb77c08f810b5e8b81e3e02fddaec6b557a2dc1e86fb366c1d8fb4a4d9da4"
+    },
+    {
+      "bytes": 5363,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/runtime/artifacts/q-periapt-android-0.2.0.MANIFEST.json",
+      "sha256": "0248b09fb72ab1a5de02c0356355bd3fd4532a25e299dc058f50f8da3e35a8a8"
+    },
+    {
+      "bytes": 364,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/runtime/evidence/adb-isolation-emulator-post-registration.json",
+      "sha256": "4e4e5627c7011bec7585688ace6392bbc5adc24d7ee15ff7cbeccaa70056c1cc"
+    },
+    {
+      "bytes": 355,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/runtime/evidence/adb-isolation-emulator-pre-exec.json",
+      "sha256": "861e2ffb9841a0a0b54316c4908fb0489c532649f9cfd038b3b09b937c5412c8"
+    },
+    {
+      "bytes": 358,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/runtime/evidence/adb-isolation-runtime-post-cleanup.json",
+      "sha256": "760aa1e9c6abc8f65119174a14e6a243aee5c92cf033406ceb1fe69a9832e9e2"
+    },
+    {
+      "bytes": 357,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/runtime/evidence/adb-isolation-runtime-pre-cleanup.json",
+      "sha256": "cddd723e186ceff29fd9d00e98d8cde440ced5e58a9a6f5af43d52de362c7256"
+    },
+    {
+      "bytes": 317,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/runtime/evidence/apksigner-verify.txt",
+      "sha256": "5416cd7a8ba73649a922db971086156a037483f1e1e16da0901f28760e68d422"
+    },
+    {
+      "bytes": 1020,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/runtime/evidence/emulator-routing.json",
+      "sha256": "0d13f70b978d785ffc66bd3a738944eb8e3b9b6c9b8d00b00d65fd04f90c673e"
+    },
+    {
+      "bytes": 152,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/runtime/evidence/logcat.txt",
+      "sha256": "822c9775638aca4a9aba9e7bd4da30d74f43a21b54682f8e71e210a772c86218"
+    },
+    {
+      "bytes": 233,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/runtime/evidence/qperiapt-android-device-result.json",
+      "sha256": "f9d405c4efed1fc487cb6d4ea6560fa6a5cad0568e33d5833400dcb6bb1372f9"
+    },
+    {
+      "bytes": 77,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/runtime/evidence/qperiapt-android-device-result.txt",
+      "sha256": "9a9650763b322b7c7431c9047512ba5cd88a46f79c0641726f7882f726690b08"
+    },
+    {
+      "bytes": 1492,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/agp-evidence/runtime/evidence/zipalign-verify.txt",
+      "sha256": "eb691634ff2226c11885a5bc3d6ed3d91dcffd6528d290e060d28f6421c09a01"
+    },
+    {
+      "bytes": 16174,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/emulator-state-before.txt",
+      "sha256": "cbd389e8977c9fb64014125e888f12080eda3f1082ee32b4f115ef704150daf1"
+    },
+    {
+      "bytes": 46286,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/emulator.log",
+      "sha256": "04ddf1c9962a2453cf341726355ecc3fcc76bb750030be7fba2f70dbe38ee841"
+    },
+    {
+      "bytes": 10881,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/a6a08d236fa8b354083b5caca49ba353/proof/qperiapt-android-device-proof.json",
+      "sha256": "57dcb77c08f810b5e8b81e3e02fddaec6b557a2dc1e86fb366c1d8fb4a4d9da4"
+    },
+    {
+      "bytes": 8622,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/adb-framework-readiness.log",
+      "sha256": "d22395f09e4e24244caa1ad2e40768dd18c83507b18be292be65e3bf567df0a5"
+    },
+    {
+      "bytes": 8,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/adb-package-query-cleanup-1-attempt-1.txt",
+      "sha256": "14bca160a84ec9e8e5b25cb86ec8b0945f870b8781c8e94ef883b58d27b508db"
+    },
+    {
+      "bytes": 8,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/adb-package-query-cleanup-1-attempt-2.txt",
+      "sha256": "14bca160a84ec9e8e5b25cb86ec8b0945f870b8781c8e94ef883b58d27b508db"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/adb-package-query-cleanup-1-attempt-3.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/adb-package-query-cleanup-1-attempt-4.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/adb-package-query-cleanup-1-attempt-5.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/adb-package-query-preinstall-attempt-1.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/adb-package-query-preinstall-attempt-2.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/adb-package-query-preinstall-attempt-3.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 1160,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/adb-package-state-observation.log",
+      "sha256": "5d44dbbfffe78867703c59dc6ad838ac095104b6870cd7cde54c6e7cae8b2992"
+    },
+    {
+      "bytes": 354,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/build/build-jvm.json",
+      "sha256": "44c67848551e4bb7f502ccc0f4f3a8f780c7b1bb6cae8c0ca2fef2abad0a1f33"
+    },
+    {
+      "bytes": 279,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/build/compilation-inputs.txt",
+      "sha256": "4bad8d5990e83d8509b91b37bcd4bf3ff2e9dd0f13184cb5f558cddfe382f9a1"
+    },
+    {
+      "bytes": 3201,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/build/default-proguard.txt",
+      "sha256": "0c2037f6eca949ee82dad4ade741ad1e3fcb7a5d98e4b31d08be89b26cf0d7d0"
+    },
+    {
+      "bytes": 17419,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/build/dexdump.txt",
+      "sha256": "ed439d42e2e0e246679e6e5dd3e5a5731af373868cf5070fd9a5f0b44a0b69ef"
+    },
+    {
+      "bytes": 2604,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/build/gradle-build.log",
+      "sha256": "39e2b4d534c2d5f61e0156970fa87d522e42e5ac91891dae2a52f7d2f85a6412"
+    },
+    {
+      "bytes": 527,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/build/gradle-version.txt",
+      "sha256": "a9daf2997ec6f938d980c60483a21cb1212b978c469405078b9ad1ea4150f703"
+    },
+    {
+      "bytes": 1805,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/build/manifest-dump.txt",
+      "sha256": "cd6166d5a4f72ca32a48c31333e87e17b0d914008f9a7630747cdeba26465c3a"
+    },
+    {
+      "bytes": 156,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/build/manifest-proguard.txt",
+      "sha256": "08f572b7a5a5989b360dcef2d4fde7a5c184f008e6c3f969cac8bdde2d2eab8c"
+    },
+    {
+      "bytes": 6349,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/build/mapping.txt",
+      "sha256": "ac093f3104888598a3a5b264b465675b7d334a6d593473eea5872e713a4ba496"
+    },
+    {
+      "bytes": 4803,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/build/r8-configuration.txt",
+      "sha256": "717734268e563c568a8d0b9f920e4c2a07d4355569f2157cb7138e86996b5592"
+    },
+    {
+      "bytes": 7264,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/build/receipt.json",
+      "sha256": "b4ee0d101b648e06fa8b456c206b766522ab5aeaa004b6fb8133e71b55900790"
+    },
+    {
+      "bytes": 508,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/instrumentation.txt",
+      "sha256": "123c901d2eb3b3549038efa8607514b666d95a52a3dfdd6186e56488f51357c9"
+    },
+    {
+      "bytes": 10786,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/proof.json",
+      "sha256": "8856ea71f04a3b1ee94c89d45981806a9238bd0edd6fd2ce94d17555bfafc83b"
+    },
+    {
+      "bytes": 5363,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/runtime/artifacts/q-periapt-android-0.2.0.MANIFEST.json",
+      "sha256": "0248b09fb72ab1a5de02c0356355bd3fd4532a25e299dc058f50f8da3e35a8a8"
+    },
+    {
+      "bytes": 364,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/runtime/evidence/adb-isolation-emulator-post-registration.json",
+      "sha256": "a7c09d4f4a3cf68f2b65c6a7922301b2baaff9c633d51c7877bb0aebad338ab7"
+    },
+    {
+      "bytes": 355,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/runtime/evidence/adb-isolation-emulator-pre-exec.json",
+      "sha256": "01463e8a3f03bf966f7192138dca58d01a13c2a08df7d878e75a167a390a93d0"
+    },
+    {
+      "bytes": 358,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/runtime/evidence/adb-isolation-runtime-post-cleanup.json",
+      "sha256": "cde5ae6f1838ba1563d5cdd8d60e06b8d84b42b8b6a9ae48bb5f1b1e0cc08790"
+    },
+    {
+      "bytes": 357,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/runtime/evidence/adb-isolation-runtime-pre-cleanup.json",
+      "sha256": "981f94a9043ab74d9303206f945a919deec9dbe637bc9ca241d40fef1f40e809"
+    },
+    {
+      "bytes": 317,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/runtime/evidence/apksigner-verify.txt",
+      "sha256": "1045be0a53f65a272266cc256c149462db55fb8c30ab0515275417e3418bfd16"
+    },
+    {
+      "bytes": 1020,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/runtime/evidence/emulator-routing.json",
+      "sha256": "4ab578b194542b37ce43f35133fb1a59ebb10c17f766fa03ae59948be3c6bbf1"
+    },
+    {
+      "bytes": 152,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/runtime/evidence/logcat.txt",
+      "sha256": "6a4aff2dae04958e56bbab3e03faedb69fdab7c0c916c8beba75be3ab736189b"
+    },
+    {
+      "bytes": 147,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/runtime/evidence/qperiapt-android-device-result.json",
+      "sha256": "c1f9dd95de608424f30733692a8a9776c55d05b1284a64dc98fcebccb9963ffb"
+    },
+    {
+      "bytes": 77,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/runtime/evidence/qperiapt-android-device-result.txt",
+      "sha256": "a1d736dc5ad1c203330c63bf44f4c5baf442dd95e8522f94e8aa977801c586d1"
+    },
+    {
+      "bytes": 1297,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/agp-evidence/runtime/evidence/zipalign-verify.txt",
+      "sha256": "e7cadac58f3f06646692b60fa1ca0640948936e46adf8619cba9d73adee6ec08"
+    },
+    {
+      "bytes": 15996,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/emulator-state-before.txt",
+      "sha256": "c010d1267d2e913563f35c4bf40562b75670efa54eb3a1d74b385f00a9be4ae5"
+    },
+    {
+      "bytes": 45479,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/emulator.log",
+      "sha256": "4bdb59f74644a82249b14313e8c56597d80f42d8df3067ef53e0d562d3e88a13"
+    },
+    {
+      "bytes": 10786,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/qperiapt-android-device-smoke-runs/dc29743b7599777d8cf13721b879e8db/proof/qperiapt-android-device-proof.json",
+      "sha256": "8856ea71f04a3b1ee94c89d45981806a9238bd0edd6fd2ce94d17555bfafc83b"
+    },
+    {
+      "bytes": 3825,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/INSTALLED_CONSUMERS.json",
+      "sha256": "490275b2a27d23ad134c86ee64fcd07b0686201bf79d354abce6191f31e82645"
+    },
+    {
+      "bytes": 59,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/consumer-location.json",
+      "sha256": "45542d62d3687f1d96cebe2c063f00123246f77d75ee4d046ca93960154a583a"
+    },
+    {
+      "bytes": 338,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/full-apk-manifest.json",
+      "sha256": "de3db0c2b4bff91231df410b6b4dd8e06ac82cfe53775e41629b6b97005ca9c8"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/full-apk-manifest.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1805,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/full-apk-manifest.stdout",
+      "sha256": "cd6166d5a4f72ca32a48c31333e87e17b0d914008f9a7630747cdeba26465c3a"
+    },
+    {
+      "bytes": 238,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/full-dump-classes-dex.json",
+      "sha256": "10c8adedb802d4510e2f51473f6e5d54e615b393a376693dd160e3c28002f0d9"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/full-dump-classes-dex.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 87394,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/full-dump-classes-dex.stdout",
+      "sha256": "a3c0e718f56084b0d3c149d9095c7806ab9a2eeae14e06bf094c0c1dfa580543"
+    },
+    {
+      "bytes": 393,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/full-jvm.json",
+      "sha256": "77fd1fedca00bceee9346ff450f933354d95311c9448232b66d888d22274b629"
+    },
+    {
+      "bytes": 1169,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/full-resolution.json",
+      "sha256": "e5f3b8d2154290640bd291084ad10b65703af0155f2bff14c52d3db1bbc63f49"
+    },
+    {
+      "bytes": 322,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/full-zipalign.json",
+      "sha256": "c9ef0321470cd20d76c6d9b6a0b9c39643cdf7ac99920409b03f0126ab076b1d"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/full-zipalign.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1521,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/full-zipalign.stdout",
+      "sha256": "0dcff71afd3836794caf84aa32b605546e1dcc7b651b2547bb1e9fcc035ce55a"
+    },
+    {
+      "bytes": 1046,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/full.json",
+      "sha256": "1083771bf0f6322a501ff97d11fd79120f3c2ff314c62e221e0605641b790b71"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/full.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2629,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/full.stdout",
+      "sha256": "1a6f059719f9c741baccbb76765cc42222961d260f3543bf275c01ff0dee4168"
+    },
+    {
+      "bytes": 188,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/gradle-version.json",
+      "sha256": "190a710b338cfbe93cfa09f987d688be59e451a9bee67b66856543df88b03abf"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/gradle-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 548,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/gradle-version.stdout",
+      "sha256": "71d1b3ff71789c07f7d10266740f82b30616f2b9ed192d8716f43ce21b7a7f78"
+    },
+    {
+      "bytes": 155,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/java-version.json",
+      "sha256": "7513e155b7e342e478873463a158b7a8398437137909321d2cf9787e4ab159ec"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/java-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 185,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/java-version.stdout",
+      "sha256": "4197203582ec25762fb8413546e9cadb93f162524195732630c57fe04570fd5f"
+    },
+    {
+      "bytes": 938,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/maven-publication.json",
+      "sha256": "02a60919784010279d6e8b7cdb3e8d57784d374dff539aa6f6da686bf7287d7b"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/maven-publication.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 585,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/maven-publication.stdout",
+      "sha256": "82d68561e6b1f8b2692be1b78b7d485ec0c438234159992e4ce7b9b71a08033d"
+    },
+    {
+      "bytes": 344,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/minimal-apk-manifest.json",
+      "sha256": "c1ee5fee43c521a04cdd4c869ae07d484d5bb7f35617fa30ca935a3968639fdb"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/minimal-apk-manifest.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1805,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/minimal-apk-manifest.stdout",
+      "sha256": "cd6166d5a4f72ca32a48c31333e87e17b0d914008f9a7630747cdeba26465c3a"
+    },
+    {
+      "bytes": 241,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/minimal-dump-classes-dex.json",
+      "sha256": "286cbfad6e1a9e6f72c1fe87bdbc0879181ad0f223ed954f0fea03db0bdf9bd1"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/minimal-dump-classes-dex.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 17529,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/minimal-dump-classes-dex.stdout",
+      "sha256": "8ab3d317cc21b11a00f0f808a09febe57293f3103c54ae5c620d36f9c8f694f0"
+    },
+    {
+      "bytes": 396,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/minimal-jvm.json",
+      "sha256": "b6c496d2232862c645bb2e66934dc413db3a62b8a43b15608374c7c42e2d367f"
+    },
+    {
+      "bytes": 1169,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/minimal-resolution.json",
+      "sha256": "e5f3b8d2154290640bd291084ad10b65703af0155f2bff14c52d3db1bbc63f49"
+    },
+    {
+      "bytes": 328,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/minimal-zipalign.json",
+      "sha256": "628c667ba2a2262c2fb82ea1cf5bbdb29ad5eb94b10896420bcb1ae2c5287e91"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/minimal-zipalign.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1332,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/minimal-zipalign.stdout",
+      "sha256": "e8fa7aee3a56c5d2b9eb8c4aa3f3c07655f7e90e8f3edfb4bfc107bb41e36ad3"
+    },
+    {
+      "bytes": 1061,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/minimal.json",
+      "sha256": "e701d4f37457c7eaadf1840d985173914903d00d5eeef6d8c6b22a91ce221dbb"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/minimal.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2798,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api23-4k-x86_64/sdk-android-package/minimal.stdout",
+      "sha256": "5c7d5e6bd355beb0a02cb9c2168f4c765f2c1705215ce13f6acf8a823457d15a"
+    },
+    {
+      "bytes": 2818,
+      "path": "release/0.2.0/evidence/sdk-android/abi2-android-sdk-020-replay-api35-16k-x86_64/REPORT.json",
+      "sha256": "2eb27290ac16dafae716c5e33b21dc4b6bcafd1ed3c53ad5d393c543be37b8d2"
+    },
+    {
+      "bytes": 1181,
+      "path": "release/0.2.0/evidence/sdk-android/abi2-android-sdk-020-replay-api35-16k-x86_64-14310112729.zip",
+      "sha256": "50f5e04c13fae1b70c5cf52bd5604635996c9372b6005c634c5507301ff69a3d"
+    },
+    {
+      "bytes": 10369,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/android-sdk-runtime-stage-api35-16k/REPORT.json",
+      "sha256": "8991f8cd4503685b12fcbc19eee275fd6299d9d9f1670a55321fdea6ad2ec65a"
+    },
+    {
+      "bytes": 6029,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/android-system-image-runtime/7zip-LICENSE.txt",
+      "sha256": "1790374e5352329cedb46ee3808930a88e9ca2f08b82b10fcf5cf605d2c301b1"
+    },
+    {
+      "bytes": 7209,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/android-system-image-runtime/REPORT.json",
+      "sha256": "f57b7f9ed159a1a8ce5b54e07baf7382f32e7e19dc35e1d2fb213692d03d3266"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/android-system-image-runtime/build.prop.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1667,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/android-system-image-runtime/ext.txt",
+      "sha256": "be5e348216d456bc716dddd9a3570c3662f865b8d72bbb8fe5f44828e39fc2b3"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/android-system-image-runtime/ext.txt.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 653,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/android-system-image-runtime/gpt.txt",
+      "sha256": "588170452a2a103a35edfad67402ec7158c0f0e9b77b3740974a4bb44013e783"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/android-system-image-runtime/gpt.txt.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/android-system-image-runtime/lmkd.elf.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1070,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/android-system-image-runtime/lp.txt",
+      "sha256": "2351f45af402f80f8ae0fc05128deba21f02e342543f4a3c5533da70b30c75f5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/android-system-image-runtime/lp.txt.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6527,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/adb-framework-readiness.log",
+      "sha256": "4f1bf683e23241e7db6233b3645b03ea30c09e6d431b68959842672f22595eb2"
+    },
+    {
+      "bytes": 8,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/adb-package-query-cleanup-1-attempt-1.txt",
+      "sha256": "14bca160a84ec9e8e5b25cb86ec8b0945f870b8781c8e94ef883b58d27b508db"
+    },
+    {
+      "bytes": 8,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/adb-package-query-cleanup-1-attempt-2.txt",
+      "sha256": "14bca160a84ec9e8e5b25cb86ec8b0945f870b8781c8e94ef883b58d27b508db"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/adb-package-query-cleanup-1-attempt-3.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/adb-package-query-cleanup-1-attempt-4.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/adb-package-query-cleanup-1-attempt-5.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/adb-package-query-preinstall-attempt-1.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/adb-package-query-preinstall-attempt-2.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/adb-package-query-preinstall-attempt-3.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 1160,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/adb-package-state-observation.log",
+      "sha256": "4ccc74142f1874a3c83953ff0d6edc83a0f86e0cd55abe5ff1587e7f1b2fb589"
+    },
+    {
+      "bytes": 354,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/build/build-jvm.json",
+      "sha256": "44c67848551e4bb7f502ccc0f4f3a8f780c7b1bb6cae8c0ca2fef2abad0a1f33"
+    },
+    {
+      "bytes": 279,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/build/compilation-inputs.txt",
+      "sha256": "4bad8d5990e83d8509b91b37bcd4bf3ff2e9dd0f13184cb5f558cddfe382f9a1"
+    },
+    {
+      "bytes": 3201,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/build/default-proguard.txt",
+      "sha256": "0c2037f6eca949ee82dad4ade741ad1e3fcb7a5d98e4b31d08be89b26cf0d7d0"
+    },
+    {
+      "bytes": 17419,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/build/dexdump.txt",
+      "sha256": "ed439d42e2e0e246679e6e5dd3e5a5731af373868cf5070fd9a5f0b44a0b69ef"
+    },
+    {
+      "bytes": 2604,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/build/gradle-build.log",
+      "sha256": "53746fd4b3176ab8f8f38c026086ef0e4265d88507122f4c154770c4bad13cca"
+    },
+    {
+      "bytes": 527,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/build/gradle-version.txt",
+      "sha256": "a9daf2997ec6f938d980c60483a21cb1212b978c469405078b9ad1ea4150f703"
+    },
+    {
+      "bytes": 1805,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/build/manifest-dump.txt",
+      "sha256": "cd6166d5a4f72ca32a48c31333e87e17b0d914008f9a7630747cdeba26465c3a"
+    },
+    {
+      "bytes": 156,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/build/manifest-proguard.txt",
+      "sha256": "08f572b7a5a5989b360dcef2d4fde7a5c184f008e6c3f969cac8bdde2d2eab8c"
+    },
+    {
+      "bytes": 6349,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/build/mapping.txt",
+      "sha256": "ac093f3104888598a3a5b264b465675b7d334a6d593473eea5872e713a4ba496"
+    },
+    {
+      "bytes": 4803,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/build/r8-configuration.txt",
+      "sha256": "717734268e563c568a8d0b9f920e4c2a07d4355569f2157cb7138e86996b5592"
+    },
+    {
+      "bytes": 7264,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/build/receipt.json",
+      "sha256": "287dbddac622c088255b13e915b534be75ce2a5935e0a83c35a40ada4b208de6"
+    },
+    {
+      "bytes": 504,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/instrumentation.txt",
+      "sha256": "e1ea150a00faa094d2b89c94ee57e133498cf09ea760fac463a5cfaf97729c19"
+    },
+    {
+      "bytes": 10777,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/proof.json",
+      "sha256": "73ab5e5044192dd8cd6381f3b8cf96028d538634bede4f310904e8e22547692a"
+    },
+    {
+      "bytes": 5363,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/runtime/artifacts/q-periapt-android-0.2.0.MANIFEST.json",
+      "sha256": "0248b09fb72ab1a5de02c0356355bd3fd4532a25e299dc058f50f8da3e35a8a8"
+    },
+    {
+      "bytes": 364,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/runtime/evidence/adb-isolation-emulator-post-registration.json",
+      "sha256": "573cb59d4d46ba93bca1a33fc8683dce7b7a9d8d0ceff030ac8e6ab1efefad4a"
+    },
+    {
+      "bytes": 355,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/runtime/evidence/adb-isolation-emulator-pre-exec.json",
+      "sha256": "8d8d0671a4ce7ec0fe4efab04c626c16406a7b757c3bf81a7e64633b13dc8523"
+    },
+    {
+      "bytes": 358,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/runtime/evidence/adb-isolation-runtime-post-cleanup.json",
+      "sha256": "b6a122b9bdb9d442de3045980ed13451ff3ff8926e9d8c0827e43901cbc20462"
+    },
+    {
+      "bytes": 357,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/runtime/evidence/adb-isolation-runtime-pre-cleanup.json",
+      "sha256": "4964956ee4dfa1c36e130ac2396605dadc5261d32f1e25fd274edd2050e9b043"
+    },
+    {
+      "bytes": 317,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/runtime/evidence/apksigner-verify.txt",
+      "sha256": "5a8a55fcf3fa815e38a7b9593e4d42f6c6e418654e6084370f44bacb69714619"
+    },
+    {
+      "bytes": 1020,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/runtime/evidence/emulator-routing.json",
+      "sha256": "ee162ab5430bd7b86b7c816f85b7f94bcd3c94f5c04c874b7d7fab09c4ca0035"
+    },
+    {
+      "bytes": 122,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/runtime/evidence/logcat.txt",
+      "sha256": "b993b399ff50f6cbb8acfdc56afd44da56265adfff58694e1f6d83ac442ee496"
+    },
+    {
+      "bytes": 147,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/runtime/evidence/qperiapt-android-device-result.json",
+      "sha256": "2d1c810b3c6b10d86b58e68c7e21c9fa84a8de334eaf5d4b3bae6011f591c50f"
+    },
+    {
+      "bytes": 77,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/runtime/evidence/qperiapt-android-device-result.txt",
+      "sha256": "9e80ef940b78930c6996cf1d4977b14e589389bd2f079ce345aadce4ca62d7bd"
+    },
+    {
+      "bytes": 1297,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/agp-evidence/runtime/evidence/zipalign-verify.txt",
+      "sha256": "18063b10729d2bf14e54dc511fa97f67b1dddc0fc6f9eab0471a7222cc752491"
+    },
+    {
+      "bytes": 314634,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/emulator-guest-logcat.txt",
+      "sha256": "f541fb3be993e5fd5053560c6f3f7db1306fb669bf8ea0c474ef3bdf75f21efe"
+    },
+    {
+      "bytes": 679,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/emulator-memory-runtime.txt",
+      "sha256": "2e0e1e5c48f973be56f6775384c87c6ebb8c159c694b87459f51108186d297ea"
+    },
+    {
+      "bytes": 47520,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/emulator-state-before.txt",
+      "sha256": "711938dde718e025b55a7e7ad980019dc636d1439f3141fbbf9d2f176e5102d5"
+    },
+    {
+      "bytes": 284250,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/emulator.log",
+      "sha256": "1bd9904c0af47b7886f96f7ca6adb8601a146f81beb4d80513db37fb082db1e7"
+    },
+    {
+      "bytes": 10777,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/34bc560d7dc3484fe4745f8ee4f44fe5/proof/qperiapt-android-device-proof.json",
+      "sha256": "73ab5e5044192dd8cd6381f3b8cf96028d538634bede4f310904e8e22547692a"
+    },
+    {
+      "bytes": 6525,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/adb-framework-readiness.log",
+      "sha256": "a8d6a428d37d886ec315e369fca60b27d61fa85fcf9c9464e6ab5609103fdae2"
+    },
+    {
+      "bytes": 8,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/adb-package-query-cleanup-1-attempt-1.txt",
+      "sha256": "14bca160a84ec9e8e5b25cb86ec8b0945f870b8781c8e94ef883b58d27b508db"
+    },
+    {
+      "bytes": 8,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/adb-package-query-cleanup-1-attempt-2.txt",
+      "sha256": "14bca160a84ec9e8e5b25cb86ec8b0945f870b8781c8e94ef883b58d27b508db"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/adb-package-query-cleanup-1-attempt-3.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/adb-package-query-cleanup-1-attempt-4.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/adb-package-query-cleanup-1-attempt-5.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/adb-package-query-preinstall-attempt-1.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/adb-package-query-preinstall-attempt-2.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/adb-package-query-preinstall-attempt-3.txt",
+      "sha256": "7925d3e9a9613a093e5eb4054b32aa39de910d2b03ba7e8046c3b4550b8de1e4"
+    },
+    {
+      "bytes": 1160,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/adb-package-state-observation.log",
+      "sha256": "33657f6e8f7220cebdb176b4cc13714faada38edfc7036880f2fefbf79e2827b"
+    },
+    {
+      "bytes": 351,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/build/build-jvm.json",
+      "sha256": "b603b3efd89dc12267d756b5e0b7a35deeda068119385fdf58bbd4ce2f6203b8"
+    },
+    {
+      "bytes": 349,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/build/compilation-inputs.txt",
+      "sha256": "444e8faa0882ba9c178d651f761785d26b231b0795c19d162a3f89e1b2352d1a"
+    },
+    {
+      "bytes": 3201,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/build/default-proguard.txt",
+      "sha256": "0c2037f6eca949ee82dad4ade741ad1e3fcb7a5d98e4b31d08be89b26cf0d7d0"
+    },
+    {
+      "bytes": 87290,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/build/dexdump.txt",
+      "sha256": "92ec5215ebb812417891b27ca7729b30bc671043a9dd6be9ba61b2f2295160ff"
+    },
+    {
+      "bytes": 2460,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/build/gradle-build.log",
+      "sha256": "0abc4ac2d0af1750d3edb6a8a656111789bdb556d87a7e9821d0a0270cfcfb2e"
+    },
+    {
+      "bytes": 527,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/build/gradle-version.txt",
+      "sha256": "a9daf2997ec6f938d980c60483a21cb1212b978c469405078b9ad1ea4150f703"
+    },
+    {
+      "bytes": 1805,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/build/manifest-dump.txt",
+      "sha256": "cd6166d5a4f72ca32a48c31333e87e17b0d914008f9a7630747cdeba26465c3a"
+    },
+    {
+      "bytes": 156,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/build/manifest-proguard.txt",
+      "sha256": "08f572b7a5a5989b360dcef2d4fde7a5c184f008e6c3f969cac8bdde2d2eab8c"
+    },
+    {
+      "bytes": 53088,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/build/mapping.txt",
+      "sha256": "f28c14df14c2d28d2d68fbe2f3c22c3655b9638be9ca659231b8fa2242c2c4c8"
+    },
+    {
+      "bytes": 4791,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/build/r8-configuration.txt",
+      "sha256": "1abe735fbcba7bafba2bc9e674398b95df3e35e1b4533579ee965fe4efd0e4b0"
+    },
+    {
+      "bytes": 7829,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/build/receipt.json",
+      "sha256": "77424d13a41fdd4049521a1d04eeb3dcb39be29aa04e38626522609d8510057d"
+    },
+    {
+      "bytes": 620,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/instrumentation.txt",
+      "sha256": "fdcd1ecd016ce01c60aed3dc4a6dc8da3b867b41bc6f5d09f6183d8c5e45d078"
+    },
+    {
+      "bytes": 10872,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/proof.json",
+      "sha256": "3b14eab4dfb51f6783f7de5c62845eb79594b20cce942ca4248c3e0075b7b173"
+    },
+    {
+      "bytes": 5363,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/runtime/artifacts/q-periapt-android-0.2.0.MANIFEST.json",
+      "sha256": "0248b09fb72ab1a5de02c0356355bd3fd4532a25e299dc058f50f8da3e35a8a8"
+    },
+    {
+      "bytes": 364,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/runtime/evidence/adb-isolation-emulator-post-registration.json",
+      "sha256": "2d1f1773be49f03a686791491998441d19cd22d1503c89d30f962b65f90a3491"
+    },
+    {
+      "bytes": 355,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/runtime/evidence/adb-isolation-emulator-pre-exec.json",
+      "sha256": "c6fa2a39dbc995a40e0ab0d0202d30db59b02f1dd6fb8da91e2be4484a07dcec"
+    },
+    {
+      "bytes": 358,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/runtime/evidence/adb-isolation-runtime-post-cleanup.json",
+      "sha256": "602fe4432c42db8b390e6c7acf3110ee95c925eca412bf2801d9460cc9e2db56"
+    },
+    {
+      "bytes": 357,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/runtime/evidence/adb-isolation-runtime-pre-cleanup.json",
+      "sha256": "55e15a0a8e6dd6e1c86fe8770f7ba31666e5b38041841aa84c7c054536024aa4"
+    },
+    {
+      "bytes": 317,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/runtime/evidence/apksigner-verify.txt",
+      "sha256": "9bc03efa2df7ab445b8a6f759122bf3b409a4fadc1a2b8026bda56334d378bf2"
+    },
+    {
+      "bytes": 1020,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/runtime/evidence/emulator-routing.json",
+      "sha256": "f2275b6722a6962ac79105759e3ab2cd38eba382f93b70f77e6c770baa99725e"
+    },
+    {
+      "bytes": 122,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/runtime/evidence/logcat.txt",
+      "sha256": "940a6afc22aaa6094faef419373e3d315894eb8368be7b673a715f4022e359b8"
+    },
+    {
+      "bytes": 233,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/runtime/evidence/qperiapt-android-device-result.json",
+      "sha256": "384cc1d8bca92bd797195616c778fb5d0e7959b9d9517ce21efe7f26553a0aa5"
+    },
+    {
+      "bytes": 77,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/runtime/evidence/qperiapt-android-device-result.txt",
+      "sha256": "080935f3b84d725aed1e1406c96359f5068879d74e30a355fd6a79d541c9d256"
+    },
+    {
+      "bytes": 1492,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/agp-evidence/runtime/evidence/zipalign-verify.txt",
+      "sha256": "a66026fc9d45582365df11b6b1508391fc1a22accc3a90273c768cfacf9fd9b6"
+    },
+    {
+      "bytes": 308475,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/emulator-guest-logcat.txt",
+      "sha256": "829d5ce3f61bd8f56684e9618af07ea02657c115e8e0cfc89fb272eade54a694"
+    },
+    {
+      "bytes": 679,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/emulator-memory-runtime.txt",
+      "sha256": "5cefa9d5fc50f9658a5c1ca122032eea1e6feca64d3a6ff16294ee2f74b4a5e2"
+    },
+    {
+      "bytes": 46814,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/emulator-state-before.txt",
+      "sha256": "a87e195766738b8c77015a23fed81b7757ecc2e4c88a26488d0558cb89e9b7c6"
+    },
+    {
+      "bytes": 282037,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/emulator.log",
+      "sha256": "56f91142457a33bc4da1b00323003562928b204cf4685590ad0afe0b251f0c1e"
+    },
+    {
+      "bytes": 10872,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/qperiapt-android-device-smoke-runs/82e78aebe92f925422af44b0d52bb7b4/proof/qperiapt-android-device-proof.json",
+      "sha256": "3b14eab4dfb51f6783f7de5c62845eb79594b20cce942ca4248c3e0075b7b173"
+    },
+    {
+      "bytes": 3825,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/INSTALLED_CONSUMERS.json",
+      "sha256": "26a96d985394118885aeff55ba4fb4f9496e5b9be98d1acfd68718045693f4f2"
+    },
+    {
+      "bytes": 59,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/consumer-location.json",
+      "sha256": "ac70bdbc2313668f6d09bb8878f935f5eb1fe5b0c6e4801a5396efc53eb46238"
+    },
+    {
+      "bytes": 338,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/full-apk-manifest.json",
+      "sha256": "fed53fd4cf005aecad0596d0e8bd7661ed02a85c88330b73768b1a2a3d255bc2"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/full-apk-manifest.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1805,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/full-apk-manifest.stdout",
+      "sha256": "cd6166d5a4f72ca32a48c31333e87e17b0d914008f9a7630747cdeba26465c3a"
+    },
+    {
+      "bytes": 238,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/full-dump-classes-dex.json",
+      "sha256": "10c8adedb802d4510e2f51473f6e5d54e615b393a376693dd160e3c28002f0d9"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/full-dump-classes-dex.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 87394,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/full-dump-classes-dex.stdout",
+      "sha256": "a3c0e718f56084b0d3c149d9095c7806ab9a2eeae14e06bf094c0c1dfa580543"
+    },
+    {
+      "bytes": 393,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/full-jvm.json",
+      "sha256": "77fd1fedca00bceee9346ff450f933354d95311c9448232b66d888d22274b629"
+    },
+    {
+      "bytes": 1169,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/full-resolution.json",
+      "sha256": "79e9aee81c7a61251cc4550e1e49f1c1f9c30f9f31866a7d606f1763d436b5f1"
+    },
+    {
+      "bytes": 322,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/full-zipalign.json",
+      "sha256": "00c4b1bc50edabb997d74786b3d6d5287558c1cc33aec3065e633d6a6b310cf8"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/full-zipalign.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1521,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/full-zipalign.stdout",
+      "sha256": "cf97ef8812b962466388b00e840ad36ec047ed3464bcf2d3635451995ee259ff"
+    },
+    {
+      "bytes": 1046,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/full.json",
+      "sha256": "db13b31072a1ca0ab2a275399e3e7363071b05e59e266d5d6d3739d719672f7e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/full.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2629,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/full.stdout",
+      "sha256": "2082ae1319f7fca6743ab45276ea945c95b94539e17d39c8e942f6134cfd3f51"
+    },
+    {
+      "bytes": 188,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/gradle-version.json",
+      "sha256": "190a710b338cfbe93cfa09f987d688be59e451a9bee67b66856543df88b03abf"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/gradle-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 548,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/gradle-version.stdout",
+      "sha256": "71d1b3ff71789c07f7d10266740f82b30616f2b9ed192d8716f43ce21b7a7f78"
+    },
+    {
+      "bytes": 155,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/java-version.json",
+      "sha256": "7513e155b7e342e478873463a158b7a8398437137909321d2cf9787e4ab159ec"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/java-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 185,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/java-version.stdout",
+      "sha256": "4197203582ec25762fb8413546e9cadb93f162524195732630c57fe04570fd5f"
+    },
+    {
+      "bytes": 938,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/maven-publication.json",
+      "sha256": "02a60919784010279d6e8b7cdb3e8d57784d374dff539aa6f6da686bf7287d7b"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/maven-publication.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 585,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/maven-publication.stdout",
+      "sha256": "82d68561e6b1f8b2692be1b78b7d485ec0c438234159992e4ce7b9b71a08033d"
+    },
+    {
+      "bytes": 344,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/minimal-apk-manifest.json",
+      "sha256": "fb829aff24563ed7b4a9ce2d5e8746b84a263a01d74ae8e601b70d2aa0341275"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/minimal-apk-manifest.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1805,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/minimal-apk-manifest.stdout",
+      "sha256": "cd6166d5a4f72ca32a48c31333e87e17b0d914008f9a7630747cdeba26465c3a"
+    },
+    {
+      "bytes": 241,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/minimal-dump-classes-dex.json",
+      "sha256": "286cbfad6e1a9e6f72c1fe87bdbc0879181ad0f223ed954f0fea03db0bdf9bd1"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/minimal-dump-classes-dex.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 17529,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/minimal-dump-classes-dex.stdout",
+      "sha256": "8ab3d317cc21b11a00f0f808a09febe57293f3103c54ae5c620d36f9c8f694f0"
+    },
+    {
+      "bytes": 396,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/minimal-jvm.json",
+      "sha256": "b6c496d2232862c645bb2e66934dc413db3a62b8a43b15608374c7c42e2d367f"
+    },
+    {
+      "bytes": 1169,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/minimal-resolution.json",
+      "sha256": "79e9aee81c7a61251cc4550e1e49f1c1f9c30f9f31866a7d606f1763d436b5f1"
+    },
+    {
+      "bytes": 328,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/minimal-zipalign.json",
+      "sha256": "a33901b87724c38273022693fee23289dbaa7e4a0dfa87836abe77aec4c7c697"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/minimal-zipalign.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1332,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/minimal-zipalign.stdout",
+      "sha256": "8fbbfedcdf52591594935a7ad0cd41e7240a9571ee83fe223ae93fd3793025d6"
+    },
+    {
+      "bytes": 1061,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/minimal.json",
+      "sha256": "32e4c35e931dfeadabe2683008d3de69bb9ccc8fb1083864531ef8767bf9fa4e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/minimal.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2798,
+      "path": "release/0.2.0/evidence/sdk-android/producer/abi2-android-sdk-020-runtime-api35-16k-x86_64/sdk-android-package/minimal.stdout",
+      "sha256": "b9f0912089ac2e2515db698d4fd8f54ec2ddea05c883b1d823933ea6e8269695"
+    },
+    {
+      "bytes": 5363,
+      "path": "release/0.2.0/evidence/sdk-android/AAR_MANIFEST.json",
+      "sha256": "0248b09fb72ab1a5de02c0356355bd3fd4532a25e299dc058f50f8da3e35a8a8"
+    },
+    {
+      "bytes": 4800,
+      "path": "release/0.2.0/evidence/sdk-android/ARTIFACTS.json",
+      "sha256": "5f2ed76fe4289a464ef18cd1d5deb660e578651768a8c9f16de15a8f8d123e8c"
+    },
+    {
+      "bytes": 6260,
+      "path": "release/0.2.0/evidence/sdk-android/READBACK.json",
+      "sha256": "2c412c48dc0285b5b7d36084e2417a5e9966fd48086f76aa123f9f7d826a56f1"
+    },
+    {
+      "bytes": 8455,
+      "path": "release/0.2.0/evidence/sdk-android/readback.py",
+      "sha256": "b77abb5ca758e66b8dd251ae049ca77b13a28887e0025da23e762da9db7b667c"
+    }
+  ],
+  "scope": "Fresh exact Maven/AAR/source/ELF inventories; original minified APK/build/runtime/instrumentation readers; all exported bytes matched to both completed independent Linux SDK-tool replay reports. Linux exact-tool execution remains those original hosted jobs, not a macOS replay. API23/4KiB and API35/16KiB x86_64 emulators, full and minimal SDK workloads; no new physical-device qualification.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

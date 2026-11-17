@@ -1,0 +1,99 @@
+{
+  "archive": {
+    "bytes": 4962274,
+    "path": "q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip",
+    "sha256": "2c316e88772b2e0813d3c93497f0bd627cb8f7eaf95a48011ed33749fa49f1ac"
+  },
+  "completed": true,
+  "engine_archive_sha256": "fd51d1ef614b6143867e381cc7b7099081fd259d7ee5145083db0a4d9d9bc6c9",
+  "fresh_binary_inspection_commands": [
+    {
+      "argv": [
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/rustup/toolchains/1.98.1-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-nm",
+        "-D",
+        "--defined-only",
+        "--format=posix",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-native-af4618c8-readback/fresh/q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu/lib/libq_periapt_continuity_c_consumer.so"
+      ],
+      "returncode": 0,
+      "stdout_sha256": "527e15b31d75b884fd958887153a5af1f9732456c695a296bd3389eda7a2bbe6",
+      "tool_sha256": "096bc03c2848d5d99d78e3e2c3671092c67cedafef9c8c46d9c1b54f63215d4a"
+    },
+    {
+      "argv": [
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/rustup/toolchains/1.98.1-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-readobj",
+        "--elf-output-style=GNU",
+        "--dynamic-table",
+        "--version-info",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-native-af4618c8-readback/fresh/q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu/lib/libq_periapt_continuity_c_consumer.so"
+      ],
+      "returncode": 0,
+      "stdout_sha256": "25eabdc7693caa024ba720c0a06db7573d1f145509bc9e1519a36ac6d6d54f73",
+      "tool_sha256": "5c388043b0ce7698cbce64e9ca94c2d397bad0018b7a104c4da5a0b8348053a4"
+    }
+  ],
+  "kind": "qperiapt.continuity_native_archive_readback",
+  "native": {
+    "bytes": 10850040,
+    "loader_search_path": null,
+    "needed": [
+      "ld-linux-x86-64.so.2",
+      "libc.so.6",
+      "libgcc_s.so.1"
+    ],
+    "owner_exports": 158,
+    "sha256": "5c27a67dbfd5bc080d571f12befaef17db511aa2355af3c4e14f765db66e60d3",
+    "soname": "libq_periapt_continuity_c_consumer.so",
+    "symbol_versions": [
+      "GCC_3.0",
+      "GCC_3.3",
+      "GCC_4.2.0",
+      "GLIBC_2.10",
+      "GLIBC_2.14",
+      "GLIBC_2.16",
+      "GLIBC_2.17",
+      "GLIBC_2.18",
+      "GLIBC_2.2.5",
+      "GLIBC_2.25",
+      "GLIBC_2.28",
+      "GLIBC_2.3",
+      "GLIBC_2.3.2",
+      "GLIBC_2.3.4",
+      "GLIBC_2.30",
+      "GLIBC_2.33",
+      "GLIBC_2.34",
+      "GLIBC_2.38",
+      "GLIBC_2.4",
+      "GLIBC_2.9"
+    ]
+  },
+  "package_files": 238,
+  "producer_artifact": {
+    "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14317360864/zip",
+    "created_at": "2026-11-17T09:45:11Z",
+    "digest": "sha256:7d3c101d6cfa39036c1e7fb21f12cd1d58019b48af646e362be7d6846a12db6f",
+    "expired": false,
+    "expires_at": "2027-02-15T07:08:17Z",
+    "id": 14317360864,
+    "name": "continuity-installed-rust",
+    "size_in_bytes": 98123501,
+    "updated_at": "2026-11-17T09:45:11Z",
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14317360864",
+    "workflow_run": {
+      "head_branch": "release/0.2-finalization",
+      "head_repository_id": 1279236693,
+      "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+      "id": 44036376133,
+      "repository_id": 1279236693
+    }
+  },
+  "producer_run": 44036376133,
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "Original complete Linux Debug/Release Rust/C installed qualification and relocated native owner probe are source/archive-bound. Fresh deterministic extraction, exact package/ABI/license inventory and actual cross-format LLVM inspection verify all 158 exports, ELF target, SONAME/dependencies and symbol-version requirements. The native library exactly matches the original executed Release C owner. Linux runtime execution is the original CI run; this macOS readback does not execute an ELF binary.",
+  "sdk_report_sha256": "cb3432eec1ca03e5c7bda55b1c44b9384b0f6779eba6e466e32871acf56a6bc1",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

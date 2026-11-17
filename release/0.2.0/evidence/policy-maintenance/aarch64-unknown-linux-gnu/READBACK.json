@@ -1,0 +1,39 @@
+{
+  "archive": {
+    "bytes": 1349320,
+    "path": "release/0.2.0/assets/platform/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu.tar.gz",
+    "sha256": "545cb4c3bca90045aaf4d5b8dcb724e8c4c00fc04b8dff8a29804a0c87e92afd"
+  },
+  "artifact": {
+    "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308698491/zip",
+    "created_at": "2026-11-17T07:41:45Z",
+    "digest": "sha256:6c2145cd1b311e142ed781a46541df814a62b3c02197ccaeefa70be19eae9468",
+    "expired": false,
+    "expires_at": "2027-02-15T07:08:17Z",
+    "id": 14308698491,
+    "name": "policy-maintenance-aarch64-unknown-linux-gnu",
+    "size_in_bytes": 1380598,
+    "updated_at": "2026-11-17T07:41:45Z",
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308698491",
+    "workflow_run": {
+      "head_branch": "release/0.2-finalization",
+      "head_repository_id": 1279236693,
+      "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+      "id": 44036376133,
+      "repository_id": 1279236693
+    }
+  },
+  "binary_sha256": "5f14808aad1cea92d7094bf4d2418d4579090fc2e8d6846570169e185cb50c11",
+  "completed": true,
+  "kind": "qperiapt.policy_maintenance_archive_readback",
+  "manifest_sha256": "78429bfcefe22e625b4af777c8a4d6d97329bac88dc6316452f9035e6252372c",
+  "producer_run": 44036376133,
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "Fresh deterministic executable-preserving extraction, exact source/package/license inventory and binary architecture checks. Original successful outside-checkout policy migration/refusal and publication-maintenance executions are bound to these exact bytes. No maintenance command is run against the operator's filesystem; original producer runtime scope is unchanged.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "target": "aarch64-unknown-linux-gnu"
+}

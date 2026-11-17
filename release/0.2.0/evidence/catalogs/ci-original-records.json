@@ -1,0 +1,178 @@
+{
+  "assets": [],
+  "completed": true,
+  "kind": "qperiapt.ci_original_records_component",
+  "package_bindings": {},
+  "records": [
+    {
+      "bytes": 38660,
+      "path": "release/0.2.0/evidence/ci/original/14311560078.zip",
+      "sha256": "6714f8a3b3f297f08d95e249f3d0b052360b381c9d635dd74b1051b5663a246f"
+    },
+    {
+      "bytes": 528144,
+      "path": "release/0.2.0/evidence/ci/original/14311420897.zip",
+      "sha256": "fb7194b0b17bab8d8b5e107d351365f23f3c59abf0818a325a5808c896edd2ad"
+    },
+    {
+      "bytes": 624104,
+      "path": "release/0.2.0/evidence/ci/original/14311295949.zip",
+      "sha256": "74dc6f32a42e5ad6c88b30df7704cb8538ac35a9390775e2fc2e4912b034214a"
+    },
+    {
+      "bytes": 33602,
+      "path": "release/0.2.0/evidence/ci/original/14311066257.zip",
+      "sha256": "edf830af519ca4a5ead9b4f687bedb971be65fd410072c5b77c9b0da24a80705"
+    },
+    {
+      "bytes": 1703,
+      "path": "release/0.2.0/evidence/ci/original/14310682271.zip",
+      "sha256": "967328a17cee600f4b384635f2dbbca10ef3907c93f002849cb121abf00e91a2"
+    },
+    {
+      "bytes": 1177,
+      "path": "release/0.2.0/evidence/ci/original/14310441133.zip",
+      "sha256": "5563b172217d6117c08ea29fc4cedb0905d82200e9dc09129c2062ef333abeeb"
+    },
+    {
+      "bytes": 70628,
+      "path": "release/0.2.0/evidence/ci/original/14310433330.zip",
+      "sha256": "593c421f37424797035c7b472732ec7290f408ea50721f744cf8683cbcad04d0"
+    },
+    {
+      "bytes": 510886,
+      "path": "release/0.2.0/evidence/ci/original/14310398053.zip",
+      "sha256": "30659e05cd9b326fb4b83e89bd8f4381f41c57bba2ad961498eaf30aa61d19cc"
+    },
+    {
+      "bytes": 38665,
+      "path": "release/0.2.0/evidence/ci/original/14310291214.zip",
+      "sha256": "6704f36a0231d357ebffa049cb8657f905940b683b80150608addecc9be2cf31"
+    },
+    {
+      "bytes": 1181,
+      "path": "release/0.2.0/evidence/ci/original/14310112729.zip",
+      "sha256": "50f5e04c13fae1b70c5cf52bd5604635996c9372b6005c634c5507301ff69a3d"
+    },
+    {
+      "bytes": 33603,
+      "path": "release/0.2.0/evidence/ci/original/14310030852.zip",
+      "sha256": "de621e025bcacc99f57d7c08a4d5e5ae735f3bc331c22796f93f47a4486e19a5"
+    },
+    {
+      "bytes": 70100,
+      "path": "release/0.2.0/evidence/ci/original/14309419545.zip",
+      "sha256": "6c9916fa0c0e900ff1a6c50a2b4901b149e43a6c8874babdf0a0122107c0f6ca"
+    },
+    {
+      "bytes": 39610,
+      "path": "release/0.2.0/evidence/ci/original/14309356985.zip",
+      "sha256": "b1dbe5eb31404e79fdb3cc5b5f3b423d6b6ef31634a02b544f9229518c17bf5c"
+    },
+    {
+      "bytes": 57828,
+      "path": "release/0.2.0/evidence/ci/original/14309085700.zip",
+      "sha256": "b5878ba83cc695a7ac4e44e3e5da9723645a78aab306dd40d39186bd64920423"
+    },
+    {
+      "bytes": 57839,
+      "path": "release/0.2.0/evidence/ci/original/14308910771.zip",
+      "sha256": "860a784b8ea2caa2ae3b063d4655628fb96dd69d476b8258566f34f9a0a456e0"
+    },
+    {
+      "bytes": 55632,
+      "path": "release/0.2.0/evidence/ci/original/14308772638.dockerbuild",
+      "sha256": "7853959c15cdafec669aeed9c77c3fc61086075e5a363b839702cecbf3b512d7"
+    },
+    {
+      "bytes": 5686,
+      "path": "release/0.2.0/evidence/ci/original/14308756668.zip",
+      "sha256": "be821d54d6d311b2d96c1e01ce7b087834b717b66115b12a9038db70a524b5f7"
+    },
+    {
+      "bytes": 103850,
+      "path": "release/0.2.0/evidence/ci/original/14308745866.zip",
+      "sha256": "a574b9cdee425cde3a0647ec90fa00b960c2ad49375c1d93e0e2f44604039b7b"
+    },
+    {
+      "bytes": 1380598,
+      "path": "release/0.2.0/evidence/ci/original/14308698491.zip",
+      "sha256": "6c2145cd1b311e142ed781a46541df814a62b3c02197ccaeefa70be19eae9468"
+    },
+    {
+      "bytes": 6943,
+      "path": "release/0.2.0/evidence/ci/original/14308573385.zip",
+      "sha256": "e8d305821e2a050f38d548973dd51e65aa1388dc53f0e23792cc9a3daba723d3"
+    },
+    {
+      "bytes": 1448263,
+      "path": "release/0.2.0/evidence/ci/original/14308489759.zip",
+      "sha256": "d989fac18b3d6fc7bd2f750199f6c576e8806ac66378eb161365c31057da48ad"
+    },
+    {
+      "bytes": 62186,
+      "path": "release/0.2.0/evidence/ci/original/14308444584.zip",
+      "sha256": "daf6402977b6b312e98556462564de0bf540114994fa4b6e6f3f97b9653d7491"
+    },
+    {
+      "bytes": 34047,
+      "path": "release/0.2.0/evidence/ci/original/14308358700.zip",
+      "sha256": "d1b2bb18ae7544d2fcc3f8ecc9803e3220871fe809128dbbc91f270b0369f7ab"
+    },
+    {
+      "bytes": 8623,
+      "path": "release/0.2.0/evidence/ci/original/14308274275.zip",
+      "sha256": "c021712e99e74c73bdc86b53de6c237e2f43dc61e8889edffaf912e2023b2630"
+    },
+    {
+      "bytes": 39601,
+      "path": "release/0.2.0/evidence/ci/original/14308179739.zip",
+      "sha256": "0b5ff4e452936016f0c29b813da109de5c43b68593c14282a736d9e2e1198400"
+    },
+    {
+      "bytes": 62308,
+      "path": "release/0.2.0/evidence/ci/original/14308154910.zip",
+      "sha256": "81ef7fe7da908033ed8155bc30ccf5e1de3579d3ec0c0871e9b431e3784e835d"
+    },
+    {
+      "bytes": 34059,
+      "path": "release/0.2.0/evidence/ci/original/14308083235.zip",
+      "sha256": "9c7951272bc288c6832de7ff747d431a95d4abfa712fe008fb9f0510d4f29564"
+    },
+    {
+      "bytes": 72924,
+      "path": "release/0.2.0/evidence/ci/original/14308061286.zip",
+      "sha256": "fcb43c7798f41e1159f296cb6d7e0a3586de22eec4bcf72007742ee52fbc4cfc"
+    },
+    {
+      "bytes": 36933,
+      "path": "release/0.2.0/evidence/ci/original/14307294283.zip",
+      "sha256": "2a3cb0755b4ee471c7096b0f743d877d6909f34faf6c1033553e2d1854e63413"
+    },
+    {
+      "bytes": 36979,
+      "path": "release/0.2.0/evidence/ci/original/14306979764.zip",
+      "sha256": "3e25d8665cfe9be4ec5b743b9871c16d0ba9261711299d3995d7cceb94264e2b"
+    },
+    {
+      "bytes": 24026,
+      "path": "release/0.2.0/evidence/ci/ARTIFACTS-small-original.json",
+      "sha256": "4df27b1f59d551649f5142494916e35cae03b0eb7745189a336ae999f58f1d8d"
+    },
+    {
+      "bytes": 41047,
+      "path": "release/0.2.0/evidence/ci/SMALL_RECORDS_READBACK.json",
+      "sha256": "4ac02c3a2510a785058394219afa7743d59703677bc2a971c1c37cc3f8991d8e"
+    },
+    {
+      "bytes": 3306,
+      "path": "release/0.2.0/evidence/ci/stage-original-records.py",
+      "sha256": "73acfcc232bfe612ecc8ea0bc6aba04863704d9f6ad4aef3af3047dca452dff7"
+    }
+  ],
+  "scope": "Capture and byte-integrity verification of these thirty original hosted artifacts only. Full workflow completion remains a separate selected-run decision.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

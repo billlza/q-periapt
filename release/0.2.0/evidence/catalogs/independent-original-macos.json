@@ -1,0 +1,77 @@
+{
+  "assets": [
+    {
+      "file": {
+        "bytes": 190412308,
+        "path": "release/0.2.0/assets/platform/INDEPENDENT_macos_source_part01.zip",
+        "sha256": "3c05e0c03b6edf3f42aa17bdaeaa1def2fdea61173857f5ea107369cc1dfbc5d"
+      },
+      "name": "INDEPENDENT_macos_source_part01.zip"
+    },
+    {
+      "file": {
+        "bytes": 157019728,
+        "path": "release/0.2.0/assets/platform/INDEPENDENT_macos_source_part02.zip",
+        "sha256": "eba628bc8e9f2ec895bcfae13bb5f900e91a25384441919fae82f65193b621c8"
+      },
+      "name": "INDEPENDENT_macos_source_part02.zip"
+    },
+    {
+      "file": {
+        "bytes": 2636,
+        "path": "release/0.2.0/assets/platform/INDEPENDENT_macos_source_INDEX.json",
+        "sha256": "128006d1d1d8cdabdcb6e35d92dd4b8b7496e7eb9a3ce2dc59eccf871f8a67ce"
+      },
+      "name": "INDEPENDENT_macos_source_INDEX.json"
+    },
+    {
+      "file": {
+        "bytes": 191275795,
+        "path": "release/0.2.0/assets/platform/INDEPENDENT_macos_installed_part01.zip",
+        "sha256": "b32242b709fbc46a7b028fc670edb622a6749b7c7c18b548d5e37ded611e3e41"
+      },
+      "name": "INDEPENDENT_macos_installed_part01.zip"
+    },
+    {
+      "file": {
+        "bytes": 104478076,
+        "path": "release/0.2.0/assets/platform/INDEPENDENT_macos_installed_part02.zip",
+        "sha256": "b590ca46de51f04b45d8abde8ff6eec869b43fe979e4b1e40f04967831638ef1"
+      },
+      "name": "INDEPENDENT_macos_installed_part02.zip"
+    },
+    {
+      "file": {
+        "bytes": 2657,
+        "path": "release/0.2.0/assets/platform/INDEPENDENT_macos_installed_INDEX.json",
+        "sha256": "7d89edba81367fd993181b02b39357b6d0ab4b4a043119be2865c6937e69a411"
+      },
+      "name": "INDEPENDENT_macos_installed_INDEX.json"
+    }
+  ],
+  "completed": true,
+  "kind": "qperiapt.original_independent_archive_transport",
+  "package_bindings": {},
+  "records": [
+    {
+      "bytes": 2636,
+      "path": "release/0.2.0/evidence/independent/original-index/INDEPENDENT_macos_source_INDEX.json",
+      "sha256": "128006d1d1d8cdabdcb6e35d92dd4b8b7496e7eb9a3ce2dc59eccf871f8a67ce"
+    },
+    {
+      "bytes": 2657,
+      "path": "release/0.2.0/evidence/independent/original-index/INDEPENDENT_macos_installed_INDEX.json",
+      "sha256": "7d89edba81367fd993181b02b39357b6d0ab4b4a043119be2865c6937e69a411"
+    },
+    {
+      "bytes": 4717,
+      "path": "release/0.2.0/evidence/independent/original-index/macos-packager.py",
+      "sha256": "b137fc5eef86a92bd8ec9b68f96e594190aaddfc9c2ac0e915f01542cdb09fe6"
+    }
+  ],
+  "scope": "Complete original macos source and installed execution captures, preserved byte-for-byte in bounded slice envelopes with fresh reconstruction verification. Original phase readback and cross-host completion retain separate decisions.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

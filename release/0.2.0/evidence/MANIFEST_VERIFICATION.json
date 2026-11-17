@@ -1,0 +1,578 @@
+{
+  "artifacts": 37,
+  "assessments": [
+    {
+      "completed": true,
+      "kind": "qperiapt.rust_sdk_release_assessment",
+      "package": "q-periapt-mlkem-native-sys",
+      "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+      "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.normal_ci_sdk_archive_equality",
+      "package": "q-periapt-mlkem-native-sys",
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.rust_sdk_release_assessment",
+      "package": "q-periapt-core",
+      "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+      "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.normal_ci_sdk_archive_equality",
+      "package": "q-periapt-core",
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.rust_sdk_release_assessment",
+      "package": "q-periapt-kem",
+      "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+      "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.normal_ci_sdk_archive_equality",
+      "package": "q-periapt-kem",
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.rust_sdk_release_assessment",
+      "package": "q-periapt-sig",
+      "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+      "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.normal_ci_sdk_archive_equality",
+      "package": "q-periapt-sig",
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.rust_sdk_release_assessment",
+      "package": "q-periapt-backends",
+      "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+      "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.normal_ci_sdk_archive_equality",
+      "package": "q-periapt-backends",
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.rust_sdk_release_assessment",
+      "package": "q-periapt-policy",
+      "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+      "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.normal_ci_sdk_archive_equality",
+      "package": "q-periapt-policy",
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.rust_sdk_release_assessment",
+      "package": "q-periapt-sdk",
+      "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+      "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.normal_ci_sdk_archive_equality",
+      "package": "q-periapt-sdk",
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.rust_sdk_release_assessment",
+      "package": "q-periapt-host-store",
+      "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+      "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.normal_ci_sdk_archive_equality",
+      "package": "q-periapt-host-store",
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.rust_sdk_release_assessment",
+      "package": "q-periapt-rustls",
+      "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+      "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.normal_ci_sdk_archive_equality",
+      "package": "q-periapt-rustls",
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.sdk020_apple_signing_readback",
+      "package": "q-periapt-ffi",
+      "path": "release/0.2.0/evidence/apple/readback/READBACK.json",
+      "sha256": "c491f38288ad7c882dce34b28caec4fbaee7d730f5e8c2202e83fd02b032a619"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.c_sdk_archive_readback",
+      "package": "q-periapt-ffi",
+      "path": "release/0.2.0/evidence/c-macos/READBACK.json",
+      "sha256": "741051393ab4e40d718e99a2b752e613373d89f7a115d5560c2471ec82d142db"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.jvm_sdk_archive_readback",
+      "package": "q-periapt-ffi",
+      "path": "release/0.2.0/evidence/jvm/READBACK.json",
+      "sha256": "b8b6df0447198649e35c9c6b9b1222f953731fb08230eea226973582f46f477d"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.rust_sdk_release_assessment",
+      "package": "q-periapt-ffi",
+      "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+      "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.normal_ci_sdk_archive_equality",
+      "package": "q-periapt-ffi",
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.android_sdk_archive_readback",
+      "package": "q-periapt-ffi",
+      "path": "release/0.2.0/evidence/sdk-android/READBACK.json",
+      "sha256": "2c412c48dc0285b5b7d36084e2417a5e9966fd48086f76aa123f9f7d826a56f1"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.native_sdk_portable_readback",
+      "package": "q-periapt-ffi",
+      "path": "release/0.2.0/evidence/sdk-native/aarch64-unknown-linux-gnu/READBACK.json",
+      "sha256": "2f83489cfe95e228c5cfc1938d0e5f6b91a3fdaafdaad50f7d5b2d9a70692a33"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.native_sdk_portable_readback",
+      "package": "q-periapt-ffi",
+      "path": "release/0.2.0/evidence/sdk-native/x86_64-pc-windows-msvc/READBACK.json",
+      "sha256": "a04a57ef44da9eb17118e3f60301fffb9063f5b2170cace4e98c9fd971afebde"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.native_sdk_portable_readback",
+      "package": "q-periapt-ffi",
+      "path": "release/0.2.0/evidence/sdk-native/x86_64-unknown-linux-gnu/READBACK.json",
+      "sha256": "1e0b193ce4fa05d193268dc0b2e14233d6cad8f8b96bd9242a3c999a1f175e23"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.rust_sdk_release_assessment",
+      "package": "q-periapt-wasm",
+      "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+      "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.normal_ci_sdk_archive_equality",
+      "package": "q-periapt-wasm",
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.policy_maintenance_archive_readback",
+      "package": "q-periapt-cli",
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/READBACK.json",
+      "sha256": "eee856c2d23dc75933667a99f9be86fb85061b8bc6a3436e36b6d1f49b2e991b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.policy_maintenance_archive_readback",
+      "package": "q-periapt-cli",
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/READBACK.json",
+      "sha256": "afc9318e30c1349ab4264a94408b067aaecb139c7e6ea6a79ad3ed8eb7d5c544"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.policy_maintenance_archive_readback",
+      "package": "q-periapt-cli",
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/READBACK.json",
+      "sha256": "a835e48ad5dcbeef1c72021b5df85055bd4e726d4e71e8979d0c4056bb8cfc40"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.rust_sdk_release_assessment",
+      "package": "q-periapt-cli",
+      "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+      "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.normal_ci_sdk_archive_equality",
+      "package": "q-periapt-cli",
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.android_engine_archive_binding",
+      "package": "continuity-engine",
+      "path": "release/0.2.0/evidence/continuity-android/readback/ENGINE_ARCHIVE_MATCH.json",
+      "sha256": "de7eb797938f18158c775739ebc8aa3bb9c695b85747bf950ed0def4b78d600d"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_profile_coverage",
+      "package": "continuity-engine",
+      "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+      "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-engine",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-debug/READBACK.json",
+      "sha256": "4507364ef0b49329ab3ca5f9c99a52531ab6f21d04ca1f202f113ca4c49c82ca"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-engine",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-release/READBACK.json",
+      "sha256": "695dfa6acb0cef94748d2b9406fe369311886d7ccea83ccd03a7e614d8b170cf"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-engine",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-debug/READBACK.json",
+      "sha256": "92b622c5856a2cf608d6b98607c9a9fc7ab00f5b55605d1009a714f4a78f3eef"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-engine",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-release/READBACK.json",
+      "sha256": "c29c13e4d04b32304b298502be3fc3fa8f87b8e799871ace9c051f4724b85d39"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-engine",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-debug/READBACK.json",
+      "sha256": "e19bf3f9ea8ab306521fa91640e6c6d28ab31e0b28832257ca174b4c10e95fba"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-engine",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-release/READBACK.json",
+      "sha256": "b60dd22afd43dd8758b40b9b9cf6b6a46fe5dedf1d6eb16e0885352a4224bdf1"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_candidate_package",
+      "package": "continuity-engine",
+      "path": "release/0.2.0/evidence/continuity-native/producer/CONTINUITY_PACKAGE.json",
+      "sha256": "36f2ff5f192227c3c8a34b0a48df57fc594469c49125741b41c6d17aa983b891"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_native_archive_readback",
+      "package": "continuity-engine",
+      "path": "release/0.2.0/evidence/continuity-native/readback/READBACK.json",
+      "sha256": "7edac1159a86744e85d883a6c328c0708f74d28e0854cfe085cfa65a34a9793b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.coordinated_freeze_readback",
+      "package": "continuity-engine",
+      "path": "release/0.2.0/evidence/freeze/READBACK.json",
+      "sha256": "dd03c503a6df2aca508a773e2418620292e05fabb5b71378483d487b8b126f24"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.windows_lifecycle_archive_readback",
+      "package": "continuity-engine",
+      "path": "release/0.2.0/evidence/windows/READBACK.json",
+      "sha256": "368fd156ac94ddedb781fddae4d84de13eb3e26a4b51480138ab2134190fc394"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_source_archive_readback",
+      "package": "continuity-engine",
+      "path": "release/0.2.0/evidence/windows/SOURCE_ARCHIVE_READBACK.json",
+      "sha256": "0461ad0a047217322a525e57922e5955eb9baa5346d770b232cccfdde33c0a6a"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.wasm_sdk_archive_readback",
+      "package": "browser-bridge",
+      "path": "release/0.2.0/evidence/wasm/READBACK.json",
+      "sha256": "f51c36e1ff338db2914d47685d034302a54dcde2f3e7b211af35c5de988b968c"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_service_installation",
+      "package": "reference-service",
+      "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_INSTALLATION.json",
+      "sha256": "cc626bd7cf38af96fac60c89bd761395fbe309cf0bdedca5029108f12ba725ca"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_service_package",
+      "package": "reference-service",
+      "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_PACKAGE.json",
+      "sha256": "987008ceefab86745612e78ec7e3a4c46714221d73ea655283731082d2c96c99"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.service_archive_readback",
+      "package": "reference-service",
+      "path": "release/0.2.0/evidence/services/readback/READBACK.json",
+      "sha256": "d97fcad1512d37642a109096094256c84274f2111a00d4592b1cffed43efa941"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.wasm_sdk_archive_readback",
+      "package": "browser-web",
+      "path": "release/0.2.0/evidence/wasm/READBACK.json",
+      "sha256": "f51c36e1ff338db2914d47685d034302a54dcde2f3e7b211af35c5de988b968c"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_profile_coverage",
+      "package": "continuity-native",
+      "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+      "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-native",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-debug/READBACK.json",
+      "sha256": "4507364ef0b49329ab3ca5f9c99a52531ab6f21d04ca1f202f113ca4c49c82ca"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-native",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-release/READBACK.json",
+      "sha256": "695dfa6acb0cef94748d2b9406fe369311886d7ccea83ccd03a7e614d8b170cf"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-native",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-debug/READBACK.json",
+      "sha256": "92b622c5856a2cf608d6b98607c9a9fc7ab00f5b55605d1009a714f4a78f3eef"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-native",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-release/READBACK.json",
+      "sha256": "c29c13e4d04b32304b298502be3fc3fa8f87b8e799871ace9c051f4724b85d39"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-native",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-debug/READBACK.json",
+      "sha256": "e19bf3f9ea8ab306521fa91640e6c6d28ab31e0b28832257ca174b4c10e95fba"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-native",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-release/READBACK.json",
+      "sha256": "b60dd22afd43dd8758b40b9b9cf6b6a46fe5dedf1d6eb16e0885352a4224bdf1"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_native_package",
+      "package": "continuity-native",
+      "path": "release/0.2.0/evidence/continuity-native/producer/CONTINUITY_NATIVE_PACKAGE.json",
+      "sha256": "9c0d26502c9b075b5fdd0f4fc103b9b1b84735dd88a0a1c2bce9f1b5d70014fe"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_native_archive_readback",
+      "package": "continuity-native",
+      "path": "release/0.2.0/evidence/continuity-native/readback/READBACK.json",
+      "sha256": "7edac1159a86744e85d883a6c328c0708f74d28e0854cfe085cfa65a34a9793b"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_profile_coverage",
+      "package": "continuity-swift",
+      "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+      "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-swift",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-debug/READBACK.json",
+      "sha256": "e19bf3f9ea8ab306521fa91640e6c6d28ab31e0b28832257ca174b4c10e95fba"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-swift",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-release/READBACK.json",
+      "sha256": "b60dd22afd43dd8758b40b9b9cf6b6a46fe5dedf1d6eb16e0885352a4224bdf1"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_profile_coverage",
+      "package": "continuity-kotlin",
+      "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+      "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-kotlin",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-debug/READBACK.json",
+      "sha256": "92b622c5856a2cf608d6b98607c9a9fc7ab00f5b55605d1009a714f4a78f3eef"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-kotlin",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-release/READBACK.json",
+      "sha256": "c29c13e4d04b32304b298502be3fc3fa8f87b8e799871ace9c051f4724b85d39"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_android_build",
+      "package": "continuity-android",
+      "path": "release/0.2.0/evidence/continuity-android/producer/BUILD.json",
+      "sha256": "65617dc6b69b8eeb1873821cbcf6925a4a20aa20877e4d64934ecb5aeeee4732"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_android_distribution",
+      "package": "continuity-android",
+      "path": "release/0.2.0/evidence/continuity-android/producer/capsule/DISTRIBUTION.json",
+      "sha256": "3457cf3aa867dadf492181ad3fa86337b850462ef9d8a7ae7a9d49e5721d2155"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.android_engine_archive_binding",
+      "package": "continuity-android",
+      "path": "release/0.2.0/evidence/continuity-android/readback/ENGINE_ARCHIVE_MATCH.json",
+      "sha256": "de7eb797938f18158c775739ebc8aa3bb9c695b85747bf950ed0def4b78d600d"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_android_capsule_readback",
+      "package": "continuity-android",
+      "path": "release/0.2.0/evidence/continuity-android/readback/READBACK.json",
+      "sha256": "00ff7ee8e24374c0da220ced5fc1b87d5615d05282c48016ff1dea5882114a11"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_profile_coverage",
+      "package": "continuity-android",
+      "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+      "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-android",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-debug/READBACK.json",
+      "sha256": "4507364ef0b49329ab3ca5f9c99a52531ab6f21d04ca1f202f113ca4c49c82ca"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+      "package": "continuity-android",
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-release/READBACK.json",
+      "sha256": "695dfa6acb0cef94748d2b9406fe369311886d7ccea83ccd03a7e614d8b170cf"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_service_installation",
+      "package": "continuity-services",
+      "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_INSTALLATION.json",
+      "sha256": "cc626bd7cf38af96fac60c89bd761395fbe309cf0bdedca5029108f12ba725ca"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.continuity_service_package",
+      "package": "continuity-services",
+      "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_PACKAGE.json",
+      "sha256": "987008ceefab86745612e78ec7e3a4c46714221d73ea655283731082d2c96c99"
+    },
+    {
+      "completed": true,
+      "kind": "qperiapt.service_archive_readback",
+      "package": "continuity-services",
+      "path": "release/0.2.0/evidence/services/readback/READBACK.json",
+      "sha256": "d97fcad1512d37642a109096094256c84274f2111a00d4592b1cffed43efa941"
+    }
+  ],
+  "compiled_descriptor_matched": true,
+  "completed": true,
+  "exports": {
+    "continuity_c": 158,
+    "sdk_c": 51
+  },
+  "files": 131,
+  "interfaces_sha256": "701641b4cfd8c2dfbf8a7e33d17fb85fb683dcd3ef650112fcce44bba7d9e3a8",
+  "kind": "qperiapt.continuity_release_manifest_verification",
+  "manifest_sha256": "d356332ccc5008c61b8c8bec6c9a3abb120f58623c66da63b47ad0848435f07c",
+  "missing_release_roles": [],
+  "package_graph_sha256": "f625f772a0ec557c59f7b962800d77ef90c1b09dc1a952f47f126204713c362a",
+  "packages": 21,
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "roles": [
+    "android",
+    "browser",
+    "engine",
+    "kotlin",
+    "native",
+    "sdk",
+    "service",
+    "swift"
+  ],
+  "schema_version": 1,
+  "scope": "Pinned manifest, normative-file, package-definition, artifact and export identity consistency. Assessment records retain their own scope; this check does not execute their validators, establish a clean checkout, authorize a release, or perform publication.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "spec_lock_schema_version": 2,
+  "spec_lock_sha256": "e409baccd1b1ec66dbe79f49f07d24653859e3a16e6ff13a18e3ac45bdf83d09",
+  "stage": "release"
+}

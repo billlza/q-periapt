@@ -1,0 +1,17 @@
+{
+  "archive": {
+    "bytes": 1956038,
+    "path": "release/0.2.0/assets/platform/q-periapt-continuity-0.2.0.crate",
+    "sha256": "fd51d1ef614b6143867e381cc7b7099081fd259d7ee5145083db0a4d9d9bc6c9"
+  },
+  "completed": true,
+  "kind": "qperiapt.continuity_source_archive_readback",
+  "producer_input_sha256": "6d79620284081b9d024a49b7da245c053bbc5d50c5e7b428898b93bd10a1c19b",
+  "schema_version": 1,
+  "scope": "Actual Cargo source archive compared with its original successful Cargo packlist, normalized SDK dependencies and every shipped source file at the selected checkout. Installed execution is the separately bound complete Windows profiles; the package remains publish=false and is not a registry upload.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "source_files": 769
+}

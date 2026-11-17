@@ -1,0 +1,88 @@
+{
+  "completed": true,
+  "kind": "qperiapt.sdk_release_qualification",
+  "records": [
+    {
+      "bytes": 71599,
+      "path": "release/0.2.0/evidence/independent/HOSTED_RUN.json",
+      "sha256": "4f8392a35a8165be1508d8e7c8ae81e010af98bfaa4e25f6085bacce64640d6a"
+    },
+    {
+      "bytes": 77960,
+      "path": "release/0.2.0/evidence/catalogs/independent-ubuntu-24.04.json",
+      "sha256": "e3da3db333b391020e6eb97224b24929780f8f530cb149d91a4d5ee8418fd95c"
+    },
+    {
+      "bytes": 29110,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/READBACK.json",
+      "sha256": "7a430ba1ee8597003e205ec2454f2e465913165e6c328d212ee00cf1cd16176a"
+    },
+    {
+      "bytes": 26131,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/READBACK.json",
+      "sha256": "4a925e4741720d67c1adb76c47b98fbbf7e16cd34f79b6117ee053b7d7dc83c7"
+    },
+    {
+      "bytes": 76680,
+      "path": "release/0.2.0/evidence/catalogs/independent-macos-15.json",
+      "sha256": "111f26c0535b2c00cae8d49c14c12848c5cba525c6df4736b9a93baeda7992d6"
+    },
+    {
+      "bytes": 29106,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/READBACK.json",
+      "sha256": "bf01e3991da6c44ab31db4919556fed946aa241b1ba53d17041aba2d44e63f44"
+    },
+    {
+      "bytes": 26127,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/READBACK.json",
+      "sha256": "2b248ab0a3d7648b8cbbf82fb67b431d6afef6f81af1de0311c2edfb1de993b0"
+    },
+    {
+      "bytes": 2908,
+      "path": "release/0.2.0/evidence/catalogs/independent-original-linux.json",
+      "sha256": "c63402fafc8a87d83cd51ec9c358d65e5d9aa21bfaadb71e879de9f4ceba0007"
+    },
+    {
+      "bytes": 2908,
+      "path": "release/0.2.0/evidence/catalogs/independent-original-macos.json",
+      "sha256": "7c63ab076a6f0cd6b49e425954b349dc24c4b3c7ada2b2905b5c239c60c25baa"
+    },
+    {
+      "bytes": 1360,
+      "path": "release/0.2.0/evidence/catalogs/independent-capture-notices.json",
+      "sha256": "0c9bcfb34fba119c2d004a6bc3976b4267ce93a90eb486ec39d03e0ad246eda2"
+    },
+    {
+      "bytes": 2640,
+      "path": "release/0.2.0/evidence/independent/original-index/INDEPENDENT_linux_source_INDEX.json",
+      "sha256": "52fd5e071ece98de33d78c24dc32b08bdc315cd94ed0a21c23f38c9fd6f7bcd3"
+    },
+    {
+      "bytes": 2661,
+      "path": "release/0.2.0/evidence/independent/original-index/INDEPENDENT_linux_installed_INDEX.json",
+      "sha256": "8e46762eadb1d4981b0ce48536080f21b7ce8eeed6fa60e4f9aa3db1503aac35"
+    },
+    {
+      "bytes": 2636,
+      "path": "release/0.2.0/evidence/independent/original-index/INDEPENDENT_macos_source_INDEX.json",
+      "sha256": "128006d1d1d8cdabdcb6e35d92dd4b8b7496e7eb9a3ce2dc59eccf871f8a67ce"
+    },
+    {
+      "bytes": 2657,
+      "path": "release/0.2.0/evidence/independent/original-index/INDEPENDENT_macos_installed_INDEX.json",
+      "sha256": "7d89edba81367fd993181b02b39357b6d0ab4b4a043119be2865c6937e69a411"
+    },
+    {
+      "bytes": 4047,
+      "path": "release/0.2.0/evidence/independent/qualification-operator.py",
+      "sha256": "253e5122edea9fb0831e83e793b9b6f5a61c5ba343d980f79d1549f6c2ac3ec2"
+    }
+  ],
+  "role": "independent",
+  "schema_version": 1,
+  "scope": "All four selected run 44036838778 jobs completed successfully: Linux x86_64 and macOS arm64, each with source and isolated installed Python-wheel execution. Fresh original-archive readers validate exact source/native/wheel/module identities, registration and policy/composition records. Complete original captures are retained in bounded public ZIP slices with exact reconstruction checks and dependency notices. Counterpart and directory CLI remain source-built original executables; this is not an independent implementation of every SDK layer, physical-device qualification or a computational security proof.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

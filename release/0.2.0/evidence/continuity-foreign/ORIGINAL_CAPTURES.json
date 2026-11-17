@@ -1,0 +1,265 @@
+{
+  "android_java_payload_bridge": {
+    "class_count": 131,
+    "class_inventory_sha256": "a6a598d8ad7b270202367856103b1fed3a0e841ee7b704700ae2e1c4c7ab6dd3",
+    "formal_aar": {
+      "bytes": 10843367,
+      "path": "release/0.2.0/assets/platform/q-periapt-continuity-android-0.2.0.aar",
+      "sha256": "6818d28a97b8db1810c16c0f981e380c627be4056b884d810161f6ce9642b5b4"
+    },
+    "formal_jar_sha256": "1f3af3325fe23cd22d2c3f03ced4a74cedb9891a99e956795e2fe95f09ebae39",
+    "host_profiles": {
+      "debug": {
+        "class_payload_byte_identical": true,
+        "jar_container_byte_identical": false,
+        "jar_sha256": "4d4c77e63975a693155e3693e6c76349e8df54c930af3a807b31529800126d0a"
+      },
+      "release": {
+        "class_payload_byte_identical": true,
+        "jar_container_byte_identical": false,
+        "jar_sha256": "4d4c77e63975a693155e3693e6c76349e8df54c930af3a807b31529800126d0a"
+      }
+    },
+    "native_target_equivalence_claimed": false,
+    "scope": "Every Java class byte in the formal arm64 AAR equals the classes actually executed by both selected macOS host-JNI profiles. The JAR containers retain their different original bytes. Android arm64 native static verification and macOS native runtime execution remain distinct; this bridge adds no ART or physical-device execution claim."
+  },
+  "apple_build_comparison": {
+    "archives": {
+      "debug": {
+        "bytes": 30421229,
+        "file": "QPeriaptContinuity-Apple-0.2.0.zip",
+        "sha256": "6ca756bbc932d7ff20d2c830c8c7ee2fb7f234a632df5c6d5767a0c3e860b026"
+      },
+      "release": {
+        "bytes": 30423594,
+        "file": "QPeriaptContinuity-Apple-0.2.0.zip",
+        "sha256": "1766fa787498ae074fb9eec6cefc5e246805ea8f6dd4766445f49132cad1c8f1"
+      }
+    },
+    "byte_identical": false,
+    "derived_contents_manifest_excluded_from_payload_comparison": true,
+    "different_payload_members": [
+      "CQPCOwner.xcframework/ios-arm64/libq_periapt_continuity_c_consumer.a",
+      "CQPCOwner.xcframework/ios-arm64_x86_64-simulator/libq_periapt_continuity_c_consumer.a",
+      "CQPCOwner.xcframework/macos-arm64/libq_periapt_continuity_c_consumer.a"
+    ],
+    "identical_other_payload_members": 891,
+    "scope": "Both independently produced Apple packages passed their original consumers and fresh archive/static readers. Only the Release partition archive is selected as the formal Apple companion. Other native build bytes remain in the Debug original capture; no cross-run binary reproducibility or cause for native byte differences is claimed.",
+    "source_and_reported_tool_identities_equal": true
+  },
+  "captures": [
+    {
+      "consumer": "swift",
+      "exact_reconstruction_verified": true,
+      "original": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14330974085/zip",
+        "created_at": "2026-11-17T13:20:12Z",
+        "digest": "sha256:288ef96aae9c3726be5b23611917db475c9dbbee04b723849faab1d88f73ee72",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14330974085,
+        "name": "continuity-installed-swift-debug",
+        "size_in_bytes": 163930607,
+        "updated_at": "2026-11-17T13:20:12Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14330974085",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "profile": "debug",
+      "transport": [
+        {
+          "original_file": {
+            "bytes": 163930607,
+            "path": "release/0.2.0/assets/platform/CONTINUITY_SWIFT_DEBUG_LIFECYCLE_EVIDENCE.zip",
+            "sha256": "288ef96aae9c3726be5b23611917db475c9dbbee04b723849faab1d88f73ee72"
+          }
+        }
+      ]
+    },
+    {
+      "consumer": "swift",
+      "exact_reconstruction_verified": true,
+      "original": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14329928695/zip",
+        "created_at": "2026-11-17T13:02:10Z",
+        "digest": "sha256:23f6a3a63f80d813b63ac3b5bd20d428b55d5e0ba0007e4700d6f14350bf9673",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14329928695,
+        "name": "continuity-installed-swift-release",
+        "size_in_bytes": 163032910,
+        "updated_at": "2026-11-17T13:02:10Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14329928695",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "profile": "release",
+      "transport": [
+        {
+          "original_file": {
+            "bytes": 163032910,
+            "path": "release/0.2.0/assets/platform/CONTINUITY_SWIFT_RELEASE_LIFECYCLE_EVIDENCE.zip",
+            "sha256": "23f6a3a63f80d813b63ac3b5bd20d428b55d5e0ba0007e4700d6f14350bf9673"
+          }
+        }
+      ]
+    },
+    {
+      "consumer": "kotlin",
+      "exact_reconstruction_verified": true,
+      "original": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14348687065/zip",
+        "created_at": "2026-11-17T16:41:34Z",
+        "digest": "sha256:66b88166deaf29dbb9e5a8bffd8bcc8b2607af6ba4daa9c3b6f0ded828e96eca",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14348687065,
+        "name": "continuity-installed-kotlin-debug",
+        "size_in_bytes": 136122792,
+        "updated_at": "2026-11-17T16:41:34Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14348687065",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "profile": "debug",
+      "transport": [
+        {
+          "original_file": {
+            "bytes": 136122792,
+            "path": "release/0.2.0/assets/platform/CONTINUITY_KOTLIN_DEBUG_LIFECYCLE_EVIDENCE.zip",
+            "sha256": "66b88166deaf29dbb9e5a8bffd8bcc8b2607af6ba4daa9c3b6f0ded828e96eca"
+          }
+        }
+      ]
+    },
+    {
+      "consumer": "kotlin",
+      "exact_reconstruction_verified": true,
+      "original": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14335379973/zip",
+        "created_at": "2026-11-17T14:27:56Z",
+        "digest": "sha256:e47194aec52e639d617fe31db01c629e61effaca3b3120bee8073404929fa3c3",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14335379973,
+        "name": "continuity-installed-kotlin-release",
+        "size_in_bytes": 135117541,
+        "updated_at": "2026-11-17T14:27:56Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14335379973",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "profile": "release",
+      "transport": [
+        {
+          "original_file": {
+            "bytes": 135117541,
+            "path": "release/0.2.0/assets/platform/CONTINUITY_KOTLIN_RELEASE_LIFECYCLE_EVIDENCE.zip",
+            "sha256": "e47194aec52e639d617fe31db01c629e61effaca3b3120bee8073404929fa3c3"
+          }
+        }
+      ]
+    },
+    {
+      "consumer": "android",
+      "exact_reconstruction_verified": true,
+      "original": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14339723062/zip",
+        "created_at": "2026-11-17T15:05:01Z",
+        "digest": "sha256:acdbd4421264a86d7ff6afc6c7ef884de6de3c678f9692ee64293d1afcca3b7e",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14339723062,
+        "name": "continuity-installed-android-debug",
+        "size_in_bytes": 82487125,
+        "updated_at": "2026-11-17T15:05:01Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14339723062",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "profile": "debug",
+      "transport": [
+        {
+          "original_file": {
+            "bytes": 82487125,
+            "path": "release/0.2.0/assets/platform/CONTINUITY_ANDROID_DEBUG_LIFECYCLE_EVIDENCE.zip",
+            "sha256": "acdbd4421264a86d7ff6afc6c7ef884de6de3c678f9692ee64293d1afcca3b7e"
+          }
+        }
+      ]
+    },
+    {
+      "consumer": "android",
+      "exact_reconstruction_verified": true,
+      "original": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14330149124/zip",
+        "created_at": "2026-11-17T13:08:43Z",
+        "digest": "sha256:27379fe56b47c1311ac5094a11729f128ebe914f7b79636125851eb3793fb9eb",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14330149124,
+        "name": "continuity-installed-android-release",
+        "size_in_bytes": 82624891,
+        "updated_at": "2026-11-17T13:08:43Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14330149124",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "profile": "release",
+      "transport": [
+        {
+          "original_file": {
+            "bytes": 82624891,
+            "path": "release/0.2.0/assets/platform/CONTINUITY_ANDROID_RELEASE_LIFECYCLE_EVIDENCE.zip",
+            "sha256": "27379fe56b47c1311ac5094a11729f128ebe914f7b79636125851eb3793fb9eb"
+          }
+        }
+      ]
+    }
+  ],
+  "completed": true,
+  "fresh_readback_archive": {
+    "bytes": 841087,
+    "path": "release/0.2.0/assets/platform/CONTINUITY_FOREIGN_READBACK.zip",
+    "sha256": "0195dc1bb9624a75557bf3bd36038eb5f72196f3675db42101c880bc431ffba7"
+  },
+  "kind": "qperiapt.foreign_original_capture_inventory",
+  "original_reports_remain_partition_receipts": true,
+  "schema_version": 1,
+  "scope": "Six complete original hosted captures are preserved. The main evidence archive retains their readback decisions and the byte-identical hosted profile join, without duplicating nested multi-megabyte execution reports already present in the complete public captures. Fresh static inspection stdout/stderr and the reader are retained separately. This packaging adds no runtime or physical-device claim.",
+  "selected_apple_profile": "release",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "archive": {
+    "bytes": 7172962,
+    "path": "q-periapt-jvm-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+    "sha256": "3b5e70272e48983fc76bb2b884200caff1a11feb395c947183687174d264e78d"
+  },
+  "artifact_id": 14308731680,
+  "completed": true,
+  "kind": "qperiapt.jvm_sdk_archive_readback",
+  "manifest_sha256": "389905793b57838b0a8161737df85581091ed61be8f4abf8e533a60bb1a16038",
+  "producer_run": 44036376133,
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "Fresh deterministic extraction, exact JVM/Maven/bytecode/source/license payload checks and byte identity with the independently reopened qualified Linux native SDK. The original CI producer executed 29 source tests, installed Kotlin/Java-module consumers and six refusal controls.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

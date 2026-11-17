@@ -1,0 +1,63 @@
+{
+  "completed": true,
+  "kind": "qperiapt.sdk_release_qualification",
+  "records": [
+    {
+      "bytes": 14409,
+      "path": "release/0.2.0/evidence/catalogs/continuity-foreign.json",
+      "sha256": "4a5cc2e528836ea139d4ca80aaa3e75c2dcc38997c3191658d16943ed21afff9"
+    },
+    {
+      "bytes": 2116,
+      "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+      "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+    },
+    {
+      "bytes": 2116,
+      "path": "release/0.2.0/evidence/continuity-foreign/FRESH_PROFILE_COVERAGE.json",
+      "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+    },
+    {
+      "bytes": 11414,
+      "path": "release/0.2.0/evidence/continuity-foreign/ORIGINAL_CAPTURES.json",
+      "sha256": "987eb2a63cf91b5e9a9a8923c11ef83378ecc14dddf7e7f324888a4e3b797255"
+    },
+    {
+      "bytes": 11591,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-debug/READBACK.json",
+      "sha256": "e19bf3f9ea8ab306521fa91640e6c6d28ab31e0b28832257ca174b4c10e95fba"
+    },
+    {
+      "bytes": 11623,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-release/READBACK.json",
+      "sha256": "b60dd22afd43dd8758b40b9b9cf6b6a46fe5dedf1d6eb16e0885352a4224bdf1"
+    },
+    {
+      "bytes": 10430,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-debug/READBACK.json",
+      "sha256": "92b622c5856a2cf608d6b98607c9a9fc7ab00f5b55605d1009a714f4a78f3eef"
+    },
+    {
+      "bytes": 10442,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-release/READBACK.json",
+      "sha256": "c29c13e4d04b32304b298502be3fc3fa8f87b8e799871ace9c051f4724b85d39"
+    },
+    {
+      "bytes": 3718,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-debug/READBACK.json",
+      "sha256": "4507364ef0b49329ab3ca5f9c99a52531ab6f21d04ca1f202f113ca4c49c82ca"
+    },
+    {
+      "bytes": 3722,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-release/READBACK.json",
+      "sha256": "695dfa6acb0cef94748d2b9406fe369311886d7ccea83ccd03a7e614d8b170cf"
+    }
+  ],
+  "role": "installed_coverage",
+  "schema_version": 1,
+  "scope": "All six selected Swift/Kotlin/Android JNI Debug/Release partitions retain their original completed=false reports and actual successful per-profile Rust/C/foreign executions. The owning verify_partitions reader freshly requires their exact same-source union; its result equals the hosted CI coverage record byte semantics. Exact Swift/Kotlin/native/Java packages, original runtime captures and fresh static readbacks remain pinned. Linux Rust/C complete execution, Windows lifecycle and independent Python qualification are separate records; no physical-device, all-JVM or new theorem claim follows from this union.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

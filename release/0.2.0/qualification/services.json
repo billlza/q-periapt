@@ -1,0 +1,33 @@
+{
+  "completed": true,
+  "kind": "qperiapt.sdk_release_qualification",
+  "records": [
+    {
+      "bytes": 27170,
+      "path": "release/0.2.0/evidence/catalogs/services.json",
+      "sha256": "d593a0c5ab244a6151bf40fc3291d9a1e30114aba767a5842fef5872f918be6a"
+    },
+    {
+      "bytes": 15093,
+      "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_PACKAGE.json",
+      "sha256": "987008ceefab86745612e78ec7e3a4c46714221d73ea655283731082d2c96c99"
+    },
+    {
+      "bytes": 1572,
+      "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_INSTALLATION.json",
+      "sha256": "cc626bd7cf38af96fac60c89bd761395fbe309cf0bdedca5029108f12ba725ca"
+    },
+    {
+      "bytes": 775,
+      "path": "release/0.2.0/evidence/services/readback/READBACK.json",
+      "sha256": "d97fcad1512d37642a109096094256c84274f2111a00d4592b1cffed43efa941"
+    }
+  ],
+  "role": "services",
+  "schema_version": 1,
+  "scope": "Selected source completed Linux service production and actual installed-process checks in run 44036835167; fresh 412-file/five-ELF/source/license/loader readback passed. Private reference Cargo identity remains 0.0.0/publish=false while its public executable distribution is 0.2.0; original service scope and protocol assumptions are unchanged.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

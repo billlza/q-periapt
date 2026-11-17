@@ -1,0 +1,96 @@
+{
+  "aar": {
+    "bytes": 10843367,
+    "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.aar",
+    "sha256": "6818d28a97b8db1810c16c0f981e380c627be4056b884d810161f6ce9642b5b4"
+  },
+  "art_executed": false,
+  "completed": true,
+  "distribution_receipt_sha256": "3457cf3aa867dadf492181ad3fa86337b850462ef9d8a7ae7a9d49e5721d2155",
+  "fresh_inspection_tools": {
+    "llvm-nm": {
+      "path": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/rustup/toolchains/1.98.1-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-nm",
+      "sha256": "096bc03c2848d5d99d78e3e2c3671092c67cedafef9c8c46d9c1b54f63215d4a"
+    },
+    "llvm-readelf": {
+      "path": "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/rustup/toolchains/1.98.1-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-readobj",
+      "sha256": "5c388043b0ce7698cbce64e9ca94c2d397bad0018b7a104c4da5a0b8348053a4"
+    }
+  },
+  "input_selection_sha256": "e8e3433af9afdd014c63634af353cd6897e1eff553e47ae84684c7b9fc785d40",
+  "java_compilation_reexecuted": false,
+  "kind": "qperiapt.continuity_android_capsule_readback",
+  "maven_archive": {
+    "bytes": 4124727,
+    "path": "q-periapt-continuity-android-0.2.0-maven.zip",
+    "sha256": "2813a053a1c7e0fa6e6dc19db7995ea2c632d4af2d47007728ff7e18e10f105d"
+  },
+  "native_compilation_reexecuted": false,
+  "physical_device_executed": false,
+  "producer_artifact": {
+    "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14321125439/zip",
+    "created_at": "2026-11-17T10:37:20Z",
+    "digest": "sha256:3a344b14e0f10b1f89179ec8d7ddb1294bac2a9756f63349ba11912a05423449",
+    "expired": false,
+    "expires_at": "2027-02-15T07:08:17Z",
+    "id": 14321125439,
+    "name": "continuity-android-aar-arm64",
+    "size_in_bytes": 10497199,
+    "updated_at": "2026-11-17T10:37:20Z",
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14321125439",
+    "workflow_run": {
+      "head_branch": "release/0.2-finalization",
+      "head_repository_id": 1279236693,
+      "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+      "id": 44036376133,
+      "repository_id": 1279236693
+    }
+  },
+  "producer_run": 44036376133,
+  "schema_version": 1,
+  "scope": "Original successful source-bound Rust/NDK r29/Java25 builds and independent producer capsule reopening are retained. Fresh source/selection/receipt/Maven/Java-class/license checks and real local LLVM inspection of the exact ARM64 ELF bytes reproduce the complete verification projection. The fresh LLVM inspectors are explicitly distinct from the original NDK. Deterministic Maven-capsule ZIP was freshly extracted and reread. Host JNI runtime partitions and any retained ART/device evidence keep separate identities and scopes.",
+  "sdk_report_sha256": "cb3432eec1ca03e5c7bda55b1c44b9384b0f6779eba6e466e32871acf56a6bc1",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "source_tree_sha256": "79a8cd5981c83f1f1ab7571ca35ae876201ea0466dfbccd793b9daee57872427",
+  "verification": {
+    "classes": {
+      "callbacks": {
+        "fail": "(Ljava/lang/String;I[BZ)V",
+        "invokeCommit": "(Ljava/lang/Object;[B[B[B)I",
+        "validCommit": "(Ljava/lang/Object;)Z"
+      },
+      "class_major": 55,
+      "classes": 131,
+      "native_methods": 23
+    },
+    "license_packages": 107,
+    "native": {
+      "c": {
+        "bytes": 7591664,
+        "compile_api": 23,
+        "exports": 158,
+        "ndk": "29.0.14206865",
+        "needed": [
+          "libc.so",
+          "libdl.so"
+        ],
+        "sha256": "1f3235cc6b3306e0978cbfbfbc1225c053520218f56141d217f340599db471c4"
+      },
+      "jni": {
+        "bytes": 77888,
+        "compile_api": 23,
+        "exports": 1,
+        "ndk": "29.0.14206865",
+        "needed": [
+          "libc.so",
+          "libdl.so",
+          "libq_periapt_continuity_c_consumer.so"
+        ],
+        "sha256": "a66d3f18d2fba081d79681e654f84270791f5feaa317841dc8abaaf1aeb6f4d5"
+      }
+    }
+  }
+}

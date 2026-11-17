@@ -1,0 +1,154 @@
+{
+  "assets": [],
+  "completed": true,
+  "kind": "qperiapt.sdk_archive_equality_component",
+  "package_bindings": {
+    "q-periapt-backends": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ]
+    },
+    "q-periapt-cli": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ]
+    },
+    "q-periapt-core": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ]
+    },
+    "q-periapt-ffi": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ]
+    },
+    "q-periapt-host-store": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ]
+    },
+    "q-periapt-kem": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ]
+    },
+    "q-periapt-mlkem-native-sys": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ]
+    },
+    "q-periapt-policy": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ]
+    },
+    "q-periapt-rustls": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ]
+    },
+    "q-periapt-sdk": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ]
+    },
+    "q-periapt-sig": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ]
+    },
+    "q-periapt-wasm": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ]
+    }
+  },
+  "records": [
+    {
+      "bytes": 22554,
+      "path": "release/0.2.0/evidence/rust/additional-ci/RUST_SDK_PACKAGE.json",
+      "sha256": "cb3432eec1ca03e5c7bda55b1c44b9384b0f6779eba6e466e32871acf56a6bc1"
+    },
+    {
+      "bytes": 695,
+      "path": "release/0.2.0/evidence/rust/additional-ci/ORIGINAL_EQUALITY.json",
+      "sha256": "fa0723a01d857fe3e9aa4f10d08b74fd72befaa11a7daac93a8cdb9cd90498b3"
+    },
+    {
+      "bytes": 1146,
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "bytes": 3396,
+      "path": "release/0.2.0/evidence/rust/additional-ci/readback.py",
+      "sha256": "13acffa4911ed8c38707bfd899fc4bef7fc349f803507749ab7992099a21a6e8"
+    }
+  ],
+  "scope": "Reopened all twelve actual archives in the full CI producer export and compared their complete bytes with the independently selected canonical registry cohort. Installed Continuity consumers retain their actual cb3432 report identity; no report or execution is relabelled as 2ddc710.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

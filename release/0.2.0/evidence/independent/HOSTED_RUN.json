@@ -1,0 +1,1720 @@
+{
+  "jobs": {
+    "jobs": [
+      {
+        "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/133881654100",
+        "completed_at": "2026-11-17T10:24:13Z",
+        "conclusion": "success",
+        "created_at": "2026-11-17T07:11:59Z",
+        "head_branch": "release/0.2-cohort-af4618c8",
+        "head_sha": "af4618c8065d7133adfb86e1d116577089161ff0",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/44036838778/job/133881654100",
+        "id": 133881654100,
+        "labels": [
+          "macos-15"
+        ],
+        "name": "bootstrap (macos-15, arm64, installed)",
+        "node_id": "CR_kwDOTD-aVc8AAAAfK_frVA",
+        "run_attempt": 1,
+        "run_id": 44036838778,
+        "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036838778",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions",
+        "runner_id": 1000097264,
+        "runner_name": "GitHub Actions 1000097264",
+        "started_at": "2026-11-17T09:07:34Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completed_at": "2026-11-17T09:07:38Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "started_at": "2026-11-17T09:07:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:12:46Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 2,
+            "started_at": "2026-11-17T09:07:38Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:12:46Z",
+            "conclusion": "success",
+            "name": "Verify source and native architecture",
+            "number": 3,
+            "started_at": "2026-11-17T09:12:46Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:12:59Z",
+            "conclusion": "success",
+            "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+            "number": 4,
+            "started_at": "2026-11-17T09:12:46Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:13:40Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "number": 5,
+            "started_at": "2026-11-17T09:12:59Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:13:47Z",
+            "conclusion": "success",
+            "name": "Validate explicit SDK artifact selection",
+            "number": 6,
+            "started_at": "2026-11-17T09:13:40Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:13:50Z",
+            "conclusion": "success",
+            "name": "Install the exact independent provider into an isolated directory",
+            "number": 7,
+            "started_at": "2026-11-17T09:13:47Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:16:23Z",
+            "conclusion": "success",
+            "name": "Build and lint the real Rust counterpart",
+            "number": 8,
+            "started_at": "2026-11-17T09:13:50Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:16:23Z",
+            "conclusion": "skipped",
+            "name": "Read the selected SDK package artifact",
+            "number": 9,
+            "started_at": "2026-11-17T09:16:23Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:16:23Z",
+            "conclusion": "skipped",
+            "name": "Build and lint the counterpart from installed crates",
+            "number": 10,
+            "started_at": "2026-11-17T09:16:23Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:16:23Z",
+            "conclusion": "skipped",
+            "name": "Verify explicit signed one-time publication selection",
+            "number": 11,
+            "started_at": "2026-11-17T09:16:23Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:16:23Z",
+            "conclusion": "skipped",
+            "name": "Verify independent historical directory leases and conflicts",
+            "number": 12,
+            "started_at": "2026-11-17T09:16:23Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:16:23Z",
+            "conclusion": "skipped",
+            "name": "Prepare native OpenSSL for the directory CLI on Linux",
+            "number": 13,
+            "started_at": "2026-11-17T09:16:23Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:22:01Z",
+            "conclusion": "success",
+            "name": "Produce public receipts through the real directory CLI",
+            "number": 14,
+            "started_at": "2026-11-17T09:16:23Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:22:01Z",
+            "conclusion": "skipped",
+            "name": "Cross-check actual directory CLI receipts independently",
+            "number": 15,
+            "started_at": "2026-11-17T09:22:01Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:30Z",
+            "conclusion": "success",
+            "name": "Build and lint the public bootstrap importer",
+            "number": 16,
+            "started_at": "2026-11-17T09:22:01Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "success",
+            "name": "Build the independent Python wheel with the pinned backend",
+            "number": 17,
+            "started_at": "2026-11-17T09:24:30Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Exchange real flights and exercise rejection and replay boundaries",
+            "number": 18,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify independent four-flight rekey computations and epoch traffic",
+            "number": 19,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Exercise independent storage cuts and persisted session recovery",
+            "number": 20,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify durable rekey recovery, format upgrade and capacity admission",
+            "number": 21,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify independent control-only progress and original-target retries",
+            "number": 22,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify explicit outcome accounting, report bounds and old-chain disclosure",
+            "number": 23,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify independent required-witness recovery and output admission",
+            "number": 24,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify independent retained-peer renewal and revocation",
+            "number": 25,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify complete independent account authority transitions",
+            "number": 26,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify independent policy approvals against original native installations",
+            "number": 27,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify original local policy continuation and full-store recovery",
+            "number": 28,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify original witnessed policy continuation and output admission",
+            "number": 29,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify original policy credential roster composition and peer removal",
+            "number": 30,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify original common-account sessions and witness renewal",
+            "number": 31,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify independent joint local credential renewal and historical cleanup",
+            "number": 32,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify independent local-policy renewal, expiry and capacity admission",
+            "number": 33,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify independently approved exact pending-write recovery",
+            "number": 34,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify original roster maintenance and bilateral renewal",
+            "number": 35,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify portable public inputs and original-state reconstruction",
+            "number": 36,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:24:36Z",
+            "conclusion": "skipped",
+            "name": "Verify protected registration and original child lifecycle",
+            "number": 37,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:22:58Z",
+            "conclusion": "success",
+            "name": "Verify registration from the installed Python wheel",
+            "number": 38,
+            "started_at": "2026-11-17T09:24:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:22:58Z",
+            "conclusion": "skipped",
+            "name": "Report bounded publication and lease verification failures",
+            "number": 39,
+            "started_at": "2026-11-17T10:22:58Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:24:08Z",
+            "conclusion": "success",
+            "name": "Preserve the executable, public transcripts and failed phases",
+            "number": 40,
+            "started_at": "2026-11-17T10:22:58Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:24:08Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "number": 79,
+            "started_at": "2026-11-17T10:24:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:24:08Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 80,
+            "started_at": "2026-11-17T10:24:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:24:11Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 81,
+            "started_at": "2026-11-17T10:24:08Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/133881654100",
+        "workflow_name": "Independent Continuity interoperability"
+      },
+      {
+        "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/133881654362",
+        "completed_at": "2026-11-17T08:01:45Z",
+        "conclusion": "success",
+        "created_at": "2026-11-17T07:11:59Z",
+        "head_branch": "release/0.2-cohort-af4618c8",
+        "head_sha": "af4618c8065d7133adfb86e1d116577089161ff0",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/44036838778/job/133881654362",
+        "id": 133881654362,
+        "labels": [
+          "ubuntu-24.04"
+        ],
+        "name": "bootstrap (ubuntu-24.04, x86_64, installed)",
+        "node_id": "CR_kwDOTD-aVc8AAAAfK_fsWg",
+        "run_attempt": 1,
+        "run_id": 44036838778,
+        "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036838778",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions",
+        "runner_id": 1000097119,
+        "runner_name": "GitHub Actions 1000097119",
+        "started_at": "2026-11-17T07:12:09Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completed_at": "2026-11-17T07:12:12Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "started_at": "2026-11-17T07:12:10Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:15:01Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 2,
+            "started_at": "2026-11-17T07:12:12Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:15:01Z",
+            "conclusion": "success",
+            "name": "Verify source and native architecture",
+            "number": 3,
+            "started_at": "2026-11-17T07:15:01Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:15:16Z",
+            "conclusion": "success",
+            "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+            "number": 4,
+            "started_at": "2026-11-17T07:15:01Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:15:23Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "number": 5,
+            "started_at": "2026-11-17T07:15:16Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:15:28Z",
+            "conclusion": "success",
+            "name": "Validate explicit SDK artifact selection",
+            "number": 6,
+            "started_at": "2026-11-17T07:15:23Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:15:29Z",
+            "conclusion": "success",
+            "name": "Install the exact independent provider into an isolated directory",
+            "number": 7,
+            "started_at": "2026-11-17T07:15:28Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:16:49Z",
+            "conclusion": "success",
+            "name": "Build and lint the real Rust counterpart",
+            "number": 8,
+            "started_at": "2026-11-17T07:15:29Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:16:49Z",
+            "conclusion": "skipped",
+            "name": "Read the selected SDK package artifact",
+            "number": 9,
+            "started_at": "2026-11-17T07:16:49Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:16:49Z",
+            "conclusion": "skipped",
+            "name": "Build and lint the counterpart from installed crates",
+            "number": 10,
+            "started_at": "2026-11-17T07:16:49Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:16:49Z",
+            "conclusion": "skipped",
+            "name": "Verify explicit signed one-time publication selection",
+            "number": 11,
+            "started_at": "2026-11-17T07:16:49Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:16:49Z",
+            "conclusion": "skipped",
+            "name": "Verify independent historical directory leases and conflicts",
+            "number": 12,
+            "started_at": "2026-11-17T07:16:49Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:16:58Z",
+            "conclusion": "success",
+            "name": "Prepare native OpenSSL for the directory CLI on Linux",
+            "number": 13,
+            "started_at": "2026-11-17T07:16:49Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:21:19Z",
+            "conclusion": "success",
+            "name": "Produce public receipts through the real directory CLI",
+            "number": 14,
+            "started_at": "2026-11-17T07:16:58Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:21:19Z",
+            "conclusion": "skipped",
+            "name": "Cross-check actual directory CLI receipts independently",
+            "number": 15,
+            "started_at": "2026-11-17T07:21:19Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:03Z",
+            "conclusion": "success",
+            "name": "Build and lint the public bootstrap importer",
+            "number": 16,
+            "started_at": "2026-11-17T07:21:19Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "success",
+            "name": "Build the independent Python wheel with the pinned backend",
+            "number": 17,
+            "started_at": "2026-11-17T07:23:03Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Exchange real flights and exercise rejection and replay boundaries",
+            "number": 18,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify independent four-flight rekey computations and epoch traffic",
+            "number": 19,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Exercise independent storage cuts and persisted session recovery",
+            "number": 20,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify durable rekey recovery, format upgrade and capacity admission",
+            "number": 21,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify independent control-only progress and original-target retries",
+            "number": 22,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify explicit outcome accounting, report bounds and old-chain disclosure",
+            "number": 23,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify independent required-witness recovery and output admission",
+            "number": 24,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify independent retained-peer renewal and revocation",
+            "number": 25,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify complete independent account authority transitions",
+            "number": 26,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify independent policy approvals against original native installations",
+            "number": 27,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify original local policy continuation and full-store recovery",
+            "number": 28,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify original witnessed policy continuation and output admission",
+            "number": 29,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify original policy credential roster composition and peer removal",
+            "number": 30,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify original common-account sessions and witness renewal",
+            "number": 31,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify independent joint local credential renewal and historical cleanup",
+            "number": 32,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify independent local-policy renewal, expiry and capacity admission",
+            "number": 33,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify independently approved exact pending-write recovery",
+            "number": 34,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify original roster maintenance and bilateral renewal",
+            "number": 35,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify portable public inputs and original-state reconstruction",
+            "number": 36,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:23:08Z",
+            "conclusion": "skipped",
+            "name": "Verify protected registration and original child lifecycle",
+            "number": 37,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:00:58Z",
+            "conclusion": "success",
+            "name": "Verify registration from the installed Python wheel",
+            "number": 38,
+            "started_at": "2026-11-17T07:23:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:00:58Z",
+            "conclusion": "skipped",
+            "name": "Report bounded publication and lease verification failures",
+            "number": 39,
+            "started_at": "2026-11-17T08:00:58Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:01:42Z",
+            "conclusion": "success",
+            "name": "Preserve the executable, public transcripts and failed phases",
+            "number": 40,
+            "started_at": "2026-11-17T08:00:58Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:01:42Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "number": 79,
+            "started_at": "2026-11-17T08:01:42Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:01:43Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 80,
+            "started_at": "2026-11-17T08:01:42Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:01:43Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 81,
+            "started_at": "2026-11-17T08:01:43Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/133881654362",
+        "workflow_name": "Independent Continuity interoperability"
+      },
+      {
+        "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/133881654446",
+        "completed_at": "2026-11-17T08:31:22Z",
+        "conclusion": "success",
+        "created_at": "2026-11-17T07:11:59Z",
+        "head_branch": "release/0.2-cohort-af4618c8",
+        "head_sha": "af4618c8065d7133adfb86e1d116577089161ff0",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/44036838778/job/133881654446",
+        "id": 133881654446,
+        "labels": [
+          "ubuntu-24.04"
+        ],
+        "name": "bootstrap (ubuntu-24.04, x86_64, source)",
+        "node_id": "CR_kwDOTD-aVc8AAAAfK_fsrg",
+        "run_attempt": 1,
+        "run_id": 44036838778,
+        "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036838778",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions",
+        "runner_id": 1000097132,
+        "runner_name": "GitHub Actions 1000097132",
+        "started_at": "2026-11-17T07:17:30Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completed_at": "2026-11-17T07:17:32Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "started_at": "2026-11-17T07:17:31Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:20:17Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 2,
+            "started_at": "2026-11-17T07:17:32Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:20:18Z",
+            "conclusion": "success",
+            "name": "Verify source and native architecture",
+            "number": 3,
+            "started_at": "2026-11-17T07:20:17Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:20:28Z",
+            "conclusion": "success",
+            "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+            "number": 4,
+            "started_at": "2026-11-17T07:20:18Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:20:36Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "number": 5,
+            "started_at": "2026-11-17T07:20:28Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:20:42Z",
+            "conclusion": "success",
+            "name": "Validate explicit SDK artifact selection",
+            "number": 6,
+            "started_at": "2026-11-17T07:20:36Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:20:43Z",
+            "conclusion": "success",
+            "name": "Install the exact independent provider into an isolated directory",
+            "number": 7,
+            "started_at": "2026-11-17T07:20:42Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:22:00Z",
+            "conclusion": "success",
+            "name": "Build and lint the real Rust counterpart",
+            "number": 8,
+            "started_at": "2026-11-17T07:20:43Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:22:00Z",
+            "conclusion": "skipped",
+            "name": "Read the selected SDK package artifact",
+            "number": 9,
+            "started_at": "2026-11-17T07:22:00Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:22:00Z",
+            "conclusion": "skipped",
+            "name": "Build and lint the counterpart from installed crates",
+            "number": 10,
+            "started_at": "2026-11-17T07:22:00Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:22:02Z",
+            "conclusion": "success",
+            "name": "Verify explicit signed one-time publication selection",
+            "number": 11,
+            "started_at": "2026-11-17T07:22:00Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:22:04Z",
+            "conclusion": "success",
+            "name": "Verify independent historical directory leases and conflicts",
+            "number": 12,
+            "started_at": "2026-11-17T07:22:02Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:22:10Z",
+            "conclusion": "success",
+            "name": "Prepare native OpenSSL for the directory CLI on Linux",
+            "number": 13,
+            "started_at": "2026-11-17T07:22:04Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:26:24Z",
+            "conclusion": "success",
+            "name": "Produce public receipts through the real directory CLI",
+            "number": 14,
+            "started_at": "2026-11-17T07:22:10Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:26:27Z",
+            "conclusion": "success",
+            "name": "Cross-check actual directory CLI receipts independently",
+            "number": 15,
+            "started_at": "2026-11-17T07:26:24Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:28:13Z",
+            "conclusion": "success",
+            "name": "Build and lint the public bootstrap importer",
+            "number": 16,
+            "started_at": "2026-11-17T07:26:27Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:28:13Z",
+            "conclusion": "skipped",
+            "name": "Build the independent Python wheel with the pinned backend",
+            "number": 17,
+            "started_at": "2026-11-17T07:28:13Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:28:16Z",
+            "conclusion": "success",
+            "name": "Exchange real flights and exercise rejection and replay boundaries",
+            "number": 18,
+            "started_at": "2026-11-17T07:28:13Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:28:19Z",
+            "conclusion": "success",
+            "name": "Verify independent four-flight rekey computations and epoch traffic",
+            "number": 19,
+            "started_at": "2026-11-17T07:28:16Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:28:50Z",
+            "conclusion": "success",
+            "name": "Exercise independent storage cuts and persisted session recovery",
+            "number": 20,
+            "started_at": "2026-11-17T07:28:19Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:30:48Z",
+            "conclusion": "success",
+            "name": "Verify durable rekey recovery, format upgrade and capacity admission",
+            "number": 21,
+            "started_at": "2026-11-17T07:28:50Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:32:06Z",
+            "conclusion": "success",
+            "name": "Verify independent control-only progress and original-target retries",
+            "number": 22,
+            "started_at": "2026-11-17T07:30:48Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:34:00Z",
+            "conclusion": "success",
+            "name": "Verify explicit outcome accounting, report bounds and old-chain disclosure",
+            "number": 23,
+            "started_at": "2026-11-17T07:32:06Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:34:29Z",
+            "conclusion": "success",
+            "name": "Verify independent required-witness recovery and output admission",
+            "number": 24,
+            "started_at": "2026-11-17T07:34:00Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:36:55Z",
+            "conclusion": "success",
+            "name": "Verify independent retained-peer renewal and revocation",
+            "number": 25,
+            "started_at": "2026-11-17T07:34:29Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:37:05Z",
+            "conclusion": "success",
+            "name": "Verify complete independent account authority transitions",
+            "number": 26,
+            "started_at": "2026-11-17T07:36:55Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:37:11Z",
+            "conclusion": "success",
+            "name": "Verify independent policy approvals against original native installations",
+            "number": 27,
+            "started_at": "2026-11-17T07:37:05Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:39:20Z",
+            "conclusion": "success",
+            "name": "Verify original local policy continuation and full-store recovery",
+            "number": 28,
+            "started_at": "2026-11-17T07:37:11Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:42:26Z",
+            "conclusion": "success",
+            "name": "Verify original witnessed policy continuation and output admission",
+            "number": 29,
+            "started_at": "2026-11-17T07:39:20Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T07:56:53Z",
+            "conclusion": "success",
+            "name": "Verify original policy credential roster composition and peer removal",
+            "number": 30,
+            "started_at": "2026-11-17T07:42:26Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:04:08Z",
+            "conclusion": "success",
+            "name": "Verify original common-account sessions and witness renewal",
+            "number": 31,
+            "started_at": "2026-11-17T07:56:53Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:05:24Z",
+            "conclusion": "success",
+            "name": "Verify independent joint local credential renewal and historical cleanup",
+            "number": 32,
+            "started_at": "2026-11-17T08:04:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:07:39Z",
+            "conclusion": "success",
+            "name": "Verify independent local-policy renewal, expiry and capacity admission",
+            "number": 33,
+            "started_at": "2026-11-17T08:05:24Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:13:20Z",
+            "conclusion": "success",
+            "name": "Verify independently approved exact pending-write recovery",
+            "number": 34,
+            "started_at": "2026-11-17T08:07:39Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:29:05Z",
+            "conclusion": "success",
+            "name": "Verify original roster maintenance and bilateral renewal",
+            "number": 35,
+            "started_at": "2026-11-17T08:13:20Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:29:08Z",
+            "conclusion": "success",
+            "name": "Verify portable public inputs and original-state reconstruction",
+            "number": 36,
+            "started_at": "2026-11-17T08:29:05Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:30:17Z",
+            "conclusion": "success",
+            "name": "Verify protected registration and original child lifecycle",
+            "number": 37,
+            "started_at": "2026-11-17T08:29:08Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:30:17Z",
+            "conclusion": "skipped",
+            "name": "Verify registration from the installed Python wheel",
+            "number": 38,
+            "started_at": "2026-11-17T08:30:17Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:30:17Z",
+            "conclusion": "skipped",
+            "name": "Report bounded publication and lease verification failures",
+            "number": 39,
+            "started_at": "2026-11-17T08:30:17Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:31:19Z",
+            "conclusion": "success",
+            "name": "Preserve the executable, public transcripts and failed phases",
+            "number": 40,
+            "started_at": "2026-11-17T08:30:17Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:31:19Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "number": 79,
+            "started_at": "2026-11-17T08:31:19Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:31:19Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 80,
+            "started_at": "2026-11-17T08:31:19Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T08:31:19Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 81,
+            "started_at": "2026-11-17T08:31:19Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/133881654446",
+        "workflow_name": "Independent Continuity interoperability"
+      },
+      {
+        "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/133881654511",
+        "completed_at": "2026-11-17T11:23:06Z",
+        "conclusion": "success",
+        "created_at": "2026-11-17T07:11:59Z",
+        "head_branch": "release/0.2-cohort-af4618c8",
+        "head_sha": "af4618c8065d7133adfb86e1d116577089161ff0",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/44036838778/job/133881654511",
+        "id": 133881654511,
+        "labels": [
+          "macos-15"
+        ],
+        "name": "bootstrap (macos-15, arm64, source)",
+        "node_id": "CR_kwDOTD-aVc8AAAAfK_fs7w",
+        "run_attempt": 1,
+        "run_id": 44036838778,
+        "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036838778",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions",
+        "runner_id": 1000097274,
+        "runner_name": "GitHub Actions 1000097274",
+        "started_at": "2026-11-17T09:49:28Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completed_at": "2026-11-17T09:49:31Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "started_at": "2026-11-17T09:49:29Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:54:42Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 2,
+            "started_at": "2026-11-17T09:49:31Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:54:43Z",
+            "conclusion": "success",
+            "name": "Verify source and native architecture",
+            "number": 3,
+            "started_at": "2026-11-17T09:54:42Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:54:55Z",
+            "conclusion": "success",
+            "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+            "number": 4,
+            "started_at": "2026-11-17T09:54:43Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:55:31Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "number": 5,
+            "started_at": "2026-11-17T09:54:55Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:55:37Z",
+            "conclusion": "success",
+            "name": "Validate explicit SDK artifact selection",
+            "number": 6,
+            "started_at": "2026-11-17T09:55:31Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:55:39Z",
+            "conclusion": "success",
+            "name": "Install the exact independent provider into an isolated directory",
+            "number": 7,
+            "started_at": "2026-11-17T09:55:37Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:57:58Z",
+            "conclusion": "success",
+            "name": "Build and lint the real Rust counterpart",
+            "number": 8,
+            "started_at": "2026-11-17T09:55:39Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:57:58Z",
+            "conclusion": "skipped",
+            "name": "Read the selected SDK package artifact",
+            "number": 9,
+            "started_at": "2026-11-17T09:57:58Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:57:58Z",
+            "conclusion": "skipped",
+            "name": "Build and lint the counterpart from installed crates",
+            "number": 10,
+            "started_at": "2026-11-17T09:57:58Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:58:00Z",
+            "conclusion": "success",
+            "name": "Verify explicit signed one-time publication selection",
+            "number": 11,
+            "started_at": "2026-11-17T09:57:58Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:58:01Z",
+            "conclusion": "success",
+            "name": "Verify independent historical directory leases and conflicts",
+            "number": 12,
+            "started_at": "2026-11-17T09:58:00Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T09:58:01Z",
+            "conclusion": "skipped",
+            "name": "Prepare native OpenSSL for the directory CLI on Linux",
+            "number": 13,
+            "started_at": "2026-11-17T09:58:01Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:04:00Z",
+            "conclusion": "success",
+            "name": "Produce public receipts through the real directory CLI",
+            "number": 14,
+            "started_at": "2026-11-17T09:58:01Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:04:01Z",
+            "conclusion": "success",
+            "name": "Cross-check actual directory CLI receipts independently",
+            "number": 15,
+            "started_at": "2026-11-17T10:04:00Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:06:15Z",
+            "conclusion": "success",
+            "name": "Build and lint the public bootstrap importer",
+            "number": 16,
+            "started_at": "2026-11-17T10:04:01Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:06:15Z",
+            "conclusion": "skipped",
+            "name": "Build the independent Python wheel with the pinned backend",
+            "number": 17,
+            "started_at": "2026-11-17T10:06:15Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:06:17Z",
+            "conclusion": "success",
+            "name": "Exchange real flights and exercise rejection and replay boundaries",
+            "number": 18,
+            "started_at": "2026-11-17T10:06:15Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:06:20Z",
+            "conclusion": "success",
+            "name": "Verify independent four-flight rekey computations and epoch traffic",
+            "number": 19,
+            "started_at": "2026-11-17T10:06:17Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:06:46Z",
+            "conclusion": "success",
+            "name": "Exercise independent storage cuts and persisted session recovery",
+            "number": 20,
+            "started_at": "2026-11-17T10:06:20Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:09:10Z",
+            "conclusion": "success",
+            "name": "Verify durable rekey recovery, format upgrade and capacity admission",
+            "number": 21,
+            "started_at": "2026-11-17T10:06:46Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:10:46Z",
+            "conclusion": "success",
+            "name": "Verify independent control-only progress and original-target retries",
+            "number": 22,
+            "started_at": "2026-11-17T10:09:10Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:12:54Z",
+            "conclusion": "success",
+            "name": "Verify explicit outcome accounting, report bounds and old-chain disclosure",
+            "number": 23,
+            "started_at": "2026-11-17T10:10:46Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:13:21Z",
+            "conclusion": "success",
+            "name": "Verify independent required-witness recovery and output admission",
+            "number": 24,
+            "started_at": "2026-11-17T10:12:54Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:15:26Z",
+            "conclusion": "success",
+            "name": "Verify independent retained-peer renewal and revocation",
+            "number": 25,
+            "started_at": "2026-11-17T10:13:21Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:15:43Z",
+            "conclusion": "success",
+            "name": "Verify complete independent account authority transitions",
+            "number": 26,
+            "started_at": "2026-11-17T10:15:26Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:15:48Z",
+            "conclusion": "success",
+            "name": "Verify independent policy approvals against original native installations",
+            "number": 27,
+            "started_at": "2026-11-17T10:15:43Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:18:17Z",
+            "conclusion": "success",
+            "name": "Verify original local policy continuation and full-store recovery",
+            "number": 28,
+            "started_at": "2026-11-17T10:15:48Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:22:20Z",
+            "conclusion": "success",
+            "name": "Verify original witnessed policy continuation and output admission",
+            "number": 29,
+            "started_at": "2026-11-17T10:18:17Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:41:54Z",
+            "conclusion": "success",
+            "name": "Verify original policy credential roster composition and peer removal",
+            "number": 30,
+            "started_at": "2026-11-17T10:22:20Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:52:52Z",
+            "conclusion": "success",
+            "name": "Verify original common-account sessions and witness renewal",
+            "number": 31,
+            "started_at": "2026-11-17T10:41:54Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:53:52Z",
+            "conclusion": "success",
+            "name": "Verify independent joint local credential renewal and historical cleanup",
+            "number": 32,
+            "started_at": "2026-11-17T10:52:52Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T10:55:54Z",
+            "conclusion": "success",
+            "name": "Verify independent local-policy renewal, expiry and capacity admission",
+            "number": 33,
+            "started_at": "2026-11-17T10:53:52Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T11:02:39Z",
+            "conclusion": "success",
+            "name": "Verify independently approved exact pending-write recovery",
+            "number": 34,
+            "started_at": "2026-11-17T10:55:54Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T11:21:02Z",
+            "conclusion": "success",
+            "name": "Verify original roster maintenance and bilateral renewal",
+            "number": 35,
+            "started_at": "2026-11-17T11:02:39Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T11:21:03Z",
+            "conclusion": "success",
+            "name": "Verify portable public inputs and original-state reconstruction",
+            "number": 36,
+            "started_at": "2026-11-17T11:21:02Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T11:21:53Z",
+            "conclusion": "success",
+            "name": "Verify protected registration and original child lifecycle",
+            "number": 37,
+            "started_at": "2026-11-17T11:21:03Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T11:21:53Z",
+            "conclusion": "skipped",
+            "name": "Verify registration from the installed Python wheel",
+            "number": 38,
+            "started_at": "2026-11-17T11:21:53Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T11:21:53Z",
+            "conclusion": "skipped",
+            "name": "Report bounded publication and lease verification failures",
+            "number": 39,
+            "started_at": "2026-11-17T11:21:53Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T11:22:59Z",
+            "conclusion": "success",
+            "name": "Preserve the executable, public transcripts and failed phases",
+            "number": 40,
+            "started_at": "2026-11-17T11:21:53Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T11:22:59Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "number": 79,
+            "started_at": "2026-11-17T11:22:59Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T11:23:00Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "number": 80,
+            "started_at": "2026-11-17T11:22:59Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-11-17T11:23:03Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 81,
+            "started_at": "2026-11-17T11:23:00Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/133881654511",
+        "workflow_name": "Independent Continuity interoperability"
+      }
+    ],
+    "total_count": 4
+  },
+  "observed_at": "2026-11-17T11:25:44.032522+00:00",
+  "run": {
+    "actor": {
+      "avatar_url": "https://avatars.githubusercontent.com/u/149552943?v=4",
+      "events_url": "https://api.github.com/users/billlza/events{/privacy}",
+      "followers_url": "https://api.github.com/users/billlza/followers",
+      "following_url": "https://api.github.com/users/billlza/following{/other_user}",
+      "gists_url": "https://api.github.com/users/billlza/gists{/gist_id}",
+      "gravatar_id": "",
+      "html_url": "https://github.com/billlza",
+      "id": 149552943,
+      "login": "billlza",
+      "node_id": "U_kgDOCOn_Lw",
+      "organizations_url": "https://api.github.com/users/billlza/orgs",
+      "received_events_url": "https://api.github.com/users/billlza/received_events",
+      "repos_url": "https://api.github.com/users/billlza/repos",
+      "site_admin": false,
+      "starred_url": "https://api.github.com/users/billlza/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/billlza/subscriptions",
+      "type": "User",
+      "url": "https://api.github.com/users/billlza",
+      "user_view_type": "public"
+    },
+    "artifacts_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036838778/artifacts",
+    "cancel_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036838778/cancel",
+    "check_suite_id": 119208673414,
+    "check_suite_node_id": "CS_kwDOTD-aVc8AAAAbwWQAhg",
+    "check_suite_url": "https://api.github.com/repos/billlza/q-periapt/check-suites/119208673414",
+    "conclusion": "success",
+    "created_at": "2026-11-17T07:11:57Z",
+    "display_title": "Independent Continuity interoperability",
+    "event": "workflow_dispatch",
+    "head_branch": "release/0.2-cohort-af4618c8",
+    "head_commit": {
+      "author": {
+        "email": "149552943+billlza@users.noreply.github.com",
+        "name": "\u6708\u6e85\u661f\u6cb3"
+      },
+      "committer": {
+        "email": "noreply@github.com",
+        "name": "GitHub"
+      },
+      "id": "af4618c8065d7133adfb86e1d116577089161ff0",
+      "message": "Merge 8c77ea7153d5a1396f204bab2ad126a435f92644 into 8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+      "timestamp": "2026-11-17T07:08:15Z",
+      "tree_id": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+    },
+    "head_repository": {
+      "archive_url": "https://api.github.com/repos/billlza/q-periapt/{archive_format}{/ref}",
+      "assignees_url": "https://api.github.com/repos/billlza/q-periapt/assignees{/user}",
+      "blobs_url": "https://api.github.com/repos/billlza/q-periapt/git/blobs{/sha}",
+      "branches_url": "https://api.github.com/repos/billlza/q-periapt/branches{/branch}",
+      "collaborators_url": "https://api.github.com/repos/billlza/q-periapt/collaborators{/collaborator}",
+      "comments_url": "https://api.github.com/repos/billlza/q-periapt/comments{/number}",
+      "commits_url": "https://api.github.com/repos/billlza/q-periapt/commits{/sha}",
+      "compare_url": "https://api.github.com/repos/billlza/q-periapt/compare/{base}...{head}",
+      "contents_url": "https://api.github.com/repos/billlza/q-periapt/contents/{+path}",
+      "contributors_url": "https://api.github.com/repos/billlza/q-periapt/contributors",
+      "deployments_url": "https://api.github.com/repos/billlza/q-periapt/deployments",
+      "description": "Q-Periapt: a portable, side-channel-resistant-first PQ/T hybrid cryptographic suite (ML-KEM+X25519, ML-DSA/SLH-DSA/HQC) in Rust \u2014 reused across C-ABI/WASM/Swift/Kotlin, with EasyCrypt/Tamarin/ProVerif proofs.",
+      "downloads_url": "https://api.github.com/repos/billlza/q-periapt/downloads",
+      "events_url": "https://api.github.com/repos/billlza/q-periapt/events",
+      "fork": false,
+      "forks_url": "https://api.github.com/repos/billlza/q-periapt/forks",
+      "full_name": "billlza/q-periapt",
+      "git_commits_url": "https://api.github.com/repos/billlza/q-periapt/git/commits{/sha}",
+      "git_refs_url": "https://api.github.com/repos/billlza/q-periapt/git/refs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/billlza/q-periapt/git/tags{/sha}",
+      "hooks_url": "https://api.github.com/repos/billlza/q-periapt/hooks",
+      "html_url": "https://github.com/billlza/q-periapt",
+      "id": 1279236693,
+      "issue_comment_url": "https://api.github.com/repos/billlza/q-periapt/issues/comments{/number}",
+      "issue_events_url": "https://api.github.com/repos/billlza/q-periapt/issues/events{/number}",
+      "issues_url": "https://api.github.com/repos/billlza/q-periapt/issues{/number}",
+      "keys_url": "https://api.github.com/repos/billlza/q-periapt/keys{/key_id}",
+      "labels_url": "https://api.github.com/repos/billlza/q-periapt/labels{/name}",
+      "languages_url": "https://api.github.com/repos/billlza/q-periapt/languages",
+      "merges_url": "https://api.github.com/repos/billlza/q-periapt/merges",
+      "milestones_url": "https://api.github.com/repos/billlza/q-periapt/milestones{/number}",
+      "name": "q-periapt",
+      "node_id": "R_kgDOTD-aVQ",
+      "notifications_url": "https://api.github.com/repos/billlza/q-periapt/notifications{?since,all,participating}",
+      "owner": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/149552943?v=4",
+        "events_url": "https://api.github.com/users/billlza/events{/privacy}",
+        "followers_url": "https://api.github.com/users/billlza/followers",
+        "following_url": "https://api.github.com/users/billlza/following{/other_user}",
+        "gists_url": "https://api.github.com/users/billlza/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/billlza",
+        "id": 149552943,
+        "login": "billlza",
+        "node_id": "U_kgDOCOn_Lw",
+        "organizations_url": "https://api.github.com/users/billlza/orgs",
+        "received_events_url": "https://api.github.com/users/billlza/received_events",
+        "repos_url": "https://api.github.com/users/billlza/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/billlza/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/billlza/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/billlza",
+        "user_view_type": "public"
+      },
+      "private": false,
+      "pulls_url": "https://api.github.com/repos/billlza/q-periapt/pulls{/number}",
+      "releases_url": "https://api.github.com/repos/billlza/q-periapt/releases{/id}",
+      "stargazers_url": "https://api.github.com/repos/billlza/q-periapt/stargazers",
+      "statuses_url": "https://api.github.com/repos/billlza/q-periapt/statuses/{sha}",
+      "subscribers_url": "https://api.github.com/repos/billlza/q-periapt/subscribers",
+      "subscription_url": "https://api.github.com/repos/billlza/q-periapt/subscription",
+      "tags_url": "https://api.github.com/repos/billlza/q-periapt/tags",
+      "teams_url": "https://api.github.com/repos/billlza/q-periapt/teams",
+      "trees_url": "https://api.github.com/repos/billlza/q-periapt/git/trees{/sha}",
+      "url": "https://api.github.com/repos/billlza/q-periapt"
+    },
+    "head_sha": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "html_url": "https://github.com/billlza/q-periapt/actions/runs/44036838778",
+    "id": 44036838778,
+    "jobs_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036838778/jobs",
+    "logs_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036838778/logs",
+    "name": "Independent Continuity interoperability",
+    "node_id": "WFR_kwLOTD-aVc8AAAAKQMzVeg",
+    "path": ".github/workflows/independent-continuity.yml",
+    "previous_attempt_url": null,
+    "pull_requests": [],
+    "referenced_workflows": [],
+    "repository": {
+      "archive_url": "https://api.github.com/repos/billlza/q-periapt/{archive_format}{/ref}",
+      "assignees_url": "https://api.github.com/repos/billlza/q-periapt/assignees{/user}",
+      "blobs_url": "https://api.github.com/repos/billlza/q-periapt/git/blobs{/sha}",
+      "branches_url": "https://api.github.com/repos/billlza/q-periapt/branches{/branch}",
+      "collaborators_url": "https://api.github.com/repos/billlza/q-periapt/collaborators{/collaborator}",
+      "comments_url": "https://api.github.com/repos/billlza/q-periapt/comments{/number}",
+      "commits_url": "https://api.github.com/repos/billlza/q-periapt/commits{/sha}",
+      "compare_url": "https://api.github.com/repos/billlza/q-periapt/compare/{base}...{head}",
+      "contents_url": "https://api.github.com/repos/billlza/q-periapt/contents/{+path}",
+      "contributors_url": "https://api.github.com/repos/billlza/q-periapt/contributors",
+      "deployments_url": "https://api.github.com/repos/billlza/q-periapt/deployments",
+      "description": "Q-Periapt: a portable, side-channel-resistant-first PQ/T hybrid cryptographic suite (ML-KEM+X25519, ML-DSA/SLH-DSA/HQC) in Rust \u2014 reused across C-ABI/WASM/Swift/Kotlin, with EasyCrypt/Tamarin/ProVerif proofs.",
+      "downloads_url": "https://api.github.com/repos/billlza/q-periapt/downloads",
+      "events_url": "https://api.github.com/repos/billlza/q-periapt/events",
+      "fork": false,
+      "forks_url": "https://api.github.com/repos/billlza/q-periapt/forks",
+      "full_name": "billlza/q-periapt",
+      "git_commits_url": "https://api.github.com/repos/billlza/q-periapt/git/commits{/sha}",
+      "git_refs_url": "https://api.github.com/repos/billlza/q-periapt/git/refs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/billlza/q-periapt/git/tags{/sha}",
+      "hooks_url": "https://api.github.com/repos/billlza/q-periapt/hooks",
+      "html_url": "https://github.com/billlza/q-periapt",
+      "id": 1279236693,
+      "issue_comment_url": "https://api.github.com/repos/billlza/q-periapt/issues/comments{/number}",
+      "issue_events_url": "https://api.github.com/repos/billlza/q-periapt/issues/events{/number}",
+      "issues_url": "https://api.github.com/repos/billlza/q-periapt/issues{/number}",
+      "keys_url": "https://api.github.com/repos/billlza/q-periapt/keys{/key_id}",
+      "labels_url": "https://api.github.com/repos/billlza/q-periapt/labels{/name}",
+      "languages_url": "https://api.github.com/repos/billlza/q-periapt/languages",
+      "merges_url": "https://api.github.com/repos/billlza/q-periapt/merges",
+      "milestones_url": "https://api.github.com/repos/billlza/q-periapt/milestones{/number}",
+      "name": "q-periapt",
+      "node_id": "R_kgDOTD-aVQ",
+      "notifications_url": "https://api.github.com/repos/billlza/q-periapt/notifications{?since,all,participating}",
+      "owner": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/149552943?v=4",
+        "events_url": "https://api.github.com/users/billlza/events{/privacy}",
+        "followers_url": "https://api.github.com/users/billlza/followers",
+        "following_url": "https://api.github.com/users/billlza/following{/other_user}",
+        "gists_url": "https://api.github.com/users/billlza/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/billlza",
+        "id": 149552943,
+        "login": "billlza",
+        "node_id": "U_kgDOCOn_Lw",
+        "organizations_url": "https://api.github.com/users/billlza/orgs",
+        "received_events_url": "https://api.github.com/users/billlza/received_events",
+        "repos_url": "https://api.github.com/users/billlza/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/billlza/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/billlza/subscriptions",
+        "type": "User",
+        "url": "https://api.github.com/users/billlza",
+        "user_view_type": "public"
+      },
+      "private": false,
+      "pulls_url": "https://api.github.com/repos/billlza/q-periapt/pulls{/number}",
+      "releases_url": "https://api.github.com/repos/billlza/q-periapt/releases{/id}",
+      "stargazers_url": "https://api.github.com/repos/billlza/q-periapt/stargazers",
+      "statuses_url": "https://api.github.com/repos/billlza/q-periapt/statuses/{sha}",
+      "subscribers_url": "https://api.github.com/repos/billlza/q-periapt/subscribers",
+      "subscription_url": "https://api.github.com/repos/billlza/q-periapt/subscription",
+      "tags_url": "https://api.github.com/repos/billlza/q-periapt/tags",
+      "teams_url": "https://api.github.com/repos/billlza/q-periapt/teams",
+      "trees_url": "https://api.github.com/repos/billlza/q-periapt/git/trees{/sha}",
+      "url": "https://api.github.com/repos/billlza/q-periapt"
+    },
+    "rerun_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036838778/rerun",
+    "run_attempt": 1,
+    "run_number": 201,
+    "run_started_at": "2026-11-17T07:11:57Z",
+    "status": "completed",
+    "triggering_actor": {
+      "avatar_url": "https://avatars.githubusercontent.com/u/149552943?v=4",
+      "events_url": "https://api.github.com/users/billlza/events{/privacy}",
+      "followers_url": "https://api.github.com/users/billlza/followers",
+      "following_url": "https://api.github.com/users/billlza/following{/other_user}",
+      "gists_url": "https://api.github.com/users/billlza/gists{/gist_id}",
+      "gravatar_id": "",
+      "html_url": "https://github.com/billlza",
+      "id": 149552943,
+      "login": "billlza",
+      "node_id": "U_kgDOCOn_Lw",
+      "organizations_url": "https://api.github.com/users/billlza/orgs",
+      "received_events_url": "https://api.github.com/users/billlza/received_events",
+      "repos_url": "https://api.github.com/users/billlza/repos",
+      "site_admin": false,
+      "starred_url": "https://api.github.com/users/billlza/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/billlza/subscriptions",
+      "type": "User",
+      "url": "https://api.github.com/users/billlza",
+      "user_view_type": "public"
+    },
+    "updated_at": "2026-11-17T11:23:06Z",
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036838778",
+    "workflow_id": 388375556,
+    "workflow_url": "https://api.github.com/repos/billlza/q-periapt/actions/workflows/388375556"
+  }
+}

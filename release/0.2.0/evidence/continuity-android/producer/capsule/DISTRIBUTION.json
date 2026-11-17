@@ -1,0 +1,164 @@
+{
+  "aar": {
+    "bytes": 10843367,
+    "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.aar",
+    "sha256": "6818d28a97b8db1810c16c0f981e380c627be4056b884d810161f6ce9642b5b4"
+  },
+  "abi": "qpc-owner/1",
+  "art_executed": false,
+  "completed": true,
+  "coordinate": "dev.qperiapt:q-periapt-continuity-android:0.2.0",
+  "files": {
+    "INPUT_SELECTION.json": {
+      "bytes": 1485,
+      "path": "INPUT_SELECTION.json",
+      "sha256": "e8e3433af9afdd014c63634af353cd6897e1eff553e47ae84684c7b9fc785d40"
+    },
+    "PACKAGE_IDENTITY.json": {
+      "bytes": 1083,
+      "path": "PACKAGE_IDENTITY.json",
+      "sha256": "d6e25de6bb2889c01cd4e6aed7ce354728c933b72645bac4e2c03586186be45f"
+    },
+    "classes-build.json": {
+      "bytes": 11873,
+      "path": "classes-build.json",
+      "sha256": "912785736192d979febab880f3cc452e8c3bcf477a3804ce85f0646f2f0baeb9"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0-sources.jar": {
+      "bytes": 246256,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0-sources.jar",
+      "sha256": "4bc7f327c476b23406044591d7bbaa19bf794fda6cbbfba58949f7480a6b6880"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0-sources.jar.md5": {
+      "bytes": 33,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0-sources.jar.md5",
+      "sha256": "5d6e020a0c908797eb307899da873f72d19695e1458c6bfc5019f97b8cae3245"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0-sources.jar.sha1": {
+      "bytes": 41,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0-sources.jar.sha1",
+      "sha256": "2a15595be9c5ab7e8c2a51e3b957f2e5803613ae7efab989ece28681f02024b8"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0-sources.jar.sha256": {
+      "bytes": 65,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0-sources.jar.sha256",
+      "sha256": "92d7237c2353175da5890e4740efd56742dcc288d2936f03a3373441b02637be"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0-sources.jar.sha512": {
+      "bytes": 129,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0-sources.jar.sha512",
+      "sha256": "ee7e4d067760b8653ad5eb022cb960a16e36db363c963cf55f54805c623398dc"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.aar": {
+      "bytes": 10843367,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.aar",
+      "sha256": "6818d28a97b8db1810c16c0f981e380c627be4056b884d810161f6ce9642b5b4"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.aar.md5": {
+      "bytes": 33,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.aar.md5",
+      "sha256": "ac79fbaf84c1e462f24db1630834ec86b378fdcc7c2703782f7a6ee2f4317cc4"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.aar.sha1": {
+      "bytes": 41,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.aar.sha1",
+      "sha256": "51787915b2fe38fcd9b760f2c20bf7369b26361b4ca67f6b54a66518f16bb0ae"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.aar.sha256": {
+      "bytes": 65,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.aar.sha256",
+      "sha256": "cc939143cc7b826682e4d5d839c23f80839c70919b4a2b816a0cf24996b0a136"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.aar.sha512": {
+      "bytes": 129,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.aar.sha512",
+      "sha256": "3e03dc0ead4c69e53717c600e2c4cb6d249a5ceec481a2c09bfeffad31cf8e16"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.pom": {
+      "bytes": 230,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.pom",
+      "sha256": "113cfd20fa3afef58ee1f60ef05f1e5c8a6f9ae97aa95efc0b63619aeaf6b696"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.pom.md5": {
+      "bytes": 33,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.pom.md5",
+      "sha256": "df7b4d944acf5a67e53d507b03d3a0c7d0807209260f536b238a21e05b98beb6"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.pom.sha1": {
+      "bytes": 41,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.pom.sha1",
+      "sha256": "0b6159a2f8ef9d0ee040c2b3e28fba1e93756dd9e34a0ba6697c9b4423166365"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.pom.sha256": {
+      "bytes": 65,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.pom.sha256",
+      "sha256": "ebe3b7e242fca2bc0e6ba115ae3a3cd825897329ee44e830fbdc4bd25cb46bcf"
+    },
+    "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.pom.sha512": {
+      "bytes": 129,
+      "path": "maven/dev/qperiapt/q-periapt-continuity-android/0.2.0/q-periapt-continuity-android-0.2.0.pom.sha512",
+      "sha256": "e00d4f8ca69fcb1ff839309846a401e123b5db72d161736232d40a705804b536"
+    },
+    "native-build.json": {
+      "bytes": 248429,
+      "path": "native-build.json",
+      "sha256": "ab9d3943a652a5ac2b8502a3d8567f36e17c56318baf1c84d73c809cba5a38ec"
+    }
+  },
+  "input_selection_sha256": "e8e3433af9afdd014c63634af353cd6897e1eff553e47ae84684c7b9fc785d40",
+  "java_compilation_executed": false,
+  "kind": "qperiapt.continuity_android_distribution",
+  "native_compilation_executed": false,
+  "physical_device_executed": false,
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "schema_version": 1,
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7",
+    "tree_sha256": "79a8cd5981c83f1f1ab7571ca35ae876201ea0466dfbccd793b9daee57872427"
+  },
+  "target": "aarch64-linux-android",
+  "tool_sha256": {
+    "llvm-nm": "46696ca7535c91e656fff2db78bbe5f1289720c8f23a6ad3b549d8d5c4edd94e",
+    "llvm-readelf": "96d2f26d8528457d0edc7558f46033efb51098dc05093d7c35039d80544dcddd"
+  },
+  "verification": {
+    "classes": {
+      "callbacks": {
+        "fail": "(Ljava/lang/String;I[BZ)V",
+        "invokeCommit": "(Ljava/lang/Object;[B[B[B)I",
+        "validCommit": "(Ljava/lang/Object;)Z"
+      },
+      "class_major": 55,
+      "classes": 131,
+      "native_methods": 23
+    },
+    "license_packages": 107,
+    "native": {
+      "c": {
+        "bytes": 7591664,
+        "compile_api": 23,
+        "exports": 158,
+        "ndk": "29.0.14206865",
+        "needed": [
+          "libc.so",
+          "libdl.so"
+        ],
+        "sha256": "1f3235cc6b3306e0978cbfbfbc1225c053520218f56141d217f340599db471c4"
+      },
+      "jni": {
+        "bytes": 77888,
+        "compile_api": 23,
+        "exports": 1,
+        "ndk": "29.0.14206865",
+        "needed": [
+          "libc.so",
+          "libdl.so",
+          "libq_periapt_continuity_c_consumer.so"
+        ],
+        "sha256": "a66d3f18d2fba081d79681e654f84270791f5feaa317841dc8abaaf1aeb6f4d5"
+      }
+    }
+  }
+}

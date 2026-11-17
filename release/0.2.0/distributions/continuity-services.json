@@ -1,0 +1,21 @@
+{
+  "artifacts": [
+    {
+      "bytes": 7033426,
+      "path": "release/0.2.0/assets/platform/q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+      "sha256": "a7f0d7a3694331d1353a51617e21c074625ffb92f2f89bcd11fb4e8552a4615d"
+    }
+  ],
+  "dependencies": [
+    "continuity-engine"
+  ],
+  "interfaces": [],
+  "kind": "qperiapt.continuity_distribution_identity",
+  "name": "q-periapt-continuity-services",
+  "schema_version": 1,
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "version": "0.2.0"
+}

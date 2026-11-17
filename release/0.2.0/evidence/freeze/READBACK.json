@@ -1,0 +1,24 @@
+{
+  "artifact_id": 14315258934,
+  "budgets_sha256": "4045ec6157ba82a16c5268199f3267c11585467caf1654cebf69651e2bc6409c",
+  "completed": true,
+  "contract_consumer_sha256": "12b9f7a4ab4221d65f666f0569cb626f90dc061922f8dde2d6120a8231ef0e2d",
+  "interfaces_sha256": "701641b4cfd8c2dfbf8a7e33d17fb85fb683dcd3ef650112fcce44bba7d9e3a8",
+  "kind": "qperiapt.coordinated_freeze_readback",
+  "locked_compiled_descriptor": {
+    "bytes": 2086,
+    "path": "docs/continuity/CONTRACT_0_2.json",
+    "sha256": "74c21058c23dd25f0a59294f3ec6b24e68b476961674152f2f1e794e44f4c5ac"
+  },
+  "package_graph_sha256": "f625f772a0ec557c59f7b962800d77ef90c1b09dc1a952f47f126204713c362a",
+  "package_rows": 21,
+  "producer_job": 133880118092,
+  "producer_run": 44036376133,
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "Actual selected-source CI compiled and executed the release-stage contract reporter. Its stdout equals the reviewed budgets and the frozen lock's compiled descriptor; the unchanged schema-2 graph binds all 21 package identities and separate interfaces. Original public signature/anchor/bootstrap positive and refusal records are retained without promoting finite fixtures into a cryptographic theorem or production-binding proof.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

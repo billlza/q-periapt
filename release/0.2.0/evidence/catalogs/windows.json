@@ -1,0 +1,132 @@
+{
+  "assets": [
+    {
+      "file": {
+        "bytes": 110266672,
+        "path": "release/0.2.0/assets/platform/WINDOWS_LIFECYCLE_EVIDENCE.zip",
+        "sha256": "aa6f2e730319d9a869727c2bcc3af544cc1e0f7a884861062a7d470db3dff407"
+      },
+      "name": "WINDOWS_LIFECYCLE_EVIDENCE.zip"
+    },
+    {
+      "file": {
+        "bytes": 1956038,
+        "path": "release/0.2.0/assets/platform/q-periapt-continuity-0.2.0.crate",
+        "sha256": "fd51d1ef614b6143867e381cc7b7099081fd259d7ee5145083db0a4d9d9bc6c9"
+      },
+      "name": "q-periapt-continuity-0.2.0.crate"
+    }
+  ],
+  "completed": true,
+  "kind": "qperiapt.windows_lifecycle_release_component",
+  "package_bindings": {
+    "continuity-engine": {
+      "artifacts": [
+        {
+          "bytes": 1956038,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-0.2.0.crate",
+          "sha256": "fd51d1ef614b6143867e381cc7b7099081fd259d7ee5145083db0a4d9d9bc6c9"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 870,
+          "path": "release/0.2.0/evidence/windows/SOURCE_ARCHIVE_READBACK.json",
+          "sha256": "0461ad0a047217322a525e57922e5955eb9baa5346d770b232cccfdde33c0a6a"
+        },
+        {
+          "bytes": 1329,
+          "path": "release/0.2.0/evidence/windows/READBACK.json",
+          "sha256": "368fd156ac94ddedb781fddae4d84de13eb3e26a4b51480138ab2134190fc394"
+        }
+      ]
+    }
+  },
+  "records": [
+    {
+      "bytes": 1329,
+      "path": "release/0.2.0/evidence/windows/READBACK.json",
+      "sha256": "368fd156ac94ddedb781fddae4d84de13eb3e26a4b51480138ab2134190fc394"
+    },
+    {
+      "bytes": 5552,
+      "path": "release/0.2.0/evidence/windows/ARTIFACTS.json",
+      "sha256": "19f7961f37fdadfa904866ee14fca3da3c8ca7cfa5c86f9113b6678e7ab29ac9"
+    },
+    {
+      "bytes": 50573,
+      "path": "release/0.2.0/evidence/windows/HOSTED_RUN.json",
+      "sha256": "a171aed8ee78483594059d24dc60fd234362656132f4cce43ad5f292bfb0c6d9"
+    },
+    {
+      "bytes": 424602,
+      "path": "release/0.2.0/evidence/windows/windows-2022/NETWORK_REVIEW.json",
+      "sha256": "ac2820010b9aa587e8abea3794f03aa4cddca598b492cb4582e4c6617fe33303"
+    },
+    {
+      "bytes": 736936,
+      "path": "release/0.2.0/evidence/windows/windows-2022/debug/RESULT.json",
+      "sha256": "b9dc627cdfa8160c0eb113bc3911f2c58a89140505ac5bdd038458983f7ed5de"
+    },
+    {
+      "bytes": 736938,
+      "path": "release/0.2.0/evidence/windows/windows-2022/release/RESULT.json",
+      "sha256": "1713c35f69a5f4eac7a947be3a022d3076f86f32144b84590ab812b7812882de"
+    },
+    {
+      "bytes": 424601,
+      "path": "release/0.2.0/evidence/windows/windows-2025/NETWORK_REVIEW.json",
+      "sha256": "db6ac76200ea622fd6b1a8839ba6f5d9c0017d7838289ba3bd3b50b709e5e7bc"
+    },
+    {
+      "bytes": 736877,
+      "path": "release/0.2.0/evidence/windows/windows-2025/debug/RESULT.json",
+      "sha256": "ff1666259e8f150c21623d0b410aed08d9a1388cf89d2026ab4c83ec5a582cac"
+    },
+    {
+      "bytes": 736879,
+      "path": "release/0.2.0/evidence/windows/windows-2025/release/RESULT.json",
+      "sha256": "32a581eadc8e4f87a1d6f1c8af4db00fbe07ae506b994921a8ddebc43c2c00de"
+    },
+    {
+      "bytes": 3561,
+      "path": "release/0.2.0/evidence/windows/readback.py",
+      "sha256": "41f7506dd11acc1d7ba3a3681e869c8ea8517eb57d1cd4b5fe06057cad273a34"
+    },
+    {
+      "bytes": 870,
+      "path": "release/0.2.0/evidence/windows/SOURCE_ARCHIVE_READBACK.json",
+      "sha256": "0461ad0a047217322a525e57922e5955eb9baa5346d770b232cccfdde33c0a6a"
+    },
+    {
+      "bytes": 209814,
+      "path": "release/0.2.0/evidence/windows/producer/INPUT.json",
+      "sha256": "6d79620284081b9d024a49b7da245c053bbc5d50c5e7b428898b93bd10a1c19b"
+    },
+    {
+      "bytes": 34144,
+      "path": "release/0.2.0/evidence/windows/producer/package-list.stdout",
+      "sha256": "67862935e4bc6cff4988ff10ab8b3d3282dc6ba536100c0d685a7dbc0e347ae1"
+    },
+    {
+      "bytes": 1506,
+      "path": "release/0.2.0/evidence/windows/producer/package-list.json",
+      "sha256": "f99278f1701c1fcc5b8d638a48ca10a582cea72211e64564dd91a79abacdab82"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/windows/producer/package.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1511,
+      "path": "release/0.2.0/evidence/windows/producer/package.json",
+      "sha256": "dadebe7f6d2688ac34ff4a42f83afc022db0f7733315c5140a113939cdfb38e2"
+    }
+  ],
+  "scope": "All four original Windows native profile exports freshly unpacked; exact producer/SDK/source pins and every original public Rust/C lifecycle, root and configuration reader replayed. Results equal the two original Linux public-readback jobs. Actual Windows execution remains the completed native jobs.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

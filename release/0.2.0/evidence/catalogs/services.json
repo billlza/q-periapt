@@ -1,0 +1,650 @@
+{
+  "assets": [
+    {
+      "file": {
+        "bytes": 7033426,
+        "path": "release/0.2.0/assets/platform/q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+        "sha256": "a7f0d7a3694331d1353a51617e21c074625ffb92f2f89bcd11fb4e8552a4615d"
+      },
+      "name": "q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz"
+    }
+  ],
+  "completed": true,
+  "kind": "qperiapt.services_release_component",
+  "package_bindings": {
+    "continuity-services": {
+      "artifacts": [
+        {
+          "bytes": 7033426,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "a7f0d7a3694331d1353a51617e21c074625ffb92f2f89bcd11fb4e8552a4615d"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 15093,
+          "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_PACKAGE.json",
+          "sha256": "987008ceefab86745612e78ec7e3a4c46714221d73ea655283731082d2c96c99"
+        },
+        {
+          "bytes": 1572,
+          "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_INSTALLATION.json",
+          "sha256": "cc626bd7cf38af96fac60c89bd761395fbe309cf0bdedca5029108f12ba725ca"
+        },
+        {
+          "bytes": 775,
+          "path": "release/0.2.0/evidence/services/readback/READBACK.json",
+          "sha256": "d97fcad1512d37642a109096094256c84274f2111a00d4592b1cffed43efa941"
+        }
+      ],
+      "metadata": {
+        "bytes": 603,
+        "path": "release/0.2.0/distributions/continuity-services.json",
+        "sha256": "332209748d2e1bb149c212c0c2429827ba59bb6898592746d632f2f410c36e81"
+      }
+    },
+    "reference-service": {
+      "artifacts": [
+        {
+          "bytes": 7033426,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "a7f0d7a3694331d1353a51617e21c074625ffb92f2f89bcd11fb4e8552a4615d"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 15093,
+          "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_PACKAGE.json",
+          "sha256": "987008ceefab86745612e78ec7e3a4c46714221d73ea655283731082d2c96c99"
+        },
+        {
+          "bytes": 1572,
+          "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_INSTALLATION.json",
+          "sha256": "cc626bd7cf38af96fac60c89bd761395fbe309cf0bdedca5029108f12ba725ca"
+        },
+        {
+          "bytes": 775,
+          "path": "release/0.2.0/evidence/services/readback/READBACK.json",
+          "sha256": "d97fcad1512d37642a109096094256c84274f2111a00d4592b1cffed43efa941"
+        }
+      ]
+    }
+  },
+  "records": [
+    {
+      "bytes": 573,
+      "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_DISTRIBUTION.json",
+      "sha256": "486b3d748d8d22be1beddbe62db73890e163e27163111cc00201efe97c619689"
+    },
+    {
+      "bytes": 1572,
+      "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_INSTALLATION.json",
+      "sha256": "cc626bd7cf38af96fac60c89bd761395fbe309cf0bdedca5029108f12ba725ca"
+    },
+    {
+      "bytes": 15093,
+      "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_PACKAGE.json",
+      "sha256": "987008ceefab86745612e78ec7e3a4c46714221d73ea655283731082d2c96c99"
+    },
+    {
+      "bytes": 997,
+      "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_PACKAGE_ROW.json",
+      "sha256": "33ec9d1f22ecab5e87d44011f70acc8a15880057b88870d5273eb451c6112032"
+    },
+    {
+      "bytes": 737,
+      "path": "release/0.2.0/evidence/services/producer/commands/build.json",
+      "sha256": "0a511e2730b6598e71cba57ba81ea225ef5c5e3fbf0a3babb24e691a80ea445f"
+    },
+    {
+      "bytes": 7256,
+      "path": "release/0.2.0/evidence/services/producer/commands/build.stderr",
+      "sha256": "c747b6dc8c33d0b9d5f5d10b4fc6a8ca4138bb9e7a5120d95d00e3d31bcdea08"
+    },
+    {
+      "bytes": 219958,
+      "path": "release/0.2.0/evidence/services/producer/commands/build.stdout",
+      "sha256": "87c5692328b596c61be07a51fd70888e06f01ce1325dc2d0a141be77bb5971e9"
+    },
+    {
+      "bytes": 244,
+      "path": "release/0.2.0/evidence/services/producer/commands/cargo.json",
+      "sha256": "f5e4a1f4877f94e8ccd6dceeb12715514e6af70b863a09af0edae8372bd9e851"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/cargo.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 36,
+      "path": "release/0.2.0/evidence/services/producer/commands/cargo.stdout",
+      "sha256": "9950bbb2d5c3417b1a068f0e81f6d3cac991a363193bdf2a22d447f5acf8b503"
+    },
+    {
+      "bytes": 209,
+      "path": "release/0.2.0/evidence/services/producer/commands/cc.json",
+      "sha256": "22a402378a43ccf50f094e100f460b9845bd94b70045d7dfcfac027b81bce793"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/cc.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 266,
+      "path": "release/0.2.0/evidence/services/producer/commands/cc.stdout",
+      "sha256": "ae487f55927d605284a32711e4ecf6bc3be2bcd5a9de414ace0936264b741f85"
+    },
+    {
+      "bytes": 575,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-after-refusal.json",
+      "sha256": "7451accac15c4c8fed19e009eb3e954e9563ccaa69a100f6cda77ef93f2e8567"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-after-refusal.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2777,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-after-refusal.stdout",
+      "sha256": "223079659fa7d235ff1c98b621b7421f3e708f7976e2b1d5052a9af42833c1d2"
+    },
+    {
+      "bytes": 480,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-existing-refusal.json",
+      "sha256": "abfc70fbefbd60215e29b3c1e7d870cb41cb86772e243a240c846bb58e854da3"
+    },
+    {
+      "bytes": 51,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-existing-refusal.stderr",
+      "sha256": "d9b6ea5277ddad70ea961d0cee3031ec93c9b2fe16d7c4f51837223e15f57599"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-existing-refusal.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 480,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-init.json",
+      "sha256": "42ce0b21355e941bd416a2a1dc45476ee1ccd76dd113b9b9840cea0453bd55d6"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-init.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 159,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-init.stdout",
+      "sha256": "71da4841c3958a54783e1a84e5a4cc6225e582060dff4094ca4d1a82b774745e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-key-reopen.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 575,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-key-reopen.json",
+      "sha256": "7451accac15c4c8fed19e009eb3e954e9563ccaa69a100f6cda77ef93f2e8567"
+    },
+    {
+      "bytes": 2777,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-key-reopen.stdout",
+      "sha256": "223079659fa7d235ff1c98b621b7421f3e708f7976e2b1d5052a9af42833c1d2"
+    },
+    {
+      "bytes": 578,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-key.json",
+      "sha256": "3384463e36760863832933a877502a61ea8c9c476bc5e63b892c80d0544731b9"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-key.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2777,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-key.stdout",
+      "sha256": "223079659fa7d235ff1c98b621b7421f3e708f7976e2b1d5052a9af42833c1d2"
+    },
+    {
+      "bytes": 623,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-original-empty-lookup.json",
+      "sha256": "e725677bfa5406dd30bb4946c221fd24714678ec51093b4c9f864912fdfab8ef"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-original-empty-lookup.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 36,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-original-empty-lookup.stderr",
+      "sha256": "a6cc6c81de55ddbab692ec8299bbb62c2233b8816e3e4ef81d5b6444b26c4b5b"
+    },
+    {
+      "bytes": 399,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-wrapping.json",
+      "sha256": "ba8dd57206832dae292cc11a2a36a3d4d8f4561e774d51a4892942835a537398"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-wrapping.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 87,
+      "path": "release/0.2.0/evidence/services/producer/commands/directory-wrapping.stdout",
+      "sha256": "f3fe01981d569496d5a33bb6c2eacc0a94e02da23b398df0803ecbe5cb292d1b"
+    },
+    {
+      "bytes": 361,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-continuity-witness.json",
+      "sha256": "ea9b8feaec90d8812422325933ed6ad10623034f5400c6dacbf80a3ad37da23f"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-continuity-witness.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 7294,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-continuity-witness.stdout",
+      "sha256": "c5b2344a72fa4341690a8d8008df796fa21beac0b10b0da9129640436d673cf4"
+    },
+    {
+      "bytes": 356,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-native-device.json",
+      "sha256": "dde517bdc466234dfc8cd4bfd8061e91c05ec9e206c037b6d4a1e92ce084b157"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-native-device.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 359,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-policy-publisher.json",
+      "sha256": "541e50a2dfd897b3338687a716e8ef03e9056d26c24a987b7f0592ad008211b6"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-policy-publisher.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6447,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-policy-publisher.stdout",
+      "sha256": "e15711cc8adf051ad63287ef9a1d00b47e456918743f2dc26db43aa571c7eec8"
+    },
+    {
+      "bytes": 6848,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-native-device.stdout",
+      "sha256": "cf4e6f8911189928015cf105b9917d4408f760c5f0c5bda8356323b383e7e572"
+    },
+    {
+      "bytes": 359,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-prekey-directory.json",
+      "sha256": "b3b68ec9de2a76bf050a45fd4c54c13f6503e928c95a5333b361701046079f9b"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-prekey-directory.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 363,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-sdk-policy-authority.json",
+      "sha256": "026d7b2c4684adf6d9632d7e508fb144101f120da2145ad1bfa83527441e2d67"
+    },
+    {
+      "bytes": 6429,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-prekey-directory.stdout",
+      "sha256": "f09e720c1143b34dae9135a5dece9c96d874790bb41a96a86cf17d17540653d1"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-sdk-policy-authority.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6374,
+      "path": "release/0.2.0/evidence/services/producer/commands/elf-q-periapt-sdk-policy-authority.stdout",
+      "sha256": "3aac2e69aa797d321aa974bda144c076fede9d8384e9d404b31575a35af32391"
+    },
+    {
+      "bytes": 371,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-continuity-witness.json",
+      "sha256": "fd10fc26df43c0756bee218116cf6d1e2a1c863084d299ddecff77f7bb7a8b3f"
+    },
+    {
+      "bytes": 7294,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-continuity-witness.stdout",
+      "sha256": "c5b2344a72fa4341690a8d8008df796fa21beac0b10b0da9129640436d673cf4"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-continuity-witness.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 366,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-native-device.json",
+      "sha256": "a9ecc61f535b7a5a88d34a84e0e8b51af902c1745eb6e60f3141eaecba4e0a7b"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-native-device.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6848,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-native-device.stdout",
+      "sha256": "cf4e6f8911189928015cf105b9917d4408f760c5f0c5bda8356323b383e7e572"
+    },
+    {
+      "bytes": 369,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-policy-publisher.json",
+      "sha256": "b07825e000b77a12c80289f94f2d55be16fbd615e1687626ec908a462f6f13a9"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-policy-publisher.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6447,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-policy-publisher.stdout",
+      "sha256": "e15711cc8adf051ad63287ef9a1d00b47e456918743f2dc26db43aa571c7eec8"
+    },
+    {
+      "bytes": 369,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-prekey-directory.json",
+      "sha256": "c8eb68fb18e7cc973e7f5b85e2d72aeaf2f3797ebce18caf1c8c282748a49074"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-prekey-directory.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 373,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-sdk-policy-authority.json",
+      "sha256": "0872957672274a785155c676d336320158b6171137372bab05576224e3611bb3"
+    },
+    {
+      "bytes": 6429,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-prekey-directory.stdout",
+      "sha256": "f09e720c1143b34dae9135a5dece9c96d874790bb41a96a86cf17d17540653d1"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-sdk-policy-authority.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6374,
+      "path": "release/0.2.0/evidence/services/producer/commands/installed-elf-q-periapt-sdk-policy-authority.stdout",
+      "sha256": "3aac2e69aa797d321aa974bda144c076fede9d8384e9d404b31575a35af32391"
+    },
+    {
+      "bytes": 462,
+      "path": "release/0.2.0/evidence/services/producer/commands/metadata.json",
+      "sha256": "6d410635cc4d611da3df480652f85c40777c55ba928fdddb843a5155fdeb57f1"
+    },
+    {
+      "bytes": 7001,
+      "path": "release/0.2.0/evidence/services/producer/commands/metadata.stderr",
+      "sha256": "ccb15ae1f27769fa8ff4a718351626676adaa643707e48668d797cb89d5c4bdb"
+    },
+    {
+      "bytes": 1164413,
+      "path": "release/0.2.0/evidence/services/producer/commands/metadata.stdout",
+      "sha256": "b03642ea18aed41fefdf6fa7537fd1b13cebaa18bd59e29abd9686a931109586"
+    },
+    {
+      "bytes": 449,
+      "path": "release/0.2.0/evidence/services/producer/commands/publisher-after-refusal.json",
+      "sha256": "f3ac3610bd1e20d294fb3054929a52a23395f3743c89b22aadfb59ea0ffad8b0"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/publisher-after-refusal.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 5546,
+      "path": "release/0.2.0/evidence/services/producer/commands/publisher-after-refusal.stdout",
+      "sha256": "c85a4890a124fde793df39d635ce455f3e8db50774821c3a9d5f6d6a50fea39d"
+    },
+    {
+      "bytes": 770,
+      "path": "release/0.2.0/evidence/services/producer/commands/publisher-init.json",
+      "sha256": "7c91e2da21caf47ba190892dad69e8950802c6baa7ae3960f3f02fc68f0f888a"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/publisher-init.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 5546,
+      "path": "release/0.2.0/evidence/services/producer/commands/publisher-init.stdout",
+      "sha256": "c85a4890a124fde793df39d635ce455f3e8db50774821c3a9d5f6d6a50fea39d"
+    },
+    {
+      "bytes": 447,
+      "path": "release/0.2.0/evidence/services/producer/commands/publisher-reopen.json",
+      "sha256": "20d808b6abc972c78d7c54f7290151e357498b7914d4c02e83d76a9576bd1ac5"
+    },
+    {
+      "bytes": 5546,
+      "path": "release/0.2.0/evidence/services/producer/commands/publisher-reopen.stdout",
+      "sha256": "c85a4890a124fde793df39d635ce455f3e8db50774821c3a9d5f6d6a50fea39d"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/publisher-reopen.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 502,
+      "path": "release/0.2.0/evidence/services/producer/commands/publisher-wrong-identity.json",
+      "sha256": "7de235daca09f47645745833ba7f3a7c7c573210042531a43d211c45e40cb5ae"
+    },
+    {
+      "bytes": 75,
+      "path": "release/0.2.0/evidence/services/producer/commands/publisher-wrong-identity.stderr",
+      "sha256": "e0834fa402309baf189ec78e1899ed3eba22c4e5cd88b0badcedb79d82d1d2f0"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/publisher-wrong-identity.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 238,
+      "path": "release/0.2.0/evidence/services/producer/commands/rustc.json",
+      "sha256": "cea624b70daa1bd7b914431a1cbcf8e933a613cdb66786f289e45d9ccc361068"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/rustc.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 196,
+      "path": "release/0.2.0/evidence/services/producer/commands/rustc.stdout",
+      "sha256": "778fbc643a806f0dd123c056e66201d7e8a56a61928ec0a33171be8d6c2d5a37"
+    },
+    {
+      "bytes": 447,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-after-refusal.json",
+      "sha256": "c05d12ef9ead331fa2fef1c8eb121c92ccc25c7157d4a2bb1e9f67357264c7ae"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-after-refusal.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2729,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-after-refusal.stdout",
+      "sha256": "19de2e77f20895483dea7f693ae548eb3e5ba84406671399da653b8187213831"
+    },
+    {
+      "bytes": 442,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-init.json",
+      "sha256": "c826745f83ba8956501514d37097c00a24fc671c3c28412b8e327926eab7274f"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-init.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2729,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-init.stdout",
+      "sha256": "19de2e77f20895483dea7f693ae548eb3e5ba84406671399da653b8187213831"
+    },
+    {
+      "bytes": 635,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-issue.json",
+      "sha256": "9de5056ee71b9c62b380e6136f90ecc489b0cb5085303e275426a5a2899bd6fd"
+    },
+    {
+      "bytes": 7429,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-issue.stdout",
+      "sha256": "6d8af98de1caf3debddcec14700bc8c6973f712eed5b1d0f144d48e25e0283a0"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-issue.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 445,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-reopen.json",
+      "sha256": "5ce97532e82e6ece2d6257b23aeebd613bd77386ab21094a1bf881285f2f0e09"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-reopen.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2729,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-reopen.stdout",
+      "sha256": "19de2e77f20895483dea7f693ae548eb3e5ba84406671399da653b8187213831"
+    },
+    {
+      "bytes": 567,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-result.json",
+      "sha256": "7561e6f57d18eaff771ddf92a018fce856aebad8fac6c81744d408b146b697cb"
+    },
+    {
+      "bytes": 7429,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-result.stdout",
+      "sha256": "6d8af98de1caf3debddcec14700bc8c6973f712eed5b1d0f144d48e25e0283a0"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-result.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-wrong-identity.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 79,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-wrong-identity.stderr",
+      "sha256": "7a9e52506fb1edab954006d082c1ddcc14d859ffc2f375e52be4bc14656e00fe"
+    },
+    {
+      "bytes": 504,
+      "path": "release/0.2.0/evidence/services/producer/commands/sdk-wrong-identity.json",
+      "sha256": "def68b6daa2900153942aee665047f114c9c2a96b8a4dc077c54563ba1ab7258"
+    },
+    {
+      "bytes": 443,
+      "path": "release/0.2.0/evidence/services/producer/commands/witness-after-refusal.json",
+      "sha256": "59813b773b2cf14082fe18be1ef1d441635a7c3d964f770daf21b2d22f91618b"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/witness-after-refusal.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2735,
+      "path": "release/0.2.0/evidence/services/producer/commands/witness-after-refusal.stdout",
+      "sha256": "7c46984772ec2838f9758bffb288af227ed0d6ea01987cdadb7f320eee3cc829"
+    },
+    {
+      "bytes": 444,
+      "path": "release/0.2.0/evidence/services/producer/commands/witness-init.json",
+      "sha256": "b507057944285828863a6016a244823d8c0fb3cfb6943b61266f4d0976ec00f5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/witness-init.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2735,
+      "path": "release/0.2.0/evidence/services/producer/commands/witness-init.stdout",
+      "sha256": "7c46984772ec2838f9758bffb288af227ed0d6ea01987cdadb7f320eee3cc829"
+    },
+    {
+      "bytes": 447,
+      "path": "release/0.2.0/evidence/services/producer/commands/witness-reopen.json",
+      "sha256": "a45493a048e315ee59b5141eaf60fe0db4164a5dd9e44d383559569358691ee0"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/witness-reopen.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 480,
+      "path": "release/0.2.0/evidence/services/producer/commands/witness-wrong-identity.json",
+      "sha256": "499db7dd2842db3be54947853ef108d028d7f16fa76560b1022a17095fa29b03"
+    },
+    {
+      "bytes": 2735,
+      "path": "release/0.2.0/evidence/services/producer/commands/witness-reopen.stdout",
+      "sha256": "7c46984772ec2838f9758bffb288af227ed0d6ea01987cdadb7f320eee3cc829"
+    },
+    {
+      "bytes": 49,
+      "path": "release/0.2.0/evidence/services/producer/commands/witness-wrong-identity.stderr",
+      "sha256": "dc792217046bdda6315c5b3a2778a00054540c77be2910b132a95436a1caa66d"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/services/producer/commands/witness-wrong-identity.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 775,
+      "path": "release/0.2.0/evidence/services/readback/READBACK.json",
+      "sha256": "d97fcad1512d37642a109096094256c84274f2111a00d4592b1cffed43efa941"
+    },
+    {
+      "bytes": 5786,
+      "path": "release/0.2.0/evidence/services/readback/operator.py",
+      "sha256": "3f06c5ae99d75b496257389e138646cbc919684e399f8f220a015eb3ae06cd7e"
+    }
+  ],
+  "scope": "The original completed Linux producer and installed processes, plus fresh archive/source/license/ELF readback. The private Cargo source row is bound to its actual executable distribution, not advertised as a registry archive. Original report paths are preserved; only the outer distribution projection uses release inventory paths.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

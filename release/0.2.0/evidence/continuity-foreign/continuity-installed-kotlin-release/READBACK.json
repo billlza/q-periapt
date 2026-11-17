@@ -1,0 +1,256 @@
+{
+  "archive_members": 39386,
+  "artifact": {
+    "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14335379973/zip",
+    "created_at": "2026-11-17T14:27:56Z",
+    "digest": "sha256:e47194aec52e639d617fe31db01c629e61effaca3b3120bee8073404929fa3c3",
+    "expired": false,
+    "expires_at": "2027-02-15T07:08:17Z",
+    "id": 14335379973,
+    "name": "continuity-installed-kotlin-release",
+    "size_in_bytes": 135117541,
+    "updated_at": "2026-11-17T14:27:56Z",
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14335379973",
+    "workflow_run": {
+      "head_branch": "release/0.2-finalization",
+      "head_repository_id": 1279236693,
+      "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+      "id": 44036376133,
+      "repository_id": 1279236693
+    }
+  },
+  "checks": {
+    "consumer_files": 279,
+    "license_packages": 106,
+    "maven": {
+      "classes": 241,
+      "coordinate": "dev.qperiapt:q-periapt-continuity-kotlin:0.2.0",
+      "jar_sha256": "f24e8418015872d1d417246f8c53dd425e422bf85f51ef1204a0b3d5162ed532",
+      "jvm_version": 25
+    },
+    "native_exports": 158,
+    "native_library_sha256": "8ba1f4c77b85e6f41187b4c116aa99ad14f2a3eafcb6faca6eb6b17f962bd469",
+    "owner_tests": {
+      "publication": {
+        "suites": {
+          "AccountAuthorityTests": {
+            "report_sha256": "dc95a0f4242dd9748dd4fa6fbf7318dfddeae86629b78d6ec8ca78f2c73c93eb",
+            "tests": 4
+          },
+          "ConfigurationTests": {
+            "report_sha256": "cb00e001b3fe819efc3df44a5aa9f1f75eb5a16d7ac5b258b8f137ca96fd071d",
+            "tests": 4
+          },
+          "CredentialRenewalTests": {
+            "report_sha256": "f91f1c4a78bb1d249340c3a77757ce87ac03ca46d8ce12ced21e020061029c84",
+            "tests": 6
+          },
+          "CredentialRequestTests": {
+            "report_sha256": "57ae896dc0140b0af316a4a641720347ab0d7136bad8ff2552d70f80d8f957bf",
+            "tests": 3
+          },
+          "IndependentPolicyTests": {
+            "report_sha256": "4e33e309576f7067eedf42bf63a55799efbba5ede30f00c610b223337ec60824",
+            "tests": 5
+          },
+          "OwnerTests": {
+            "report_sha256": "7a349563a7e38b03db30976f073d136fe20b0ac2f396615f22b0b55e647c1aaf",
+            "tests": 20
+          },
+          "PeerConfigurationTests": {
+            "report_sha256": "a23a88cf771bb34bcd541466d13090f8feca571770248bd4e246a976035f923b",
+            "tests": 2
+          },
+          "PendingWriteRecoveryTests": {
+            "report_sha256": "4e518f623b6361256891f5e0aa5f85565cd9a839953ee4b6abf2231e8ee43dbb",
+            "tests": 3
+          },
+          "PolicyContinuationTests": {
+            "report_sha256": "b8d08c32f391cf646f4ff05ce0c155aff357b4ef9788262c9f10247e2ea5f011",
+            "tests": 6
+          },
+          "PolicyRenewalTests": {
+            "report_sha256": "730288c7f419664a7d03bf058f6b7ef75a70da689f7d5e8d4e735d82d78c0bf4",
+            "tests": 6
+          },
+          "PublicationTests": {
+            "report_sha256": "0ec0d8bd82d6bf2fab9ca71801e14209fd5d829b9d953cb66da45ff9290a05bf",
+            "tests": 4
+          },
+          "RetirementTests": {
+            "report_sha256": "b2096b8c044612e7cb5d5e19f14fa6ddd0732d0dcfc960461f0b01ebfa5655f2",
+            "tests": 4
+          },
+          "RootReplacementTests": {
+            "report_sha256": "88b5d50b523f24d8e92b38f9f21f3ee02fe2895303be6c86b4eb966415210a7d",
+            "tests": 3
+          },
+          "RosterRefreshTests": {
+            "report_sha256": "e5c96f7e42bb228877e441f5afcb2fbdf553a5eb82eaee0f2bb22fecbad1d606",
+            "tests": 5
+          },
+          "RosterResolutionTests": {
+            "report_sha256": "d96995de163914b0ac5939fe81193b685facb0102e37d1c4b6a2ac9f9b92a6c8",
+            "tests": 4
+          }
+        },
+        "tests": 79
+      },
+      "release": {
+        "suites": {
+          "AccountAuthorityTests": {
+            "report_sha256": "8dae5985135a939730fa62cf59ec8b20722616c4ccdf7668983a6776888b7e07",
+            "tests": 4
+          },
+          "ConfigurationTests": {
+            "report_sha256": "1bac97fb4f06e88c8fd194e168709ddce4252042b0091d317365f543746356e3",
+            "tests": 4
+          },
+          "CredentialRenewalTests": {
+            "report_sha256": "b83db6a1098f0631d255eec76d791c47a16aecefcec1f1fec92f76f76eac41be",
+            "tests": 6
+          },
+          "CredentialRequestTests": {
+            "report_sha256": "03627114f2a4ff8792a57815c2dd08c5ecff446a6d418b5ad028c524a108aec9",
+            "tests": 3
+          },
+          "IndependentPolicyTests": {
+            "report_sha256": "9fa480061a94fe6eb2ad5e85df59b36724366e530a0f2462dbdc3d9c87c7b023",
+            "tests": 5
+          },
+          "OwnerTests": {
+            "report_sha256": "99a09df6e9c664e86f1356ed99bb291b0807c339a0731b2145f3ab5c41727419",
+            "tests": 20
+          },
+          "PeerConfigurationTests": {
+            "report_sha256": "5598242f447efa6a365c1734e05de7e18921599bfcb5bfacb4a97516aa03dd39",
+            "tests": 2
+          },
+          "PendingWriteRecoveryTests": {
+            "report_sha256": "a063ab295ef884862180cb2bec7feac204a70fd4733cedaa034c5ebc9b1c3b21",
+            "tests": 3
+          },
+          "PolicyContinuationTests": {
+            "report_sha256": "b4508ad8dbe6d45273619c55df79d6ace4d89fb534ff7e6803afdfecb982d426",
+            "tests": 6
+          },
+          "PolicyRenewalTests": {
+            "report_sha256": "5d19add119079497926831a778a54e8e69f00ec318f2fd2a3e6531be2ac944d6",
+            "tests": 6
+          },
+          "PublicationTests": {
+            "report_sha256": "1cf7f62fdb1cb296846bf961ececeea7b06175f421792c46bd999effcba86aa0",
+            "tests": 4
+          },
+          "RetirementTests": {
+            "report_sha256": "9ffbcba6ceea4618e8a4db9865e3456a97bb6d7de9ec7ba7d110afb597902df4",
+            "tests": 4
+          },
+          "RootReplacementTests": {
+            "report_sha256": "77ab6435d026dba4ded78a2d3b053ca2dff5aca907d711e56114d6926e18f9ad",
+            "tests": 3
+          },
+          "RosterRefreshTests": {
+            "report_sha256": "05b98fa8da6eca584f509a189c18dc781b54a626600903156fd3e0ffcccb6b6e",
+            "tests": 5
+          },
+          "RosterResolutionTests": {
+            "report_sha256": "2ef6a6c88bdc509613de2dd4484e3a4ebc33787842b4061a4ab0103c04d6b174",
+            "tests": 4
+          }
+        },
+        "tests": 79
+      }
+    }
+  },
+  "completed": true,
+  "consumer": "kotlin",
+  "engine_archive_sha256": "fd51d1ef614b6143867e381cc7b7099081fd259d7ee5145083db0a4d9d9bc6c9",
+  "expanded_bytes": 355977454,
+  "fresh_inspection_commands": [
+    {
+      "argv": [
+        "/usr/bin/xcrun",
+        "lipo",
+        "-archs",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-kotlin-release/fresh-consumer/native/lib/libq_periapt_continuity_c_consumer.dylib"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "c1669e1d8edca98769c37d494b76442a1d6e5ffffd7b4da1fb63aef8ebaf6f01"
+    },
+    {
+      "argv": [
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/rustup/toolchains/1.98.1-aarch64-apple-darwin/lib/rustlib/aarch64-apple-darwin/bin/llvm-nm",
+        "--defined-only",
+        "--extern-only",
+        "/Users/bhmq03@durham.ac.uk/Desktop/Q-periapt/target/release020-finalization/continuity-foreign-af4618c8-readback/continuity-installed-kotlin-release/fresh-consumer/native/lib/libq_periapt_continuity_c_consumer.dylib"
+      ],
+      "returncode": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_sha256": "dd995cfc4217f0db550488e9faf5ae7fb7e2bff005e282df2a6151a8a480fd7f"
+    }
+  ],
+  "kind": "qperiapt.continuity_foreign_partition_archive_readback",
+  "original_records": [
+    {
+      "bytes": 11081661,
+      "path": "CONTINUITY_PACKAGE.json",
+      "sha256": "5b0aff85cacc51b686be2b746fdf260e6e955821680b9fa29db37499a6dfb2e8"
+    },
+    {
+      "bytes": 3879700,
+      "path": "C_CONSUMER.json",
+      "sha256": "cbf0c0f87e4a2593d86df453515b3a6e1d75f06c443ed19f75de5635424cca0f"
+    },
+    {
+      "bytes": 6607263,
+      "path": "KOTLIN_CONSUMER.json",
+      "sha256": "b2b0b8ded7d172cadf45a8d9b34747a7a25974857cffc672b8e5225f0d057308"
+    },
+    {
+      "bytes": 42536,
+      "path": "c-consumer-Cargo.lock",
+      "sha256": "ee6ecf5c8907bc8576063f59915444c7b7abf7d7ee1b07883898e4edbf910987"
+    },
+    {
+      "bytes": 42495,
+      "path": "consumer-Cargo.lock",
+      "sha256": "6387c8120f1c00a366f46625c953c855ff3413aabf7bd7e0301eb516e61c300f"
+    },
+    {
+      "bytes": 110,
+      "path": "location.json",
+      "sha256": "85cd666bfa07285e3a6cd3be086633c4b1667697c44115b11a408c5b348997b2"
+    },
+    {
+      "bytes": 216976,
+      "path": "sources-after.json",
+      "sha256": "a29d3883be1d634ef6cac898b3eb4a19bf753bb64dfc0a7aa05bf9a00b80ef8b"
+    },
+    {
+      "bytes": 216976,
+      "path": "sources-before.json",
+      "sha256": "a29d3883be1d634ef6cac898b3eb4a19bf753bb64dfc0a7aa05bf9a00b80ef8b"
+    }
+  ],
+  "original_report_sha256": "5b0aff85cacc51b686be2b746fdf260e6e955821680b9fa29db37499a6dfb2e8",
+  "packages": [
+    {
+      "bytes": 12322130,
+      "file": "q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-release.zip",
+      "sha256": "fc02d49dcde8be7f629ef88eb7c22b7d481b722d35e4cbb5c094e7fa80fe438c"
+    }
+  ],
+  "producer_run": 44036376133,
+  "profile": "release",
+  "profile_union_completed": false,
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "Fresh original-container digest/CRC and bounded member checks, unchanged source/report/engine bindings and actual package/license/interface readback for one explicitly selected hosted profile. Original reports remain completed=false partition receipts. Static Mach-O/Java inspection where applicable does not re-execute the original runtime. Complete six-profile union is a separate qualification; no physical-device or independent-engine execution is inferred.",
+  "sdk_report_sha256": "cb3432eec1ca03e5c7bda55b1c44b9384b0f6779eba6e466e32871acf56a6bc1",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

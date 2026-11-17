@@ -1,0 +1,435 @@
+{
+  "assets": [
+    {
+      "file": {
+        "bytes": 10843367,
+        "path": "release/0.2.0/assets/platform/q-periapt-continuity-android-0.2.0.aar",
+        "sha256": "6818d28a97b8db1810c16c0f981e380c627be4056b884d810161f6ce9642b5b4"
+      },
+      "name": "q-periapt-continuity-android-0.2.0.aar"
+    },
+    {
+      "file": {
+        "bytes": 4124727,
+        "path": "release/0.2.0/assets/platform/q-periapt-continuity-android-0.2.0-maven.zip",
+        "sha256": "2813a053a1c7e0fa6e6dc19db7995ea2c632d4af2d47007728ff7e18e10f105d"
+      },
+      "name": "q-periapt-continuity-android-0.2.0-maven.zip"
+    },
+    {
+      "file": {
+        "bytes": 10497199,
+        "path": "release/0.2.0/assets/platform/CONTINUITY_ANDROID_BUILD_EVIDENCE.zip",
+        "sha256": "3a344b14e0f10b1f89179ec8d7ddb1294bac2a9756f63349ba11912a05423449"
+      },
+      "name": "CONTINUITY_ANDROID_BUILD_EVIDENCE.zip"
+    }
+  ],
+  "completed": true,
+  "kind": "qperiapt.continuity_android_release_component",
+  "package_bindings": {
+    "continuity-android": {
+      "artifacts": [
+        {
+          "bytes": 4124727,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-android-0.2.0-maven.zip",
+          "sha256": "2813a053a1c7e0fa6e6dc19db7995ea2c632d4af2d47007728ff7e18e10f105d"
+        },
+        {
+          "bytes": 10843367,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-android-0.2.0.aar",
+          "sha256": "6818d28a97b8db1810c16c0f981e380c627be4056b884d810161f6ce9642b5b4"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 65312,
+          "path": "release/0.2.0/evidence/continuity-android/producer/BUILD.json",
+          "sha256": "65617dc6b69b8eeb1873821cbcf6925a4a20aa20877e4d64934ecb5aeeee4732"
+        },
+        {
+          "bytes": 7927,
+          "path": "release/0.2.0/evidence/continuity-android/producer/capsule/DISTRIBUTION.json",
+          "sha256": "3457cf3aa867dadf492181ad3fa86337b850462ef9d8a7ae7a9d49e5721d2155"
+        },
+        {
+          "bytes": 4161,
+          "path": "release/0.2.0/evidence/continuity-android/readback/READBACK.json",
+          "sha256": "00ff7ee8e24374c0da220ced5fc1b87d5615d05282c48016ff1dea5882114a11"
+        },
+        {
+          "bytes": 608,
+          "path": "release/0.2.0/evidence/continuity-android/readback/ENGINE_ARCHIVE_MATCH.json",
+          "sha256": "de7eb797938f18158c775739ebc8aa3bb9c695b85747bf950ed0def4b78d600d"
+        }
+      ],
+      "metadata": {
+        "bytes": 808,
+        "path": "release/0.2.0/distributions/continuity-android.json",
+        "sha256": "60393479a8633245a9d55510b6aa33516439c95d3acba92e258f00c3aeb723df"
+      }
+    },
+    "continuity-engine": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 608,
+          "path": "release/0.2.0/evidence/continuity-android/readback/ENGINE_ARCHIVE_MATCH.json",
+          "sha256": "de7eb797938f18158c775739ebc8aa3bb9c695b85747bf950ed0def4b78d600d"
+        }
+      ]
+    }
+  },
+  "records": [
+    {
+      "bytes": 65312,
+      "path": "release/0.2.0/evidence/continuity-android/producer/BUILD.json",
+      "sha256": "65617dc6b69b8eeb1873821cbcf6925a4a20aa20877e4d64934ecb5aeeee4732"
+    },
+    {
+      "bytes": 1485,
+      "path": "release/0.2.0/evidence/continuity-android/producer/INPUT_SELECTION.json",
+      "sha256": "e8e3433af9afdd014c63634af353cd6897e1eff553e47ae84684c7b9fc785d40"
+    },
+    {
+      "bytes": 105,
+      "path": "release/0.2.0/evidence/continuity-android/producer/LOCATION.json",
+      "sha256": "febb4f1dd9a4c31421d9b3133ee7c53ea787e1a7a5ebe8a6ab0ddf91aca42972"
+    },
+    {
+      "bytes": 624,
+      "path": "release/0.2.0/evidence/continuity-android/producer/SDK_ADMISSION.json",
+      "sha256": "f2d9267d8ffe2ee70263328f17d93335788298b919c4c7522fd514397308bd7f"
+    },
+    {
+      "bytes": 7927,
+      "path": "release/0.2.0/evidence/continuity-android/producer/capsule/DISTRIBUTION.json",
+      "sha256": "3457cf3aa867dadf492181ad3fa86337b850462ef9d8a7ae7a9d49e5721d2155"
+    },
+    {
+      "bytes": 1485,
+      "path": "release/0.2.0/evidence/continuity-android/producer/capsule/INPUT_SELECTION.json",
+      "sha256": "e8e3433af9afdd014c63634af353cd6897e1eff553e47ae84684c7b9fc785d40"
+    },
+    {
+      "bytes": 1083,
+      "path": "release/0.2.0/evidence/continuity-android/producer/capsule/PACKAGE_IDENTITY.json",
+      "sha256": "d6e25de6bb2889c01cd4e6aed7ce354728c933b72645bac4e2c03586186be45f"
+    },
+    {
+      "bytes": 11873,
+      "path": "release/0.2.0/evidence/continuity-android/producer/capsule/classes-build.json",
+      "sha256": "912785736192d979febab880f3cc452e8c3bcf477a3804ce85f0646f2f0baeb9"
+    },
+    {
+      "bytes": 248429,
+      "path": "release/0.2.0/evidence/continuity-android/producer/capsule/native-build.json",
+      "sha256": "ab9d3943a652a5ac2b8502a3d8567f36e17c56318baf1c84d73c809cba5a38ec"
+    },
+    {
+      "bytes": 11873,
+      "path": "release/0.2.0/evidence/continuity-android/producer/classes-build.json",
+      "sha256": "912785736192d979febab880f3cc452e8c3bcf477a3804ce85f0646f2f0baeb9"
+    },
+    {
+      "bytes": 518,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/candidate-sources.json",
+      "sha256": "2e36334f5e5b78776cb6a519f03207aa22a3377f3bac7225d9f71476e74d19d8"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/candidate-sources.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 64080,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/candidate-sources.stdout",
+      "sha256": "73cb48dfb65db3d216f013b284ffec13b64beeeec2f75c444d0a12fcc1922a9c"
+    },
+    {
+      "bytes": 282,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/cargo-clippy-version.json",
+      "sha256": "d44eb89668a91f7bcc702d988dda621273b4ea40f1d02e5453e31a84780c0ad1"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/cargo-clippy-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 38,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/cargo-clippy-version.stdout",
+      "sha256": "5b2434a8299036c6e83749c249f2837c1689942551958368a628f5e06be5c21c"
+    },
+    {
+      "bytes": 314,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/clang.json",
+      "sha256": "a2e35390fd345cc5c225c06c3f920e1c8ec21dc2a6090d3e5bed7975b5953a76"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/clang.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 353,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/clang.stdout",
+      "sha256": "050fbbc0168a708cbe933ec660ab510b1530f4f354ee9abd0585ddd1485434d1"
+    },
+    {
+      "bytes": 269,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/clippy-driver-version.json",
+      "sha256": "19b01b4d77dba48e5d0c0172568f8a4623f31fdeaea93bdff3c033b2d03d34bb"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/clippy-driver-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 38,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/clippy-driver-version.stdout",
+      "sha256": "5b2434a8299036c6e83749c249f2837c1689942551958368a628f5e06be5c21c"
+    },
+    {
+      "bytes": 492,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/clippy.json",
+      "sha256": "b84a64b474ff82e9127b4c63eec426a580fc715a7ecbb421bc60640673fac5c9"
+    },
+    {
+      "bytes": 4389,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/clippy.stderr",
+      "sha256": "ae06230f79b4087094dac0adee52182c2bfa2072d58d9d5d9be27b21ddcb9e8a"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 425,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/consumer-metadata.json",
+      "sha256": "910684d4716f645e11916b7e5ba323fd68b743dfd6fb2ad56cb468491eab7c7a"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/consumer-metadata.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 707921,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/consumer-metadata.stdout",
+      "sha256": "6e9eaba349bbc10180a96ea9ae78973aacb1e2f1f938dfd98df3b69b9fce42b1"
+    },
+    {
+      "bytes": 2145,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/fetch.json",
+      "sha256": "5513624a8dc9c12067a9736b7c281acc5d48e57eefe5ff9012b7a06c3dda54a0"
+    },
+    {
+      "bytes": 5429,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/fetch.stderr",
+      "sha256": "5838e70f97af66e19a6addfba7ce409652cf72b19130843ceeb814b3afc57793"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/fetch.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 285,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/java-version.json",
+      "sha256": "2b0b11dbdf0b77ef613342b8a3d9669d4d635ff6aacd2d072ecc0ad7956af92c"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/java-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 180,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/java-version.stdout",
+      "sha256": "a3f884441b1e0ca6c4977cf03d9535f05774ab108989e061a3bd8e0a258192d4"
+    },
+    {
+      "bytes": 286,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/javac-version.json",
+      "sha256": "1376fd02c070f36da2d45c1f9eae8504198c6c846e0f565f54a21fdc842e29a3"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/javac-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 13,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/javac-version.stdout",
+      "sha256": "2dd0ebdf2d888224af94a267609479a29f336a58a00337d65eb8c6076f287f76"
+    },
+    {
+      "bytes": 11615,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/javac.json",
+      "sha256": "d7c72df214f34098e90fe49aa1f4f23b4c5ce7c0a698dee6140fcd66ad3db920"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/javac.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/javac.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 4284,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/jni-build.json",
+      "sha256": "ed41ca4f8ba1a1969a1fa0914138bb91c0c0a1267c96990b5feb31974a0c6f92"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/jni-build.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/jni-build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 479,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/jni-strip.json",
+      "sha256": "4e7cac35685f851a24589c865585bb2a0faedf078a672ab6f6081f89ac4fb8c5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/jni-strip.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/jni-strip.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 841,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/native-build.json",
+      "sha256": "5394c2d219846a4be853dadab2b1a9de96a55cf6b2a8f211e39d0b09763de38a"
+    },
+    {
+      "bytes": 4994,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/native-build.stderr",
+      "sha256": "68e886210736d1ca647e73069f189d45afa943ba8c61b1fc7d5b8214e4138e66"
+    },
+    {
+      "bytes": 149489,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/native-build.stdout",
+      "sha256": "833c4f77506c4714682bdafd815e03143f2cb172b13599d40630976e695e516e"
+    },
+    {
+      "bytes": 487,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/native-strip.json",
+      "sha256": "67ad672ce4c8d83a96afbe5db6d8ab6b2291c716d3cca307dd6d58984f5e63d1"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/native-strip.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/native-strip.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2200,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/package-list.json",
+      "sha256": "f55c72f24c6dcf148393a49629524089ab35b4c3dbb90a7920ff012351ef7b1e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/package-list.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 34144,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/package-list.stdout",
+      "sha256": "67862935e4bc6cff4988ff10ab8b3d3282dc6ba536100c0d685a7dbc0e347ae1"
+    },
+    {
+      "bytes": 2208,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/package.json",
+      "sha256": "40a505be1941cc355364951fa3f3342f0338bb7e2308a95d051a6582dfa2cf48"
+    },
+    {
+      "bytes": 5139,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/package.stderr",
+      "sha256": "713f28e00e04548247cdb667eed0eaccfe7b8c472cdd311460fed784f6ed4cef"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/package.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 254,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/rustc.json",
+      "sha256": "68bf3fd91206aee48dd7908ee33670318af4393de91028bc0436cccebaecd6d5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/rustc.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 192,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/rustc.stdout",
+      "sha256": "e2211d4c0760a2a3b03eab88e42f8848952b7aa2ed649277a8fdbf3ce1838fd4"
+    },
+    {
+      "bytes": 344,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/workspace-metadata.json",
+      "sha256": "3f7a77d6668c887d1bb6fd5e552b4e5630c70e75e6a476a64fc9f62fb6f51c41"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/workspace-metadata.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 61434,
+      "path": "release/0.2.0/evidence/continuity-android/producer/commands/workspace-metadata.stdout",
+      "sha256": "5f4114c6ae9a2964f331da6a941cf4a531a754f69495f54155cc81055427bf8d"
+    },
+    {
+      "bytes": 42536,
+      "path": "release/0.2.0/evidence/continuity-android/producer/consumer-Cargo.lock",
+      "sha256": "ee6ecf5c8907bc8576063f59915444c7b7abf7d7ee1b07883898e4edbf910987"
+    },
+    {
+      "bytes": 248429,
+      "path": "release/0.2.0/evidence/continuity-android/producer/native-build.json",
+      "sha256": "ab9d3943a652a5ac2b8502a3d8567f36e17c56318baf1c84d73c809cba5a38ec"
+    },
+    {
+      "bytes": 4161,
+      "path": "release/0.2.0/evidence/continuity-android/readback/READBACK.json",
+      "sha256": "00ff7ee8e24374c0da220ced5fc1b87d5615d05282c48016ff1dea5882114a11"
+    },
+    {
+      "bytes": 7145,
+      "path": "release/0.2.0/evidence/continuity-android/readback/operator.py",
+      "sha256": "aa27dbff053cd80fa0e6ad55debb32b1d4901ffb0b6e521a4c33b6cb62d9e596"
+    },
+    {
+      "bytes": 608,
+      "path": "release/0.2.0/evidence/continuity-android/readback/ENGINE_ARCHIVE_MATCH.json",
+      "sha256": "de7eb797938f18158c775739ebc8aa3bb9c695b85747bf950ed0def4b78d600d"
+    }
+  ],
+  "scope": "Original successful source-bound Rust/NDK r29/Java25 builds and independent producer capsule reopening are retained. Fresh source/selection/receipt/Maven/Java-class/license checks and real local LLVM inspection of the exact ARM64 ELF bytes reproduce the complete verification projection. The fresh LLVM inspectors are explicitly distinct from the original NDK. Deterministic Maven-capsule ZIP was freshly extracted and reread. Host JNI runtime partitions and any retained ART/device evidence keep separate identities and scopes.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

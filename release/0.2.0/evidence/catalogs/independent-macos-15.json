@@ -1,0 +1,1610 @@
+{
+  "assets": [],
+  "completed": true,
+  "host": "macos-15",
+  "kind": "qperiapt.independent_host_evidence_component",
+  "package_bindings": {},
+  "phases": [
+    "source",
+    "installed"
+  ],
+  "readbacks": [
+    {
+      "bytes": 29106,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/READBACK.json",
+      "sha256": "bf01e3991da6c44ab31db4919556fed946aa241b1ba53d17041aba2d44e63f44"
+    },
+    {
+      "bytes": 26127,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/READBACK.json",
+      "sha256": "2b248ab0a3d7648b8cbbf82fb67b431d6afef6f81af1de0311c2edfb1de993b0"
+    }
+  ],
+  "records": [
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/account-boundary.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1465,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/account-boundary.stdout",
+      "sha256": "6f1b6a8e17e310c57ebd0c8a5bcb3e62571c9b5ef7f28987f3c4c04500b13d7a"
+    },
+    {
+      "bytes": 26972,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/account-boundary/RESULT.json",
+      "sha256": "6e8dd875fe57f8ab23a7072e99a866521631cc4c45cf77dfc53d80046c7bbaed"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/account-credential-inputs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 51,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/account-credential-inputs.stdout",
+      "sha256": "c88e7449f47fe550a9272866c74b8faf764e6797afaa7ad00e6842e490e867df"
+    },
+    {
+      "bytes": 41776,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/account-credential-inputs/RESULT.json",
+      "sha256": "ad4aa6b2dba8fb45cf188f49f9dc0498d5bc49e16147fdc6e86904b0dd82397a"
+    },
+    {
+      "bytes": 202,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/account-model-build.stderr",
+      "sha256": "376dae97c503b0a22b36072ad9d7f33c37214c6d5bf159f447f7214ef4a037fc"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/account-model-build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 202,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/account-model-clippy.stderr",
+      "sha256": "399e1c4c1b49942ddad6a89a01f3006c70ed55065a97e508fa8040c317facb95"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/account-model-clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/account-state.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 206,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/account-state.stdout",
+      "sha256": "42af0599151a73f2ea8d71f0536f0373e62f99e6a89c26dc3738267165c2a9a4"
+    },
+    {
+      "bytes": 24551,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/account-state/RESULT.json",
+      "sha256": "1dc37162f486ce9746cc376a02d2da02d18311f5210fe61f10b3278732cd6545"
+    },
+    {
+      "bytes": 3338,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/build.stderr",
+      "sha256": "b59ab416d1a6bfbc1572dfefb78f327d843e5440653ebfa4ca0a438bbb1529ad"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/capacity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 91,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/capacity.stdout",
+      "sha256": "eab2a4fe2188d19d50f494138889a7a1676de1aaa10c05164758bc9a2189dac1"
+    },
+    {
+      "bytes": 28212,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/capacity/RESULT.json",
+      "sha256": "9cef0bb21e2523c8ea17454040c8e4a6b80697a4165f73746c7dc10abe077cf6"
+    },
+    {
+      "bytes": 6675,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/clippy.stderr",
+      "sha256": "fcc46ded98fe6ac2cad5f0c8238e5c955c2fed9cce235b0fe3e874c5c40f1aa0"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/control.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 128,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/control.stdout",
+      "sha256": "02f195f84c73e4de8c135b306505e30b46152c0c0ba428604a44f9807150b8a3"
+    },
+    {
+      "bytes": 90193,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/control/RESULT.json",
+      "sha256": "de0309bed52694f8bac9d6d51f48baaf11c2b07be5240de9946644368ef25956"
+    },
+    {
+      "bytes": 12417,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-producer.stderr",
+      "sha256": "754d448ebdf6d5325304749c4b76161db60fb07a156b9c25398dfc0bf71684fc"
+    },
+    {
+      "bytes": 201,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-producer.stdout",
+      "sha256": "a53efeba3aad2041c79b8ad8a95033b2cb2cc69833cdad7e204c2e00672735ca"
+    },
+    {
+      "bytes": 208,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-provenance.json",
+      "sha256": "f5a951da4ffcd1c244436fdf9e6ed81a9b078b10add29c866d4334b9d09c2970"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/bad-signature.bin",
+      "sha256": "6e5ec5416758927602de22fef19a52eec3c4efce83e5377e4710dc7ffde3d555"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/cancelled.bin",
+      "sha256": "0660b6ffd51cab00c4e3b7d55673493ac63d05bfca6b6c52d91d05e5f1276e14"
+    },
+    {
+      "bytes": 14979,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/cli-trace.jsonl",
+      "sha256": "770ba735a4c2a163c6e00e4b806db94e19da5b9367deb60df252bffc265b94ab"
+    },
+    {
+      "bytes": 10354,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/conflict.bin",
+      "sha256": "645c7ade72f93e4a311cc29ecb9ce90b23be563f59be07e42f53335333a85cc8"
+    },
+    {
+      "bytes": 1745,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/expected.json",
+      "sha256": "e9bb2684a4f69b15377e909dadb63b6212765aebe6aa4bc784ddc94d956470c2"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/first.bin",
+      "sha256": "0660b6ffd51cab00c4e3b7d55673493ac63d05bfca6b6c52d91d05e5f1276e14"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/fork.bin",
+      "sha256": "e07203d28507ae42c60c4c299a36b5b712a5daf6cff43c93d06d2508d153bd74"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/fresh.bin",
+      "sha256": "fbe2e757bece2e7a4f3c04d502b9be4f82cfc6ae958011e8ddae6caa6548126b"
+    },
+    {
+      "bytes": 1751,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/history-trace.jsonl",
+      "sha256": "9982c991117eca76264f34fa6581c899a0f2a74839c7eedcdd657c77105ff2f2"
+    },
+    {
+      "bytes": 382,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/inspection.json",
+      "sha256": "8e727625b90e0d9657c2ab6574090e94d238efed8b6c38d53c735bae010d5193"
+    },
+    {
+      "bytes": 1229,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/original-history.json",
+      "sha256": "56e9027f0dfcbcafc3e714f30a47ee9904f14d18910e197f3cabd044067aded4"
+    },
+    {
+      "bytes": 2808,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/pin.json",
+      "sha256": "ed22359003b451feea0735a4e9888a22230939f43521a7ace7378b52ae4c2ca5"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/retry.bin",
+      "sha256": "0660b6ffd51cab00c4e3b7d55673493ac63d05bfca6b6c52d91d05e5f1276e14"
+    },
+    {
+      "bytes": 2808,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/wrong-key.json",
+      "sha256": "a7b8a55e2cd44ecc25fe98b7f928e7c3987f8308972883824a26ca76149538d2"
+    },
+    {
+      "bytes": 2808,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-public/wrong-service.json",
+      "sha256": "ec89a0086679ae3bd0c81b4bf4f345720b398e2ed94b27d69a41af124429f824"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-source.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 217,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-source.stdout",
+      "sha256": "ff73e824ef78f8e2a28c7529771d41c5c132924cf2ac35a29565c75aa95539e6"
+    },
+    {
+      "bytes": 2516,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-cli-source/RESULT.json",
+      "sha256": "03f543e3139d87ba78f80a32ae80604070eba3d1d0b81a6ee3359be9f0d80a27"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-lease.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 147,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-lease.stdout",
+      "sha256": "92f962cda39fdf929c7604aea6c7592174f6d644ceeec22852e7404863db6782"
+    },
+    {
+      "bytes": 3827,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/directory-lease/RESULT.json",
+      "sha256": "9c988f57be6520665a79b6af0eb0740117c293cba7b98516be0bb7dc63badcab"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/durable-rekey.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 84,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/durable-rekey.stdout",
+      "sha256": "05194367a40a70ececbfb8eb4b10d8ed552e1018abf9ecbeaad6503da52e3647"
+    },
+    {
+      "bytes": 75371,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/durable-rekey/RESULT.json",
+      "sha256": "cf916ae043d6f8b5297756eec73dea2f8bf1166a8a74a5f2d5d549eacae1e288"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/exchange.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 89,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/exchange.stdout",
+      "sha256": "222e8c4fea166b7cb7a04b12ef67be32817cc99b24bae4d3341f03b5ab2c03b7"
+    },
+    {
+      "bytes": 61620,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/exchange/RESULT.json",
+      "sha256": "a6ca4e7100ea4ebadeac9215ca3bef7d9072b55ab17e3171af9b06d2584c6963"
+    },
+    {
+      "bytes": 201,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/host.txt",
+      "sha256": "62be9c226f4bec410e1521082ef7cb709b1246b56de7f61a0a537cfccbf4f248"
+    },
+    {
+      "bytes": 3601,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/importer-build.stderr",
+      "sha256": "f0ceb74dda78bb4a4f9ca9acee1948cb9ce4830e2e24f3b3864ae692bcc097fc"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/importer-build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 4692,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/importer-clippy.stderr",
+      "sha256": "777190f8143f367aa718568d48269f22cec553fa33a60f81d7eeed516714c6d9"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/importer-clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-credential-capacity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 298,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-credential-capacity.stdout",
+      "sha256": "a0769069b794b18e86cb2f5ce62733bd34448c765a3cdccece2dac07011048b2"
+    },
+    {
+      "bytes": 25890,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-credential-capacity/RESULT.json",
+      "sha256": "177433412640222f12bc17f65d779d39023c76e7e3bdb168ed150a6abd95a5bd"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-credential.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1262,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-credential.stdout",
+      "sha256": "2b88a0288773115aee7a9159c915674b3e9d417ba3b31f6f3b076b5c9e6ae05c"
+    },
+    {
+      "bytes": 26553,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-credential/RESULT.json",
+      "sha256": "4adfea182777123ddf6f0e10467de117c40839163cd6fc3c0ed66c62329a51d7"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-policy-boundary.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2011,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-policy-boundary.stdout",
+      "sha256": "47abcf3b2374fbb6deded9e74f72695c3d0a70fbdeb0de706bdc5074b5ebc21f"
+    },
+    {
+      "bytes": 27791,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-policy-boundary/RESULT.json",
+      "sha256": "6d8ecb8d64d86dd9b67b51a82bdc8e7716559a6d2e522b2b9b9b74e6ded33c7d"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-policy.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2848,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-policy.stdout",
+      "sha256": "dca731087af71a1e3d896b6c0749ee37332c1e2cdfb1255255fdaa6f56df54d4"
+    },
+    {
+      "bytes": 28659,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-policy/RESULT.json",
+      "sha256": "849d2fc7ba2c5f6ef71b317ce6e9ce888b5bb4b472cecc2aea102867be4f4839"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-renewal.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1145,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-renewal.stdout",
+      "sha256": "205093a7028346f1c1a69d66e06a409a84de916e14aeeb9f4cc740f239832202"
+    },
+    {
+      "bytes": 26452,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/local-renewal/RESULT.json",
+      "sha256": "c33c8b6052a0b89947546f8e4bc686ea3c9c5400af9fdc80f2710b5867dcf4df"
+    },
+    {
+      "bytes": 581837,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/metadata.json",
+      "sha256": "19250c29370dfc58ee289685fde1b867850a1525951fe24b8ebb92556ec155b5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/one-time-publication.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 97,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/one-time-publication.stdout",
+      "sha256": "519d806f9a3e2c90b89b594fd7f3daa1a45bed11e07a9c1e4dfcdb3fbf8c5ada"
+    },
+    {
+      "bytes": 1991,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/one-time-publication/RESULT.json",
+      "sha256": "3e966462651553905ded10f6513259ecaff54472ddbac61b42dc8b20c4361225"
+    },
+    {
+      "bytes": 169,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/package-tests.stderr",
+      "sha256": "8713b174bfb3781e7b349c2af0217a23cb8d52c4eaef02052713be3fd765915f"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/package-tests.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/peer-intermediate.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 24447,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/peer-intermediate.stdout",
+      "sha256": "0f068254cd044e1825d644e8678864a51fda5461dac7de53f26de54cce0b7051"
+    },
+    {
+      "bytes": 25421,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/peer-intermediate/RESULT.json",
+      "sha256": "6dae1e75f905d93fe06913622c2af08ee58f5d220c63aadcd27df5aa15d0f55e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/peer-lifecycle.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 435,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/peer-lifecycle.stdout",
+      "sha256": "d0e6c1206df3a5ad52d75cdda21b8a311492e962112ecd7f50c88f3bb6a2adc4"
+    },
+    {
+      "bytes": 25826,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/peer-lifecycle/RESULT.json",
+      "sha256": "6b339016c92188df0c421dfcb70202d87536c4f08eff401150b88493edddd838"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/peer-reply-release.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 96,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/peer-reply-release.stdout",
+      "sha256": "5606188acaec89c79552c7583d07449c8413e16c7c7d5bd6a9ce11e41c64cc62"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/pending-recovery.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 672,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/pending-recovery.stdout",
+      "sha256": "cb256d4b67e96da85e16fd14bed2f6e0ff2aa70d7139e8437f21171bf009c733"
+    },
+    {
+      "bytes": 25833,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/pending-recovery/RESULT.json",
+      "sha256": "58a56c39948ea376b9be1673ae4141f454ebf3837af35a344d48a5f9756f9021"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-composition-capacity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 144,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-composition-capacity.stdout",
+      "sha256": "1be36454b4672ac7d5dcf023df6a44cb4dfe5dd824f8e500d5767cda4f897125"
+    },
+    {
+      "bytes": 32235,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-composition-capacity/RESULT.json",
+      "sha256": "352b6350e6c58dfc4db1b1ff85de8aedb8436ecc02615b03ce40d5f1f5a3d6ef"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-composition.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 289,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-composition.stdout",
+      "sha256": "75521232be019f6d04a300db5b9b13582feabfa196aeb5d2f73e75a7ac88b897"
+    },
+    {
+      "bytes": 48612,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-composition/RESULT.json",
+      "sha256": "6a058ac4c68b34a0cc55119530ba3a40557537a5530a361e908b1b7fea01e479"
+    },
+    {
+      "bytes": 202,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-proof-build.stderr",
+      "sha256": "1f534fa63c0a06adef7284610ec9f60306f40689850a3cc5c9bd71f346ae4dac"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-proof-build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 202,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-proof-clippy.stderr",
+      "sha256": "a0e333709767f5c19158a1ed6d7f83b7054ffb60b878bbb2954c5e5feda9721e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-proof-clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-proof.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 54,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-proof.stdout",
+      "sha256": "229513cb4b8633e8b3e564a73e31447ed2c82c451143139eea28270efa443b1e"
+    },
+    {
+      "bytes": 38097,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-proof/RESULT.json",
+      "sha256": "0b4c22cdffc800615d4317aabcfe9d93187342852e4290631aa05e63a07593d4"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-record.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 38,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-record.stdout",
+      "sha256": "b2314b7e14d64e2d24332f60daa7c6d1d4e12ca00e9fb59aec3bd9acd5bf247c"
+    },
+    {
+      "bytes": 32959,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/policy-record/RESULT.json",
+      "sha256": "f26b8fd1290a7fe32614dc98560db8202425f8e5a6cc2aeda0c7dd5005159104"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/provider.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 772,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/provider.stdout",
+      "sha256": "13d29d9f7cdffc04a1bc70db28a446caf293132687604a7d87197f978771bd8b"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/public-inputs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 550,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/public-inputs.stdout",
+      "sha256": "8b771c9324cd3f9483f8129ab348385dafa04a778e4a4859961baed0e574aff3"
+    },
+    {
+      "bytes": 25659,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/public-inputs/RESULT.json",
+      "sha256": "fa450a6eb5ccf38f374db8fa8e501a73283802021256cb8bd4c308686220490e"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/qualification-phase.txt",
+      "sha256": "b8bb034f9b63bd0254fbc7c157cae746c75853f4643d6cea844dc48ddb57f522"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/registration.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 308,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/registration.stdout",
+      "sha256": "cae86b76c947990603a272add43c87093bf6de8a2062d8f65a582a9b2bc67a7d"
+    },
+    {
+      "bytes": 25415,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/registration/RESULT.json",
+      "sha256": "78098a7d5ecee52d197fe3020bb1725afb086bd4fcb460114dbe6cc04b4ee03c"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/rekey.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 55,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/rekey.stdout",
+      "sha256": "79ca595ebb5e323347f91a623bae5a28cea984c877130e083f27c6bb0adde1e5"
+    },
+    {
+      "bytes": 78727,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/rekey/RESULT.json",
+      "sha256": "2d32e96cc502b16ea6aa1b63805e0bcafcedef71af1ce955806e58a478cb7c54"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/resolution-capacity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 78,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/resolution-capacity.stdout",
+      "sha256": "1c6a14297c4fb1cc5cf2a396163327464ed49092216198b5e6cbc107c8744234"
+    },
+    {
+      "bytes": 2105968,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/resolution-capacity/REPORT.json",
+      "sha256": "17dad597e35318166bec13649acb1894691e2c429b7c8c9d25283bfc789a712a"
+    },
+    {
+      "bytes": 68896,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/resolution-capacity/RESULT.json",
+      "sha256": "d70a55851dccac05eb9b726f981dc7a5ef9372dfc342f1e0cc2fe292f5d431b0"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/resolution-disclosure.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 88,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/resolution-disclosure.stdout",
+      "sha256": "5a5d42dcb49cb7bc260c7414812e4ed7f8d8f101dfa298de0cf2ffbb05629af8"
+    },
+    {
+      "bytes": 55589,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/resolution-disclosure/RESULT.json",
+      "sha256": "7d88ff6140d9c6060f38a8f4f153e66fc188bdc57cd6b0a12c060742659a9fe2"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/resolution.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 104,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/resolution.stdout",
+      "sha256": "ff04fc6657b29c61fd266e4643f814d62e1bedf919afa8e9bd0d6ea10e66dc2d"
+    },
+    {
+      "bytes": 103417,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/resolution/RESULT.json",
+      "sha256": "799376dde9ec29d2bf45c457e4e1830f6e1bc1320706b2dfa637e9f128b3299e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/roster-boundary.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1833,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/roster-boundary.stdout",
+      "sha256": "f6563c9c992cdb9da8958d141d5d43c5d795c32621b445705d8d704aba2f3248"
+    },
+    {
+      "bytes": 27600,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/roster-boundary/RESULT.json",
+      "sha256": "eae3f7a4b6fb6a7b5ae698d5279c96c8f93fbdc491d2024c22d8ccb1bdc82028"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/roster-capacity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 192,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/roster-capacity.stdout",
+      "sha256": "ac42f30072e48f952ebbdd6b62fbc80e356f705bd55b32aada59eeb3190fbebf"
+    },
+    {
+      "bytes": 29809,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/roster-capacity/RESULT.json",
+      "sha256": "25f2e03a2a10858cc7a01da1317c040b3d5fb33a77311b3033245ec55395e37e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/roster-refresh.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 3373,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/roster-refresh.stdout",
+      "sha256": "e9ed854750897bda34784d5d4e59e79613c50e9d77cd186ffd29579470afbd72"
+    },
+    {
+      "bytes": 28932,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/roster-refresh/RESULT.json",
+      "sha256": "426f4a163d9afe5ad466a2dcb99c7111b32c4f4eb626d21a8bd86c1e00468f3c"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/roster-revocation.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 285,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/roster-revocation.stdout",
+      "sha256": "fdc9848606bdcc20477622bbf3d9337c1fcbcbc842087e18db4f143c70aaafe8"
+    },
+    {
+      "bytes": 32548,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/roster-revocation/RESULT.json",
+      "sha256": "2e3521afb916383ce87ace66190f55b7ec16e3cd6a778c8d8f95583007d83da4"
+    },
+    {
+      "bytes": 192,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/rustc.txt",
+      "sha256": "e2211d4c0760a2a3b03eab88e42f8848952b7aa2ed649277a8fdbf3ce1838fd4"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/session-recovery.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 68,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/session-recovery.stdout",
+      "sha256": "aad911128189af7fcdc08b103be81f4199af9fe0499a8b9a7c7b4a72c0ecbbf5"
+    },
+    {
+      "bytes": 32725,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/session-recovery/RESULT.json",
+      "sha256": "1b361fd0f93bcf50047e67180f4065c970aa1d515829ed459b45a4f597b8f57e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/shared-account.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 130,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/shared-account.stdout",
+      "sha256": "d1402ab0641ac0ae1462afd75489db170d98bdeee200f98b4b0f00c756fc3970"
+    },
+    {
+      "bytes": 25441,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/shared-account/RESULT.json",
+      "sha256": "4ef37a3ed53bba216fe87142d75587924203e1fd8c1dac38e468cf691bb83086"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/shared-migration.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1320,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/shared-migration.stdout",
+      "sha256": "aff100c091370effff7f9e994f8840802643b08a8d87ce6c56a3e863b4278bb6"
+    },
+    {
+      "bytes": 26727,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/shared-migration/RESULT.json",
+      "sha256": "a6210d2960b557288233a6bc8ba386854df5384b5f1e20621cad754181531bed"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/shared-pending.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2723,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/shared-pending.stdout",
+      "sha256": "b1786c70dff580e7223c6f122a94aedfe4ae1b441ad2b5cb75fd31edc46e9263"
+    },
+    {
+      "bytes": 28522,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/shared-pending/RESULT.json",
+      "sha256": "c13bae2574ed325c55f9c4c5dc98e9ac41f783577434ff723a72bf29c6a652ab"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/shared-witness-expiry.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1132,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/shared-witness-expiry.stdout",
+      "sha256": "d03a37913f94ac50d0cbfe07c8db4c0633fad87bbbc30ab69afdd89dd57fa11f"
+    },
+    {
+      "bytes": 26595,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/shared-witness-expiry/RESULT.json",
+      "sha256": "5915a91e44c7312ecbe961631d0a8cb031056af486d09875fb0f2bfe88a7b37a"
+    },
+    {
+      "bytes": 41,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/source-head.txt",
+      "sha256": "ea8007e5c60b6cea8cc7315dd6a8acc10ec2f26eb6d4127d585af87f678081b0"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/storage-cuts.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 172,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/storage-cuts.stdout",
+      "sha256": "c643259cdfa42820752c07db557b8b160518f33ee56b79aa5be76bf80239b41b"
+    },
+    {
+      "bytes": 5876,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/storage-cuts/RESULT.json",
+      "sha256": "8e295bfbbb1ef1d0d6dd81db65fa915dcfc2e2628ff246822912c9455c1bdd0a"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/witness-account.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 289,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/witness-account.stdout",
+      "sha256": "718e8e004a57859e66d2b24619f490c349d00acdcf528204d69c71beb3de08fb"
+    },
+    {
+      "bytes": 25656,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/witness-account/RESULT.json",
+      "sha256": "687c727c41dad50b716088bf445f1f4b95857a48770f32aad132398ea6417447"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/witness-policy-boundary.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1562,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/witness-policy-boundary.stdout",
+      "sha256": "ab1761214910bb4c5784060929b26f9ca35afe53d2b8aae1c20a9563f50abbaa"
+    },
+    {
+      "bytes": 27216,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/witness-policy-boundary/RESULT.json",
+      "sha256": "9f9e6ba34b0781d748eba4c9a3b8de64201c562982e813f34185967fdcb9f444"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/witness-policy.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6522,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/witness-policy.stdout",
+      "sha256": "aa583ec066ff4326e2fa5fc2240a4afc1777673a5a63aa98fb2718b4f26cb43b"
+    },
+    {
+      "bytes": 33713,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/witness-policy/RESULT.json",
+      "sha256": "1e5d2e015f6037a8f75345966920ce9acf59684aef70f67d8cbc796d3f8193fd"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/witness.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1405,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/witness.stdout",
+      "sha256": "bcd5fca569cc831b30dc09ed2276706ecd4520489c93eacab3d8a60969a1ce12"
+    },
+    {
+      "bytes": 258104,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/witness/RESULT.json",
+      "sha256": "f700a5bcb7d7f07c382311fa0b0d356e389b16bb5f3e313cae2ffb3093eaaad0"
+    },
+    {
+      "bytes": 29106,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-source/READBACK.json",
+      "sha256": "bf01e3991da6c44ab31db4919556fed946aa241b1ba53d17041aba2d44e63f44"
+    },
+    {
+      "bytes": 3338,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/build.stderr",
+      "sha256": "317ac96107a346a87bb635c826ba8f05e2e52352abc36a669d7d4d7b922c4256"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6675,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/clippy.stderr",
+      "sha256": "2186647b0f3da179ef4d303e0a9d700dec5d70151664b558f0d3bbc50677ddd7"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 12417,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-producer.stderr",
+      "sha256": "b75cb97294fa0e416faed3fc435868acc6f4bc5b82157b419f7019e356a10b80"
+    },
+    {
+      "bytes": 201,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-producer.stdout",
+      "sha256": "06b64be4fee59a577b73f8a758753639120fed280cd660e422e2f5975709e759"
+    },
+    {
+      "bytes": 208,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-provenance.json",
+      "sha256": "f5a951da4ffcd1c244436fdf9e6ed81a9b078b10add29c866d4334b9d09c2970"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/bad-signature.bin",
+      "sha256": "84af7b8956b604b28820b16496ca8b6f14c8f635469145cb5cdc94f9159a579b"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/cancelled.bin",
+      "sha256": "f04547b81374dfee941ac5cf30b9d402333ddd256e586e2e90ecd9fad48dc808"
+    },
+    {
+      "bytes": 14968,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/cli-trace.jsonl",
+      "sha256": "d5d45c75d6792d86ff09940beb533f871da0b0538f3c35c07ceeda56dc4f8393"
+    },
+    {
+      "bytes": 10354,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/conflict.bin",
+      "sha256": "ca302f11f822ec2c51227726e0bc2effaeb5230f09f7724dfe4e423972354a17"
+    },
+    {
+      "bytes": 1746,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/expected.json",
+      "sha256": "8ec573db6482a229e3a02a309abdd171e969d84a62334bf226321c400d0f6cc9"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/first.bin",
+      "sha256": "f04547b81374dfee941ac5cf30b9d402333ddd256e586e2e90ecd9fad48dc808"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/fork.bin",
+      "sha256": "bd033cae65044c303bfdbb1699a42d29a7c3e52c2c4e0d3a71cbff542de623b7"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/fresh.bin",
+      "sha256": "f9037d03c2634cf90e665bdf46d9070378805831a844fd9846b7b33bffe46cfa"
+    },
+    {
+      "bytes": 1754,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/history-trace.jsonl",
+      "sha256": "dc4cbf7c70bf887e0d76972b80cc9dcaf82aea1e8fb07c4e4014cea902c9811c"
+    },
+    {
+      "bytes": 375,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/inspection.json",
+      "sha256": "8ea558ab0d3742561808191f60f2df78b177147e83002dc7d1a432d811a73719"
+    },
+    {
+      "bytes": 1232,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/original-history.json",
+      "sha256": "6d2ad6ad5d18118ea32ba75b7270bc67795df33510f7780bdc859ac6eb9cf6f4"
+    },
+    {
+      "bytes": 2808,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/pin.json",
+      "sha256": "ecc5885f3167f081f68d767479d30225d565217ab9f6738fe4f6ea72c05a8983"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/retry.bin",
+      "sha256": "f04547b81374dfee941ac5cf30b9d402333ddd256e586e2e90ecd9fad48dc808"
+    },
+    {
+      "bytes": 2808,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/wrong-key.json",
+      "sha256": "8a7895e43c2fd636a9b350b5df7e6e8e71ad58d44a4d383112628eb3f954d738"
+    },
+    {
+      "bytes": 2808,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/directory-cli-public/wrong-service.json",
+      "sha256": "0e9b933a3cf08bd72e2a4e2017386264e856fba9bb7301c31414a3150a2ccfdf"
+    },
+    {
+      "bytes": 201,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/host.txt",
+      "sha256": "1e225bc4f1cae1bc038802b108ca43b12d266f0fb8fea67ab10a770db4cb52df"
+    },
+    {
+      "bytes": 3601,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/importer-build.stderr",
+      "sha256": "14aba100a7bbd2cc5868761add6f93adbabd6ecad4787f73408404079f439035"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/importer-build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 4692,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/importer-clippy.stderr",
+      "sha256": "7c5a7461ba6a45c3116f382c913dea90c7c972bcc435edb52133535e4df8dfc3"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/importer-clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 581837,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/metadata.json",
+      "sha256": "19250c29370dfc58ee289685fde1b867850a1525951fe24b8ebb92556ec155b5"
+    },
+    {
+      "bytes": 169,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/package-tests.stderr",
+      "sha256": "5e5d45140c8045538a47a42b60d4f1a8b5bb540dbb5e4e0347158753131a0a20"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/package-tests.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/provider.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 772,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/provider.stdout",
+      "sha256": "bee0af4d1c1655105f68351ad02e63364251471409b07fdee5876a4a7ad821ca"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 350,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed.stdout",
+      "sha256": "8f53dde5db10fd053d17bab77175ad99fed3df2457cf7b9331dd91fe5adea829"
+    },
+    {
+      "bytes": 9641,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/EXPECTED_MODULES.json",
+      "sha256": "f0fd576eb2e2188a2ea7c12e33abe445fbe0281c2e0f8b668bd078875763c82c"
+    },
+    {
+      "bytes": 13846,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/INSTALLED_FILES.json",
+      "sha256": "e846ccf9fab606089a39c3a058279e39dad0587be47dff15f9cf2d3acf1f66de"
+    },
+    {
+      "bytes": 76,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/LOCATION.json",
+      "sha256": "9896f31fae54ca9426736d6914ce0b009e9b1483621b49944ef523f8c15a60c8"
+    },
+    {
+      "bytes": 10899,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/PROVENANCE.json",
+      "sha256": "c32b4bcfe3c6af5f434ad509bfba11f3fb4aa779ac095765534fe4ee5f42415b"
+    },
+    {
+      "bytes": 629432,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/PYTHON_INSTALLATION.json",
+      "sha256": "461026fc40f76ee1fd33472bb41fbc1cd3dc92bbdba672790344071936086065"
+    },
+    {
+      "bytes": 841,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/account-boundary.json",
+      "sha256": "b5716137e93f955e07dafd6aac524bb6f244cc796b3d39664e1aa501ad6ecb12"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/account-boundary.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1465,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/account-boundary.stdout",
+      "sha256": "6799edb0962cb77c11a050c03de2d9672e29227c01d9db660f71d7a5ea2966c6"
+    },
+    {
+      "bytes": 26972,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/account-boundary/RESULT.json",
+      "sha256": "58976c55999472928fe926690b323cef5220823ecac37a5cc57c4a254c62e33d"
+    },
+    {
+      "bytes": 970,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/client-session.json",
+      "sha256": "c0840fcb5a3f479ad441c53c113501554c704e7562e549519dffaf555021a7bc"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/client-session.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 55414,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/client-session.stdout",
+      "sha256": "fcaa83dee4fca320ca31b943d2d049e04fe32015a3be05e99f3f984cdb041f51"
+    },
+    {
+      "bytes": 56750,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/client-session/RESULT.json",
+      "sha256": "5e04865591eda9b7049649ad36e8d2252672c33ed0cbd6a00b1d844090068bb6"
+    },
+    {
+      "bytes": 837,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/directory-cli.json",
+      "sha256": "dccab1dd5ab8641e6b0af858bcfd1977c0486c191173ed6513bc607fe2586e6d"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/directory-cli.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 217,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/directory-cli.stdout",
+      "sha256": "ff73e824ef78f8e2a28c7529771d41c5c132924cf2ac35a29565c75aa95539e6"
+    },
+    {
+      "bytes": 2537,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/directory-cli/RESULT.json",
+      "sha256": "b636fae2f5c3f7ec8f90b4550c7f4b47e0f5ec47ab250fae1e38e44717d5dcc1"
+    },
+    {
+      "bytes": 992,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/directory-lease.json",
+      "sha256": "724eebd4a8ea03c7a08ac82c3318de1c23043a697e3cf84c0a7612f12a925fb7"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/directory-lease.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 147,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/directory-lease.stdout",
+      "sha256": "92f962cda39fdf929c7604aea6c7592174f6d644ceeec22852e7404863db6782"
+    },
+    {
+      "bytes": 3827,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/directory-lease/RESULT.json",
+      "sha256": "780c63e3da588ced401506706908366e71a46a54ce025f66fc76db63e7927843"
+    },
+    {
+      "bytes": 976,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/extension-session.json",
+      "sha256": "cd17ccc4cb6a5a7585933435c4ea8e53dc24ba03680f4050008ead900de3dc44"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/extension-session.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1020,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/extension-session.stdout",
+      "sha256": "c581e143ed8fd8eaff87c8120ceb37ce14fb0316b82e1cd6792d6f9e64cea8f1"
+    },
+    {
+      "bytes": 1244,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/extension-session/RESULT.json",
+      "sha256": "bb79150300c0fa6467633eaf535a831875f3c5cfcb98c763a6f1dd822db27eaa"
+    },
+    {
+      "bytes": 594,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/install.json",
+      "sha256": "b6c1aa10103052d65e1f3120e614813a2c762d7e3ceeee49c890fe797df819be"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/install.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 392,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/install.stdout",
+      "sha256": "efefaab90eb750bc60fcc97f6c1fd6ff1869c9365e021ba9ac206cdfafab3e98"
+    },
+    {
+      "bytes": 858,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/local_policy_boundary_checks.json",
+      "sha256": "95ffdb4cf5885fa5659d714b586ba3752096691f823e0e5b8a7e24350586faa8"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/local_policy_boundary_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2011,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/local_policy_boundary_checks.stdout",
+      "sha256": "edd9a7ca7d01465d52ffb89a35946933aaf6bd9eb4558ab832e87874c30e3909"
+    },
+    {
+      "bytes": 27791,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/local_policy_boundary_checks/RESULT.json",
+      "sha256": "26bd405c5a0302e36caa6c4c05201bf1ad1c0c09c95a3705d5a4691dbd82f797"
+    },
+    {
+      "bytes": 840,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/local_policy_checks.json",
+      "sha256": "5f7e4e39121b4442dd1d4d704be633a69012416950df82b0e4a313d6aa0f0376"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/local_policy_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2848,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/local_policy_checks.stdout",
+      "sha256": "6f468047e25b066ef72c1df0f167ecc4c319f1e05db14e62517a123daad93c02"
+    },
+    {
+      "bytes": 28659,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/local_policy_checks/RESULT.json",
+      "sha256": "dff5e5f808eefd31f838b2e5e08eb922803ee71ac0dc4a732ac9c48e256165d3"
+    },
+    {
+      "bytes": 849,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/one-time-publication.json",
+      "sha256": "399289030175b5fb817b6cd9f30816908226faae0c5cf3d8007c489c6fce9720"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/one-time-publication.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 97,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/one-time-publication.stdout",
+      "sha256": "519d806f9a3e2c90b89b594fd7f3daa1a45bed11e07a9c1e4dfcdb3fbf8c5ada"
+    },
+    {
+      "bytes": 1991,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/one-time-publication/RESULT.json",
+      "sha256": "08321ba3f4879781da1bb56c0b78c101dfadbba71cb5867e75b3e50c71a9ebd7"
+    },
+    {
+      "bytes": 843,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/peer-intermediate.json",
+      "sha256": "cf19ef0c155ed70d0801f6e2f890424157ac9614af4a28c0a40fb55e4c78dcaf"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/peer-intermediate.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 24447,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/peer-intermediate.stdout",
+      "sha256": "0f068254cd044e1825d644e8678864a51fda5461dac7de53f26de54cce0b7051"
+    },
+    {
+      "bytes": 25421,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/peer-intermediate/RESULT.json",
+      "sha256": "6dae1e75f905d93fe06913622c2af08ee58f5d220c63aadcd27df5aa15d0f55e"
+    },
+    {
+      "bytes": 863,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/policy-composition-capacity.json",
+      "sha256": "d64ac771d4e3d826807c2d19403464a247932b063c64198b758e74a0f056d2f0"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/policy-composition-capacity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 144,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/policy-composition-capacity.stdout",
+      "sha256": "1be36454b4672ac7d5dcf023df6a44cb4dfe5dd824f8e500d5767cda4f897125"
+    },
+    {
+      "bytes": 32235,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/policy-composition-capacity/RESULT.json",
+      "sha256": "3edf6deebef8c0021b53cb96a8aa1aab78aa946b8512bb57f40ab8388e355aa0"
+    },
+    {
+      "bytes": 845,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/policy-composition.json",
+      "sha256": "ec330a681f60952f3859348f2c42024796433c159c5d8a19ce14add4f606dbba"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/policy-composition.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 289,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/policy-composition.stdout",
+      "sha256": "75521232be019f6d04a300db5b9b13582feabfa196aeb5d2f73e75a7ac88b897"
+    },
+    {
+      "bytes": 48612,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/policy-composition/RESULT.json",
+      "sha256": "1aae34b73a7b5f34786496628223cfb08bcb8886d76260579c90b68a00d51061"
+    },
+    {
+      "bytes": 907,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/probe.json",
+      "sha256": "5f2c83165153af0793ff4846268a5f409064e7e9c5362d39e27e59c5488fa41f"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/probe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/probe.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 833,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/registration.json",
+      "sha256": "7860eb529cefa40ea51b5605b63474a87766962159cf947e41b5965e6b0a57e5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/registration.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 308,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/registration.stdout",
+      "sha256": "cae86b76c947990603a272add43c87093bf6de8a2062d8f65a582a9b2bc67a7d"
+    },
+    {
+      "bytes": 25415,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/registration/RESULT.json",
+      "sha256": "78098a7d5ecee52d197fe3020bb1725afb086bd4fcb460114dbe6cc04b4ee03c"
+    },
+    {
+      "bytes": 839,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster-capacity.json",
+      "sha256": "02f481ec6ac4a846b00369ea519bd492745e461e25cabf0918b02a501dd2af22"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster-capacity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 192,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster-capacity.stdout",
+      "sha256": "ac42f30072e48f952ebbdd6b62fbc80e356f705bd55b32aada59eeb3190fbebf"
+    },
+    {
+      "bytes": 29809,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster-capacity/RESULT.json",
+      "sha256": "cf23cc12d4b3c781435757214a4b23c39b642273a91fa4897cbd0408831741ba"
+    },
+    {
+      "bytes": 843,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster-revocation.json",
+      "sha256": "25ee50c042994f2e57c93a1c769f9d51c2230bf081d366311ee3c47de60ecdb5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster-revocation.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 285,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster-revocation.stdout",
+      "sha256": "fdc9848606bdcc20477622bbf3d9337c1fcbcbc842087e18db4f143c70aaafe8"
+    },
+    {
+      "bytes": 32548,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster-revocation/RESULT.json",
+      "sha256": "12d6f3a13f362b7e995355545956bd32c1931974a62489b32b64a4c29ca38445"
+    },
+    {
+      "bytes": 846,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster_boundary_checks.json",
+      "sha256": "741b4623fe71020ef7214754ca0346577c783acdaa5924cc3fc230402e0e0d33"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster_boundary_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1833,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster_boundary_checks.stdout",
+      "sha256": "0455ba37797cd9318b70ca53884288b394845628cf9427cbc2e48f74cc3cbcae"
+    },
+    {
+      "bytes": 27600,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster_boundary_checks/RESULT.json",
+      "sha256": "86c967d7269026b3e2321274239147008c476faed92a6750fabd3b5cb3eca81e"
+    },
+    {
+      "bytes": 844,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster_refresh_checks.json",
+      "sha256": "a464b0c2b8ca3e5ce92b101d683cb65038ea7ea50299d8607b9aa70a7f2ffaa2"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster_refresh_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 3373,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster_refresh_checks.stdout",
+      "sha256": "0b18b1f1a1bd31dad0db74abb2ab5b31959e692425ff161bfb4b8f631f069877"
+    },
+    {
+      "bytes": 28932,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/roster_refresh_checks/RESULT.json",
+      "sha256": "2c22b444f54dd86d22dac45daa2a6f5839300fde89915e92b73c6fff0d27fc70"
+    },
+    {
+      "bytes": 841,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared-migration.json",
+      "sha256": "11b788eab4dfa0133554730a42b187e6d5cb0dd83fe5d736efe80ac56a0953a2"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared-migration.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1320,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared-migration.stdout",
+      "sha256": "f4b2d020cede75d427f4f6c976c6fb9bbe784ccf6d1cd9eca950f7dacc7a9e3b"
+    },
+    {
+      "bytes": 26727,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared-migration/RESULT.json",
+      "sha256": "78965f1570fd536193b677407294c6d6b83cd0c5707fc0e429908cd9880c5983"
+    },
+    {
+      "bytes": 837,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared-pending.json",
+      "sha256": "6c309c209ae4700a74f97648f9123515926dcdcb20375e39f23048cee7046ab7"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared-pending.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2723,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared-pending.stdout",
+      "sha256": "6e23ae8827a5572a708d031e2f746a28cbf3951c8f92f38b94f13d0c49e3ca39"
+    },
+    {
+      "bytes": 28522,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared-pending/RESULT.json",
+      "sha256": "54e0edee41fb72c5a0a668362a3bdc7c8bb5100587897ba731732c7d696d081a"
+    },
+    {
+      "bytes": 851,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared-witness-expiry.json",
+      "sha256": "f9c523931a89142e3630bf40cb18717c679add0df07b785ca4f7717cafea3d28"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared-witness-expiry.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1132,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared-witness-expiry.stdout",
+      "sha256": "2b9bd73bd80834333b9c5c34c1c52d90ea7d163bcb6993a6fd3e45316304a668"
+    },
+    {
+      "bytes": 26595,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared-witness-expiry/RESULT.json",
+      "sha256": "784865e3f77433ec4f10a31bc82988dea29cc6be6de6c32feb6cae8c304ffa41"
+    },
+    {
+      "bytes": 844,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared_account_checks.json",
+      "sha256": "7beb95e86636881bf26568eeb29f99fb3742fc6ed8785933fbbcb7dded90d8d2"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared_account_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 130,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared_account_checks.stdout",
+      "sha256": "d1402ab0641ac0ae1462afd75489db170d98bdeee200f98b4b0f00c756fc3970"
+    },
+    {
+      "bytes": 25441,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/shared_account_checks/RESULT.json",
+      "sha256": "4ef37a3ed53bba216fe87142d75587924203e1fd8c1dac38e468cf691bb83086"
+    },
+    {
+      "bytes": 222,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/wheel-requirements.txt",
+      "sha256": "1286ad2000a0421cc5a671c9a1ad0e5ad1868515236756e6df663be332cb38d2"
+    },
+    {
+      "bytes": 846,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/witness_account_checks.json",
+      "sha256": "6531a2bfe89b5dc935a2fd10d001430ae1eb6b77c91f5262721d07c3d5a2732f"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/witness_account_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 289,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/witness_account_checks.stdout",
+      "sha256": "718e8e004a57859e66d2b24619f490c349d00acdcf528204d69c71beb3de08fb"
+    },
+    {
+      "bytes": 25656,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/witness_account_checks/RESULT.json",
+      "sha256": "687c727c41dad50b716088bf445f1f4b95857a48770f32aad132398ea6417447"
+    },
+    {
+      "bytes": 862,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/witness_policy_boundary_checks.json",
+      "sha256": "21ababad51fb347e77eadd708f1f95c9c1703bc4950bea494195f52c132dad00"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/witness_policy_boundary_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1562,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/witness_policy_boundary_checks.stdout",
+      "sha256": "a94dc58cb2338a9696512e7cfdced5b10c2d65c2e87b05b393ce50142f51eab9"
+    },
+    {
+      "bytes": 27216,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/witness_policy_boundary_checks/RESULT.json",
+      "sha256": "7a819ce52245a60736750592814aa8228f6e331c4250b82c7cda742134b563da"
+    },
+    {
+      "bytes": 844,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/witness_policy_checks.json",
+      "sha256": "9708217354fb353d7010e9a37983125926b2e8cd8235b17875ab672581ddb4f7"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/witness_policy_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6522,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/witness_policy_checks.stdout",
+      "sha256": "11bafb03182060e715542b0e283caf376175fa4c97e1d21e4b680fc9b5bf8a71"
+    },
+    {
+      "bytes": 33713,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/python-installed/witness_policy_checks/RESULT.json",
+      "sha256": "692b0577b20babbc326a82bcaea95ad7f717cafecdd5ece357a647e445a6f90a"
+    },
+    {
+      "bytes": 10,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/qualification-phase.txt",
+      "sha256": "7d0698689b2d55cbce578d325da39bae00d260dc71c14a26909461903cc06ca6"
+    },
+    {
+      "bytes": 192,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/rustc.txt",
+      "sha256": "e2211d4c0760a2a3b03eab88e42f8848952b7aa2ed649277a8fdbf3ce1838fd4"
+    },
+    {
+      "bytes": 41,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/source-head.txt",
+      "sha256": "ea8007e5c60b6cea8cc7315dd6a8acc10ec2f26eb6d4127d585af87f678081b0"
+    },
+    {
+      "bytes": 26127,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-macos-15-installed/READBACK.json",
+      "sha256": "2b248ab0a3d7648b8cbbf82fb67b431d6afef6f81af1de0311c2edfb1de993b0"
+    },
+    {
+      "bytes": 7463,
+      "path": "release/0.2.0/evidence/independent/macos-15-readback.py",
+      "sha256": "de1a281df861945a2c131813609a6964936a0754cfe9fff434b91ecf8a8dd6e9"
+    }
+  ],
+  "scope": "Both actual macos-15 source and isolated-wheel phases completed, with original source/native/wheel/workload records and fresh archive/record readback. Counterpart and directory CLI are source built; SDK archive installation is qualified by its separate installed matrix. Complete raw hosted archives remain retained separately with exact IDs and hashes in each readback. This host component does not imply that the other host or full release has completed.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

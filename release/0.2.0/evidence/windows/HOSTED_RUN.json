@@ -1,0 +1,1175 @@
+{
+  "run": {
+    "id": 44036376236,
+    "name": "Installed Windows Continuity lifecycle",
+    "node_id": "WFR_kwLOTD-aVc8AAAAKQMXGrA",
+    "head_branch": "release/0.2-finalization",
+    "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+    "path": ".github/workflows/continuity-windows-package.yml",
+    "display_title": "Complete the 0.2.0 contract freeze and journaled release path",
+    "run_number": 96,
+    "event": "pull_request",
+    "status": "completed",
+    "conclusion": "success",
+    "workflow_id": 388058517,
+    "check_suite_id": 119207442072,
+    "check_suite_node_id": "CS_kwDOTD-aVc8AAAAbwVE2mA",
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036376236",
+    "html_url": "https://github.com/billlza/q-periapt/actions/runs/44036376236",
+    "pull_requests": [
+      {
+        "url": "https://api.github.com/repos/billlza/q-periapt/pulls/199",
+        "id": 5348923622,
+        "number": 199,
+        "head": {
+          "ref": "release/0.2-finalization",
+          "sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "repo": {
+            "id": 1279236693,
+            "url": "https://api.github.com/repos/billlza/q-periapt",
+            "name": "q-periapt"
+          }
+        },
+        "base": {
+          "ref": "main",
+          "sha": "8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+          "repo": {
+            "id": 1279236693,
+            "url": "https://api.github.com/repos/billlza/q-periapt",
+            "name": "q-periapt"
+          }
+        }
+      }
+    ],
+    "created_at": "2026-11-17T07:08:17Z",
+    "updated_at": "2026-11-17T08:02:35Z",
+    "actor": {
+      "login": "billlza",
+      "id": 149552943,
+      "node_id": "U_kgDOCOn_Lw",
+      "avatar_url": "https://avatars.githubusercontent.com/u/149552943?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/billlza",
+      "html_url": "https://github.com/billlza",
+      "followers_url": "https://api.github.com/users/billlza/followers",
+      "following_url": "https://api.github.com/users/billlza/following{/other_user}",
+      "gists_url": "https://api.github.com/users/billlza/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/billlza/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/billlza/subscriptions",
+      "organizations_url": "https://api.github.com/users/billlza/orgs",
+      "repos_url": "https://api.github.com/users/billlza/repos",
+      "events_url": "https://api.github.com/users/billlza/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/billlza/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "run_attempt": 1,
+    "referenced_workflows": [],
+    "run_started_at": "2026-11-17T07:08:17Z",
+    "triggering_actor": {
+      "login": "billlza",
+      "id": 149552943,
+      "node_id": "U_kgDOCOn_Lw",
+      "avatar_url": "https://avatars.githubusercontent.com/u/149552943?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/billlza",
+      "html_url": "https://github.com/billlza",
+      "followers_url": "https://api.github.com/users/billlza/followers",
+      "following_url": "https://api.github.com/users/billlza/following{/other_user}",
+      "gists_url": "https://api.github.com/users/billlza/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/billlza/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/billlza/subscriptions",
+      "organizations_url": "https://api.github.com/users/billlza/orgs",
+      "repos_url": "https://api.github.com/users/billlza/repos",
+      "events_url": "https://api.github.com/users/billlza/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/billlza/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "jobs_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036376236/jobs",
+    "logs_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036376236/logs",
+    "check_suite_url": "https://api.github.com/repos/billlza/q-periapt/check-suites/119207442072",
+    "artifacts_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036376236/artifacts",
+    "cancel_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036376236/cancel",
+    "rerun_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036376236/rerun",
+    "previous_attempt_url": null,
+    "workflow_url": "https://api.github.com/repos/billlza/q-periapt/actions/workflows/388058517",
+    "head_commit": {
+      "id": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+      "tree_id": "4ee8fb082744d6f0fc9297fa31200f145df477c7",
+      "message": "Preserve the private reference source identity in release manifests",
+      "timestamp": "2026-11-17T07:04:13Z",
+      "author": {
+        "name": "\u6708\u6e85\u661f\u6cb3",
+        "email": "149552943+billlza@users.noreply.github.com"
+      },
+      "committer": {
+        "name": "\u6708\u6e85\u661f\u6cb3",
+        "email": "149552943+billlza@users.noreply.github.com"
+      }
+    },
+    "repository": {
+      "id": 1279236693,
+      "node_id": "R_kgDOTD-aVQ",
+      "name": "q-periapt",
+      "full_name": "billlza/q-periapt",
+      "private": false,
+      "owner": {
+        "login": "billlza",
+        "id": 149552943,
+        "node_id": "U_kgDOCOn_Lw",
+        "avatar_url": "https://avatars.githubusercontent.com/u/149552943?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/billlza",
+        "html_url": "https://github.com/billlza",
+        "followers_url": "https://api.github.com/users/billlza/followers",
+        "following_url": "https://api.github.com/users/billlza/following{/other_user}",
+        "gists_url": "https://api.github.com/users/billlza/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/billlza/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/billlza/subscriptions",
+        "organizations_url": "https://api.github.com/users/billlza/orgs",
+        "repos_url": "https://api.github.com/users/billlza/repos",
+        "events_url": "https://api.github.com/users/billlza/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/billlza/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "html_url": "https://github.com/billlza/q-periapt",
+      "description": "Q-Periapt: a portable, side-channel-resistant-first PQ/T hybrid cryptographic suite (ML-KEM+X25519, ML-DSA/SLH-DSA/HQC) in Rust \u2014 reused across C-ABI/WASM/Swift/Kotlin, with EasyCrypt/Tamarin/ProVerif proofs.",
+      "fork": false,
+      "url": "https://api.github.com/repos/billlza/q-periapt",
+      "forks_url": "https://api.github.com/repos/billlza/q-periapt/forks",
+      "keys_url": "https://api.github.com/repos/billlza/q-periapt/keys{/key_id}",
+      "collaborators_url": "https://api.github.com/repos/billlza/q-periapt/collaborators{/collaborator}",
+      "teams_url": "https://api.github.com/repos/billlza/q-periapt/teams",
+      "hooks_url": "https://api.github.com/repos/billlza/q-periapt/hooks",
+      "issue_events_url": "https://api.github.com/repos/billlza/q-periapt/issues/events{/number}",
+      "events_url": "https://api.github.com/repos/billlza/q-periapt/events",
+      "assignees_url": "https://api.github.com/repos/billlza/q-periapt/assignees{/user}",
+      "branches_url": "https://api.github.com/repos/billlza/q-periapt/branches{/branch}",
+      "tags_url": "https://api.github.com/repos/billlza/q-periapt/tags",
+      "blobs_url": "https://api.github.com/repos/billlza/q-periapt/git/blobs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/billlza/q-periapt/git/tags{/sha}",
+      "git_refs_url": "https://api.github.com/repos/billlza/q-periapt/git/refs{/sha}",
+      "trees_url": "https://api.github.com/repos/billlza/q-periapt/git/trees{/sha}",
+      "statuses_url": "https://api.github.com/repos/billlza/q-periapt/statuses/{sha}",
+      "languages_url": "https://api.github.com/repos/billlza/q-periapt/languages",
+      "stargazers_url": "https://api.github.com/repos/billlza/q-periapt/stargazers",
+      "contributors_url": "https://api.github.com/repos/billlza/q-periapt/contributors",
+      "subscribers_url": "https://api.github.com/repos/billlza/q-periapt/subscribers",
+      "subscription_url": "https://api.github.com/repos/billlza/q-periapt/subscription",
+      "commits_url": "https://api.github.com/repos/billlza/q-periapt/commits{/sha}",
+      "git_commits_url": "https://api.github.com/repos/billlza/q-periapt/git/commits{/sha}",
+      "comments_url": "https://api.github.com/repos/billlza/q-periapt/comments{/number}",
+      "issue_comment_url": "https://api.github.com/repos/billlza/q-periapt/issues/comments{/number}",
+      "contents_url": "https://api.github.com/repos/billlza/q-periapt/contents/{+path}",
+      "compare_url": "https://api.github.com/repos/billlza/q-periapt/compare/{base}...{head}",
+      "merges_url": "https://api.github.com/repos/billlza/q-periapt/merges",
+      "archive_url": "https://api.github.com/repos/billlza/q-periapt/{archive_format}{/ref}",
+      "downloads_url": "https://api.github.com/repos/billlza/q-periapt/downloads",
+      "issues_url": "https://api.github.com/repos/billlza/q-periapt/issues{/number}",
+      "pulls_url": "https://api.github.com/repos/billlza/q-periapt/pulls{/number}",
+      "milestones_url": "https://api.github.com/repos/billlza/q-periapt/milestones{/number}",
+      "notifications_url": "https://api.github.com/repos/billlza/q-periapt/notifications{?since,all,participating}",
+      "labels_url": "https://api.github.com/repos/billlza/q-periapt/labels{/name}",
+      "releases_url": "https://api.github.com/repos/billlza/q-periapt/releases{/id}",
+      "deployments_url": "https://api.github.com/repos/billlza/q-periapt/deployments"
+    },
+    "head_repository": {
+      "id": 1279236693,
+      "node_id": "R_kgDOTD-aVQ",
+      "name": "q-periapt",
+      "full_name": "billlza/q-periapt",
+      "private": false,
+      "owner": {
+        "login": "billlza",
+        "id": 149552943,
+        "node_id": "U_kgDOCOn_Lw",
+        "avatar_url": "https://avatars.githubusercontent.com/u/149552943?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/billlza",
+        "html_url": "https://github.com/billlza",
+        "followers_url": "https://api.github.com/users/billlza/followers",
+        "following_url": "https://api.github.com/users/billlza/following{/other_user}",
+        "gists_url": "https://api.github.com/users/billlza/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/billlza/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/billlza/subscriptions",
+        "organizations_url": "https://api.github.com/users/billlza/orgs",
+        "repos_url": "https://api.github.com/users/billlza/repos",
+        "events_url": "https://api.github.com/users/billlza/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/billlza/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "html_url": "https://github.com/billlza/q-periapt",
+      "description": "Q-Periapt: a portable, side-channel-resistant-first PQ/T hybrid cryptographic suite (ML-KEM+X25519, ML-DSA/SLH-DSA/HQC) in Rust \u2014 reused across C-ABI/WASM/Swift/Kotlin, with EasyCrypt/Tamarin/ProVerif proofs.",
+      "fork": false,
+      "url": "https://api.github.com/repos/billlza/q-periapt",
+      "forks_url": "https://api.github.com/repos/billlza/q-periapt/forks",
+      "keys_url": "https://api.github.com/repos/billlza/q-periapt/keys{/key_id}",
+      "collaborators_url": "https://api.github.com/repos/billlza/q-periapt/collaborators{/collaborator}",
+      "teams_url": "https://api.github.com/repos/billlza/q-periapt/teams",
+      "hooks_url": "https://api.github.com/repos/billlza/q-periapt/hooks",
+      "issue_events_url": "https://api.github.com/repos/billlza/q-periapt/issues/events{/number}",
+      "events_url": "https://api.github.com/repos/billlza/q-periapt/events",
+      "assignees_url": "https://api.github.com/repos/billlza/q-periapt/assignees{/user}",
+      "branches_url": "https://api.github.com/repos/billlza/q-periapt/branches{/branch}",
+      "tags_url": "https://api.github.com/repos/billlza/q-periapt/tags",
+      "blobs_url": "https://api.github.com/repos/billlza/q-periapt/git/blobs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/billlza/q-periapt/git/tags{/sha}",
+      "git_refs_url": "https://api.github.com/repos/billlza/q-periapt/git/refs{/sha}",
+      "trees_url": "https://api.github.com/repos/billlza/q-periapt/git/trees{/sha}",
+      "statuses_url": "https://api.github.com/repos/billlza/q-periapt/statuses/{sha}",
+      "languages_url": "https://api.github.com/repos/billlza/q-periapt/languages",
+      "stargazers_url": "https://api.github.com/repos/billlza/q-periapt/stargazers",
+      "contributors_url": "https://api.github.com/repos/billlza/q-periapt/contributors",
+      "subscribers_url": "https://api.github.com/repos/billlza/q-periapt/subscribers",
+      "subscription_url": "https://api.github.com/repos/billlza/q-periapt/subscription",
+      "commits_url": "https://api.github.com/repos/billlza/q-periapt/commits{/sha}",
+      "git_commits_url": "https://api.github.com/repos/billlza/q-periapt/git/commits{/sha}",
+      "comments_url": "https://api.github.com/repos/billlza/q-periapt/comments{/number}",
+      "issue_comment_url": "https://api.github.com/repos/billlza/q-periapt/issues/comments{/number}",
+      "contents_url": "https://api.github.com/repos/billlza/q-periapt/contents/{+path}",
+      "compare_url": "https://api.github.com/repos/billlza/q-periapt/compare/{base}...{head}",
+      "merges_url": "https://api.github.com/repos/billlza/q-periapt/merges",
+      "archive_url": "https://api.github.com/repos/billlza/q-periapt/{archive_format}{/ref}",
+      "downloads_url": "https://api.github.com/repos/billlza/q-periapt/downloads",
+      "issues_url": "https://api.github.com/repos/billlza/q-periapt/issues{/number}",
+      "pulls_url": "https://api.github.com/repos/billlza/q-periapt/pulls{/number}",
+      "milestones_url": "https://api.github.com/repos/billlza/q-periapt/milestones{/number}",
+      "notifications_url": "https://api.github.com/repos/billlza/q-periapt/notifications{?since,all,participating}",
+      "labels_url": "https://api.github.com/repos/billlza/q-periapt/labels{/name}",
+      "releases_url": "https://api.github.com/repos/billlza/q-periapt/releases{/id}",
+      "deployments_url": "https://api.github.com/repos/billlza/q-periapt/deployments"
+    }
+  },
+  "jobs": {
+    "total_count": 8,
+    "jobs": [
+      {
+        "id": 133880117578,
+        "run_id": 44036376236,
+        "workflow_name": "Installed Windows Continuity lifecycle",
+        "head_branch": "release/0.2-finalization",
+        "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036376236",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTD-aVc8AAAAfK-B5Sg",
+        "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/133880117578",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/44036376236/job/133880117578",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-11-17T07:08:18Z",
+        "started_at": "2026-11-17T07:08:22Z",
+        "completed_at": "2026-11-17T07:16:25Z",
+        "name": "sdk-package",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-17T07:08:23Z",
+            "completed_at": "2026-11-17T07:08:25Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-17T07:08:25Z",
+            "completed_at": "2026-11-17T07:11:34Z"
+          },
+          {
+            "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-17T07:11:34Z",
+            "completed_at": "2026-11-17T07:11:44Z"
+          },
+          {
+            "name": "Install the scoped audit tool",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-17T07:11:44Z",
+            "completed_at": "2026-11-17T07:14:01Z"
+          },
+          {
+            "name": "Produce and verify SDK archives from this checkout",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-17T07:14:01Z",
+            "completed_at": "2026-11-17T07:16:20Z"
+          },
+          {
+            "name": "Preserve SDK archives and producer evidence",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-17T07:16:20Z",
+            "completed_at": "2026-11-17T07:16:22Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 12,
+            "started_at": "2026-11-17T07:16:23Z",
+            "completed_at": "2026-11-17T07:16:23Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13,
+            "started_at": "2026-11-17T07:16:23Z",
+            "completed_at": "2026-11-17T07:16:23Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/133880117578",
+        "labels": [
+          "ubuntu-24.04"
+        ],
+        "runner_id": 1000097075,
+        "runner_name": "GitHub Actions 1000097075",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 133883545592,
+        "run_id": 44036376236,
+        "workflow_name": "Installed Windows Continuity lifecycle",
+        "head_branch": "release/0.2-finalization",
+        "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036376236",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTD-aVc8AAAAfLBTH-A",
+        "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/133883545592",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/44036376236/job/133883545592",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-11-17T07:16:25Z",
+        "started_at": "2026-11-17T07:21:29Z",
+        "completed_at": "2026-11-17T07:28:18Z",
+        "name": "prepare",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-17T07:21:30Z",
+            "completed_at": "2026-11-17T07:21:33Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-17T07:21:33Z",
+            "completed_at": "2026-11-17T07:25:27Z"
+          },
+          {
+            "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-17T07:25:27Z",
+            "completed_at": "2026-11-17T07:25:37Z"
+          },
+          {
+            "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-17T07:25:37Z",
+            "completed_at": "2026-11-17T07:25:43Z"
+          },
+          {
+            "name": "Check public C export and substitution refusals",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-17T07:25:43Z",
+            "completed_at": "2026-11-17T07:25:45Z"
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-17T07:25:45Z",
+            "completed_at": "2026-11-17T07:25:48Z"
+          },
+          {
+            "name": "Package candidate against admitted SDK archives",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-11-17T07:25:48Z",
+            "completed_at": "2026-11-17T07:28:12Z"
+          },
+          {
+            "name": "Preserve archive closure and producer results",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-11-17T07:28:12Z",
+            "completed_at": "2026-11-17T07:28:15Z"
+          },
+          {
+            "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 15,
+            "started_at": "2026-11-17T07:28:15Z",
+            "completed_at": "2026-11-17T07:28:15Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 16,
+            "started_at": "2026-11-17T07:28:15Z",
+            "completed_at": "2026-11-17T07:28:15Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 17,
+            "started_at": "2026-11-17T07:28:15Z",
+            "completed_at": "2026-11-17T07:28:15Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/133883545592",
+        "labels": [
+          "ubuntu-24.04"
+        ],
+        "runner_id": 1000097140,
+        "runner_name": "GitHub Actions 1000097140",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 133888583976,
+        "run_id": 44036376236,
+        "workflow_name": "Installed Windows Continuity lifecycle",
+        "head_branch": "release/0.2-finalization",
+        "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036376236",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTD-aVc8AAAAfLGGpKA",
+        "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/133888583976",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/44036376236/job/133888583976",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-11-17T07:28:18Z",
+        "started_at": "2026-11-17T07:30:09Z",
+        "completed_at": "2026-11-17T07:53:41Z",
+        "name": "native (windows-2025, debug)",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-17T07:30:10Z",
+            "completed_at": "2026-11-17T07:30:11Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-17T07:30:11Z",
+            "completed_at": "2026-11-17T07:34:49Z"
+          },
+          {
+            "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-17T07:34:49Z",
+            "completed_at": "2026-11-17T07:35:01Z"
+          },
+          {
+            "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-17T07:35:01Z",
+            "completed_at": "2026-11-17T07:35:40Z"
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-17T07:35:40Z",
+            "completed_at": "2026-11-17T07:35:41Z"
+          },
+          {
+            "name": "Check native public C reader import and contracts",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-17T07:35:41Z",
+            "completed_at": "2026-11-17T07:35:48Z"
+          },
+          {
+            "name": "Select native MSVC environment and owned private test root",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-11-17T07:35:48Z",
+            "completed_at": "2026-11-17T07:35:51Z"
+          },
+          {
+            "name": "Execute installed C and Rust lifecycle",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-11-17T07:35:51Z",
+            "completed_at": "2026-11-17T07:53:33Z"
+          },
+          {
+            "name": "Preserve public results and exact C library inputs",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-11-17T07:53:33Z",
+            "completed_at": "2026-11-17T07:53:37Z"
+          },
+          {
+            "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 17,
+            "started_at": "2026-11-17T07:53:37Z",
+            "completed_at": "2026-11-17T07:53:37Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 18,
+            "started_at": "2026-11-17T07:53:37Z",
+            "completed_at": "2026-11-17T07:53:39Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 19,
+            "started_at": "2026-11-17T07:53:39Z",
+            "completed_at": "2026-11-17T07:53:39Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/133888583976",
+        "labels": [
+          "windows-2025"
+        ],
+        "runner_id": 1000097154,
+        "runner_name": "GitHub Actions 1000097154",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 133888583977,
+        "run_id": 44036376236,
+        "workflow_name": "Installed Windows Continuity lifecycle",
+        "head_branch": "release/0.2-finalization",
+        "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036376236",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTD-aVc8AAAAfLGGpKQ",
+        "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/133888583977",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/44036376236/job/133888583977",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-11-17T07:28:18Z",
+        "started_at": "2026-11-17T07:29:52Z",
+        "completed_at": "2026-11-17T07:58:09Z",
+        "name": "native (windows-2022, release)",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-17T07:29:54Z",
+            "completed_at": "2026-11-17T07:29:55Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-17T07:29:55Z",
+            "completed_at": "2026-11-17T07:33:33Z"
+          },
+          {
+            "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-17T07:33:33Z",
+            "completed_at": "2026-11-17T07:33:47Z"
+          },
+          {
+            "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-17T07:33:47Z",
+            "completed_at": "2026-11-17T07:34:38Z"
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-17T07:34:38Z",
+            "completed_at": "2026-11-17T07:34:40Z"
+          },
+          {
+            "name": "Check native public C reader import and contracts",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-17T07:34:40Z",
+            "completed_at": "2026-11-17T07:34:47Z"
+          },
+          {
+            "name": "Select native MSVC environment and owned private test root",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-11-17T07:34:47Z",
+            "completed_at": "2026-11-17T07:34:51Z"
+          },
+          {
+            "name": "Execute installed C and Rust lifecycle",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-11-17T07:34:51Z",
+            "completed_at": "2026-11-17T07:58:00Z"
+          },
+          {
+            "name": "Preserve public results and exact C library inputs",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-11-17T07:58:00Z",
+            "completed_at": "2026-11-17T07:58:05Z"
+          },
+          {
+            "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 17,
+            "started_at": "2026-11-17T07:58:05Z",
+            "completed_at": "2026-11-17T07:58:05Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 18,
+            "started_at": "2026-11-17T07:58:05Z",
+            "completed_at": "2026-11-17T07:58:07Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 19,
+            "started_at": "2026-11-17T07:58:07Z",
+            "completed_at": "2026-11-17T07:58:07Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/133888583977",
+        "labels": [
+          "windows-2022"
+        ],
+        "runner_id": 1000097153,
+        "runner_name": "GitHub Actions 1000097153",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 133888583987,
+        "run_id": 44036376236,
+        "workflow_name": "Installed Windows Continuity lifecycle",
+        "head_branch": "release/0.2-finalization",
+        "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036376236",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTD-aVc8AAAAfLGGpMw",
+        "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/133888583987",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/44036376236/job/133888583987",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-11-17T07:28:18Z",
+        "started_at": "2026-11-17T07:30:46Z",
+        "completed_at": "2026-11-17T07:58:49Z",
+        "name": "native (windows-2025, release)",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-17T07:30:47Z",
+            "completed_at": "2026-11-17T07:30:48Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-17T07:30:48Z",
+            "completed_at": "2026-11-17T07:31:59Z"
+          },
+          {
+            "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-17T07:31:59Z",
+            "completed_at": "2026-11-17T07:32:12Z"
+          },
+          {
+            "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-17T07:32:12Z",
+            "completed_at": "2026-11-17T07:32:58Z"
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-17T07:32:58Z",
+            "completed_at": "2026-11-17T07:33:00Z"
+          },
+          {
+            "name": "Check native public C reader import and contracts",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-17T07:33:00Z",
+            "completed_at": "2026-11-17T07:33:09Z"
+          },
+          {
+            "name": "Select native MSVC environment and owned private test root",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-11-17T07:33:09Z",
+            "completed_at": "2026-11-17T07:33:13Z"
+          },
+          {
+            "name": "Execute installed C and Rust lifecycle",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-11-17T07:33:13Z",
+            "completed_at": "2026-11-17T07:58:40Z"
+          },
+          {
+            "name": "Preserve public results and exact C library inputs",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-11-17T07:58:40Z",
+            "completed_at": "2026-11-17T07:58:45Z"
+          },
+          {
+            "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 17,
+            "started_at": "2026-11-17T07:58:45Z",
+            "completed_at": "2026-11-17T07:58:45Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 18,
+            "started_at": "2026-11-17T07:58:45Z",
+            "completed_at": "2026-11-17T07:58:47Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 19,
+            "started_at": "2026-11-17T07:58:47Z",
+            "completed_at": "2026-11-17T07:58:47Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/133888583987",
+        "labels": [
+          "windows-2025"
+        ],
+        "runner_id": 1000097156,
+        "runner_name": "GitHub Actions 1000097156",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 133888584027,
+        "run_id": 44036376236,
+        "workflow_name": "Installed Windows Continuity lifecycle",
+        "head_branch": "release/0.2-finalization",
+        "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036376236",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTD-aVc8AAAAfLGGpWw",
+        "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/133888584027",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/44036376236/job/133888584027",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-11-17T07:28:18Z",
+        "started_at": "2026-11-17T07:30:20Z",
+        "completed_at": "2026-11-17T07:50:10Z",
+        "name": "native (windows-2022, debug)",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-17T07:30:21Z",
+            "completed_at": "2026-11-17T07:30:23Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-17T07:30:23Z",
+            "completed_at": "2026-11-17T07:31:31Z"
+          },
+          {
+            "name": "Run dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-17T07:31:31Z",
+            "completed_at": "2026-11-17T07:31:42Z"
+          },
+          {
+            "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-17T07:31:42Z",
+            "completed_at": "2026-11-17T07:32:30Z"
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-17T07:32:30Z",
+            "completed_at": "2026-11-17T07:32:31Z"
+          },
+          {
+            "name": "Check native public C reader import and contracts",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-17T07:32:31Z",
+            "completed_at": "2026-11-17T07:32:37Z"
+          },
+          {
+            "name": "Select native MSVC environment and owned private test root",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-11-17T07:32:37Z",
+            "completed_at": "2026-11-17T07:32:40Z"
+          },
+          {
+            "name": "Execute installed C and Rust lifecycle",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 8,
+            "started_at": "2026-11-17T07:32:40Z",
+            "completed_at": "2026-11-17T07:50:02Z"
+          },
+          {
+            "name": "Preserve public results and exact C library inputs",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 9,
+            "started_at": "2026-11-17T07:50:02Z",
+            "completed_at": "2026-11-17T07:50:06Z"
+          },
+          {
+            "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 17,
+            "started_at": "2026-11-17T07:50:06Z",
+            "completed_at": "2026-11-17T07:50:06Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 18,
+            "started_at": "2026-11-17T07:50:06Z",
+            "completed_at": "2026-11-17T07:50:08Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 19,
+            "started_at": "2026-11-17T07:50:08Z",
+            "completed_at": "2026-11-17T07:50:08Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/133888584027",
+        "labels": [
+          "windows-2022"
+        ],
+        "runner_id": 1000097155,
+        "runner_name": "GitHub Actions 1000097155",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 133901426539,
+        "run_id": 44036376236,
+        "workflow_name": "Installed Windows Continuity lifecycle",
+        "head_branch": "release/0.2-finalization",
+        "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036376236",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTD-aVc8AAAAfLSWfaw",
+        "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/133901426539",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/44036376236/job/133901426539",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-11-17T07:58:49Z",
+        "started_at": "2026-11-17T07:58:52Z",
+        "completed_at": "2026-11-17T08:02:08Z",
+        "name": "public-readback (windows-2025)",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-17T07:58:53Z",
+            "completed_at": "2026-11-17T07:58:54Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-17T07:58:54Z",
+            "completed_at": "2026-11-17T08:01:46Z"
+          },
+          {
+            "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-17T08:01:46Z",
+            "completed_at": "2026-11-17T08:01:57Z"
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-17T08:01:57Z",
+            "completed_at": "2026-11-17T08:01:59Z"
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-17T08:01:59Z",
+            "completed_at": "2026-11-17T08:02:02Z"
+          },
+          {
+            "name": "Verify original Rust and C public lifecycle contracts",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-17T08:02:02Z",
+            "completed_at": "2026-11-17T08:02:03Z"
+          },
+          {
+            "name": "Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-11-17T08:02:03Z",
+            "completed_at": "2026-11-17T08:02:04Z"
+          },
+          {
+            "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13,
+            "started_at": "2026-11-17T08:02:04Z",
+            "completed_at": "2026-11-17T08:02:05Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 14,
+            "started_at": "2026-11-17T08:02:05Z",
+            "completed_at": "2026-11-17T08:02:05Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 15,
+            "started_at": "2026-11-17T08:02:05Z",
+            "completed_at": "2026-11-17T08:02:05Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/133901426539",
+        "labels": [
+          "ubuntu-24.04"
+        ],
+        "runner_id": 1000097181,
+        "runner_name": "GitHub Actions 1000097181",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      },
+      {
+        "id": 133901426594,
+        "run_id": 44036376236,
+        "workflow_name": "Installed Windows Continuity lifecycle",
+        "head_branch": "release/0.2-finalization",
+        "run_url": "https://api.github.com/repos/billlza/q-periapt/actions/runs/44036376236",
+        "run_attempt": 1,
+        "node_id": "CR_kwDOTD-aVc8AAAAfLSWfog",
+        "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/jobs/133901426594",
+        "html_url": "https://github.com/billlza/q-periapt/actions/runs/44036376236/job/133901426594",
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-11-17T07:58:49Z",
+        "started_at": "2026-11-17T07:58:52Z",
+        "completed_at": "2026-11-17T08:02:00Z",
+        "name": "public-readback (windows-2022)",
+        "steps": [
+          {
+            "name": "Set up job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 1,
+            "started_at": "2026-11-17T07:58:52Z",
+            "completed_at": "2026-11-17T07:58:53Z"
+          },
+          {
+            "name": "Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 2,
+            "started_at": "2026-11-17T07:58:53Z",
+            "completed_at": "2026-11-17T08:01:42Z"
+          },
+          {
+            "name": "Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 3,
+            "started_at": "2026-11-17T08:01:42Z",
+            "completed_at": "2026-11-17T08:01:53Z"
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 4,
+            "started_at": "2026-11-17T08:01:53Z",
+            "completed_at": "2026-11-17T08:01:54Z"
+          },
+          {
+            "name": "Run actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 5,
+            "started_at": "2026-11-17T08:01:54Z",
+            "completed_at": "2026-11-17T08:01:55Z"
+          },
+          {
+            "name": "Verify original Rust and C public lifecycle contracts",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 6,
+            "started_at": "2026-11-17T08:01:55Z",
+            "completed_at": "2026-11-17T08:01:56Z"
+          },
+          {
+            "name": "Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 7,
+            "started_at": "2026-11-17T08:01:56Z",
+            "completed_at": "2026-11-17T08:01:57Z"
+          },
+          {
+            "name": "Post Run actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 13,
+            "started_at": "2026-11-17T08:01:57Z",
+            "completed_at": "2026-11-17T08:01:57Z"
+          },
+          {
+            "name": "Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 14,
+            "started_at": "2026-11-17T08:01:57Z",
+            "completed_at": "2026-11-17T08:01:58Z"
+          },
+          {
+            "name": "Complete job",
+            "status": "completed",
+            "conclusion": "success",
+            "number": 15,
+            "started_at": "2026-11-17T08:01:58Z",
+            "completed_at": "2026-11-17T08:01:58Z"
+          }
+        ],
+        "check_run_url": "https://api.github.com/repos/billlza/q-periapt/check-runs/133901426594",
+        "labels": [
+          "ubuntu-24.04"
+        ],
+        "runner_id": 1000097182,
+        "runner_name": "GitHub Actions 1000097182",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions"
+      }
+    ]
+  }
+}

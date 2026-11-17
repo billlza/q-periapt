@@ -1,0 +1,21 @@
+{
+  "archive": {
+    "bytes": 6669291,
+    "path": "q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip",
+    "sha256": "16761e440bff52e7e89ab8c1d2c3cadb787ef8f96c49f8b6bb007764a9fd4e3e"
+  },
+  "artifact_id": 14308107770,
+  "completed": true,
+  "hosted_archive_sha256": "7289ad3e4a5bf8aa9ccb2a69b66a08826054fceaa1fe666b2a73b9e19f3382b8",
+  "kind": "qperiapt.native_sdk_portable_readback",
+  "manifest_sha256": "8e9d3f8e93d98e06901cae7e5ef96ce0b6b835223bb9b581f0af95e71ab94c9c",
+  "producer_run": 44036376133,
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "Fresh deterministic extraction and the source's complete portable package verifier: exact source/manifest/files, ABI, licenses and BOM; Windows PE inspection uses fresh binary bytes. Linux runtime/loader and Windows native execution remain the separately selected successful CI jobs.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "target": "x86_64-pc-windows-msvc"
+}

@@ -1,0 +1,1610 @@
+{
+  "assets": [],
+  "completed": true,
+  "host": "ubuntu-24.04",
+  "kind": "qperiapt.independent_host_evidence_component",
+  "package_bindings": {},
+  "phases": [
+    "source",
+    "installed"
+  ],
+  "readbacks": [
+    {
+      "bytes": 29110,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/READBACK.json",
+      "sha256": "7a430ba1ee8597003e205ec2454f2e465913165e6c328d212ee00cf1cd16176a"
+    },
+    {
+      "bytes": 26131,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/READBACK.json",
+      "sha256": "4a925e4741720d67c1adb76c47b98fbbf7e16cd34f79b6117ee053b7d7dc83c7"
+    }
+  ],
+  "records": [
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/account-boundary.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1465,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/account-boundary.stdout",
+      "sha256": "cbcafb9b7f88611fa25c3794b7929e5015aa860e39ed125819328fba1373a029"
+    },
+    {
+      "bytes": 26972,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/account-boundary/RESULT.json",
+      "sha256": "669fe31ce1927f3b9a526063979929ab38bcfe92a9094a042cd9d893f43d2c79"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/account-credential-inputs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 51,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/account-credential-inputs.stdout",
+      "sha256": "c88e7449f47fe550a9272866c74b8faf764e6797afaa7ad00e6842e490e867df"
+    },
+    {
+      "bytes": 41570,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/account-credential-inputs/RESULT.json",
+      "sha256": "9ced47fc1f52e3671b92aeb4716a064d3d4f2229a8fea508e8f547eaa715e4a8"
+    },
+    {
+      "bytes": 201,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/account-model-build.stderr",
+      "sha256": "1fd2acf37bacbf46bc724a2242e588619219c69ef4d1596c78894f63c1ed3219"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/account-model-build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 201,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/account-model-clippy.stderr",
+      "sha256": "68a75dac4a8f081000f1f9664685f9d488238339d7afc3d4a2e4806f4ca66353"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/account-model-clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/account-state.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 206,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/account-state.stdout",
+      "sha256": "42af0599151a73f2ea8d71f0536f0373e62f99e6a89c26dc3738267165c2a9a4"
+    },
+    {
+      "bytes": 24551,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/account-state/RESULT.json",
+      "sha256": "01f79d54c37e82f7158c430601929f88861c0d90cd775b4647b703acb5481cab"
+    },
+    {
+      "bytes": 3303,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/build.stderr",
+      "sha256": "849b4e8a757394bb07731d39e48af3ffa09f47a9bba2b89978fb8a94e2ca972d"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/capacity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 91,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/capacity.stdout",
+      "sha256": "eab2a4fe2188d19d50f494138889a7a1676de1aaa10c05164758bc9a2189dac1"
+    },
+    {
+      "bytes": 28212,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/capacity/RESULT.json",
+      "sha256": "951b7c480cc8295cb7e99e2a6936146db89c1a66d13464aa3ff527c32e228eed"
+    },
+    {
+      "bytes": 6730,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/clippy.stderr",
+      "sha256": "016bd34064835b488308dd230eb9495a17c9bde698cbafd34fd0d760deae3eb7"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/control.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 128,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/control.stdout",
+      "sha256": "02f195f84c73e4de8c135b306505e30b46152c0c0ba428604a44f9807150b8a3"
+    },
+    {
+      "bytes": 90193,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/control/RESULT.json",
+      "sha256": "2aebd4d6c4576711e39afdf583acc3f5f2d0ca73d399b8a9d233f02d039b691c"
+    },
+    {
+      "bytes": 12400,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-producer.stderr",
+      "sha256": "a8e86f7b8b1af4d2f631189d9f8381afd0c29d3ed2d10bbbb8bda018ab7b538c"
+    },
+    {
+      "bytes": 201,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-producer.stdout",
+      "sha256": "1f85f7d46ef8e7b40d00283ea5f2f4067e3b8404a02d85e36a62ee83a7a1c142"
+    },
+    {
+      "bytes": 208,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-provenance.json",
+      "sha256": "2a84a3b35b732bbb6291fbe03d6a3eee5eb2ac28390e66e476327d1f283797b8"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/bad-signature.bin",
+      "sha256": "ff40990ab9a2684e3157202b375c4edab002d9d0bbdc1f42cce824c46d010bda"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/cancelled.bin",
+      "sha256": "eaf604fa1683dd483ebcb92d3d2f46a9b83113f8c21ca275ffdc90445242e962"
+    },
+    {
+      "bytes": 15046,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/cli-trace.jsonl",
+      "sha256": "3ca56c90e307f2f442a37dc0af631ad71fe58d4bb9d27402ba64b05b7837584d"
+    },
+    {
+      "bytes": 10354,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/conflict.bin",
+      "sha256": "37d632dd0e3ab4d07dbea61580ec5cd39181da5b96ab7b8acf32d37f0512db32"
+    },
+    {
+      "bytes": 1742,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/expected.json",
+      "sha256": "bac1a7a0201d3f69f464ee9d063d977e2b65937027b8143a604351e30081b738"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/first.bin",
+      "sha256": "eaf604fa1683dd483ebcb92d3d2f46a9b83113f8c21ca275ffdc90445242e962"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/fork.bin",
+      "sha256": "91f708b6198359e47d36fdc0a006fa56ca8678459ec0e2301077b2144af2dead"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/fresh.bin",
+      "sha256": "6261b0ef77adcbacc24decf6865f0f1b8f7ce7e5fec254200f3eba7a5ccfd473"
+    },
+    {
+      "bytes": 1754,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/history-trace.jsonl",
+      "sha256": "3af3b482adfbeeb3d22f073851583ad1e43f753172e12f31d2a24be2e861356c"
+    },
+    {
+      "bytes": 381,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/inspection.json",
+      "sha256": "e59bf5b2eddf9d6ea2e5e7713d48d07245fbc0d329304cd73bed3cf7ec4d3e48"
+    },
+    {
+      "bytes": 1232,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/original-history.json",
+      "sha256": "8afb81ccceaf1fb0b7651ae246e636d182a9b289e52d4a3d6b1ad14d2ce3ddfb"
+    },
+    {
+      "bytes": 2808,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/pin.json",
+      "sha256": "307fb7569770791965dd3e9f355c03c516149ce9d1fa7656df9cff7e0db6de70"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/retry.bin",
+      "sha256": "eaf604fa1683dd483ebcb92d3d2f46a9b83113f8c21ca275ffdc90445242e962"
+    },
+    {
+      "bytes": 2808,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/wrong-key.json",
+      "sha256": "15ef084f621971e3cb7688c764e654d066a085c71c82670ee874f14183773de6"
+    },
+    {
+      "bytes": 2808,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-public/wrong-service.json",
+      "sha256": "8f3fd3e40fb0ba7e273f243c1430501c46a8f2940d93871a6cc1a7969dc5407e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-source.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 217,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-source.stdout",
+      "sha256": "ff73e824ef78f8e2a28c7529771d41c5c132924cf2ac35a29565c75aa95539e6"
+    },
+    {
+      "bytes": 2515,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-cli-source/RESULT.json",
+      "sha256": "01229c65995ea0c93ca9dc9523ab97495e719c64cc1afeb10fbe4dc8fc15e527"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-lease.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 147,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-lease.stdout",
+      "sha256": "92f962cda39fdf929c7604aea6c7592174f6d644ceeec22852e7404863db6782"
+    },
+    {
+      "bytes": 3827,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/directory-lease/RESULT.json",
+      "sha256": "713164c9e7568d843e193e1dbaa7aa6131e2645808f448db43e5bb757ca121a7"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/durable-rekey.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 84,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/durable-rekey.stdout",
+      "sha256": "05194367a40a70ececbfb8eb4b10d8ed552e1018abf9ecbeaad6503da52e3647"
+    },
+    {
+      "bytes": 75371,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/durable-rekey/RESULT.json",
+      "sha256": "fb8e933506d3b851f32b53b09a8d155b26d31b592e26249747f5938004850120"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/exchange.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 89,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/exchange.stdout",
+      "sha256": "222e8c4fea166b7cb7a04b12ef67be32817cc99b24bae4d3341f03b5ab2c03b7"
+    },
+    {
+      "bytes": 61534,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/exchange/RESULT.json",
+      "sha256": "04e39be0e81dbfe91af56df13070871256dfae6cd5277448e450655105f5583f"
+    },
+    {
+      "bytes": 128,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/host.txt",
+      "sha256": "4be565484e5d2351365ea25322c384b18705d10640b1e9268089424c40cb766b"
+    },
+    {
+      "bytes": 3567,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/importer-build.stderr",
+      "sha256": "daf39f8ceb84f20b67ea22062d916684fc79f698f4f8b111a0b3e072720485bf"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/importer-build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 4702,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/importer-clippy.stderr",
+      "sha256": "c5478954440acb17b75ba83785ede5e856b79ce47534b0d9ed4ea72320e32f57"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/importer-clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-credential-capacity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 298,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-credential-capacity.stdout",
+      "sha256": "a0769069b794b18e86cb2f5ce62733bd34448c765a3cdccece2dac07011048b2"
+    },
+    {
+      "bytes": 25890,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-credential-capacity/RESULT.json",
+      "sha256": "1429ada65f8c4dfe629a3f1f2ab93a3bb727d90c669c191a48989479bec07b57"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-credential.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1262,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-credential.stdout",
+      "sha256": "2b88a0288773115aee7a9159c915674b3e9d417ba3b31f6f3b076b5c9e6ae05c"
+    },
+    {
+      "bytes": 26553,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-credential/RESULT.json",
+      "sha256": "8f09ba35e33ce0831e82653910f216ac1ee9daa02311665a36bc36844759aff5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-policy-boundary.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2011,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-policy-boundary.stdout",
+      "sha256": "2703757589576ccb5b34c6752c666ce486e9733c51228f8f63c1cdc4cc6c9c88"
+    },
+    {
+      "bytes": 27791,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-policy-boundary/RESULT.json",
+      "sha256": "14455bf3b9d13b87b527886c18e033964d66133affb8c6a88ffba3ba8990c16d"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-policy.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2848,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-policy.stdout",
+      "sha256": "c3fd8855ab1f943ea677bdd8c375b283d56beacf8a573b7c27afead1516d824a"
+    },
+    {
+      "bytes": 28659,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-policy/RESULT.json",
+      "sha256": "c4d40cdc718d54f3dcdcfbd413575488ae6c07df797c52d3590c0f874590580d"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-renewal.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1145,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-renewal.stdout",
+      "sha256": "205093a7028346f1c1a69d66e06a409a84de916e14aeeb9f4cc740f239832202"
+    },
+    {
+      "bytes": 26452,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/local-renewal/RESULT.json",
+      "sha256": "96498a9065c6c2591d50ffe369d302e863bd2cc9ff2eb638e221122481135c37"
+    },
+    {
+      "bytes": 580945,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/metadata.json",
+      "sha256": "8518d20a5ce1e8eb20ec5749cd08fb4313f9dcf0ff1bcd56f909aabbabf6b267"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/one-time-publication.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 97,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/one-time-publication.stdout",
+      "sha256": "519d806f9a3e2c90b89b594fd7f3daa1a45bed11e07a9c1e4dfcdb3fbf8c5ada"
+    },
+    {
+      "bytes": 1991,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/one-time-publication/RESULT.json",
+      "sha256": "1c98e4af8b4f42a775cdeba4d7621c9c597dc742c42c72c012c2807081e4797b"
+    },
+    {
+      "bytes": 169,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/package-tests.stderr",
+      "sha256": "2b95937b2ecee2d074f2fa16fea5f8d063cb7410aa07b381504eec660d617a1d"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/package-tests.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/peer-intermediate.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 24447,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/peer-intermediate.stdout",
+      "sha256": "3991a12f92cfdb1de43400de80f96fd0799eae8b99e31c874ad4520f9061e376"
+    },
+    {
+      "bytes": 25421,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/peer-intermediate/RESULT.json",
+      "sha256": "3eb0f9ad24928bf1a6ad31712a3d1da4d3d587fd5819465fe852145bce91bff6"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/peer-lifecycle.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 435,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/peer-lifecycle.stdout",
+      "sha256": "d0e6c1206df3a5ad52d75cdda21b8a311492e962112ecd7f50c88f3bb6a2adc4"
+    },
+    {
+      "bytes": 25826,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/peer-lifecycle/RESULT.json",
+      "sha256": "e5f3385bd3dddf6d956cd8b0e75ba86c66c2a7df835d3188752b6d94d00988bd"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/peer-reply-release.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 96,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/peer-reply-release.stdout",
+      "sha256": "5606188acaec89c79552c7583d07449c8413e16c7c7d5bd6a9ce11e41c64cc62"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/pending-recovery.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 672,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/pending-recovery.stdout",
+      "sha256": "bef3f4142f770471ea65b24761e7571e86db6c86e281f4649cee792ffa7fde3f"
+    },
+    {
+      "bytes": 25833,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/pending-recovery/RESULT.json",
+      "sha256": "c5ea5bcd8e9f8e2b1ec5675f954e5656c7898ecccb7b2c373afb827bcdf309fd"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-composition-capacity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 144,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-composition-capacity.stdout",
+      "sha256": "1be36454b4672ac7d5dcf023df6a44cb4dfe5dd824f8e500d5767cda4f897125"
+    },
+    {
+      "bytes": 32235,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-composition-capacity/RESULT.json",
+      "sha256": "ca2e16c021d0369ae6eeb6d201a05865495dd1b777aebc7df04e056fabb297ce"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-composition.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 289,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-composition.stdout",
+      "sha256": "75521232be019f6d04a300db5b9b13582feabfa196aeb5d2f73e75a7ac88b897"
+    },
+    {
+      "bytes": 48612,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-composition/RESULT.json",
+      "sha256": "de56c55e702e7562a9ff10d59f1733d7d3a7b42329e230c0a8f64c8b988a8a1d"
+    },
+    {
+      "bytes": 201,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-proof-build.stderr",
+      "sha256": "5e7a9e1473a8550edccc23bd0cbf464e6de75d1abc80c7f85bffcca192cdb434"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-proof-build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 201,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-proof-clippy.stderr",
+      "sha256": "e20de73b5a5bcd39cb1ee4bfa8c6d16039555919740a2b1b69956f75f709c9d4"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-proof-clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-proof.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 54,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-proof.stdout",
+      "sha256": "229513cb4b8633e8b3e564a73e31447ed2c82c451143139eea28270efa443b1e"
+    },
+    {
+      "bytes": 38097,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-proof/RESULT.json",
+      "sha256": "8438348c2657300271f0a5f2368f59366467162e5b281286da94e6a84e1c3552"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-record.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 38,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-record.stdout",
+      "sha256": "b2314b7e14d64e2d24332f60daa7c6d1d4e12ca00e9fb59aec3bd9acd5bf247c"
+    },
+    {
+      "bytes": 32959,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/policy-record/RESULT.json",
+      "sha256": "fa561b5f414609001aa201c1fa83a2d16fee19304a7e55a6133a4105226a713a"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/provider.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 802,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/provider.stdout",
+      "sha256": "f659a1f0f07d83f8e05bd0a60bf81eafa23eeb84db9a2fbfda27dd04afc114e1"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/public-inputs.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 550,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/public-inputs.stdout",
+      "sha256": "cf9950c51ac865f30b040cec78e03f4c14c659052862cc9531253acbdcd2fcd4"
+    },
+    {
+      "bytes": 25659,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/public-inputs/RESULT.json",
+      "sha256": "48c2120efac9be27ddbe1464dc52b4a5eb7a6c362ad77808475949ee13d97caa"
+    },
+    {
+      "bytes": 7,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/qualification-phase.txt",
+      "sha256": "b8bb034f9b63bd0254fbc7c157cae746c75853f4643d6cea844dc48ddb57f522"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/registration.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 308,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/registration.stdout",
+      "sha256": "164c486b545a3971be65e3bda3e755d8f06464544813c64b4c8c73b14f66dc0b"
+    },
+    {
+      "bytes": 25415,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/registration/RESULT.json",
+      "sha256": "0a3c9cbfde9a7ac870d7cd41a341a59c400a888be97e277db9b02a3489d2cdb5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/rekey.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 55,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/rekey.stdout",
+      "sha256": "79ca595ebb5e323347f91a623bae5a28cea984c877130e083f27c6bb0adde1e5"
+    },
+    {
+      "bytes": 78727,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/rekey/RESULT.json",
+      "sha256": "68edce4f1f705c1fd34130cc3eabcbff0549e2f6c74692efa6b4f0c1f61694ec"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/resolution-capacity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 78,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/resolution-capacity.stdout",
+      "sha256": "1c6a14297c4fb1cc5cf2a396163327464ed49092216198b5e6cbc107c8744234"
+    },
+    {
+      "bytes": 2105968,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/resolution-capacity/REPORT.json",
+      "sha256": "4e18316480ac0040725c607b43bb3301861a6cc2be00d395d4780bc50330cbd6"
+    },
+    {
+      "bytes": 68896,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/resolution-capacity/RESULT.json",
+      "sha256": "0e02957e38338c2669aa489a16d09a549d17289efc1bad294aee74f89ebf661b"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/resolution-disclosure.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 88,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/resolution-disclosure.stdout",
+      "sha256": "5a5d42dcb49cb7bc260c7414812e4ed7f8d8f101dfa298de0cf2ffbb05629af8"
+    },
+    {
+      "bytes": 55589,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/resolution-disclosure/RESULT.json",
+      "sha256": "5860e318084699e89ab7d35577d17fb756efe2b4d9b4ba08c0d5072575b90b75"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/resolution.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 104,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/resolution.stdout",
+      "sha256": "ff04fc6657b29c61fd266e4643f814d62e1bedf919afa8e9bd0d6ea10e66dc2d"
+    },
+    {
+      "bytes": 103417,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/resolution/RESULT.json",
+      "sha256": "e16cba921284e4cb08810163c624f7b1264df584195b03135c658ce73be52220"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/roster-boundary.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1833,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/roster-boundary.stdout",
+      "sha256": "f5ade76c75cbfe910c1da86beaedee0d5f0214f8107d494323a33fa2b50f2941"
+    },
+    {
+      "bytes": 27600,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/roster-boundary/RESULT.json",
+      "sha256": "c9583a69e3f7c2dbd19bccb4c0c429188724124fac836da13cbf9e4d01a07f6a"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/roster-capacity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 192,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/roster-capacity.stdout",
+      "sha256": "ac42f30072e48f952ebbdd6b62fbc80e356f705bd55b32aada59eeb3190fbebf"
+    },
+    {
+      "bytes": 29809,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/roster-capacity/RESULT.json",
+      "sha256": "95492989a2a102b125c5bca60436af9ebc51bb4a24b1e3a03d0886a90144af1f"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/roster-refresh.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 3373,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/roster-refresh.stdout",
+      "sha256": "8f3043e9c0b4084ba07ea13149312ac2d239340dcb40ed9cf92ddccd6d379040"
+    },
+    {
+      "bytes": 28932,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/roster-refresh/RESULT.json",
+      "sha256": "72101ae3e90002314dcf5b9a2402c53776b05897118079028e19e9f84fcb377c"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/roster-revocation.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 285,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/roster-revocation.stdout",
+      "sha256": "fdc9848606bdcc20477622bbf3d9337c1fcbcbc842087e18db4f143c70aaafe8"
+    },
+    {
+      "bytes": 32548,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/roster-revocation/RESULT.json",
+      "sha256": "9eb2e6e3541384e7d056fab53ecbdb0348cc494cbce75cec792a5f8ff460ab1a"
+    },
+    {
+      "bytes": 196,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/rustc.txt",
+      "sha256": "778fbc643a806f0dd123c056e66201d7e8a56a61928ec0a33171be8d6c2d5a37"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/session-recovery.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 68,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/session-recovery.stdout",
+      "sha256": "aad911128189af7fcdc08b103be81f4199af9fe0499a8b9a7c7b4a72c0ecbbf5"
+    },
+    {
+      "bytes": 32725,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/session-recovery/RESULT.json",
+      "sha256": "4760e64df98d1733c4fe545dcb217c870c7e350d920c5a9f39c9879ba646194f"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/shared-account.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 130,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/shared-account.stdout",
+      "sha256": "d1402ab0641ac0ae1462afd75489db170d98bdeee200f98b4b0f00c756fc3970"
+    },
+    {
+      "bytes": 25441,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/shared-account/RESULT.json",
+      "sha256": "8407c7f427c417c05b77a05139066d9a991ffeaba816191e2385ee89a65a0c70"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/shared-migration.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1320,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/shared-migration.stdout",
+      "sha256": "5fede7c59030d418c539e60951d69e44cf56dbdd0582eeac39836c3234923131"
+    },
+    {
+      "bytes": 26727,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/shared-migration/RESULT.json",
+      "sha256": "75ba15ec199861977919ae21828dc9d70480c155c14ecee2619e709e0d096469"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/shared-pending.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2723,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/shared-pending.stdout",
+      "sha256": "c7bea8d45029a7cf23bd1c7cc469d582b5baaf0c280195a62b570dd1a18eca96"
+    },
+    {
+      "bytes": 28522,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/shared-pending/RESULT.json",
+      "sha256": "b1bf2f9a63d4035f0efd0a8eeae62eab432dccd57955263d60fd6c9fabd0834b"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/shared-witness-expiry.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1132,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/shared-witness-expiry.stdout",
+      "sha256": "eee6a5f05157107238b6005cddb293f941556ac600942091e273434f648a5a0c"
+    },
+    {
+      "bytes": 26595,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/shared-witness-expiry/RESULT.json",
+      "sha256": "f0b06ded460b22827f16494d51ae767aedd82d85c58ff2e9e1faecac91598318"
+    },
+    {
+      "bytes": 41,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/source-head.txt",
+      "sha256": "ea8007e5c60b6cea8cc7315dd6a8acc10ec2f26eb6d4127d585af87f678081b0"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/storage-cuts.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 172,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/storage-cuts.stdout",
+      "sha256": "c643259cdfa42820752c07db557b8b160518f33ee56b79aa5be76bf80239b41b"
+    },
+    {
+      "bytes": 5876,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/storage-cuts/RESULT.json",
+      "sha256": "f1f81a7a87cb93766215c441befae5f55e974e23891459cefbe8cb34314817b9"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/witness-account.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 289,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/witness-account.stdout",
+      "sha256": "718e8e004a57859e66d2b24619f490c349d00acdcf528204d69c71beb3de08fb"
+    },
+    {
+      "bytes": 25656,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/witness-account/RESULT.json",
+      "sha256": "4df9d58a5d2445f3e1ba6cdb1d261edf611acd4ab4294eb56fbfa1848687136a"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/witness-policy-boundary.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1562,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/witness-policy-boundary.stdout",
+      "sha256": "1a01cbd86fffceeec6198d3de8ae7b4bb26584f39620686a430c3bf34bb8766e"
+    },
+    {
+      "bytes": 27216,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/witness-policy-boundary/RESULT.json",
+      "sha256": "1a3e92b2726a2959aee7ef8ffbb23f8c7bd8f0c318cae5f60ea76df4d4a7be12"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/witness-policy.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6522,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/witness-policy.stdout",
+      "sha256": "a70ef6d71cf5350ac2c2d6db1789e94a4dafebe62a162aa5a6e1d5b36af782e0"
+    },
+    {
+      "bytes": 33713,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/witness-policy/RESULT.json",
+      "sha256": "113687de047cd80be32eae1376c6504124e3871559008fcb42519c037252173b"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/witness.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1407,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/witness.stdout",
+      "sha256": "d7647b1a0ee6979c4d6dc3f1896089cce09aa56ed5ecb7d077df7fcf7e6e148d"
+    },
+    {
+      "bytes": 258106,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/witness/RESULT.json",
+      "sha256": "d6ec9e7525e187a83831da700972da02836d4e461dee5a22d3695a2cb4906870"
+    },
+    {
+      "bytes": 29110,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-source/READBACK.json",
+      "sha256": "7a430ba1ee8597003e205ec2454f2e465913165e6c328d212ee00cf1cd16176a"
+    },
+    {
+      "bytes": 3303,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/build.stderr",
+      "sha256": "f49d637a38c2d3b504d45bd4f55f8903e452cea2152dfb21a9fe9d709c8cc990"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6730,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/clippy.stderr",
+      "sha256": "e471cc5940ab1340d1c13db28a82eb1026ebb1f1caf566e20b04e74b8cfdd8c5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 12400,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-producer.stderr",
+      "sha256": "f559e3daad0d577dee5e15bfd6f770dfaf7b4d97c9bc6be5809eb4f10a376ba1"
+    },
+    {
+      "bytes": 201,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-producer.stdout",
+      "sha256": "96dc3be8810fa56a38c98893f650a879634550731eb877005d1d2179960e50bb"
+    },
+    {
+      "bytes": 208,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-provenance.json",
+      "sha256": "2a84a3b35b732bbb6291fbe03d6a3eee5eb2ac28390e66e476327d1f283797b8"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/bad-signature.bin",
+      "sha256": "f2e45fb6bbcd3ebfea08c93f6e6bcd77ac9fba06001743a86861cf2c7f7c5fd3"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/cancelled.bin",
+      "sha256": "ffdcb408ac99845b7e52fcff0bae6690436872697b34f63a9bc37ae45aea049e"
+    },
+    {
+      "bytes": 15004,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/cli-trace.jsonl",
+      "sha256": "c278b65f2c12d72d92bf83081d4b87b441ac773b6a4a9ab55c25cf7a3f38bef2"
+    },
+    {
+      "bytes": 10354,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/conflict.bin",
+      "sha256": "af7601d33c9758212571ca78a6429edb3834e70a0235c7e09173a17870edde4a"
+    },
+    {
+      "bytes": 1741,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/expected.json",
+      "sha256": "f2c5f4c2b566783bf03784c26e3e4f866b810b7ebf272291ad68d52e40344f1d"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/first.bin",
+      "sha256": "ffdcb408ac99845b7e52fcff0bae6690436872697b34f63a9bc37ae45aea049e"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/fork.bin",
+      "sha256": "63747ce2839d51c54ef1746bd4e13369c4a1ad65ebbfa2f0f78bd8be7b07d4cb"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/fresh.bin",
+      "sha256": "0d7fdec72362eca8a7b9d16f2359333fb962a9ff3eebb6f7e59dc3661f6c52ea"
+    },
+    {
+      "bytes": 1756,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/history-trace.jsonl",
+      "sha256": "e77b98f4a09d9f17e2761c08e92d717d46473a67fb774e3f6ab1bdf5839a9723"
+    },
+    {
+      "bytes": 383,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/inspection.json",
+      "sha256": "6becec675d984a33503e9040b3a2eb7e77bfe9f77466bf50596218f80b602731"
+    },
+    {
+      "bytes": 1234,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/original-history.json",
+      "sha256": "9865b36746dceb0869a38ae64a14ca0961aaa9cb3df695628721fae42cdbe2e2"
+    },
+    {
+      "bytes": 2808,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/pin.json",
+      "sha256": "99fadbba38fe843252195831b34a2236c43aba0cdbf72223ace71d24fed4195c"
+    },
+    {
+      "bytes": 5173,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/retry.bin",
+      "sha256": "ffdcb408ac99845b7e52fcff0bae6690436872697b34f63a9bc37ae45aea049e"
+    },
+    {
+      "bytes": 2808,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/wrong-key.json",
+      "sha256": "609b794be70d7728e0f1534b2048aefcce064acb6f6c64165757674faa70fa1a"
+    },
+    {
+      "bytes": 2808,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/directory-cli-public/wrong-service.json",
+      "sha256": "005a31c11e72c5414bc2bcf711e01bbf8e934f374f23e1d3d0a14f8cc6df4c64"
+    },
+    {
+      "bytes": 128,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/host.txt",
+      "sha256": "4be565484e5d2351365ea25322c384b18705d10640b1e9268089424c40cb766b"
+    },
+    {
+      "bytes": 3567,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/importer-build.stderr",
+      "sha256": "828525e7e61bbfbd6d947eb095fc78c78fec7161f90449d8b380697956870028"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/importer-build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 4702,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/importer-clippy.stderr",
+      "sha256": "72c15c6fa0c5a35e7d9117ee5dcbb49e17d80ffa1378cbc5224b02cb490b1a8c"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/importer-clippy.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 580945,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/metadata.json",
+      "sha256": "8518d20a5ce1e8eb20ec5749cd08fb4313f9dcf0ff1bcd56f909aabbabf6b267"
+    },
+    {
+      "bytes": 169,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/package-tests.stderr",
+      "sha256": "cd82e867328cbef8606b49c6536ec7c760acde4eb47c027384c2eefdd76f4d8c"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/package-tests.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/provider.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 801,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/provider.stdout",
+      "sha256": "3a903a383ec97166e4b022e9fceffe07312ebe81be641893fe16d47cb5d2d24e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 350,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed.stdout",
+      "sha256": "19e45323820280b10d5c2cba2a29153dbc5c34527019d1d03e5bbe9c11c7d21d"
+    },
+    {
+      "bytes": 9641,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/EXPECTED_MODULES.json",
+      "sha256": "f0fd576eb2e2188a2ea7c12e33abe445fbe0281c2e0f8b668bd078875763c82c"
+    },
+    {
+      "bytes": 13846,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/INSTALLED_FILES.json",
+      "sha256": "f67b702ae5eaa3fd72751e7d0bae588b4caf2187d314e2f39db5eb135b8685bd"
+    },
+    {
+      "bytes": 75,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/LOCATION.json",
+      "sha256": "69d7921989391eda2b95c7dffc5bb7c8587aca8966e545b5d016a7c1309729c4"
+    },
+    {
+      "bytes": 10819,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/PROVENANCE.json",
+      "sha256": "024e3987049fd449f7e07bd36fba8071a1cbbba513d223ec11aafb49c2b214bc"
+    },
+    {
+      "bytes": 629156,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/PYTHON_INSTALLATION.json",
+      "sha256": "6d8d2698f002cb7b935acfdbfb447ca8245e1933bd16bfafe7094468d9a8636f"
+    },
+    {
+      "bytes": 822,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/account-boundary.json",
+      "sha256": "83dc14f6fcbf0a2efe55f0417a5788eb367d601101f65f5195d4440c715afcc0"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/account-boundary.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1465,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/account-boundary.stdout",
+      "sha256": "74e26558731a6788466f7ea707c66bc4d331708cfbcfaad76e3e8c7fda63c189"
+    },
+    {
+      "bytes": 26972,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/account-boundary/RESULT.json",
+      "sha256": "e0acfb6df679f3bd1bc8945c4fcf102e1c24cf4e69c2ae2cba16903d694f5b45"
+    },
+    {
+      "bytes": 950,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/client-session.json",
+      "sha256": "bfad8cb1e42916685e876fa456e776fcc6c23ecc01be020da2fc657b8617ae1e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/client-session.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 55140,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/client-session.stdout",
+      "sha256": "ea3d0f9865392eb3d5a78ea3dd7b5039563946e2c6317aea449f0f63fc1b920f"
+    },
+    {
+      "bytes": 56476,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/client-session/RESULT.json",
+      "sha256": "7fb1aaeecd06aa815780bc176bfeff780f98f1dfcd3b0f3ecc314cdab78f8c20"
+    },
+    {
+      "bytes": 818,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/directory-cli.json",
+      "sha256": "3bea719bcde46daef965e394d6f5c6d9b8843eeaa8b818f49ff40a98261aad16"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/directory-cli.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 217,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/directory-cli.stdout",
+      "sha256": "ff73e824ef78f8e2a28c7529771d41c5c132924cf2ac35a29565c75aa95539e6"
+    },
+    {
+      "bytes": 2536,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/directory-cli/RESULT.json",
+      "sha256": "3d728b048c0f06f3301053914829d2afaa372c6b7f426fd5fae136d63e072d9f"
+    },
+    {
+      "bytes": 972,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/directory-lease.json",
+      "sha256": "5b35ffbe6b0a07c851a48cf892a75b11ccd34649a8f91c9c944a7b148da238ca"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/directory-lease.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 147,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/directory-lease.stdout",
+      "sha256": "92f962cda39fdf929c7604aea6c7592174f6d644ceeec22852e7404863db6782"
+    },
+    {
+      "bytes": 3827,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/directory-lease/RESULT.json",
+      "sha256": "bb8f28b62da2b3d18dff80a9241af788949be34197d698016b3de7f86eec1cd8"
+    },
+    {
+      "bytes": 956,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/extension-session.json",
+      "sha256": "09490b4d93f65b237c46bb9749f478d005d4dad10782f4680cb9dddc4a43b8cf"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/extension-session.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1019,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/extension-session.stdout",
+      "sha256": "b77ad67e9dc04b5b1a7cf01df22341c70cb81106b08769561d2db76393803fd3"
+    },
+    {
+      "bytes": 1243,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/extension-session/RESULT.json",
+      "sha256": "f490ddafd51eeeff7ba2bbac8dfcb9f9db47f0ca9100338a963c5f8a07b4e5b0"
+    },
+    {
+      "bytes": 579,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/install.json",
+      "sha256": "f4f1ee87375126aac28cf43f55962bebbcdb83cbddccab7ecdd850bb3e881ffa"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/install.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 390,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/install.stdout",
+      "sha256": "9348f25f48fa5aca2e850f12966fbd445781c2c66de2fe03a159888ebe0b55a5"
+    },
+    {
+      "bytes": 839,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/local_policy_boundary_checks.json",
+      "sha256": "076bfc5648f12bddbe7fb9ce49c027981ba3be07597e973eeb58250f04679c5b"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/local_policy_boundary_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2011,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/local_policy_boundary_checks.stdout",
+      "sha256": "3f0f376b98025a54241e0116f2642a02cd9d0c3e1e9c995facc41173c99ca7fb"
+    },
+    {
+      "bytes": 27791,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/local_policy_boundary_checks/RESULT.json",
+      "sha256": "d1e71164d02843b5fbabec149e68ce7669ed5b11629a36208f9c529e300a5954"
+    },
+    {
+      "bytes": 821,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/local_policy_checks.json",
+      "sha256": "f278d71b6dfc89e5c208cd460412b1cb9734a91f48194c9568c09f360c5aa6f0"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/local_policy_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2848,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/local_policy_checks.stdout",
+      "sha256": "67755319e09b40077b395e8c8958ceffa3137f15415d70506166f6abb1684c9a"
+    },
+    {
+      "bytes": 28659,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/local_policy_checks/RESULT.json",
+      "sha256": "455277a54bfd3c3388830b121be94fa5ec6690676be1370694bb8ebe8aa13ccd"
+    },
+    {
+      "bytes": 830,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/one-time-publication.json",
+      "sha256": "e0bcfb8b628863edd9ff2978613cf40ad895f1bac24fd9f6b771738816746fca"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/one-time-publication.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 97,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/one-time-publication.stdout",
+      "sha256": "519d806f9a3e2c90b89b594fd7f3daa1a45bed11e07a9c1e4dfcdb3fbf8c5ada"
+    },
+    {
+      "bytes": 1991,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/one-time-publication/RESULT.json",
+      "sha256": "57f5cd29e8f821e20ed9b66f505813a560d38e20bc6528f8395ca99cfa531e2b"
+    },
+    {
+      "bytes": 824,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/peer-intermediate.json",
+      "sha256": "d0a60870935a4adc4b48fb25b6bd841643c6def43f97a60e08c0071ac5ab064a"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/peer-intermediate.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 24447,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/peer-intermediate.stdout",
+      "sha256": "3991a12f92cfdb1de43400de80f96fd0799eae8b99e31c874ad4520f9061e376"
+    },
+    {
+      "bytes": 25421,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/peer-intermediate/RESULT.json",
+      "sha256": "3eb0f9ad24928bf1a6ad31712a3d1da4d3d587fd5819465fe852145bce91bff6"
+    },
+    {
+      "bytes": 844,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/policy-composition-capacity.json",
+      "sha256": "c9a9620b63f3ed1dba63c8a3daf21c8b471dac2d29cec110755149a3d2531700"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/policy-composition-capacity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 144,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/policy-composition-capacity.stdout",
+      "sha256": "1be36454b4672ac7d5dcf023df6a44cb4dfe5dd824f8e500d5767cda4f897125"
+    },
+    {
+      "bytes": 32235,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/policy-composition-capacity/RESULT.json",
+      "sha256": "5fcfd0f5dd95872e4e9f3d1422cc438071bf9c679e556fda90c7ee28828a1ccb"
+    },
+    {
+      "bytes": 826,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/policy-composition.json",
+      "sha256": "8ada886fbe5fee1088beb9a2442ca7a6489098b9fedae28753eb6e9927c9dfd4"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/policy-composition.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 289,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/policy-composition.stdout",
+      "sha256": "75521232be019f6d04a300db5b9b13582feabfa196aeb5d2f73e75a7ac88b897"
+    },
+    {
+      "bytes": 48612,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/policy-composition/RESULT.json",
+      "sha256": "a6a9798c1d9620badce1ec51a8171d4db6b774c1b2ffb7d49c5fff726a86a08d"
+    },
+    {
+      "bytes": 886,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/probe.json",
+      "sha256": "8428f77be689395d94a952d72145065822ae74da0dfdd54921612b68cdda518b"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/probe.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/probe.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 814,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/registration.json",
+      "sha256": "f50e3035674a912bbfc0f7be10c591dae5a6f19965375a27bf84bd456f8d47ed"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/registration.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 308,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/registration.stdout",
+      "sha256": "164c486b545a3971be65e3bda3e755d8f06464544813c64b4c8c73b14f66dc0b"
+    },
+    {
+      "bytes": 25415,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/registration/RESULT.json",
+      "sha256": "0a3c9cbfde9a7ac870d7cd41a341a59c400a888be97e277db9b02a3489d2cdb5"
+    },
+    {
+      "bytes": 820,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster-capacity.json",
+      "sha256": "3289e0d153c158c96053428a1b643f3c1ec87d883e41af4443ea725bbd8ab190"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster-capacity.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 192,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster-capacity.stdout",
+      "sha256": "ac42f30072e48f952ebbdd6b62fbc80e356f705bd55b32aada59eeb3190fbebf"
+    },
+    {
+      "bytes": 29809,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster-capacity/RESULT.json",
+      "sha256": "279817fd0d76f403e5f613e23c82e7bc6700e9c481a4a133d0a58a15e9d07b4c"
+    },
+    {
+      "bytes": 824,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster-revocation.json",
+      "sha256": "f9dcb52ac538fe2139ef275b65642f6326951cb2d53efbc453d88109850ffc94"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster-revocation.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 285,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster-revocation.stdout",
+      "sha256": "fdc9848606bdcc20477622bbf3d9337c1fcbcbc842087e18db4f143c70aaafe8"
+    },
+    {
+      "bytes": 32548,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster-revocation/RESULT.json",
+      "sha256": "6649d7cbfabd6173856cc97bdfd1e04743309c4c18a9ec614b26afd3f3e0b4fb"
+    },
+    {
+      "bytes": 827,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster_boundary_checks.json",
+      "sha256": "c22c0595c4283a43e4c65342e4ea00ea6512ee0e6bd88c97523acfb05a9a5709"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster_boundary_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1833,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster_boundary_checks.stdout",
+      "sha256": "317ba7a75a11269dae8a05572b18ea42facfe059fe6e3cba4b37802be6d64fa5"
+    },
+    {
+      "bytes": 27600,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster_boundary_checks/RESULT.json",
+      "sha256": "cb00453ff58b315cf9a9202c2d92609c5d86b959d1f5baaa9f9cc482e7013981"
+    },
+    {
+      "bytes": 825,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster_refresh_checks.json",
+      "sha256": "193ca294e559914058e0ffc06ae594d8e017321b79c3e429897f3b3630f13f0c"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster_refresh_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 3373,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster_refresh_checks.stdout",
+      "sha256": "f8551fc5cf9261f99882320f593562295a01bd6cbda1498e12a386e30ef0e231"
+    },
+    {
+      "bytes": 28932,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/roster_refresh_checks/RESULT.json",
+      "sha256": "e9f14c0561cde2488e359cc53d88f6971d9900fde92879faaffcfcc7536cd748"
+    },
+    {
+      "bytes": 822,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared-migration.json",
+      "sha256": "5b1508014963c593c30958e6f0ee6b43af9d82af9ba253e1b9b9d71aba451b8e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared-migration.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1320,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared-migration.stdout",
+      "sha256": "e92a85d40b5c70ca4926d0c80db74eb7be0b0d5e7eadad94caa7432734b23e32"
+    },
+    {
+      "bytes": 26727,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared-migration/RESULT.json",
+      "sha256": "d98d9ff4d3ae54cb516e2f11738eaeaabb23af7f4e2a161dd2656ef54d8de5a0"
+    },
+    {
+      "bytes": 818,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared-pending.json",
+      "sha256": "c2e62f854ce34c925bfe9fff8269c3855095301b0f5fe74337e7fdc280b9a4f6"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared-pending.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2723,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared-pending.stdout",
+      "sha256": "909dcc927389f9ebef46aafabfe56634b661b9322fdec27ecd29e9c2bec87dc9"
+    },
+    {
+      "bytes": 28522,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared-pending/RESULT.json",
+      "sha256": "8991aa59db0bac8440694ca666b4da46d8ed9cd1f358c3a8678d6ccfc2bc08db"
+    },
+    {
+      "bytes": 832,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared-witness-expiry.json",
+      "sha256": "4fe12ec72b02082f55aef8d80fac0f4a3136038a3751d3bd97596780230ca52b"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared-witness-expiry.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1132,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared-witness-expiry.stdout",
+      "sha256": "50f133e80b6bbba15b22e5edc3c64072d9cc53d62c4e365b91acced4f85cc355"
+    },
+    {
+      "bytes": 26595,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared-witness-expiry/RESULT.json",
+      "sha256": "c689a460eba1c252512c19ed96943f7d9aad35d9d3bcd8b90c10e081180ad0b0"
+    },
+    {
+      "bytes": 825,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared_account_checks.json",
+      "sha256": "267721a3d9032b741d1de28f84fe3e8ac21ea0dc98b3f6d7b445f89175d016e5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared_account_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 130,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared_account_checks.stdout",
+      "sha256": "d1402ab0641ac0ae1462afd75489db170d98bdeee200f98b4b0f00c756fc3970"
+    },
+    {
+      "bytes": 25441,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/shared_account_checks/RESULT.json",
+      "sha256": "8407c7f427c417c05b77a05139066d9a991ffeaba816191e2385ee89a65a0c70"
+    },
+    {
+      "bytes": 221,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/wheel-requirements.txt",
+      "sha256": "88a194616bfe6d219c47497071b820be7c4336c545aa8606b39f5a8f99c165b1"
+    },
+    {
+      "bytes": 827,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/witness_account_checks.json",
+      "sha256": "28f14a0bb7c8432132371eaaa8a90e64027e0ca825521cb326dbd7154f42b00a"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/witness_account_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 289,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/witness_account_checks.stdout",
+      "sha256": "718e8e004a57859e66d2b24619f490c349d00acdcf528204d69c71beb3de08fb"
+    },
+    {
+      "bytes": 25656,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/witness_account_checks/RESULT.json",
+      "sha256": "4df9d58a5d2445f3e1ba6cdb1d261edf611acd4ab4294eb56fbfa1848687136a"
+    },
+    {
+      "bytes": 843,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/witness_policy_boundary_checks.json",
+      "sha256": "07d8d1f89a3572206a06e3fbff44c95b28c4fa1303020106f140ff54ce2bf902"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/witness_policy_boundary_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1562,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/witness_policy_boundary_checks.stdout",
+      "sha256": "01caecf57d3babe6afe3f6e16d8c9acad1ef7be56a8cbbafa6721be48b241c68"
+    },
+    {
+      "bytes": 27216,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/witness_policy_boundary_checks/RESULT.json",
+      "sha256": "4d745d98cc15509ba11487b8b8985c971738336fd93c5f5ff94808d7a1b5e110"
+    },
+    {
+      "bytes": 825,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/witness_policy_checks.json",
+      "sha256": "3d7e2e80a512775b41d9dc114b243744d84c796b73ffb4d4462faae65122d62f"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/witness_policy_checks.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6522,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/witness_policy_checks.stdout",
+      "sha256": "b1560fefc6e5eebc830e1b22f5d050ca59bcbde0a02f4efd9de44624144ac4bb"
+    },
+    {
+      "bytes": 33713,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/python-installed/witness_policy_checks/RESULT.json",
+      "sha256": "e6713fab7baf376e35b438dd1df222155f1dfac16f43e0d15c885351b6e8d87a"
+    },
+    {
+      "bytes": 10,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/qualification-phase.txt",
+      "sha256": "7d0698689b2d55cbce578d325da39bae00d260dc71c14a26909461903cc06ca6"
+    },
+    {
+      "bytes": 196,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/rustc.txt",
+      "sha256": "778fbc643a806f0dd123c056e66201d7e8a56a61928ec0a33171be8d6c2d5a37"
+    },
+    {
+      "bytes": 41,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/source-head.txt",
+      "sha256": "ea8007e5c60b6cea8cc7315dd6a8acc10ec2f26eb6d4127d585af87f678081b0"
+    },
+    {
+      "bytes": 26131,
+      "path": "release/0.2.0/evidence/independent/independent-bootstrap-ubuntu-24.04-installed/READBACK.json",
+      "sha256": "4a925e4741720d67c1adb76c47b98fbbf7e16cd34f79b6117ee053b7d7dc83c7"
+    },
+    {
+      "bytes": 7463,
+      "path": "release/0.2.0/evidence/independent/ubuntu-24.04-readback.py",
+      "sha256": "de1a281df861945a2c131813609a6964936a0754cfe9fff434b91ecf8a8dd6e9"
+    }
+  ],
+  "scope": "Both actual ubuntu-24.04 source and isolated-wheel phases completed, with original source/native/wheel/workload records and fresh archive/record readback. Counterpart and directory CLI are source built; SDK archive installation is qualified by its separate installed matrix. Complete raw hosted archives remain retained separately with exact IDs and hashes in each readback. This host component does not imply that the other host or full release has completed.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

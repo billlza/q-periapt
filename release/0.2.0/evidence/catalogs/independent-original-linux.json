@@ -1,0 +1,77 @@
+{
+  "assets": [
+    {
+      "file": {
+        "bytes": 190388737,
+        "path": "release/0.2.0/assets/platform/INDEPENDENT_linux_source_part01.zip",
+        "sha256": "29c89e02fee2712a3a12fd06a1f1950a76bd7c4ad6731912664e3940121f5999"
+      },
+      "name": "INDEPENDENT_linux_source_part01.zip"
+    },
+    {
+      "file": {
+        "bytes": 157684617,
+        "path": "release/0.2.0/assets/platform/INDEPENDENT_linux_source_part02.zip",
+        "sha256": "e5c10f08e5d111c59f8fb713070943d4b075e213ce4e8fce29e82682d89335c4"
+      },
+      "name": "INDEPENDENT_linux_source_part02.zip"
+    },
+    {
+      "file": {
+        "bytes": 2640,
+        "path": "release/0.2.0/assets/platform/INDEPENDENT_linux_source_INDEX.json",
+        "sha256": "52fd5e071ece98de33d78c24dc32b08bdc315cd94ed0a21c23f38c9fd6f7bcd3"
+      },
+      "name": "INDEPENDENT_linux_source_INDEX.json"
+    },
+    {
+      "file": {
+        "bytes": 191186876,
+        "path": "release/0.2.0/assets/platform/INDEPENDENT_linux_installed_part01.zip",
+        "sha256": "6545ca05d3df5e043d674634ccab53067c38349a02bd25daf1dede0e959b43f5"
+      },
+      "name": "INDEPENDENT_linux_installed_part01.zip"
+    },
+    {
+      "file": {
+        "bytes": 104851511,
+        "path": "release/0.2.0/assets/platform/INDEPENDENT_linux_installed_part02.zip",
+        "sha256": "769d4c79bc32da416e85cbba818002d2614d962cbaeb9f61eee24589391fe0b5"
+      },
+      "name": "INDEPENDENT_linux_installed_part02.zip"
+    },
+    {
+      "file": {
+        "bytes": 2661,
+        "path": "release/0.2.0/assets/platform/INDEPENDENT_linux_installed_INDEX.json",
+        "sha256": "8e46762eadb1d4981b0ce48536080f21b7ce8eeed6fa60e4f9aa3db1503aac35"
+      },
+      "name": "INDEPENDENT_linux_installed_INDEX.json"
+    }
+  ],
+  "completed": true,
+  "kind": "qperiapt.original_independent_archive_transport",
+  "package_bindings": {},
+  "records": [
+    {
+      "bytes": 2640,
+      "path": "release/0.2.0/evidence/independent/original-index/INDEPENDENT_linux_source_INDEX.json",
+      "sha256": "52fd5e071ece98de33d78c24dc32b08bdc315cd94ed0a21c23f38c9fd6f7bcd3"
+    },
+    {
+      "bytes": 2661,
+      "path": "release/0.2.0/evidence/independent/original-index/INDEPENDENT_linux_installed_INDEX.json",
+      "sha256": "8e46762eadb1d4981b0ce48536080f21b7ce8eeed6fa60e4f9aa3db1503aac35"
+    },
+    {
+      "bytes": 4717,
+      "path": "release/0.2.0/evidence/independent/original-index/linux-packager.py",
+      "sha256": "b137fc5eef86a92bd8ec9b68f96e594190aaddfc9c2ac0e915f01542cdb09fe6"
+    }
+  ],
+  "scope": "Complete original linux source and installed execution captures, preserved byte-for-byte in bounded slice envelopes with fresh reconstruction verification. Original phase readback and cross-host completion retain separate decisions.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

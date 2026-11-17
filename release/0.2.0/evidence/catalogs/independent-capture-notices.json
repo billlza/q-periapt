@@ -1,0 +1,32 @@
+{
+  "assets": [
+    {
+      "file": {
+        "bytes": 1184197,
+        "path": "release/0.2.0/assets/platform/INDEPENDENT_CAPTURE_NOTICES.zip",
+        "sha256": "96e188cc3233ce31903b3efcb2c901cdd9aaf6e926fb8a4faf728bf6af6e6d61"
+      },
+      "name": "INDEPENDENT_CAPTURE_NOTICES.zip"
+    }
+  ],
+  "completed": true,
+  "kind": "qperiapt.independent_capture_notices_component",
+  "package_bindings": {},
+  "records": [
+    {
+      "bytes": 171696,
+      "path": "release/0.2.0/evidence/independent/notices/INVENTORY.json",
+      "sha256": "06054a6b72810804cb82e68ff9be7e32c359d1ace39f356d98b00535af2ba0d1"
+    },
+    {
+      "bytes": 9848,
+      "path": "release/0.2.0/evidence/independent/notices/operator.py",
+      "sha256": "f2d0eb8249671cfc7b872b3956cda32bb3b4027967d14da5254a0d3e3015535f"
+    }
+  ],
+  "scope": "Conservative license-text union for research/qualification executables retained in original captures, including service and WASM inventories plus the selected counterpart's all-platform non-dev metadata closure. Original inventories and the nine additional source archives are checksum-authenticated; this is not a claim that every listed package executes on every target. Original captures are unchanged.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

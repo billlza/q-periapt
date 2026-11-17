@@ -1,0 +1,84 @@
+{
+  "assets": [],
+  "completed": true,
+  "kind": "qperiapt.coordinated_freeze_component",
+  "package_bindings": {
+    "continuity-engine": {
+      "artifacts": [],
+      "assessments": [
+        {
+          "bytes": 1378,
+          "path": "release/0.2.0/evidence/freeze/READBACK.json",
+          "sha256": "dd03c503a6df2aca508a773e2418620292e05fabb5b71378483d487b8b126f24"
+        }
+      ]
+    }
+  },
+  "records": [
+    {
+      "bytes": 96736,
+      "path": "release/0.2.0/evidence/freeze/original/14315298882.zip",
+      "sha256": "dd04c4c4760a5de89cfbcab322f0face29af4a18318a8c09af41fb6b2fbb4527"
+    },
+    {
+      "bytes": 1937681,
+      "path": "release/0.2.0/evidence/freeze/original/14315258934.zip",
+      "sha256": "3896f8717d9174a0efdd5856000d7fc7c89447666d569c4e1f7cda76d142e790"
+    },
+    {
+      "bytes": 3247,
+      "path": "release/0.2.0/evidence/freeze/continuity-wire-contract/CONTRACT.json",
+      "sha256": "18cf60661dac620b9f25e9b23c3ee9253097067dce23961218349ae2f002fe39"
+    },
+    {
+      "bytes": 2086,
+      "path": "release/0.2.0/evidence/freeze/continuity-wire-contract/consumer.stdout",
+      "sha256": "74c21058c23dd25f0a59294f3ec6b24e68b476961674152f2f1e794e44f4c5ac"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/freeze/continuity-wire-contract/consumer.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 96717,
+      "path": "release/0.2.0/evidence/freeze/continuity-public-verification/result.json",
+      "sha256": "8a4e3b1ff9198a383e8171a1084753222efff90b9be254ead199bc86e793bc32"
+    },
+    {
+      "bytes": 245171,
+      "path": "release/0.2.0/evidence/freeze/continuity-anchor-verification/result.json",
+      "sha256": "4f9b8396f59a0e38090a197d3ccec56195af542fd877dbb39f372a5d1f08e91a"
+    },
+    {
+      "bytes": 14660,
+      "path": "release/0.2.0/evidence/freeze/continuity-bootstrap-bundle-verification/report.json",
+      "sha256": "e30842b2dfb3fe0e7b283bf2b72063ab8aa52cf7f6c5ebd65b53697ebc15072b"
+    },
+    {
+      "bytes": 33621,
+      "path": "release/0.2.0/evidence/freeze/original/14313998539.zip",
+      "sha256": "70001227227e7b234911444f8c362cf6d8c4c83201ddb9c364bbc47ce842ff22"
+    },
+    {
+      "bytes": 1378,
+      "path": "release/0.2.0/evidence/freeze/READBACK.json",
+      "sha256": "dd03c503a6df2aca508a773e2418620292e05fabb5b71378483d487b8b126f24"
+    },
+    {
+      "bytes": 2581,
+      "path": "release/0.2.0/evidence/freeze/ARTIFACTS.json",
+      "sha256": "f7775e1d61a222a9c7dd8ff1999ad20fa674560648f24f39a07d47aac0b276f0"
+    },
+    {
+      "bytes": 5388,
+      "path": "release/0.2.0/evidence/freeze/readback.py",
+      "sha256": "d0facb2e8b1e8b1506a8fa496d823dc983bbf5ef98184cc1d779ff7e64771975"
+    }
+  ],
+  "scope": "Actual selected-source CI compiled and executed the release-stage contract reporter. Its stdout equals the reviewed budgets and the frozen lock's compiled descriptor; the unchanged schema-2 graph binds all 21 package identities and separate interfaces. Original public signature/anchor/bootstrap positive and refusal records are retained without promoting finite fixtures into a cryptographic theorem or production-binding proof.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

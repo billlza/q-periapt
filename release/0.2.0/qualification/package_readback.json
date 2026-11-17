@@ -1,0 +1,303 @@
+{
+  "completed": true,
+  "kind": "qperiapt.sdk_release_qualification",
+  "records": [
+    {
+      "bytes": 24541,
+      "path": "release/0.2.0/evidence/MANIFEST_VERIFICATION.json",
+      "sha256": "e3c8d96e81825555e4db2e4e5f4e31a40ee79502723437c1e8348fce9cfc7c13"
+    },
+    {
+      "bytes": 10680,
+      "path": "release/0.2.0/evidence/rust/publication/REGISTRY_PUBLICATION.json",
+      "sha256": "06c31b2069eeeccb19b437d4dbddd5d0720a1027a225f8b56d6a352b0c1f3bef"
+    },
+    {
+      "bytes": 842,
+      "path": "release/0.2.0/evidence/rust/publication/UPLOADER_INSTALLATION.json",
+      "sha256": "4f6e747fb926c5a38669fc7fa1b6b6dc7b58bbb21d994e7030a45f0d2e8d5ec7"
+    },
+    {
+      "bytes": 6666,
+      "path": "release/0.2.0/evidence/catalogs/apple.json",
+      "sha256": "f48b39f010ce2ee9747718308942f184bbb2403b051de018cd80b648c4d43ffe"
+    },
+    {
+      "bytes": 1691,
+      "path": "release/0.2.0/evidence/catalogs/c-macos.json",
+      "sha256": "d1fb2d89b88bcb4801944ff3c668e12dd9a9e2c6d03b91842beb81ea39784176"
+    },
+    {
+      "bytes": 6594,
+      "path": "release/0.2.0/evidence/catalogs/ci-original-records.json",
+      "sha256": "98e45c625edfe5e091729319da310cdf75f319e9a454552c25a0f578398358b3"
+    },
+    {
+      "bytes": 18187,
+      "path": "release/0.2.0/evidence/catalogs/continuity-android.json",
+      "sha256": "83d7bb262a486cb51d4db8e2b220dfbc42415b4ee60c17d607cf83534da5c531"
+    },
+    {
+      "bytes": 14409,
+      "path": "release/0.2.0/evidence/catalogs/continuity-foreign.json",
+      "sha256": "4a5cc2e528836ea139d4ca80aaa3e75c2dcc38997c3191658d16943ed21afff9"
+    },
+    {
+      "bytes": 10764,
+      "path": "release/0.2.0/evidence/catalogs/continuity-native.json",
+      "sha256": "e4055a0ab1c80df76e90531afcba90fa76c1dd0d726ebbd9dd4b77c7cc0c49ec"
+    },
+    {
+      "bytes": 3349,
+      "path": "release/0.2.0/evidence/catalogs/coordinated-freeze.json",
+      "sha256": "14dd16ac1b9a9567b0a2bf73bb777d5af915dc776062e037f773dd772002c2a3"
+    },
+    {
+      "bytes": 1360,
+      "path": "release/0.2.0/evidence/catalogs/independent-capture-notices.json",
+      "sha256": "0c9bcfb34fba119c2d004a6bc3976b4267ce93a90eb486ec39d03e0ad246eda2"
+    },
+    {
+      "bytes": 76680,
+      "path": "release/0.2.0/evidence/catalogs/independent-macos-15.json",
+      "sha256": "111f26c0535b2c00cae8d49c14c12848c5cba525c6df4736b9a93baeda7992d6"
+    },
+    {
+      "bytes": 2908,
+      "path": "release/0.2.0/evidence/catalogs/independent-original-linux.json",
+      "sha256": "c63402fafc8a87d83cd51ec9c358d65e5d9aa21bfaadb71e879de9f4ceba0007"
+    },
+    {
+      "bytes": 2908,
+      "path": "release/0.2.0/evidence/catalogs/independent-original-macos.json",
+      "sha256": "7c63ab076a6f0cd6b49e425954b349dc24c4b3c7ada2b2905b5c239c60c25baa"
+    },
+    {
+      "bytes": 77960,
+      "path": "release/0.2.0/evidence/catalogs/independent-ubuntu-24.04.json",
+      "sha256": "e3da3db333b391020e6eb97224b24929780f8f530cb149d91a4d5ee8418fd95c"
+    },
+    {
+      "bytes": 3652,
+      "path": "release/0.2.0/evidence/catalogs/internal-review.json",
+      "sha256": "72ec083af3699a2ef873407fca023bcedd6c5561017ee7f8a19b11f75f8f68f7"
+    },
+    {
+      "bytes": 10817,
+      "path": "release/0.2.0/evidence/catalogs/jvm.json",
+      "sha256": "610ed101226dfcdcfbc7a17c08c0c0e34421d97c9395e6f8bab920caff92ce3f"
+    },
+    {
+      "bytes": 36044,
+      "path": "release/0.2.0/evidence/catalogs/policy-maintenance.json",
+      "sha256": "066128a6df92ed230e8b9f6b99751231bf7d7af706ab3467e7a0131ab73eba72"
+    },
+    {
+      "bytes": 4894,
+      "path": "release/0.2.0/evidence/catalogs/rust-ci-equality.json",
+      "sha256": "81898cbb0d35d6f632a2515c8afb02d5332cec3f21bbc151b2396de01209c5e9"
+    },
+    {
+      "bytes": 48591,
+      "path": "release/0.2.0/evidence/catalogs/rust.json",
+      "sha256": "b7a116fa86d1fb2563b23d8f2af3e7d4be066b78197ccd24a2dcf216546eff9a"
+    },
+    {
+      "bytes": 80315,
+      "path": "release/0.2.0/evidence/catalogs/sdk-android.json",
+      "sha256": "3d7caa4ee691404edeff26a6c3dc9448b54c9ee85a86fd069a5f44cc4a24edf0"
+    },
+    {
+      "bytes": 3466,
+      "path": "release/0.2.0/evidence/catalogs/sdk-native.json",
+      "sha256": "5f1daa8e397e3a73a8dbd8f5131fd1a1d0fc045e3f5024250f15907c93f3d344"
+    },
+    {
+      "bytes": 27170,
+      "path": "release/0.2.0/evidence/catalogs/services.json",
+      "sha256": "d593a0c5ab244a6151bf40fc3291d9a1e30114aba767a5842fef5872f918be6a"
+    },
+    {
+      "bytes": 157533,
+      "path": "release/0.2.0/evidence/catalogs/wasm.json",
+      "sha256": "091e386f4de54c1df4342977c56f521341f74c5869f0ef5050bbf3e27a42311f"
+    },
+    {
+      "bytes": 4931,
+      "path": "release/0.2.0/evidence/catalogs/windows.json",
+      "sha256": "fe8b2400804205105d3d914decb905875751ab35a7865d310e6f8e8a287150a0"
+    },
+    {
+      "bytes": 3738,
+      "path": "release/0.2.0/evidence/apple/readback/READBACK.json",
+      "sha256": "c491f38288ad7c882dce34b28caec4fbaee7d730f5e8c2202e83fd02b032a619"
+    },
+    {
+      "bytes": 977,
+      "path": "release/0.2.0/evidence/c-macos/READBACK.json",
+      "sha256": "741051393ab4e40d718e99a2b752e613373d89f7a115d5560c2471ec82d142db"
+    },
+    {
+      "bytes": 65312,
+      "path": "release/0.2.0/evidence/continuity-android/producer/BUILD.json",
+      "sha256": "65617dc6b69b8eeb1873821cbcf6925a4a20aa20877e4d64934ecb5aeeee4732"
+    },
+    {
+      "bytes": 7927,
+      "path": "release/0.2.0/evidence/continuity-android/producer/capsule/DISTRIBUTION.json",
+      "sha256": "3457cf3aa867dadf492181ad3fa86337b850462ef9d8a7ae7a9d49e5721d2155"
+    },
+    {
+      "bytes": 608,
+      "path": "release/0.2.0/evidence/continuity-android/readback/ENGINE_ARCHIVE_MATCH.json",
+      "sha256": "de7eb797938f18158c775739ebc8aa3bb9c695b85747bf950ed0def4b78d600d"
+    },
+    {
+      "bytes": 4161,
+      "path": "release/0.2.0/evidence/continuity-android/readback/READBACK.json",
+      "sha256": "00ff7ee8e24374c0da220ced5fc1b87d5615d05282c48016ff1dea5882114a11"
+    },
+    {
+      "bytes": 2116,
+      "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+      "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+    },
+    {
+      "bytes": 3718,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-debug/READBACK.json",
+      "sha256": "4507364ef0b49329ab3ca5f9c99a52531ab6f21d04ca1f202f113ca4c49c82ca"
+    },
+    {
+      "bytes": 3722,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-release/READBACK.json",
+      "sha256": "695dfa6acb0cef94748d2b9406fe369311886d7ccea83ccd03a7e614d8b170cf"
+    },
+    {
+      "bytes": 10430,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-debug/READBACK.json",
+      "sha256": "92b622c5856a2cf608d6b98607c9a9fc7ab00f5b55605d1009a714f4a78f3eef"
+    },
+    {
+      "bytes": 10442,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-release/READBACK.json",
+      "sha256": "c29c13e4d04b32304b298502be3fc3fa8f87b8e799871ace9c051f4724b85d39"
+    },
+    {
+      "bytes": 11591,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-debug/READBACK.json",
+      "sha256": "e19bf3f9ea8ab306521fa91640e6c6d28ab31e0b28832257ca174b4c10e95fba"
+    },
+    {
+      "bytes": 11623,
+      "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-release/READBACK.json",
+      "sha256": "b60dd22afd43dd8758b40b9b9cf6b6a46fe5dedf1d6eb16e0885352a4224bdf1"
+    },
+    {
+      "bytes": 1862,
+      "path": "release/0.2.0/evidence/continuity-native/producer/CONTINUITY_NATIVE_PACKAGE.json",
+      "sha256": "9c0d26502c9b075b5fdd0f4fc103b9b1b84735dd88a0a1c2bce9f1b5d70014fe"
+    },
+    {
+      "bytes": 7833116,
+      "path": "release/0.2.0/evidence/continuity-native/producer/CONTINUITY_PACKAGE.json",
+      "sha256": "36f2ff5f192227c3c8a34b0a48df57fc594469c49125741b41c6d17aa983b891"
+    },
+    {
+      "bytes": 4275,
+      "path": "release/0.2.0/evidence/continuity-native/readback/READBACK.json",
+      "sha256": "7edac1159a86744e85d883a6c328c0708f74d28e0854cfe085cfa65a34a9793b"
+    },
+    {
+      "bytes": 1378,
+      "path": "release/0.2.0/evidence/freeze/READBACK.json",
+      "sha256": "dd03c503a6df2aca508a773e2418620292e05fabb5b71378483d487b8b126f24"
+    },
+    {
+      "bytes": 892,
+      "path": "release/0.2.0/evidence/jvm/READBACK.json",
+      "sha256": "b8b6df0447198649e35c9c6b9b1222f953731fb08230eea226973582f46f477d"
+    },
+    {
+      "bytes": 1932,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/READBACK.json",
+      "sha256": "eee856c2d23dc75933667a99f9be86fb85061b8bc6a3436e36b6d1f49b2e991b"
+    },
+    {
+      "bytes": 1947,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/READBACK.json",
+      "sha256": "afc9318e30c1349ab4264a94408b067aaecb139c7e6ea6a79ad3ed8eb7d5c544"
+    },
+    {
+      "bytes": 1944,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/READBACK.json",
+      "sha256": "a835e48ad5dcbeef1c72021b5df85055bd4e726d4e71e8979d0c4056bb8cfc40"
+    },
+    {
+      "bytes": 41860,
+      "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+      "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+    },
+    {
+      "bytes": 1146,
+      "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+      "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+    },
+    {
+      "bytes": 6260,
+      "path": "release/0.2.0/evidence/sdk-android/READBACK.json",
+      "sha256": "2c412c48dc0285b5b7d36084e2417a5e9966fd48086f76aa123f9f7d826a56f1"
+    },
+    {
+      "bytes": 1039,
+      "path": "release/0.2.0/evidence/sdk-native/aarch64-unknown-linux-gnu/READBACK.json",
+      "sha256": "2f83489cfe95e228c5cfc1938d0e5f6b91a3fdaafdaad50f7d5b2d9a70692a33"
+    },
+    {
+      "bytes": 1030,
+      "path": "release/0.2.0/evidence/sdk-native/x86_64-pc-windows-msvc/READBACK.json",
+      "sha256": "a04a57ef44da9eb17118e3f60301fffb9063f5b2170cace4e98c9fd971afebde"
+    },
+    {
+      "bytes": 1037,
+      "path": "release/0.2.0/evidence/sdk-native/x86_64-unknown-linux-gnu/READBACK.json",
+      "sha256": "1e0b193ce4fa05d193268dc0b2e14233d6cad8f8b96bd9242a3c999a1f175e23"
+    },
+    {
+      "bytes": 1572,
+      "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_INSTALLATION.json",
+      "sha256": "cc626bd7cf38af96fac60c89bd761395fbe309cf0bdedca5029108f12ba725ca"
+    },
+    {
+      "bytes": 15093,
+      "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_PACKAGE.json",
+      "sha256": "987008ceefab86745612e78ec7e3a4c46714221d73ea655283731082d2c96c99"
+    },
+    {
+      "bytes": 775,
+      "path": "release/0.2.0/evidence/services/readback/READBACK.json",
+      "sha256": "d97fcad1512d37642a109096094256c84274f2111a00d4592b1cffed43efa941"
+    },
+    {
+      "bytes": 1014,
+      "path": "release/0.2.0/evidence/wasm/READBACK.json",
+      "sha256": "f51c36e1ff338db2914d47685d034302a54dcde2f3e7b211af35c5de988b968c"
+    },
+    {
+      "bytes": 1329,
+      "path": "release/0.2.0/evidence/windows/READBACK.json",
+      "sha256": "368fd156ac94ddedb781fddae4d84de13eb3e26a4b51480138ab2134190fc394"
+    },
+    {
+      "bytes": 870,
+      "path": "release/0.2.0/evidence/windows/SOURCE_ARCHIVE_READBACK.json",
+      "sha256": "0461ad0a047217322a525e57922e5955eb9baa5346d770b232cccfdde33c0a6a"
+    }
+  ],
+  "role": "package_readback",
+  "schema_version": 1,
+  "scope": "All 21 frozen package rows are bound to the selected actual archives and original completed assessments. Source/package/license/ABI/runtime identities retain each component's explicit scope; original installed executions and fresh retained-byte readers remain distinguishable. Twelve crates.io versions have matching non-yanked official API and sparse-index observations from the exact publisher. GitHub publication and fresh public downloads occur afterward and are not claimed by this admission.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

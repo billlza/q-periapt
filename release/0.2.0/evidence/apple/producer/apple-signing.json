@@ -1,0 +1,39 @@
+{
+  "certificate": {
+    "issuer": "/CN=Developer ID Certification Authority/OU=Apple Certification Authority/O=Apple Inc./C=US",
+    "notAfter": "Feb  1 22:12:15 2027 GMT",
+    "notBefore": "Oct 28 20:11:01 2026 GMT",
+    "serial": "59517E25D89503E7",
+    "sha1": "4c727f97a10e1721685e13d339d04047265eeccf",
+    "sha256": "6c8412fd1c9faeb286eefe4518d20d500ed911cfe5695020f125b73b89a509b3",
+    "subject": "/UID=YKUPL7Z869/CN=Developer ID Application: Zi ang Li (YKUPL7Z869)/OU=YKUPL7Z869/O=Zi ang Li/C=US"
+  },
+  "kind": "qperiapt.apple_xcframework_signature",
+  "profile": "sdk-020",
+  "schema_version": 2,
+  "sealed_resources": {
+    "code_resources_sha256": "d242e014d3f396766bde239a6a9665efd300ab68ed298ad6d992f3aa95f2e350",
+    "static_libraries": {
+      "ios-arm64/libq_periapt_ffi_abi2.a": "4d54fc608d986f25eee3a63816c815790548ff4a3f607ac7809bcb4c9bb69b2c",
+      "ios-arm64_x86_64-simulator/libq_periapt_ffi_abi2.a": "f10c5f664b9fc491e97b15f654bbbf7addb8503199f82802c11e5b94e0dac0e6",
+      "macos-arm64/libq_periapt_ffi_abi2.a": "2c46dd5d37024ef5d0132480b880750c929af20ec9c60ce80ebdb3b0ce1ad6ce"
+    }
+  },
+  "signature": {
+    "authority": "Developer ID Application: Zi ang Li (YKUPL7Z869)",
+    "authority_chain": [
+      "Developer ID Application: Zi ang Li (YKUPL7Z869)",
+      "Developer ID Certification Authority",
+      "Apple Root CA"
+    ],
+    "cdhash": "568abf095818dd6f1353bfcf8dfdcd7f73da1ace",
+    "code_directory_flags": "none",
+    "format": "bundle",
+    "hardened_runtime": false,
+    "identifier": "CQPeriapt",
+    "identity_class": "Developer ID Application",
+    "secure_timestamp": "17 Nov 2026 at 07:17:39",
+    "strict_verification": true,
+    "team_id": "YKUPL7Z869"
+  }
+}

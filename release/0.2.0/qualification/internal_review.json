@@ -1,0 +1,33 @@
+{
+  "completed": true,
+  "kind": "qperiapt.sdk_release_qualification",
+  "records": [
+    {
+      "bytes": 3652,
+      "path": "release/0.2.0/evidence/catalogs/internal-review.json",
+      "sha256": "72ec083af3699a2ef873407fca023bcedd6c5561017ee7f8a19b11f75f8f68f7"
+    },
+    {
+      "bytes": 21483,
+      "path": "release/0.2.0/evidence/internal-review/REVIEW.md",
+      "sha256": "c580689ced25769c9be275f6a60eac9ddee004bd7049c692d1d2dce9b4a20de8"
+    },
+    {
+      "bytes": 3264361,
+      "path": "release/0.2.0/evidence/internal-review/DISPOSITIONS.json",
+      "sha256": "526b44389988d26af0636ecd454dff3281b0badbe9cadf7ddba86967c5ff7c32"
+    },
+    {
+      "bytes": 2591,
+      "path": "release/0.2.0/evidence/internal-review/SOURCE_DELTA.json",
+      "sha256": "6937381c77c18c9528ded6e961866e52581ad25fcc4216257349b85e959f47cc"
+    }
+  ],
+  "role": "internal_review",
+  "schema_version": 1,
+  "scope": "Completed final-source internal review reconciles all 5,012 results, 28 key-use sinks and source/command origins against original raw analyses and exact source deltas. Manual review of seven changed referenced source boundaries and the publication/private-source identity repairs is retained. Original protocol construction assumptions and conditional conclusions remain; this is not an external audit or a new computational proof.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "archive": {
+    "bytes": 7033426,
+    "path": "q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+    "sha256": "a7f0d7a3694331d1353a51617e21c074625ffb92f2f89bcd11fb4e8552a4615d"
+  },
+  "checks": {
+    "directory_existing_ledger_refused": true,
+    "directory_original_empty_lookup_refused": true,
+    "directory_signer_reopened": true,
+    "private_state_in_archive": false,
+    "protocol_publisher_reopened": true,
+    "sdk_authority_reopened": true,
+    "sdk_original_publication_readback": {
+      "sdk-document": {
+        "bytes": 160,
+        "sha256": "6f6c7dac501552d479186be7efa6359b0fe676ee7e9db73bec9d1fd7c853c578"
+      },
+      "sdk-root": {
+        "bytes": 1952,
+        "sha256": "ce1b8b811c91936b56b72a5c321a4f54bfaee2113057029bee37a9ba44a25c61"
+      },
+      "sdk-signature": {
+        "bytes": 3309,
+        "sha256": "a3b497cd40eb1ce769f54623ebf8b0821a1c9cc7c6f2f909a9ace1c9d33636f7"
+      },
+      "sdk-state": {
+        "bytes": 36,
+        "sha256": "04b6f0eba4a12309fe6f7f707f8b42b57bf2625f7dbdef64fe8acd5157eb3428"
+      }
+    },
+    "witness_reopened": true,
+    "wrong_identity_refusals": 3
+  },
+  "completed": true,
+  "formal_account_qualification": false,
+  "kind": "qperiapt.continuity_service_installation",
+  "release_claim_eligible": false,
+  "schema_version": 1,
+  "scope": "fresh extracted processes and local original-service readback",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "target": "x86_64-unknown-linux-gnu"
+}

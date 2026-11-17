@@ -1,0 +1,62 @@
+{
+  "kind": "qperiapt.release_main_integration",
+  "completed": true,
+  "pull_request": 199,
+  "head_commit": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+  "qualified_source_commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+  "qualified_source_tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7",
+  "actual_main_commit": "d54e6d0096584235737a9bf8d29119ffc96234fa",
+  "actual_main_tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7",
+  "identical_trees": true,
+  "source_relabelled": false,
+  "commit": {
+    "sha": "d54e6d0096584235737a9bf8d29119ffc96234fa",
+    "node_id": "C_kwDOTD-aVdoAKGQ1NGU2ZDAwOTY1ODQyMzU3MzdhOWJmOGQyOTExOWZmYzk2MjM0ZmE",
+    "url": "https://api.github.com/repos/billlza/q-periapt/git/commits/d54e6d0096584235737a9bf8d29119ffc96234fa",
+    "html_url": "https://github.com/billlza/q-periapt/commit/d54e6d0096584235737a9bf8d29119ffc96234fa",
+    "author": {
+      "name": "\u6708\u6e85\u661f\u6cb3",
+      "email": "149552943+billlza@users.noreply.github.com",
+      "date": "2026-11-17T08:40:14Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-11-17T08:40:14Z"
+    },
+    "tree": {
+      "sha": "4ee8fb082744d6f0fc9297fa31200f145df477c7",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/trees/4ee8fb082744d6f0fc9297fa31200f145df477c7"
+    },
+    "message": "Complete the 0.2.0 contract freeze and journaled release path\n\nComplete the 0.2.0 contract freeze and journaled release path",
+    "parents": [
+      {
+        "sha": "8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+        "url": "https://api.github.com/repos/billlza/q-periapt/git/commits/8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+        "html_url": "https://github.com/billlza/q-periapt/commit/8abbf8d2e73a27af7794528fd92d13fe3be2942d"
+      },
+      {
+        "sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+        "url": "https://api.github.com/repos/billlza/q-periapt/git/commits/8c77ea7153d5a1396f204bab2ad126a435f92644",
+        "html_url": "https://github.com/billlza/q-periapt/commit/8c77ea7153d5a1396f204bab2ad126a435f92644"
+      }
+    ],
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJq/BLuCRC1aQ7uu5UhlAAAdKoQAD13N1YUMX1IHIO3y321j2Kk\nW9AU8rViTNGaBxXC0TkCZ2N89i3IZCbv0Myotq21CKmzO9zD7c43kI8/Xzo/68ws\njolKRc1lF3H7/a8NgqOhpIBtceM25RGnXXlx9OrvTJbLENNA9/4MICLqCCGY3D/1\n4S+y01xtJvVIWpXNY5Y6dHnlBGddye5d8SVFYRQgaTR365Fo6FBIrMaeAYIrfuIL\nV0TQUhWztJnc2amreQBN+oJ+h0OuCmgVh18Y+1rzE1URWBqnQw6+uletFs26ki5q\n/Waorw5eS4F6HOj5fKlBqv56OHym+6gU+uWwjmcB2bj2II54Bebsll/IfjBfomti\nzmVdjMelFAvPn0geDUQ5pLTGHoxTyPuKaKtA5ndVFhDTAx33q1U8/VcSVvHS813w\np33xqqL7wWeAbtZwCRgUE1VTYSLfo29Z26QmZgjkFoByqu/GD0VwadY7B8ee/+Vc\n3mXu0UDlLeibwnoDZmiMnGA6pK6L9IZddcV27dmk9xRfCRk3Nnt9y4oseu/EA8BN\njBOVAv3w0760FkSXbRHWnlKJm2Ha+iVt15GJYJ2qOV0dQFdNcPSFe78x3E1huybJ\nCmIsb3O/H2ugwHFT5XpIm6c1/h85n81+jN6vxvJIi8pccjjjv/EJ2X2x+N0z8nG4\npUR4bOkvuUwe5AhogHPs\n=xp6G\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree 4ee8fb082744d6f0fc9297fa31200f145df477c7\nparent 8abbf8d2e73a27af7794528fd92d13fe3be2942d\nparent 8c77ea7153d5a1396f204bab2ad126a435f92644\nauthor \u6708\u6e85\u661f\u6cb3 <149552943+billlza@users.noreply.github.com> 1794904814 +0000\ncommitter GitHub <noreply@github.com> 1794904814 +0000\n\nComplete the 0.2.0 contract freeze and journaled release path\n\nComplete the 0.2.0 contract freeze and journaled release path",
+      "verified_at": "2026-11-17T08:40:14Z"
+    }
+  },
+  "main_ref": {
+    "ref": "refs/heads/main",
+    "node_id": "REF_kwDOTD-aVa9yZWZzL2hlYWRzL21haW4",
+    "url": "https://api.github.com/repos/billlza/q-periapt/git/refs/heads/main",
+    "object": {
+      "sha": "d54e6d0096584235737a9bf8d29119ffc96234fa",
+      "type": "commit",
+      "url": "https://api.github.com/repos/billlza/q-periapt/git/commits/d54e6d0096584235737a9bf8d29119ffc96234fa"
+    }
+  }
+}

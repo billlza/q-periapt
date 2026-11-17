@@ -1,0 +1,21 @@
+{
+  "completed": true,
+  "created_private_directories": [
+    "/Users/bhmq03@durham.ac.uk/.q-periapt",
+    "/Users/bhmq03@durham.ac.uk/.q-periapt/publication-state",
+    "/Users/bhmq03@durham.ac.uk/.q-periapt/publication-state/crates.io-v0.2.0"
+  ],
+  "credential_read": false,
+  "kind": "qperiapt.exact_registry_uploader_installation",
+  "package_report_sha256": "2ddc710ac97a56d4ee006a2a1adcf860ab451f4b192433b739f6db0e767040a6",
+  "registry_mutation_performed": false,
+  "schema_version": 1,
+  "source_commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+  "uploader": {
+    "bytes": 81374,
+    "mode": "0700",
+    "path": "/Users/bhmq03@durham.ac.uk/.q-periapt/publication-state/crates.io-v0.2.0/qperiapt-crates-io-uploader",
+    "sha256": "76cdae4aa7f271871e2cca08ce03823b8471871529f71c86280512021aa16898",
+    "single_link": true
+  }
+}

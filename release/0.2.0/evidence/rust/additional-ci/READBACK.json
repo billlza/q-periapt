@@ -1,0 +1,29 @@
+{
+  "canonical_registry_report_sha256": "2ddc710ac97a56d4ee006a2a1adcf860ab451f4b192433b739f6db0e767040a6",
+  "completed": true,
+  "identical_crates": [
+    "q-periapt-backends",
+    "q-periapt-cli",
+    "q-periapt-core",
+    "q-periapt-ffi",
+    "q-periapt-host-store",
+    "q-periapt-kem",
+    "q-periapt-mlkem-native-sys",
+    "q-periapt-policy",
+    "q-periapt-rustls",
+    "q-periapt-sdk",
+    "q-periapt-sig",
+    "q-periapt-wasm"
+  ],
+  "kind": "qperiapt.normal_ci_sdk_archive_equality",
+  "normal_ci_artifact": 14308543676,
+  "normal_ci_report_sha256": "cb3432eec1ca03e5c7bda55b1c44b9384b0f6779eba6e466e32871acf56a6bc1",
+  "normal_ci_run": 44036376133,
+  "runtime_reexecuted": false,
+  "schema_version": 1,
+  "scope": "Reopened all twelve actual archives in the full CI producer export and compared their complete bytes with the independently selected canonical registry cohort. Installed Continuity consumers retain their actual cb3432 report identity; no report or execution is relabelled as 2ddc710.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

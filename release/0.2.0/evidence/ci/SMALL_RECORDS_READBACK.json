@@ -1,0 +1,918 @@
+{
+  "completed": true,
+  "kind": "qperiapt.ci_original_records_capture",
+  "records": [
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14311560078/zip",
+        "created_at": "2026-11-17T08:12:18Z",
+        "digest": "sha256:6714f8a3b3f297f08d95e249f3d0b052360b381c9d635dd74b1051b5663a246f",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14311560078,
+        "name": "continuity-native-checks-ubuntu-24.04-1.98.1-enrollment-root-next-attempt",
+        "size_in_bytes": 38660,
+        "updated_at": "2026-11-17T08:12:18Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14311560078",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 38660,
+        "path": "release/0.2.0/evidence/ci/original/14311560078.zip",
+        "sha256": "6714f8a3b3f297f08d95e249f3d0b052360b381c9d635dd74b1051b5663a246f"
+      },
+      "members": 6,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14311420897/zip",
+        "created_at": "2026-11-17T08:14:56Z",
+        "digest": "sha256:fb7194b0b17bab8d8b5e107d351365f23f3c59abf0818a325a5808c896edd2ad",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14311420897,
+        "name": "continuity-recovery-proof",
+        "size_in_bytes": 528144,
+        "updated_at": "2026-11-17T08:14:56Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14311420897",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 528144,
+        "path": "release/0.2.0/evidence/ci/original/14311420897.zip",
+        "sha256": "fb7194b0b17bab8d8b5e107d351365f23f3c59abf0818a325a5808c896edd2ad"
+      },
+      "members": 159,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": []
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14311295949/zip",
+        "created_at": "2026-11-17T08:13:23Z",
+        "digest": "sha256:74dc6f32a42e5ad6c88b30df7704cb8538ac35a9390775e2fc2e4912b034214a",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14311295949,
+        "name": "sdk-connection-performance-diagnostic",
+        "size_in_bytes": 624104,
+        "updated_at": "2026-11-17T08:13:23Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14311295949",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 624104,
+        "path": "release/0.2.0/evidence/ci/original/14311295949.zip",
+        "sha256": "74dc6f32a42e5ad6c88b30df7704cb8538ac35a9390775e2fc2e4912b034214a"
+      },
+      "members": 102,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": []
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14311066257/zip",
+        "created_at": "2026-11-17T08:10:38Z",
+        "digest": "sha256:edf830af519ca4a5ead9b4f687bedb971be65fd410072c5b77c9b0da24a80705",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14311066257,
+        "name": "continuity-native-checks-ubuntu-24.04-1.98.1-capacity",
+        "size_in_bytes": 33602,
+        "updated_at": "2026-11-17T08:10:38Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14311066257",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 33602,
+        "path": "release/0.2.0/evidence/ci/original/14311066257.zip",
+        "sha256": "edf830af519ca4a5ead9b4f687bedb971be65fd410072c5b77c9b0da24a80705"
+      },
+      "members": 5,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310682271/zip",
+        "created_at": "2026-11-17T08:10:29Z",
+        "digest": "sha256:967328a17cee600f4b384635f2dbbca10ef3907c93f002849cb121abf00e91a2",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14310682271,
+        "name": "apple-sdk-device-host-and-compile",
+        "size_in_bytes": 1703,
+        "updated_at": "2026-11-17T08:10:29Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310682271",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 1703,
+        "path": "release/0.2.0/evidence/ci/original/14310682271.zip",
+        "sha256": "967328a17cee600f4b384635f2dbbca10ef3907c93f002849cb121abf00e91a2"
+      },
+      "members": 5,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": []
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310441133/zip",
+        "created_at": "2026-11-17T07:59:03Z",
+        "digest": "sha256:5563b172217d6117c08ea29fc4cedb0905d82200e9dc09129c2062ef333abeeb",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14310441133,
+        "name": "abi2-android-sdk-020-replay-api23-4k-x86_64",
+        "size_in_bytes": 1177,
+        "updated_at": "2026-11-17T07:59:03Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310441133",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 1177,
+        "path": "release/0.2.0/evidence/ci/original/14310441133.zip",
+        "sha256": "5563b172217d6117c08ea29fc4cedb0905d82200e9dc09129c2062ef333abeeb"
+      },
+      "members": 1,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": []
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310433330/zip",
+        "created_at": "2026-11-17T08:11:53Z",
+        "digest": "sha256:593c421f37424797035c7b472732ec7290f408ea50721f744cf8683cbcad04d0",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14310433330,
+        "name": "continuity-native-checks-ubuntu-24.04-1.98.1-suite",
+        "size_in_bytes": 70628,
+        "updated_at": "2026-11-17T08:11:53Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310433330",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 70628,
+        "path": "release/0.2.0/evidence/ci/original/14310433330.zip",
+        "sha256": "593c421f37424797035c7b472732ec7290f408ea50721f744cf8683cbcad04d0"
+      },
+      "members": 13,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310398053/zip",
+        "created_at": "2026-11-17T08:11:56Z",
+        "digest": "sha256:30659e05cd9b326fb4b83e89bd8f4381f41c57bba2ad961498eaf30aa61d19cc",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14310398053,
+        "name": "sdk-path-performance-diagnostic",
+        "size_in_bytes": 510886,
+        "updated_at": "2026-11-17T08:11:56Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310398053",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 510886,
+        "path": "release/0.2.0/evidence/ci/original/14310398053.zip",
+        "sha256": "30659e05cd9b326fb4b83e89bd8f4381f41c57bba2ad961498eaf30aa61d19cc"
+      },
+      "members": 41,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": []
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310291214/zip",
+        "created_at": "2026-11-17T07:58:26Z",
+        "digest": "sha256:6704f36a0231d357ebffa049cb8657f905940b683b80150608addecc9be2cf31",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14310291214,
+        "name": "continuity-native-checks-ubuntu-24.04-1.90.0-enrollment-root-next-attempt",
+        "size_in_bytes": 38665,
+        "updated_at": "2026-11-17T07:58:26Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310291214",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 38665,
+        "path": "release/0.2.0/evidence/ci/original/14310291214.zip",
+        "sha256": "6704f36a0231d357ebffa049cb8657f905940b683b80150608addecc9be2cf31"
+      },
+      "members": 6,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310112729/zip",
+        "created_at": "2026-11-17T07:59:20Z",
+        "digest": "sha256:50f5e04c13fae1b70c5cf52bd5604635996c9372b6005c634c5507301ff69a3d",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14310112729,
+        "name": "abi2-android-sdk-020-replay-api35-16k-x86_64",
+        "size_in_bytes": 1181,
+        "updated_at": "2026-11-17T07:59:20Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310112729",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 1181,
+        "path": "release/0.2.0/evidence/ci/original/14310112729.zip",
+        "sha256": "50f5e04c13fae1b70c5cf52bd5604635996c9372b6005c634c5507301ff69a3d"
+      },
+      "members": 1,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": []
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310030852/zip",
+        "created_at": "2026-11-17T07:48:30Z",
+        "digest": "sha256:de621e025bcacc99f57d7c08a4d5e5ae735f3bc331c22796f93f47a4486e19a5",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14310030852,
+        "name": "continuity-native-checks-ubuntu-24.04-1.90.0-capacity",
+        "size_in_bytes": 33603,
+        "updated_at": "2026-11-17T07:48:30Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14310030852",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 33603,
+        "path": "release/0.2.0/evidence/ci/original/14310030852.zip",
+        "sha256": "de621e025bcacc99f57d7c08a4d5e5ae735f3bc331c22796f93f47a4486e19a5"
+      },
+      "members": 5,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14309419545/zip",
+        "created_at": "2026-11-17T07:58:01Z",
+        "digest": "sha256:6c9916fa0c0e900ff1a6c50a2b4901b149e43a6c8874babdf0a0122107c0f6ca",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14309419545,
+        "name": "continuity-native-checks-ubuntu-24.04-1.90.0-suite",
+        "size_in_bytes": 70100,
+        "updated_at": "2026-11-17T07:58:01Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14309419545",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 70100,
+        "path": "release/0.2.0/evidence/ci/original/14309419545.zip",
+        "sha256": "6c9916fa0c0e900ff1a6c50a2b4901b149e43a6c8874babdf0a0122107c0f6ca"
+      },
+      "members": 11,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14309356985/zip",
+        "created_at": "2026-11-17T07:43:09Z",
+        "digest": "sha256:b1dbe5eb31404e79fdb3cc5b5f3b423d6b6ef31634a02b544f9229518c17bf5c",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14309356985,
+        "name": "continuity-native-checks-ubuntu-24.04-1.90.0-enrollment-root-transferred",
+        "size_in_bytes": 39610,
+        "updated_at": "2026-11-17T07:43:09Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14309356985",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 39610,
+        "path": "release/0.2.0/evidence/ci/original/14309356985.zip",
+        "sha256": "b1dbe5eb31404e79fdb3cc5b5f3b423d6b6ef31634a02b544f9229518c17bf5c"
+      },
+      "members": 6,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14309085700/zip",
+        "created_at": "2026-11-17T07:28:29Z",
+        "digest": "sha256:b5878ba83cc695a7ac4e44e3e5da9723645a78aab306dd40d39186bd64920423",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14309085700,
+        "name": "continuity-native-checks-ubuntu-24.04-1.90.0-enrollment-other",
+        "size_in_bytes": 57828,
+        "updated_at": "2026-11-17T07:28:29Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14309085700",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 57828,
+        "path": "release/0.2.0/evidence/ci/original/14309085700.zip",
+        "sha256": "b5878ba83cc695a7ac4e44e3e5da9723645a78aab306dd40d39186bd64920423"
+      },
+      "members": 7,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308910771/zip",
+        "created_at": "2026-11-17T07:26:58Z",
+        "digest": "sha256:860a784b8ea2caa2ae3b063d4655628fb96dd69d476b8258566f34f9a0a456e0",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14308910771,
+        "name": "continuity-native-checks-ubuntu-24.04-1.98.1-enrollment-other",
+        "size_in_bytes": 57839,
+        "updated_at": "2026-11-17T07:26:58Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308910771",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 57839,
+        "path": "release/0.2.0/evidence/ci/original/14308910771.zip",
+        "sha256": "860a784b8ea2caa2ae3b063d4655628fb96dd69d476b8258566f34f9a0a456e0"
+      },
+      "members": 7,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308772638/zip",
+        "created_at": "2026-11-17T07:38:08Z",
+        "digest": "sha256:7853959c15cdafec669aeed9c77c3fc61086075e5a363b839702cecbf3b512d7",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14308772638,
+        "name": "billlza~q-periapt~SHPF7M.dockerbuild",
+        "size_in_bytes": 55632,
+        "updated_at": "2026-11-17T07:38:08Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308772638",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 55632,
+        "path": "release/0.2.0/evidence/ci/original/14308772638.dockerbuild",
+        "sha256": "7853959c15cdafec669aeed9c77c3fc61086075e5a363b839702cecbf3b512d7"
+      },
+      "members": null,
+      "scope": "Original opaque gzip Docker build record; SHA-256 checked, not treated as a ZIP or a package qualification.",
+      "source_markers": []
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308756668/zip",
+        "created_at": "2026-11-17T07:29:47Z",
+        "digest": "sha256:be821d54d6d311b2d96c1e01ce7b087834b717b66115b12a9038db70a524b5f7",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14308756668,
+        "name": "x86-avx2-candidate-ct",
+        "size_in_bytes": 5686,
+        "updated_at": "2026-11-17T07:29:47Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308756668",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 5686,
+        "path": "release/0.2.0/evidence/ci/original/14308756668.zip",
+        "sha256": "be821d54d6d311b2d96c1e01ce7b087834b717b66115b12a9038db70a524b5f7"
+      },
+      "members": 9,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": []
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308745866/zip",
+        "created_at": "2026-11-17T07:26:40Z",
+        "digest": "sha256:a574b9cdee425cde3a0647ec90fa00b960c2ad49375c1d93e0e2f44604039b7b",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14308745866,
+        "name": "artifact-tooling-checks",
+        "size_in_bytes": 103850,
+        "updated_at": "2026-11-17T07:26:40Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308745866",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 103850,
+        "path": "release/0.2.0/evidence/ci/original/14308745866.zip",
+        "sha256": "a574b9cdee425cde3a0647ec90fa00b960c2ad49375c1d93e0e2f44604039b7b"
+      },
+      "members": 3,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308698491/zip",
+        "created_at": "2026-11-17T07:41:45Z",
+        "digest": "sha256:6c2145cd1b311e142ed781a46541df814a62b3c02197ccaeefa70be19eae9468",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14308698491,
+        "name": "policy-maintenance-aarch64-unknown-linux-gnu",
+        "size_in_bytes": 1380598,
+        "updated_at": "2026-11-17T07:41:45Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308698491",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 1380598,
+        "path": "release/0.2.0/evidence/ci/original/14308698491.zip",
+        "sha256": "6c2145cd1b311e142ed781a46541df814a62b3c02197ccaeefa70be19eae9468"
+      },
+      "members": 47,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": []
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308573385/zip",
+        "created_at": "2026-11-17T07:36:19Z",
+        "digest": "sha256:e8d305821e2a050f38d548973dd51e65aa1388dc53f0e23792cc9a3daba723d3",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14308573385,
+        "name": "cyclonedx-boms",
+        "size_in_bytes": 6943,
+        "updated_at": "2026-11-17T07:36:19Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308573385",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 6943,
+        "path": "release/0.2.0/evidence/ci/original/14308573385.zip",
+        "sha256": "e8d305821e2a050f38d548973dd51e65aa1388dc53f0e23792cc9a3daba723d3"
+      },
+      "members": 2,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": []
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308489759/zip",
+        "created_at": "2026-11-17T07:42:35Z",
+        "digest": "sha256:d989fac18b3d6fc7bd2f750199f6c576e8806ac66378eb161365c31057da48ad",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14308489759,
+        "name": "policy-maintenance-x86_64-unknown-linux-gnu",
+        "size_in_bytes": 1448263,
+        "updated_at": "2026-11-17T07:42:35Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308489759",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 1448263,
+        "path": "release/0.2.0/evidence/ci/original/14308489759.zip",
+        "sha256": "d989fac18b3d6fc7bd2f750199f6c576e8806ac66378eb161365c31057da48ad"
+      },
+      "members": 47,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": []
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308444584/zip",
+        "created_at": "2026-11-17T07:40:16Z",
+        "digest": "sha256:daf6402977b6b312e98556462564de0bf540114994fa4b6e6f3f97b9653d7491",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14308444584,
+        "name": "continuity-native-checks-ubuntu-24.04-1.98.1-release",
+        "size_in_bytes": 62186,
+        "updated_at": "2026-11-17T07:40:16Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308444584",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 62186,
+        "path": "release/0.2.0/evidence/ci/original/14308444584.zip",
+        "sha256": "daf6402977b6b312e98556462564de0bf540114994fa4b6e6f3f97b9653d7491"
+      },
+      "members": 5,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308358700/zip",
+        "created_at": "2026-11-17T07:34:17Z",
+        "digest": "sha256:d1b2bb18ae7544d2fcc3f8ecc9803e3220871fe809128dbbc91f270b0369f7ab",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14308358700,
+        "name": "continuity-native-checks-ubuntu-24.04-1.98.1-roster-capacity",
+        "size_in_bytes": 34047,
+        "updated_at": "2026-11-17T07:34:17Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308358700",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 34047,
+        "path": "release/0.2.0/evidence/ci/original/14308358700.zip",
+        "sha256": "d1b2bb18ae7544d2fcc3f8ecc9803e3220871fe809128dbbc91f270b0369f7ab"
+      },
+      "members": 5,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308274275/zip",
+        "created_at": "2026-11-17T07:36:38Z",
+        "digest": "sha256:c021712e99e74c73bdc86b53de6c237e2f43dc61e8889edffaf912e2023b2630",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14308274275,
+        "name": "native-sdk-boms",
+        "size_in_bytes": 8623,
+        "updated_at": "2026-11-17T07:36:38Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308274275",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 8623,
+        "path": "release/0.2.0/evidence/ci/original/14308274275.zip",
+        "sha256": "c021712e99e74c73bdc86b53de6c237e2f43dc61e8889edffaf912e2023b2630"
+      },
+      "members": 2,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": []
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308179739/zip",
+        "created_at": "2026-11-17T07:43:01Z",
+        "digest": "sha256:0b5ff4e452936016f0c29b813da109de5c43b68593c14282a736d9e2e1198400",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14308179739,
+        "name": "continuity-native-checks-ubuntu-24.04-1.98.1-enrollment-root-transferred",
+        "size_in_bytes": 39601,
+        "updated_at": "2026-11-17T07:43:01Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308179739",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 39601,
+        "path": "release/0.2.0/evidence/ci/original/14308179739.zip",
+        "sha256": "0b5ff4e452936016f0c29b813da109de5c43b68593c14282a736d9e2e1198400"
+      },
+      "members": 6,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308154910/zip",
+        "created_at": "2026-11-17T07:39:11Z",
+        "digest": "sha256:81ef7fe7da908033ed8155bc30ccf5e1de3579d3ec0c0871e9b431e3784e835d",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14308154910,
+        "name": "continuity-native-checks-ubuntu-24.04-1.90.0-release",
+        "size_in_bytes": 62308,
+        "updated_at": "2026-11-17T07:39:11Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308154910",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 62308,
+        "path": "release/0.2.0/evidence/ci/original/14308154910.zip",
+        "sha256": "81ef7fe7da908033ed8155bc30ccf5e1de3579d3ec0c0871e9b431e3784e835d"
+      },
+      "members": 5,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308083235/zip",
+        "created_at": "2026-11-17T07:33:10Z",
+        "digest": "sha256:9c7951272bc288c6832de7ff747d431a95d4abfa712fe008fb9f0510d4f29564",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14308083235,
+        "name": "continuity-native-checks-ubuntu-24.04-1.90.0-roster-capacity",
+        "size_in_bytes": 34059,
+        "updated_at": "2026-11-17T07:33:10Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308083235",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 34059,
+        "path": "release/0.2.0/evidence/ci/original/14308083235.zip",
+        "sha256": "9c7951272bc288c6832de7ff747d431a95d4abfa712fe008fb9f0510d4f29564"
+      },
+      "members": 5,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308061286/zip",
+        "created_at": "2026-11-17T07:17:25Z",
+        "digest": "sha256:fcb43c7798f41e1159f296cb6d7e0a3586de22eec4bcf72007742ee52fbc4cfc",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14308061286,
+        "name": "fuzz-execution",
+        "size_in_bytes": 72924,
+        "updated_at": "2026-11-17T07:17:25Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14308061286",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 72924,
+        "path": "release/0.2.0/evidence/ci/original/14308061286.zip",
+        "sha256": "fcb43c7798f41e1159f296cb6d7e0a3586de22eec4bcf72007742ee52fbc4cfc"
+      },
+      "members": 185,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": []
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14307294283/zip",
+        "created_at": "2026-11-17T07:14:37Z",
+        "digest": "sha256:2a3cb0755b4ee471c7096b0f743d877d6909f34faf6c1033553e2d1854e63413",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14307294283,
+        "name": "continuity-native-checks-ubuntu-24.04-1.90.0-enrollment-account-root",
+        "size_in_bytes": 36933,
+        "updated_at": "2026-11-17T07:14:37Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14307294283",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 36933,
+        "path": "release/0.2.0/evidence/ci/original/14307294283.zip",
+        "sha256": "2a3cb0755b4ee471c7096b0f743d877d6909f34faf6c1033553e2d1854e63413"
+      },
+      "members": 6,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    },
+    {
+      "artifact": {
+        "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14306979764/zip",
+        "created_at": "2026-11-17T07:15:53Z",
+        "digest": "sha256:3e25d8665cfe9be4ec5b743b9871c16d0ba9261711299d3995d7cceb94264e2b",
+        "expired": false,
+        "expires_at": "2027-02-15T07:08:17Z",
+        "id": 14306979764,
+        "name": "continuity-native-checks-ubuntu-24.04-1.98.1-enrollment-account-root",
+        "size_in_bytes": 36979,
+        "updated_at": "2026-11-17T07:15:53Z",
+        "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14306979764",
+        "workflow_run": {
+          "head_branch": "release/0.2-finalization",
+          "head_repository_id": 1279236693,
+          "head_sha": "8c77ea7153d5a1396f204bab2ad126a435f92644",
+          "id": 44036376133,
+          "repository_id": 1279236693
+        }
+      },
+      "file": {
+        "bytes": 36979,
+        "path": "release/0.2.0/evidence/ci/original/14306979764.zip",
+        "sha256": "3e25d8665cfe9be4ec5b743b9871c16d0ba9261711299d3995d7cceb94264e2b"
+      },
+      "members": 6,
+      "scope": "Original hosted ZIP, full member CRC/path/type checks; exact source markers verified where emitted. Other records retain their original producer schema and scope.",
+      "source_markers": [
+        "source-commit.txt"
+      ]
+    }
+  ],
+  "run": 44036376133,
+  "schema_version": 1,
+  "scope": "Capture and byte-integrity verification of these thirty original hosted artifacts only. Full workflow completion remains a separate selected-run decision.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "whole_ci_completed": false
+}

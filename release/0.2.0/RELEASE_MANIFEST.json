@@ -1,0 +1,1363 @@
+{
+  "interfaces": {
+    "continuity_c": {
+      "abi": "qpc-owner/1",
+      "contract": {
+        "bytes": 43162,
+        "path": "bindings/c/ContinuityPackageConsumer/abi/qpc-owner-v1.json",
+        "sha256": "e7c8886f19ff58e50e00f1dc146100acb06c690cba6afcd72f385963d35c6111"
+      },
+      "exports": [
+        "qpc_authority_v1_associate",
+        "qpc_authority_v1_checkpoint",
+        "qpc_authority_v1_prepare_create",
+        "qpc_authority_v1_prepare_enrollment",
+        "qpc_authority_v1_prepare_open",
+        "qpc_authority_v1_prepare_owner",
+        "qpc_authority_v1_provision_wrapping_key",
+        "qpc_authority_v1_select_enrollment",
+        "qpc_configuration_v1_begin_enrollment",
+        "qpc_configuration_v1_prepare_create",
+        "qpc_configuration_v1_prepare_open",
+        "qpc_configuration_v1_prepare_reconcile",
+        "qpc_configuration_v1_select_continued_policy",
+        "qpc_device_v1_abandon_publication",
+        "qpc_device_v1_account_status",
+        "qpc_device_v1_admit_peer_credential_renewal",
+        "qpc_device_v1_admit_peer_roster",
+        "qpc_device_v1_next_account",
+        "qpc_device_v1_next_publication",
+        "qpc_device_v1_prepare_publication",
+        "qpc_device_v1_publication_size_bound",
+        "qpc_device_v1_publication_status",
+        "qpc_device_v1_retire_publication",
+        "qpc_device_v1_send_account_member",
+        "qpc_enrollment_v1_abandon_unprepared_policy_renewal",
+        "qpc_enrollment_v1_abandon_unprepared_roster_refresh",
+        "qpc_enrollment_v1_accept",
+        "qpc_enrollment_v1_activate",
+        "qpc_enrollment_v1_activate_policy_continuation",
+        "qpc_enrollment_v1_activate_policy_renewal",
+        "qpc_enrollment_v1_close_witnessed_credential_renewal",
+        "qpc_enrollment_v1_close_witnessed_policy_renewal",
+        "qpc_enrollment_v1_close_witnessed_roster_refresh",
+        "qpc_enrollment_v1_commit_witnessed_credential_renewal",
+        "qpc_enrollment_v1_commit_witnessed_policy_continuation",
+        "qpc_enrollment_v1_commit_witnessed_policy_renewal",
+        "qpc_enrollment_v1_commit_witnessed_roster_refresh",
+        "qpc_enrollment_v1_confirm_pending_write_recovery",
+        "qpc_enrollment_v1_copy_pending_write_request",
+        "qpc_enrollment_v1_credential_renewal_request",
+        "qpc_enrollment_v1_credential_renewal_status",
+        "qpc_enrollment_v1_pending_policy_renewal_approval",
+        "qpc_enrollment_v1_pending_write_request",
+        "qpc_enrollment_v1_policy_renewal_request",
+        "qpc_enrollment_v1_policy_renewal_status",
+        "qpc_enrollment_v1_prepare_create",
+        "qpc_enrollment_v1_prepare_resume",
+        "qpc_enrollment_v1_prepare_storage",
+        "qpc_enrollment_v1_prepare_witnessed_credential_cancellation",
+        "qpc_enrollment_v1_prepare_witnessed_credential_renewal",
+        "qpc_enrollment_v1_prepare_witnessed_policy_cancellation",
+        "qpc_enrollment_v1_prepare_witnessed_policy_continuation",
+        "qpc_enrollment_v1_prepare_witnessed_policy_renewal",
+        "qpc_enrollment_v1_prepare_witnessed_roster_refresh",
+        "qpc_enrollment_v1_provision_wrapping_key",
+        "qpc_enrollment_v1_reconcile_expired_credential_renewal",
+        "qpc_enrollment_v1_reconcile_policy_continuation",
+        "qpc_enrollment_v1_reconcile_policy_renewal",
+        "qpc_enrollment_v1_reconcile_witnessed_credential_renewal",
+        "qpc_enrollment_v1_reconcile_witnessed_policy_renewal",
+        "qpc_enrollment_v1_reconcile_witnessed_roster_refresh",
+        "qpc_enrollment_v1_recover_historical_policy_continuation",
+        "qpc_enrollment_v1_recover_witnessed_policy_renewal_preparation",
+        "qpc_enrollment_v1_recover_witnessed_roster_refresh_preparation",
+        "qpc_enrollment_v1_refresh_roster",
+        "qpc_enrollment_v1_refresh_roster_with_policy",
+        "qpc_enrollment_v1_request",
+        "qpc_enrollment_v1_resolve_policy_renewal",
+        "qpc_enrollment_v1_resolve_roster_refresh",
+        "qpc_enrollment_v1_select_continued_policy",
+        "qpc_enrollment_v1_stage_continued_credential_renewal",
+        "qpc_enrollment_v1_stage_credential_renewal",
+        "qpc_enrollment_v1_stage_policy_continuation",
+        "qpc_enrollment_v1_stage_policy_renewal",
+        "qpc_enrollment_v1_status",
+        "qpc_enrollment_v1_witnessed_credential_renewal_request",
+        "qpc_enrollment_v1_witnessed_policy_renewal_progress",
+        "qpc_enrollment_v1_witnessed_policy_renewal_request",
+        "qpc_enrollment_v1_witnessed_roster_refresh_progress",
+        "qpc_owner_v1_cancel",
+        "qpc_owner_v1_close",
+        "qpc_owner_v1_establish",
+        "qpc_owner_v1_finish_open",
+        "qpc_owner_v1_listen",
+        "qpc_owner_v1_message_status",
+        "qpc_owner_v1_next_message",
+        "qpc_owner_v1_open",
+        "qpc_owner_v1_open_witness",
+        "qpc_owner_v1_open_witness_tls",
+        "qpc_owner_v1_prepare_open",
+        "qpc_owner_v1_prepare_reopen",
+        "qpc_owner_v1_rekey",
+        "qpc_owner_v1_send",
+        "qpc_owner_v1_serve",
+        "qpc_owner_v1_serve_rekey",
+        "qpc_peer_v1_prepare",
+        "qpc_peer_v1_prepare_configured",
+        "qpc_peer_v1_prepare_configured_reopen",
+        "qpc_peer_v1_prepare_reopen",
+        "qpc_recovery_v1_account_acknowledge",
+        "qpc_recovery_v1_account_begin",
+        "qpc_recovery_v1_account_delivery",
+        "qpc_recovery_v1_account_epoch",
+        "qpc_recovery_v1_account_member",
+        "qpc_recovery_v1_account_reconciliation",
+        "qpc_recovery_v1_account_reserved",
+        "qpc_recovery_v1_account_retire",
+        "qpc_recovery_v1_account_skipped",
+        "qpc_recovery_v1_account_status",
+        "qpc_recovery_v1_account_unconfirmed",
+        "qpc_recovery_v1_acknowledge",
+        "qpc_recovery_v1_archive",
+        "qpc_recovery_v1_begin",
+        "qpc_recovery_v1_delivery",
+        "qpc_recovery_v1_epoch",
+        "qpc_recovery_v1_open",
+        "qpc_recovery_v1_open_witness",
+        "qpc_recovery_v1_open_witness_tls",
+        "qpc_recovery_v1_reserved",
+        "qpc_recovery_v1_restore_index",
+        "qpc_recovery_v1_retire",
+        "qpc_recovery_v1_select",
+        "qpc_recovery_v1_select_account",
+        "qpc_recovery_v1_select_archive",
+        "qpc_recovery_v1_session_at",
+        "qpc_recovery_v1_session_count",
+        "qpc_recovery_v1_skipped",
+        "qpc_recovery_v1_status",
+        "qpc_recovery_v1_unconfirmed",
+        "qpc_retired_v1_acknowledgement_proposal",
+        "qpc_retired_v1_copy_report",
+        "qpc_retired_v1_erase_journal",
+        "qpc_retired_v1_erase_signer",
+        "qpc_retired_v1_inventory",
+        "qpc_retired_v1_journal_state",
+        "qpc_retired_v1_load_report",
+        "qpc_retired_v1_prepare_acknowledgement",
+        "qpc_retired_v1_prepare_open",
+        "qpc_retired_v1_prepare_report",
+        "qpc_retired_v1_prepare_signer_erasure",
+        "qpc_retired_v1_report_proposal",
+        "qpc_retired_v1_signer_state",
+        "qpc_root_v1_activate_successor",
+        "qpc_root_v1_adopt",
+        "qpc_root_v1_begin",
+        "qpc_root_v1_bind_freeze",
+        "qpc_root_v1_resume",
+        "qpc_root_v1_resume_adoption",
+        "qpc_root_v1_resume_transition",
+        "qpc_root_v1_retain_noncommit",
+        "qpc_root_v1_retain_retirement",
+        "qpc_root_v1_state",
+        "qpc_root_v1_transition",
+        "qpc_setup_v1_activate",
+        "qpc_setup_v1_prepare_create",
+        "qpc_setup_v1_prepare_resume",
+        "qpc_setup_v1_prepare_storage",
+        "qpc_setup_v1_status"
+      ],
+      "package_version": "0.2.0"
+    },
+    "sdk_c": {
+      "abi": 2,
+      "contract": {
+        "bytes": 21767,
+        "path": "crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json",
+        "sha256": "f39be62e663e95291d37f0acdb5aa0f2375cdee3e93ac6de0cef322c287e9836"
+      },
+      "exports": [
+        "q_periapt_abi_version",
+        "q_periapt_decapsulate",
+        "q_periapt_decision_from_signed_policy",
+        "q_periapt_encapsulate",
+        "q_periapt_fixed_suite_id",
+        "q_periapt_fixed_suite_id_len",
+        "q_periapt_generate_keypair",
+        "q_periapt_sdk_close",
+        "q_periapt_sdk_connection_accept",
+        "q_periapt_sdk_connection_client_new",
+        "q_periapt_sdk_connection_connect",
+        "q_periapt_sdk_connection_drain",
+        "q_periapt_sdk_connection_end_input",
+        "q_periapt_sdk_connection_feed",
+        "q_periapt_sdk_connection_message_size",
+        "q_periapt_sdk_connection_progress",
+        "q_periapt_sdk_connection_send_request",
+        "q_periapt_sdk_connection_send_response",
+        "q_periapt_sdk_connection_server_new",
+        "q_periapt_sdk_connection_shutdown",
+        "q_periapt_sdk_connection_take_request",
+        "q_periapt_sdk_connection_take_response",
+        "q_periapt_sdk_decapsulate",
+        "q_periapt_sdk_derived_key_export",
+        "q_periapt_sdk_encapsulate",
+        "q_periapt_sdk_expert_key_export",
+        "q_periapt_sdk_expert_key_import",
+        "q_periapt_sdk_extension_version",
+        "q_periapt_sdk_key_generate",
+        "q_periapt_sdk_key_public",
+        "q_periapt_sdk_policy_recovery_enrollment_message",
+        "q_periapt_sdk_policy_recovery_signing_messages",
+        "q_periapt_sdk_policy_update_activate",
+        "q_periapt_sdk_policy_update_states",
+        "q_periapt_sdk_runtime_enabled",
+        "q_periapt_sdk_runtime_enroll_recovery_store",
+        "q_periapt_sdk_runtime_new",
+        "q_periapt_sdk_runtime_open_recoverable_store",
+        "q_periapt_sdk_runtime_open_recovering_store",
+        "q_periapt_sdk_runtime_open_store",
+        "q_periapt_sdk_runtime_prepare_recovery",
+        "q_periapt_sdk_runtime_prepare_update",
+        "q_periapt_sdk_runtime_provision_recoverable_store",
+        "q_periapt_sdk_runtime_provision_store",
+        "q_periapt_sdk_runtime_recover_authority",
+        "q_periapt_sdk_runtime_state",
+        "q_periapt_sdk_runtime_update_store",
+        "q_periapt_sdk_secret_derive",
+        "q_periapt_sdk_secret_export",
+        "q_periapt_status_name",
+        "q_periapt_version"
+      ],
+      "package_version": "0.2.0"
+    }
+  },
+  "kind": "qperiapt.continuity_release_manifest",
+  "packages": [
+    {
+      "artifacts": [
+        {
+          "bytes": 218952,
+          "path": "release/0.2.0/assets/platform/q-periapt-mlkem-native-sys-0.2.0.crate",
+          "sha256": "f97dd8fda79f8135d4ada959f7955189ed664aecf7dd67f4f3e3f487f4448c7c"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 41860,
+          "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+          "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+        },
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ],
+      "dependencies": [],
+      "format": "cargo",
+      "id": "q-periapt-mlkem-native-sys",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 1459,
+        "path": "crates/q-periapt-mlkem-native-sys/Cargo.toml",
+        "sha256": "831fca720d89a2a213d5538ab163e9d1d8319bd81af176ac3b1196a14f62a4d1"
+      },
+      "name": "q-periapt-mlkem-native-sys",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 44791,
+          "path": "release/0.2.0/assets/platform/q-periapt-core-0.2.0.crate",
+          "sha256": "3032dd7d6bf7c4851cde1858794a19a3f4ef03a5e07680b70b3d918eb2faa59d"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 41860,
+          "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+          "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+        },
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ],
+      "dependencies": [],
+      "format": "cargo",
+      "id": "q-periapt-core",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 614,
+        "path": "crates/q-periapt-core/Cargo.toml",
+        "sha256": "86eda915b3a03f4881195ae3c3a138a5e0dc43d5e3011e10ddfd46fd95169397"
+      },
+      "name": "q-periapt-core",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 38241,
+          "path": "release/0.2.0/assets/platform/q-periapt-kem-0.2.0.crate",
+          "sha256": "75f43ce3b1dde4ae97200c57070a245be8a7da3113c515d3b0ab6385d5c46ef3"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 41860,
+          "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+          "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+        },
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ],
+      "dependencies": [
+        "q-periapt-core"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-kem",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 629,
+        "path": "crates/q-periapt-kem/Cargo.toml",
+        "sha256": "cf1bd572b390dea2118bfcadcfdfdd37d1aaa087cafa10ae0775f7dcb5a40562"
+      },
+      "name": "q-periapt-kem",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 33549,
+          "path": "release/0.2.0/assets/platform/q-periapt-sig-0.2.0.crate",
+          "sha256": "e74facff7f24b37e93cb5ec3e9756328b1053ae9e9b622946021c4fc96a67653"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 41860,
+          "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+          "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+        },
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ],
+      "dependencies": [
+        "q-periapt-core"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-sig",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 662,
+        "path": "crates/q-periapt-sig/Cargo.toml",
+        "sha256": "7faa1ac3323ed8eaf8be3e498b0a9fa99b25ed9d19a1f856e132a86ffd13a03d"
+      },
+      "name": "q-periapt-sig",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 4971402,
+          "path": "release/0.2.0/assets/platform/q-periapt-backends-0.2.0.crate",
+          "sha256": "f090b62366c6cbb555a2e06885944c72a5a20a76b8b16af7fffa70d29fd04666"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 41860,
+          "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+          "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+        },
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ],
+      "dependencies": [
+        "q-periapt-mlkem-native-sys",
+        "q-periapt-core",
+        "q-periapt-sig"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-backends",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 4733,
+        "path": "crates/q-periapt-backends/Cargo.toml",
+        "sha256": "7583379f4ed02e2a13e24064292548a2389fa76e2abec19b567cc2942c3f4d67"
+      },
+      "name": "q-periapt-backends",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 48041,
+          "path": "release/0.2.0/assets/platform/q-periapt-policy-0.2.0.crate",
+          "sha256": "c3553382a37bc0ac09da88d5b33c3f515da8c6215988ecbd211b59a704153b84"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 41860,
+          "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+          "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+        },
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ],
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-sig"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-policy",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 1166,
+        "path": "crates/q-periapt-policy/Cargo.toml",
+        "sha256": "4d151697af8aa70cef16ccf22cf081cbc4afc052cb164678840861337cbd0db4"
+      },
+      "name": "q-periapt-policy",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 34712,
+          "path": "release/0.2.0/assets/platform/q-periapt-sdk-0.2.0.crate",
+          "sha256": "c05b3125d6c8e86ce1a7f88479f8fffd709551aed42b6921cf81ab3c863160cc"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 41860,
+          "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+          "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+        },
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ],
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-kem",
+        "q-periapt-backends",
+        "q-periapt-policy"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-sdk",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 1430,
+        "path": "crates/q-periapt-sdk/Cargo.toml",
+        "sha256": "77e4e27c16ef2867a61511f5839cd57be8959691f05e8422aa4c63a49faba142"
+      },
+      "name": "q-periapt-sdk",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 97639,
+          "path": "release/0.2.0/assets/platform/q-periapt-host-store-0.2.0.crate",
+          "sha256": "8f6f54e3f9380cca8f538ee96c5829b17bf63c1a5ea49fbad6b1413d066a25b4"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 41860,
+          "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+          "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+        },
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ],
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-sig",
+        "q-periapt-backends",
+        "q-periapt-policy",
+        "q-periapt-sdk"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-host-store",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 1405,
+        "path": "crates/q-periapt-host-store/Cargo.toml",
+        "sha256": "7fb688641b6eb4b5590b78053e97a78caa109e9561deed951a5f9e12d91c1b36"
+      },
+      "name": "q-periapt-host-store",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 77863,
+          "path": "release/0.2.0/assets/platform/q-periapt-rustls-0.2.0.crate",
+          "sha256": "165c5b9e6d6f8c91c7d7cf6383ca18d0739d18e298baf01bc9efd49724edb644"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 41860,
+          "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+          "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+        },
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ],
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-kem",
+        "q-periapt-backends",
+        "q-periapt-policy",
+        "q-periapt-sdk"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-rustls",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 2287,
+        "path": "crates/q-periapt-rustls/Cargo.toml",
+        "sha256": "1412368dc001ecfecc5664e33976c571e8cda1b30a39014ad45bc42454880d38"
+      },
+      "name": "q-periapt-rustls",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 14207351,
+          "path": "release/0.2.0/assets/apple/CQPeriapt.xcframework.zip",
+          "sha256": "6a1847df8d7fc76892769a5fd92655eeda571dc224d53da483fddc66e2f3397b"
+        },
+        {
+          "bytes": 15754808,
+          "path": "release/0.2.0/assets/apple/QPeriapt-Swift-SDK-0.2.0.zip",
+          "sha256": "599786db581f641525353f32ac7c63b2c0f69fcbb70f159a82c5d1e1b47d2706"
+        },
+        {
+          "bytes": 16203246,
+          "path": "release/0.2.0/assets/platform/q-periapt-android-0.2.0.aar",
+          "sha256": "10b0e67c1bf8515fbf95ab9b738ae110168a14af8b874d06eb878687d372723c"
+        },
+        {
+          "bytes": 6480271,
+          "path": "release/0.2.0/assets/platform/q-periapt-android-sdk-0.2.0.tar.gz",
+          "sha256": "73453f34381ea6ddfe5c6532f98aa9c5848d630bb17a9d678f1d70038c75b31f"
+        },
+        {
+          "bytes": 6236447,
+          "path": "release/0.2.0/assets/platform/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin.tar.gz",
+          "sha256": "3f949a7cf0b7f7b07579c70465741e7c0549fe10528cf400e0f58de1b4261def"
+        },
+        {
+          "bytes": 6784730,
+          "path": "release/0.2.0/assets/platform/q-periapt-c-abi2-0.2.0-aarch64-unknown-linux-gnu.tar.gz",
+          "sha256": "a89484c0c1007657111845b91a10dcef569ad7675f7043ad135c6e7a1a410381"
+        },
+        {
+          "bytes": 6669291,
+          "path": "release/0.2.0/assets/platform/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip",
+          "sha256": "16761e440bff52e7e89ab8c1d2c3cadb787ef8f96c49f8b6bb007764a9fd4e3e"
+        },
+        {
+          "bytes": 7087387,
+          "path": "release/0.2.0/assets/platform/q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "6fecb40b4f3390be5759c4f026865b25db19587102ef1a1c72cea5be4da8edb6"
+        },
+        {
+          "bytes": 124092,
+          "path": "release/0.2.0/assets/platform/q-periapt-ffi-0.2.0.crate",
+          "sha256": "66c9d32802fddc4234deea082919ae84ba54118f1c1da0549fe16df0c2719d51"
+        },
+        {
+          "bytes": 7172962,
+          "path": "release/0.2.0/assets/platform/q-periapt-jvm-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "3b5e70272e48983fc76bb2b884200caff1a11feb395c947183687174d264e78d"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 3738,
+          "path": "release/0.2.0/evidence/apple/readback/READBACK.json",
+          "sha256": "c491f38288ad7c882dce34b28caec4fbaee7d730f5e8c2202e83fd02b032a619"
+        },
+        {
+          "bytes": 977,
+          "path": "release/0.2.0/evidence/c-macos/READBACK.json",
+          "sha256": "741051393ab4e40d718e99a2b752e613373d89f7a115d5560c2471ec82d142db"
+        },
+        {
+          "bytes": 892,
+          "path": "release/0.2.0/evidence/jvm/READBACK.json",
+          "sha256": "b8b6df0447198649e35c9c6b9b1222f953731fb08230eea226973582f46f477d"
+        },
+        {
+          "bytes": 41860,
+          "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+          "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+        },
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        },
+        {
+          "bytes": 6260,
+          "path": "release/0.2.0/evidence/sdk-android/READBACK.json",
+          "sha256": "2c412c48dc0285b5b7d36084e2417a5e9966fd48086f76aa123f9f7d826a56f1"
+        },
+        {
+          "bytes": 1039,
+          "path": "release/0.2.0/evidence/sdk-native/aarch64-unknown-linux-gnu/READBACK.json",
+          "sha256": "2f83489cfe95e228c5cfc1938d0e5f6b91a3fdaafdaad50f7d5b2d9a70692a33"
+        },
+        {
+          "bytes": 1030,
+          "path": "release/0.2.0/evidence/sdk-native/x86_64-pc-windows-msvc/READBACK.json",
+          "sha256": "a04a57ef44da9eb17118e3f60301fffb9063f5b2170cace4e98c9fd971afebde"
+        },
+        {
+          "bytes": 1037,
+          "path": "release/0.2.0/evidence/sdk-native/x86_64-unknown-linux-gnu/READBACK.json",
+          "sha256": "1e0b193ce4fa05d193268dc0b2e14233d6cad8f8b96bd9242a3c999a1f175e23"
+        }
+      ],
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-kem",
+        "q-periapt-backends",
+        "q-periapt-policy",
+        "q-periapt-sdk",
+        "q-periapt-host-store",
+        "q-periapt-rustls"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-ffi",
+      "interfaces": [
+        "sdk_c"
+      ],
+      "metadata": {
+        "bytes": 1458,
+        "path": "crates/q-periapt-ffi/Cargo.toml",
+        "sha256": "c05ce7a8bce93016b6a1167bbf7b43867385d9ca6aca6cca32d0986363ea096c"
+      },
+      "name": "q-periapt-ffi",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 23238,
+          "path": "release/0.2.0/assets/platform/q-periapt-wasm-0.2.0.crate",
+          "sha256": "884a56bf8892f39a2c90a9cf7db14398d03ae116b3e34f1ac0a40b274e7721ef"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 41860,
+          "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+          "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+        },
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ],
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-kem",
+        "q-periapt-backends",
+        "q-periapt-policy"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-wasm",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 1447,
+        "path": "crates/q-periapt-wasm/Cargo.toml",
+        "sha256": "fd5d592bdafe6badf2d5d2e84491bbbdf23f4bda120a445f6297fd6def184c44"
+      },
+      "name": "q-periapt-wasm",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 57036,
+          "path": "release/0.2.0/assets/platform/q-periapt-cli-0.2.0.crate",
+          "sha256": "683e3eb30271996bf0cec549ab13bc6fc161db523cc552d1588700683d88f8e1"
+        },
+        {
+          "bytes": 1267861,
+          "path": "release/0.2.0/assets/platform/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin.tar.gz",
+          "sha256": "3657af4d6a66f8ce5f47e058a0e427d287a496976d8a31372f17c5521421d957"
+        },
+        {
+          "bytes": 1349320,
+          "path": "release/0.2.0/assets/platform/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu.tar.gz",
+          "sha256": "545cb4c3bca90045aaf4d5b8dcb724e8c4c00fc04b8dff8a29804a0c87e92afd"
+        },
+        {
+          "bytes": 1415739,
+          "path": "release/0.2.0/assets/platform/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "5abc4d9b2fcb596d20bce66dd2a4158a28e1f93fa3f942c640123b455971d72e"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 1932,
+          "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/READBACK.json",
+          "sha256": "eee856c2d23dc75933667a99f9be86fb85061b8bc6a3436e36b6d1f49b2e991b"
+        },
+        {
+          "bytes": 1947,
+          "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/READBACK.json",
+          "sha256": "afc9318e30c1349ab4264a94408b067aaecb139c7e6ea6a79ad3ed8eb7d5c544"
+        },
+        {
+          "bytes": 1944,
+          "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/READBACK.json",
+          "sha256": "a835e48ad5dcbeef1c72021b5df85055bd4e726d4e71e8979d0c4056bb8cfc40"
+        },
+        {
+          "bytes": 41860,
+          "path": "release/0.2.0/evidence/rust/ASSESSMENT.json",
+          "sha256": "2482ddf3304608577c3a2b5e7bb5fb0fdf5ce9d9993030a0e03aa2d2ab44a07b"
+        },
+        {
+          "bytes": 1146,
+          "path": "release/0.2.0/evidence/rust/additional-ci/READBACK.json",
+          "sha256": "59be26db79d985587e249badcb6ab3b740dc3fb8ca92f73dfed8842584da387a"
+        }
+      ],
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-sig",
+        "q-periapt-backends",
+        "q-periapt-policy",
+        "q-periapt-sdk",
+        "q-periapt-host-store",
+        "q-periapt-rustls"
+      ],
+      "format": "cargo",
+      "id": "q-periapt-cli",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 3981,
+        "path": "crates/q-periapt-cli/Cargo.toml",
+        "sha256": "f8371f5bc18236d4f4a9b9c6f47bd9c5ed32d4d6a2771498ff2dc5d22b4cb469"
+      },
+      "name": "q-periapt-cli",
+      "role": "sdk",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 1956038,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-0.2.0.crate",
+          "sha256": "fd51d1ef614b6143867e381cc7b7099081fd259d7ee5145083db0a4d9d9bc6c9"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 608,
+          "path": "release/0.2.0/evidence/continuity-android/readback/ENGINE_ARCHIVE_MATCH.json",
+          "sha256": "de7eb797938f18158c775739ebc8aa3bb9c695b85747bf950ed0def4b78d600d"
+        },
+        {
+          "bytes": 2116,
+          "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+          "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+        },
+        {
+          "bytes": 3718,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-debug/READBACK.json",
+          "sha256": "4507364ef0b49329ab3ca5f9c99a52531ab6f21d04ca1f202f113ca4c49c82ca"
+        },
+        {
+          "bytes": 3722,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-release/READBACK.json",
+          "sha256": "695dfa6acb0cef94748d2b9406fe369311886d7ccea83ccd03a7e614d8b170cf"
+        },
+        {
+          "bytes": 10430,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-debug/READBACK.json",
+          "sha256": "92b622c5856a2cf608d6b98607c9a9fc7ab00f5b55605d1009a714f4a78f3eef"
+        },
+        {
+          "bytes": 10442,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-release/READBACK.json",
+          "sha256": "c29c13e4d04b32304b298502be3fc3fa8f87b8e799871ace9c051f4724b85d39"
+        },
+        {
+          "bytes": 11591,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-debug/READBACK.json",
+          "sha256": "e19bf3f9ea8ab306521fa91640e6c6d28ab31e0b28832257ca174b4c10e95fba"
+        },
+        {
+          "bytes": 11623,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-release/READBACK.json",
+          "sha256": "b60dd22afd43dd8758b40b9b9cf6b6a46fe5dedf1d6eb16e0885352a4224bdf1"
+        },
+        {
+          "bytes": 7833116,
+          "path": "release/0.2.0/evidence/continuity-native/producer/CONTINUITY_PACKAGE.json",
+          "sha256": "36f2ff5f192227c3c8a34b0a48df57fc594469c49125741b41c6d17aa983b891"
+        },
+        {
+          "bytes": 4275,
+          "path": "release/0.2.0/evidence/continuity-native/readback/READBACK.json",
+          "sha256": "7edac1159a86744e85d883a6c328c0708f74d28e0854cfe085cfa65a34a9793b"
+        },
+        {
+          "bytes": 1378,
+          "path": "release/0.2.0/evidence/freeze/READBACK.json",
+          "sha256": "dd03c503a6df2aca508a773e2418620292e05fabb5b71378483d487b8b126f24"
+        },
+        {
+          "bytes": 1329,
+          "path": "release/0.2.0/evidence/windows/READBACK.json",
+          "sha256": "368fd156ac94ddedb781fddae4d84de13eb3e26a4b51480138ab2134190fc394"
+        },
+        {
+          "bytes": 870,
+          "path": "release/0.2.0/evidence/windows/SOURCE_ARCHIVE_READBACK.json",
+          "sha256": "0461ad0a047217322a525e57922e5955eb9baa5346d770b232cccfdde33c0a6a"
+        }
+      ],
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-backends",
+        "q-periapt-policy",
+        "q-periapt-sdk",
+        "q-periapt-host-store",
+        "q-periapt-rustls"
+      ],
+      "format": "cargo",
+      "id": "continuity-engine",
+      "interfaces": [
+        "continuity_c"
+      ],
+      "metadata": {
+        "bytes": 3429,
+        "path": "research/continuity-identity-candidate/Cargo.toml",
+        "sha256": "9bc73696980974a17cfdcb243292ee1148d7db34a4205cc496c861eff79b1fe8"
+      },
+      "name": "q-periapt-continuity",
+      "role": "engine",
+      "version": "0.2.0",
+      "workspace": null
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 2099624,
+          "path": "release/0.2.0/assets/platform/q-periapt-sdk-wasm-0.2.0.tgz",
+          "sha256": "09786cd0d5191222e7208b5235121b8530f0481046f35f97bfd81ca2b9a64b24"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 1014,
+          "path": "release/0.2.0/evidence/wasm/READBACK.json",
+          "sha256": "f51c36e1ff338db2914d47685d034302a54dcde2f3e7b211af35c5de988b968c"
+        }
+      ],
+      "dependencies": [
+        "q-periapt-core",
+        "q-periapt-policy",
+        "q-periapt-sdk",
+        "continuity-engine"
+      ],
+      "format": "cargo",
+      "id": "browser-bridge",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 1106,
+        "path": "crates/q-periapt-sdk-wasm/Cargo.toml",
+        "sha256": "4c875d354b0ea1c4cabf299b65a33558a015a33a949931d4bf5a4744ee404508"
+      },
+      "name": "q-periapt-sdk-wasm",
+      "role": "browser",
+      "version": "0.2.0",
+      "workspace": {
+        "bytes": 2030,
+        "path": "Cargo.toml",
+        "sha256": "6fa5cfc4a07a74f78c1f85ad8e41bbd9f1e0577843eea26f880034c2f9af4a67"
+      }
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 7033426,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "a7f0d7a3694331d1353a51617e21c074625ffb92f2f89bcd11fb4e8552a4615d"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 1572,
+          "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_INSTALLATION.json",
+          "sha256": "cc626bd7cf38af96fac60c89bd761395fbe309cf0bdedca5029108f12ba725ca"
+        },
+        {
+          "bytes": 15093,
+          "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_PACKAGE.json",
+          "sha256": "987008ceefab86745612e78ec7e3a4c46714221d73ea655283731082d2c96c99"
+        },
+        {
+          "bytes": 775,
+          "path": "release/0.2.0/evidence/services/readback/READBACK.json",
+          "sha256": "d97fcad1512d37642a109096094256c84274f2111a00d4592b1cffed43efa941"
+        }
+      ],
+      "dependencies": [
+        "q-periapt-policy",
+        "q-periapt-sdk",
+        "q-periapt-host-store",
+        "continuity-engine"
+      ],
+      "format": "cargo",
+      "id": "reference-service",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 2050,
+        "path": "research/continuity-reference-app/Cargo.toml",
+        "sha256": "2b067ec6ab2da760f4df62f24e2b219874d1f775db2b83286f3e21759712ba0c"
+      },
+      "name": "q-periapt-continuity-reference-app",
+      "role": "service",
+      "version": "0.0.0",
+      "workspace": null
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 2099624,
+          "path": "release/0.2.0/assets/platform/q-periapt-sdk-wasm-0.2.0.tgz",
+          "sha256": "09786cd0d5191222e7208b5235121b8530f0481046f35f97bfd81ca2b9a64b24"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 1014,
+          "path": "release/0.2.0/evidence/wasm/READBACK.json",
+          "sha256": "f51c36e1ff338db2914d47685d034302a54dcde2f3e7b211af35c5de988b968c"
+        }
+      ],
+      "dependencies": [
+        "browser-bridge"
+      ],
+      "format": "npm",
+      "id": "browser-web",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 1089,
+        "path": "crates/q-periapt-sdk-wasm/package/package.json",
+        "sha256": "551effef9caf7d0ee5d3b3fa96a27765a909a1edd1304791f284f12e9b04ce54"
+      },
+      "name": "q-periapt-sdk-wasm",
+      "role": "browser",
+      "version": "0.2.0",
+      "workspace": null
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 4962274,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip",
+          "sha256": "2c316e88772b2e0813d3c93497f0bd627cb8f7eaf95a48011ed33749fa49f1ac"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 2116,
+          "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+          "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+        },
+        {
+          "bytes": 3718,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-debug/READBACK.json",
+          "sha256": "4507364ef0b49329ab3ca5f9c99a52531ab6f21d04ca1f202f113ca4c49c82ca"
+        },
+        {
+          "bytes": 3722,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-release/READBACK.json",
+          "sha256": "695dfa6acb0cef94748d2b9406fe369311886d7ccea83ccd03a7e614d8b170cf"
+        },
+        {
+          "bytes": 10430,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-debug/READBACK.json",
+          "sha256": "92b622c5856a2cf608d6b98607c9a9fc7ab00f5b55605d1009a714f4a78f3eef"
+        },
+        {
+          "bytes": 10442,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-release/READBACK.json",
+          "sha256": "c29c13e4d04b32304b298502be3fc3fa8f87b8e799871ace9c051f4724b85d39"
+        },
+        {
+          "bytes": 11591,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-debug/READBACK.json",
+          "sha256": "e19bf3f9ea8ab306521fa91640e6c6d28ab31e0b28832257ca174b4c10e95fba"
+        },
+        {
+          "bytes": 11623,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-release/READBACK.json",
+          "sha256": "b60dd22afd43dd8758b40b9b9cf6b6a46fe5dedf1d6eb16e0885352a4224bdf1"
+        },
+        {
+          "bytes": 1862,
+          "path": "release/0.2.0/evidence/continuity-native/producer/CONTINUITY_NATIVE_PACKAGE.json",
+          "sha256": "9c0d26502c9b075b5fdd0f4fc103b9b1b84735dd88a0a1c2bce9f1b5d70014fe"
+        },
+        {
+          "bytes": 4275,
+          "path": "release/0.2.0/evidence/continuity-native/readback/READBACK.json",
+          "sha256": "7edac1159a86744e85d883a6c328c0708f74d28e0854cfe085cfa65a34a9793b"
+        }
+      ],
+      "dependencies": [
+        "continuity-engine"
+      ],
+      "format": "distribution",
+      "id": "continuity-native",
+      "interfaces": [
+        "continuity_c"
+      ],
+      "metadata": {
+        "bytes": 618,
+        "path": "release/0.2.0/distributions/continuity-native.json",
+        "sha256": "2b97f5b5d59a561b4b287d95599b06c92c07b7c47d07c5745ab1ac8bd63d86f9"
+      },
+      "name": "q-periapt-continuity-native",
+      "role": "native",
+      "version": "0.2.0",
+      "workspace": null
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 30423594,
+          "path": "release/0.2.0/assets/platform/QPeriaptContinuity-Apple-0.2.0.zip",
+          "sha256": "1766fa787498ae074fb9eec6cefc5e246805ea8f6dd4766445f49132cad1c8f1"
+        },
+        {
+          "bytes": 18887580,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-swift-0.2.0-debug.zip",
+          "sha256": "114c0f0ef4654fb2f8a38de095a10e9b9e41f006df27902ba74af89b6dbd226a"
+        },
+        {
+          "bytes": 12129332,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-swift-0.2.0-release.zip",
+          "sha256": "5d878b5734849ed86b69cc0fdc04a69f70b0a371e7a269498d1d360ae87dee37"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 2116,
+          "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+          "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+        },
+        {
+          "bytes": 11591,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-debug/READBACK.json",
+          "sha256": "e19bf3f9ea8ab306521fa91640e6c6d28ab31e0b28832257ca174b4c10e95fba"
+        },
+        {
+          "bytes": 11623,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-swift-release/READBACK.json",
+          "sha256": "b60dd22afd43dd8758b40b9b9cf6b6a46fe5dedf1d6eb16e0885352a4224bdf1"
+        }
+      ],
+      "dependencies": [
+        "continuity-engine"
+      ],
+      "format": "distribution",
+      "id": "continuity-swift",
+      "interfaces": [
+        "continuity_c"
+      ],
+      "metadata": {
+        "bytes": 1006,
+        "path": "release/0.2.0/distributions/continuity-swift.json",
+        "sha256": "c902b57dc6715c103b6ac0354fc935664c873f4c17675dd590e8f967ddcffb45"
+      },
+      "name": "QPeriaptContinuity",
+      "role": "swift",
+      "version": "0.2.0",
+      "workspace": null
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 19080378,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-debug.zip",
+          "sha256": "c1182b564a861892dd4503b63dcc6ee521dfd7d91923bab65376226af640d8ac"
+        },
+        {
+          "bytes": 12322130,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-release.zip",
+          "sha256": "fc02d49dcde8be7f629ef88eb7c22b7d481b722d35e4cbb5c094e7fa80fe438c"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 2116,
+          "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+          "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+        },
+        {
+          "bytes": 10430,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-debug/READBACK.json",
+          "sha256": "92b622c5856a2cf608d6b98607c9a9fc7ab00f5b55605d1009a714f4a78f3eef"
+        },
+        {
+          "bytes": 10442,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-kotlin-release/READBACK.json",
+          "sha256": "c29c13e4d04b32304b298502be3fc3fa8f87b8e799871ace9c051f4724b85d39"
+        }
+      ],
+      "dependencies": [
+        "continuity-engine"
+      ],
+      "format": "distribution",
+      "id": "continuity-kotlin",
+      "interfaces": [
+        "continuity_c"
+      ],
+      "metadata": {
+        "bytes": 856,
+        "path": "release/0.2.0/distributions/continuity-kotlin.json",
+        "sha256": "b07c6f80edf587a22a86f3575cc21bd7edd37a0fbd86605702cb05d531ebf429"
+      },
+      "name": "q-periapt-continuity-kotlin",
+      "role": "kotlin",
+      "version": "0.2.0",
+      "workspace": null
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 4124727,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-android-0.2.0-maven.zip",
+          "sha256": "2813a053a1c7e0fa6e6dc19db7995ea2c632d4af2d47007728ff7e18e10f105d"
+        },
+        {
+          "bytes": 10843367,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-android-0.2.0.aar",
+          "sha256": "6818d28a97b8db1810c16c0f981e380c627be4056b884d810161f6ce9642b5b4"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 65312,
+          "path": "release/0.2.0/evidence/continuity-android/producer/BUILD.json",
+          "sha256": "65617dc6b69b8eeb1873821cbcf6925a4a20aa20877e4d64934ecb5aeeee4732"
+        },
+        {
+          "bytes": 7927,
+          "path": "release/0.2.0/evidence/continuity-android/producer/capsule/DISTRIBUTION.json",
+          "sha256": "3457cf3aa867dadf492181ad3fa86337b850462ef9d8a7ae7a9d49e5721d2155"
+        },
+        {
+          "bytes": 608,
+          "path": "release/0.2.0/evidence/continuity-android/readback/ENGINE_ARCHIVE_MATCH.json",
+          "sha256": "de7eb797938f18158c775739ebc8aa3bb9c695b85747bf950ed0def4b78d600d"
+        },
+        {
+          "bytes": 4161,
+          "path": "release/0.2.0/evidence/continuity-android/readback/READBACK.json",
+          "sha256": "00ff7ee8e24374c0da220ced5fc1b87d5615d05282c48016ff1dea5882114a11"
+        },
+        {
+          "bytes": 2116,
+          "path": "release/0.2.0/evidence/continuity-foreign/CONTINUITY_PROFILE_COVERAGE.json",
+          "sha256": "1939a9257f466f688ee3eedfc5e0b808528f351d689ecb20efe86161ab1cccef"
+        },
+        {
+          "bytes": 3718,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-debug/READBACK.json",
+          "sha256": "4507364ef0b49329ab3ca5f9c99a52531ab6f21d04ca1f202f113ca4c49c82ca"
+        },
+        {
+          "bytes": 3722,
+          "path": "release/0.2.0/evidence/continuity-foreign/continuity-installed-android-release/READBACK.json",
+          "sha256": "695dfa6acb0cef94748d2b9406fe369311886d7ccea83ccd03a7e614d8b170cf"
+        }
+      ],
+      "dependencies": [
+        "continuity-native"
+      ],
+      "format": "distribution",
+      "id": "continuity-android",
+      "interfaces": [
+        "continuity_c"
+      ],
+      "metadata": {
+        "bytes": 808,
+        "path": "release/0.2.0/distributions/continuity-android.json",
+        "sha256": "60393479a8633245a9d55510b6aa33516439c95d3acba92e258f00c3aeb723df"
+      },
+      "name": "q-periapt-continuity-android",
+      "role": "android",
+      "version": "0.2.0",
+      "workspace": null
+    },
+    {
+      "artifacts": [
+        {
+          "bytes": 7033426,
+          "path": "release/0.2.0/assets/platform/q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "a7f0d7a3694331d1353a51617e21c074625ffb92f2f89bcd11fb4e8552a4615d"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 1572,
+          "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_INSTALLATION.json",
+          "sha256": "cc626bd7cf38af96fac60c89bd761395fbe309cf0bdedca5029108f12ba725ca"
+        },
+        {
+          "bytes": 15093,
+          "path": "release/0.2.0/evidence/services/producer/CONTINUITY_SERVICE_PACKAGE.json",
+          "sha256": "987008ceefab86745612e78ec7e3a4c46714221d73ea655283731082d2c96c99"
+        },
+        {
+          "bytes": 775,
+          "path": "release/0.2.0/evidence/services/readback/READBACK.json",
+          "sha256": "d97fcad1512d37642a109096094256c84274f2111a00d4592b1cffed43efa941"
+        }
+      ],
+      "dependencies": [
+        "continuity-engine"
+      ],
+      "format": "distribution",
+      "id": "continuity-services",
+      "interfaces": [],
+      "metadata": {
+        "bytes": 603,
+        "path": "release/0.2.0/distributions/continuity-services.json",
+        "sha256": "332209748d2e1bb149c212c0c2429827ba59bb6898592746d632f2f410c36e81"
+      },
+      "name": "q-periapt-continuity-services",
+      "role": "service",
+      "version": "0.2.0",
+      "workspace": null
+    }
+  ],
+  "product_version": "0.2.0",
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "schema_version": 1,
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  },
+  "spec_lock": {
+    "bytes": 7124,
+    "path": "docs/continuity/SPEC_LOCK_0_2.json",
+    "sha256": "e409baccd1b1ec66dbe79f49f07d24653859e3a16e6ff13a18e3ac45bdf83d09"
+  },
+  "stage": "release"
+}

@@ -1,0 +1,785 @@
+{
+  "assets": [
+    {
+      "file": {
+        "bytes": 1415739,
+        "path": "release/0.2.0/assets/platform/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+        "sha256": "5abc4d9b2fcb596d20bce66dd2a4158a28e1f93fa3f942c640123b455971d72e"
+      },
+      "name": "q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu.tar.gz"
+    },
+    {
+      "file": {
+        "bytes": 1349320,
+        "path": "release/0.2.0/assets/platform/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu.tar.gz",
+        "sha256": "545cb4c3bca90045aaf4d5b8dcb724e8c4c00fc04b8dff8a29804a0c87e92afd"
+      },
+      "name": "q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu.tar.gz"
+    },
+    {
+      "file": {
+        "bytes": 1267861,
+        "path": "release/0.2.0/assets/platform/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin.tar.gz",
+        "sha256": "3657af4d6a66f8ce5f47e058a0e427d287a496976d8a31372f17c5521421d957"
+      },
+      "name": "q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin.tar.gz"
+    }
+  ],
+  "completed": true,
+  "kind": "qperiapt.policy_maintenance_release_component",
+  "package_bindings": {
+    "q-periapt-cli": {
+      "artifacts": [
+        {
+          "bytes": 1415739,
+          "path": "release/0.2.0/assets/platform/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "5abc4d9b2fcb596d20bce66dd2a4158a28e1f93fa3f942c640123b455971d72e"
+        },
+        {
+          "bytes": 1349320,
+          "path": "release/0.2.0/assets/platform/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu.tar.gz",
+          "sha256": "545cb4c3bca90045aaf4d5b8dcb724e8c4c00fc04b8dff8a29804a0c87e92afd"
+        },
+        {
+          "bytes": 1267861,
+          "path": "release/0.2.0/assets/platform/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin.tar.gz",
+          "sha256": "3657af4d6a66f8ce5f47e058a0e427d287a496976d8a31372f17c5521421d957"
+        }
+      ],
+      "assessments": [
+        {
+          "bytes": 1944,
+          "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/READBACK.json",
+          "sha256": "a835e48ad5dcbeef1c72021b5df85055bd4e726d4e71e8979d0c4056bb8cfc40"
+        },
+        {
+          "bytes": 1947,
+          "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/READBACK.json",
+          "sha256": "afc9318e30c1349ab4264a94408b067aaecb139c7e6ea6a79ad3ed8eb7d5c544"
+        },
+        {
+          "bytes": 1932,
+          "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/READBACK.json",
+          "sha256": "eee856c2d23dc75933667a99f9be86fb85061b8bc6a3436e36b6d1f49b2e991b"
+        }
+      ]
+    }
+  },
+  "records": [
+    {
+      "bytes": 1090,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/RESULT.json",
+      "sha256": "e0877a4b1e66c95d8285b9a66d6af7715dabb62701cf82db6b3d04fa06c78443"
+    },
+    {
+      "bytes": 279,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/binary-elf.json",
+      "sha256": "7a2be6858911be5402d853b7acc08058ae998ef518130a96d52d674e57ab7089"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/binary-elf.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 982,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/binary-elf.stdout",
+      "sha256": "3591a14bb7e3a6c85b6244b4b18cc5d45bef2d2ee58e1a7f379e3c807a3656dc"
+    },
+    {
+      "bytes": 264,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/binary-linkage.json",
+      "sha256": "b190f1ad05eb88dfb4588da6fec24f4fe929a71ef59272cf467c5532d63bfe16"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/binary-linkage.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 230,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/binary-linkage.stdout",
+      "sha256": "e18697297f80557996b3de3b92db2a807e020a28d021952bf4e623b065a9b37c"
+    },
+    {
+      "bytes": 270,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/binary-version.json",
+      "sha256": "f43cff5bdd7e58a9aae49e972f82c1fcb0753eb759846a059978d1f7dafe5fcf"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/binary-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 15,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/binary-version.stdout",
+      "sha256": "bb01869ece199d2769d3168908e244616fe7f6f8d43993fcdfce881e9d73bbb0"
+    },
+    {
+      "bytes": 396,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/build.json",
+      "sha256": "dc7260004b8033e0ffce4e32c2c8fb472c4b40e79561be310fc7db020699c849"
+    },
+    {
+      "bytes": 3893,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/build.stderr",
+      "sha256": "7223ef56e92092f3e2a7d049cac2c1478787e891000527fa336fd703ab5c0064"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 199,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/cargo.json",
+      "sha256": "51a0008f8242821659c7282b6eecf5372b924cdf48f28ccd525b3aa04e057ece"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/cargo.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 36,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/cargo.stdout",
+      "sha256": "9950bbb2d5c3417b1a068f0e81f6d3cac991a363193bdf2a22d447f5acf8b503"
+    },
+    {
+      "bytes": 5372,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/RESULT.json",
+      "sha256": "63159c9dcfb4e5c0c57d2cd19961bd08206c231a3bca23502ae5fc835c3c70a7"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/already-current-retry.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 277,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/already-current-retry.stdout",
+      "sha256": "888c2b4f13549b807e3a33abb681c7d836b4f52e7c7f25121ebbcd376c3bde97"
+    },
+    {
+      "bytes": 200,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/corrupt-slot-192.stderr",
+      "sha256": "aa12c49e077a7ced11f64f47254a200aee6003380e8671047b5b4b1feaca1d94"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/corrupt-slot-192.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 200,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/corrupt-slot-64.stderr",
+      "sha256": "aa12c49e077a7ced11f64f47254a200aee6003380e8671047b5b4b1feaca1d94"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/corrupt-slot-64.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/final-current-retry.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 277,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/final-current-retry.stdout",
+      "sha256": "888c2b4f13549b807e3a33abb681c7d836b4f52e7c7f25121ebbcd376c3bde97"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/legacy-conversion.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 276,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/legacy-conversion.stdout",
+      "sha256": "548035964aec2e0bb5210c6289637156971aef2ec8bae6facebdff8b3455b37c"
+    },
+    {
+      "bytes": 219,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/missing-store.stderr",
+      "sha256": "b1b98572b5e4008aac2d31cb32d658a4e5cbd7049c110bb4c235b9370289637e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/missing-store.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 197,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/oversized-independent-state.stderr",
+      "sha256": "96d5d1b6d38506bf89c866621c9e1965b06c1cfe84ffab2856ef9a7363391c54"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed/oversized-independent-state.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 469,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed-publication-maintenance.json",
+      "sha256": "2356f2f8e07e34a57992340bbdc29defdb7a26268584ef0eb91dbf7f4ddda0a5"
+    },
+    {
+      "bytes": 449,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed-publication-maintenance.stderr",
+      "sha256": "6456ca9d98e09d2380d7d6939f85ec43d0092f9fa30b2e1a769b49bbf0cdf58d"
+    },
+    {
+      "bytes": 202,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed-publication-maintenance.stdout",
+      "sha256": "007fa784f7821aeff97b030e73b4e0430ebd72874899ab5118f7f6420856aa11"
+    },
+    {
+      "bytes": 433,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed.json",
+      "sha256": "318b459fbbe8a906584146d236732b11378acc115d487683f6bc1958451ee14f"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 125,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/installed.stdout",
+      "sha256": "1d1812c847cf7a90c96a42ac9d086cd579024632237f03026dd3e9d7fdb95860"
+    },
+    {
+      "bytes": 71,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/location.json",
+      "sha256": "052f063561ba5ffefd05d9538470c7d3e4b6fee1c2ea1af089462b957ddd8248"
+    },
+    {
+      "bytes": 377,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/metadata.json",
+      "sha256": "7ddec33bc74c8393e9f21100cfd370602f00d5c1338804a3d3c1bf159f36de61"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/metadata.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 442906,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/metadata.stdout",
+      "sha256": "ee725ccaae899acc230787f40525762f983eab722321368cbda2baf0a11d4b1b"
+    },
+    {
+      "bytes": 133,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu.tar.gz.sha256",
+      "sha256": "25f3e7c2bd0aef26b3a169a7262eb3b96e7617b1bfc1871e9509ac506badb247"
+    },
+    {
+      "bytes": 193,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/rustc.json",
+      "sha256": "4bdf5f8c44043fe624367fe2382a363094c4f788940c7a94d3c323adb18958e4"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/rustc.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 196,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/rustc.stdout",
+      "sha256": "778fbc643a806f0dd123c056e66201d7e8a56a61928ec0a33171be8d6c2d5a37"
+    },
+    {
+      "bytes": 4577,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/producer/sources-before.json",
+      "sha256": "146cf56f6768528e7d4388ec28ce3359555cb6189c500f6fcf9bfa9b476009a9"
+    },
+    {
+      "bytes": 1944,
+      "path": "release/0.2.0/evidence/policy-maintenance/x86_64-unknown-linux-gnu/READBACK.json",
+      "sha256": "a835e48ad5dcbeef1c72021b5df85055bd4e726d4e71e8979d0c4056bb8cfc40"
+    },
+    {
+      "bytes": 1094,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/RESULT.json",
+      "sha256": "3c0458d476445dce2b5b1bd5630e6e97c6a7d74d736ce7afb334c16ca03ae3ad"
+    },
+    {
+      "bytes": 280,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/binary-elf.json",
+      "sha256": "7939d9e2326d699ad55d92f22779deada865991c53dc6daf8622cca4579d0add"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/binary-elf.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 960,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/binary-elf.stdout",
+      "sha256": "fc8d6ab9f4e0fb0334ba781654aade202062b36f40f5f9d052eadf8647ad14ce"
+    },
+    {
+      "bytes": 265,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/binary-linkage.json",
+      "sha256": "7d5d9757c7eeac6646200d6c7b70936ba490050279d695452b987eb296f6bb90"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/binary-linkage.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 231,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/binary-linkage.stdout",
+      "sha256": "e5374a12fce3065023c123daa1f4aad6870b6df98197787da452252d0396a31b"
+    },
+    {
+      "bytes": 271,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/binary-version.json",
+      "sha256": "53e0a43080b368eb245f3be7c0f8faab535421190d25540b0132338e778ae950"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/binary-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 15,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/binary-version.stdout",
+      "sha256": "bb01869ece199d2769d3168908e244616fe7f6f8d43993fcdfce881e9d73bbb0"
+    },
+    {
+      "bytes": 398,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/build.json",
+      "sha256": "d61b6602ab9ef3418c779b677c15d237fca061f68affd24a59ecc33dc4e7a070"
+    },
+    {
+      "bytes": 3882,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/build.stderr",
+      "sha256": "1d5ef76d10e492ef30fc12271aa6ee942564875787b63c0aa11a2436e08ceb83"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 200,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/cargo.json",
+      "sha256": "c061443f24ace675f57026384a3ab1c26ac81e96f335a59f6f62dc86b38245b9"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/cargo.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 36,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/cargo.stdout",
+      "sha256": "9950bbb2d5c3417b1a068f0e81f6d3cac991a363193bdf2a22d447f5acf8b503"
+    },
+    {
+      "bytes": 5380,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/RESULT.json",
+      "sha256": "13e5d1dae114d423dd0cadf431d32d8ec17d47d8cd760121458cdace5633bf85"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/already-current-retry.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 277,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/already-current-retry.stdout",
+      "sha256": "888c2b4f13549b807e3a33abb681c7d836b4f52e7c7f25121ebbcd376c3bde97"
+    },
+    {
+      "bytes": 200,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/corrupt-slot-192.stderr",
+      "sha256": "aa12c49e077a7ced11f64f47254a200aee6003380e8671047b5b4b1feaca1d94"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/corrupt-slot-192.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 200,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/corrupt-slot-64.stderr",
+      "sha256": "aa12c49e077a7ced11f64f47254a200aee6003380e8671047b5b4b1feaca1d94"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/corrupt-slot-64.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/final-current-retry.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 277,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/final-current-retry.stdout",
+      "sha256": "888c2b4f13549b807e3a33abb681c7d836b4f52e7c7f25121ebbcd376c3bde97"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/legacy-conversion.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 276,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/legacy-conversion.stdout",
+      "sha256": "548035964aec2e0bb5210c6289637156971aef2ec8bae6facebdff8b3455b37c"
+    },
+    {
+      "bytes": 219,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/missing-store.stderr",
+      "sha256": "b1b98572b5e4008aac2d31cb32d658a4e5cbd7049c110bb4c235b9370289637e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/missing-store.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 197,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/oversized-independent-state.stderr",
+      "sha256": "96d5d1b6d38506bf89c866621c9e1965b06c1cfe84ffab2856ef9a7363391c54"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed/oversized-independent-state.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 471,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed-publication-maintenance.json",
+      "sha256": "3eddb68c0c369666d164557294197c30f146d83f7653d367e0fe3cc583bce2c5"
+    },
+    {
+      "bytes": 450,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed-publication-maintenance.stderr",
+      "sha256": "00e1cc13a192226f8baf199803ca0610a2a730fa882ec75c08be6672755ec1c3"
+    },
+    {
+      "bytes": 202,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed-publication-maintenance.stdout",
+      "sha256": "007fa784f7821aeff97b030e73b4e0430ebd72874899ab5118f7f6420856aa11"
+    },
+    {
+      "bytes": 434,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed.json",
+      "sha256": "c9e49e68723425ab4bbfe9d1d5b967c661635688f8f9910c0aff191932d8fcd8"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 125,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/installed.stdout",
+      "sha256": "6421427f77095f6ec8f7503360208291fbac34502563ca12ce3dceb44a814653"
+    },
+    {
+      "bytes": 71,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/location.json",
+      "sha256": "0088895af33721277f2e2f23bdfa4772e09c7fea1b6b842c9b4a513248af9e37"
+    },
+    {
+      "bytes": 379,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/metadata.json",
+      "sha256": "8856144c6db285284830ead36ebfc139e54e274990907bde69859026ec1467c0"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/metadata.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 444132,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/metadata.stdout",
+      "sha256": "9b8b167cbca80b04890fe8990fa3eecaa83bc013c4374b07f73c0587d5068c2f"
+    },
+    {
+      "bytes": 134,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu.tar.gz.sha256",
+      "sha256": "ce1c9160d14ba4fa862d1667ae3b008a2ebb54b157eca4af54352dfe4c2df06c"
+    },
+    {
+      "bytes": 194,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/rustc.json",
+      "sha256": "f1f9889ff04bc866401a7e1d9935bf527f07a08e4d37271314e106cadce8fd35"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/rustc.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 197,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/rustc.stdout",
+      "sha256": "eab8ee6e77a5c1774f73d75eb08f5c51fc56a577f352d22f4d9ae6d7fce56e14"
+    },
+    {
+      "bytes": 4577,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/producer/sources-before.json",
+      "sha256": "146cf56f6768528e7d4388ec28ce3359555cb6189c500f6fcf9bfa9b476009a9"
+    },
+    {
+      "bytes": 1947,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-unknown-linux-gnu/READBACK.json",
+      "sha256": "afc9318e30c1349ab4264a94408b067aaecb139c7e6ea6a79ad3ed8eb7d5c544"
+    },
+    {
+      "bytes": 1110,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/RESULT.json",
+      "sha256": "6df3900017708254d036e00b0b8697fc762398e330fcb28a328b7607beae99a9"
+    },
+    {
+      "bytes": 337,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/binary-arch.json",
+      "sha256": "5b177b4ee5948e0f56d20d25818559cdae80dee98d159b964fdce5c1cf27a6b3"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/binary-arch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/binary-arch.stdout",
+      "sha256": "c1669e1d8edca98769c37d494b76442a1d6e5ffffd7b4da1fb63aef8ebaf6f01"
+    },
+    {
+      "bytes": 334,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/binary-loads.json",
+      "sha256": "1428d609b0a69d5068c84e291bdf1a12fbe3a8fed27fa338a69eb0090cba9028"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/binary-loads.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 6538,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/binary-loads.stdout",
+      "sha256": "cd25fa67c660ac523b6b059690f7313ed93fcd05137affc2cb3d8421dd035fc3"
+    },
+    {
+      "bytes": 319,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/binary-version.json",
+      "sha256": "b8d02c03f1688455845de0639cece9e53e34f49521de356496dea662ff6ea9f5"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/binary-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 15,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/binary-version.stdout",
+      "sha256": "bb01869ece199d2769d3168908e244616fe7f6f8d43993fcdfce881e9d73bbb0"
+    },
+    {
+      "bytes": 441,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/build.json",
+      "sha256": "0b0de132fe43e60b0bb5418b57844e809a5d0385434929a9478c88bb25e6e8b9"
+    },
+    {
+      "bytes": 4271,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/build.stderr",
+      "sha256": "da182f5cda0363eb6cb5e0e71ea64eac67a0f9285fc4e03b1f1d8fd26900d034"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 248,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/cargo.json",
+      "sha256": "25cf935ecf24f60f20c3c6070e5f4b4efb69b1d7ed455008916ef1f75703a7ed"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/cargo.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 36,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/cargo.stdout",
+      "sha256": "9950bbb2d5c3417b1a068f0e81f6d3cac991a363193bdf2a22d447f5acf8b503"
+    },
+    {
+      "bytes": 6848,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/RESULT.json",
+      "sha256": "72028d85a989e04d2483e44af62d2f3d8d0b5aa53cd2431bd127e114e19d4598"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/already-current-retry.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 277,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/already-current-retry.stdout",
+      "sha256": "888c2b4f13549b807e3a33abb681c7d836b4f52e7c7f25121ebbcd376c3bde97"
+    },
+    {
+      "bytes": 200,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/corrupt-slot-192.stderr",
+      "sha256": "aa12c49e077a7ced11f64f47254a200aee6003380e8671047b5b4b1feaca1d94"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/corrupt-slot-192.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 200,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/corrupt-slot-64.stderr",
+      "sha256": "aa12c49e077a7ced11f64f47254a200aee6003380e8671047b5b4b1feaca1d94"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/corrupt-slot-64.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/final-current-retry.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 277,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/final-current-retry.stdout",
+      "sha256": "888c2b4f13549b807e3a33abb681c7d836b4f52e7c7f25121ebbcd376c3bde97"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/legacy-conversion.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 276,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/legacy-conversion.stdout",
+      "sha256": "548035964aec2e0bb5210c6289637156971aef2ec8bae6facebdff8b3455b37c"
+    },
+    {
+      "bytes": 219,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/missing-store.stderr",
+      "sha256": "b1b98572b5e4008aac2d31cb32d658a4e5cbd7049c110bb4c235b9370289637e"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/missing-store.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 197,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/oversized-independent-state.stderr",
+      "sha256": "96d5d1b6d38506bf89c866621c9e1965b06c1cfe84ffab2856ef9a7363391c54"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed/oversized-independent-state.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 514,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed-publication-maintenance.json",
+      "sha256": "e7024b8aca071a5c183a36d26a991155a4e296358f56e8b0be0ef21cd27acea5"
+    },
+    {
+      "bytes": 580,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed-publication-maintenance.stderr",
+      "sha256": "195a284e5ce6035b8efa185e9fd0abbbe38c45f141f10ccfadc4b1e513eede65"
+    },
+    {
+      "bytes": 202,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed-publication-maintenance.stdout",
+      "sha256": "fe4e4672f397a73215ff35f1bbb0ac89e74df99c881123c5d985367577980ea5"
+    },
+    {
+      "bytes": 483,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed.json",
+      "sha256": "f468765cce5e2874e9dbdf05cb1517036bc0ca9e1119619f12a17b5c65246b18"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 125,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/installed.stdout",
+      "sha256": "18375eb44639bc1411d5f415f64d292859b3ea932e34250be7e8afd861a9912e"
+    },
+    {
+      "bytes": 123,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/location.json",
+      "sha256": "944e025dc94f28ca39959042d8a7996d2c2aaf58123d7060e7ad4899557b8da1"
+    },
+    {
+      "bytes": 422,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/metadata.json",
+      "sha256": "79a5800a1882eec51106c71a073f8b6956548a7fe22604257efb707d6479cffd"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/metadata.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 442399,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/metadata.stdout",
+      "sha256": "f6095e07cb3f9ac367b91660f9df7bf0a25ccaed9e3277ff792251602efc2f2c"
+    },
+    {
+      "bytes": 129,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin.tar.gz.sha256",
+      "sha256": "1eede5729ba9c305becabe4c92753ddcb93804679bec71a80575983eec0fea63"
+    },
+    {
+      "bytes": 242,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/rustc.json",
+      "sha256": "f5aedd1eec6fe216b0214818c1d1c51b5b43726c57767eb10ce6b86d6f2574fd"
+    },
+    {
+      "bytes": 0,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/rustc.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 192,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/rustc.stdout",
+      "sha256": "e2211d4c0760a2a3b03eab88e42f8848952b7aa2ed649277a8fdbf3ce1838fd4"
+    },
+    {
+      "bytes": 4577,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/producer/sources-before.json",
+      "sha256": "146cf56f6768528e7d4388ec28ce3359555cb6189c500f6fcf9bfa9b476009a9"
+    },
+    {
+      "bytes": 1932,
+      "path": "release/0.2.0/evidence/policy-maintenance/aarch64-apple-darwin/READBACK.json",
+      "sha256": "eee856c2d23dc75933667a99f9be86fb85061b8bc6a3436e36b6d1f49b2e991b"
+    },
+    {
+      "bytes": 6633,
+      "path": "release/0.2.0/evidence/policy-maintenance/readback.py",
+      "sha256": "c2c09cda4945f677de7e6f8164e540c72e955b2ce6d9ee9489110b36f0c5eea9"
+    }
+  ],
+  "scope": "The existing 0.2.0 CLI row now also binds its three actually qualified native maintenance distributions: Linux x86_64/aarch64 and Apple Silicon. Original installed execution and runtime/library constraints remain in each package and report.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

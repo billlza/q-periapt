@@ -1,0 +1,62 @@
+{
+  "completed": true,
+  "exact_reconstruction_verified": true,
+  "kind": "qperiapt.original_hosted_artifact_slices",
+  "original": {
+    "archive_download_url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14318978938/zip",
+    "created_at": "2026-11-17T10:24:07Z",
+    "digest": "sha256:c9af262a0693ca4feec45563c1e7b9f6166ad9cf339030869917ee963c6ed77b",
+    "expired": false,
+    "expires_at": "2027-02-15T07:11:58Z",
+    "id": 14318978938,
+    "name": "independent-bootstrap-macos-15-installed",
+    "size_in_bytes": 319060243,
+    "updated_at": "2026-11-17T10:24:07Z",
+    "url": "https://api.github.com/repos/billlza/q-periapt/actions/artifacts/14318978938",
+    "workflow_run": {
+      "head_branch": "release/0.2-cohort-af4618c8",
+      "head_repository_id": 1279236693,
+      "head_sha": "af4618c8065d7133adfb86e1d116577089161ff0",
+      "id": 44036838778,
+      "repository_id": 1279236693
+    }
+  },
+  "parts": [
+    {
+      "asset": {
+        "file": {
+          "bytes": 191275795,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_macos_installed_part01.zip",
+          "sha256": "b32242b709fbc46a7b028fc670edb622a6749b7c7c18b548d5e37ded611e3e41"
+        },
+        "name": "INDEPENDENT_macos_installed_part01.zip"
+      },
+      "bytes": 201326592,
+      "offset": 0,
+      "ordinal": 1,
+      "sha256": "d5f2c9f09ab09d670e3d1adac9860983f5f3e5c05d5ed336911d23e88aded17e",
+      "zip_member": "INDEPENDENT_macos_installed_part01/CAPTURE.part"
+    },
+    {
+      "asset": {
+        "file": {
+          "bytes": 104478076,
+          "path": "release/0.2.0/assets/platform/INDEPENDENT_macos_installed_part02.zip",
+          "sha256": "b590ca46de51f04b45d8abde8ff6eec869b43fe979e4b1e40f04967831638ef1"
+        },
+        "name": "INDEPENDENT_macos_installed_part02.zip"
+      },
+      "bytes": 117733651,
+      "offset": 201326592,
+      "ordinal": 2,
+      "sha256": "51c38bdb6f835ecd5823ce9afd493e8745df5bd357e954ca80f17bdec1f21e65",
+      "zip_member": "INDEPENDENT_macos_installed_part02/CAPTURE.part"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "Each ordinary ZIP envelope contains one unmodified contiguous byte range of the original hosted capture. Extract the named CAPTURE.part members, concatenate them in ordinal order, then require the original byte count and SHA-256 before opening the restored ZIP. This preserves the entire original container and every retained runtime record; it is transport packaging, not a new execution or a complete cross-host qualification.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}

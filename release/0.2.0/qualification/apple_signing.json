@@ -1,0 +1,38 @@
+{
+  "completed": true,
+  "kind": "qperiapt.sdk_release_qualification",
+  "records": [
+    {
+      "bytes": 6666,
+      "path": "release/0.2.0/evidence/catalogs/apple.json",
+      "sha256": "f48b39f010ce2ee9747718308942f184bbb2403b051de018cd80b648c4d43ffe"
+    },
+    {
+      "bytes": 1321,
+      "path": "release/0.2.0/evidence/apple/producer/SDK_PACKAGE.json",
+      "sha256": "d75018a9c67045d6cbe963b11f5d345e2c5365c388818330cf551d273cfc938f"
+    },
+    {
+      "bytes": 88045,
+      "path": "release/0.2.0/evidence/apple/producer/WRAPPER_INPUTS.json",
+      "sha256": "28dc6e7afcea67beab1d7e6850b23dcf8eacc9551c76dc8e8e1ee9038714d576"
+    },
+    {
+      "bytes": 1710,
+      "path": "release/0.2.0/evidence/apple/producer/apple-signing.json",
+      "sha256": "b27e95fdde41b1430ba84764654826d6cbdd5daeb04de1e3fe005a392816a93f"
+    },
+    {
+      "bytes": 3738,
+      "path": "release/0.2.0/evidence/apple/readback/READBACK.json",
+      "sha256": "c491f38288ad7c882dce34b28caec4fbaee7d730f5e8c2202e83fd02b032a619"
+    }
+  ],
+  "role": "apple_signing",
+  "schema_version": 1,
+  "scope": "Exact selected-source Apple SDK/XCFramework packages were built, signed with Developer ID team YKUPL7Z869 and qualified by the original producer/consumers; fresh package/source/native inventory and strict codesign readback passed. The selected five public Apple asset digests and original signing records remain bound by the catalog; no new physical-device execution is claimed.",
+  "source": {
+    "commit": "af4618c8065d7133adfb86e1d116577089161ff0",
+    "tree": "4ee8fb082744d6f0fc9297fa31200f145df477c7"
+  }
+}
