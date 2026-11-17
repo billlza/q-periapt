@@ -81,9 +81,14 @@ need python3
 need security
 need shasum
 
+APPLE_RELEASE_PROFILE=legacy
 if [ "$#" -ne 0 ]; then
-	printf 'error: swift-xcframework-release.sh accepts no positional arguments\n' >&2
-	exit 2
+	if [ "$#" -eq 2 ] && [ "$1" = "--profile" ] && [ "$2" = "sdk-020" ]; then
+		APPLE_RELEASE_PROFILE=sdk-020
+	else
+		printf 'error: swift-xcframework-release.sh accepts only --profile sdk-020 or no arguments\n' >&2
+		exit 2
+	fi
 fi
 
 PRODUCT_VERSION="0.1.5"
@@ -92,6 +97,17 @@ RELEASE_TAG="v$PRODUCT_VERSION"
 EXPECTED_TEAM_ID="YKUPL7Z869"
 EXPECTED_IDENTITY_SHA1="2DA7764ED42B213AE04925B6261238B24C758FE1"
 EXPECTED_CERTIFICATE_SHA256="806673908A3DDCD558DCC8D3EF055085F1FFF100BDA0ACFB2E1315AFD652AC8D"
+CHECKSUM_COUNT=3
+CHECKSUM_FILES="CQPeriapt.xcframework.zip APPLE_DISTRIBUTION.json MANIFEST.json"
+if [ "$APPLE_RELEASE_PROFILE" = "sdk-020" ]; then
+	PRODUCT_VERSION="0.2.0"
+	RELEASE_TAG="v$PRODUCT_VERSION"
+	EXPECTED_IDENTITY_SHA1="4C727F97A10E1721685E13D339D04047265EECCF"
+	EXPECTED_CERTIFICATE_SHA256="6C8412FD1C9FAEB286EEFE4518D20D500ED911CFE5695020F125B73B89A509B3"
+	CHECKSUM_COUNT=4
+	CHECKSUM_FILES="$CHECKSUM_FILES QPeriapt-Swift-SDK-0.2.0.zip"
+fi
+RELEASE_FILES="$CHECKSUM_FILES SHA256SUMS"
 
 if [ "${QPERIAPT_APPLE_RELEASE_CONFIRM:-}" != "$RELEASE_TAG" ]; then
 	printf 'error: set QPERIAPT_APPLE_RELEASE_CONFIRM=%s to authorize this signed release\n' "$RELEASE_TAG" >&2
@@ -155,6 +171,9 @@ case "$identity_line" in
 esac
 
 RELEASES_ROOT="$ROOT/target/qperiapt-apple-release-worktrees"
+if [ "$APPLE_RELEASE_PROFILE" = "sdk-020" ]; then
+	RELEASES_ROOT="$ROOT/target/qperiapt-apple-sdk-020-release-worktrees"
+fi
 RELEASE_ROOT="$RELEASES_ROOT/$SOURCE_COMMIT"
 WORKTREE_ROOT="$RELEASE_ROOT/source"
 SOURCE_OUT="$WORKTREE_ROOT/target/qperiapt-swift-xcframework"
@@ -230,6 +249,11 @@ cleanup_owned_release_worktree() {
 cleanup_release_exit() {
 	exit_status=$?
 	trap - EXIT INT TERM
+	if [ "$APPLE_RELEASE_PROFILE" = "sdk-020" ] && [ "$RELEASE_COMPLETED" != "1" ]; then
+		printf 'error: retained incomplete SDK signing attempt and diagnostics at %s\n' "$RELEASE_ROOT" >&2
+		if [ "$exit_status" -eq 0 ]; then exit_status=1; fi
+		exit "$exit_status"
+	fi
 	cleanup_status=0
 	cleanup_owned_release_worktree || cleanup_status=1
 	if [ "$RELEASE_COMPLETED" != "1" ] && \
@@ -310,16 +334,23 @@ QPERIAPT_INTERNAL_APPLE_DURABILITY_ROOT="$ROOT" \
 QPERIAPT_INTERNAL_APPLE_SOURCE_COMMIT="$SOURCE_COMMIT" \
 QPERIAPT_INTERNAL_APPLE_RELEASE_TAG="$RELEASE_TAG" \
 QPERIAPT_SWIFT_XCFRAMEWORK_OUT_DIR="$SOURCE_OUT" \
-sh "$WORKTREE_ROOT/artifact/swift-xcframework.sh"
+sh "$WORKTREE_ROOT/artifact/swift-xcframework.sh" "$@"
 
 SOURCE_DIST="$SOURCE_OUT/q-periapt-swift-$PRODUCT_VERSION"
 PUBLIC_OUT="$ROOT/target/qperiapt-swift-xcframework"
+if [ "$APPLE_RELEASE_PROFILE" = "sdk-020" ]; then
+	PUBLIC_OUT="$ROOT/target/qperiapt-swift-sdk-020-release/$SOURCE_COMMIT"
+	if [ -e "$PUBLIC_OUT" ] || [ -L "$PUBLIC_OUT" ]; then
+		printf 'error: refusing to replace an existing SDK signed distribution\n' >&2
+		exit 1
+	fi
+fi
 PUBLIC_DIST="$PUBLIC_OUT/q-periapt-swift-$PRODUCT_VERSION"
 if [ ! -d "$SOURCE_DIST" ]; then
 	printf 'error: detached release completed without its public distribution directory\n' >&2
 	exit 1
 fi
-for release_file in CQPeriapt.xcframework.zip APPLE_DISTRIBUTION.json MANIFEST.json SHA256SUMS; do
+for release_file in $RELEASE_FILES; do
 	if [ ! -f "$SOURCE_DIST/$release_file" ] || [ -L "$SOURCE_DIST/$release_file" ]; then
 		printf 'error: detached release lacks required regular public file: %s\n' "$release_file" >&2
 		exit 1
@@ -331,11 +362,11 @@ if [ ! -d "$SOURCE_DIST/CQPeriapt.xcframework" ] || [ -L "$SOURCE_DIST/CQPeriapt
 fi
 (
 	cd "$SOURCE_DIST"
-	if [ "$(wc -l <SHA256SUMS | tr -d '[:space:]')" -ne 3 ]; then
-		printf 'error: detached release checksum manifest must contain exactly three entries\n' >&2
+	if [ "$(wc -l <SHA256SUMS | tr -d '[:space:]')" -ne "$CHECKSUM_COUNT" ]; then
+		printf 'error: detached release checksum manifest has an unexpected entry count\n' >&2
 		exit 1
 	fi
-	for release_file in CQPeriapt.xcframework.zip APPLE_DISTRIBUTION.json MANIFEST.json; do
+	for release_file in $CHECKSUM_FILES; do
 		if [ "$(awk -v name="$release_file" '$2 == name { count += 1 } END { print count + 0 }' SHA256SUMS)" -ne 1 ]; then
 			printf 'error: detached release checksum manifest lacks exactly one %s entry\n' "$release_file" >&2
 			exit 1
@@ -344,10 +375,12 @@ fi
 	shasum -c SHA256SUMS
 )
 codesign --verify --strict --verbose=4 "$SOURCE_DIST/CQPeriapt.xcframework"
-rm -rf "$PUBLIC_OUT"
+if [ "$APPLE_RELEASE_PROFILE" = "legacy" ]; then
+	rm -rf "$PUBLIC_OUT"
+fi
 mkdir -p "$PUBLIC_OUT"
 ditto "$SOURCE_DIST" "$PUBLIC_DIST"
-for release_file in CQPeriapt.xcframework.zip APPLE_DISTRIBUTION.json MANIFEST.json SHA256SUMS; do
+for release_file in $RELEASE_FILES; do
 	cmp "$SOURCE_DIST/$release_file" "$PUBLIC_DIST/$release_file"
 done
 (
@@ -357,7 +390,20 @@ done
 codesign --verify --strict --verbose=4 "$PUBLIC_DIST/CQPeriapt.xcframework"
 release_worktree_python \
 	"$WORKTREE_ROOT/artifact/apple_distribution.py" validate-zip \
-	--artifact "$PUBLIC_DIST/CQPeriapt.xcframework.zip" --require-signature
+	--artifact "$PUBLIC_DIST/CQPeriapt.xcframework.zip" --require-signature --profile "$APPLE_RELEASE_PROFILE"
+if [ "$APPLE_RELEASE_PROFILE" = "sdk-020" ]; then
+	mkdir "$PUBLIC_OUT/evidence"
+	ditto "$SOURCE_OUT/apple-consumer-evidence" "$PUBLIC_OUT/evidence/apple-consumer-evidence"
+	ditto "$SOURCE_OUT/sdk-layout/installed-consumer-evidence" "$PUBLIC_OUT/evidence/installed-consumer-evidence"
+	for evidence_file in SDK_PACKAGE.json WRAPPER_INPUTS.json; do
+		cp "$SOURCE_OUT/sdk-layout/$evidence_file" "$PUBLIC_OUT/evidence/$evidence_file"
+	done
+	cp "$SOURCE_OUT/SOURCE_INPUTS.before.json" "$PUBLIC_OUT/evidence/SOURCE_INPUTS.before.json"
+	cp "$SOURCE_OUT/swift-binary-consumer.log" "$PUBLIC_OUT/evidence/swift-binary-consumer.log"
+	for evidence_file in apple-signing.json apple-codesign-display.txt apple-signing-certificate-0 apple-slices-before.sha256 apple-slices-after.sha256; do
+		cp "$SOURCE_OUT/work/$evidence_file" "$PUBLIC_OUT/evidence/$evidence_file"
+	done
+fi
 if ! FINAL_WORKTREE_COMMIT=$(release_worktree_git rev-parse HEAD) || \
 	! FINAL_WORKTREE_TOPLEVEL=$(release_worktree_git rev-parse --show-toplevel) || \
 	! FINAL_WORKTREE_COMMON_GIT_DIR=$(release_worktree_git rev-parse --path-format=absolute --git-common-dir) || \
@@ -377,7 +423,7 @@ if [ "$FINAL_WORKTREE_COMMIT" != "$SOURCE_COMMIT" ] || \
 fi
 COMPLETION_PENDING="$RELEASE_ROOT/completed.json.pending"
 COMPLETION_LEDGER="$RELEASE_ROOT/completed.json"
-python3 - "$COMPLETION_PENDING" "$SOURCE_COMMIT" "$PUBLIC_DIST" "$PRODUCT_VERSION" "$RELEASE_REVISION" "$RELEASE_TAG" <<'PY'
+python3 - "$COMPLETION_PENDING" "$SOURCE_COMMIT" "$PUBLIC_DIST" "$PRODUCT_VERSION" "$RELEASE_REVISION" "$RELEASE_TAG" "$APPLE_RELEASE_PROFILE" <<'PY'
 import hashlib
 import json
 import os
@@ -390,15 +436,20 @@ public_dist = pathlib.Path(sys.argv[3])
 product_version = sys.argv[4]
 release_revision = sys.argv[5]
 release_tag = sys.argv[6]
+profile = sys.argv[7]
 names = (
     "CQPeriapt.xcframework.zip",
     "APPLE_DISTRIBUTION.json",
     "MANIFEST.json",
     "SHA256SUMS",
 )
+if profile == "sdk-020":
+    names += ("QPeriapt-Swift-SDK-0.2.0.zip",)
 document = {
-    "schema_version": 2,
+    "schema_version": 3 if profile == "sdk-020" else 2,
     "kind": "qperiapt.apple_static_xcframework_release_completion",
+    **({"profile": profile, "release_claim_eligible": False,
+        "publication_performed": False} if profile == "sdk-020" else {}),
     "source_commit": source_commit,
     "release_identity": {
         "product_version": product_version,
