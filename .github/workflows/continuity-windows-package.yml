@@ -67,8 +67,25 @@ jobs:
            client.read_exact(&mut b).inspect_err(|e|eprintln!("PROBE_STAGE client-read: {e:?}"))?;assert_eq!(b,*b"s");
            Ok(())
           }
+          fn idle_read(address: &str, mio: bool) -> io::Result<()> {
+           let listener=TcpListener::bind(address)?;
+           let mut client=if mio {connect::tcp(listener.local_addr()?,Instant::now()+Duration::from_secs(3),&Cancellation::default())?} else {std::net::TcpStream::connect_timeout(&listener.local_addr()?,Duration::from_secs(3))?};
+           let (_server,_)=listener.accept()?;
+           client.set_read_timeout(Some(Duration::from_millis(25)))?;
+           let started=Instant::now();
+           match client.read(&mut [0;1]) {
+            Err(error) if matches!(error.kind(),io::ErrorKind::WouldBlock|io::ErrorKind::TimedOut) => {assert!(started.elapsed()<Duration::from_secs(1));Ok(())},
+            Err(error) => {eprintln!("PROBE_STAGE idle-read mio={mio} elapsed_us={} error={error:?}",started.elapsed().as_micros());Err(error)},
+            Ok(count) => Err(io::Error::other(format!("idle read unexpectedly returned {count}"))),
+           }
+          }
           fn main() {
            let mut failures=0;
+           for address in ["127.0.0.1:0","[::1]:0"] {for mio in [true,false] {
+            let mut unexpected=0;
+            for i in 0..1000 {if let Err(e)=idle_read(address,mio) {eprintln!("PROBE_IDLE_FAILURE address={address} mio={mio} iteration={i} error={e:?}");unexpected+=1;}}
+            println!("PROBE_IDLE_COMPLETED address={address} mio={mio} attempts=1000 unexpected={unexpected}");failures+=unexpected;
+           }}
            for address in ["127.0.0.1:0","[::1]:0"] {
             for i in 0..3000 { if let Err(e)=attempt(address) {eprintln!("PROBE_FAILURE address={address} iteration={i} error={e:?}");failures+=1; if failures==20 {std::process::exit(1);} } }
             println!("PROBE_COMPLETED address={address} attempts=3000 failures={failures}");
