@@ -182,17 +182,21 @@ synthetic test-fixture findings. No new unauthorized-execution counterexample
 was found in that inspected set; explicit tool selection retains its stated
 trust boundary.
 
-The full current Python archive has 1,415 raw results. Other findings still
-need their applicable source-specific dispositions before the aggregate
-internal-review item is closed. Neither a successful analysis job nor the raw
-population establishes that each result is a defect or a false positive. The separate
+The full Python archive has 1,415 raw results. The subsequent
+[nine-archive source review](../../research/sdk-alpha1/evidence/20261117-release020-internal-review/README.md)
+now records source-specific dispositions for all 5,012 raw records across the
+five language analyses and four Rust targets at this assessed source. It
+retains the actual local-operator/test/production boundaries and all 28 named
+key-use sinks. Final release-source deltas and analysis still need reconciliation.
+Neither a successful analysis job nor the raw population establishes that each
+result is a defect or a false positive. The separate
 [four matched-auditor path findings](../../research/sdk-alpha1/evidence/20261111-matched-auditor-findings/README.md)
 already have a bounded rationale and a fresh ten-control revalidation, retaining
 their own source scope.
 
 No new cryptographic or storage counterexample was found in the deltas inspected
-here. This statement applies to those deltas and does not classify the
-unreconciled analysis population or certify unexecuted package/platform work.
+here. The later review states its own source and result scope; neither review
+certifies unexecuted package/platform work or future source changes.
 
 ## 5. Finite remaining admission work
 
