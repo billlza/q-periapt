@@ -45,7 +45,7 @@ def consume(args):
     outside = Path(tempfile.mkdtemp(prefix='qpc-installed-windows-')).resolve()
     consumer, build = outside / 'consumer', outside / 'build'
     bundle.unpack(payload, receipt['files'], consumer, components=components(receipt['versions']))
-    abi_contract = owner_abi.load(consumer)
+    abi_contract = owner_abi.load(consumer, stage="release")
     environment = {k: v for k, v in os.environ.items()
                    if not k.startswith(('CARGO_', 'RUST', 'QPC_', 'QPERIAPT_', 'AWS_LC_'))}
     private_root = args.private_root.resolve()
@@ -263,7 +263,7 @@ def consume(args):
             'client_sha256': digest(executable), 'header_guard': True, 'cases': sorted(markers),
             'abi_contract': {'completed': True, 'layouts': c_layouts,
                              'probe_sha256': digest(abi_source), 'executable_sha256': digest(abi_executable),
-                             'frozen_product_contract': False, 'release_claim_eligible': False}}
+                             'stage': 'release', 'frozen_product_contract': True, 'release_claim_eligible': False}}
         require(not any(private_root.iterdir()), 'C fixture leaked private state after closing')
         owner_client = installed / 'owner-client.exe'
         run(['clang', '-std=c11', '-Wall', '-Wextra', '-Werror', '-Wpedantic',

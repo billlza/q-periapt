@@ -88,7 +88,9 @@ def declared_type(declaration: str, constants: dict, *, parameter: bool) -> str:
     return base
 
 
-def load(consumer: Path) -> dict:
+def load(consumer: Path, *, stage: str = "candidate") -> dict:
+    sdk.require(type(stage) is str and stage in ("candidate", "release"),
+                "C ABI validation stage differs")
     data = sdk.snapshot(consumer / CONTRACT, maximum=256 * 1024).data
     document = parse_strict_json_bytes(data, label="Continuity C ABI review snapshot")
     sdk.require(type(document) is dict and set(document) == {
@@ -96,7 +98,7 @@ def load(consumer: Path) -> dict:
         "C ABI snapshot fields differ")
     sdk.require(type(document["schema_version"]) is int and document["schema_version"] == 1
                 and document["abi"] == "qpc-owner/1" and document["package_version"] == "0.2.0"
-                and document["frozen_product_contract"] is False,
+                and document["frozen_product_contract"] is (stage == "release"),
                 "C ABI snapshot identity or admission claim differs")
     expected = document["declarations"]
     sdk.require(type(expected) is list and expected
@@ -251,9 +253,9 @@ def compare(c: dict, native: dict, contract: dict) -> None:
 
 def qualify(consumer: Path, installed: Path, cc: Path, platform_flags: list[str],
             profile: str, unit_test: Path, run, *, darwin: bool, runtime: dict,
-            filename: str) -> dict:
+            filename: str, stage: str = "candidate") -> dict:
     from continuity_c_consumer import verify_linkage
-    contract = load(consumer)
+    contract = load(consumer, stage=stage)
     source = installed / "qpc-abi-contract.c"
     with source.open("xb") as stream:
         stream.write(c_probe(contract))
@@ -284,5 +286,5 @@ def qualify(consumer: Path, installed: Path, cc: Path, platform_flags: list[str]
             "exports": len(contract["functions"]), "records": len(contract["records"]),
             "callbacks": len(contract["callbacks"]), "constants": len(contract["constants"]),
             "layouts": c["layouts"], "signatures": c["signatures"], "native_types": native["native_types"],
-            "frozen_product_contract": False, "release_claim_eligible": False,
+            "stage": stage, "frozen_product_contract": stage == "release", "release_claim_eligible": False,
             "scope": "installed shared-library linkage and same-source native C/Rust type and layout agreement; not lifecycle or product ABI 2 admission"}

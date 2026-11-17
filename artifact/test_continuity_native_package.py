@@ -134,7 +134,7 @@ class NativeArchiveControls(unittest.TestCase):
         self.cc = Path("/usr/bin/cc").resolve(strict=True)
         self.library = self.outside / "c-installed-release" / native.LIBRARY
         self.library.parent.mkdir()
-        contract = abi.load(c.FIXTURE)
+        contract = abi.load(c.FIXTURE, stage="release")
         arg, closed = contract["constants"]["QPC_ARGUMENT"], contract["constants"]["QPC_CLOSED"]
         fixture = "#include <stdint.h>\n#include <stddef.h>\n#include <unistd.h>\n"
         for name in sorted(c.EXPORTS - {"qpc_owner_v1_open", "qpc_owner_v1_close"}):

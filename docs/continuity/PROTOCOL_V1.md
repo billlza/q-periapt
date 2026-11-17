@@ -1,14 +1,13 @@
-# Continuity v1 protocol candidate
+# Continuity v1 protocol contract
 
-Status: **candidate, not frozen**. This records the implementation decisions and
-proof obligations for the [0.2.0 scope](RELEASE_0_2_SCOPE.md). It is not a wire
-specification or a completed security argument. Open decisions below must close
-before the product session core is admitted. ABI major remains **2**. The
-implemented candidate's [wire grammar](WIRE_V1.md),
+Status: **adopted in the 0.2.0 normative lock**. The
+[coordinated adoption](ADOPTION_0_2.md) records the selected decisions and their
+evidence boundaries. Final artifact qualification and publication remain separate.
+SDK ABI major remains **2**. The implementation's [wire grammar](WIRE_V1.md),
 [state/operation contract](STATE_MACHINE_V1.md),
 [storage recovery](STORAGE_RECOVERY_V1.md) and
 [metadata boundary](METADATA_PRIVACY_V1.md) now supply concrete implementation
-correspondence. Their existence does not mark these open product decisions frozen.
+correspondence. The lock binds these documents to the actual compiled descriptor.
 
 ## Identity and authority
 
@@ -43,8 +42,8 @@ validity. An accepted roster cannot be replaced by a lower
 version or a different digest at the same version. A newer roster is authenticated
 before it can authorize enrollment, fanout or revocation. The exact credential and
 roster encodings and required ML-DSA-65 AND P-256 signature composition are
-implemented in the candidate wire contract; product adoption and its security
-analysis remain open.
+implemented in the wire contract and selected by the coordinated adoption.
+The construction assessment retains the scope of its security arguments.
 
 The isolated [identity candidate](../../research/continuity-identity-candidate)
 exercises a concrete ML-DSA-65 AND P-256 composition and canonical credential,
@@ -52,10 +51,9 @@ roster and Merkle-manifest encodings. It binds account/device/generation, policy
 family and exact roster expectations. Authenticated account-root replacement and
 durable admission have implementations, described in the
 [authority replacement](../../research/continuity-identity-candidate/AUTHORITY_REPLACEMENT.md)
-and [state/operation](STATE_MACHINE_V1.md) contracts. Their product adoption,
-complete security analysis and final qualification remain separate obligations.
-Directory freshness/consistency distribution and the remaining product decisions
-below are still open; the candidate format is not the frozen product contract.
+and [state/operation](STATE_MACHINE_V1.md) contracts. These are adopted with the
+explicit independently trusted checkpoint/time and host/service boundaries in
+[ADOPTION_0_2.md](ADOPTION_0_2.md); final selected-package execution remains separate.
 
 The directory is an adversarial transport. Its view needs authenticated freshness
 and consistency against the selected independently retained account checkpoint.
@@ -165,9 +163,9 @@ ContextBound is invoked only for an actual two-leg KEM combination with its full
 authenticated context. Neither a TLS KeyUpdate nor a symmetric chain step is
 reported as fresh-PQ recovery.
 
-The PQ construction is still a selection decision. The comparison must include
-whole-KEM rekeys and the pinned ML-KEM Braid/Triple Ratchet component reference
-under identical traffic, loss, storage and security assumptions. No candidate
+The selected construction is the implemented accountable full-hybrid v6 profile.
+The retained whole-KEM and pinned ML-KEM Braid/Triple Ratchet comparisons keep
+their actual traffic, loss, storage and security assumptions. No construction
 inherits a reference protocol's security result after changing its KDF, ordering
 or authentication. Runtime progress reports identify confirmed epochs and pending
 work; they never claim to know that an endpoint has recovered from an unknown
@@ -197,10 +195,10 @@ adds signed requests and exact-target steps for an idle proposer. The optional
 delivers them with explicit per-invocation retry and deadline bounds, cancellation
 and exact committed replay. The [installed language integration](PRODUCT_ADMISSION.md)
 has implemented owners and scoped lifecycle qualifications. Current-source platform
-and cross-host qualification remain separate. Product-level multi-session
-scheduling and measured budget selection are still explicit open items; the
-existing adapters are not new implementation work merely because the protocol
-is still a candidate.
+and cross-host qualification remain separate. The caller schedules the explicit
+bounded per-session control operations. The selected workload policy fixes the
+joint limits and desktop-reference ceilings without adding an implicit scheduler
+or unsigned default allowance.
 Network loss remains an explicit liveness assumption in the recovery condition.
 The [recovery-condition ledger](RECOVERY_CONDITIONS_V1.md) distinguishes pending
 entropy reservations, identity/RNG compromise, active intervention and rollback;
@@ -239,9 +237,9 @@ member before computation, and commits every chain/outbox before release. The
 required witness advances the same aggregate image. Persisted member-to-batch
 links prevent an ordinary send/resume call from releasing a reserved prefix.
 Acknowledged, unresolved and retired-history outcomes remain separate; none
-asserts atomic remote application delivery. Device replacement, account-wide
-coordination among independent sender stores and installed service integration
-remain release work.
+asserts atomic remote application delivery. The adopted device/root/credential
+replacement and installed service contracts retain their original-state scope.
+Independent sender stores do not acquire a new distributed-transaction promise.
 
 The rollback profile must retain an authenticated monotonic account checkpoint
 outside the restorable session database. Local redb atomicity protects against
@@ -249,30 +247,19 @@ partial commits, not restoration of a complete older database. Restoring ordinar
 backups does not reactivate old ratchet state. Device replacement creates a new
 generation and authenticates its enrollment and prior-generation retirement.
 
-## Decisions still required for the frozen protocol
+## Adopted decisions and release evidence
 
-1. Product adoption of the implemented hybrid signature/credential and witness
-   formats, authenticated enrollment/root replacement, the trusted-time source and
-   independently fresh/consistent directory checkpoint distribution.
-2. Product adoption of the implemented manifest/leaf/mode, retention and
-   accountable-directory contracts selected for 0.2.0 on 2026-10-31. Preserve the
-   actual service/SDK/independent receipt evidence above while completing the
-   deployed authorization/freshness, linkability and final-package boundary.
-3. Agreement and key-compromise impersonation analysis for the implemented
-   non-circular bootstrap graph and stage-specific confirmation privileges.
-4. Measured ratchet/profile selection, product padding or explicit no-padding
-   policy, resource/cadence limits and construction-specific recovery analysis.
-   Current v6 full-hybrid rekey progress is not itself that analysis. The
-   [joint multi-epoch symbolic result](RECOVERY_DEPENDENCIES_V1.md#multi-epoch-symbolic-successor)
-   and [conditional computational argument](COMPUTATIONAL_RECOVERY_V1.md) retain
-   their separate assumptions and remaining obligations.
-5. Product admission of the implemented ownership/intent/witness/revocation and
-   single-sender fanout contracts, with complete authority/key/device renewal,
-   backup/upgrade semantics and independent deployment verification.
-6. Numeric device/workload budgets and the content-locked normative specification
-   set. Candidate text does not satisfy this lock.
+[ADOPTION_0_2.md](ADOPTION_0_2.md) resolves the identity, directory, construction,
+padding, lifecycle, workload and compatibility selections. The
+[internal assessment](RELEASE_0_2_INTERNAL_ASSESSMENT.md) records both original-source
+bootstrap compositions and retained-state correspondence. The
+[joint multi-epoch symbolic result](RECOVERY_DEPENDENCIES_V1.md#multi-epoch-symbolic-successor)
+and [conditional computational argument](COMPUTATIONAL_RECOVERY_V1.md) keep their
+separate assumptions; neither a frozen label nor fresh-epoch progress expands them.
 
-These are implementation dependencies within 0.2.0, not deferred release features.
+The final source's complete CI, finding reconciliation, installed/replacement and
+applicable reference-workload evidence must still be bound to the selected
+archives. The normative lock and identity verifier do not perform publication.
 
 The comparison uses the [recorded baseline revisions](reference-baseline.json),
 including the [Double/Triple Ratchet specification](https://signal.org/docs/specifications/doubleratchet/)

@@ -1,0 +1,62 @@
+{
+  "authoring_checkout_claimed_clean": false,
+  "captured_at": "2026-11-17T05:04:33.268930+00:00",
+  "historical_failed_fixture_attempts": {
+    "attempt02": "Legacy offline staging fixture did not model the newly factored committed-admission recheck; updated the explicit synthetic admission mock.",
+    "attempt04": "New transport fixture used pread without consuming the staged fd; changed the fixture to actually read its exact body. The production exact-consumption guard remained unchanged."
+  },
+  "kind": "qperiapt.sdk_publication_profile_validation",
+  "qualification": {
+    "errors": 0,
+    "failures": 0,
+    "log": {
+      "bytes": 30947,
+      "path": "transaction-tests.log",
+      "sha256": "888db717b94ceb1c5a529576d8e7d9711a79dbe02ba58df39b7b54e615c92b3a"
+    },
+    "modules": [
+      "test_sdk_github_publication",
+      "test_stable_github_publication",
+      "test_github_release_observation",
+      "test_platform_stable_publication",
+      "test_apple_stable_publication"
+    ],
+    "seconds": 113.335,
+    "skips": 0,
+    "tests": 159,
+    "warnings": "errors"
+  },
+  "remote_mutations_performed": false,
+  "schema_version": 1,
+  "sdk_020_publication_performed": false,
+  "source_files": {
+    "artifact/github_release_observation.py": {
+      "bytes": 134312,
+      "sha256": "08687cf8d02659c7c698f85bdbc58c7f70e667fbd1463761ce3aa65ad4d43e94"
+    },
+    "artifact/sdk_github_publication.py": {
+      "bytes": 21907,
+      "sha256": "778e53914fc0e1d7914b9b191fd5b4a55aed9a7b8921bf52b37c60fb19e25e73"
+    },
+    "artifact/sdk_github_publication_contract.py": {
+      "bytes": 9131,
+      "sha256": "101dc02f502b699d2a1e545e16a4d55044d161db5c4fff4e56ba54374481a0b7"
+    },
+    "artifact/stable_github_publication.py": {
+      "bytes": 170329,
+      "sha256": "ee034bd19f150015b538dcc7d30933fc4d4e59d9306237746a683d58c4d61842"
+    },
+    "artifact/test_github_release_observation.py": {
+      "bytes": 113716,
+      "sha256": "439e850dfd288d26bf94d0ef65f93602ca8cce1d03a7591824120b4e33e2784f"
+    },
+    "artifact/test_sdk_github_publication.py": {
+      "bytes": 26323,
+      "sha256": "998d9f1804207d8ce08e4b34f26a7ae67a45213c2d11495f4470599e0e103e38"
+    },
+    "artifact/test_stable_github_publication.py": {
+      "bytes": 112160,
+      "sha256": "ff92705e6e556b39bab6405b2c5c819f797283a2c340356e680086ac2be83dbe"
+    }
+  }
+}

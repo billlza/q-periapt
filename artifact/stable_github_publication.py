@@ -14,6 +14,7 @@ from http_connect_proxy import HttpConnectProxyError, validate_http_connect_prox
 
 from platform_distribution_contract import PlatformReleaseProfile
 import platform_maintenance_contract as maintenance_contract
+import sdk_github_publication_contract as sdk_contract
 import platform_maintenance as maintenance_source
 
 import argparse
@@ -362,22 +363,8 @@ class ReleasePlan:
         }
 
 
-@dataclasses.dataclass(frozen=True, slots=True)
-class PublicationPlan:
-    results_sha256: str
-    pending_commit: str
-    source_parent_commit: str
-    tag_commit: str
-    tag_tree: str
-    canonical_source_tree_sha256: str
-    platform_candidate_receipt_sha256: str
-    github_cli_sha256: str
-    releases: tuple[ReleasePlan, ReleasePlan]
-    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE
-
-    def __post_init__(self) -> None:
-        if type(self.profile) is not PlatformReleaseProfile:
-            raise StableGitHubPublicationError("publication profile is invalid")
+class _PublicationPlanOperations:
+    """Shared immutable plan operations; each admission keeps its own schema."""
 
     @property
     def mutable_releases(self) -> tuple[ReleasePlan, ...]:
@@ -396,6 +383,54 @@ class PublicationPlan:
     @property
     def platform(self) -> ReleasePlan:
         return self.releases[1]
+
+    def sha256(self) -> str:
+        return hashlib.sha256(canonical_json_bytes(self.document())).hexdigest()
+
+    def policies(
+        self,
+    ) -> tuple[
+        github_release.MutableReleasePolicy,
+        github_release.MutableReleasePolicy,
+    ]:
+        def policy(release: ReleasePlan) -> github_release.MutableReleasePolicy:
+            return github_release.MutableReleasePolicy(
+                repository=REPOSITORY,
+                tag=release.tag,
+                tag_commit=(
+                    maintenance_contract.BASE_TAG_COMMIT
+                    if self.profile.is_maintenance and release.domain == "apple"
+                    else self.tag_commit
+                ),
+                title=release.title,
+                body=release.body,
+                asset_names=tuple(asset.name for asset in release.assets),
+                expected_sha256={asset.name: asset.sha256 for asset in release.assets},
+                expected_sizes={asset.name: asset.size for asset in release.assets},
+                expected_content_types={
+                    asset.name: asset.content_type for asset in release.assets
+                },
+            )
+
+        return (policy(self.releases[0]), policy(self.releases[1]))
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class PublicationPlan(_PublicationPlanOperations):
+    results_sha256: str
+    pending_commit: str
+    source_parent_commit: str
+    tag_commit: str
+    tag_tree: str
+    canonical_source_tree_sha256: str
+    platform_candidate_receipt_sha256: str
+    github_cli_sha256: str
+    releases: tuple[ReleasePlan, ReleasePlan]
+    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE
+
+    def __post_init__(self) -> None:
+        if type(self.profile) is not PlatformReleaseProfile:
+            raise StableGitHubPublicationError("publication profile is invalid")
 
     def document(self) -> dict[str, object]:
         document: dict[str, object] = {
@@ -432,35 +467,47 @@ class PublicationPlan:
             )
         return document
 
-    def sha256(self) -> str:
-        return hashlib.sha256(canonical_json_bytes(self.document())).hexdigest()
 
-    def policies(
-        self,
-    ) -> tuple[
-        github_release.MutableReleasePolicy,
-        github_release.MutableReleasePolicy,
-    ]:
-        def policy(release: ReleasePlan) -> github_release.MutableReleasePolicy:
-            return github_release.MutableReleasePolicy(
-                repository=REPOSITORY,
-                tag=release.tag,
-                tag_commit=(
-                    maintenance_contract.BASE_TAG_COMMIT
-                    if self.profile.is_maintenance and release.domain == "apple"
-                    else self.tag_commit
-                ),
-                title=release.title,
-                body=release.body,
-                asset_names=tuple(asset.name for asset in release.assets),
-                expected_sha256={asset.name: asset.sha256 for asset in release.assets},
-                expected_sizes={asset.name: asset.size for asset in release.assets},
-                expected_content_types={
-                    asset.name: asset.content_type for asset in release.assets
-                },
-            )
+@dataclasses.dataclass(frozen=True, slots=True)
+class SdkPublicationPlan(_PublicationPlanOperations):
+    source_commit: str
+    source_tree: str
+    tag_commit: str
+    tag_tree: str
+    admission_sha256: str
+    github_cli_sha256: str
+    releases: tuple[ReleasePlan, ReleasePlan]
+    profile: sdk_contract.SdkReleaseProfile = sdk_contract.PROFILE
 
-        return (policy(self.releases[0]), policy(self.releases[1]))
+    def __post_init__(self) -> None:
+        _require(self.profile is sdk_contract.PROFILE, "SDK publication profile differs")
+
+    def document(self) -> dict[str, object]:
+        return {
+            "api_version": github_release.GITHUB_API_VERSION,
+            "boundary": sdk_contract.BOUNDARY,
+            "github_cli_sha256": self.github_cli_sha256,
+            "kind": sdk_contract.PLAN_KIND,
+            "schema_version": sdk_contract.PLAN_SCHEMA,
+            "repository": REPOSITORY,
+            "admission": {"path": sdk_contract.ADMISSION_PATH, "sha256": self.admission_sha256},
+            "source": {"commit": self.source_commit, "tree": self.source_tree,
+                       "tag_commit": self.tag_commit, "tag_tree": self.tag_tree},
+            "releases": [release.document() for release in self.releases],
+        }
+
+
+TransactionPlan = PublicationPlan | SdkPublicationPlan
+PublicationProfile = PlatformReleaseProfile | sdk_contract.SdkReleaseProfile
+
+
+def _admission_digest(plan: TransactionPlan) -> str:
+    return plan.admission_sha256 if isinstance(plan, SdkPublicationPlan) else plan.results_sha256
+
+
+def _predecessor_tag(plan: TransactionPlan) -> str:
+    return (sdk_contract.PREDECESSOR_TAG if isinstance(plan, SdkPublicationPlan)
+            else apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"])
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -496,8 +543,8 @@ class MutationAction:
     asset_index: int | None = None
 
 
-RemoteObserver = Callable[[PublicationPlan], RemoteSnapshot]
-RemoteMutator = Callable[[PublicationPlan, MutationAction, RemoteSnapshot], None]
+RemoteObserver = Callable[[TransactionPlan], RemoteSnapshot]
+RemoteMutator = Callable[[TransactionPlan, MutationAction, RemoteSnapshot], None]
 
 
 _LOCAL_GITHUB_INTEGRITY_ERRORS = (github_release.GitHubLocalIntegrityError,)
@@ -505,7 +552,7 @@ _LOCAL_GITHUB_INTEGRITY_ERRORS = (github_release.GitHubLocalIntegrityError,)
 
 def _observe_with_local_integrity_priority(
     observer: RemoteObserver,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
 ) -> RemoteSnapshot:
     try:
         return observer(plan)
@@ -655,8 +702,93 @@ def _parse_release_plan(
     )
 
 
-def parse_plan(value: object) -> PublicationPlan:
+def _parse_sdk_release_plan(value: object, *, domain: str, tag_commit: str) -> ReleasePlan:
+    release = _object(value, f"SDK {domain} release plan")
+    _exact_keys(release, frozenset({"assets", "body", "create_request", "domain",
+                "make_latest", "publish_request", "tag", "tag_object", "title"}),
+                "SDK release plan")
+    title, body = sdk_contract.RELEASE_TEXT[domain]
+    index = 0 if domain == "apple" else 1
+    rows = release["assets"]
+    _require(release["domain"] == domain and release["tag"] == sdk_contract.TAGS[index]
+             and release["title"] == title and release["body"] == body
+             and release["make_latest"] is (domain == "apple")
+             and isinstance(rows, list) and 1 <= len(rows) <= sdk_contract.MAX_ASSETS,
+             "SDK release identity or inventory differs")
+    assets = []
+    for raw in rows:
+        asset = _object(raw, "SDK asset plan")
+        name = asset.get("name")
+        try:
+            media_type = sdk_contract.content_type(name)
+        except ValueError as exc:
+            raise StableGitHubPublicationError(str(exc)) from exc
+        parsed = _parse_asset_plan(raw, domain=domain, expected_name=name,
+                                   expected_content_type=media_type)
+        _require(parsed.size <= sdk_contract.MAX_ASSET_BYTES, "SDK asset exceeds its bound")
+        assets.append(parsed)
+    names = tuple(asset.name for asset in assets)
+    _require(names == tuple(sorted(set(names))), "SDK asset names are repeated or unordered")
+    if domain == "apple":
+        _require(names == sdk_contract.APPLE_ASSET_NAMES, "SDK Apple inventory differs")
+    else:
+        _require({"RELEASE_EVIDENCE.zip", "SHA256SUMS"} <= set(names),
+                 "SDK platform inventory omits evidence or checksums")
+    created = _create_request_bytes(tag=release["tag"], title=title, body=body,
+                                     make_latest=domain == "apple", tag_commit=tag_commit)
+    published = _publish_request_bytes(tag=release["tag"], title=title, body=body,
+                                        make_latest=domain == "apple", tag_commit=tag_commit)
+    create = _parse_request_plan(release["create_request"], expected_leaf=f"create-{domain}.json")
+    publish = _parse_request_plan(release["publish_request"], expected_leaf=f"publish-{domain}.json")
+    _require(create == _request_plan(create.leaf, created)
+             and publish == _request_plan(publish.leaf, published), "SDK request bytes differ")
+    return ReleasePlan(domain=domain, tag=release["tag"],
+                       tag_object=_sha1(release["tag_object"], "SDK tag object"),
+                       title=title, body=body, make_latest=domain == "apple", assets=tuple(assets),
+                       create_request=create, publish_request=publish)
+
+
+def _parse_sdk_plan(document: dict[str, Any]) -> SdkPublicationPlan:
+    _exact_keys(document, frozenset({"api_version", "boundary", "github_cli_sha256", "kind",
+                "releases", "repository", "admission", "schema_version", "source"}), "SDK plan")
+    _require(type(document["schema_version"]) is int
+             and document["schema_version"] == sdk_contract.PLAN_SCHEMA
+             and document["kind"] == sdk_contract.PLAN_KIND
+             and document["repository"] == REPOSITORY
+             and document["api_version"] == github_release.GITHUB_API_VERSION
+             and document["boundary"] == sdk_contract.BOUNDARY
+             and document["github_cli_sha256"] == github_release.SDK_020_GITHUB_CLI_SHA256,
+             "SDK publication plan discriminant differs")
+    admission = _object(document["admission"], "SDK admission pin")
+    _exact_keys(admission, frozenset({"path", "sha256"}), "SDK admission pin")
+    _require(admission["path"] == sdk_contract.ADMISSION_PATH, "SDK admission path differs")
+    source = _object(document["source"], "SDK source")
+    _exact_keys(source, frozenset({"commit", "tree", "tag_commit", "tag_tree"}), "SDK source")
+    for key, value in source.items():
+        _sha1(value, f"SDK source {key}")
+    releases = document["releases"]
+    _require(isinstance(releases, list) and len(releases) == 2, "SDK release count differs")
+    plan = SdkPublicationPlan(
+        source_commit=source["commit"], source_tree=source["tree"],
+        tag_commit=source["tag_commit"], tag_tree=source["tag_tree"],
+        admission_sha256=_sha256(admission["sha256"], "SDK admission digest"),
+        github_cli_sha256=document["github_cli_sha256"],
+        releases=tuple(_parse_sdk_release_plan(releases[index], domain=domain,
+                                              tag_commit=source["tag_commit"])
+                       for index, domain in enumerate(("apple", "platform"))),
+    )
+    _require(len({plan.source_commit, plan.tag_commit, plan.apple.tag_object,
+                  plan.platform.tag_object}) == 4 and plan.source_tree != plan.tag_tree,
+             "SDK source, evidence or annotated tag objects are not distinct")
+    for policy in plan.policies():
+        github_release.validate_mutable_release_policy(policy)
+    return plan
+
+
+def parse_plan(value: object) -> TransactionPlan:
     document = _object(value, "stable GitHub publication plan")
+    if document.get("kind") == sdk_contract.PLAN_KIND:
+        return _parse_sdk_plan(document)
     maintenance = document.get("schema_version") == 2
     profile = PlatformReleaseProfile.STABLE
     if maintenance:
@@ -794,7 +926,7 @@ def parse_plan(value: object) -> PublicationPlan:
     return plan
 
 
-def action_sequence(plan: PublicationPlan) -> tuple[MutationAction, ...]:
+def action_sequence(plan: TransactionPlan) -> tuple[MutationAction, ...]:
     if plan.profile.is_maintenance:
         return (
             MutationAction(0, "create-platform-draft", "create", "platform"),
@@ -847,12 +979,13 @@ def action_sequence(plan: PublicationPlan) -> tuple[MutationAction, ...]:
             ),
         )
     )
-    _require(len(actions) == MAX_ACTIONS, "publication action count differs")
+    _require(len(actions) == (plan.action_count if isinstance(plan, SdkPublicationPlan) else MAX_ACTIONS),
+             "publication action count differs")
     return tuple(actions)
 
 
 def classify_remote_state(
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     snapshot: RemoteSnapshot,
 ) -> ClassifiedRemoteState:
     _sha256(snapshot.tag_protection_sha256, "tag protection observation")
@@ -901,7 +1034,7 @@ def classify_remote_state(
         return ClassifiedRemoteState(plan.action_count, "platform_published")
     apple_count = len(plan.apple.assets)
     platform_count = len(plan.platform.assets)
-    predecessor_tag = apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"]
+    predecessor_tag = _predecessor_tag(plan)
     if apple is None and platform is None:
         _require(
             remote.latest_tag == predecessor_tag,
@@ -962,7 +1095,7 @@ def classify_remote_state(
             not platform.immutable and len(platform.assets) == platform_count,
             "Apple was published before the complete platform draft",
         )
-        return ClassifiedRemoteState(MAX_ACTIONS - 1, "apple_published")
+        return ClassifiedRemoteState(plan.action_count - 1, "apple_published")
     _require(
         platform.immutable
         and not platform.is_latest
@@ -970,7 +1103,7 @@ def classify_remote_state(
         and remote.latest_tag == plan.apple.tag,
         "final platform release or latest-release policy differs",
     )
-    return ClassifiedRemoteState(MAX_ACTIONS, "both_published")
+    return ClassifiedRemoteState(plan.action_count, "both_published")
 
 
 def _account_home() -> pathlib.Path:
@@ -1016,9 +1149,10 @@ def _account_home() -> pathlib.Path:
 
 
 def expected_state_root(
-    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+    profile: PublicationProfile = PlatformReleaseProfile.STABLE,
 ) -> pathlib.Path:
-    _require(type(profile) is PlatformReleaseProfile, "publication profile is invalid")
+    _require(type(profile) in {PlatformReleaseProfile, sdk_contract.SdkReleaseProfile},
+             "publication profile is invalid")
     return (
         _account_home()
         / ".q-periapt"
@@ -1028,6 +1162,7 @@ def expected_state_root(
             PlatformReleaseProfile.MAINTENANCE_R2: "github-platform-v0.1.5-r2",
             PlatformReleaseProfile.MAINTENANCE_R3: "github-platform-v0.1.5-r3",
             PlatformReleaseProfile.MAINTENANCE_R4: "github-platform-v0.1.5-r4",
+            sdk_contract.PROFILE: "github-sdk-v0.2.0",
         }[profile]
     )
 
@@ -1035,7 +1170,7 @@ def expected_state_root(
 def _selected_state_root(state_root: pathlib.Path | None) -> pathlib.Path:
     if state_root is None:
         return expected_state_root()
-    for profile in PlatformReleaseProfile:
+    for profile in (*PlatformReleaseProfile, sdk_contract.PROFILE):
         expected = expected_state_root(profile)
         if isinstance(state_root, pathlib.Path) and os.fspath(state_root) == os.fspath(
             expected
@@ -1690,7 +1825,7 @@ def _verify_state_root_inventory_at(
         ) from exc
 
 
-def _request_payloads(plan: PublicationPlan) -> dict[str, bytes]:
+def _request_payloads(plan: TransactionPlan) -> dict[str, bytes]:
     payloads: dict[str, bytes] = {}
     for release in plan.mutable_releases:
         create_request, publish_request = release.mutation_requests()
@@ -1754,7 +1889,7 @@ def _stage_bytes(
     )
 
 
-def _read_plan_leaf(root: pathlib.Path, leaf: str) -> PublicationPlan:
+def _read_plan_leaf(root: pathlib.Path, leaf: str) -> TransactionPlan:
     snapshot = read_fixed_json_snapshot(
         root / leaf,
         safe_root=root,
@@ -1973,11 +2108,25 @@ def validate_plan_against_pending_manifest(
 
 
 def _validate_plan_against_current_pending(
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     *,
     expected_results_sha256: str | None = None,
     repository_root: pathlib.Path | None = None,
 ) -> None:
+    if isinstance(plan, SdkPublicationPlan):
+        # Version-specific admission uses its own committed evidence schema;
+        # the journal, staged-file checks and mutation engine remain shared.
+        import sdk_github_publication
+
+        _require(expected_results_sha256 is None,
+                 "SDK admission cannot use a legacy pending-results selection")
+        try:
+            sdk_github_publication.validate_local_admission(plan, repository_root=repository_root)
+        except (github_release.GitHubLocalIntegrityError, StableGitHubPublicationError):
+            raise
+        except (ValueError, GitProvenanceError) as exc:
+            raise StableGitHubPublicationError("SDK committed admission no longer matches its plan") from exc
+        return
     if expected_results_sha256 is not None:
         _require(
             plan.results_sha256 == expected_results_sha256,
@@ -2006,7 +2155,7 @@ def _validate_plan_against_current_pending(
 
 def _validate_staged_asset_prefix(
     staging: PrivateDirectoryHandle,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
 ) -> bool:
     assets = {
         asset.staging_leaf: (release.domain, asset)
@@ -2039,7 +2188,7 @@ def _validate_staged_asset_prefix(
 
 def _verify_planned_files(
     root: pathlib.Path,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
 ) -> None:
     with contextlib.ExitStack() as resources:
         staging = resources.enter_context(
@@ -2109,7 +2258,7 @@ def _verify_planned_files(
 
 def verify_local_plan(
     root: pathlib.Path,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     *,
     repository_root: pathlib.Path | None = None,
 ) -> None:
@@ -2162,6 +2311,40 @@ def prepare_plan(
     profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
     repository_root: pathlib.Path | None = None,
 ) -> PublicationPlan:
+    """Prepare the legacy source/pending-results admission through the shared engine."""
+    def build_inputs():
+        plan, apple_snapshots, platform_candidate, platform_source = build_plan_from_pending_results(
+            expected_results_sha256, profile=profile, repository_root=repository_root)
+
+        def stage_assets(staging: PrivateDirectoryHandle) -> None:
+            apple_by_name = dict(zip(
+                () if plan.profile.is_maintenance else apple_contract.APPLE_PUBLIC_ASSET_NAMES,
+                apple_snapshots, strict=True))
+            for asset in () if plan.profile.is_maintenance else plan.apple.assets:
+                snapshot = apple_by_name[asset.name]
+                _stage_bytes(staging, asset.staging_leaf, snapshot.data,
+                             expected_sha256=asset.sha256, allow_existing=True,
+                             label=f"Apple publication asset {asset.name}")
+            platform_distribution.find_selected_release_candidate_bundle(
+                platform_candidate, platform_source, staging_directory_fd=staging.descriptor,
+                staging_leaves={asset.name: asset.staging_leaf for asset in plan.platform.assets},
+                expected_receipt_sha256=plan.platform_candidate_receipt_sha256,
+                allow_existing_staging=True, profile=plan.profile, repository_root=repository_root)
+
+        return plan, stage_assets
+
+    return prepare_transaction(expected_results_sha256, state_root=state_root, profile=profile,
+                               build_inputs=build_inputs, repository_root=repository_root)
+
+
+def prepare_transaction(
+    expected_admission_sha256: str,
+    *,
+    state_root: pathlib.Path | None = None,
+    profile: PublicationProfile,
+    build_inputs: Callable[[], tuple[TransactionPlan, Callable[[PrivateDirectoryHandle], None]]],
+    repository_root: pathlib.Path | None = None,
+) -> TransactionPlan:
     selected_root = expected_state_root(profile) if state_root is None else state_root
     _require(
         selected_root == expected_state_root(profile),
@@ -2186,7 +2369,7 @@ def prepare_plan(
             _verify_state_root_inventory_at(root_descriptor, _ROOT_FIXED_LEAVES)
             existing = _read_plan_leaf(root, PLAN_LEAF)
             _require(
-                existing.results_sha256 == expected_results_sha256
+                _admission_digest(existing) == expected_admission_sha256
                 and existing.profile is profile,
                 "existing publication plan binds different pending results",
             )
@@ -2207,9 +2390,7 @@ def prepare_plan(
             "unrecognized publication state-root entries exist"
         ))
         has_preparation_intent = PREPARATION_INTENT_LEAF in current_root_entries
-        apple_snapshots: tuple[FileSnapshot, ...] | None = None
-        platform_candidate: dict[str, Any] | None = None
-        platform_source: dict[str, Any] | None = None
+        stage_assets: Callable[[PrivateDirectoryHandle], None] | None = None
         if has_preparation_intent:
             _require(
                 current_root_entries == preplan_entries,
@@ -2219,7 +2400,8 @@ def prepare_plan(
             try:
                 _validate_plan_against_current_pending(
                     plan,
-                    expected_results_sha256=expected_results_sha256,
+                    expected_results_sha256=(None if isinstance(plan, SdkPublicationPlan)
+                                             else expected_admission_sha256),
                     repository_root=repository_root,
                 )
             except _LOCAL_GITHUB_INTEGRITY_ERRORS as exc:
@@ -2240,19 +2422,17 @@ def prepare_plan(
                 ),
                 "pre-intent publication state is malformed",
             )
-            plan, apple_snapshots, platform_candidate, platform_source = (
-                build_plan_from_pending_results(
-                    expected_results_sha256,
-                    profile=profile,
-                    repository_root=repository_root,
-                )
-            )
+            plan, stage_assets = build_inputs()
             for directory_name in (
                 STAGING_DIRECTORY,
                 REQUEST_DIRECTORY,
                 JOURNAL_DIRECTORY,
             ):
                 _ensure_child_directory(root, directory_name)
+        _require(plan.profile is profile and _admission_digest(plan) == expected_admission_sha256
+                 and parse_plan(plan.document()) == plan,
+                 "preparation inputs differ from the selected profile or admission")
+        _validate_plan_against_current_pending(plan, repository_root=repository_root)
         with contextlib.ExitStack() as resources:
             staging = resources.enter_context(
                 open_private_direct_child_handle(
@@ -2321,60 +2501,11 @@ def prepare_plan(
                 )
             assets_complete = _validate_staged_asset_prefix(staging, plan)
             if not assets_complete:
-                if apple_snapshots is None:
-                    (
-                        rebuilt_plan,
-                        apple_snapshots,
-                        platform_candidate,
-                        platform_source,
-                    ) = build_plan_from_pending_results(
-                        expected_results_sha256,
-                        profile=profile,
-                        repository_root=repository_root,
-                    )
-                    _require(
-                        rebuilt_plan == plan,
-                        "recovered preparation sources bind a different plan",
-                    )
-                _require(
-                    apple_snapshots is not None
-                    and platform_candidate is not None
-                    and platform_source is not None,
-                    "missing staged assets lack their plan-selected source authority",
-                )
-                apple_by_name = dict(
-                    zip(
-                        (
-                            ()
-                            if plan.profile.is_maintenance
-                            else apple_contract.APPLE_PUBLIC_ASSET_NAMES
-                        ),
-                        apple_snapshots,
-                        strict=True,
-                    )
-                )
-                for asset in () if plan.profile.is_maintenance else plan.apple.assets:
-                    snapshot = apple_by_name[asset.name]
-                    _stage_bytes(
-                        staging,
-                        asset.staging_leaf,
-                        snapshot.data,
-                        expected_sha256=asset.sha256,
-                        allow_existing=True,
-                        label=f"Apple publication asset {asset.name}",
-                    )
-                platform_distribution.find_selected_release_candidate_bundle(
-                    platform_candidate,
-                    platform_source,
-                    staging_directory_fd=staging.descriptor,
-                    staging_leaves={
-                        asset.name: asset.staging_leaf for asset in plan.platform.assets
-                    },
-                    expected_receipt_sha256=(plan.platform_candidate_receipt_sha256),
-                    allow_existing_staging=True,
-                    profile=plan.profile,
-                    repository_root=repository_root,
-                )
+                if stage_assets is None:
+                    rebuilt_plan, stage_assets = build_inputs()
+                    _require(rebuilt_plan == plan,
+                             "recovered preparation sources bind a different plan")
+                stage_assets(staging)
                 _require(
                     _validate_staged_asset_prefix(staging, plan),
                     "stable GitHub staged assets remain incomplete",
@@ -2501,7 +2632,7 @@ def _validate_remote_projection(value: object) -> dict[str, Any]:
 
 
 def _snapshot_from_projection(
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     value: object,
 ) -> RemoteSnapshot:
     """Deep-parse a journal projection back into the typed remote domain."""
@@ -2719,7 +2850,7 @@ def _transition_release_common(
 
 
 def validate_exact_remote_transition(
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     action: MutationAction,
     before_value: object,
     after_snapshot: RemoteSnapshot,
@@ -2832,7 +2963,7 @@ def validate_exact_remote_transition(
     if action.domain == "apple":
         _require(
             before_observation["latest_tag"]
-            == apple_contract.APPLE_V0_1_4_IDENTITY["release_tag"]
+            == _predecessor_tag(plan)
             and after_observation["latest_tag"] == plan.apple.tag,
             "Apple publication did not advance latest from the predecessor",
         )
@@ -2845,13 +2976,13 @@ def validate_exact_remote_transition(
 
 
 def _sample_publication_tags(
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     *,
     source_environment: Mapping[str, str] | None,
     http_connect_proxy: str | None = None,
     runner: github_release.GitHubCommandRunner,
 ) -> github_release.StableTagStateObservation:
-    if plan.profile is PlatformReleaseProfile.STABLE:
+    if plan.profile is PlatformReleaseProfile.STABLE or isinstance(plan, SdkPublicationPlan):
         return github_release.sample_stable_tag_state_once(
             expected_commit=plan.tag_commit,
             expected_tree=plan.tag_tree,
@@ -2859,6 +2990,7 @@ def _sample_publication_tags(
             source_environment=source_environment,
             http_connect_proxy=http_connect_proxy,
             runner=runner,
+            **({"release_profile": "sdk-020"} if isinstance(plan, SdkPublicationPlan) else {}),
         )
     original = github_release.sample_stable_tag_state_once(
         expected_commit=maintenance_contract.BASE_TAG_COMMIT,
@@ -2900,17 +3032,18 @@ def _sample_publication_tags(
 
 
 def _observe_remote_composite_once(
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     *,
     source_environment: Mapping[str, str] | None = None,
     http_connect_proxy: str | None = None,
     runner: github_release.GitHubCommandRunner = capture_stdout,
 ) -> RemoteSnapshot:
     protection_before = github_release.sample_stable_tag_protection_once(
-        profile=plan.profile,
+        profile=PlatformReleaseProfile.STABLE if isinstance(plan, SdkPublicationPlan) else plan.profile,
         source_environment=source_environment,
         http_connect_proxy=http_connect_proxy,
         runner=runner,
+        **({"release_profile": "sdk-020"} if isinstance(plan, SdkPublicationPlan) else {}),
     )
     tag_before = _sample_publication_tags(
         plan,
@@ -2923,6 +3056,7 @@ def _observe_remote_composite_once(
         source_environment=source_environment,
         http_connect_proxy=http_connect_proxy,
         runner=runner,
+        **({"cli_profile": "sdk-020"} if isinstance(plan, SdkPublicationPlan) else {}),
     )
     tag_after = _sample_publication_tags(
         plan,
@@ -2931,10 +3065,11 @@ def _observe_remote_composite_once(
         runner=runner,
     )
     protection_after = github_release.sample_stable_tag_protection_once(
-        profile=plan.profile,
+        profile=PlatformReleaseProfile.STABLE if isinstance(plan, SdkPublicationPlan) else plan.profile,
         source_environment=source_environment,
         http_connect_proxy=http_connect_proxy,
         runner=runner,
+        **({"release_profile": "sdk-020"} if isinstance(plan, SdkPublicationPlan) else {}),
     )
     _require(
         tag_before == tag_after
@@ -2950,7 +3085,7 @@ def _observe_remote_composite_once(
 
 
 def observe_remote_transaction(
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     *,
     source_environment: Mapping[str, str] | None = None,
     http_connect_proxy: str | None = None,
@@ -3042,7 +3177,7 @@ def _parse_intent_record(
     value: object,
     *,
     action: MutationAction,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
 ) -> dict[str, Any]:
     record = _object(value, "stable GitHub mutation intent")
     _exact_keys(
@@ -3147,7 +3282,7 @@ def _parse_reconciliation_record(
     value: object,
     *,
     action: MutationAction,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     intent_sha256: str,
 ) -> dict[str, Any]:
     record = _object(value, "stable GitHub reconciliation authority")
@@ -3207,7 +3342,7 @@ def _parse_outcome_record(
     value: object,
     *,
     action: MutationAction,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     intent: Mapping[str, object],
     intent_sha256: str,
     reconciliation: Mapping[str, object],
@@ -3278,7 +3413,7 @@ def _parse_outcome_record(
 
 def load_journal(
     directory: PrivateDirectoryHandle,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     *,
     recover_residues: bool,
 ) -> JournalCursor:
@@ -3380,7 +3515,7 @@ def load_journal(
 
 def _write_intent(
     directory: PrivateDirectoryHandle,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     action: MutationAction,
     before: RemoteSnapshot,
 ) -> dict[str, Any]:
@@ -3429,7 +3564,7 @@ def _execution_projection(
 
 def _write_reconciliation_authority(
     directory: PrivateDirectoryHandle,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     action: MutationAction,
     intent: Mapping[str, object],
     *,
@@ -3462,7 +3597,7 @@ def _write_reconciliation_authority(
 
 def _write_outcome(
     directory: PrivateDirectoryHandle,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     action: MutationAction,
     intent: Mapping[str, object],
     observed: RemoteSnapshot,
@@ -3511,7 +3646,7 @@ def _write_outcome(
 
 def execute_production_mutation(
     root: PrivateDirectoryHandle,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     action: MutationAction,
     before: RemoteSnapshot,
     *,
@@ -3535,7 +3670,8 @@ def execute_production_mutation(
         classify_remote_state(plan, before).index == action.index,
         "mutation does not follow the observed publication state",
     )
-    tool = github_release.select_github_cli()
+    tool = (github_release.select_github_cli(profile="sdk-020")
+            if isinstance(plan, SdkPublicationPlan) else github_release.select_github_cli())
     _require(
         tool.sha256 == plan.github_cli_sha256,
         "pinned GitHub CLI differs from the publication plan",
@@ -3632,7 +3768,7 @@ def execute_production_mutation(
 
 
 def _ensure_cursor_matches_remote(
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     cursor: JournalCursor,
     remote: RemoteSnapshot,
 ) -> ClassifiedRemoteState:
@@ -3657,7 +3793,7 @@ def _resolve_trailing_intent(
     directory: PrivateDirectoryHandle,
     root: pathlib.Path,
     lock: PublicationLockAuthority,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     cursor: JournalCursor,
     remote: RemoteSnapshot,
     *,
@@ -3726,7 +3862,7 @@ def _resolve_trailing_intent(
     )
 
 
-def _load_prepared_plan(root: pathlib.Path) -> PublicationPlan:
+def _load_prepared_plan(root: pathlib.Path) -> TransactionPlan:
     try:
         return _read_plan_leaf(root, PLAN_LEAF)
     except PublicationBoundaryIntegrityError as exc:
@@ -3750,7 +3886,7 @@ def _open_journal(
 
 def _verify_mutation_local(
     root: pathlib.Path,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     lock: PublicationLockAuthority,
     journal: PrivateDirectoryHandle,
     *,
@@ -3801,7 +3937,7 @@ def _authorize_later_reconciliation(
     root: pathlib.Path,
     lock: PublicationLockAuthority,
     journal: PrivateDirectoryHandle,
-    plan: PublicationPlan,
+    plan: TransactionPlan,
     action: MutationAction,
     intent: Mapping[str, object],
     *,
@@ -3853,7 +3989,8 @@ def publish_plan(
     *,
     execute_real_github_mutation: bool,
     expected_plan_sha256: str,
-    expected_results_sha256: str,
+    expected_results_sha256: str | None = None,
+    expected_admission_sha256: str | None = None,
     draft_barrier_ack: str,
     publication_order_ack: str,
     state_root: pathlib.Path | None = None,
@@ -3863,11 +4000,17 @@ def publish_plan(
     http_connect_proxy: str | None = None,
     read_runner: github_release.GitHubCommandRunner = capture_stdout,
     mutation_runner: github_release.GitHubInputRunner = capture_stdout,
-    profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+    profile: PublicationProfile = PlatformReleaseProfile.STABLE,
     repository_root: pathlib.Path | None = None,
 ) -> PublicationStatus:
     _validate_http_connect_proxy_option(http_connect_proxy)
-    _require(type(profile) is PlatformReleaseProfile, "publication profile is invalid")
+    _require(type(profile) in {PlatformReleaseProfile, sdk_contract.SdkReleaseProfile},
+             "publication profile is invalid")
+    sdk = profile is sdk_contract.PROFILE
+    _require((expected_results_sha256 is None and expected_admission_sha256 is not None)
+             if sdk else (expected_results_sha256 is not None and expected_admission_sha256 is None),
+             "publication admission selection differs from its profile")
+    expected_admission = expected_admission_sha256 if sdk else expected_results_sha256
     maintenance = profile.is_maintenance
     _require(
         execute_real_github_mutation is True
@@ -3878,7 +4021,7 @@ def publish_plan(
         "explicit execution and both stable publication acknowledgements are required",
     )
     _sha256(expected_plan_sha256, "expected publication plan")
-    _sha256(expected_results_sha256, "expected pending results")
+    _sha256(expected_admission, "expected publication admission")
     root = validate_state_root(
         expected_state_root(profile) if state_root is None else state_root,
         repository_root=repository_root,
@@ -3925,7 +4068,7 @@ def publish_plan(
         _require(
             plan.profile is profile
             and plan.sha256() == expected_plan_sha256
-            and plan.results_sha256 == expected_results_sha256,
+            and _admission_digest(plan) == expected_admission,
             "explicit publication plan or pending-results pin differs",
         )
         verify_local_plan(root, plan, repository_root=repository_root)

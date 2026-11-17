@@ -1,0 +1,92 @@
+{
+  "base_source_commit": "8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+  "command_boundary_controls": {
+    "commands": [
+      [
+        "sh",
+        "artifact/python-run.sh",
+        "-m",
+        "unittest",
+        "artifact/test_ci_protoc.py",
+        "artifact/test_fanout_latency.py",
+        "artifact/test_wasm_sdk_package.py",
+        "artifact/test_sdk_installed_connection.py"
+      ],
+      [
+        "sh",
+        "artifact/python-run.sh",
+        "-m",
+        "unittest",
+        "test_bounded_process.BoundedProcessTests.test_explicit_environment_is_exact_and_malformed_entries_fail_fast",
+        "test_bounded_process.BoundedProcessTests.test_module_has_no_generic_command_or_output_cli",
+        "test_bounded_process.BoundedProcessTests.test_argument_boundaries_fail_fast",
+        "test_bounded_process.BoundedProcessTests.test_process_start_separates_executable_and_never_uses_a_shell"
+      ]
+    ],
+    "errors": 0,
+    "failures": 0,
+    "seconds": [
+      1.002,
+      0.082
+    ],
+    "skips": 0,
+    "tests": 37
+  },
+  "completed": true,
+  "earlier_expanded_attempt": {
+    "causes": {
+      "missing_rustup_for_unchanged_cargo_isolation_integration_test": 1,
+      "missing_sparse_checkout_LICENSES_input_setup": 5
+    },
+    "errors": 6,
+    "resolution": "Restored the committed LICENSES directory and reran all seven affected wire/C/manifest/consumer/distribution test modules successfully. The unrelated Cargo target-isolation integration requires rustup and was not executed locally; hosted artifact tooling remains its gate.",
+    "tests_run": 131,
+    "unexecuted_test": "test_continuity_package.ContinuityPackageTests.test_interleaved_rlib_cdylib_sources_cannot_replace_fresh_consumer_dependencies"
+  },
+  "kind": "qperiapt.release020_preparation_validation",
+  "native_abi_major": 2,
+  "observed_at": "2026-11-17T00:05:32.880570+00:00",
+  "prepared_files": {
+    "artifact/continuity_c_abi.py": "29bf0806fb97f39dc1fc6e729774d7b695c75387505d6d7c3c4677f5d199dd08",
+    "artifact/continuity_contract.py": "e976a38b1f28db8fcbb718d1164497c64c7a8231a192d212f217b22640b64228",
+    "artifact/continuity_release_manifest.py": "a4c81b3a3ca72ae34e9e6a1b960865518afd3c619027289e98dcb908ca555c39",
+    "artifact/test_continuity_c_abi.py": "ad4bede66d1812e0b2b54a9cde5e8de00ff456ad3f36c528b7e4f4bb4f4a69c9",
+    "artifact/test_continuity_contract.py": "197f8cdd052b7d0185929428e372c5281b640e9d384f64f3512e60589d9b5150"
+  },
+  "prepared_manifest_replay": {
+    "artifacts": 0,
+    "completed": true,
+    "files": 57,
+    "manifest_sha256": "4f4b8c034adbb32abbc25856c762f759671be3d4de532e918783c271fb8268f7",
+    "missing_release_roles": [],
+    "packages": 21,
+    "source_commit": "8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+    "source_tree": "733e2e6e17be2241d85264ea5e15e07a35f04527",
+    "stage": "candidate"
+  },
+  "product_flags_unchanged": true,
+  "publication_performed": false,
+  "regression": {
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-m",
+      "unittest",
+      "artifact/test_continuity_contract.py",
+      "artifact/test_continuity_c_abi.py",
+      "artifact/test_continuity_release_manifest.py",
+      "artifact/test_continuity_c_consumer.py",
+      "artifact/test_continuity_native_package.py",
+      "artifact/test_continuity_android_distribution.py",
+      "artifact/test_continuity_windows_package.py"
+    ],
+    "errors": 0,
+    "failures": 0,
+    "seconds": 3.333,
+    "skips": 0,
+    "tests": 123
+  },
+  "release_claim_eligible": false,
+  "schema_version": 1,
+  "validation_scope": "prepared validation-reader changes; not a product freeze or qualification of new native binaries"
+}

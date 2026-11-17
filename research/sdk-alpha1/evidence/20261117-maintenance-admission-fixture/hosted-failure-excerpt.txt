@@ -1,0 +1,44 @@
+ERROR: test_offline_prepare_stages_only_seven_platform_assets_and_two_requests (test_platform_maintenance.PlatformMaintenanceTransactionTests.test_offline_prepare_stages_only_seven_platform_assets_and_two_requests)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/runner/work/q-periapt/q-periapt/artifact/stable_github_publication.py", line 2136, in _validate_plan_against_current_pending
+    committed = load_current_results(
+        plan.results_sha256, repository_root=repository_root
+    )
+  File "/home/runner/work/q-periapt/q-periapt/artifact/release_receipt_finalizer.py", line 173, in load_current_results
+    _require(
+    ~~~~~~~~^
+        snapshot.sha256 == expected_sha256,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "current results manifest differs from its startup SHA-256 pin",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/runner/work/q-periapt/q-periapt/artifact/release_receipt_finalizer.py", line 94, in _require
+    _fail(message)
+    ~~~~~^^^^^^^^^
+  File "/home/runner/work/q-periapt/q-periapt/artifact/release_receipt_finalizer.py", line 89, in _fail
+    raise ReleaseReceiptFinalizerError(message)
+release_receipt_finalizer.ReleaseReceiptFinalizerError: current results manifest differs from its startup SHA-256 pin
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/runner/work/q-periapt/q-periapt/artifact/test_platform_maintenance.py", line 979, in test_offline_prepare_stages_only_seven_platform_assets_and_two_requests
+    result = publication.prepare_plan(
+        self.plan.results_sha256, state_root=self.root, profile=PROFILE
+    )
+  File "/home/runner/work/q-periapt/q-periapt/artifact/stable_github_publication.py", line 2336, in prepare_plan
+    return prepare_transaction(expected_results_sha256, state_root=state_root, profile=profile,
+                               build_inputs=build_inputs, repository_root=repository_root)
+  File "/home/runner/work/q-periapt/q-periapt/artifact/stable_github_publication.py", line 2435, in prepare_transaction
+    _validate_plan_against_current_pending(plan, repository_root=repository_root)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/q-periapt/q-periapt/artifact/stable_github_publication.py", line 2140, in _validate_plan_against_current_pending
+    raise StableGitHubPublicationError(str(exc)) from exc
+stable_github_publication.StableGitHubPublicationError: current results manifest differs from its startup SHA-256 pin
+
+----------------------------------------------------------------------
+Ran 4013 tests in 456.668s
+
+FAILED (errors=1, skipped=3)

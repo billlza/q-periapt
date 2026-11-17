@@ -140,7 +140,7 @@ def source_contract(paths: list[str]) -> dict:
         for relative, maximum in (("qpc_owner.h", 128 * 1024), (c_abi.CONTRACT, 256 * 1024)):
             path = private / relative; path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(source(CONSUMER + "/" + relative, maximum))
-        abi = c_abi.load(private)
+        abi = c_abi.load(private, stage="release")
     require(len(abi["functions"]) == 158, "Continuity owner export inventory differs")
     sources = {}
     prefix = ADAPTER + "/src/main/java/"

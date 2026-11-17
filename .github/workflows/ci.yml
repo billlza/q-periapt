@@ -2890,7 +2890,7 @@ jobs:
           cargo +1.98.1 build --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --all-features --example contract_report
           sh artifact/python-run.sh artifact/continuity_contract.py \
             --consumer "$CARGO_TARGET_DIR/debug/examples/contract_report" \
-            --output target/continuity-wire-contract
+            --output target/continuity-wire-contract --stage release
           cargo +1.98.1 run --manifest-path research/continuity-identity-candidate/Cargo.toml --locked --example public_vectors -- target/continuity-public-vectors --with-anchor --with-rekey
           sh artifact/python-run.sh research/continuity-identity-candidate/scripts/verify_public_vectors.py \
             --fixtures target/continuity-public-vectors --output target/continuity-public-verification \

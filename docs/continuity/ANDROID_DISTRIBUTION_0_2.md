@@ -288,14 +288,13 @@ sh artifact/python-run.sh artifact/continuity_android_distribution.py verify \
   --distribution-sha256 "$selected_distribution_assessment_sha256"
 ```
 
-The repository's host JNI lane already records real Java/native lifecycle
-qualification, but its native products are macOS libraries. The retained Android
-cross-build controllers are inside the historical capture archive, rather than
-an executable current-source build lane available in this checkout. This
-increment provides no guessed cross-compiler invocation or rewritten workflow.
-Connecting an actual Android build to the explicit receipt interface above is
-the remaining producer integration; installed AAR/R8/device qualification then
-binds to the newly selected artifact hashes.
+The host JNI lane records Java/native lifecycle qualification with its macOS
+libraries. The current-source `continuity_android_build.py` producer and
+`continuity-android-aar-arm64` CI lane now connect the Android cross-build to the
+explicit receipt interface above. The retained historical controllers preserve
+the original recipe and source identities. Final assembly selects the actual
+current-source build receipts and binds installed AAR/R8 and ART/device
+qualification to the resulting artifact hashes.
 
 The focused local verification command is:
 

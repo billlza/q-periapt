@@ -1,0 +1,333 @@
+{
+  "archives": [
+    {
+      "bytes": 218959,
+      "cargo_version": "0.2.0",
+      "file": "q-periapt-mlkem-native-sys-0.2.0.crate",
+      "members": 147,
+      "name": "q-periapt-mlkem-native-sys",
+      "sha256": "27e027aeb05e418fdc3ae42e90f76c62f52aa63857bd5800ad02b5dc1ea0a1a4",
+      "vcs": {
+        "git": {
+          "sha1": "8abbf8d2e73a27af7794528fd92d13fe3be2942d"
+        },
+        "path_in_vcs": "crates/q-periapt-mlkem-native-sys"
+      }
+    },
+    {
+      "bytes": 44791,
+      "cargo_version": "0.2.0",
+      "file": "q-periapt-core-0.2.0.crate",
+      "members": 9,
+      "name": "q-periapt-core",
+      "sha256": "eda7cf85b126225a6e26106cef2aec4df16b1c6693cd215195eafde413436e1b",
+      "vcs": {
+        "git": {
+          "sha1": "8abbf8d2e73a27af7794528fd92d13fe3be2942d"
+        },
+        "path_in_vcs": "crates/q-periapt-core"
+      }
+    },
+    {
+      "bytes": 38239,
+      "cargo_version": "0.2.0",
+      "file": "q-periapt-kem-0.2.0.crate",
+      "members": 9,
+      "name": "q-periapt-kem",
+      "sha256": "8708b0afea35b673d29cfb9f4264caebf0902e5ad2fe67fd17feaa0f94ab3366",
+      "vcs": {
+        "git": {
+          "sha1": "8abbf8d2e73a27af7794528fd92d13fe3be2942d"
+        },
+        "path_in_vcs": "crates/q-periapt-kem"
+      }
+    },
+    {
+      "bytes": 33544,
+      "cargo_version": "0.2.0",
+      "file": "q-periapt-sig-0.2.0.crate",
+      "members": 9,
+      "name": "q-periapt-sig",
+      "sha256": "37b810d579213553483827920ad65fb45246092ac2433b4d4cbb3b5a55e6f078",
+      "vcs": {
+        "git": {
+          "sha1": "8abbf8d2e73a27af7794528fd92d13fe3be2942d"
+        },
+        "path_in_vcs": "crates/q-periapt-sig"
+      }
+    },
+    {
+      "bytes": 4971390,
+      "cargo_version": "0.2.0",
+      "file": "q-periapt-backends-0.2.0.crate",
+      "members": 42,
+      "name": "q-periapt-backends",
+      "sha256": "9a014c92fa99ee73c391b673fd2a99237a0945e16ea0d14686dfe1f0392eefba",
+      "vcs": {
+        "git": {
+          "sha1": "8abbf8d2e73a27af7794528fd92d13fe3be2942d"
+        },
+        "path_in_vcs": "crates/q-periapt-backends"
+      }
+    },
+    {
+      "bytes": 48045,
+      "cargo_version": "0.2.0",
+      "file": "q-periapt-policy-0.2.0.crate",
+      "members": 9,
+      "name": "q-periapt-policy",
+      "sha256": "e07fc7c09ffbfd30d6327291256f562cb8c4c816265e1be8033240d07bc2e6d0",
+      "vcs": {
+        "git": {
+          "sha1": "8abbf8d2e73a27af7794528fd92d13fe3be2942d"
+        },
+        "path_in_vcs": "crates/q-periapt-policy"
+      }
+    },
+    {
+      "bytes": 34718,
+      "cargo_version": "0.2.0",
+      "file": "q-periapt-sdk-0.2.0.crate",
+      "members": 14,
+      "name": "q-periapt-sdk",
+      "sha256": "35e122dde1eff3d9abd57620712f69d98a2ba8e3a320a7ad1dccb77fb3106c3b",
+      "vcs": {
+        "git": {
+          "sha1": "8abbf8d2e73a27af7794528fd92d13fe3be2942d"
+        },
+        "path_in_vcs": "crates/q-periapt-sdk"
+      }
+    },
+    {
+      "bytes": 97651,
+      "cargo_version": "0.2.0",
+      "file": "q-periapt-host-store-0.2.0.crate",
+      "members": 36,
+      "name": "q-periapt-host-store",
+      "sha256": "e6faa6ab71610300c36d248d56508ba097d538e076af31be66c981bc60e26841",
+      "vcs": {
+        "git": {
+          "sha1": "8abbf8d2e73a27af7794528fd92d13fe3be2942d"
+        },
+        "path_in_vcs": "crates/q-periapt-host-store"
+      }
+    },
+    {
+      "bytes": 77853,
+      "cargo_version": "0.2.0",
+      "file": "q-periapt-rustls-0.2.0.crate",
+      "members": 18,
+      "name": "q-periapt-rustls",
+      "sha256": "bbe125b231637d78bbdd8f0f9fbacef9513492c3bace3508d8847c912e69ef69",
+      "vcs": {
+        "git": {
+          "sha1": "8abbf8d2e73a27af7794528fd92d13fe3be2942d"
+        },
+        "path_in_vcs": "crates/q-periapt-rustls"
+      }
+    },
+    {
+      "bytes": 124090,
+      "cargo_version": "0.2.0",
+      "file": "q-periapt-ffi-0.2.0.crate",
+      "members": 28,
+      "name": "q-periapt-ffi",
+      "sha256": "475dbdcf7b1e50221b45e56ad388a5efd9c8b9260f0722ff06e9b0c3a2160490",
+      "vcs": {
+        "git": {
+          "sha1": "8abbf8d2e73a27af7794528fd92d13fe3be2942d"
+        },
+        "path_in_vcs": "crates/q-periapt-ffi"
+      }
+    },
+    {
+      "bytes": 23240,
+      "cargo_version": "0.2.0",
+      "file": "q-periapt-wasm-0.2.0.crate",
+      "members": 9,
+      "name": "q-periapt-wasm",
+      "sha256": "398b241f807c384a30cc4e52bf72932110c031423d0e7da9b755ec119abe8d54",
+      "vcs": {
+        "git": {
+          "sha1": "8abbf8d2e73a27af7794528fd92d13fe3be2942d"
+        },
+        "path_in_vcs": "crates/q-periapt-wasm"
+      }
+    },
+    {
+      "bytes": 57030,
+      "cargo_version": "0.2.0",
+      "file": "q-periapt-cli-0.2.0.crate",
+      "members": 17,
+      "name": "q-periapt-cli",
+      "sha256": "72c27a1cf6c2c06869f1f7f35a0fa98fda8eff1336fbd6835cc6249de9c7b26a",
+      "vcs": {
+        "git": {
+          "sha1": "8abbf8d2e73a27af7794528fd92d13fe3be2942d"
+        },
+        "path_in_vcs": "crates/q-periapt-cli"
+      }
+    }
+  ],
+  "artifact": {
+    "api_digest_matched": true,
+    "bytes": 5962806,
+    "id": 14275703385,
+    "name": "rust-sdk-package",
+    "run_id": 43964930841,
+    "sha256": "4024def36331c2e6d02978706104a34a952822fef4b17cfed7b85e6b651f6efb"
+  },
+  "completed": true,
+  "dry_run_sha256": "9160ad8b2b0a7247949e50019559c19eedc7cda950a5eb69a9a0c0de385b7cf8",
+  "dry_run_status": "local_inputs_verified",
+  "kind": "qperiapt.release020_rust_package_readback",
+  "msrv_completed": true,
+  "msrv_report_sha256": "2b4cf1fb669d97fa16bb58d988305cc126aa28ef06572d718a2bc39724765784",
+  "observed_at": "2026-11-16T23:59:40.224961+00:00",
+  "package_report_sha256": "8a61e5a0a5584df9128b5bfdcff72211bd96f09435b52e019e405a06680a0a5a",
+  "publication_performed": false,
+  "release_claim_eligible": false,
+  "rust_workspace_comparison": {
+    "canonicalization": "global path order: UTF-8 path, NUL, raw SHA-256 of blob, NUL",
+    "expected_sha256": "5ae84fea7013592154311994c971892417bd334786128e02326a788100f6b1e2",
+    "files": 389,
+    "git_source": "8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+    "inputs": [
+      "Cargo.toml",
+      "Cargo.lock",
+      "rust-toolchain.toml",
+      "crates"
+    ],
+    "observed_sha256": "5ae84fea7013592154311994c971892417bd334786128e02326a788100f6b1e2"
+  },
+  "schema_version": 1,
+  "scope": "Independent downloaded artifact hash, twelve Cargo archive identities, original hosted dry-run/MSRV report linkage, and package-source file comparisons against the selected Git commit. The hosted producer owns compilation and execution; this readback does not rerun them or authorize publication.",
+  "source": {
+    "commit": "8abbf8d2e73a27af7794528fd92d13fe3be2942d",
+    "tree": "733e2e6e17be2241d85264ea5e15e07a35f04527"
+  },
+  "source_input_comparisons": [
+    {
+      "bytes": 73153,
+      "git_blob": "916eb940f8b163cd5bd6f7ea8e9d7f82d0caa962",
+      "path": "README.md",
+      "sha256": "3ae4478913d57706e05eaa6db23fc50d893efb29c2c4018149ee7f392f3900ad"
+    },
+    {
+      "bytes": 51311,
+      "git_blob": "63bc8ff305c80721469e9f46f480395c8a036b76",
+      "path": "artifact/bounded_process.py",
+      "sha256": "7657c29d707fc8b7685cfec7f0be43615868543ba42345c8626fdb04d00cfa45"
+    },
+    {
+      "bytes": 33751,
+      "git_blob": "6f33fabc52025f452117f8e4fc51bedeb5472e53",
+      "path": "artifact/c_package_manifest.py",
+      "sha256": "30274edd771c6c3200685f5595ca972478d0c5d099821018cf383fb4e833aa97"
+    },
+    {
+      "bytes": 11653,
+      "git_blob": "72e7d0b9e88cacd8d4c9ceb2923d9765b9fb315d",
+      "path": "artifact/crates_io_registry_metadata.py",
+      "sha256": "f4a16e59e4218c4339a38abcb0542a9616e1735bf8d743b5c24e54c5216aa777"
+    },
+    {
+      "bytes": 44308,
+      "git_blob": "a0358296cc398609c048e56cbcd960ff81fe7d27",
+      "path": "artifact/evidence_io.py",
+      "sha256": "d4cace290be0ce98cd32f929eef35d77fef5b6d85646e76a3bc26bd6c68a0f5d"
+    },
+    {
+      "bytes": 22349,
+      "git_blob": "abca87c463429b8b2182b5f1fa47635272667199",
+      "path": "artifact/git_provenance.py",
+      "sha256": "8bb64d7f43d1ffa00a39b31a174e8667d4d2cfb1f8c42a019a32627f6a065f3f"
+    },
+    {
+      "bytes": 2392,
+      "git_blob": "fbcbcd4d26545c1e7f4406d02d83d3deb63c1abe",
+      "path": "artifact/installed_rust_graph.py",
+      "sha256": "0150573580c4acab5b0e542b28e31278a8eeeeff65594bef322001801ee6b42c"
+    },
+    {
+      "bytes": 64017,
+      "git_blob": "66d5a468bbcf4285771099c35f617ade7223dd00",
+      "path": "artifact/rust-publish-contract.sh",
+      "sha256": "1bbf6e141abb5fd5892d281066994f81a98158367a3918148752a09a234ed6fd"
+    },
+    {
+      "bytes": 139089,
+      "git_blob": "b47f7d791302417b1e5ed35dfc90c96c9e22d877",
+      "path": "artifact/rust_publish_contract.py",
+      "sha256": "c44b7fba48c83eac8c6e3b1e9c0ed2134a3d3d0e340a90a2a856954060d04612"
+    },
+    {
+      "bytes": 27974,
+      "git_blob": "444902870f0689291c635a88f87e2ecf6bfb6bfa",
+      "path": "artifact/rust_sdk_profile.py",
+      "sha256": "f23d73ec6afabaee763328557c93f4bf542365384ed8ee10b386b6d697ed7af5"
+    },
+    {
+      "bytes": 456,
+      "git_blob": "fb0db5828ab97f63cb9b22867bcf6343a115ecbf",
+      "path": "bindings/rust/SDKPackageConsumer/Cargo.toml",
+      "sha256": "d48d8b1e24a610ba72ac28c9f4af70aa1757c8163b877645b0d3ca784d008719"
+    },
+    {
+      "bytes": 1103,
+      "git_blob": "fdc996e9a4a4f3ffd798538a8ccbed71bbb1475b",
+      "path": "bindings/rust/SDKPackageConsumer/fixtures/README.md",
+      "sha256": "13dfffdfbea6b474b56f9552f955d34b7109b8792e5f10a92a0bf9e8e8bb47cd"
+    },
+    {
+      "bytes": 356,
+      "git_blob": "ae10221212617bec2138187387619161b56b0b52",
+      "path": "bindings/rust/SDKPackageConsumer/fixtures/client.der",
+      "sha256": "7996323125beb371e63f45dc38798d339c2fbc3bb2b0d51f57d1e77de90f0e3c"
+    },
+    {
+      "bytes": 138,
+      "git_blob": "183923516bc2f7a9beb20451a05448d0c15fff25",
+      "path": "bindings/rust/SDKPackageConsumer/fixtures/client.key.der",
+      "sha256": "5319d21790dda809339d5f5f2fc377df97016af8d3c33acd717712907f612afe"
+    },
+    {
+      "bytes": 354,
+      "git_blob": "85c3b948595892ae03e301b35ebd655bd7de3e2b",
+      "path": "bindings/rust/SDKPackageConsumer/fixtures/server.der",
+      "sha256": "699c14c660013e3edb92913bbe50916f1d1f121fe8934c694e6ac145cd99f7b3"
+    },
+    {
+      "bytes": 138,
+      "git_blob": "47d4ba8d2152227bf7ce2bc3e3090cfc0945911a",
+      "path": "bindings/rust/SDKPackageConsumer/fixtures/server.key.der",
+      "sha256": "086f61cd8f9d9999e684b99422b4ff13bc18623408622e22e54af7a3a4c5691f"
+    },
+    {
+      "bytes": 25153,
+      "git_blob": "e9ef23235b4d0d14c64631b36831d7978c3d1fa9",
+      "path": "bindings/rust/SDKPackageConsumer/src/lib.rs",
+      "sha256": "a82a100086738223dadca880c166190e0ec8d45874438ff037825b125e05eb20"
+    },
+    {
+      "bytes": 11198,
+      "git_blob": "8e8479296c83fbd4c039e4725b010b10e63bdd1f",
+      "path": "bindings/sdk-policy-revocation-vectors.json",
+      "sha256": "ffa88a68b549ccd72fa2b10d7b6015435f43187239c80f552ea4fee475a61add"
+    },
+    {
+      "bytes": 11198,
+      "git_blob": "2a2350a8ec42b0a2d922c1b28a366821f8824d24",
+      "path": "bindings/sdk-policy-update-vectors.json",
+      "sha256": "9c1d14716b51d0d687f1877a8c65bb119494ef2c0e8606e89337ba0c57b0aa47"
+    },
+    {
+      "bytes": 11198,
+      "git_blob": "7b3c1975180b1f590df50ed676201ad0cf033dc8",
+      "path": "bindings/signed-policy-vectors.json",
+      "sha256": "83110fa4c73679e7b4b8d117cffe4f8388408500de2a354fb3d7982a129382f5"
+    }
+  ],
+  "source_input_count": 20,
+  "upload_attempts": []
+}

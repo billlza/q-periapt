@@ -268,6 +268,95 @@ class GitHubReleaseObservationTests(unittest.TestCase):
         with self.assertRaises(observation.GitHubReleaseObservationError):
             parser(_json(value))
 
+    def test_sdk_cli_profile_keeps_legacy_selection_and_rejects_cross_profile_or_byte_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            account = pathlib.Path(temporary).resolve()
+            legacy = account / "legacy-gh"
+            current = account / ".local/bin/gh"
+            current.parent.mkdir(parents=True)
+            legacy.write_bytes(b"legacy CLI fixture\n")
+            current.write_bytes(b"SDK CLI fixture\n")
+            for path in (legacy, current):
+                path.chmod(0o500)
+            with (
+                mock.patch.object(observation.pwd, "getpwuid", return_value=mock.Mock(pw_dir=str(account))),
+                mock.patch.object(observation, "GITHUB_CLI_PATH", legacy),
+                mock.patch.object(observation, "GITHUB_CLI_SHA256", hashlib.sha256(legacy.read_bytes()).hexdigest()),
+                mock.patch.object(observation, "SDK_020_GITHUB_CLI_SHA256", hashlib.sha256(current.read_bytes()).hexdigest()),
+            ):
+                old = observation.select_github_cli()
+                sdk = observation.select_github_cli(profile="sdk-020")
+                self.assertEqual((old.path, old.profile), (str(legacy), "legacy"))
+                self.assertEqual((sdk.path, sdk.profile), (str(current), "sdk-020"))
+                observation.resample_github_cli(old)
+                observation.resample_github_cli(sdk)
+                with self.assertRaises(observation.GitHubCliIdentityIntegrityError):
+                    observation.resample_github_cli(dataclasses.replace(sdk, profile="legacy"))
+                current.chmod(0o700)
+                current.write_bytes(b"substituted SDK CLI\n")
+                current.chmod(0o500)
+                with self.assertRaises(observation.GitHubCliIdentityIntegrityError):
+                    observation.resample_github_cli(sdk)
+                observation.resample_github_cli(old)
+
+    def test_unknown_cli_profile_does_not_select_an_executable(self) -> None:
+        for profile in (None, True, "", "auto", "SDK-020", []):
+            with self.subTest(profile=profile), \
+                    mock.patch.object(observation, "_sdk020_github_cli_path") as path, \
+                    self.assertRaisesRegex(observation.GitHubCliIdentityIntegrityError, "profile"):
+                observation.select_github_cli(profile=profile)
+            path.assert_not_called()
+
+    def test_sdk_cli_requires_the_real_canonical_account_root(self) -> None:
+        with mock.patch.object(observation.pwd, "getpwuid", side_effect=KeyError("missing account")), \
+                self.assertRaises(observation.GitHubCliIdentityIntegrityError):
+            observation.select_github_cli(profile="sdk-020")
+        with mock.patch.object(observation.pwd, "getpwuid", return_value=mock.Mock(pw_dir="relative")), \
+                self.assertRaises(observation.GitHubCliIdentityIntegrityError):
+            observation.select_github_cli(profile="sdk-020")
+
+    def test_sdk_tag_pair_requires_explicit_profile_and_cannot_relabel_legacy_objects(self) -> None:
+        refs = observation.SDK_020_TAG_REFS
+        commit, tree, objects = "a" * 40, "b" * 40, ("c" * 40, "d" * 40)
+        raw = {ref: _json([self.stable_tag_reference(ref, obj)]) for ref, obj in zip(refs, objects)}
+        tags = {obj: _json(self.stable_annotated_tag(ref, obj, commit)) for ref, obj in zip(refs, objects)}
+        committed = _json(self.stable_commit(commit, tree))
+        expected = dict(expected_commit=commit, expected_tree=tree, expected_tag_objects=objects)
+        parsed = observation.parse_stable_tag_state(raw, tags, committed, release_profile="sdk-020", **expected)
+        self.assertEqual((parsed.state, parsed.tag_refs, parsed.commit, parsed.tree), ("exact", refs, commit, tree))
+        with self.assertRaises(observation.GitHubReleaseObservationError):
+            observation.parse_stable_tag_state(raw, tags, committed, **expected)
+        relabeled = dict(tags)
+        relabeled[objects[0]] = _json(self.stable_annotated_tag(observation.STABLE_TAG_REFS[0], objects[0], commit))
+        with self.assertRaises(observation.GitHubReleaseObservationError):
+            observation.parse_stable_tag_state(raw, relabeled, committed, release_profile="sdk-020", **expected)
+        absent = {ref: b"[]" for ref in refs}
+        self.assertEqual(observation.parse_stable_tag_state(absent, {}, None, release_profile="sdk-020").state, "absent")
+        first = dict(absent, **{refs[0]: raw[refs[0]]})
+        partial = observation.parse_stable_tag_recovery_state(first, {objects[0]: tags[objects[0]]}, committed,
+                                                             release_profile="sdk-020", **expected)
+        self.assertEqual(partial.state, "apple_only")
+        with self.assertRaises(observation.GitHubReleaseObservationError):
+            observation.parse_stable_tag_recovery_state(dict(absent, **{refs[1]: raw[refs[1]]}),
+                {objects[1]: tags[objects[1]]}, committed, release_profile="sdk-020", **expected)
+
+    def test_sdk_protection_requires_new_tags_and_preserves_all_published_predecessors(self) -> None:
+        listing = _json([{"id": 42}])
+        rules = self.stable_tag_ruleset()
+        selected = rules["conditions"]["ref_name"]["include"]
+        selected.extend(["refs/tags/v0.1.4-verified-cohort", "refs/tags/v0.1.5-verified-cohort"])
+        for profile in observation.PlatformReleaseProfile:
+            if profile.is_maintenance:
+                selected.extend([profile.release_ref, f"refs/tags/{profile.verification_tag}"])
+        with self.assertRaises(observation.GitHubReleaseObservationError):
+            observation.parse_stable_tag_rulesets(listing, {rules["id"]: _json(rules)}, release_profile="sdk-020")
+        selected.extend([*observation.SDK_020_TAG_REFS, "refs/tags/v0.2.0-verified-cohort"])
+        value = observation.parse_stable_tag_rulesets(listing, {rules["id"]: _json(rules)}, release_profile="sdk-020")
+        self.assertEqual(set(value.tag_refs), set(selected))
+        selected.remove("refs/tags/abi2-platforms-v0.1.5-r4")
+        with self.assertRaises(observation.GitHubReleaseObservationError):
+            observation.parse_stable_tag_rulesets(listing, {rules["id"]: _json(rules)}, release_profile="sdk-020")
+
     def test_shared_github_cli_policy_pins_environment_capture_and_sink(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             tool_path = pathlib.Path(temporary).resolve() / "gh"

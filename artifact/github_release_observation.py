@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Domain-neutral GitHub release observation and restricted mutation transport.
 
-The module owns the single pinned GitHub CLI execution boundary, pure parsers
+The module owns the source-pinned GitHub CLI execution boundaries, pure parsers
 for its already-bounded output, and the two narrowly shaped JSON/asset mutation
 transports used by the stable publication coordinator.  Callers retain policy,
 transaction ordering, private raw bytes, and domain receipt construction.
@@ -123,6 +123,12 @@ GITHUB_CLI_PATH = pathlib.Path(
 GITHUB_CLI_SHA256 = (
     "2ef6c63bc52dc32bc42366215f91a51b009950791806209fd7f6fc7f5b668ba2"
 )
+# SDK 0.2.0 uses the exact official 2.103.3 macOS ARM64 executable, verified
+# against the immutable upstream release ZIP and its checksum manifest.
+# The legacy default above retains its original installation and byte pin.
+SDK_020_GITHUB_CLI_SHA256 = (
+    "5f8d7527e2bdf584249b030cdd1550c91d75e8afb40aa3c11573d416817a1260"
+)
 MAX_GITHUB_CLI_BYTES = 512 * 1024 * 1024
 GITHUB_CLI_TEMP_ROOT = pathlib.Path("/tmp")
 GITHUB_CREDENTIAL_ENVIRONMENT = ("GH_TOKEN", "GITHUB_TOKEN")
@@ -130,6 +136,10 @@ GITHUB_REPOSITORY = "billlza/q-periapt"
 STABLE_TAG_REFS = (
     "refs/tags/v0.1.5",
     "refs/tags/abi2-platforms-v0.1.5",
+)
+SDK_020_TAG_REFS = (
+    "refs/tags/v0.2.0",
+    "refs/tags/abi2-platforms-v0.2.0",
 )
 # Ruleset protection must keep every stable release tag immutable, not only the
 # current one: the earlier stable tags remain permanent history — the 0.1.0
@@ -473,6 +483,7 @@ class GitHubCliIdentity:
     link_count: int
     size: int
     sha256: str
+    profile: str = "legacy"
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -527,10 +538,32 @@ def _exact_keys(
     )
 
 
-def _select_github_cli_untyped() -> GitHubCliIdentity:
-    """Snapshot the sole source-pinned GitHub CLI authority."""
+def _sdk020_github_cli_path() -> pathlib.Path:
+    uid_getter = getattr(os, "geteuid", None)
+    _require(os.name == "posix" and pwd is not None and callable(uid_getter),
+             "SDK GitHub CLI selection requires a POSIX account")
+    try:
+        account = pathlib.Path(pwd.getpwuid(uid_getter()).pw_dir)
+        _require(account.is_absolute() and account.resolve(strict=True) == account,
+                 "SDK GitHub CLI account root must be canonical")
+    except (KeyError, OSError, RuntimeError) as exc:
+        raise GitHubReleaseObservationError("cannot resolve the SDK GitHub CLI account root") from exc
+    return account / ".local" / "bin" / "gh"
 
-    supplied = GITHUB_CLI_PATH
+
+def _release_tag_refs(release_profile: str) -> tuple[str, str]:
+    _require(type(release_profile) is str and release_profile in {"legacy", "sdk-020"},
+             "GitHub release profile is unknown")
+    return STABLE_TAG_REFS if release_profile == "legacy" else SDK_020_TAG_REFS
+
+
+def _select_github_cli_untyped(*, profile: str = "legacy") -> GitHubCliIdentity:
+    """Snapshot one explicitly selected source-pinned GitHub CLI authority."""
+
+    _require(type(profile) is str and profile in {"legacy", "sdk-020"},
+             "GitHub CLI profile is unknown")
+    supplied = GITHUB_CLI_PATH if profile == "legacy" else _sdk020_github_cli_path()
+    expected_digest = GITHUB_CLI_SHA256 if profile == "legacy" else SDK_020_GITHUB_CLI_SHA256
     _require(
         isinstance(supplied, pathlib.Path) and supplied.is_absolute(),
         "pinned GitHub CLI path must be explicit and absolute",
@@ -582,7 +615,7 @@ def _select_github_cli_untyped() -> GitHubCliIdentity:
         "pinned GitHub CLI is empty",
     )
     _require(
-        snapshot.sha256 == GITHUB_CLI_SHA256,
+        snapshot.sha256 == expected_digest,
         "pinned GitHub CLI digest differs from the source policy",
     )
     if observed is None:
@@ -596,14 +629,15 @@ def _select_github_cli_untyped() -> GitHubCliIdentity:
         link_count=observed.st_nlink,
         size=snapshot.size,
         sha256=snapshot.sha256,
+        profile=profile,
     )
 
 
-def select_github_cli() -> GitHubCliIdentity:
+def select_github_cli(*, profile: str = "legacy") -> GitHubCliIdentity:
     """Select the source-pinned gh binary with a typed local boundary error."""
 
     try:
-        return _select_github_cli_untyped()
+        return _select_github_cli_untyped(profile=profile)
     except GitHubLocalIntegrityError:
         raise
     except GitHubReleaseObservationError as exc:
@@ -622,7 +656,8 @@ def resample_github_cli(expected: GitHubCliIdentity) -> None:
             "pinned GitHub CLI identity is malformed"
         )
     try:
-        observed = select_github_cli()
+        observed = (select_github_cli() if expected.profile == "legacy"
+                    else select_github_cli(profile=expected.profile))
     except GitHubReleaseObservationError as exc:
         raise GitHubCliIdentityIntegrityError(
             "pinned GitHub CLI identity or bytes changed during observation"
@@ -1510,12 +1545,16 @@ def parse_stable_tag_rulesets(
     ruleset_details_raw: Mapping[int, bytes],
     *,
     profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+    release_profile: str = "legacy",
 ) -> StableTagProtectionObservation:
     """Require active, no-bypass update+delete rules for both stable tags."""
 
     _require(
         type(profile) is PlatformReleaseProfile, "tag protection profile is invalid"
     )
+    _release_tag_refs(release_profile)
+    _require(release_profile == "legacy" or profile is PlatformReleaseProfile.STABLE,
+             "SDK tag protection cannot use a legacy maintenance profile")
     protected_tag_refs = PROTECTED_STABLE_TAG_REFS + (
         (
             profile.release_ref,
@@ -1525,6 +1564,13 @@ def parse_stable_tag_rulesets(
         if profile.is_maintenance
         else ()
     )
+    if release_profile == "sdk-020":
+        protected_tag_refs += (
+            "refs/tags/v0.1.4-verified-cohort", "refs/tags/v0.1.5-verified-cohort",
+            *(reference for old in PlatformReleaseProfile if old.is_maintenance
+              for reference in (old.release_ref, f"refs/tags/{old.verification_tag}")),
+            *SDK_020_TAG_REFS, "refs/tags/v0.2.0-verified-cohort",
+        )
     ordered_ids = _parse_stable_tag_ruleset_ids(ruleset_list_raw)
     _require(
         set(ruleset_details_raw) == set(ordered_ids)
@@ -1718,14 +1764,19 @@ def sample_stable_tag_protection_once(
     http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
     profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+    release_profile: str = "legacy",
 ) -> StableTagProtectionObservation:
     """Take one complete exact stable-tag ruleset sample."""
 
+    _release_tag_refs(release_profile)
+    _require(release_profile == "legacy" or profile is PlatformReleaseProfile.STABLE,
+             "SDK tag protection cannot use a legacy maintenance profile")
     environment = github_cli_environment(
         os.environ if source_environment is None else source_environment,
         http_connect_proxy=http_connect_proxy,
     )
-    tool = select_github_cli()
+    tool = (select_github_cli() if release_profile == "legacy"
+            else select_github_cli(profile=release_profile))
     list_endpoint = (
         f"repos/{GITHUB_REPOSITORY}/rulesets?includes_parents=true&"
         "targets=tag&per_page=100&page=1"
@@ -1754,7 +1805,7 @@ def sample_stable_tag_protection_once(
             label="GitHub stable tag ruleset detail",
             runner=runner,
         )
-    return parse_stable_tag_rulesets(list_raw, detail_raw, profile=profile)
+    return parse_stable_tag_rulesets(list_raw, detail_raw, profile=profile, release_profile=release_profile)
 
 
 def observe_stable_tag_protection(
@@ -1762,6 +1813,7 @@ def observe_stable_tag_protection(
     source_environment: Mapping[str, str] | None = None,
     http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
+    release_profile: str = "legacy",
 ) -> StableTagProtectionObservation:
     """Sample exact stable-tag rules twice through the pinned read-only CLI."""
 
@@ -1769,11 +1821,13 @@ def observe_stable_tag_protection(
         source_environment=source_environment,
         http_connect_proxy=http_connect_proxy,
         runner=runner,
+        release_profile=release_profile,
     )
     after = sample_stable_tag_protection_once(
         source_environment=source_environment,
         http_connect_proxy=http_connect_proxy,
         runner=runner,
+        release_profile=release_profile,
     )
     _require(
         before == after,
@@ -1790,8 +1844,11 @@ def parse_stable_tag_state(
     expected_commit: str | None = None,
     expected_tree: str | None = None,
     expected_tag_objects: Sequence[str] | None = None,
+    release_profile: str = "legacy",
 ) -> StableTagStateObservation:
     """Parse an exact absent or annotated stable-tag remote state."""
+
+    tag_refs = _release_tag_refs(release_profile)
 
     state, commit, tree, tag_objects = _stable_tag_state_expectation(
         expected_commit,
@@ -1799,15 +1856,15 @@ def parse_stable_tag_state(
         expected_tag_objects,
     )
     _require(
-        set(reference_raw) == set(STABLE_TAG_REFS)
+        set(reference_raw) == set(tag_refs)
         and all(isinstance(raw, bytes) for raw in reference_raw.values()),
         "GitHub stable tag reference inventory differs",
     )
     references = {
         reference: _parse_matching_stable_tag_reference(
-            reference_raw[reference], reference
+            reference_raw[reference], reference, release_profile=release_profile
         )
-        for reference in STABLE_TAG_REFS
+        for reference in tag_refs
     }
 
     if state == "absent":
@@ -1822,12 +1879,12 @@ def parse_stable_tag_state(
         projection: dict[str, object] = {
             "repository": GITHUB_REPOSITORY,
             "state": state,
-            "tag_refs": list(STABLE_TAG_REFS),
+            "tag_refs": list(tag_refs),
         }
         return StableTagStateObservation(
             repository=GITHUB_REPOSITORY,
             state=state,
-            tag_refs=STABLE_TAG_REFS,
+            tag_refs=tag_refs,
             tag_objects=(),
             commit=None,
             tree=None,
@@ -1843,6 +1900,7 @@ def parse_stable_tag_state(
         expected_commit=commit,
         expected_tree=tree,
         expected_tag_objects=tag_objects,
+        release_profile=release_profile,
     )
     _require(
         observation.state == "exact",
@@ -1859,8 +1917,11 @@ def parse_stable_tag_recovery_state(
     expected_commit: str,
     expected_tree: str,
     expected_tag_objects: Sequence[str],
+    release_profile: str = "legacy",
 ) -> StableTagStateObservation:
     """Classify only the safe absent, Apple-only, or exact recovery states."""
+
+    tag_refs = _release_tag_refs(release_profile)
 
     _state, commit, tree, tag_objects = _stable_tag_state_expectation(
         expected_commit,
@@ -1870,15 +1931,15 @@ def parse_stable_tag_recovery_state(
     if commit is None or tree is None or tag_objects is None:
         _fail("GitHub stable tag recovery expectation is incomplete")
     _require(
-        set(reference_raw) == set(STABLE_TAG_REFS)
+        set(reference_raw) == set(tag_refs)
         and all(isinstance(raw, bytes) for raw in reference_raw.values()),
         "GitHub stable tag reference inventory differs",
     )
     references = {
         reference: _parse_matching_stable_tag_reference(
-            reference_raw[reference], reference
+            reference_raw[reference], reference, release_profile=release_profile
         )
-        for reference in STABLE_TAG_REFS
+        for reference in tag_refs
     }
     return _parse_reconciled_stable_tag_state(
         references,
@@ -1887,6 +1948,7 @@ def parse_stable_tag_recovery_state(
         expected_commit=commit,
         expected_tree=tree,
         expected_tag_objects=tag_objects,
+        release_profile=release_profile,
     )
 
 
@@ -1898,8 +1960,10 @@ def _parse_reconciled_stable_tag_state(
     expected_commit: str,
     expected_tree: str,
     expected_tag_objects: tuple[str, ...],
+    release_profile: str = "legacy",
 ) -> StableTagStateObservation:
-    observed = tuple(references[reference] for reference in STABLE_TAG_REFS)
+    tag_refs = _release_tag_refs(release_profile)
+    observed = tuple(references[reference] for reference in tag_refs)
     present = tuple(value is not None for value in observed)
     _require(
         present != (False, True),
@@ -1917,7 +1981,7 @@ def _parse_reconciled_stable_tag_state(
         if is_present
     )
     state = "absent" if not present_objects else (
-        "exact" if len(present_objects) == len(STABLE_TAG_REFS) else "apple_only"
+        "exact" if len(present_objects) == len(tag_refs) else "apple_only"
     )
     if state == "absent":
         _require(
@@ -1927,12 +1991,12 @@ def _parse_reconciled_stable_tag_state(
         projection: dict[str, object] = {
             "repository": GITHUB_REPOSITORY,
             "state": state,
-            "tag_refs": list(STABLE_TAG_REFS),
+            "tag_refs": list(tag_refs),
         }
         return StableTagStateObservation(
             repository=GITHUB_REPOSITORY,
             state=state,
-            tag_refs=STABLE_TAG_REFS,
+            tag_refs=tag_refs,
             tag_objects=(),
             commit=None,
             tree=None,
@@ -1945,7 +2009,7 @@ def _parse_reconciled_stable_tag_state(
         and isinstance(commit_raw, bytes),
         "GitHub stable tag object inventory differs",
     )
-    for index, reference in enumerate(STABLE_TAG_REFS):
+    for index, reference in enumerate(tag_refs):
         if not present[index]:
             continue
         _parse_stable_annotated_tag(
@@ -1966,13 +2030,13 @@ def _parse_reconciled_stable_tag_state(
         "repository": GITHUB_REPOSITORY,
         "state": state,
         "tag_objects": list(present_objects),
-        "tag_refs": list(STABLE_TAG_REFS),
+        "tag_refs": list(tag_refs),
         "tree": expected_tree,
     }
     return StableTagStateObservation(
         repository=GITHUB_REPOSITORY,
         state=state,
-        tag_refs=STABLE_TAG_REFS,
+        tag_refs=tag_refs,
         tag_objects=present_objects,
         commit=expected_commit,
         tree=expected_tree,
@@ -2016,6 +2080,7 @@ def _parse_matching_stable_tag_reference(
     expected_reference: str,
     *,
     profile: PlatformReleaseProfile = PlatformReleaseProfile.STABLE,
+    release_profile: str = "legacy",
 ) -> str | None:
     try:
         value = parse_strict_json_bytes(raw, label="GitHub stable tag references")
@@ -2026,8 +2091,11 @@ def _parse_matching_stable_tag_reference(
     _require(
         type(profile) is PlatformReleaseProfile, "tag reference profile is invalid"
     )
+    tag_refs = _release_tag_refs(release_profile)
+    _require(release_profile == "legacy" or profile is PlatformReleaseProfile.STABLE,
+             "SDK tag selection cannot use a legacy maintenance profile")
     allowed_refs = (
-        STABLE_TAG_REFS
+        tag_refs
         if profile is PlatformReleaseProfile.STABLE
         else (profile.release_ref,)
     )
@@ -2168,8 +2236,11 @@ def sample_stable_tag_state_once(
     source_environment: Mapping[str, str] | None = None,
     http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
+    release_profile: str = "legacy",
 ) -> StableTagStateObservation:
     """Take one complete sample of both exact stable refs and objects."""
+
+    tag_refs = _release_tag_refs(release_profile)
 
     state, commit, tree, tag_objects = _stable_tag_state_expectation(
         expected_commit,
@@ -2180,7 +2251,8 @@ def sample_stable_tag_state_once(
         os.environ if source_environment is None else source_environment,
         http_connect_proxy=http_connect_proxy,
     )
-    tool = select_github_cli()
+    tool = (select_github_cli() if release_profile == "legacy"
+            else select_github_cli(profile=release_profile))
 
     reference_raw = {
         reference: _capture_github_api_get(
@@ -2195,7 +2267,7 @@ def sample_stable_tag_state_once(
             label="GitHub stable tag reference observation",
             runner=runner,
         )
-        for reference in STABLE_TAG_REFS
+        for reference in tag_refs
     }
     raw_tags: dict[str, bytes] = {}
     raw_commit: bytes | None = None
@@ -2230,6 +2302,7 @@ def sample_stable_tag_state_once(
         expected_commit=commit,
         expected_tree=tree,
         expected_tag_objects=tag_objects,
+        release_profile=release_profile,
     )
 
 
@@ -2367,6 +2440,7 @@ def observe_stable_tag_state(
     source_environment: Mapping[str, str] | None = None,
     http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
+    release_profile: str = "legacy",
 ) -> StableTagStateObservation:
     """Sample both exact stable refs and their immutable objects twice."""
 
@@ -2377,6 +2451,7 @@ def observe_stable_tag_state(
         source_environment=source_environment,
         http_connect_proxy=http_connect_proxy,
         runner=runner,
+        release_profile=release_profile,
     )
     after = sample_stable_tag_state_once(
         expected_commit=expected_commit,
@@ -2385,6 +2460,7 @@ def observe_stable_tag_state(
         source_environment=source_environment,
         http_connect_proxy=http_connect_proxy,
         runner=runner,
+        release_profile=release_profile,
     )
     _require(before == after, "GitHub stable tag state changed during observation")
     return before
@@ -2398,8 +2474,11 @@ def observe_stable_tag_recovery_state(
     source_environment: Mapping[str, str] | None = None,
     http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
+    release_profile: str = "legacy",
 ) -> StableTagStateObservation:
     """Double-sample the only safe states after an uncertain ordered push."""
+
+    tag_refs = _release_tag_refs(release_profile)
 
     _state, commit, tree, tag_objects = _stable_tag_state_expectation(
         expected_commit,
@@ -2412,7 +2491,8 @@ def observe_stable_tag_recovery_state(
         os.environ if source_environment is None else source_environment,
         http_connect_proxy=http_connect_proxy,
     )
-    tool = select_github_cli()
+    tool = (select_github_cli() if release_profile == "legacy"
+            else select_github_cli(profile=release_profile))
 
     def sample() -> StableTagStateObservation:
         reference_raw = {
@@ -2428,13 +2508,13 @@ def observe_stable_tag_recovery_state(
                 label="GitHub stable tag recovery reference observation",
                 runner=runner,
             )
-            for reference in STABLE_TAG_REFS
+            for reference in tag_refs
         }
         references = tuple(
             _parse_matching_stable_tag_reference(
-                reference_raw[reference], reference
+                reference_raw[reference], reference, release_profile=release_profile
             )
-            for reference in STABLE_TAG_REFS
+            for reference in tag_refs
         )
         _require(
             tuple(value is not None for value in references) != (False, True),
@@ -2478,6 +2558,7 @@ def observe_stable_tag_recovery_state(
             expected_commit=commit,
             expected_tree=tree,
             expected_tag_objects=tag_objects,
+            release_profile=release_profile,
         )
 
     before = sample()
@@ -2487,6 +2568,7 @@ def observe_stable_tag_recovery_state(
         "GitHub stable tag recovery state changed during observation",
     )
     return before
+
 
 
 def _main(arguments: Sequence[str]) -> int:
@@ -3273,6 +3355,7 @@ def _observe_mutable_release_transaction_once(
     source_environment: Mapping[str, str] | None = None,
     http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
+    cli_profile: str = "legacy",
 ) -> MutableReleaseTransactionObservation:
     """Observe the two target releases, immutable setting, and latest tag."""
 
@@ -3286,7 +3369,8 @@ def _observe_mutable_release_transaction_once(
         os.environ if source_environment is None else source_environment,
         http_connect_proxy=http_connect_proxy,
     )
-    tool = select_github_cli()
+    tool = (select_github_cli() if cli_profile == "legacy"
+            else select_github_cli(profile=cli_profile))
     list_arguments = (
         "release",
         "list",
@@ -3542,12 +3626,14 @@ def _observe_mutable_release_transaction_once(
     )
 
 
+
 def observe_mutable_release_transaction(
     policies: tuple[MutableReleasePolicy, MutableReleasePolicy],
     *,
     source_environment: Mapping[str, str] | None = None,
     http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
+    cli_profile: str = "legacy",
 ) -> MutableReleaseTransactionObservation:
     """Return two byte-identical complete remote release samples."""
 
@@ -3556,12 +3642,14 @@ def observe_mutable_release_transaction(
         source_environment=source_environment,
         http_connect_proxy=http_connect_proxy,
         runner=runner,
+        cli_profile=cli_profile,
     )
     after = _observe_mutable_release_transaction_once(
         policies,
         source_environment=source_environment,
         http_connect_proxy=http_connect_proxy,
         runner=runner,
+        cli_profile=cli_profile,
     )
     _require(
         before == after,
@@ -3570,12 +3658,14 @@ def observe_mutable_release_transaction(
     return before
 
 
+
 def sample_mutable_release_transaction_once(
     policies: tuple[MutableReleasePolicy, MutableReleasePolicy],
     *,
     source_environment: Mapping[str, str] | None = None,
     http_connect_proxy: str | None = None,
     runner: GitHubCommandRunner = capture_stdout,
+    cli_profile: str = "legacy",
 ) -> MutableReleaseTransactionObservation:
     """Expose one complete sample for a higher-level composite sampler."""
 
@@ -3584,7 +3674,9 @@ def sample_mutable_release_transaction_once(
         source_environment=source_environment,
         http_connect_proxy=http_connect_proxy,
         runner=runner,
+        cli_profile=cli_profile,
     )
+
 
 
 def expected_subjects(policy: ReleasePolicy) -> list[dict[str, object]]:

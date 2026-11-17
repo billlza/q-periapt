@@ -1,12 +1,12 @@
-# Continuity candidate state and operation contract
+# Continuity state and operation contract
 
-Status: **implemented candidate, not a frozen product contract**. This describes
-the shared Rust implementation at `e00281ec`, with journal v21, message state
+Status: **adopted in the [0.2.0 normative lock](ADOPTION_0_2.md)**. The original
+implementation baseline is `e00281ec`, with journal v21, message state
 `QPMST011` and the fixed v6 rekey profile in [WIRE_V1.md](WIRE_V1.md).
 It supplies the state semantics that language adapters must preserve. It is not
 a second implementation, a stable numeric foreign ABI, a distributed transaction
-or a proof of continuous recovery. Product admission still requires the remaining
-[0.2.0 obligations](RELEASE_0_2_SCOPE.md).
+or a proof of continuous recovery. Final package qualification and publication
+retain the [0.2.0 admission obligations](RELEASE_0_2_ADMISSION_PLAN.md).
 
 ## State, authority and observation
 
@@ -281,8 +281,9 @@ does not cancel an arbitrary synchronous filesystem call or roll back a commit.
 Binding review must check every operation's output-buffer lifetime, ownership,
 close/concurrent-call behavior, error origin and exact query/reconciliation method.
 No FFI handle, callback success, queued application job or copied status snapshot
-can replace an authenticated commit. A future numeric ABI must specify these
-distinctions explicitly before its export/registration allowlists are frozen.
+can replace an authenticated commit. The adopted `qpc-owner/1` declaration
+snapshot and installed binding contracts preserve these distinctions separately
+from SDK C ABI 2.
 
 ## Implementation correspondence and remaining proof
 
@@ -302,6 +303,8 @@ The existing
 [exact-write recovery tests](../../research/continuity-identity-candidate/src/durable/write_intent/tests.rs)
 and [public installed workload](../../research/continuity-identity-candidate/tests/owned_connection.rs)
 exercise named parts of these transitions. Their passing finite executions do not
-establish exhaustive interleaving coverage, a language-binding contract already
-implemented, or a computational security proof. Full lifecycle renewal, independent
-endpoints, product scheduling/budgets and construction analysis remain open.
+establish exhaustive interleaving coverage or a computational security proof.
+The current [adoption](ADOPTION_0_2.md) and
+[source assessment](RELEASE_0_2_INTERNAL_ASSESSMENT.md) record the completed
+lifecycle/binding, independent-endpoint, workload and construction inputs.
+Their final selected-artifact qualification remains a separate release record.

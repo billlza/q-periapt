@@ -539,8 +539,8 @@ def _openssl_certificate_metadata(certificate: bytes) -> dict[str, str]:
 
 
 def _expected_archive_entries(require_signature: bool, *, profile: str = "legacy") -> frozenset[str]:
-    if profile not in {"legacy", "sdk-020"} or (profile == "sdk-020" and require_signature):
-        _fail("unsupported XCFramework profile or SDK signing contract")
+    if profile not in {"legacy", "sdk-020"}:
+        _fail("unsupported XCFramework profile")
     entries = set(EXPECTED_XCFRAMEWORK_DIRECTORIES | EXPECTED_XCFRAMEWORK_FILES)
     if profile == "sdk-020":
         entries = {name.replace("macos-arm64_x86_64", "macos-arm64") for name in entries}
@@ -548,6 +548,15 @@ def _expected_archive_entries(require_signature: bool, *, profile: str = "legacy
         entries.update(EXPECTED_SIGNATURE_DIRECTORIES)
         entries.update(EXPECTED_SIGNATURE_FILES)
     return frozenset(entries)
+
+
+def _expected_static_libraries(profile: str) -> frozenset[str]:
+    _expected_archive_entries(False, profile=profile)
+    return frozenset(
+        name.replace("macos-arm64_x86_64", "macos-arm64")
+        if profile == "sdk-020" else name
+        for name in EXPECTED_XCFRAMEWORK_LIBRARIES
+    )
 
 
 def _path_match_failure(*, category: str, label: str, offset: int) -> NoReturn:
@@ -1157,9 +1166,7 @@ def _validate_xcframework_zip_bytes(
                 )
             library_names = {
                 f"CQPeriapt.xcframework/{relative}"
-                for relative in (name.replace("macos-arm64_x86_64", "macos-arm64")
-                                 if profile == "sdk-020" else name
-                                 for name in EXPECTED_XCFRAMEWORK_LIBRARIES)
+                for relative in _expected_static_libraries(profile)
             }
             for name in sorted(seen):
                 if name.endswith("/"):
@@ -1204,7 +1211,9 @@ def validate_xcframework_zip(
     )
 
 
-def _local_xcframework_files(xcframework: pathlib.Path) -> frozenset[str]:
+def _local_xcframework_files(
+    xcframework: pathlib.Path, *, profile: str = "legacy"
+) -> frozenset[str]:
     try:
         root_state = os.lstat(xcframework)
     except OSError as exc:
@@ -1245,7 +1254,7 @@ def _local_xcframework_files(xcframework: pathlib.Path) -> frozenset[str]:
                 + child.relative_to(xcframework).as_posix()
             )
     actual = frozenset(files | directories)
-    expected = _expected_archive_entries(True)
+    expected = _expected_archive_entries(True, profile=profile)
     if actual != expected:
         _fail(
             "signed XCFramework entries differ from the exact static-only layout: "
@@ -1262,7 +1271,9 @@ def build_signing_evidence(
     expected_team_id: str,
     expected_identity_sha1: str,
     expected_certificate_sha256: str,
+    profile: str = "legacy",
 ) -> dict[str, Any]:
+    libraries_expected = _expected_static_libraries(profile)
     if not HEX_40.fullmatch(expected_identity_sha1):
         _fail("expected identity SHA-1 must contain 40 hex digits")
     expected_certificate_sha256 = _require_sha256(
@@ -1289,9 +1300,9 @@ def build_signing_evidence(
     certificate_metadata = _openssl_certificate_metadata(certificate_snapshot.data)
 
     xcframework = pathlib.Path(xcframework)
-    _local_xcframework_files(xcframework)
+    _local_xcframework_files(xcframework, profile=profile)
     libraries: dict[str, str] = {}
-    for relative in sorted(EXPECTED_XCFRAMEWORK_LIBRARIES):
+    for relative in sorted(libraries_expected):
         library = xcframework / relative
         snapshot = read_regular_snapshot(
             library,
@@ -1307,8 +1318,9 @@ def build_signing_evidence(
         code_resources, maximum=MAX_TEXT_BYTES, label="XCFramework CodeResources"
     )
     return {
-        "schema_version": 1,
+        "schema_version": 2 if profile == "sdk-020" else 1,
         "kind": "qperiapt.apple_xcframework_signature",
+        **({"profile": profile} if profile == "sdk-020" else {}),
         "signature": signature,
         "certificate": {
             "sha1": certificate_sha1,
@@ -1322,13 +1334,23 @@ def build_signing_evidence(
     }
 
 
-def _validate_signing_evidence(evidence: dict[str, Any]) -> None:
+def _validate_signing_evidence(
+    evidence: dict[str, Any], *, profile: str = "legacy"
+) -> None:
+    libraries_expected = _expected_static_libraries(profile)
+    fields = {"schema_version", "kind", "signature", "certificate", "sealed_resources"}
+    if profile == "sdk-020":
+        fields.add("profile")
     _require_exact_keys(
         evidence,
-        {"schema_version", "kind", "signature", "certificate", "sealed_resources"},
+        fields,
         "signing evidence",
     )
-    if evidence["schema_version"] != 1 or evidence["kind"] != "qperiapt.apple_xcframework_signature":
+    expected_schema = 2 if profile == "sdk-020" else 1
+    if (type(evidence["schema_version"]) is not int
+            or evidence["schema_version"] != expected_schema
+            or evidence["kind"] != "qperiapt.apple_xcframework_signature"
+            or (profile == "sdk-020" and evidence["profile"] != profile)):
         _fail("signing evidence has the wrong schema or kind")
     signature = evidence["signature"]
     certificate = evidence["certificate"]
@@ -1402,16 +1424,16 @@ def _validate_signing_evidence(evidence: dict[str, Any]) -> None:
     )
     _require_sha256(sealed["code_resources_sha256"], "CodeResources SHA-256")
     libraries = sealed["static_libraries"]
-    if not isinstance(libraries, dict) or frozenset(libraries) != EXPECTED_XCFRAMEWORK_LIBRARIES:
+    if not isinstance(libraries, dict) or frozenset(libraries) != libraries_expected:
         _fail("signing evidence has the wrong static library set")
     for relative, digest in libraries.items():
         _require_sha256(digest, f"sealed static library SHA-256 for {relative}")
 
 
-def _zip_static_library_hashes(data: bytes) -> dict[str, str]:
+def _zip_static_library_hashes(data: bytes, *, profile: str = "legacy") -> dict[str, str]:
     hashes: dict[str, str] = {}
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
-        for relative in sorted(EXPECTED_XCFRAMEWORK_LIBRARIES):
+        for relative in sorted(_expected_static_libraries(profile)):
             data = archive.read(f"CQPeriapt.xcframework/{relative}")
             hashes[relative] = hashlib.sha256(data).hexdigest()
     return hashes
@@ -1424,6 +1446,7 @@ def build_static_xcframework_distribution_evidence(
     swiftpm_checksum: str,
     signing_evidence: dict[str, Any],
     forbidden_build_prefixes: tuple[str, ...] = (),
+    profile: str = "legacy",
 ) -> dict[str, Any]:
     """Bind one final signed ZIP to its honest static-SDK distribution claims."""
 
@@ -1436,25 +1459,36 @@ def build_static_xcframework_distribution_evidence(
         artifact_snapshot.data,
         require_signature=True,
         forbidden_build_prefixes=forbidden_build_prefixes,
+        profile=profile,
     )
-    _validate_signing_evidence(signing_evidence)
+    _validate_signing_evidence(signing_evidence, profile=profile)
     artifact_size = len(artifact_snapshot.data)
     artifact_sha256 = artifact_snapshot.sha256
     if swiftpm_checksum != artifact_sha256:
         _fail("SwiftPM checksum does not match the signed XCFramework ZIP SHA-256")
-    zip_libraries = _zip_static_library_hashes(artifact_snapshot.data)
+    zip_libraries = _zip_static_library_hashes(artifact_snapshot.data, profile=profile)
     sealed_libraries = signing_evidence["sealed_resources"]["static_libraries"]
     if zip_libraries != sealed_libraries:
         _fail("signed ZIP static library hashes differ from signing evidence")
+    code_resources_sha256 = _zip_regular_entry_hash(
+        artifact_snapshot.data, "CQPeriapt.xcframework/_CodeSignature/CodeResources"
+    )
+    if code_resources_sha256 != signing_evidence["sealed_resources"]["code_resources_sha256"]:
+        _fail("signed ZIP CodeResources hash differs from signing evidence")
+    version = "0.2.0" if profile == "sdk-020" else PRODUCT_VERSION
+    tag = "v0.2.0" if profile == "sdk-020" else RELEASE_TAG
+    url = f"https://github.com/billlza/q-periapt/releases/tag/{tag}"
     return {
-        "schema_version": 3,
+        "schema_version": 4 if profile == "sdk-020" else 3,
         "kind": "qperiapt.apple_static_xcframework_distribution",
+        **({"profile": profile, "release_claim_eligible": False,
+            "publication_performed": False} if profile == "sdk-020" else {}),
         "source_commit": source_commit,
         "release_identity": {
-            "product_version": PRODUCT_VERSION,
+            "product_version": version,
             "revision": RELEASE_REVISION,
-            "tag": RELEASE_TAG,
-            "url": RELEASE_URL,
+            "tag": tag,
+            "url": url,
         },
         "artifact": {
             "path": pathlib.Path(artifact).name,
@@ -1466,8 +1500,8 @@ def build_static_xcframework_distribution_evidence(
             "container": "xcframework",
             "distribution": "swiftpm_remote_binary_target",
             "linkage": "static",
-            "archive_entry_count": len(_expected_archive_entries(True)),
-            "static_archive_count": len(EXPECTED_XCFRAMEWORK_LIBRARIES),
+            "archive_entry_count": len(_expected_archive_entries(True, profile=profile)),
+            "static_archive_count": len(_expected_static_libraries(profile)),
             "standalone_executable_count": 0,
         },
         "path_hygiene": {
@@ -2548,6 +2582,7 @@ def _command_signing_evidence(args: argparse.Namespace) -> None:
         expected_team_id=args.expected_team_id,
         expected_identity_sha1=args.expected_identity_sha1,
         expected_certificate_sha256=args.expected_certificate_sha256,
+        profile=args.profile,
     )
     _write_new_json(args.output, evidence)
 
@@ -2564,6 +2599,7 @@ def _command_distribution_evidence(args: argparse.Namespace) -> None:
         swiftpm_checksum=args.swiftpm_checksum,
         signing_evidence=snapshot.value,
         forbidden_build_prefixes=tuple(args.forbidden_build_prefix),
+        profile=args.profile,
     )
     _write_new_json(args.output, evidence)
 
@@ -2587,6 +2623,7 @@ def _parser() -> argparse.ArgumentParser:
     static_archive.set_defaults(handler=_command_validate_static_archive)
 
     signing = subparsers.add_parser("signing-evidence")
+    signing.add_argument("--profile", choices=("legacy", "sdk-020"), default="legacy")
     signing.add_argument("--xcframework", type=pathlib.Path, required=True)
     signing.add_argument("--codesign-display", type=pathlib.Path, required=True)
     signing.add_argument("--certificate", type=pathlib.Path, required=True)
@@ -2597,6 +2634,7 @@ def _parser() -> argparse.ArgumentParser:
     signing.set_defaults(handler=_command_signing_evidence)
 
     distribution = subparsers.add_parser("apple-distribution-evidence")
+    distribution.add_argument("--profile", choices=("legacy", "sdk-020"), default="legacy")
     distribution.add_argument("--artifact", type=pathlib.Path, required=True)
     distribution.add_argument("--source-commit", required=True)
     distribution.add_argument("--swiftpm-checksum", required=True)
