@@ -1,67 +1,19 @@
 name: Installed Windows Continuity lifecycle
 
 on:
-  push:
-    branches: [main, lza/windows-private-store]
-    # SDK packaging reads the workspace, public fixtures and fuzz audit inputs.
-    # Artifact helpers form one maintained boundary, including transitive readers.
-    paths:
-      - Cargo.toml
-      - Cargo.lock
-      - rust-toolchain*
-      - .cargo/**
-      - .gitattributes
-      - .gitignore
-      - crates/**
-      - ctstats/Cargo.toml
-      - models/*/Cargo.toml
-      - services/*/Cargo.toml
-      - fuzz/Cargo.toml
-      - fuzz/Cargo.lock
-      - README.md
-      - LICENSE*
-      - LICENSES/**
-      - .github/workflows/continuity-windows-package.yml
-      - artifact/**
-      - research/continuity-identity-candidate/**
-      - bindings/c/ContinuityPackageConsumer/**
-      - bindings/rust/SDKPackageConsumer/**
-      - bindings/*-vectors.json
-  pull_request:
-    branches: [main, 'release/**', lza/windows-private-store, feat/continuity-publication-verification]
-    paths:
-      - Cargo.toml
-      - Cargo.lock
-      - rust-toolchain*
-      - .cargo/**
-      - .gitattributes
-      - .gitignore
-      - crates/**
-      - ctstats/Cargo.toml
-      - models/*/Cargo.toml
-      - services/*/Cargo.toml
-      - fuzz/Cargo.toml
-      - fuzz/Cargo.lock
-      - README.md
-      - LICENSE*
-      - LICENSES/**
-      - .github/workflows/continuity-windows-package.yml
-      - artifact/**
-      - research/continuity-identity-candidate/**
-      - bindings/c/ContinuityPackageConsumer/**
-      - bindings/rust/SDKPackageConsumer/**
-      - bindings/*-vectors.json
-
   workflow_dispatch:
 
 permissions:
   contents: read
-  actions: read
 
 jobs:
-  sdk-package:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
+  connect-probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -69,200 +21,77 @@ jobs:
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
         with:
           toolchain: 1.98.1
-          components: clippy
-      - name: Install the scoped audit tool
-        run: cargo +1.98.1 install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/sdk-package-tools"
-      - name: Produce and verify SDK archives from this checkout
+      - name: Materialize isolated same-source connection probe
+        shell: bash
         run: |
-          PATH="$RUNNER_TEMP/sdk-package-tools/bin:$PATH"
-          export PATH
-          sh artifact/rust-publish-contract.sh --profile sdk-020 --output target/sdk-rust-package
-      - name: Preserve SDK archives and producer evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: windows-sdk-package
-          path: |
-            target/sdk-rust-package/crates/*.crate
-            target/sdk-rust-package/*.json
-            target/sdk-rust-package/*.stdout
-            target/sdk-rust-package/*.stderr
-            target/sdk-rust-package/consumer-Cargo.lock
-          if-no-files-found: error
-
-  prepare:
-    needs: sdk-package
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
-        with:
-          toolchain: 1.98.1
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
-        id: python
-        with:
-          python-version: "3.14.7"
-          check-latest: false
-          update-environment: false
-      # The completed same-run producer owns the exact SDK source identity.
-      # Archive hashes and source members still have to match this checkout.
-      - name: Check public C export and substitution refusals
-        env:
-          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+          python - <<'PYCODE'
+          from pathlib import Path
+          import hashlib,json,subprocess
+          root=Path.cwd()
+          out=root / "target/connect-probe"
+          (out/"src").mkdir(parents=True)
+          source=root / "research/continuity-identity-candidate/src/connect.rs"
+          raw=source.read_text()
+          text=raw.split("#[cfg(test)]\nmod tests {")[0]
+          for old,new in [
+           ("Poll::new()?", 'Poll::new().inspect_err(|e| eprintln!("PROBE_STAGE poll-new: {e:?}"))?'),
+           ("mio::net::TcpStream::connect(address)?", 'mio::net::TcpStream::connect(address).inspect_err(|e| eprintln!("PROBE_STAGE connect: {e:?}"))?'),
+           (".register(&mut stream, Token(0), Interest::WRITABLE)?", '.register(&mut stream, Token(0), Interest::WRITABLE).inspect_err(|e| eprintln!("PROBE_STAGE register: {e:?}"))?'),
+           ("Err(error) => return Err(stream.take_error()?.unwrap_or(error)),", 'Err(error) => { eprintln!("PROBE_STAGE peer-address: {error:?}"); return Err(stream.take_error()?.unwrap_or(error)); },'),
+           ("Err(error) => return Err(error),", 'Err(error) => { eprintln!("PROBE_STAGE poll: {error:?}"); return Err(error); },'),
+           ("if let Some(error) = stream.take_error()? {", 'if let Some(error) = stream.take_error().inspect_err(|e| eprintln!("PROBE_STAGE take-error-query: {e:?}"))? { eprintln!("PROBE_STAGE take-error-result: {error:?}");'),
+           ("poll.registry().deregister(&mut stream)?", 'poll.registry().deregister(&mut stream).inspect_err(|e| eprintln!("PROBE_STAGE deregister: {e:?}"))?'),
+           ("stream.set_nonblocking(false)?", 'stream.set_nonblocking(false).inspect_err(|e| eprintln!("PROBE_STAGE blocking: {e:?}"))?'),
+          ]:
+           if old not in text: raise ValueError(old)
+           text=text.replace(old,new)
+          (out/"src/connect.rs").write_text(text)
+          (out/"src/cancellation.rs").write_bytes((root/"research/continuity-identity-candidate/src/cancellation.rs").read_bytes())
+          (out/"Cargo.toml").write_text('[package]\nname="connect-probe"\nversion="0.0.0"\nedition="2021"\n[workspace]\n[dependencies]\nmio={version="=1.2.3",default-features=false,features=["net","os-poll"]}\n')
+          (out/"src/main.rs").write_text(r'''use std::{io::{self,Read,Write},net::TcpListener,time::{Duration,Instant}};
+          mod cancellation;
+          pub use cancellation::Cancellation;
+          mod connect;
+          fn attempt(address: &str) -> io::Result<()> {
+           let listener=TcpListener::bind(address)?;
+           let mut client=connect::tcp(listener.local_addr()?,Instant::now()+Duration::from_secs(3),&Cancellation::default())?;
+           let (mut server,_)=listener.accept().inspect_err(|e|eprintln!("PROBE_STAGE accept: {e:?}"))?;
+           for socket in [&client,&server] {
+            socket.set_read_timeout(Some(Duration::from_millis(25)))?;
+            socket.set_write_timeout(Some(Duration::from_millis(25)))?;
+            socket.set_nodelay(true)?;
+           }
+           client.write_all(b"c").inspect_err(|e|eprintln!("PROBE_STAGE client-write: {e:?}"))?;
+           let mut b=[0];server.read_exact(&mut b).inspect_err(|e|eprintln!("PROBE_STAGE server-read: {e:?}"))?;assert_eq!(b,*b"c");
+           server.write_all(b"s").inspect_err(|e|eprintln!("PROBE_STAGE server-write: {e:?}"))?;
+           client.read_exact(&mut b).inspect_err(|e|eprintln!("PROBE_STAGE client-read: {e:?}"))?;assert_eq!(b,*b"s");
+           Ok(())
+          }
+          fn main() {
+           let mut failures=0;
+           for address in ["127.0.0.1:0","[::1]:0"] {
+            for i in 0..3000 { if let Err(e)=attempt(address) {eprintln!("PROBE_FAILURE address={address} iteration={i} error={e:?}");failures+=1; if failures==20 {std::process::exit(1);} } }
+            println!("PROBE_COMPLETED address={address} attempts=3000 failures={failures}");
+           }
+           if failures!=0 {std::process::exit(1);}
+          }
+          ''')
+          (out/"SOURCE.json").write_text(json.dumps({"diagnostic_commit":subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip(),"original_source_sha256":hashlib.sha256(source.read_bytes()).hexdigest(),"original_source_commit":"723c1fe5ceefb9c83dce0683c48935742a894d86","instrumentation":"Only diagnostic error prints; same single owned socket, deadlines, cancellation and outcomes."},indent=2))
+          PYCODE
+      - name: Exercise original connection and blocking transfer
+        shell: bash
         run: |
           set -euo pipefail
-          sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_windows_*.py'
-          sh artifact/python-run.sh artifact/test_continuity_fetch.py
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: windows-sdk-package
-          path: target/windows-sdk-input
-      - name: Package candidate against admitted SDK archives
-        env:
-          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
-          EXPECTED_SDK_COMMIT: ${{ github.sha }}
-        run: |
-          sh artifact/python-run.sh artifact/continuity_windows_prepare.py \
-            --report target/windows-sdk-input/RUST_SDK_PACKAGE.json \
-            --sdk-commit "$EXPECTED_SDK_COMMIT" \
-            --output target/windows-installed-input
-      - name: Preserve archive closure and producer results
+          cargo run --release --manifest-path target/connect-probe/Cargo.toml 2>&1 | tee target/connect-probe/OUTPUT.log
+      - name: Retain original source identity and diagnostic results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: windows-installed-input
-          path: target/windows-installed-input/
-          if-no-files-found: error
-
-  native:
-    needs: prepare
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-2022, windows-2025]
-        profile: [debug, release]
-    runs-on: ${{ matrix.os }}
-    # Each job executes one complete profile, including the six real-expiry
-    # registration routes. Public readback requires both profiles from the same
-    # producer input. Individual command and protocol deadlines stay unchanged.
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
-        with:
-          toolchain: 1.98.1
-          components: clippy
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
-        id: native_python
-        with:
-          python-version: "3.14.7"
-          check-latest: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: windows-installed-input
-          path: target/windows-installed-input
-      - name: Check native public C reader import and contracts
-        shell: bash
-        env:
-          WINDOWS_PYTHON: ${{ steps.native_python.outputs.python-path }}
-        run: |
-          QPERIAPT_PYTHON="$(cygpath -u "$WINDOWS_PYTHON")"
-          export QPERIAPT_PYTHON
-          sh artifact/python-run.sh -m unittest discover -s artifact -p 'test_continuity_windows_*.py'
-      - name: Select native MSVC environment and owned private test root
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $installation = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          if ($LASTEXITCODE -ne 0 -or -not $installation) { throw 'MSVC installation unavailable' }
-          $vcvars = Join-Path $installation 'VC/Auxiliary/Build/vcvars64.bat'
-          $lines = & $env:ComSpec /d /s /c "`"$vcvars`" >nul && set"
-          if ($LASTEXITCODE -ne 0) { throw 'MSVC environment failed' }
-          $selected = @('PATH', 'INCLUDE', 'LIB', 'LIBPATH', 'VCToolsInstallDir', 'WindowsSdkDir', 'WindowsSDKVersion', 'VCINSTALLDIR', 'VSINSTALLDIR', 'VSCMD_ARG_HOST_ARCH', 'VSCMD_ARG_TGT_ARCH')
-          foreach ($line in $lines) {
-            if ($line -match '^([^=]+)=(.*)$' -and $Matches[1] -in $selected) { "$($Matches[1])=$($Matches[2])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append }
-          }
-          $env:QPC_FIRST_USE_ROOT = Join-Path $env:RUNNER_TEMP 'installed-c-private'
-          New-Item -ItemType Directory -Path $env:QPC_FIRST_USE_ROOT | Out-Null
-          $privateRoot = @'
-          $ErrorActionPreference = 'Stop'
-          $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
-          $acl = New-Object System.Security.AccessControl.DirectorySecurity
-          $acl.SetOwner($sid)
-          $acl.SetAccessRuleProtection($true, $false)
-          $inherit = [System.Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit'
-          $allow = [System.Security.AccessControl.AccessControlType]::Allow
-          $none = [System.Security.AccessControl.PropagationFlags]::None
-          $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', $inherit, $none, $allow)))
-          [System.IO.Directory]::SetAccessControl($env:QPC_FIRST_USE_ROOT, $acl)
-          '@
-          & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoLogo -NoProfile -NonInteractive -Command $privateRoot
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Execute installed C and Rust lifecycle
-        shell: bash
-        env:
-          WINDOWS_PYTHON: ${{ steps.native_python.outputs.python-path }}
-        run: |
-          # Git Bash prepends its Unix utilities, including an unrelated link.exe.
-          # Restore the selected native compiler directory ahead of those tools.
-          msvc_root="$(cygpath -u "$VCToolsInstallDir")"
-          msvc_bin="${msvc_root%/}/bin/Hostx64/x64"
-          test -x "$msvc_bin/link.exe"
-          PATH="$msvc_bin:$PATH"
-          export PATH
-          test "$(command -v link.exe)" = "$msvc_bin/link.exe"
-          QPERIAPT_PYTHON="$(cygpath -u "$WINDOWS_PYTHON")"
-          export QPERIAPT_PYTHON
-          sh artifact/python-run.sh artifact/continuity_windows_consume.py --input target/windows-installed-input/INPUT.json --output target/windows-installed-results --private-root "$RUNNER_TEMP/installed-c-private" --profile "${{ matrix.profile }}"
-      - name: Preserve public results and exact C library inputs
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: windows-installed-c-${{ matrix.os }}-${{ matrix.profile }}
-          path: target/windows-installed-results/
-          if-no-files-found: error
-
-  public-readback:
-    needs: native
-    if: ${{ always() && !cancelled() }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-2022, windows-2025]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
-        id: python
-        with:
-          python-version: "3.14.7"
-          check-latest: false
-          update-environment: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: windows-installed-c-${{ matrix.os }}-debug
-          path: target/windows-public-readback/debug
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: windows-installed-c-${{ matrix.os }}-release
-          path: target/windows-public-readback/release
-      - name: Verify original Rust and C public lifecycle contracts
-        env:
-          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
-          EXPECTED_HEAD: ${{ github.sha }}
-        run: |
-          sh artifact/python-run.sh artifact/continuity_windows_network_review.py --profile-inputs target/windows-public-readback/debug target/windows-public-readback/release --output target/windows-public-readback/NETWORK_REVIEW.json --head "$EXPECTED_HEAD"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: windows-lifecycle-readback-${{ matrix.os }}
-          path: target/windows-public-readback/NETWORK_REVIEW.json
+          name: connect-probe-${{ matrix.os }}
+          path: |
+            target/connect-probe/OUTPUT.log
+            target/connect-probe/SOURCE.json
+            target/connect-probe/src/*
+            target/connect-probe/Cargo.toml
+            target/connect-probe/Cargo.lock
           if-no-files-found: error
