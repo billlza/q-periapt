@@ -59,7 +59,9 @@ def isolate_archive(source: Path, work: Path, arch: str, platform: tuple, run) -
 
     # Export lists alone leave tentative globals coalescible with another Rust
     # staticlib. Give each its original size and alignment, then localize it.
-    definitions = common_storage(tool(["nm", "-m", "-gU", "owner.rel.o"], "definitions"))
+    # Xcode 26's linker preserves embedded Rust LLVM 22 bitcode. Its nm
+    # otherwise inspects that IR instead of the Mach-O table used at link time.
+    definitions = common_storage(tool(["nm", "--no-llvm-bc", "-m", "-gU", "owner.rel.o"], "definitions"))
     if definitions:
         (work / "common.s").write_bytes(definitions)
         triple = f"{arch}-apple-{platform[0]}{minimum}" + ("-simulator" if platform[1] else "")
@@ -68,5 +70,5 @@ def isolate_archive(source: Path, work: Path, arch: str, platform: tuple, run) -
     else:
         (work / "owner.rel.o").rename(work / "CQPCOwner.o")
     tool(["libtool", "-static", "-D", "-o", source.name, "CQPCOwner.o"], "archive")
-    verify_public_symbols(tool(["nm", "-gU", source.name], "public-symbols"))
+    verify_public_symbols(tool(["nm", "--no-llvm-bc", "-gU", source.name], "public-symbols"))
     return work / source.name

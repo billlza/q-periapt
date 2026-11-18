@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import sys
 import tempfile
 
 import continuity_apple_package as apple
@@ -31,7 +32,18 @@ def build(base_archive: Path, output: Path) -> None:
             env["DEVELOPER_DIR"] = os.environ["DEVELOPER_DIR"]
 
         def run(args: list[str], label: str, cwd: Path = work) -> bytes:
-            return sdk.command(args, logs / label, cwd, environment=env)
+            prefix = logs / label
+            try:
+                return sdk.command(args, prefix, cwd, environment=env)
+            except ValueError:
+                # The staging directory is cleaned even on failure. Retain the
+                # failing tool's diagnostic in the operator or CI log.
+                for suffix in (".stdout", ".stderr"):
+                    stream = prefix.with_suffix(suffix)
+                    if stream.is_file() and stream.stat().st_size:
+                        print(f"{label}{suffix}: {stream.read_bytes()[-4096:].decode(errors='replace')}",
+                              file=sys.stderr)
+                raise
 
         extract_zip(base_archive, work / "original", root_name=apple.NAME, mtime=apple.MTIME,
                     expected_sha256=BASE_SHA256, limits=apple.LIMITS)
