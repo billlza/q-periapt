@@ -1,7 +1,8 @@
 # Continuity C owner declaration contract
 
-This is the review snapshot for the unpublished `qpc-owner/1` consumer at package
-version `0.0.0`. It is not the product ABI 2 contract and does not admit a release.
+This declaration review began at package version `0.0.0`. The released
+[0.2.0 Continuity C package](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip) uses `qpc-owner/1`.
+The ordinary SDK retains its separate ABI 2 contract.
 The snapshot covers all 158 exports, 70 C record types, the application callback
 and 112 constants. The 70 names map to 69 native Rust record types: account and
 session cleanup status deliberately share one implementation type.

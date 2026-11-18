@@ -1,5 +1,12 @@
 # QPeriapt Swift SDK 0.2.0
 
+[Download the signed Swift SDK.](https://github.com/billlza/q-periapt/releases/download/v0.2.0/QPeriapt-Swift-SDK-0.2.0.zip)
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/v0.2.0/QPeriapt-Swift-SDK-0.2.0.zip
+unzip QPeriapt-Swift-SDK-0.2.0.zip
+```
+
 This package provides `QPeriaptSDK` (owned runtime, keys and standard hybrid TLS
 connections) and the retained byte-oriented `QPeriaptHybrid` compatibility API.
 The native ABI remains **2**. It contains static XCFramework slices for macOS
@@ -68,9 +75,7 @@ policy/context confirmation. It has no classic fallback or automatic request
 replay. TLS certificate authentication need not use PQ signatures. This SDK
 does not provide a ratchet, multi-device session service or exactly-once RPC.
 
-This is a 0.2.0 release candidate. Consult the accompanying package manifest for the
-actual source, platform checks and signing state. Packaging/link success is not
-physical-device validation or release approval.
+The [Apple release](https://github.com/billlza/q-periapt/releases/tag/v0.2.0) includes the signing record, checksums and manifest.
 
 `PACKAGE_CONTENTS.json` binds the contents of this folder. The separate
 `MANIFEST.json` alongside the downloadable ZIP records the checks actually run.

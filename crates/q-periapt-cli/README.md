@@ -2,9 +2,15 @@
 
 Auditability & migration tooling for the PQ/T hybrid suite.
 
-For the unpublished 0.2.0 native SDK, build with `--features sdk-cbom` and use
-`qperiapt cbom --native-sdk`. This emits the distinct 37-asset
-[native SDK inventory](../../docs/SDK_CBOM.md), including configured TLS choices.
+Install the [0.2.0 CLI](https://crates.io/crates/q-periapt-cli/0.2.0) with native SDK inventory support.
+
+```sh
+cargo install --locked --version 0.2.0 --features sdk-cbom q-periapt-cli
+qperiapt cbom --native-sdk
+```
+
+This emits the distinct 37-asset
+[native SDK inventory](https://github.com/billlza/q-periapt/blob/main/docs/SDK_CBOM.md), including configured TLS choices.
 The default command below remains the backend catalogue and is insufficient for
 new native packages. Package validators must select `BomProfile.NATIVE_SDK_020`.
 

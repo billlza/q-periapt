@@ -1,4 +1,12 @@
-# Product WASM package candidate
+# Product WASM SDK package
+
+Install the [0.2.0 npm tarball](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-sdk-wasm-0.2.0.tgz) from GitHub Releases.
+
+```sh
+npm install https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-sdk-wasm-0.2.0.tgz
+```
+
+## Build the package
 
 `artifact/wasm_sdk_package.py` builds a single `q-periapt-sdk-wasm` npm archive
 for 0.2.0. C remains ABI 2; WASM package entry points do not change the

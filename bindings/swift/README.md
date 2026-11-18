@@ -1,6 +1,15 @@
 # QPeriaptHybrid (Swift)
 
-For unpublished 0.2.0 source, use the `QPeriaptSDK` package product and
+[Download the complete Swift SDK.](https://github.com/billlza/q-periapt/releases/download/v0.2.0/QPeriapt-Swift-SDK-0.2.0.zip)
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/v0.2.0/QPeriapt-Swift-SDK-0.2.0.zip
+unzip QPeriapt-Swift-SDK-0.2.0.zip
+```
+
+Add the extracted `QPeriapt` folder as a local Swift package and select `QPeriaptSDK`.
+
+For 0.2.0, use the `QPeriaptSDK` package product and
 `QPeriaptRuntime` / `QPeriaptKey` owners. ABI major remains 2. The current host
 tests include [explicit expert key transfer](../../docs/SDK_KEY_TRANSFER.md) and
 [policy preparation, persistence and activation](../../docs/SDK_POLICY_UPDATES.md).
@@ -13,10 +22,8 @@ cover close, concurrency, cancellation and foreign byte copies.
 
 The [standalone Swift SDK package profile](../../docs/SDK_SWIFT_PACKAGE.md)
 includes both Swift products, static XCFramework slices and notices/BOMs.
-Its unsigned alpha.1 builder passed all five architecture link gates and
-public API tests after extraction outside the checkout. Signing, physical-device
-and minimum-OS runtime gates remain open; the source-development `Package.swift`
-below is a separate integration path.
+The [signed 0.2.0 archive](https://github.com/billlza/q-periapt/releases/tag/v0.2.0) has its own signing and qualification
+records. The source-development `Package.swift` below is a separate integration path.
 
 `QPeriaptClient` / `QPeriaptConnection` now provide a standard hybrid TLS connection
 with explicit peer certificate pinning and application policy/context confirmation.
@@ -162,15 +169,11 @@ a confirmed defect in the published payload requires a new version; it must neve
 by replacing the asset under the same tag. A transport or verifier failure blocks acceptance
 until its cause is resolved and the unchanged public bytes pass independent verification.
 
-The current published stable Apple release is `v0.1.5` (Rust 1.96.1),
-non-prerelease and immutable. Its remote consumer passed, and the complete Apple,
-Android/Linux and ten-crate registry cohort is recorded at
-[`v0.1.5-verified-cohort`](https://github.com/billlza/q-periapt/tree/v0.1.5-verified-cohort).
-Use the exact signed asset and checksum from that record. A development baseline's
-historical selector does not authorize substituting an older dependency.
+The current [Apple SDK 0.2.0](https://github.com/billlza/q-periapt/releases/tag/v0.2.0) includes the signed static XCFramework
+and the complete Swift package. The [0.2.0 evidence](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0) identifies the
+release checksums. The historical [0.1.5 verified cohort](https://github.com/billlza/q-periapt/tree/v0.1.5-verified-cohort)
+records the previous distribution.
 
 The `v0.1.3` and `v0.1.4` releases remain immutable history and are superseded for
 new downstream builds. Earlier prerelease artifacts also remain historical; the
-`v0.1.0`, `v0.1.1`, and `v0.1.2` tags were never published. The non-Apple stable
-assets are published in `abi2-platforms-v0.1.5`. Unsigned Windows output remains
-an unsupported CI diagnostic outside that release.
+`v0.1.0`, `v0.1.1`, and `v0.1.2` tags were never published. The current non-Apple downloads are on the [0.2.0 platform release](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0).

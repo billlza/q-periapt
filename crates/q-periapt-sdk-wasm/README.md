@@ -1,4 +1,10 @@
-# Q-Periapt product WASM SDK (0.2.0 development)
+# Q-Periapt product WASM SDK 0.2.0
+
+Install the [official npm tarball](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-sdk-wasm-0.2.0.tgz) in a Node 24+ project.
+
+```sh
+npm install https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-sdk-wasm-0.2.0.tgz
+```
 
 This separate entry point uses the owned Rust SDK. Its default build verifies
 ML-DSA-65 policy signatures and uses platform cryptographic randomness. The

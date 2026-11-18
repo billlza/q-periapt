@@ -1,5 +1,7 @@
 # Installed Continuity source archive connection
 
+To install the released [0.2.0 crate](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-0.2.0.crate), follow the [path dependency instructions](../../docs/continuity/SOURCE_DISTRIBUTION_0_2.md#install-the-source-archive-with-a-public-rust-alias). The commands below exercise the source packaging gate.
+
 The formal companion is `q-periapt-continuity` `0.2.0`, distributed as
 `q-periapt-continuity-0.2.0.crate`. It retains `publish = false` in its separate
 workspace because its selected channel is a source archive; the SDK's twelve
@@ -20,8 +22,8 @@ manifest, all packaged source members and the complete Cargo inventory are check
 An independent Cargo consumer lives outside the checkout. It installs the nine SDK
 archives plus the candidate archive using exact local registry patches and compiles
 the public connection workload shipped in that archive. Cargo metadata must identify
-those ten origins, both TLS features, and the candidate's unchanged unpublished
-status. Every resolved external dependency must retain a registry source and the
+those ten origins, both TLS features, and the engine's archive-only distribution
+setting. Every resolved external dependency must retain a registry source and the
 version/checksum from the candidate's committed lockfile. Fetch is bounded and
 locked; packaging, compilation and execution are offline with a fresh Cargo home.
 
@@ -56,7 +58,7 @@ their separate acceptance requirements. The `continuity-installed-rust` CI job
 uses the same run's SDK producer artifact; Linux results must actually finish
 before being claimed.
 
-`--with-c-consumer` adds the unpublished
+`--with-c-consumer` adds the
 [C owner consumer](../../bindings/c/ContinuityPackageConsumer/README.md), which
 retains its own precise installation and verification scope. Its local traces
 cover both application directions, complete revoked-session accounting and real

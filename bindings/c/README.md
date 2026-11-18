@@ -1,6 +1,16 @@
 # C ABI 2 product smoke
 
-The current source version is **0.2.0**, unpublished. ABI major 2 and
+Download the native SDK for [Apple Silicon](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin.tar.gz), [Linux x86_64](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu.tar.gz), [Linux arm64](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-aarch64-unknown-linux-gnu.tar.gz), [Windows x64 MSVC](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip).
+For example, on GNU/Linux x86_64:
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu.tar.gz
+```
+
+The [C installation guide](../../docs/SDK_C_PACKAGE.md) shows how to select the extracted pkg-config module.
+
+The published SDK version is **0.2.0**. ABI major 2 and
 the `_abi2` library names are retained. The current table has exactly 51 exports:
 the original nine below plus 42 SDK functions, including eight policy-recovery
 helpers and persistent entry points, with explicit existing-store enrollment. The closed 0.2.0 contract
@@ -157,15 +167,7 @@ by the verified release receipt; the `0.1.4` platform receipt is recorded at the
 annotated tag `v0.1.4-verified-cohort` rather than on `main`, whose
 `artifact/results.json` the `0.1.5` reopening returned to its initial baseline, so
 `main`'s trusted results record no `0.1.4` publication while the published release
-stays immutable and unaffected. This tree now develops the unpublished
-`0.2.0` SDK. Published GNU/Linux `0.1.5` packages use
-[`abi2-platforms-v0.1.5-r4`](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.5-r4);
-see the [installation entry](../../docs/SDK_GETTING_STARTED.md) for the distinction
-between that maintenance distribution, Apple releases and local SDK candidates.
-The separately built Windows archive remains an
-unsigned, unsupported CI diagnostic and is excluded from the stable candidate,
-manifest, attestation, receipt, and release assets. Verify formal assets with
-`gh release verify-asset` against
-`PLATFORM_DISTRIBUTION.json` and `SHA256SUMS`; see
+stays immutable and unaffected. The 0.2.0 native SDK archives are on the
+[platform release](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0). The original 0.1.5 maintenance record is in
 [`../../artifact/stable-release-notes.md`](../../artifact/stable-release-notes.md).
 deb/rpm/MSIX registry packaging is explicitly not claimed.

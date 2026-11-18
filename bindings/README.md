@@ -1,22 +1,11 @@
 # Language bindings
 
-For the unpublished **0.2.0 source**, start with the
-[installation and language guide](../docs/SDK_GETTING_STARTED.md) and
-[owned SDK API and lifecycle contract](../docs/SDK_OWNERSHIP.md). Rust, C, Swift,
-Kotlin/JVM, Android/JNI and WASM now expose native/linear-memory key owners.
-ABI major and native library names remain **2**. The current extension has
-50 exact C exports; the historical 0.1.5 contract has nine and is retained
-separately. Current host checks do not replace package or device qualification;
-see the [release-readiness ledger](../docs/SDK_0_2_RELEASE_READINESS.md).
-
-For JavaScript/TypeScript, start with the
-[product npm package quickstart](../crates/q-periapt-sdk-wasm/PackageREADME.md).
-The local alpha candidate has outside-checkout Node CJS/ESM and Chrome evidence;
-browser engines and bundlers beyond those checked remain unqualified.
-
-Rust consumers use the [SDK package gate](../docs/SDK_RUST_PACKAGE.md) and
-its [external public-API fixture](rust/SDKPackageConsumer/src/lib.rs). The
-candidate archives remain separate from the historical public registry cohort.
+Start with the [0.2.0 installation guide](https://github.com/billlza/q-periapt/blob/main/docs/SDK_GETTING_STARTED.md). The [Apple SDK](https://github.com/billlza/q-periapt/releases/tag/v0.2.0)
+and [platform packages](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0) are available to download. Rust consumers can
+run `cargo add 'q-periapt-sdk@=0.2.0'` in their project. JavaScript consumers
+can install the [product tarball](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-sdk-wasm-0.2.0.tgz) with npm. The SDK retains native
+ABI 2 with 51 exports. Persistent sessions use the separate
+[Continuity distributions](../docs/continuity/README.md#start-an-integration).
 
 The following package/status records describe the retained 0.1.5 surface.
 
@@ -103,7 +92,7 @@ This proves package shape, Android ELF slices, JNI symbols, dex conversion, and 
 isolated Java consumer compile. It is not Android runtime proof until an emulator
 or physical device runs instrumentation against the AAR.
 
-## Stable binary publication transactions
+## Historical 0.1.x binary publication transactions
 
 The `0.1.5` stable prebuilt targets are the Apple XCFramework in `v0.1.5` and the
 Android AAR plus Linux C SDK archives in `abi2-platforms-v0.1.5`, both published on
@@ -123,8 +112,7 @@ line returned `artifact/results.json` to its initial baseline, so `main`'s trust
 results record no `0.1.4` publication and still carry `apple_v0_1_3` as the active
 Apple selector. That states where the evidence lives, not whether `0.1.4` shipped; the
 published GitHub and crates.io records are immutable and unaffected.
-The unsigned Windows SDK remains an
-unsupported CI diagnostic outside the stable asset set.
+Windows builds in those 0.1.x receipts were unsigned CI diagnostics. The [0.2.0 Windows x64 archive](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip) ships separately.
 Use the release runbook's receipt collectors to verify tags, release attestations,
 and exact assets against `SHA256SUMS` and the
 `APPLE_DISTRIBUTION.json`/`PLATFORM_DISTRIBUTION.json` manifests. Ambient

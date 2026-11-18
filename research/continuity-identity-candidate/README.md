@@ -1,5 +1,13 @@
 # Q-Periapt Continuity 0.2.0
 
+[Download the 0.2.0 Rust source archive.](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-0.2.0.crate)
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-0.2.0.crate
+mkdir -p packages
+tar -xzf q-periapt-continuity-0.2.0.crate -C packages
+```
+
 The `q-periapt-continuity` `0.2.0` companion uses the
 [Cargo source archive channel](../../docs/continuity/SOURCE_DISTRIBUTION_0_2.md).
 Its `publish = false` setting keeps the separate engine outside the twelve-crate
@@ -10,8 +18,8 @@ The existing library target and protocol/storage identifiers are retained.
 The [installed Rust package gate](PACKAGE_CONSUMER.md) exercises the public
 connection/recovery trace through exact crate archives outside the checkout.
 Selected release artifacts, construction and workload-budget acceptance, and
-the coordinated protocol freeze follow the
-[0.2.0 admission plan](../../docs/continuity/RELEASE_0_2_ADMISSION_PLAN.md).
+the coordinated protocol freeze are recorded in the
+[verified 0.2.0 release](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0).
 
 [Exact ordinary-write recovery after expiry](PENDING_WRITE_RECOVERY.md) separates
 independent witness approval from historical device authentication. The original
@@ -142,7 +150,7 @@ the compiled `contract_report` example is checked against
 [BUDGETS_V1.json](../../docs/continuity/BUDGETS_V1.json). This metadata is not an
 authorization object or a claim that the product protocol is frozen.
 
-This unpublished, isolated implementation exercises the accountable identity
+The separately distributed engine implements the accountable identity
 chain proposed for [Continuity in 0.2.0](../../docs/continuity/RELEASE_0_2_SCOPE.md).
 An independently pinned account root verifies a device credential and an exact
 signed roster; the verified device then authenticates a signed prekey manifest

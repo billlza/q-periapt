@@ -1,5 +1,14 @@
 # Installed Continuity Swift owner
 
+[Download the Apple Swift package and XCFramework.](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/QPeriaptContinuity-Apple-0.2.0.zip)
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/QPeriaptContinuity-Apple-0.2.0.zip
+unzip QPeriaptContinuity-Apple-0.2.0.zip
+```
+
+Select the `QPeriaptContinuity` product from the extracted `QPeriaptContinuity` directory.
+
 The `QPeriaptContinuity` 0.2.0 companion uses the existing `qpc-owner/1` owner and
 shared Rust Continuity engine. Its versioned archive preserves the Swift product,
 module and native interface alongside the separate SDK ABI 2 package. Selected

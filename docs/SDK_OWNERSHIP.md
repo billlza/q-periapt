@@ -1,11 +1,11 @@
 # Owned SDK contract for 0.2.0
 
-This is the current, unpublished source API. Native library identity and ABI
+This is the published 0.2.0 SDK API. Native library identity and ABI
 major remain **2**. The original nine C entry points are unchanged; SDK extension
 revision 1 adds seventeen owner entry points, fourteen connection entry points
 and three persistent-runtime entry points, plus eight policy-recovery helpers and
 persistent entry points, including existing-store enrollment. All previous 50 declarations and layouts are retained;
-the current unpublished table has 51 exports. The frozen 0.1.5 nine-symbol contract and
+the released 0.2.0 table has 51 exports. The frozen 0.1.5 nine-symbol contract and
 header remain separately verifiable. A 0.1.5 library cannot satisfy a new SDK
 binding's extension requirements.
 

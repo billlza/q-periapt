@@ -1,11 +1,17 @@
-# Q-Periapt WASM SDK — 0.2.0 candidate
+# Q-Periapt WASM SDK — 0.2.0
 
 The product entry verifies ML-DSA-65 signed policy, obtains fresh platform
 cryptographic randomness and keeps hybrid private keys in explicit owners.
-This is a local prerelease candidate, not a published npm release.
+Install the [0.2.0 npm tarball](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-sdk-wasm-0.2.0.tgz) directly from GitHub Releases.
 
-Install the supplied archive with `npm install ./q-periapt-sdk-wasm-0.2.0.tgz`.
-It has no npm dependencies, install scripts or native compilation step.
+```sh
+npm install https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-sdk-wasm-0.2.0.tgz
+```
+
+For an offline installation after downloading the tarball, run
+`npm install ./q-periapt-sdk-wasm-0.2.0.tgz`.
+
+The tarball has no npm dependencies, install scripts or native compilation step.
 The Node entry requires Node 24 or newer. CommonJS and ESM share one WASM
 instance; both support the named exports shown here:
 
@@ -67,12 +73,12 @@ Policy update is prepare → persist the signed policy and trusted state atomica
 policy store and Continuity lifecycle owner below provide separate persistence
 contracts; complete Continuity session bindings remain under development.
 
-`PACKAGE_CONTENTS.json` records candidate bytes and source/tool identities;
+`PACKAGE_CONTENTS.json` records package bytes and source/tool identities;
 distribution signatures are verified separately. `THIRD_PARTY/rust/INVENTORY.json` records
 the target-filtered production dependency license closure. Current platform,
 security and release gates are documented in the repository's
 [release readiness ledger](https://github.com/billlza/q-periapt/blob/main/docs/SDK_0_2_RELEASE_READINESS.md).
-# Browser policy storage candidate
+# Browser policy storage
 
 `q-periapt-sdk-wasm/web/storage` provides `QPeriaptPolicyStore.create` and `open`.
 Supply a stable origin-local `name` and an independently retained policy `root`;
@@ -209,7 +215,7 @@ HTTP loopback diagnostics. Peer pins remain independent of the untrusted carrier
 Requests omit ambient credentials and redirects, and bound each streamed response
 to 32 KiB. Source-integrated APIs still require installed browser/native network
 qualification; full identity lifecycle and migration require further browser
-integration. The protocol and package remain prerelease candidates.
+integration. The [tagged 0.2.0 release record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0) identifies the qualified browser and native workloads.
 
 `session_rekey_progress(session)` reads local confirmed, sending, receiving and
 pending epochs. `drive_session_rekey(session, target, exchanges, endpoint,

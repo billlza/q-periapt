@@ -1342,7 +1342,10 @@ EOF
 if [ "$C_PACKAGE_PROFILE" = "sdk-020" ]; then
 	cat >>"$PACKAGE_DIR/README.md" <<'EOF'
 
-## Owned SDK API (alpha)
+## Owned SDK API (0.2.0)
+
+Choose the archive for your target from the [0.2.0 platform release](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0).
+For GNU/Linux x86_64, extract `q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu.tar.gz` with `tar -xzf q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu.tar.gz`.
 
 Use `q_periapt_sdk_runtime_new` with a provisioned trust root and signed policy,
 then call `q_periapt_sdk_key_generate`, `q_periapt_sdk_encapsulate`,

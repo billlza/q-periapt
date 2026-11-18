@@ -1,6 +1,13 @@
 # Q-Periapt JVM SDK 0.2.0
 
-This local candidate contains a Maven repository with the fixed coordinate
+[Download the JVM SDK for GNU/Linux x86_64.](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-jvm-0.2.0-x86_64-unknown-linux-gnu.tar.gz)
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-jvm-0.2.0-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf q-periapt-jvm-0.2.0-x86_64-unknown-linux-gnu.tar.gz
+```
+
+The GNU/Linux x86_64 release contains a Maven repository with the fixed coordinate
 `dev.qperiapt:q-periapt-hybrid:0.2.0` and one host-specific C SDK archive.
 It has not been published to Maven Central. ABI major remains **2**; the owner
 extension version is 1. Use a 64-bit **JDK 25** or later. The package producer
@@ -10,7 +17,7 @@ The Android binding is a separate AAR/JNI product.
 Verify this archive against a trusted SHA-256 digest, then extract it. Configure
 the extracted `maven` directory as a file Maven repository restricted to
 `dev.qperiapt`, with Maven Central supplying Kotlin stdlib 2.4.21. Use the exact
-coordinate above; this candidate does not provide dynamic-version metadata.
+coordinate above; the bundled repository does not provide dynamic-version metadata.
 For example, a Kotlin Gradle consumer uses:
 
 ```kotlin
@@ -95,4 +102,4 @@ or create a different recovery request to conceal an unknown outcome.
 The binary and sources JARs contain the project's Apache-2.0 and MIT license
 texts. The native archive includes its own third-party notices and SBOM/CBOM.
 External Kotlin dependencies are resolved separately with their upstream notices.
-This unsigned diagnostic candidate is not a stable release qualification.
+The package manifest identifies the build. The [verified release record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0) identifies the distributed archive.

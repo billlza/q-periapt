@@ -2,6 +2,12 @@
 
 # q-periapt-mlkem-native-sys
 
+Install [q-periapt-mlkem-native-sys 0.2.0](https://crates.io/crates/q-periapt-mlkem-native-sys/0.2.0) from crates.io in your Cargo project.
+
+```sh
+cargo add 'q-periapt-mlkem-native-sys@=0.2.0'
+```
+
 This crate is the single native-code and `unsafe` boundary for Q-Periapt's
 target-selected ML-KEM implementation. It vendors the `mlkem/` subtree from
 `pq-code-package/mlkem-native` v2.0.0 and exposes only safe, allocation-free,
