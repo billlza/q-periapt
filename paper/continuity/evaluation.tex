@@ -1,24 +1,25 @@
 \section{Exposure, communication and admitted service}
 \label{sec:evaluation}
 
-A protocol can expose fewer message keys simply by admitting fewer
-messages. For that reason we count what the endpoints actually deliver
-as well as what can be recovered after capture. We also record first
-commitments, emitted bytes and persistence work. These counts let us
-ask what the send budget costs in service, and what changes when a
-sender waits before retrying a ciphertext.
+Before I take a small exposure count as an improvement, I want to know
+how many messages the protocol actually sent. In the one-way control
+at a send budget of 32, the endpoints delivered 32 of the 2,048 offered
+requests. One of those messages was committed before capture, and all
+31 post-capture keys could be reconstructed. The other 2,016 requests
+were still in the queue. This is suspension at the send budget. Giving
+the protocol credit for protecting the queued requests would reward it
+for messages it never sent.
 
-The executions in Section~\ref{sec:established} follow individual
-reservations through the native implementation. The finite-record checks
-ask which sources become readable from a particular set of acquired
-records and disclosed keys. For the scheduling question we first use
-pinned reference snapshots to measure component keys across seven
-schedules. We then give the native and reference protocols the same
-requests and directed transmission opportunities. Each protocol retains
-its own rules for admitting and delivering a message. Finally we vary
-retry readiness within the native protocol, holding the other rules
-fixed. Table~\ref{tab:validation-questions} identifies what each
-experiment measures.
+For that reason we record first commitments and completed deliveries
+alongside exposure, emitted bytes and persistence work. The native
+executions in Section~\ref{sec:established} identify the original
+reservations, and the finite-record checks establish what the declared
+acquisitions and disclosures reveal in each fixture. We use pinned
+reference snapshots to compare component keys across seven schedules.
+For the service comparison we give the native and reference protocols
+the same requests and transmission opportunities. For the effect of retry
+timing itself we keep the native protocol and change that rule alone.
+Table~\ref{tab:validation-questions} gives the corresponding measurements.
 
 \begin{table}[t]
 \centering

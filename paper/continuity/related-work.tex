@@ -8,19 +8,20 @@ authenticated key exchange and prove security for that abstraction
 derive secure messaging relative to direction- and index-sensitive vulnerable
 message sets \cite{scka2025}. Their Definition~3.2 includes current chains,
 already produced future-epoch keys, and pending out-of-order messages;
-Theorem~3.3 gives the corresponding messaging composition. We start one
-step earlier in the life of a key. A peer can have saved the randomness
-for an operation whose output key does not yet exist. Which version of
-that record did the adversary acquire, and can it read the reservation?
+Theorem~3.3 gives the corresponding messaging composition. A persistent
+endpoint may already have reserved the randomness for a key it has yet
+to compute. In that case the relevant object to look for in storage is
+the reservation.
 
-Triple Ratchet combines classical and post-quantum key agreement and
-distributes larger post-quantum messages across transmissions
+Triple Ratchet distributes its larger post-quantum messages across
+transmissions while combining classical and post-quantum key agreement
 \cite{tripleratchet2025}. Remark~4.3 already accounts for next-epoch
 material sampled during distribution. Our delayed-receipt execution
-illustrates that same timing issue. Persistence adds a second one.
-Several records can refer to the same reserved operation, yet have
-different acquisition times and wrapping keys. We track each copy back
-to that operation when we assess exposure.
+illustrates that point. The further question for us is what happens
+when several encrypted copies of one reservation survive. They can be
+acquired at different times and opened under different keys, yet all
+refer to the same original operation. That is why the model records both
+the identity of the draw and the history of each acquired copy.
 
 \paragraph{State and randomness compromise.}
 Jaeger and Stepanovs define bidirectional channel security under repeated

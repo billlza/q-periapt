@@ -9,15 +9,15 @@ The protocol source is fixed at \texttt{358b921a}; the reference SPQR revision
 and its isolated chunk-width variant retain the identities stated above.
 
 \paragraph{Comparison target.}
-Giving two protocols the same transmission opportunities does not give
-them the same service. Each profile keeps its own authentication,
-acknowledgement, retry and persistence rules. A difference between
-profiles therefore describes the combined effect of these choices on
-the common workload. Within Continuity we can ask a narrower question.
-We compare $b=32$ with $b=64$ under the same driver rules to measure the
-effect of the send budget. In Section~\ref{sec:retry-readiness} we hold
-the budget fixed and change only when an existing ciphertext can be
-retried.
+If the question is how much service each profile delivers on the same
+workload, its own authentication, acknowledgement, retry and persistence
+rules belong in the comparison. We keep them. The common requests and
+transmission opportunities then tell us what each complete configuration
+delivered and what it cost. To attribute a difference to a particular
+choice, we vary that choice within Continuity. We change the send budget
+from $b=32$ to $b=64$ with the driver rules fixed. In
+Section~\ref{sec:retry-readiness} we fix the budget and change only the
+earliest turn on which a saved ciphertext can be retried.
 
 \paragraph{Workload and capture.}
 Each schedule contains 2,048 directed transmission opportunities, indexed

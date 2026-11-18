@@ -1,37 +1,35 @@
 \section{Introduction}
 \label{sec:introduction}
 
-Two peers complete an authenticated rekey after one of them restarts.
-When did they sample the randomness they used? Post-compromise recovery
-depends on the secret contributions that reach the later keys
-\cite{signal2020,tripleratchet2025}. An endpoint can sample its randomness,
-save it for replay and then crash before the operation runs. The
-confirmation tells us when the exchange finished. The reservation tells
-us when the randomness entered the session.
+There is a good reason to save the randomness for a key encapsulation
+mechanism (KEM) call. If the process crashes, the endpoint can finish the
+same call after restart. I would keep that behavior in this protocol.
+It does mean that
+we need the date of the draw before we can treat a later rekey as
+evidence of recovery. What matters for post-compromise security is which
+secret contributions actually reach the later keys
+\cite{signal2020,tripleratchet2025}.
 
-\paragraph{The reservation boundary.}
-Suppose an endpoint saves the random tape for a key encapsulation
-mechanism (KEM) before it generates the key pair. The adversary acquires
-that record, its wrapping key and the predecessor root. The endpoint
-then restarts, finishes the reserved call and completes the exchange
-with its peer. In this execution the earlier capture and the public
-response suffice to recover the descendant traffic keys. The peer's
-confirmation is genuine throughout.
+Suppose an endpoint has saved its generation tape and has yet to
+generate its key pair. The adversary acquires the saved record, its
+wrapping key and the predecessor root. After the crash the endpoint
+resumes the call, and both peers complete an authenticated exchange.
+The earlier capture and the public response suffice to recover the
+descendant traffic keys. We get that result with both peers behaving
+correctly. If we date the draw from confirmation, we have just counted
+an exposed input as fresh.
 
-SCKA's vulnerable message sets include retained future-epoch keys
-\cite{scka2025}, and Triple Ratchet accounts for next-epoch material
-sampled during transmission \cite{tripleratchet2025}. We ask a question
-about the records behind such keys.
-\emph{When an endpoint resumes a saved operation, what must we know
-about the original randomness and the copies an adversary acquired to
-establish recovery for a later message?}
-
-The same reservation can occur in a pending write, the installed journal
-and a copy that outlives both. An adversary may acquire one of these
-records while it is encrypted and obtain its wrapping key only after
-the endpoint has deleted it. The proof has to account for that history
-even when the reduction knows the operation's public outputs and lacks
-the tape stored in the record.
+SCKA includes retained future-epoch keys in its vulnerable message
+sets~\cite{scka2025}, and Triple Ratchet accounts for next-epoch
+material sampled during transmission~\cite{tripleratchet2025}. We
+take this timing issue as our starting point. In a persistent
+implementation, one draw can leave a pending write, an installed journal
+and a copy that outlives both. The adversary can acquire a copy while it
+is encrypted and obtain its wrapping key after local deletion. Our
+question is which history of these records and their original draws
+justifies a recovery claim for a particular later message. The reduction
+has to account for that history even when it lacks the tape inside a
+record and knows only the operation's public outputs.
 
 \paragraph{Original sources and durable executions.}
 We identify a reservation by its original owner, operation, session,
@@ -69,20 +67,20 @@ first-message and selected-root confirmation results
 (Corollary~\ref{cor:live-core-next-rekey} and
 Theorem~\ref{thm:native-selected-authentication}).
 
-\paragraph{Technical contributions.}
-The difficulty in the reduction is answering the next request about
-a record it has already shown. The operation's public outputs are
-available, but its random tape is hidden. We use immutable image and
-intent handles to preserve record equality, public commitments, exact
-retries and durable outcomes (Theorem~\ref{thm:opaque-rendering}).
-We account for each candidate source pair in the original native
-experiment before comparing it in other worlds. If the adversary acquires
-a version of that candidate's session first saved at or after either
-reservation, no future choice of cut can make that candidate eligible.
-This gives the reduction a stopping rule even though the final cut is
-still open (Lemma~\ref{lem:adaptive-origin-stop}). The original-operation
-adapter carries the simulation through the ContextBound contribution,
-root initialization, confirmation and traffic schedule.
+\paragraph{What the proof has to reproduce.}
+A reduction that has already shown an image commitment owes the protocol
+a consistent answer on the next retry. It may know the KEM outputs
+without knowing the tape that the image contains. We represent images
+and intents with immutable handles, preserving record equality, public
+commitments, exact retries and durable outcomes
+(Theorem~\ref{thm:opaque-rendering}). We first account for each candidate
+pair of original operations in the native experiment. For that candidate,
+an acquired version of the same session first saved at or after either
+reservation rules out every eligible future cut. The reduction can stop there even
+though the final cut has yet to be chosen
+(Lemma~\ref{lem:adaptive-origin-stop}). The original-operation adapter
+carries the same comparison through ContextBound, root initialization,
+confirmation and the traffic schedule.
 
 A copy can supply another route to the same source. Alias normalization
 preserves the public view and the ledger of original records
@@ -125,39 +123,34 @@ session can carry it into a new journal image. One run exposes
 epoch-two traffic while the confirmed epoch counters still read zero
 and one.
 
-Independent finite checks cover acquisition, deletion and late
-disclosure, and source correspondence ties the interfaces to the native
-operations. Pinned SPQR and whole-KEM reference data record which
-messages can be reconstructed across schedules. In 49 further
-native/reference executions we give the protocols the same directed
-transmission opportunities and charge control frames and retries to
-that budget. We count exposure, completed deliveries, bytes and
-persistence work. The one-way control exhausts its send budget and
-leaves the remaining demand queued. In a paired 28-run native experiment, waiting four public sender turns
-before a retry increases deliveries in every
-bidirectional or resumed schedule we tested. The exposure counts on the
-alternating schedule stay the same, while communication costs depend on
-the schedule.
+We check acquisition, deletion and late disclosure on finite records
+and match the interfaces to the native operations. The pinned SPQR and
+whole-KEM reference data show which keys can be reconstructed across
+schedules. For a comparison of services we also want to know how many
+messages actually got through. In 49 native/reference runs the profiles
+receive the same directed transmission opportunities and pay for control
+frames and retries out of that budget. We record exposure, deliveries,
+bytes and persistence work. A one-way run can end with its send budget
+exhausted and most requests still queued. To isolate one cause of lost
+service we then change only the native retry rule. In 14 pairs of
+native runs, waiting four sender turns increases deliveries in every tested
+bidirectional or resumed schedule. The alternating exposure counts stay
+the same, and the communication cost depends on the schedule.
 
-Further instances simulate dependent authentication reports in reverse causal
-order and cover multiple root entries and SDK purpose keys, preserving
-equal-input aliases and separate returned-owner lifecycles. The two bootstrap
-profiles protect the original inventory source or reply source and establish
-historical activation of the complete signed transcript
-(Corollary~\ref{cor:bootstrap-initial-terminal} and
-Theorem~\ref{thm:bootstrap-terminal}). The final computational subsections
-develop these interfaces and proof connections.
+A report can still depend on private state, so we simulate dependent
+authentication reports in reverse causal order. The same bookkeeping
+covers multiple root entries and SDK purpose keys while preserving
+equal-input aliases and the separate lifecycles of returned key owners. For
+bootstrap we follow either the original inventory source or the reply
+source to the expected responder's earlier activation of the complete
+signed transcript (Corollary~\ref{cor:bootstrap-initial-terminal} and
+Theorem~\ref{thm:bootstrap-terminal}).
 
-\paragraph{Security model and organization.}
-Section~\ref{sec:construction} describes the construction;
-Sections~\ref{sec:security-model} and~\ref{sec:computation} develop the record
-model and computational connection. For a direct route to the main result,
-the reader can follow the selection-boundary table in
-Section~\ref{sec:computation}, the native controller and theorem in
-Section~\ref{sec:native-online-chain}, and its adjacent primitive-substitution
-table before consulting the individual reductions.
-Section~\ref{sec:established} presents
-the mechanized recovery theorem and separating executions, and
-Section~\ref{sec:evaluation} validates the exposure semantics and presents
-the matched executions. Section~\ref{sec:discussion} develops their
-consequences and further instantiation.
+Section~\ref{sec:construction} gives the construction. The record model
+and computational argument in Sections~\ref{sec:security-model}
+and~\ref{sec:computation} lead to the native message theorem and its
+primitive bounds in Section~\ref{sec:native-online-chain}.
+Section~\ref{sec:established} gives the symbolic result and the native
+executions that distinguish the proposed recovery conditions.
+Sections~\ref{sec:evaluation} and~\ref{sec:discussion} examine which
+messages the protocols deliver and which keys remain reconstructible.

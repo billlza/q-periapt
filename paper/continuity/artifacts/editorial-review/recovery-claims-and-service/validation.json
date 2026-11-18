@@ -1,0 +1,80 @@
+{
+  "base_paper_commit": "c9027b49c88976896665256b3e508c1646b5edfb",
+  "scope": "State the observed rekey result, the reason for retaining exact restart, and what the complete-profile and fixed-budget comparisons establish.",
+  "reading_copy_pages": {
+    "abstract": 1,
+    "motivation": 2,
+    "comparison": 90,
+    "profile_comparison": 95,
+    "retry_attribution": 101,
+    "conclusion": 101
+  },
+  "source_preservation": {
+    "path": "artifacts/editorial-review/recovery-claims-and-service/source-preservation.json",
+    "sha256": "e1499154e5afe284f193fb59bd7c32f884fd0beb0bfb00e9cda7aece03b119ef"
+  },
+  "experimental_basis": {
+    "restart": "established-results.tex and its pinned reservation-disclosure evidence",
+    "retry_table": "artifacts/retry-readiness/sources/reviewed-analysis.csv",
+    "retry_table_sha256": "85c9eeea986268bda4d08a5edae889fe7e09ee18cfb81738c0bfc3ecd56f59fa",
+    "one_way_budget32": {
+      "immediate_committed": 32,
+      "immediate_delivered": 32,
+      "immediate_uncommitted": 2016,
+      "immediate_post_capture_committed": 31,
+      "immediate_derived_owner_A": 31
+    },
+    "alternating_budget32_frame_differences": {
+      "application_frames": 283,
+      "ack_frames": 265,
+      "control_frames": 40,
+      "retry_application_frames": -588
+    },
+    "matched_executions": 49,
+    "paired_retry_runs": 28
+  },
+  "build": {
+    "command": "make -C paper/continuity source using artifact/python-run.sh",
+    "checks": [
+      "chain-prefix finite controls",
+      "native online-chain controls",
+      "four bootstrap source packet checks",
+      "49 matched profile/schedule rows and directed input controls",
+      "28 native retry executions / 14 pairs retained analysis",
+      "indexed closure equivalence, histories, expected cases, input rejection and structural-work controls",
+      "independent typed-Horn least-model enumeration",
+      "manuscript build and source identity",
+      "nine-file single-source export"
+    ],
+    "path": "artifacts/editorial-review/recovery-claims-and-service/build-check.json",
+    "sha256": "73fa1eb5abdbb1ec6510fb8c0bc38fff756374f460df50d93a7b786b05ba1e73"
+  },
+  "source_export": {
+    "command": "artifacts/bootstrap/verify_source_export.py in a fresh build directory",
+    "path": "artifacts/editorial-review/recovery-claims-and-service/source-export-check.json",
+    "sha256": "4b9d71f18949cac4ce2a1050b9a34f36e376f521f11e74ee0adc01d36a11d56d"
+  },
+  "rendered_pages_inspected": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    17,
+    66,
+    69,
+    90,
+    91,
+    94,
+    95,
+    98,
+    99,
+    100,
+    101,
+    102,
+    103
+  ],
+  "visual_review": "The restart result and the abstract fit on page 1. The one-way control opens the evaluation on page 90. The conditions on the selected message and the conclusion fit on page 101 before declarations start on page 102.",
+  "new_protocol_experiments": false,
+  "new_mathematical_results": false
+}

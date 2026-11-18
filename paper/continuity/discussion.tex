@@ -97,51 +97,51 @@ contribution. Section~\ref{sec:bootstrap-authentication} specifies the joint
 journal/derived-key interface for a broader captured-byte simulation.
 
 \paragraph{Exposure budgets and completed service.}
-On the alternating schedule, how much exposure do we save by halving
-the send budget? In the captured epoch each direction can make at most
-$b$ first allocations, and the measured derived set at our cut reaches
-$2b-1$. Reducing $b$ from 64 to 32 reduces that set from 127 to 63
-applications. With immediate retries, deliveries also fall from 718 to
-688. The peers complete more rekeys and emit 565,288 bytes, up from
-407,596. The number of applications left in the queue matters when we
-interpret that smaller exposed set.
+Halving the send budget from 64 to 32 on the alternating schedule
+reduces the reconstructed set from 127 to 63 applications. Each
+direction has at most $b$ first allocations in the captured epoch,
+and at our cut the derived set reaches $2b-1$. There is a cost to
+getting the smaller set this way. With immediate retries, deliveries
+fall from 718 to 688. The peers complete more rekeys and send 565,288
+bytes, up from 407,596.
 
-At the same budget, the sender can use its opportunities differently.
-With $b=32$, waiting four sender turns before a retry raises deliveries
-from 688 to 971 on the alternating schedule. The derived set still has
-63 applications. With $b=64$, deliveries rise from 718 to 999 and the
-derived count stays at 127. Application retries fall from 604 to 16 and
-from 579 to 8, respectively. At $b=32$ we can account for the 588
-freed opportunities individually. The peers send 283 additional first
-applications, 265 ACKs and 40 control frames, bringing the total back
-to 2,048 (Appendix~\ref{app:retry-readiness}). Total bytes and
-persistence work rise as more messages are delivered, while bytes and
-\texttt{sync\_data} calls per delivery fall in these alternating runs.
-Deliveries increase in all twelve bidirectional or resumed pairs. The
-cost per delivery still depends on the schedule.
+The retry comparison gives a different result. At $b=32$ the same peers
+delivered 971 applications when they waited four sender turns before a
+retry, up from 688. Both policies yielded 63 reconstructible keys. At
+$b=64$ deliveries rose from 718 to 999, with 127 keys under either
+policy. We attribute the extra deliveries on this schedule to the
+retry rule. The protocol, the budget and the opportunities were fixed,
+and we can account for where the turns went. Application retries fell from 604 to 16 at $b=32$ and from 579
+to 8 at $b=64$. The 588 turns freed at $b=32$ went to 283 additional
+first applications, 265 ACKs and 40 control frames, out of the same
+2,048 opportunities (Appendix~\ref{app:retry-readiness}).
 
-The one-way control explains why we count queued requests. Each retry
-policy delivers the 32 or 64 applications admitted by the budget. The
-rest stay in the queue, both confirmed epochs remain at zero, and every
-admitted post-capture key can be reconstructed in this run.
+The extra deliveries required more bytes and persistence work in total.
+In these alternating runs both bytes and \texttt{sync\_data} calls per
+delivery fell. All twelve bidirectional or resumed pairs delivered more
+messages, with costs that depend on the schedule. On the one-way control,
+both policies delivered the 32 or 64 applications the budget admitted.
+The rest stayed queued, both confirmed epochs stayed at zero, and every
+admitted post-capture key was reconstructible. Waiting longer to retry
+could not supply the missing return traffic in that run.
 
 \paragraph{Conclusion.}
-In the opening example, the endpoint restarts and finishes the call it
-reserved. The peers complete an authenticated rekey. The key-generation
-tape was already in the record the adversary acquired before the crash.
-If we date the randomness by the time the exchange finished, we count
-that tape as fresh.
+The rekey in the opening execution succeeded. I still count the
+subsequent traffic in that run as exposed, because the earlier capture
+and the public response were enough to recover its keys. Both peers
+behaved correctly. After the crash the endpoint finished the very call
+whose tape it had saved before the compromise.
 
-A later key disclosure can make an old copy readable. For fixed indexed
-record and key-derivation graphs, we can track exactly which sources
-become readable as acquisitions and disclosures arrive. The total work
-over the whole history is linear in the graph size and the number of
-input events (Proposition~\ref{prop:guarded-worklist}).
+For a later send we need the original draws and the record history.
+On fixed indexed record and key-derivation graphs we can maintain the
+exact set of readable sources in total work linear in the graph size
+and input history (Proposition~\ref{prop:guarded-worklist}).
 
-For the next rekey of an established session,
-Theorem~\ref{thm:native-online-message} gives confidentiality and
-fresh-message integrity for an application send selected online. Both
-KEM reservations must follow the cut, and the target signing secrets and
-designated epoch entropy must remain undisclosed. Every acquired version
-of that session must have been first saved on or before the cut. The
-adversary may obtain the copy itself later.
+For the next rekey of an established session, suppose both KEM
+reservations follow the cut and the target signing secrets and designated
+epoch entropy remain undisclosed. Every acquired version of that session
+must have been first saved by the cut, even if the adversary obtained
+the copy later. Under the assumptions of
+Theorem~\ref{thm:native-online-message}, that is enough to claim
+confidentiality and fresh-message integrity for an application send
+selected online.

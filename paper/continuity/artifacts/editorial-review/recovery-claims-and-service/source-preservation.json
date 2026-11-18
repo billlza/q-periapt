@@ -1,0 +1,73 @@
+{
+  "base_paper_commit": "c9027b49c88976896665256b3e508c1646b5edfb",
+  "canonical_modules": 40,
+  "changed_modules": [
+    "discussion.tex",
+    "evaluation.tex",
+    "introduction.tex",
+    "main.tex",
+    "matched-opportunities.tex",
+    "related-work.tex"
+  ],
+  "changes": [
+    {
+      "file": "discussion.tex",
+      "before_sha256": "856b195e02b61dd3366d17b6a034f8a80ce1cacb85824606a069935487c37097",
+      "after_sha256": "434c04629f9e3795304a95d16c1afd52ae7d96ab27dafff39ed1ec07feb2e237"
+    },
+    {
+      "file": "evaluation.tex",
+      "before_sha256": "970a48ef650e951feccdf07be64f5df6d9850fae9d83833f0587cb66074a2878",
+      "after_sha256": "449b7e390f287dc2cab5f48d0b1c727578865c6cc69a22a84c78cfc38aaab45e"
+    },
+    {
+      "file": "introduction.tex",
+      "before_sha256": "a7c0fb7bfeeba8b6f7c75992502a9b80e283dfacb487c08761227b83845528d4",
+      "after_sha256": "fb7ab7ef7d93566bcc67bca352f26e0eb748e23a35549c906306d6370fa60f50"
+    },
+    {
+      "file": "main.tex",
+      "before_sha256": "de7c611b0c6a393f84c7144c8611259d1e7162caee193144927859d9df6e7128",
+      "after_sha256": "ee17fd51f181bf869b39745a75eb3c3dbcb30644a0b2ffbb4066ce1925ac1980"
+    },
+    {
+      "file": "matched-opportunities.tex",
+      "before_sha256": "eef4a9c3ea5c5ea8f80ee7440302e27cdd32337374d6b781b501b0a173d0d40c",
+      "after_sha256": "f0ed173a48a718cb3759a5d69561270a577113d0bcd84ced4a7bca7ccf3ee6b1"
+    },
+    {
+      "file": "related-work.tex",
+      "before_sha256": "f8135dc5465b5037d740fae7c3775c91f14b6fdc651c1539ebe14433c7584e58",
+      "after_sha256": "a6146f8b11bdae1ed19bee99f1ec57dffa8acf5a78ec28bef26819df6dc53d1c"
+    }
+  ],
+  "method": "Compare original bytes per formal block, proof, display, label and table in each canonical module using comment-masked offsets. Hash each ordered sequence with an eight-byte big-endian length prefix per item and compare to the preceding formal-content receipt. Verify every existing artifact against its Git blob.",
+  "byte_identical_ordered_blocks": {
+    "formal": {
+      "count": 58,
+      "ordered_sha256": "6208d7d0d76f57ef1dd2529d06e7f001847d6c75d793193123085bdf4b1b4d26"
+    },
+    "proof": {
+      "count": 53,
+      "ordered_sha256": "2f2bf9c855135ce84d3ea580de81fb03a102aff551d3a1046102d312113d2300"
+    },
+    "display": {
+      "count": 170,
+      "ordered_sha256": "56088d48efa0e1a03632b1866826ceb58670653e75a5fca505a0bfa67ae23db3"
+    },
+    "labels": {
+      "count": 187,
+      "ordered_sha256": "b122cf69fabbaecca5a555bc2f27675bfb871aae9c518855bc5cd526035c8d22"
+    },
+    "tables": {
+      "count": 15,
+      "ordered_sha256": "012f74320ba08e674218a6165d1bf9fc27eb67c7d6c1d999fb7d5ecd18bbcf18"
+    }
+  },
+  "citation_keys": 35,
+  "cross_reference_keys": 148,
+  "original_artifact_files_checked": 709,
+  "original_artifact_git_blob_index_sha256": "e4b29a9c052a3c86fe16fad60d46d0607030817550dbeb0d6b3b7180b11f13a4",
+  "author_metadata_declarations_and_bibliography_byte_identical": true,
+  "generated_tex_sha256": "488e5e4508c66383c76a828fd8b370a9561e2d3a4158f289e7fd99c789e9e1aa"
+}

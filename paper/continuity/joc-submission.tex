@@ -41,29 +41,29 @@
 % The alternative address is retained in author-metadata.json.
 \author*[1]{\fnm{Ziang} \sur{Li}}\email{2403871950@qq.com}
 \affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
-\abstract{An endpoint can finish a rekey after a crash using randomness that was
-already exposed. We trace each contribution to its original reservation
-and ask which saved session versions the adversary acquired. A later
-key disclosure can make an earlier copy readable.
+\abstract{Both peers accepted the rekey in our restart experiment. We could still
+read the traffic that followed. The endpoint had finished a call whose
+random tape was already in the captured state. We therefore date each contribution from its original reservation
+and each acquired session version from its first durable save.
 For Q-Periapt Continuity we prove confidentiality and fresh-message
-integrity for one application send after the next rekey of an established
-session. The observer may use earlier message keys to choose the target
-step before either endpoint first computes it, obtain the designated
-successor seed, and choose the cut after interaction. Both original KEM
-reservations must follow the cut under the stated acquisition and
-disclosure conditions. The reduction simulates private records and exact
-retries from public operation outputs without the selected random tape.
-The bound accounts for records and source attribution alongside ordinary
-ML-KEM and hedged ML-DSA security, shared-oracle key derivation and
-authenticated encryption in the stated quantum random-oracle models.
-For fixed indexed record and key-derivation graphs we track exactly which
-sources become readable in total work linear in the graph size and input
-history. A mechanized symbolic theorem covers secrecy across unbounded
-epochs under its provenance condition. We measure exposure and service
-in 49 matched executions. In a separate 28-run retry experiment, waiting
-four sender turns increased deliveries from 688 to 971 on the alternating
-schedule at budget 32, with 63 message keys reconstructible under either
-policy.}
+integrity for one application send selected online after the next rekey
+of an established session. Both original key-encapsulation reservations
+must follow the compromise cut under the stated acquisition and disclosure
+conditions. Earlier message keys can inform the choice before either
+endpoint first computes the target step. The observer may obtain its
+designated successor seed and choose the cut after interaction. Our
+reduction simulates private records from public operation outputs and
+preserves exact retries even when it lacks the selected tape. Its bound
+accounts for records and source attribution alongside ordinary ML-KEM
+and hedged ML-DSA security, shared-oracle key derivation and authenticated
+encryption in the stated quantum random-oracle models. On fixed indexed record and
+key-derivation graphs we maintain the exact exposure set in total work linear in the
+graph size and input history. A mechanized symbolic theorem covers
+secrecy across unbounded epochs under its provenance condition. In
+49 matched executions we count deliveries alongside reconstructed keys.
+In a paired 28-run retry experiment, waiting four sender turns raised
+deliveries from 688 to 971 on the alternating schedule at budget 32. Both policies yielded 63
+reconstructible post-capture keys.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
 
@@ -71,37 +71,35 @@ policy.}
 \section{Introduction}
 \label{sec:introduction}
 
-Two peers complete an authenticated rekey after one of them restarts.
-When did they sample the randomness they used? Post-compromise recovery
-depends on the secret contributions that reach the later keys
-\cite{signal2020,tripleratchet2025}. An endpoint can sample its randomness,
-save it for replay and then crash before the operation runs. The
-confirmation tells us when the exchange finished. The reservation tells
-us when the randomness entered the session.
+There is a good reason to save the randomness for a key encapsulation
+mechanism (KEM) call. If the process crashes, the endpoint can finish the
+same call after restart. I would keep that behavior in this protocol.
+It does mean that
+we need the date of the draw before we can treat a later rekey as
+evidence of recovery. What matters for post-compromise security is which
+secret contributions actually reach the later keys
+\cite{signal2020,tripleratchet2025}.
 
-\paragraph{The reservation boundary.}
-Suppose an endpoint saves the random tape for a key encapsulation
-mechanism (KEM) before it generates the key pair. The adversary acquires
-that record, its wrapping key and the predecessor root. The endpoint
-then restarts, finishes the reserved call and completes the exchange
-with its peer. In this execution the earlier capture and the public
-response suffice to recover the descendant traffic keys. The peer's
-confirmation is genuine throughout.
+Suppose an endpoint has saved its generation tape and has yet to
+generate its key pair. The adversary acquires the saved record, its
+wrapping key and the predecessor root. After the crash the endpoint
+resumes the call, and both peers complete an authenticated exchange.
+The earlier capture and the public response suffice to recover the
+descendant traffic keys. We get that result with both peers behaving
+correctly. If we date the draw from confirmation, we have just counted
+an exposed input as fresh.
 
-SCKA's vulnerable message sets include retained future-epoch keys
-\cite{scka2025}, and Triple Ratchet accounts for next-epoch material
-sampled during transmission \cite{tripleratchet2025}. We ask a question
-about the records behind such keys.
-\emph{When an endpoint resumes a saved operation, what must we know
-about the original randomness and the copies an adversary acquired to
-establish recovery for a later message?}
-
-The same reservation can occur in a pending write, the installed journal
-and a copy that outlives both. An adversary may acquire one of these
-records while it is encrypted and obtain its wrapping key only after
-the endpoint has deleted it. The proof has to account for that history
-even when the reduction knows the operation's public outputs and lacks
-the tape stored in the record.
+SCKA includes retained future-epoch keys in its vulnerable message
+sets~\cite{scka2025}, and Triple Ratchet accounts for next-epoch
+material sampled during transmission~\cite{tripleratchet2025}. We
+take this timing issue as our starting point. In a persistent
+implementation, one draw can leave a pending write, an installed journal
+and a copy that outlives both. The adversary can acquire a copy while it
+is encrypted and obtain its wrapping key after local deletion. Our
+question is which history of these records and their original draws
+justifies a recovery claim for a particular later message. The reduction
+has to account for that history even when it lacks the tape inside a
+record and knows only the operation's public outputs.
 
 \paragraph{Original sources and durable executions.}
 We identify a reservation by its original owner, operation, session,
@@ -139,20 +137,20 @@ first-message and selected-root confirmation results
 (Corollary~\ref{cor:live-core-next-rekey} and
 Theorem~\ref{thm:native-selected-authentication}).
 
-\paragraph{Technical contributions.}
-The difficulty in the reduction is answering the next request about
-a record it has already shown. The operation's public outputs are
-available, but its random tape is hidden. We use immutable image and
-intent handles to preserve record equality, public commitments, exact
-retries and durable outcomes (Theorem~\ref{thm:opaque-rendering}).
-We account for each candidate source pair in the original native
-experiment before comparing it in other worlds. If the adversary acquires
-a version of that candidate's session first saved at or after either
-reservation, no future choice of cut can make that candidate eligible.
-This gives the reduction a stopping rule even though the final cut is
-still open (Lemma~\ref{lem:adaptive-origin-stop}). The original-operation
-adapter carries the simulation through the ContextBound contribution,
-root initialization, confirmation and traffic schedule.
+\paragraph{What the proof has to reproduce.}
+A reduction that has already shown an image commitment owes the protocol
+a consistent answer on the next retry. It may know the KEM outputs
+without knowing the tape that the image contains. We represent images
+and intents with immutable handles, preserving record equality, public
+commitments, exact retries and durable outcomes
+(Theorem~\ref{thm:opaque-rendering}). We first account for each candidate
+pair of original operations in the native experiment. For that candidate,
+an acquired version of the same session first saved at or after either
+reservation rules out every eligible future cut. The reduction can stop there even
+though the final cut has yet to be chosen
+(Lemma~\ref{lem:adaptive-origin-stop}). The original-operation adapter
+carries the same comparison through ContextBound, root initialization,
+confirmation and the traffic schedule.
 
 A copy can supply another route to the same source. Alias normalization
 preserves the public view and the ledger of original records
@@ -195,42 +193,37 @@ session can carry it into a new journal image. One run exposes
 epoch-two traffic while the confirmed epoch counters still read zero
 and one.
 
-Independent finite checks cover acquisition, deletion and late
-disclosure, and source correspondence ties the interfaces to the native
-operations. Pinned SPQR and whole-KEM reference data record which
-messages can be reconstructed across schedules. In 49 further
-native/reference executions we give the protocols the same directed
-transmission opportunities and charge control frames and retries to
-that budget. We count exposure, completed deliveries, bytes and
-persistence work. The one-way control exhausts its send budget and
-leaves the remaining demand queued. In a paired 28-run native experiment, waiting four public sender turns
-before a retry increases deliveries in every
-bidirectional or resumed schedule we tested. The exposure counts on the
-alternating schedule stay the same, while communication costs depend on
-the schedule.
+We check acquisition, deletion and late disclosure on finite records
+and match the interfaces to the native operations. The pinned SPQR and
+whole-KEM reference data show which keys can be reconstructed across
+schedules. For a comparison of services we also want to know how many
+messages actually got through. In 49 native/reference runs the profiles
+receive the same directed transmission opportunities and pay for control
+frames and retries out of that budget. We record exposure, deliveries,
+bytes and persistence work. A one-way run can end with its send budget
+exhausted and most requests still queued. To isolate one cause of lost
+service we then change only the native retry rule. In 14 pairs of
+native runs, waiting four sender turns increases deliveries in every tested
+bidirectional or resumed schedule. The alternating exposure counts stay
+the same, and the communication cost depends on the schedule.
 
-Further instances simulate dependent authentication reports in reverse causal
-order and cover multiple root entries and SDK purpose keys, preserving
-equal-input aliases and separate returned-owner lifecycles. The two bootstrap
-profiles protect the original inventory source or reply source and establish
-historical activation of the complete signed transcript
-(Corollary~\ref{cor:bootstrap-initial-terminal} and
-Theorem~\ref{thm:bootstrap-terminal}). The final computational subsections
-develop these interfaces and proof connections.
+A report can still depend on private state, so we simulate dependent
+authentication reports in reverse causal order. The same bookkeeping
+covers multiple root entries and SDK purpose keys while preserving
+equal-input aliases and the separate lifecycles of returned key owners. For
+bootstrap we follow either the original inventory source or the reply
+source to the expected responder's earlier activation of the complete
+signed transcript (Corollary~\ref{cor:bootstrap-initial-terminal} and
+Theorem~\ref{thm:bootstrap-terminal}).
 
-\paragraph{Security model and organization.}
-Section~\ref{sec:construction} describes the construction;
-Sections~\ref{sec:security-model} and~\ref{sec:computation} develop the record
-model and computational connection. For a direct route to the main result,
-the reader can follow the selection-boundary table in
-Section~\ref{sec:computation}, the native controller and theorem in
-Section~\ref{sec:native-online-chain}, and its adjacent primitive-substitution
-table before consulting the individual reductions.
-Section~\ref{sec:established} presents
-the mechanized recovery theorem and separating executions, and
-Section~\ref{sec:evaluation} validates the exposure semantics and presents
-the matched executions. Section~\ref{sec:discussion} develops their
-consequences and further instantiation.
+Section~\ref{sec:construction} gives the construction. The record model
+and computational argument in Sections~\ref{sec:security-model}
+and~\ref{sec:computation} lead to the native message theorem and its
+primitive bounds in Section~\ref{sec:native-online-chain}.
+Section~\ref{sec:established} gives the symbolic result and the native
+executions that distinguish the proposed recovery conditions.
+Sections~\ref{sec:evaluation} and~\ref{sec:discussion} examine which
+messages the protocols deliver and which keys remain reconstructible.
 % END SECTION SOURCE: introduction.tex
 % BEGIN SECTION SOURCE: related-work.tex
 \section{Related work}
@@ -243,19 +236,20 @@ authenticated key exchange and prove security for that abstraction
 derive secure messaging relative to direction- and index-sensitive vulnerable
 message sets \cite{scka2025}. Their Definition~3.2 includes current chains,
 already produced future-epoch keys, and pending out-of-order messages;
-Theorem~3.3 gives the corresponding messaging composition. We start one
-step earlier in the life of a key. A peer can have saved the randomness
-for an operation whose output key does not yet exist. Which version of
-that record did the adversary acquire, and can it read the reservation?
+Theorem~3.3 gives the corresponding messaging composition. A persistent
+endpoint may already have reserved the randomness for a key it has yet
+to compute. In that case the relevant object to look for in storage is
+the reservation.
 
-Triple Ratchet combines classical and post-quantum key agreement and
-distributes larger post-quantum messages across transmissions
+Triple Ratchet distributes its larger post-quantum messages across
+transmissions while combining classical and post-quantum key agreement
 \cite{tripleratchet2025}. Remark~4.3 already accounts for next-epoch
 material sampled during distribution. Our delayed-receipt execution
-illustrates that same timing issue. Persistence adds a second one.
-Several records can refer to the same reserved operation, yet have
-different acquisition times and wrapping keys. We track each copy back
-to that operation when we assess exposure.
+illustrates that point. The further question for us is what happens
+when several encrypted copies of one reservation survive. They can be
+acquired at different times and opened under different keys, yet all
+refer to the same original operation. That is why the model records both
+the identity of the draw and the history of each acquired copy.
 
 \paragraph{State and randomness compromise.}
 Jaeger and Stepanovs define bidirectional channel security under repeated
@@ -5866,24 +5860,25 @@ communication work.
 \section{Exposure, communication and admitted service}
 \label{sec:evaluation}
 
-A protocol can expose fewer message keys simply by admitting fewer
-messages. For that reason we count what the endpoints actually deliver
-as well as what can be recovered after capture. We also record first
-commitments, emitted bytes and persistence work. These counts let us
-ask what the send budget costs in service, and what changes when a
-sender waits before retrying a ciphertext.
+Before I take a small exposure count as an improvement, I want to know
+how many messages the protocol actually sent. In the one-way control
+at a send budget of 32, the endpoints delivered 32 of the 2,048 offered
+requests. One of those messages was committed before capture, and all
+31 post-capture keys could be reconstructed. The other 2,016 requests
+were still in the queue. This is suspension at the send budget. Giving
+the protocol credit for protecting the queued requests would reward it
+for messages it never sent.
 
-The executions in Section~\ref{sec:established} follow individual
-reservations through the native implementation. The finite-record checks
-ask which sources become readable from a particular set of acquired
-records and disclosed keys. For the scheduling question we first use
-pinned reference snapshots to measure component keys across seven
-schedules. We then give the native and reference protocols the same
-requests and directed transmission opportunities. Each protocol retains
-its own rules for admitting and delivering a message. Finally we vary
-retry readiness within the native protocol, holding the other rules
-fixed. Table~\ref{tab:validation-questions} identifies what each
-experiment measures.
+For that reason we record first commitments and completed deliveries
+alongside exposure, emitted bytes and persistence work. The native
+executions in Section~\ref{sec:established} identify the original
+reservations, and the finite-record checks establish what the declared
+acquisitions and disclosures reveal in each fixture. We use pinned
+reference snapshots to compare component keys across seven schedules.
+For the service comparison we give the native and reference protocols
+the same requests and transmission opportunities. For the effect of retry
+timing itself we keep the native protocol and change that rule alone.
+Table~\ref{tab:validation-questions} gives the corresponding measurements.
 
 \begin{table}[t]
 \centering
@@ -6171,15 +6166,15 @@ The protocol source is fixed at \texttt{358b921a}; the reference SPQR revision
 and its isolated chunk-width variant retain the identities stated above.
 
 \paragraph{Comparison target.}
-Giving two protocols the same transmission opportunities does not give
-them the same service. Each profile keeps its own authentication,
-acknowledgement, retry and persistence rules. A difference between
-profiles therefore describes the combined effect of these choices on
-the common workload. Within Continuity we can ask a narrower question.
-We compare $b=32$ with $b=64$ under the same driver rules to measure the
-effect of the send budget. In Section~\ref{sec:retry-readiness} we hold
-the budget fixed and change only when an existing ciphertext can be
-retried.
+If the question is how much service each profile delivers on the same
+workload, its own authentication, acknowledgement, retry and persistence
+rules belong in the comparison. We keep them. The common requests and
+transmission opportunities then tell us what each complete configuration
+delivered and what it cost. To attribute a difference to a particular
+choice, we vary that choice within Continuity. We change the send budget
+from $b=32$ to $b=64$ with the driver rules fixed. In
+Section~\ref{sec:retry-readiness} we fix the budget and change only the
+earliest turn on which a saved ciphertext can be retried.
 
 \paragraph{Workload and capture.}
 Each schedule contains 2,048 directed transmission opportunities, indexed
@@ -6529,54 +6524,54 @@ contribution. Section~\ref{sec:bootstrap-authentication} specifies the joint
 journal/derived-key interface for a broader captured-byte simulation.
 
 \paragraph{Exposure budgets and completed service.}
-On the alternating schedule, how much exposure do we save by halving
-the send budget? In the captured epoch each direction can make at most
-$b$ first allocations, and the measured derived set at our cut reaches
-$2b-1$. Reducing $b$ from 64 to 32 reduces that set from 127 to 63
-applications. With immediate retries, deliveries also fall from 718 to
-688. The peers complete more rekeys and emit 565,288 bytes, up from
-407,596. The number of applications left in the queue matters when we
-interpret that smaller exposed set.
+Halving the send budget from 64 to 32 on the alternating schedule
+reduces the reconstructed set from 127 to 63 applications. Each
+direction has at most $b$ first allocations in the captured epoch,
+and at our cut the derived set reaches $2b-1$. There is a cost to
+getting the smaller set this way. With immediate retries, deliveries
+fall from 718 to 688. The peers complete more rekeys and send 565,288
+bytes, up from 407,596.
 
-At the same budget, the sender can use its opportunities differently.
-With $b=32$, waiting four sender turns before a retry raises deliveries
-from 688 to 971 on the alternating schedule. The derived set still has
-63 applications. With $b=64$, deliveries rise from 718 to 999 and the
-derived count stays at 127. Application retries fall from 604 to 16 and
-from 579 to 8, respectively. At $b=32$ we can account for the 588
-freed opportunities individually. The peers send 283 additional first
-applications, 265 ACKs and 40 control frames, bringing the total back
-to 2,048 (Appendix~\ref{app:retry-readiness}). Total bytes and
-persistence work rise as more messages are delivered, while bytes and
-\texttt{sync\_data} calls per delivery fall in these alternating runs.
-Deliveries increase in all twelve bidirectional or resumed pairs. The
-cost per delivery still depends on the schedule.
+The retry comparison gives a different result. At $b=32$ the same peers
+delivered 971 applications when they waited four sender turns before a
+retry, up from 688. Both policies yielded 63 reconstructible keys. At
+$b=64$ deliveries rose from 718 to 999, with 127 keys under either
+policy. We attribute the extra deliveries on this schedule to the
+retry rule. The protocol, the budget and the opportunities were fixed,
+and we can account for where the turns went. Application retries fell from 604 to 16 at $b=32$ and from 579
+to 8 at $b=64$. The 588 turns freed at $b=32$ went to 283 additional
+first applications, 265 ACKs and 40 control frames, out of the same
+2,048 opportunities (Appendix~\ref{app:retry-readiness}).
 
-The one-way control explains why we count queued requests. Each retry
-policy delivers the 32 or 64 applications admitted by the budget. The
-rest stay in the queue, both confirmed epochs remain at zero, and every
-admitted post-capture key can be reconstructed in this run.
+The extra deliveries required more bytes and persistence work in total.
+In these alternating runs both bytes and \texttt{sync\_data} calls per
+delivery fell. All twelve bidirectional or resumed pairs delivered more
+messages, with costs that depend on the schedule. On the one-way control,
+both policies delivered the 32 or 64 applications the budget admitted.
+The rest stayed queued, both confirmed epochs stayed at zero, and every
+admitted post-capture key was reconstructible. Waiting longer to retry
+could not supply the missing return traffic in that run.
 
 \paragraph{Conclusion.}
-In the opening example, the endpoint restarts and finishes the call it
-reserved. The peers complete an authenticated rekey. The key-generation
-tape was already in the record the adversary acquired before the crash.
-If we date the randomness by the time the exchange finished, we count
-that tape as fresh.
+The rekey in the opening execution succeeded. I still count the
+subsequent traffic in that run as exposed, because the earlier capture
+and the public response were enough to recover its keys. Both peers
+behaved correctly. After the crash the endpoint finished the very call
+whose tape it had saved before the compromise.
 
-A later key disclosure can make an old copy readable. For fixed indexed
-record and key-derivation graphs, we can track exactly which sources
-become readable as acquisitions and disclosures arrive. The total work
-over the whole history is linear in the graph size and the number of
-input events (Proposition~\ref{prop:guarded-worklist}).
+For a later send we need the original draws and the record history.
+On fixed indexed record and key-derivation graphs we can maintain the
+exact set of readable sources in total work linear in the graph size
+and input history (Proposition~\ref{prop:guarded-worklist}).
 
-For the next rekey of an established session,
-Theorem~\ref{thm:native-online-message} gives confidentiality and
-fresh-message integrity for an application send selected online. Both
-KEM reservations must follow the cut, and the target signing secrets and
-designated epoch entropy must remain undisclosed. Every acquired version
-of that session must have been first saved on or before the cut. The
-adversary may obtain the copy itself later.
+For the next rekey of an established session, suppose both KEM
+reservations follow the cut and the target signing secrets and designated
+epoch entropy remain undisclosed. Every acquired version of that session
+must have been first saved by the cut, even if the adversary obtained
+the copy later. Under the assumptions of
+Theorem~\ref{thm:native-online-message}, that is enough to claim
+confidentiality and fresh-message integrity for an application send
+selected online.
 % END SECTION SOURCE: discussion.tex
 % BEGIN SECTION SOURCE: declarations.tex
 \section*{Declarations}
