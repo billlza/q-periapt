@@ -1,4 +1,31 @@
-# Rust SDK 0.2.0 package gate
+# Rust SDK 0.2.0
+
+## Install from crates.io
+
+Run the library command from an existing Cargo project. The CLI installs a
+standalone executable named `qperiapt`. The registry uses the `q-periapt-*`
+package names.
+
+| crates.io package | Use | Command |
+| --- | --- | --- |
+| [q-periapt-sdk](https://crates.io/crates/q-periapt-sdk/0.2.0) | Owned-key application SDK | `cargo add 'q-periapt-sdk@=0.2.0'` |
+| [q-periapt-host-store](https://crates.io/crates/q-periapt-host-store/0.2.0) | Durable host policy state | `cargo add 'q-periapt-host-store@=0.2.0'` |
+| [q-periapt-cli](https://crates.io/crates/q-periapt-cli/0.2.0) | Command-line tools | `cargo install --locked --version 0.2.0 q-periapt-cli` |
+| [q-periapt-rustls](https://crates.io/crates/q-periapt-rustls/0.2.0) | TLS integration | `cargo add 'q-periapt-rustls@=0.2.0'` |
+| [q-periapt-ffi](https://crates.io/crates/q-periapt-ffi/0.2.0) | Native SDK ABI 2 | `cargo add 'q-periapt-ffi@=0.2.0'` |
+| [q-periapt-wasm](https://crates.io/crates/q-periapt-wasm/0.2.0) | Expert WASM bindings | `cargo add 'q-periapt-wasm@=0.2.0'` |
+| [q-periapt-policy](https://crates.io/crates/q-periapt-policy/0.2.0) | Signed policies | `cargo add 'q-periapt-policy@=0.2.0'` |
+| [q-periapt-backends](https://crates.io/crates/q-periapt-backends/0.2.0) | Primitive implementations | `cargo add 'q-periapt-backends@=0.2.0'` |
+| [q-periapt-kem](https://crates.io/crates/q-periapt-kem/0.2.0) | Hybrid KEMs | `cargo add 'q-periapt-kem@=0.2.0'` |
+| [q-periapt-sig](https://crates.io/crates/q-periapt-sig/0.2.0) | Signatures | `cargo add 'q-periapt-sig@=0.2.0'` |
+| [q-periapt-core](https://crates.io/crates/q-periapt-core/0.2.0) | Composition traits and types | `cargo add 'q-periapt-core@=0.2.0'` |
+| [q-periapt-mlkem-native-sys](https://crates.io/crates/q-periapt-mlkem-native-sys/0.2.0) | Native ML-KEM provider | `cargo add 'q-periapt-mlkem-native-sys@=0.2.0'` |
+
+To check the exact SDK version without changing a project, run
+`cargo info q-periapt-sdk@0.2.0 --registry crates-io`. The separate
+[Continuity Rust archive](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-0.2.0.crate) has its own [installation instructions](continuity/SOURCE_DISTRIBUTION_0_2.md).
+
+## Rebuild and verify the release packages
 
 Run the SDK profile from a standalone Git checkout using Rust 1.98.1 and
 cargo-audit 0.22.2:
@@ -27,7 +54,7 @@ major and library identities remain 2.
 
 Cargo packages the cohort together, preparing its temporary registry from the
 actual new `.crate` files and rebuilding every package. This avoids resolving
-unpublished 0.2.0 dependencies from the public index or source-path patches
+the released copies from the public index or source-path patches
 during package verification. The reference-connection and native CLI CBOM
 features are enabled explicitly; the opt-in AVX2 candidate remains off.
 Each archive must match Cargo's package file list, source bytes, normalized
@@ -235,5 +262,4 @@ the same nine extracted packages on Rust 1.96.1 and 1.85.0. Each runs all four
 public API tests; canonical Clippy and workspace/fuzz/consumer dependency audits
 also pass. This refresh includes the borrowed public-key storage and reference
 listener changes, without changing external dependency identities between the
-two consumers. The candidate is still a dirty local diagnostic, not a public
-registry release or native Linux/platform qualification.
+two consumers. That September checkpoint used a dirty local tree. The November publication has its own tagged release evidence.

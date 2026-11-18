@@ -1,41 +1,24 @@
 # Q-Periapt Continuity specification workspace
 
-The [0.2.0 scope decision](RELEASE_0_2_SCOPE.md) now includes the full persistent
-session, ongoing PQ recovery and multi-device work in this release. The component
-checkpoint below does not mark the required product protocol complete.
-
-> **Current boundary: G0 complete; G1 remains open.** The isolated candidate now
-> executes authenticated bootstrap, persistent messages, hybrid rekey, witness
-> reconciliation and cleanup, with scoped installed Rust, C, Swift and Kotlin/JVM
-> checkpoints. Candidate wire, state, storage and metadata contracts describe
-> that implementation. Product protocol freeze, construction analysis, complete
-> authority-lifecycle qualification and current-source platform qualification
-> remain required. Device replacement, account-root replacement, witness renewal,
-> witness transfer and client adoption already have implementations and scoped
-> acceptance evidence in the [product admission record](PRODUCT_ADMISSION.md).
-
-This directory separates candidate specification text from the high-level research
-plan in [`../CONTINUITY_RESEARCH.md`](../CONTINUITY_RESEARCH.md). A file appearing
-here is not automatically frozen. G1 closes only when all required artifacts are
-marked frozen, hashed by a future `SPEC_LOCK.json`, and the open-decision register is
-empty.
+Q-Periapt Continuity 0.2.0 ships through the [platform release](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0).
+The [verified record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0) identifies the frozen packages and qualification
+evidence. The native interface is `qpc-owner/1`. The ABI 2 SDK handles
+owned keys and has its own [installation guide](../SDK_GETTING_STARTED.md).
 
 ## Start an integration
 
-Choose the entry for the host that will own the persistent state. The native
-language bindings use the unpublished `qpc-owner/1` candidate separately
-from the ordinary ABI 2 SDK; Rust uses the candidate crate directly. The browser
-lifecycle uses the product WASM web entry; its Node entry does not expose browser
-device storage. Use the matching package and source cohort described by each guide.
+Choose the package for the host that owns persistent state. Use the installation
+and first-use instructions for that package.
 
-| Host | Installation and first use |
-| --- | --- |
-| Rust | [Candidate crate consumption](../../research/continuity-identity-candidate/PACKAGE_CONSUMER.md) and [native enrollment inputs](../../research/continuity-identity-candidate/ENROLLMENT.md#inputs-and-first-use). The native API requires explicit one-time wrapping-key provisioning and canonical private paths. |
-| C | [Explicit configuration and registration](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration). |
-| Swift / Apple Silicon macOS / iOS | [Swift package, configuration and ownership](../../bindings/swift/ContinuityPackageConsumer/README.md). The guide includes the iOS private-container and Data Protection requirements. |
-| Kotlin/JVM | [First-use configuration](../../bindings/kotlin/ContinuityPackageConsumer/README.md#first-use-configuration-unpublished-candidate). |
-| Android | [AAR configuration and registration](../../bindings/android/ContinuityPackageConsumer/README.md). Run blocking opening work off the UI thread and close owners explicitly. |
-| Browser | [Product WASM lifecycle](../../crates/q-periapt-sdk-wasm/PackageREADME.md#browser-continuity-lifecycle). Persistent operations require a dedicated Worker, secure origin, IndexedDB, Web Locks and OPFS synchronous access handles. |
+| Host | Download | Installation and first use |
+| --- | --- | --- |
+| Rust | [Cargo source archive](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-0.2.0.crate) | Extract with `mkdir -p packages && tar -xzf q-periapt-continuity-0.2.0.crate -C packages`. Add the [path dependency](SOURCE_DISTRIBUTION_0_2.md#install-the-source-archive-with-a-public-rust-alias) and supply the [enrollment inputs](../../research/continuity-identity-candidate/ENROLLMENT.md#inputs-and-first-use). |
+| C, Linux x86_64 | [Native header and library](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip) | `unzip q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip`. See [configuration and registration](../../bindings/c/ContinuityPackageConsumer/README.md#explicit-first-use-configuration). |
+| Swift / Apple | [Swift package and XCFramework](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/QPeriaptContinuity-Apple-0.2.0.zip) | `unzip QPeriaptContinuity-Apple-0.2.0.zip`. Add the local `QPeriaptContinuity` package and select its namesake product. [Configuration and ownership](../../bindings/swift/ContinuityPackageConsumer/README.md). |
+| Kotlin/JVM, Apple Silicon | [Release Maven repository and native library](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-release.zip) | `unzip q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-release.zip -d continuity-kotlin`. Use `continuity-kotlin/maven`, `dev.qperiapt:q-periapt-continuity-kotlin:0.2.0` and the bundled dylib. [First use](../../bindings/kotlin/ContinuityPackageConsumer/README.md#first-use-configuration). |
+| Android | [Maven bundle](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-android-0.2.0-maven.zip) · [AAR](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-android-0.2.0.aar) | `unzip q-periapt-continuity-android-0.2.0-maven.zip`. Use the extracted `maven/` and `dev.qperiapt:q-periapt-continuity-android:0.2.0`. [Android integration](../../bindings/android/ContinuityPackageConsumer/README.md). |
+| Browser | [Product WASM tarball](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-sdk-wasm-0.2.0.tgz) | Install with `npm install https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-sdk-wasm-0.2.0.tgz`. Use the [web entry](../../crates/q-periapt-sdk-wasm/PackageREADME.md#browser-continuity-lifecycle) in a dedicated Worker on a secure origin with IndexedDB, Web Locks and OPFS synchronous access handles. |
+| Reference services, Linux x86_64 | [Service binaries](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz) | `tar -xzf q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz`. The archive includes the witness, directory, native-device consumer and policy tools. [Service guide](../../research/continuity-reference-app/README.md). |
 
 Supply independently trusted SDK and protocol policies, account identity and
 current account checkpoint; native network configuration also needs the host's
@@ -62,7 +45,7 @@ below remains open.
 
 | Artifact | Status | What it establishes |
 |---|---|---|
-| [`../../research/continuity-identity-candidate`](../../research/continuity-identity-candidate) | unpublished implementation candidate with its own workspace and lockfile | Required hybrid signatures, independently pinned identity/roster/policy, authenticated selection and three-flight confirmation; encrypted bootstrap journals, prekey inventory, protected signing owners and exact local write intents with real crash recovery. Required-witness release, durable roster revocation, four-flight hybrid rekeys and signed settled-history retirement run through actual journals. Explicit closed-epoch reports preserve unknown delivery outcomes and require durable application accounting before retirement. Installed device/account/witness lifecycle evidence is tracked in [PRODUCT_ADMISSION.md](PRODUCT_ADMISSION.md). Construction security, final authority/directory guarantees, measured scheduling budgets and product admission remain release work |
+| [`../../research/continuity-identity-candidate`](../../research/continuity-identity-candidate) | released Cargo source archive with its own workspace and lockfile | Required hybrid signatures, independently pinned identity/roster/policy, authenticated selection and three-flight confirmation; encrypted bootstrap journals, prekey inventory, protected signing owners and exact local write intents with real crash recovery. Required-witness release, durable roster revocation, four-flight hybrid rekeys and signed settled-history retirement run through actual journals. Explicit closed-epoch reports preserve unknown delivery outcomes and require durable application accounting before retirement. Installed device/account/witness lifecycle evidence is tracked in [PRODUCT_ADMISSION.md](PRODUCT_ADMISSION.md). Construction security, final authority/directory guarantees, measured scheduling budgets and product admission remain release work |
 | [`PROTOCOL_V1.md`](PROTOCOL_V1.md) | candidate identity/authority and lifecycle decisions; open-decision register retained | Accountable bootstrap/control target, stage-specific delivery boundaries, exact retransmission, revocation and account transaction obligations; not a frozen handshake or ratchet |
 | [`WIRE_V1.md`](WIRE_V1.md), [`BUDGETS_V1.json`](BUDGETS_V1.json) | implemented candidate grammar and compiled resource/profile comparison | Canonical public formats, existing signature purposes, epoch-separated ACK grammar, explicit independent trust inputs and unchanged resource bounds; measured product budgets and final freeze remain open |
 | [`STATE_MACHINE_V1.md`](STATE_MACHINE_V1.md) | source-grounded candidate operation contract | Owned state, exact bootstrap reservations, commit/consumption distinction, rekey cutovers, send budgets, fanout and terminal accounting; binding-specific error/cancellation acceptance is tracked in [PRODUCT_ADMISSION.md](PRODUCT_ADMISSION.md) |

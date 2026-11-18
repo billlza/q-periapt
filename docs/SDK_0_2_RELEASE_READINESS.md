@@ -1,9 +1,9 @@
 # Q-Periapt 0.2.0 release-readiness ledger
 
-Goal: finish the complete 0.2.0 product requirements, including the expanded
-Continuity scope and quality and maintainability review before delivery.
-Release readiness is evaluated against current-source evidence for each
-applicable requirement. The user's latest direction is **retain ABI major 2**.
+**Published 17 November 2026.** The [installation guide](SDK_GETTING_STARTED.md)
+lists the 0.2.0 downloads and registry commands. The [verified release record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0)
+binds the final package, qualification and publication evidence. The dated entries
+below describe the work and open questions at the time of each checkpoint.
 
 ## Current verification and maintenance checkpoint (2026-11-11)
 

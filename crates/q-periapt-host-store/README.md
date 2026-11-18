@@ -1,6 +1,12 @@
 # Q-Periapt host policy store
 
-Unpublished Rust host persistence for the owned SDK. `PolicyStore` verifies and
+Install [q-periapt-host-store 0.2.0](https://crates.io/crates/q-periapt-host-store/0.2.0) from crates.io in your Cargo project.
+
+```sh
+cargo add 'q-periapt-host-store@=0.2.0'
+```
+
+Rust host persistence for the owned SDK. `PolicyStore` verifies and
 durably stores an exact signed policy/state before exposing its runtime, holds
 an exclusive lifetime file lock, and closes retained runtime aliases on failure
 or disposal. Its private filesystem implementation is shared with the existing

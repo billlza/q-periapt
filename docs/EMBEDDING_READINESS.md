@@ -1,13 +1,17 @@
 # Q-Periapt Embedding Readiness
 
-This note is the current integration contract for downstream projects such as SkyBridge. It is
-deliberately stricter than a README quickstart and narrower than a product release promise.
+For the current SDK and Continuity packages, use the [0.2.0 installation
+guide](SDK_GETTING_STARTED.md) and [release evidence](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0).
+This note also records the earlier ABI 2 embedding gates and their target-specific
+results.
+
+## Historical 0.1.5 embedding baseline
 
 Publication completion (2026-09-06): the `v0.1.5` Apple and
 `abi2-platforms-v0.1.5` Android/Linux distributions are public and immutable.
 Apple remote-consumer and platform asset verification have produced domain receipts.
 All ten 0.1.5 crates.io packages and the complete three-domain cohort are verified.
-The authoritative published record is
+The published record for 0.1.5 is
 [`v0.1.5-verified-cohort`](https://github.com/billlza/q-periapt/tree/v0.1.5-verified-cohort);
 its results-only commit is `cc21bc1cadac5148aadfd98f1c6b0e4acbbb0c06`.
 See the [release checkpoint](../artifact/stable-release-notes.md) for exact
@@ -435,8 +439,7 @@ or competitor-performance result. Exact results require a fresh current-source p
 not inspect vendored C. ABI 2 is the stable-version source/Rust-crate line; registry
 publication remains separately receipt-gated. The local pre-publication package-ready contract does
 not prove crates.io upload-API acceptance, crate-name ownership, publishing credentials
-or authorization, server-side policy acceptance, or a registry receipt. Its
-stable binary targets are the Apple `v0.1.5` XCFramework and the
+or authorization, server-side policy acceptance, or a registry receipt. The stable binary targets for that historical contract were the Apple `v0.1.5` XCFramework and the
 `abi2-platforms-v0.1.5` Android/Linux packages; only their
 verified receipts may assert public, immutable and current status
 (see `artifact/stable-release-notes.md` for scope, verification, and explicit

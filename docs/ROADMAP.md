@@ -1,30 +1,12 @@
 # Q-Periapt — Roadmap
 
-## 0.2.0 release qualification
+## Published 0.2.0
 
-The development SDK implements verified runtime and key ownership, explicit
-purpose derivation/import, policy transitions and the bounded ContextBound
-data path across Rust, C, Swift, Kotlin/JVM, Android and product WASM. Native
-ABI major remains **2**: the SDK profile follows the
-[current C export contract](../crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json)
-and preserves the released nine declarations, status values and library identities. The
-opt-in GNU/Linux x86_64 AVX2 candidate is implemented; native qualification is
-still required. Standard TLS interoperability and the reference connection
-are implemented as separate paths with their own authentication/policy limits.
-
-Start with [SDK_GETTING_STARTED.md](SDK_GETTING_STARTED.md). The
-[release-readiness ledger](SDK_0_2_RELEASE_READINESS.md) tracks each current
-implementation, package and runtime result and the remaining gates.
-[SDK_0_2_ALPHA1.md](SDK_0_2_ALPHA1.md) is the historical first Rust/WASM checkpoint,
-not the current pending-work list. Exact-source hosted CI/CodeQL, native Linux
-reference execution, remaining platform/device coverage, controlled performance,
-binary CT and final release coordination remain open.
-The 0.2.0 candidate requires its own final qualification; the 0.1.5 history below
-retains the outcomes and source identities of that release.
-Persistent Continuity sessions, ongoing PQ recovery and multi-device lifecycle
-are now required in 0.2.0 under the
-[expanded release scope](continuity/RELEASE_0_2_SCOPE.md). Their implementation
-and protocol-specific verification remain open.
+The owned-key SDK and Continuity distributions shipped on 17 November 2026.
+Use the [installation guide](SDK_GETTING_STARTED.md) and [verified release
+record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0). The SDK retains ABI 2. Continuity has its own package and
+`qpc-owner/1` interface. The [readiness ledger](SDK_0_2_RELEASE_READINESS.md)
+and earlier milestones below retain their original source and evidence scope.
 
 Authoritative status and forward plan for **Q-Periapt**, a portable, `no_std`,
 side-channel-first PQ/T (post-quantum / traditional) hybrid cryptographic suite.

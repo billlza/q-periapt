@@ -1,6 +1,15 @@
 # Q-Periapt Android AAR/JNI
 
-The unpublished 0.2.0 source adds `QPeriaptSDK.Runtime`, `Key` and `Secret`
+[Download the Android Maven bundle.](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-android-sdk-0.2.0.tar.gz)
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-android-sdk-0.2.0.tar.gz
+tar -xzf q-periapt-android-sdk-0.2.0.tar.gz
+```
+
+Use `implementation("dev.qperiapt:q-periapt-android:0.2.0")` with the extracted repository. The [standalone AAR](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-android-0.2.0.aar) is also available.
+
+Version 0.2.0 provides `QPeriaptSDK.Runtime`, `Key` and `Secret`
 owners. Private keys remain in Rust unless transferred through `QPeriaptSDK.Expert`;
 use try-with-resources and explicit close.
 ABI major stays 2 and both native library names are unchanged. The same
@@ -14,7 +23,7 @@ host JNI execution, Android cross-compilation and APK assembly remain distinct
 from ART/device qualification. The packaging history and nine-method records
 below the SDK section apply to the retained 0.1.5 releases.
 
-## 0.2.0 SDK candidate
+## Install the 0.2.0 Android SDK
 
 The fixed Maven coordinate is `dev.qperiapt:q-periapt-android:0.2.0`.
 See [the packaged installation and lifecycle instructions](PackageREADME.md).
@@ -24,11 +33,10 @@ nine exports, nine JNI methods and manifest schema 4. The SDK profile requires
 and its separately typed schema-5 manifest. A manifest cannot choose its own
 verification profile. Old runtime/release receipts do not qualify this AAR.
 
-The [SDK runtime qualification guide](../../docs/SDK_ANDROID_RUNTIME.md) defines
-`agp_sdk_full_release` and `agp_sdk_minimal_release`, with explicit arm64/x86_64
-API-35/16-KiB targets and portable evidence replay. CI now selects these SDK
-profiles. Local minified APK builds and verifier regressions are recorded in
-the readiness ledger; current SDK ART and hosted-CI passes are still pending.
+The [0.2.0 platform release](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0) includes export and runtime evidence for
+the API 23 / 4 KiB and API 35 / 16 KiB x86_64 profiles. The evidence identifies
+which consumer APKs ran on each target. See the [runtime guide](../../docs/SDK_ANDROID_RUNTIME.md)
+for the workload definitions.
 
 Build the native AAR, using a fresh output directory:
 
@@ -144,8 +152,7 @@ consumer-rule contract; the producer also checks the compiled constructor with
 `javap`. Unused non-native Java methods and unrelated classes remain eligible for
 shrinking. A names-only keep rule is insufficient because `RegisterNatives`
 registers the whole method table even when the app calls only `runtimeVersion()`.
-The published **0.1.5 AAR lacks these manifest and keep-rule corrections**. Ordinary
-AGP and minified consumers need an explicit consumer-side correction: identify any
+The original **0.1.5 AAR lacks these manifest and keep-rule corrections**. Consumers reproducing that original package needed an explicit correction: identify any
 manifest-corrected AAR as a derived artifact, retain the original release checksum,
 and apply both exact JNI keep rules emitted by
 [`android-aar.sh`](../../artifact/android-aar.sh). Do not relabel the derived bytes
@@ -168,12 +175,8 @@ AGP/ART acceptance is a separate required consumer result; archive, `javap` or
 standalone R8 success does not establish it. A separate minimal-entry variant
 that calls only `runtimeVersion()` must also initialize JNI successfully and retain every native
 name/descriptor plus the exception callback in its shrunk DEX. The complete
-workload alone cannot detect removal of unused native methods. The r2 source and
-gate are candidates until the independent `abi2-platforms-v0.1.5-r2-verified` tag
-and maintenance receipt confirm the exact public assets. Once verified, select
-`abi2-platforms-v0.1.5-r2` for Android and Linux while retaining library SemVer
-`0.1.5`; the corrected AAR needs neither manifest conversion nor application-side
-Q-Periapt keep rules.
+workload alone cannot detect removal of unused native methods. The 0.1.5 maintenance work introduced these checks. For a new integration,
+use the 0.2.0 Android SDK linked above.
 
 The canonical Android release proof runs the exact package-gate AAR on a script-owned,
 cold-boot arm64-v8a Android 15 / API 35 `google_apis_ps16k` AVD with 16 KiB pages,
@@ -489,7 +492,7 @@ root with the CLI's `--sdk` assertion;
 all four tools must belong to that directory and match their recorded hashes.
 No verifier starts Gradle or a device; SDK and Git replay is read-only.
 
-## Stable AAR publication transaction
+## Historical 0.1.5 AAR publication transaction
 
 The original `abi2-platforms-v0.1.5` release is public and immutable. Its
 verified three-domain record is preserved at `v0.1.5-verified-cohort`; this

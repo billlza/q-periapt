@@ -1,53 +1,40 @@
 # Choose and integrate Q-Periapt
 
-Use **0.2.0** to evaluate the owned-key SDK in this source tree. It is
-unpublished; obtain a locally built candidate from the matching package guide
-below. Do not request this version from a public registry yet.
+Q-Periapt **0.2.0** was published on 17 November 2026. Get Rust packages
+from [crates.io](https://crates.io/crates/q-periapt-sdk/0.2.0), the Swift SDK from the
+[Apple release](https://github.com/billlza/q-periapt/releases/tag/v0.2.0), and the other SDKs and Continuity packages from
+the [platform release](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0). Verify GitHub downloads against
+`SHA256SUMS` on the corresponding release page. The
+[verified cohort](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0) records the source and package identities.
 
-Use the published **0.1.5** distributions when you need the existing released
-API. Android and GNU/Linux use
-[platform revision r4](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.1.5-r4),
-published on 2026-09-08 from `7ed1f96a7ec33732f02a989dd5a4669cdcce39ad`.
-Its [verification record](https://github.com/billlza/q-periapt/blob/abi2-platforms-v0.1.5-r4-verified/artifact/results.json)
-is separate from the original cohort. The Apple `v0.1.5` distribution and
-crates.io `0.1.5` packages remain the existing releases; r4 does not replace them.
-
-| Version field | Meaning |
-| --- | --- |
-| Library/package `0.2.0` | Current development SDK with runtime, key and secret owners. |
-| Native ABI **2** | Calling conventions, original nine declarations, existing status values and library identities remain compatible. |
-| SDK export profile | The current `sdk-020` contract contains exactly 51 C exports, including native policy recovery. The released 0.1.5 profile contains nine. New wrappers require the matching SDK exports. |
-| Platform revision `r4` | Packaging/runtime maintenance for library 0.1.5; it is neither ABI 4 nor library 0.2.0. |
+Some 0.2.0 archives include a README written before publication. To check the
+version in the public registry, run `cargo info q-periapt-sdk@0.2.0 --registry crates-io`.
+The release links above identify the matching platform downloads.
 
 ## Choose your language
 
-For owned keys, standard TLS or the bounded SDK request/response connection, use
-the packages below. For persistent sessions, multi-device operations and their
-recovery lifecycle, start with the [Continuity integration entries](continuity/README.md#start-an-integration).
-Continuity is required for 0.2.0 but remains an unpublished candidate with a
-separate interface and package contract; installing the ABI 2 SDK alone does not
-install its native device interface. The browser entry is in the product WASM
-package and has its own storage and Worker requirements.
-
-The package names and commands below target the local 0.2.0 candidate.
-Observations tied to earlier commits and checkpoints retain their alpha.1
-source scope. The 0.2.0 packages require fresh installation and runtime checks.
-Named checkpoints retain their own source scope; later changes require their
-own qualification, as recorded in the [readiness ledger](SDK_0_2_RELEASE_READINESS.md).
-
-| Application | Installation and first example | Current validation |
+| Platform | Download | Installation |
 | --- | --- | --- |
-| Rust | [Rust package guide](SDK_RUST_PACKAGE.md); [public API consumer](../bindings/rust/SDKPackageConsumer/src/lib.rs). Use source path dependencies for development, or the exact supplied `.crate` cohort with the guide's external-consumer setup. | The minimum compiler is Rust 1.90; the pinned development and release compiler is 1.98.1. Current-source platform qualification is tracked in the release-readiness document. |
-| C | Extract the [C SDK archive](SDK_C_PACKAGE.md), then link `qperiapt-abi2` through pkg-config or `QPeriaptABI2` through CMake. Windows uses its [separate SDK profile](SDK_WINDOWS_PACKAGE.md). Start from the shipped `sdk_smoke.c`. | Installed shared/static macOS ARM64 consumers run. Hosted `2493ffe` and `921cada` also pass native GNU/Linux x86_64/ARM64 and Windows package consumers; both Windows toolchains cover extracted direct/CMake calls and archive-only reconsumption. Minimum-OS/device coverage remains open. |
-| Swift | Extract `QPeriapt-Swift-SDK-0.2.0.zip`, add its `QPeriapt` folder as a local Swift package, and select `QPeriaptSDK`. See the [Swift guide](SDK_SWIFT_PACKAGE.md). | Installed macOS ARM64 calls and TCP connection run. The readiness ledger records accepted current-OS iPhone/iPad SDK cohorts with their exact source identities. macOS 13/iOS 16 are build floors, not minimum-OS runtime receipts. macOS support is Apple Silicon only. |
-| Kotlin/JVM | Add the supplied local Maven repository and `dev.qperiapt:q-periapt-hybrid:0.2.0`; supply its matching ABI 2 native library. See [JVM installation](../bindings/kotlin/PackageREADME.md). | JDK 25 installed Maven consumer runs on macOS ARM64. Other native platforms remain open. |
-| Android | Use the supplied AAR or local Maven coordinate `dev.qperiapt:q-periapt-android:0.2.0`. See [Android installation](../bindings/android/PackageREADME.md). | Four native ABIs packaged. Hosted API 23 / 4 KiB and API 35 / 16 KiB cohorts have runtime records in the readiness ledger. The [API 37 ARM64 phone checkpoint](../research/sdk-alpha1/evidence/20261011-android-api37-physical/CHECKS.json) completes both full/minimal installed SDK consumers, cleanup and export checks. That one phone satisfies the agreed physical-device scope; API 36 hardware or a second phone is not required. |
-| JavaScript/TypeScript | `npm install ./q-periapt-sdk-wasm-0.2.0.tgz`; use the [Node/browser quickstart](../crates/q-periapt-sdk-wasm/PackageREADME.md). | Node 24.0.0/26.3.0 and Chrome 153/Firefox 156 have installed-package execution on macOS ARM64, including browser windows and dedicated module Workers. [Browser evidence and limits](SDK_BROWSER_RUNTIME.md) include Firefox host diagnostics and Safari's disabled automation setting. Other hosts, mobile/minimum browsers, bundlers and other Worker types remain open. |
+| Rust | [q-periapt-sdk](https://crates.io/crates/q-periapt-sdk/0.2.0) · [all twelve crates](SDK_RUST_PACKAGE.md#install-from-cratesio) | In your Cargo project run `cargo add 'q-periapt-sdk@=0.2.0'`. Minimum Rust 1.90. |
+| CLI | [q-periapt-cli](https://crates.io/crates/q-periapt-cli/0.2.0) | `cargo install --locked --version 0.2.0 q-periapt-cli`, then `qperiapt --help`. |
+| C / C++ | [Apple Silicon](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin.tar.gz) · [Linux x86_64](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu.tar.gz) · [Linux arm64](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-aarch64-unknown-linux-gnu.tar.gz) · [Windows x64 MSVC](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip) | Extract the archive for your target. Follow the [pkg-config/CMake example](SDK_C_PACKAGE.md) or [Windows instructions](SDK_WINDOWS_PACKAGE.md). |
+| Swift | [Complete Swift package](https://github.com/billlza/q-periapt/releases/download/v0.2.0/QPeriapt-Swift-SDK-0.2.0.zip) | Run `unzip QPeriapt-Swift-SDK-0.2.0.zip`. Add the extracted `QPeriapt` folder as a local Swift package and select the `QPeriaptSDK` product. [Swift guide](SDK_SWIFT_PACKAGE.md). |
+| Android | [SDK with Maven repository](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-android-sdk-0.2.0.tar.gz) · [AAR](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-android-0.2.0.aar) | Run `tar -xzf q-periapt-android-sdk-0.2.0.tar.gz`. Add the extracted `q-periapt-android-sdk-0.2.0/maven` repository and `implementation("dev.qperiapt:q-periapt-android:0.2.0")`. [Gradle example](../bindings/android/PackageREADME.md). |
+| Kotlin/JVM | [GNU/Linux x86_64 JVM bundle](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-jvm-0.2.0-x86_64-unknown-linux-gnu.tar.gz) | Run `tar -xzf q-periapt-jvm-0.2.0-x86_64-unknown-linux-gnu.tar.gz`. Configure its `maven/` and native library on JDK 25 as shown in the [JVM guide](../bindings/kotlin/PackageREADME.md). Use `implementation("dev.qperiapt:q-periapt-hybrid:0.2.0")`. |
+| JavaScript / TypeScript | [npm tarball](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-sdk-wasm-0.2.0.tgz) | `npm install https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-sdk-wasm-0.2.0.tgz`. See the [Node and browser examples](../crates/q-periapt-sdk-wasm/PackageREADME.md). |
 
-The older `QPeriaptHybrid` compatibility API and deterministic WASM test surface
-remain available. Start new owned-key integrations with the product entries
-above. Do not combine a 0.2.0 wrapper with a nine-export 0.1.5 native library
-merely because both say ABI 2.
+The SDK exposes 51 functions under native ABI 2. Use matching 0.2.0 wrappers
+and libraries. For persistent sessions and multi-device recovery, choose a
+[Continuity download and first-use guide](continuity/README.md#start-an-integration).
+Its Rust crate is a GitHub source archive and its native interface is `qpc-owner/1`.
+
+## Swift package selection
+
+On Apple Silicon with Xcode 27.2 and Swift 6.4.2, an application can build
+and run with either released Apple package on its own. Adding both
+`QPeriaptSDK` and `QPeriaptContinuity` to one SwiftPM executable fails in the
+default build system. Both XCFrameworks produce `include/module.modulemap` in
+the Release products directory. Choose the package for the API your app uses.
 
 ## First integration
 
@@ -88,9 +75,6 @@ passes twelve connection cases with separate persistent stores. Its Linux peer
 runs natively in a local VM on the same physical Mac; independent physical hosts
 and an independent implementation of the application protocol remain unqualified.
 
-The [readiness ledger](SDK_0_2_RELEASE_READINESS.md) records the remaining release
-work. Package creation and the local checks above do not complete the platform
-matrix or the formal 0.2.0 release requirements.
-
-The current 0.2.0 release quality gates include internal code/security and
-maintainability review, with the validation results recorded in the ledger.
+The [release evidence](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0) identifies the exact packages, installed
+consumer checks and qualification scope. Development checkpoints in the
+[readiness ledger](SDK_0_2_RELEASE_READINESS.md) retain their original dates.

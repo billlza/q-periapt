@@ -1,5 +1,14 @@
 # q-periapt-hybrid (Kotlin)
 
+[Download the JVM SDK for GNU/Linux x86_64.](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-jvm-0.2.0-x86_64-unknown-linux-gnu.tar.gz)
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-jvm-0.2.0-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf q-periapt-jvm-0.2.0-x86_64-unknown-linux-gnu.tar.gz
+```
+
+Use the extracted file Maven repository and `implementation("dev.qperiapt:q-periapt-hybrid:0.2.0")` as shown in the [JDK 25 installation guide](PackageREADME.md).
+
 For durable policy state on macOS arm64 or Linux, start with
 `QPeriaptPersistentRuntime.provision` for explicit first installation and `open`
 for an existing store. `QPeriaptRuntime.fromSignedPolicy` remains the entry point
@@ -41,7 +50,7 @@ the AAR/JNI surface under [`../android`](../android/), built by
 > and secret wipe. The minimum consumer runtime is JDK 25; consumers of the
 > earlier JDK 22 target must update their runtime. No preview features are enabled.
 
-## Installable candidate
+## Install the 0.2.0 JVM SDK
 
 The Maven coordinate is `dev.qperiapt:q-periapt-hybrid:0.2.0`. The existing
 Gradle project name stays `q-periapt-hybrid`. Binary and sources JARs include

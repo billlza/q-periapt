@@ -1,5 +1,12 @@
 # Windows SDK package profile
 
+[Download the Windows x64 MSVC SDK.](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip)
+
+```powershell
+curl.exe -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip
+Expand-Archive -Path q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip -DestinationPath .
+```
+
 The Windows producer and verifier have an explicit `sdk-020` profile for
 **0.2.0**, with ABI major **2** and the
 [current closed C export contract](../crates/q-periapt-ffi/abi/q-periapt-c-abi-v2-sdk-020.json). The original
@@ -7,13 +14,10 @@ nine declarations, status values and library filenames remain compatible.
 The default `legacy` profile still describes 0.1.5 with nine exports; it cannot
 admit a 0.2.0 archive. Use the explicit profile in both build and verify modes.
 
-The 0.2.0 archives require fresh native builds, archive verification and
-installed-consumer execution on both Windows runners. Earlier alpha.1 runs
-complete those package checks; the readiness ledger retains their source
-identities and the preceding static-link/export failures and repairs. Signing
-requires its own release transaction.
-The candidate manifest explicitly records
-`release_claim_eligible: false`; it does not claim publication or attestation.
+The [tagged Windows readback and qualification records](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0)
+identify the distributed archive and the workloads executed on native Windows.
+A local package build has its own build manifest. The released DLL is unsigned;
+the GitHub asset digest verifies its bytes.
 
 ## Build from frozen source
 

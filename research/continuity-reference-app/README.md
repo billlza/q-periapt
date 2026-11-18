@@ -1,5 +1,14 @@
 # Continuity reference account application
 
+[Download the Linux x86_64 service binaries.](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz)
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf q-periapt-continuity-services-0.2.0-x86_64-unknown-linux-gnu.tar.gz
+```
+
+The archive provides the prekey directory, witness, native device, SDK policy authority and policy publisher under `bin/`. The account application in this workspace is a source example.
+
 The [accountable prekey directory](DIRECTORY_LEASES.md) issues and verifies signed one-time assignments with an original private ledger and portable conflict evidence.
 
 This is an **optional host-application example**, not a prerequisite for using
@@ -23,7 +32,7 @@ the independent implementation and serves owned bootstrap, durable inbox deliver
 and rekey control. The explicit [TCP reference service](NETWORK.md) connects
 native and independent owners with bounded admission and original-operation retry.
 
-This unpublished host application is the starting point for the independent
+This source-example host application is the starting point for the independent
 consumer's real account login and device authorization path. It uses
 `webauthn-rs 0.5.5` for Passkey registration and authentication. Authentication
 belongs to this application; no WebAuthn or HTTP dependency is added to the

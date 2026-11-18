@@ -1,6 +1,15 @@
 # Android Continuity owner candidate
 
-This unpublished adapter calls the existing `qpc-owner/1` engine through JNI.
+[Download the Continuity Android Maven bundle.](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-android-0.2.0-maven.zip)
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-android-0.2.0-maven.zip
+unzip q-periapt-continuity-android-0.2.0-maven.zip
+```
+
+Add its extracted `maven/` repository and `implementation("dev.qperiapt:q-periapt-continuity-android:0.2.0")`. The [standalone AAR](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-android-0.2.0.aar) is also available.
+
+This released adapter calls the existing `qpc-owner/1` engine through JNI.
 It is separate from the product SDK's ABI 2 Android package. Its present public
 surface covers explicit configuration creation, reconciliation with original
 inputs, reopening, registration requests, independently pinned grants, storage
@@ -9,7 +18,7 @@ reopening, message status/retry, bidirectional transport, rekey and registry-bac
 first activation, same-key credential renewal, joint credential/policy renewal, independent policy/roster renewal
 and original-message retry, device replacement, restricted old-device retirement
 and independently authorized account-root replacement. The current extracted AAR has a
-minified AGP consumer; it is still an unpublished candidate. The
+minified AGP consumer. The
 [integrated Debug/Release checkpoint](../../../research/sdk-alpha1/evidence/20261012-android-root-integrated/README.md)
 passes 4,294 Java calls, including all five root routes and 124 root process cuts.
 The accepted single-phone AAR evidence remains valid.
@@ -350,8 +359,7 @@ runs the JNI malformed-input probe, both twelve-process lifecycle traces and the
 four required-witness routes (thirty additional foreign processes per profile),
 and four managed registry routes (fifty additional processes per profile).
 The result is `ANDROID_JNI_CONSUMER.json` with source, tool, JAR and binary hashes.
-This host lane complements the recorded actual-AAR/ART physical run; the JNI
-adapter remains an unpublished candidate.
+This host lane complements the recorded actual-AAR/ART physical run.
 
 Local-only credential renewal has a separate real-clock qualification. Expiry
 leaves the original intent Pending until explicit reconciliation records
@@ -424,8 +432,7 @@ successor operations. Historical state is not current traffic authorization.
 All five routes pass 724 host calls and 362 ART calls on the same accepted phone,
 including 124 host and 62 ART process cuts. The shared package qualifier
 requires every test in its current catalog and all five bounded public exports; its
-combined current-source run is a separate integration check. The interface remains
-an unpublished candidate.
+combined current-source run is a separate integration check.
 
 ### Original pending-write confirmation
 

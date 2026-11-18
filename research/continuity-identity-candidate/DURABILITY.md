@@ -1,9 +1,8 @@
-# Encrypted device journal candidate
+# Encrypted device journal
 
 `DeviceJournal` connects the actual [bootstrap](BOOTSTRAP.md) to redb. It can
 recover a pinned response after its original signing/prekey owners have closed.
-This remains an unpublished candidate; it does not complete the 0.2.0 session
-store, ratchet or recovery contract.
+This note covers the journal component. The [0.2.0 release record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0) identifies the full session and recovery scope.
 
 ## Ownership and storage identity
 

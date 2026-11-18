@@ -1,18 +1,23 @@
 # q-periapt-wasm
 
+Install [q-periapt-wasm 0.2.0](https://crates.io/crates/q-periapt-wasm/0.2.0) from crates.io in your Cargo project.
+
+```sh
+cargo add 'q-periapt-wasm@=0.2.0'
+```
+
 WASM bindings for the PQ/T hybrid suite (ML-KEM-768 + X25519 + SHA3) via
 `wasm-bindgen` — the same one Rust core, exposed to JavaScript/TypeScript.
 
 This package retains the **expert/conformance** interface with caller randomness
-and raw secret exports. For the new product API under 0.2.0 development,
-use [`q-periapt-sdk-wasm`](../q-periapt-sdk-wasm/README.md): signed policy,
+and raw secret exports. For the 0.2.0 product API,
+use [the product WASM SDK](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-sdk-wasm-0.2.0.tgz): signed policy,
 platform randomness, explicit object lifetimes and no private-key getter.
 
 The WASM face is the current stateless KEM/policy API, not a prekey or ratchet
 implementation. It provides no persistent session, multi-device, recovery, or
 PQ3/Signal parity claim. See
-[`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md) for the
-future-only session architecture and proof requirements.
+[`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md) for the research background. The [Continuity browser entry](https://github.com/billlza/q-periapt/blob/main/crates/q-periapt-sdk-wasm/PackageREADME.md#browser-continuity-lifecycle) ships in the product tarball.
 
 Randomness (encapsulation coins, key seeds) is supplied **by the JS caller** as a
 `Uint8Array`, so there is no in-WASM entropy dependency.

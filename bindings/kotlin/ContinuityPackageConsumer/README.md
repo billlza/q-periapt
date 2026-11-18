@@ -1,12 +1,21 @@
 # Continuity Kotlin/JVM companion
 
+[Download the native Apple Silicon release and file Maven repository.](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-release.zip)
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-release.zip
+unzip q-periapt-continuity-kotlin-0.2.0-aarch64-apple-darwin-release.zip -d continuity-kotlin
+```
+
+Configure `continuity-kotlin/maven` in your build and use `implementation("dev.qperiapt:q-periapt-continuity-kotlin:0.2.0")`. The matching native library is under `continuity-kotlin/native/lib/`.
+
 The `dev.qperiapt:q-periapt-continuity-kotlin:0.2.0` module calls the existing
 `qpc-owner/1` C/Rust engine. Its producer and installed Maven consumer use that
 exact coordinate. The companion keeps the `dev.qperiapt.continuity` module and
 its separate native ABI; SDK ABI 2 keeps its own package. Selected release
 artifacts follow the [distribution contract](../../../docs/continuity/SOURCE_DISTRIBUTION_0_2.md).
 
-For a new installation, start with [first-use configuration](#first-use-configuration-unpublished-candidate):
+For a new installation, start with [first-use configuration](#first-use-configuration):
 `ContinuityConfiguration.prepareCreate(path, input)`, `finishOpen()`, then
 `createEnrollment(intent, witness)`. The SDK publishes its wrapping key and owns
 the original registration identity; the host supplies independent trust inputs,
@@ -385,7 +394,7 @@ incomplete cuts, altered loss fields and a substituted original report fail.
 
 Required follow-up includes current-source Debug/Release collection and CI,
 other native-call lifetime paths, broader JVM interruption, additional JVM/OS targets,
-and Android ART/JNI. This candidate does not yet satisfy full 0.2.0 admission.
+and Android ART/JNI. The [November release record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0) identifies the admitted package and evidence.
 
 The collector separately runs bounded prepared-owner lifetime checks under Serial
 GC and G1, with an explicit 32-MiB initial / 128-MiB maximum heap, for each native
@@ -807,7 +816,9 @@ to the original reserved intent and retires fresh unshared members. Neither
 operation asserts remote directory publication or physical erasure. Cancellation,
 owner closure and uncertain-result recovery use the existing native owner rules.
 
-## First-use configuration (unpublished candidate)
+<a id="first-use-configuration-unpublished-candidate"></a>
+
+## First-use configuration
 
 Start with `ContinuityConfiguration.prepareCreate(path, input)`. Provide the original
 SDK `SdkPolicyTrust`, exact `InitialSdkPolicy`, independently pinned protocol

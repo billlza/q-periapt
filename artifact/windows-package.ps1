@@ -2206,7 +2206,7 @@ endif()
 $readmeTemplate = @'
 # Q-Periapt C ABI 2 — @VERSION@ (x86_64-pc-windows-msvc)
 
-This research-alpha SDK supports Windows x64 with the MSVC ABI. It includes the
+This SDK supports Windows x64 with the MSVC ABI. It includes the
 ABI2 DLL, its import library, a separate static library, headers, CMake config,
 the frozen ABI contract, SBOM/CBOM, third-party notices, and checksums.
 
@@ -2229,9 +2229,12 @@ and must not be freed; all operation buffers remain caller-owned.
 if ($Profile -eq "sdk-020") {
     $readmeTemplate += @'
 
-## Owned SDK (alpha)
+## Owned SDK 0.2.0
 
-This unpublished candidate uses ABI 2 with the exact 51-export SDK surface,
+Download the [Windows x64 MSVC archive](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip) and extract it with
+`Expand-Archive -Path q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip -DestinationPath .`.
+
+The SDK uses ABI 2 with the exact 51-export SDK surface,
 including the original nine declarations. sdk_smoke.c exercises verified
 runtime owners, platform randomness, expert transfer, purpose derivation,
 revocation and failure handling. The supplied policies are public test data;

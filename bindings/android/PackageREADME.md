@@ -1,6 +1,13 @@
 # Q-Periapt Android SDK 0.2.0
 
-This local candidate contains the Maven coordinate
+[Download the Android SDK with its Maven repository.](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-android-sdk-0.2.0.tar.gz)
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-android-sdk-0.2.0.tar.gz
+tar -xzf q-periapt-android-sdk-0.2.0.tar.gz
+```
+
+The released SDK archive contains the Maven coordinate
 `dev.qperiapt:q-periapt-android:0.2.0`, a sources JAR, project and native
 dependency notices, and the source-bound AAR manifest. It has not been uploaded
 to Maven Central. Native ABI major remains **2**, the owner extension is 1, and
@@ -24,7 +31,7 @@ dependencyResolutionManagement {
 ```
 
 Add `implementation("dev.qperiapt:q-periapt-android:0.2.0")` in the
-application module. Use this exact version; the candidate repository does not
+application module. Use this exact version; the bundled Maven repository does not
 provide dynamic-version metadata. The AAR has no Maven runtime dependencies.
 AGP's own built-in Kotlin support may add Kotlin stdlib to the application;
 that dependency is separate from the AAR's POM.

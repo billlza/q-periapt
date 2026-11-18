@@ -1,4 +1,10 @@
-# Q-Periapt owned SDK (0.2.0 development)
+# Q-Periapt owned SDK 0.2.0
+
+Install [q-periapt-sdk 0.2.0](https://crates.io/crates/q-periapt-sdk/0.2.0) from crates.io in your Cargo project.
+
+```sh
+cargo add 'q-periapt-sdk@=0.2.0'
+```
 
 Create `Runtime::from_signed_policy(policy, signature, pinned_root,
 last_trusted_state, Limits::default())`, atomically persist its `trusted_state()`,

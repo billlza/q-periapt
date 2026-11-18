@@ -1,5 +1,14 @@
 # Installed Continuity C owner companion
 
+[Download the Linux x86_64 Continuity C header and library.](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip)
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip
+unzip q-periapt-continuity-native-0.2.0-x86_64-unknown-linux-gnu.zip
+```
+
+Use the extracted `include/qpc_owner.h` and `lib/libq_periapt_continuity_c_consumer.so`.
+
 For a new integration, start with [explicit first-use configuration](#explicit-first-use-configuration).
 That entry validates your independently supplied trust, policy and TLS inputs,
 publishes the initial configuration and wrapping key, then creates the original
@@ -96,8 +105,7 @@ or impossible expiry observations. Development runs of this workload do not
 qualify archive installation, Swift/Kotlin renewal or an independent engine.
 
 
-This is an unpublished `qpc-owner/1` consumer of the same Rust Continuity engine,
-not an addition to product ABI 2 or a frozen C API. Its header is
+This consumer calls the Rust Continuity engine through its released `qpc-owner/1` interface. Its header is
 [`qpc_owner.h`](qpc_owner.h). The collector builds it outside the checkout from a
 Cargo-produced candidate archive and the same nine pinned SDK archives used by
 the native Rust consumer. It must execute the C program and independently read
@@ -1167,8 +1175,7 @@ the earlier member report. The C reference client serializes each member report
 separately, syncs file and directory, and verifies the exact retained bytes before
 acknowledgement; it keeps aggregate results separately before metadata retirement.
 
-These are additions to the unpublished `qpc-owner/1` candidate, not product ABI 2
-stability or complete 0.2.0 admission. Swift/Kotlin required-witness roster and
+This checkpoint concerns the `qpc-owner/1` interface. The release admission records the complete 0.2.0 scope. Swift/Kotlin required-witness roster and
 peer-roster update paths, installed-package qualification, physical
 platform evidence and independent protocol/security review remain separate gates.
 
@@ -1250,7 +1257,7 @@ error-output guarantees or any of the 106 C exports.
 
 ## Permanently retired enrolled devices
 
-The unpublished `qpc_retired_v1_*` family delegates whole-device cleanup to
+The `qpc_retired_v1_*` family delegates whole-device cleanup to
 `RetiredDeviceEnrollment`. It accepts the original approved enrollment intent,
 an independently obtained witness pin, the complete original device replacement
 proposal, and the signed permanent retirement proof for that old subject. These
@@ -1347,7 +1354,7 @@ publication, remote revocation or physical erasure.
 
 ## Explicit first-use configuration
 
-The unpublished `qpc-owner/1` candidate has 132 exports, including five
+At this earlier checkpoint the `qpc-owner/1` interface had 132 exports, including five
 `qpc_configuration_v1_*` entry points. Product SDK ABI major 2 is unchanged.
 Fill the versioned input with `struct_size = sizeof(input)` and `version = 1`.
 Supply original SDK trust, exact signed initial policy (and original recovery
@@ -1427,7 +1434,7 @@ exercise public-wrapper release, explicit close and pending-child cancellation.
 
 ## Independent account registry ownership
 
-The unpublished `qpc_authority_v1_*` entries own the native
+The `qpc_authority_v1_*` entries own the native
 `AccountAuthorityStore` through the same bounded owner table. Retain the original
 private directory, registry identity, family, witness pin and `authority.key`
 independently of device-journal backups. Explicit first use provisions the key and
@@ -1598,8 +1605,7 @@ Compiled-C transition/adoption process variants, Swift/Kotlin controller
 integration, other hosts and physical devices
 remain separate gates. Nine SIGKILL cuts follow public call returns, and the
 reverse receiver cut is inside the host callback after effect persistence; native
-in-commit storage cuts retain their separate qualification. This interface remains
-unpublished `qpc-owner/1`, outside product ABI 2.
+in-commit storage cuts retain their separate qualification. These calls belong to Continuity `qpc-owner/1`.
 
 ### Original pending-write confirmation
 

@@ -1,5 +1,16 @@
 # C SDK package profile
 
+Choose the binary archive for [Apple Silicon](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin.tar.gz), [GNU/Linux x86_64](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu.tar.gz), [GNU/Linux arm64](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-aarch64-unknown-linux-gnu.tar.gz), [Windows x64 MSVC](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip). On Linux x86_64 the following commands select the extracted SDK.
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu.tar.gz
+export PKG_CONFIG_PATH="$PWD/q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu/lib/pkgconfig"
+pkg-config --modversion qperiapt-abi2
+```
+
+## Build from source
+
 The shared C packager has a `sdk-020` profile for 0.2.0. ABI major
 remains **2**, including the original nine declarations/status values and native
 library identities. Its separate schema-3 package manifest requires the exact
@@ -12,8 +23,7 @@ sh artifact/c-package.sh --profile sdk-020
 ```
 
 The 0.2.0 producer supports native Apple Silicon macOS and 64-bit GNU Linux targets.
-Intel macOS is outside the support matrix. The observed local
-run is macOS ARM64; Linux execution is still pending. A release build requires
+Intel macOS is outside the support matrix. The 0.2.0 archive and installed-consumer records are in the [verified cohort](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0). A release build requires
 a clean standalone Git checkout. A diagnostic build can explicitly use
 `QPERIAPT_ALLOW_DIRTY_C_PACKAGE=1` and a fresh `QPERIAPT_C_PACKAGE_OUT_DIR` under
 that checkout's `target` directory. The existing provenance guard still rejects

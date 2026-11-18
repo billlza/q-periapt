@@ -1,8 +1,19 @@
 # Swift SDK package profile
 
+[Download the complete Swift SDK.](https://github.com/billlza/q-periapt/releases/download/v0.2.0/QPeriapt-Swift-SDK-0.2.0.zip)
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/v0.2.0/QPeriapt-Swift-SDK-0.2.0.zip
+unzip QPeriapt-Swift-SDK-0.2.0.zip
+```
+
+Add the extracted `QPeriapt` folder as a local Swift package and select `QPeriaptSDK`.
+
+## Build from source
+
 The shared Apple builder has an explicit `sdk-020` profile. It packages both
 the owned `QPeriaptSDK` and retained `QPeriaptHybrid` Swift products with static
-XCFramework slices. The C ABI remains **2**, with the closed 43-function SDK
+XCFramework slices. The C ABI remains **2**, with the closed 51-function SDK
 table and the original nine declarations/status values/library names retained.
 
 ```sh
@@ -79,10 +90,8 @@ it repeats the runtime tests, verifies the selected archive and rejects source
 paths in its build output. This is local host installation evidence, not the
 Swift/macOS-to-Rust/Linux reference-connection acceptance gate.
 
-The profile produces an unsigned 0.2.0 candidate. The historical signed Apple release
-schema and receipts remain separate and cannot admit it. Source-local success
-does not claim hosted CI, minimum-OS runtime testing, device coverage, signing
-or readiness for 0.2.0 publication. See the
+The local build profile produces an unsigned archive. The [signed 0.2.0 Apple
+release](https://github.com/billlza/q-periapt/releases/tag/v0.2.0) and its checksums identify the distributed bytes. See the
 [release-readiness ledger](SDK_0_2_RELEASE_READINESS.md) for outstanding gates.
 
 The 2026-09-26 local unsigned run completed the full producer. Its complete SDK
