@@ -1,13 +1,14 @@
 \section{Construction and the motivating execution}
 \label{sec:construction}
 
-\qperiapt{} combines ML-KEM-768 and X25519 in its ContextBound hybrid KEM
-and authenticates protocol controls with an ML-DSA-65/P-256 identity.
-Our analysis follows the persistent session and rekey machinery: an original
-operation first reserves its entropy, places the resulting token in a retained
-plan, and later computes or replays the corresponding KEM operation. An exact
-retry uses the same reservation. The protocol alternates the proposing endpoint
-across epochs and carries separate send, receive, and confirmed-epoch state.
+\qperiapt{} combines ML-KEM-768 and X25519 in its ContextBound hybrid
+KEM and authenticates protocol controls with an ML-DSA-65/P-256
+identity. Consider what an endpoint must save if it expects to finish
+a rekey after a crash. It first reserves the randomness and places the
+token for that reservation in a durable plan. When the endpoint executes
+or replays the operation, it uses that token again. The peers alternate
+as proposer across epochs, and each maintains its own send, receive and
+confirmed-epoch state.
 
 \paragraph{Fixed cryptographic context.}
 The combiner hashes a length-delimited encoding of the two component secrets,

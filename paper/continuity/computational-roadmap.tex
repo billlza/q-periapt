@@ -1,13 +1,16 @@
 \section{Computational interfaces and composition}
 \label{sec:computation}
 
-The main result is native online selected-message security
-(Theorem~\ref{thm:native-online-message}). It extends the established-session
-first-message bound (Corollary~\ref{cor:live-core-next-rekey}) along the
-source, record and root connection also used by selected-root authentication
-(Theorem~\ref{thm:native-selected-authentication}). This section first supplies
-the interfaces required by that connection, then composes them with the native
-execution.
+We want to protect a particular application send after the next rekey.
+The first-message bound (Corollary~\ref{cor:live-core-next-rekey})
+covers the marked first message. What changes if several earlier
+message keys have been disclosed before
+the observer chooses its target? Theorem~\ref{thm:native-online-message}
+answers that question. Its proof follows the same original sources,
+saved records and recovered root used for selected-root authentication
+(Theorem~\ref{thm:native-selected-authentication}). We first specify
+when the observer makes each choice, then connect those choices to the
+native execution.
 
 \paragraph{The experiment and its selection boundaries.}
 Fix public lifetime budgets $G,C\geq1$ for original generation and

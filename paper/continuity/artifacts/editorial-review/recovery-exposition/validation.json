@@ -1,0 +1,69 @@
+{
+  "scope": "The reservation example, the two selection times, record readability and eligibility, and the interpretation of matched deliveries and exposure. The revision changes expository prose.",
+  "mathematics": {
+    "source": "artifacts/editorial-review/recovery-exposition/source-preservation.json",
+    "sha256": "cf76610c3a2dd8fb86cf6655d938dbe667b94da5f4acff19cd57ebab51cf00a0",
+    "main_result": "Theorem 5.28, native online selected-message confidentiality and fresh-message integrity.",
+    "supporting_result": "Proposition 4.5, incremental evaluation of the exact exposure set on fixed indexed graphs."
+  },
+  "experiment_in_abstract": {
+    "sources": [
+      "retry-readiness.tex",
+      "retry-readiness-table.tex",
+      "artifacts/retry-readiness/"
+    ],
+    "matched_native_reference_runs": 49,
+    "paired_native_retry_runs": 28,
+    "schedule": "alternating",
+    "per_direction_budget": 32,
+    "deliveries_immediate": 688,
+    "deliveries_age_four": 971,
+    "derived_post_capture_keys_per_endpoint_in_either_policy": 63
+  },
+  "build": {
+    "environment": "macOS arm64, pdfTeX 1.40.29 (TeX Live 2026), latexmk 4.88 and Poppler 26.11.0.",
+    "command": "make -C paper/continuity source using artifact/python-run.sh",
+    "checks": [
+      "chain-prefix finite controls",
+      "native online-chain controls",
+      "four bootstrap source packet checks",
+      "49 matched profile/schedule rows and directed input controls",
+      "28 native retry executions / 14 pairs retained analysis",
+      "indexed closure equivalence, histories, expected cases, input rejection and structural-work controls",
+      "independent typed-Horn least-model enumeration",
+      "manuscript build and source identity",
+      "nine-file single-source export"
+    ],
+    "receipt": "artifacts/editorial-review/recovery-exposition/build-check.json",
+    "sha256": "94b3cc1ce15c04f392e9bc9f5035f86fb0ea71352c6ef560ae394ba59624e7ba",
+    "prior_manuscript_same_toolchain_underfull_notices": 137,
+    "current_underfull_notices": 137
+  },
+  "export": {
+    "command": "artifacts/bootstrap/verify_source_export.py on the nine-file archive in a fresh build directory",
+    "receipt": "artifacts/editorial-review/recovery-exposition/source-export-check.json",
+    "sha256": "6e05f6450e6e09f006f3fe53b03ad4cec30c9dd5d759468a0c7ef7b5e776ba3d"
+  },
+  "rendered_pages_inspected": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    7,
+    17,
+    23,
+    69,
+    90,
+    94,
+    95,
+    98,
+    99,
+    100,
+    101,
+    102
+  ],
+  "visual_review": "The abstract fits on the title page. The selection argument continues across pages 2 and 3; the complete conclusion appears on page 101 before the declarations on page 102. Section headings, tables, mathematical displays and footers on the inspected pages are legible.",
+  "new_experiments": false,
+  "new_mathematical_results": false
+}

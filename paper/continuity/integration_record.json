@@ -15,33 +15,39 @@
     "bibliography_style_sha256": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
     "style_derivation": "sn-basic.bst; renamed derived file; all authors retained; alphabetical sorting unchanged",
     "single_tex_entry": "joc-submission.tex",
-    "single_tex_sha256": "7002978572012da87d2fbca24be5ab105a6836f48e47150481c595f5db30ec34",
+    "single_tex_sha256": "50b0dee3a89cde5d256df61af1e0795f0151a3056ac242a92c86d1b631cb7017",
     "layout": "single-column",
     "layout_decision": "format/layout_decision.md",
     "layout_decision_sha256": "8bab36c0e36f3668c54d34c25a052e9bd277e2b93a808100ffd1fed1af3e1d9e"
   },
   "pdf_path": "continuity.pdf",
-  "schema": "qperiapt-joc-integration/27",
-  "completed_at_utc": "2026-11-16T17:30:34.489536+00:00",
-  "previous_integration_record": "https://github.com/billlza/q-periapt/blob/f93fb5903a5a39edbbdb9a9340f52dfb2e706a93/paper/continuity/integration_record.json",
-  "previous_integration_record_sha256": "82752a6139d4dbc68ad1895dadad158f17e8a5246c162c43f2ddc8c0255b2a8a",
-  "previous_pdf_sha256": "0b765bfb85ed01ce1a49a8a25916e0957ce97007f4842cf1ac182936d30320ef",
+  "schema": "qperiapt-joc-integration/28",
+  "completed_at_utc": "2026-11-18T00:38:13.969022+00:00",
+  "previous_integration_record": "https://github.com/billlza/q-periapt/blob/9ce25285856790663ee35109f5732929bac693df/paper/continuity/integration_record.json",
+  "previous_integration_record_sha256": "7ca1347ccd6658a23275aa226b411a5dde9d568e3fa2693a0e28a5e37e52044e",
+  "previous_pdf_sha256": "33ee3036e577bf3c8323a61d2cf9403367b871eb77d99aeca45b14998771216c",
   "pdf_pages": 123,
-  "pdf_sha256": "33ee3036e577bf3c8323a61d2cf9403367b871eb77d99aeca45b14998771216c",
-  "abstract_words": 213,
+  "pdf_sha256": "d6ec1bc18188fc08cc0a2d7ddcfa0afc7ae082302f7e76c186ed8621e2b2b6db",
+  "abstract_words": 229,
   "keywords": 7,
   "bibliography_entries": 35,
   "new_results": [],
   "retained_results": {
-    "record": "https://github.com/billlza/q-periapt/blob/f93fb5903a5a39edbbdb9a9340f52dfb2e706a93/paper/continuity/integration_record.json",
+    "record": "https://github.com/billlza/q-periapt/blob/9ce25285856790663ee35109f5732929bac693df/paper/continuity/integration_record.json",
     "formal_preservation": {
-      "base_commit": "9d49c678565d3d9d8ca7d001a117781917e3782c",
-      "source_preservation": "artifacts/editorial-review/exposure-result-connection/source-preservation.json",
+      "base_commit": "9ce25285856790663ee35109f5732929bac693df",
+      "source_preservation": "artifacts/editorial-review/recovery-exposition/source-preservation.json",
       "canonical_modules": 40,
-      "byte_identical_modules": 38,
+      "byte_identical_modules": 32,
       "changed_modules": [
+        "computational-roadmap.tex",
+        "construction.tex",
+        "discussion.tex",
+        "evaluation.tex",
         "introduction.tex",
-        "discussion.tex"
+        "main.tex",
+        "matched-opportunities.tex",
+        "related-work.tex"
       ],
       "all_original_statement_blocks_byte_identical": true,
       "all_original_proof_blocks_byte_identical": true,
@@ -65,16 +71,16 @@
         "scope": "Supporting algorithmic proposition and implementation; classical Horn-worklist method is attributed to Dowling and Gallier (1984), Section 4."
       }
     ],
-    "historical_artifact_files_retained": 693
+    "historical_artifact_files_retained": 701
   },
   "current_research_checks": {
     "retained_before_revision": {
-      "record": "https://github.com/billlza/q-periapt/blob/f93fb5903a5a39edbbdb9a9340f52dfb2e706a93/paper/continuity/integration_record.json",
+      "record": "https://github.com/billlza/q-periapt/blob/9ce25285856790663ee35109f5732929bac693df/paper/continuity/integration_record.json",
       "scope": "Prior native, formal, reference and retry evidence retains its source and execution identity."
     },
     "current_make_source": {
       "status": "passed",
-      "receipt": "artifacts/editorial-review/exposure-result-connection/validation.json",
+      "receipt": "artifacts/editorial-review/recovery-exposition/validation.json",
       "checks": [
         "chain-prefix finite controls",
         "native online-chain controls",
@@ -91,16 +97,25 @@
   "build_review": {
     "status": "passed",
     "pdf_pages": 123,
-    "pdf_sha256": "33ee3036e577bf3c8323a61d2cf9403367b871eb77d99aeca45b14998771216c",
+    "pdf_sha256": "d6ec1bc18188fc08cc0a2d7ddcfa0afc7ae082302f7e76c186ed8621e2b2b6db",
     "undefined_references_or_citations": 0,
     "overfull_boxes": 0,
     "underfull_box_notices": 137,
     "all_fonts_embedded": true,
     "fonts": 48,
     "inspected_pages": [
+      1,
       2,
       3,
       4,
+      5,
+      7,
+      17,
+      23,
+      69,
+      90,
+      94,
+      95,
       98,
       99,
       100,
@@ -112,16 +127,16 @@
       "files": 9,
       "pages": 123,
       "plain_text_identical": true,
-      "plain_text_sha256": "f2d1042cd0e6c3fe1b0af9fb3fc25dce08a2a396f36499355200320c10b8cc7b",
+      "plain_text_sha256": "16f307fea99fc489bdbe4d6478be117692b396da755e82c06e215ad7a14cdc77",
       "layout_text_identical": true,
-      "layout_text_sha256": "b729696fb7cf6b66c75a436ff9c9db2a67867d8c6ff22fa2ba8c5f1fb3367b77",
+      "layout_text_sha256": "966d89164df5f9cec4dd9b45387d1e4868739879de0fe337fd33174dea600477",
       "all_fonts_embedded": true,
       "font_count": 48,
       "undefined_references_or_citations": 0,
       "overfull_boxes": 0,
-      "zip_sha256": "c6694092ca326fd7833a2a7fa6c9c0a08fda62a6b56f30a54a98529d0a10d64b",
-      "pdf_sha256": "33ee3036e577bf3c8323a61d2cf9403367b871eb77d99aeca45b14998771216c",
-      "export_pdf_sha256": "162b473cdf430664494a709c7a7a07b47829d56bf9e7e19cdc5d1f98c55342d1",
+      "zip_sha256": "a9950a34cf509ddde4d0d35a49d0a461facc5f324a300ea5962b0d0e4a8e4b26",
+      "pdf_sha256": "d6ec1bc18188fc08cc0a2d7ddcfa0afc7ae082302f7e76c186ed8621e2b2b6db",
+      "export_pdf_sha256": "8be39a5cad7f552fe805e1cb40b4f15dde430d2d3db0e756e0d96fb55287c570",
       "exported_files": [
         "README.md",
         "SHA256SUMS.json",
@@ -136,10 +151,10 @@
       "verification_script_sha256": "31c7ba9ae83f1d610ec60e56f1c445c63aa43766b408510f576d908b98bee3b2",
       "method": "Exact nine-file inventory and digest verification, fresh pdfLaTeX/BibTeX build, complete plain/layout text comparison and font/log checks."
     },
-    "build_receipt_sha256": "d0c11830cd5d1f2016277bbdcb838d883b855ec960a97f9d3aa24144fceefcd2",
-    "source_export_receipt_sha256": "61ef461a8eb7b20671f2392b0bead77742aa2ad4ca730dbaa4dedd6c33cbe8b0",
-    "visual_review": "No clipping, overlap, unresolved references or equation/table overflow observed on the inspected pages. Section hierarchy, page numbers and paragraph transitions remain readable.",
-    "environment": "Installed pdfTeX 1.40.26 / LaTeX2e 2024-11-01 patch level 2, existing task-local format/font maps and an explicit TeX search tree. Publisher class, bibliography styles and figure bytes unchanged."
+    "build_receipt_sha256": "94b3cc1ce15c04f392e9bc9f5035f86fb0ea71352c6ef560ae394ba59624e7ba",
+    "source_export_receipt_sha256": "6e05f6450e6e09f006f3fe53b03ad4cec30c9dd5d759468a0c7ef7b5e776ba3d",
+    "visual_review": "The abstract fits on the title page. The selection argument continues across pages 2 and 3; the complete conclusion appears on page 101 before the declarations on page 102. Section headings, tables, mathematical displays and footers on the inspected pages are legible.",
+    "environment": "macOS arm64, pdfTeX 1.40.29 (TeX Live 2026), latexmk 4.88 and Poppler 26.11.0."
   },
   "paper_workflow": {
     "path": "../../.github/workflows/joc-manuscript.yml",
@@ -147,10 +162,10 @@
     "branch": "paper/joc-persistent-recovery",
     "base": "main",
     "url": "https://github.com/billlza/q-periapt/tree/paper/joc-persistent-recovery",
-    "integration_base": "9ac74e8028d5cd4e25ed8e24b54f89b2f2f1cf49",
+    "integration_base": "d54e6d0096584235737a9bf8d29119ffc96234fa",
     "snapshot": "Prepublication paper, source and build identity. Hosted checks are associated with the resulting published head.",
-    "new_execution": "Existing make source checks and independent nine-file source-export reconstruction passed; final source preservation and affected-page rendering were reviewed. Hosted CI belongs to the subsequently published head.",
-    "manuscript_revision_base": "9d49c678565d3d9d8ca7d001a117781917e3782c"
+    "new_execution": "The revised source and the nine-file export were compiled independently. The build and exposure checks, retained experimental analyses, source preservation and reading-copy review are recorded for this revision.",
+    "manuscript_revision_base": "9ce25285856790663ee35109f5732929bac693df"
   },
   "completed_connection": "Ordinary IND-CCA -> actual deferred ML-KEM component game -> original-operation ContextBound and key-entry adapters -> retained native confidentiality, authentication and complementary bootstrap source compositions.",
   "source_hashes": {
@@ -163,25 +178,25 @@
     "candidate-local-accounting.tex": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
     "chain-prefix-continuation.tex": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
     "common-virtual-accounting.tex": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
-    "computational-roadmap.tex": "26533cacec6b94b4b6cf0b83778aa538e7ba0f690c2f6b42409524dd3464db76",
+    "computational-roadmap.tex": "47a25156ef9662cce566298521df9c25bc1c1729161a85110fed6d3f452d4e97",
     "confirmation-traffic.tex": "3978c38f7465654c24a8e8ad12fa253a26d106f5c14cda4088e96acdbfeb08b7",
-    "construction.tex": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
+    "construction.tex": "8d7319298230b119846d9195db1fc1625ab3300aaeb9fc20779e7ea990a45020",
     "contextbound-connection.tex": "4d437b36d9ccdaae04cb8b1326b350a4d5d185ac6eec818eb905a56bd046c235",
     "declarations.tex": "f5bd2d2e1433dd8ae1fc19ce8a871eb9a663518a54b70d62cdc994cab4fbaf2a",
-    "discussion.tex": "dfaa695269f67083043a1c7da176ff24c7c9343f842352587c8b8da757f1a25c",
+    "discussion.tex": "856b195e02b61dd3366d17b6a034f8a80ce1cacb85824606a069935487c37097",
     "established-results.tex": "396c1203b5a902d1e12c2dc2d8390c94429dcdb6aecaa77a803d33e2ccfd1255",
-    "evaluation.tex": "62e27bda1ffb6f2be7ce68dcf96f586fd864742d9f0bd2abbba9ba510e953472",
+    "evaluation.tex": "970a48ef650e951feccdf07be64f5df6d9850fae9d83833f0587cb66074a2878",
     "figures/confirmation-cut.pdf": "6f7d7988cfb06fdb6880c2f00105d75cb27c75bb4484351d44185809c4779a82",
     "guarded-provenance.tex": "c6310397b5892bf2f6875d942cef1b2adb8a6f6e962810bb9c3c1e1a7f68fba0",
-    "introduction.tex": "4d79744628d36d87e5eb992dce3edc1808fd9ff5dad727865f389a460783fe19",
+    "introduction.tex": "a7c0fb7bfeeba8b6f7c75992502a9b80e283dfacb487c08761227b83845528d4",
     "joc-basic.bst": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
-    "joc-submission.tex": "7002978572012da87d2fbca24be5ab105a6836f48e47150481c595f5db30ec34",
+    "joc-submission.tex": "50b0dee3a89cde5d256df61af1e0795f0151a3056ac242a92c86d1b631cb7017",
     "joint-continuation.tex": "f16c3bd881258885a819b67104719422e6dab4812fb1a8511ecfe469735fa5ab",
     "joint-primitive-bounds.tex": "4fcfd80a023ee703938a042cc88507379d580f8cdec41d956354da224d710ecb",
     "kem-ordinary-bridge.tex": "871a4a3a0a8744f0288a5a9c8adee47dd8738d0c341f333a8ed465d7fafd025f",
     "live-core-instantiation.tex": "8b85f39780a0a9dbfd11460daf7faaec25e71de4d94b22631a4eeb39ea225805",
-    "main.tex": "6cd59ec3cf8fce94a84579449686d088420a2836e2b86355b31b50631254bd3e",
-    "matched-opportunities.tex": "ae042652493acb5d0d8328071988867a8eae00e752e02d441eef4f14a800b437",
+    "main.tex": "de7c611b0c6a393f84c7144c8611259d1e7162caee193144927859d9df6e7128",
+    "matched-opportunities.tex": "eef4a9c3ea5c5ea8f80ee7440302e27cdd32337374d6b781b501b0a173d0d40c",
     "matched-opportunity-tables.tex": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
     "multiple-root-entry.tex": "60f842d35f1a86c7e478bb7c60358ab7944aa78c5388b1c5d7305eb77d921e34",
     "native-authentication.tex": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
@@ -191,7 +206,7 @@
     "primitive-inputs.tex": "78c4c40bfa0a4d2d9f441ac59f40df436863583ab5bdf538beb6fd5fc59e43aa",
     "reference-schedule-table.tex": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9",
     "references.bib": "844284bb2bf924485cde59b594745d151b81cb50c5fd01dcf61ce2b3b67058f1",
-    "related-work.tex": "79986b07fb2984f048337edb6c06abeb59cda5087fc227cc5bab3fb4a12b71c8",
+    "related-work.tex": "f8135dc5465b5037d740fae7c3775c91f14b6fdc651c1539ebe14433c7584e58",
     "report-composition.tex": "c8b128966e8f8a22933d8b5e4ab7934e74f232408098e8db4f5fa508c8687ad7",
     "reservation-signature-bridge.tex": "4df0820763a712cf3ee20c4bebbb97a6b7f477225c25e15c75131505cbe9402c",
     "retry-readiness-table.tex": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5",
@@ -203,26 +218,31 @@
     "source-attribution.tex": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e"
   },
   "editorial_revision": {
-    "scope": "Present the established indexed exposure result in the guarded-provenance contribution and connect source-readability semantics to original reservation/first-save eligibility in the discussion and conclusion.",
+    "scope": "The reservation example, the two selection times, record readability and eligibility, and the interpretation of matched deliveries and exposure. The revision changes expository prose.",
     "new_mathematical_results": false,
     "expository_results": [
-      "State the fixed-graph cumulative work bound with atom, incidence, input-event and output accounting in the introduction.",
-      "Connect graph source-readability semantics to the native theorem while preserving the original reservation and first-save event predicates.",
-      "Condense supporting-extension prose and include the established indexed realization in the conclusion."
+      "Trace the original reservation through restart, copying and later disclosure.",
+      "State the online selection and terminal cut in the established-session message experiment.",
+      "Report delivered service and reconstructed keys together for the alternating retry comparison."
     ],
     "main_result": "Theorem 5.28, native online selected-message security; its statement and proof remain byte-identical.",
     "review": {
-      "path": "artifacts/editorial-review/exposure-result-connection/review.md",
-      "source_preservation": "artifacts/editorial-review/exposure-result-connection/source-preservation.json",
-      "independent_methodology_review": "artifacts/editorial-review/exposure-result-connection/methodology-review.json",
+      "path": "artifacts/editorial-review/recovery-exposition/validation.json",
+      "source_preservation": "artifacts/editorial-review/recovery-exposition/source-preservation.json",
       "all_original_theorems_and_proofs_byte_identical": true,
       "all_original_displayed_mathematics_retained": true,
       "historical_data_and_author_declarations_unchanged": true,
-      "abstract_words": 213,
+      "abstract_words": 229,
       "introduction_unchanged": false,
       "changed_canonical_modules": [
+        "computational-roadmap.tex",
+        "construction.tex",
+        "discussion.tex",
+        "evaluation.tex",
         "introduction.tex",
-        "discussion.tex"
+        "main.tex",
+        "matched-opportunities.tex",
+        "related-work.tex"
       ]
     },
     "completed_editorial_passes": [
@@ -234,7 +254,8 @@
       "Concise main-result narrative and adjacent ordinary-primitive substitution entry",
       "Original-source recovery, captured-epoch allocation and completed-service connection; exact retry-opportunity accounting and local terminology consistency",
       "Indexed exposure proposition, structural-work evaluation, independent model oracle and build integration",
-      "Established indexed-result positioning and source-readability/original-event connection"
+      "Established indexed-result positioning and source-readability/original-event connection",
+      "Reservation example, recovery conditions and measured service across the manuscript"
     ],
     "remaining_submission_inputs": [
       "Author review and approval of the assembled submission"
@@ -245,7 +266,7 @@
     ".gitattributes": "ce31a7ca88fa6aca38587ee367ee79be2ecbbb06574954482f7ed8a0a21f41f7",
     ".gitignore": "8d1d7e93cbe39f9fe8262e453b7c34cb9a5935181da322a468e37959405226b8",
     "Makefile": "e481a7e95be639eb3159963dddae16b9b65cd0c869e1959c86197f5ee79a7d92",
-    "README.md": "6809cf332848f92118714fa73257e8720bf113b085eb885df1b2f5db176ab522",
+    "README.md": "8ed51724ef4b038db27da24efae5896ba432ed57b17bdd263f89fe98852029bb",
     "artifacts/bootstrap/README.md": "172103ab4ae00ecc8a2d255cbb2f10e23f4d37e70019d179a1d04c666d979642",
     "artifacts/bootstrap/ack/SOURCE_PINS.json": "cf9c16f4dc8069717c1a40386f96290cae0aec89c356f02f824d8b3143c73eb5",
     "artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages.rs": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
@@ -894,7 +915,7 @@
     "export_submission.py": "fd76730d9abb02e4d0daab6c5cba654ed1385f5a3ef73516f5e9289615edfcf3",
     "figures/confirmation-cut.tex": "eaed162d2f95c1d1b043380b6a404f02f4042bc20017eb409b2cdbdee4047579",
     "figures/confirmation-cut.tikz": "1c8122292094aefe5efeb3d3d336540cbeeb429bf36de3ea97a44571b1338286",
-    "flatten_manifest.json": "8f6027a2ab8f47fdbaae2d0af5f14e8a0ef024bd6135efeb02f90d9c58b2c77d",
+    "flatten_manifest.json": "0d0c654088bb44e9eaf4b07d00d7f9cea8a86c0151d71a4017e1b262567f278c",
     "flatten_manuscript.py": "01bf82ca69991ab9fb981ff84eaa5eb38739fb19074e95fb05b7451b1693c139",
     "format/bibliography_adaptation.json": "70b5da1214422749bbab0778d0ee2602fde74fbadb5ca5af89fc519c13e8700b",
     "format/layout_decision.md": "8bab36c0e36f3668c54d34c25a052e9bd277e2b93a808100ffd1fed1af3e1d9e",
@@ -961,6 +982,10 @@
     "artifacts/editorial-review/exposure-result-connection/source-export-check.json": "61ef461a8eb7b20671f2392b0bead77742aa2ad4ca730dbaa4dedd6c33cbe8b0",
     "artifacts/editorial-review/exposure-result-connection/source-preservation.json": "368c0006d1fffb8b67df9c55283c0576c462305c2eb8088dcc0935008102e805",
     "artifacts/editorial-review/exposure-result-connection/validation.json": "68dc9a02dfd24893abdd7cee46e2151bdf7bdf14969dbaa2abd87ae6a305afe0",
-    "artifacts/editorial-review/exposure-result-connection/visual-review.json": "6782a7e4662ac5faf7c2c951ab796f218359758ce9a78522810cbca794cc38c8"
+    "artifacts/editorial-review/exposure-result-connection/visual-review.json": "6782a7e4662ac5faf7c2c951ab796f218359758ce9a78522810cbca794cc38c8",
+    "artifacts/editorial-review/recovery-exposition/build-check.json": "94b3cc1ce15c04f392e9bc9f5035f86fb0ea71352c6ef560ae394ba59624e7ba",
+    "artifacts/editorial-review/recovery-exposition/source-export-check.json": "6e05f6450e6e09f006f3fe53b03ad4cec30c9dd5d759468a0c7ef7b5e776ba3d",
+    "artifacts/editorial-review/recovery-exposition/source-preservation.json": "cf76610c3a2dd8fb86cf6655d938dbe667b94da5f4acff19cd57ebab51cf00a0",
+    "artifacts/editorial-review/recovery-exposition/validation.json": "50683b8e4698eb875f133d200c2dbd25159fa00ea67ee89fc537a96d0c52318f"
   }
 }

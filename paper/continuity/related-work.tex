@@ -8,19 +8,19 @@ authenticated key exchange and prove security for that abstraction
 derive secure messaging relative to direction- and index-sensitive vulnerable
 message sets \cite{scka2025}. Their Definition~3.2 includes current chains,
 already produced future-epoch keys, and pending out-of-order messages;
-Theorem~3.3 gives the corresponding messaging composition. The object studied
-here is the history of persistent records from which a contribution can be
-recovered. Original-reservation provenance connects that history to exposure
-of the underlying cryptographic operation.
+Theorem~3.3 gives the corresponding messaging composition. We start one
+step earlier in the life of a key. A peer can have saved the randomness
+for an operation whose output key does not yet exist. Which version of
+that record did the adversary acquire, and can it read the reservation?
 
-Triple Ratchet combines classical and post-quantum key agreement while
-distributing larger post-quantum messages across transmissions
-\cite{tripleratchet2025}. Its Remark~4.3 accounts for exposure of next-epoch
-material already sampled during distribution. This is the relevant comparison
-for our delayed-receipt execution. Our additional distinction is between the
-original source, its durable representations, and the later computation that
-uses it. Each representation may have its own acquisition time and wrapping
-keys while referring to the same reserved operation.
+Triple Ratchet combines classical and post-quantum key agreement and
+distributes larger post-quantum messages across transmissions
+\cite{tripleratchet2025}. Remark~4.3 already accounts for next-epoch
+material sampled during distribution. Our delayed-receipt execution
+illustrates that same timing issue. Persistence adds a second one.
+Several records can refer to the same reserved operation, yet have
+different acquisition times and wrapping keys. We track each copy back
+to that operation when we assess exposure.
 
 \paragraph{State and randomness compromise.}
 Jaeger and Stepanovs define bidirectional channel security under repeated

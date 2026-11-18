@@ -1,23 +1,24 @@
 \section{Exposure, communication and admitted service}
 \label{sec:evaluation}
 
-The preceding results identify recovery through original reservation events
-and the acquisition history of saved versions. The experiments follow those
-objects into executable state: the separating runs in
-Section~\ref{sec:established} reconstruct traffic from the captured original
-inputs, and finite-record checks test the closure of acquired objects and
-disclosed keys. Reference snapshots measure reconstructed component keys;
-the common-opportunity executions then measure admitted applications and
-completed service under the same offered workload.
+A protocol can expose fewer message keys simply by admitting fewer
+messages. For that reason we count what the endpoints actually deliver
+as well as what can be recovered after capture. We also record first
+commitments, emitted bytes and persistence work. These counts let us
+ask what the send budget costs in service, and what changes when a
+sender waits before retrying a ciphertext.
 
-We report reconstructed sets together with first commitments, logical
-deliveries, emitted bytes and persistence work. This joint accounting exposes
-the effect of the native send budget on current-epoch capacity and the effect
-of retry readiness on the use of transmission opportunities. Pinned reference
-snapshots supply the complete seven-schedule component comparison; the common
-opportunity experiment and its paired retry ablation retain the actual
-protocol services and their admission boundaries. Table~\ref{tab:validation-questions}
-locates the corresponding validation objects and interventions.
+The executions in Section~\ref{sec:established} follow individual
+reservations through the native implementation. The finite-record checks
+ask which sources become readable from a particular set of acquired
+records and disclosed keys. For the scheduling question we first use
+pinned reference snapshots to measure component keys across seven
+schedules. We then give the native and reference protocols the same
+requests and directed transmission opportunities. Each protocol retains
+its own rules for admitting and delivering a message. Finally we vary
+retry readiness within the native protocol, holding the other rules
+fixed. Table~\ref{tab:validation-questions} identifies what each
+experiment measures.
 
 \begin{table}[t]
 \centering

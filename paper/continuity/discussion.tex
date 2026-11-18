@@ -2,43 +2,42 @@
 \label{sec:discussion}
 
 \paragraph{A recovery condition attached to original operations.}
-The model distinguishes an operation's original entropy reservation, the
-first save of a session-record version, acquisition of a retained
-representation, and later availability of matching decryption material.
-This distinction
-makes exact replay compatible with precise recovery statements: retries and
-aggregate writes preserve the original source, while fresh operations obtain
-new origins. The guarded characterization explains how records and keys
-combine to expose that source. On a fixed indexed graph,
-Proposition~\ref{prop:guarded-worklist} maintains the exact readable-source set
-through cumulative acquisitions and disclosures, reporting each newly exposed
-source once. Its total work follows the stored incidences and input events,
-with complete-set exports charged by their output size.
+Suppose an adversary acquires an encrypted journal today and obtains
+its wrapping key later. At which point can it read a particular
+reservation? We identify the operation's original sample, the first
+save of the session version, the acquisition of the physical image and
+the disclosure of the matching key. A retry uses the original sample.
+An aggregate write can give the adversary another copy of that same
+sample. Proposition~\ref{prop:guarded-worklist} tracks the exact
+readable-source set on a fixed indexed graph as acquisitions and
+disclosures arrive. It reports each newly exposed source once. Exporting
+the full set incurs the additional cost of its output.
 
-The recovery experiment binds its selected send and cut to the original
-reservation and first-save events through~\eqref{eq:eligibility}.
-The graph closure supplies the record model's source-readability semantics;
-the native proof preserves those original event predicates through each
-comparison. The native executions demonstrate their operational significance
-at the persistence and asynchronous-confirmation boundaries.
+For the recovery theorem we also need the history of the chosen send.
+Equation~\eqref{eq:eligibility} asks when both KEM operations were
+reserved and when each acquired version of the target session was first
+saved. The graph closure answers the readability question. The native
+reduction carries the reservation and first-save events through each
+comparison so that the chosen cut still refers to the original execution.
 
 \paragraph{From a recovered epoch to application security.}
-The computational composition carries an original contribution through its
-root, confirmation, traffic material and selected message. Its native
-controller fixes the target before that step's first private computation
-across endpoint aliases, including receive advances followed by failed
-authentication or persistence. Earlier message keys may inform that choice;
-the paired successor seed may then be disclosed and used for real suffix
-computation. Exact retries retain the original computation.
+A recovered root feeds confirmation and the traffic chain before the
+application has a message key to use. The native controller lets the
+observer see earlier message keys and then select a step, provided
+neither endpoint has yet computed it. A receive-side advance counts
+even if authentication or persistence subsequently fails. An exact
+retry uses the original computation. After the marked step, the
+observer may obtain the paired successor seed and use it to compute
+the real suffix.
 
-Theorem~\ref{thm:native-online-message} applies confidentiality and fresh-message
-integrity to the resulting eligible send, while
-Theorem~\ref{thm:native-selected-authentication} accounts for the selected
-root's earlier confirmation history. Candidate-local stopping preserves the
-original acquisition condition through these observations. Each terminal
-event is evaluated in its own comparison world with complete-execution
-resources. Table~\ref{tab:native-online-substitutions} makes the ordinary
-primitive and record costs visible beside the main theorem.
+Theorem~\ref{thm:native-online-message} gives confidentiality and
+fresh-message integrity for the eligible send.
+Theorem~\ref{thm:native-selected-authentication} accounts for the
+earlier confirmation of its selected root. Candidate-local stopping
+keeps the original acquisition condition in force. We evaluate each
+terminal event in its own comparison world with complete-execution
+resources. Table~\ref{tab:native-online-substitutions} gives the
+primitive and record costs for those comparisons.
 
 \paragraph{Primitive instantiation and reusable interfaces.}
 For root derivation, the placement of a surviving secret determines the
@@ -98,49 +97,51 @@ contribution. Section~\ref{sec:bootstrap-authentication} specifies the joint
 journal/derived-key interface for a broader captured-byte simulation.
 
 \paragraph{Exposure budgets and completed service.}
-The send budget and retry readiness control different parts of the native
-execution. The budget $b$ caps first allocations in each direction of the
-captured epoch, with alternating derived sets at the declared cut attaining
-$2b-1$. Reducing $b$ from 64 to 32 changes that observed set from 127 to 63
-applications. Under immediate retry readiness, the same change reduces
-completed service from 718 to 688 and increases emitted bytes from 407,596 to
-565,288 as the endpoints complete more rekeys. The original-source condition
-identifies recovery on later eligible sends; the admission denominator and
-backlog retain the service consequence of the selected budget.
+On the alternating schedule, how much exposure do we save by halving
+the send budget? In the captured epoch each direction can make at most
+$b$ first allocations, and the measured derived set at our cut reaches
+$2b-1$. Reducing $b$ from 64 to 32 reduces that set from 127 to 63
+applications. With immediate retries, deliveries also fall from 718 to
+688. The peers complete more rekeys and emit 565,288 bytes, up from
+407,596. The number of applications left in the queue matters when we
+interpret that smaller exposed set.
 
-Retry readiness determines when an existing ciphertext competes for another
-transmission opportunity. Holding $b$ and the opportunity list fixed, the
-age-four intervention increases alternating deliveries from 688 to 971 and
-from 718 to 999, with the same respective derived counts of 63 and 127.
-Application retries fall from 604 to 16 and from 579 to 8. Total communication
-and persistence work increase with the additional service. At $b=32$, the
-reduction of 588 application retries is balanced by 283 additional first
-applications, 265 ACKs and 40 control frames; the four frame classes still
-sum to 2,048 (Appendix~\ref{app:retry-readiness}). Bytes and
-\texttt{sync\_data} calls per delivered application decrease in these
-alternating runs. Across all twelve bidirectional or resumed pairs, delivered
-service increases and the complete byte accounting retains the measured
-schedule-dependent unit costs.
+At the same budget, the sender can use its opportunities differently.
+With $b=32$, waiting four sender turns before a retry raises deliveries
+from 688 to 971 on the alternating schedule. The derived set still has
+63 applications. With $b=64$, deliveries rise from 718 to 999 and the
+derived count stays at 127. Application retries fall from 604 to 16 and
+from 579 to 8, respectively. At $b=32$ we can account for the 588
+freed opportunities individually. The peers send 283 additional first
+applications, 265 ACKs and 40 control frames, bringing the total back
+to 2,048 (Appendix~\ref{app:retry-readiness}). Total bytes and
+persistence work rise as more messages are delivered, while bytes and
+\texttt{sync\_data} calls per delivery fall in these alternating runs.
+Deliveries increase in all twelve bidirectional or resumed pairs. The
+cost per delivery still depends on the schedule.
 
-The one-way control completes the budget's 32 or 64 applications, retains
-the remaining offered demand in its queue and leaves both confirmed epochs
-at zero under either retry policy. Every admitted post-capture key is
-reconstructed there. Recording allocations, completed service and queued
-demand together therefore distinguishes the effects of the admission rule,
-the actual exchange schedule and the sender's retry policy.
+The one-way control explains why we count queued requests. Each retry
+policy delivers the 32 or 64 applications admitted by the budget. The
+rest stay in the queue, both confirmed epochs remain at zero, and every
+admitted post-capture key can be reconstructed in this run.
 
 \paragraph{Conclusion.}
-Persistent recovery is governed by original secret sources and their
-acquisition histories. Exact record-exposure semantics identifies readable
-sources, and its indexed realization processes cumulative acquisitions and
-disclosures with
-total work linear in the fixed stored graph and input history. Constructive
-record/report simulations connect an eligible native rekey to confidentiality
-and authentication of its marked message. Original-operation and shared-XOF
-reductions preserve source attribution through retained randomizers and exact
-replay. The finite key-entry comparison supplies a purpose-key instance,
-and the bootstrap composition connects an original surviving source to
-historical peer activation. The mechanized multi-epoch theorem and concrete executions establish
-the corresponding provenance-based recovery statements. These results
-preserve the meaning of fresh randomness across durable retries, copies and
-asynchronous progress.
+In the opening example, the endpoint restarts and finishes the call it
+reserved. The peers complete an authenticated rekey. The key-generation
+tape was already in the record the adversary acquired before the crash.
+If we date the randomness by the time the exchange finished, we count
+that tape as fresh.
+
+A later key disclosure can make an old copy readable. For fixed indexed
+record and key-derivation graphs, we can track exactly which sources
+become readable as acquisitions and disclosures arrive. The total work
+over the whole history is linear in the graph size and the number of
+input events (Proposition~\ref{prop:guarded-worklist}).
+
+For the next rekey of an established session,
+Theorem~\ref{thm:native-online-message} gives confidentiality and
+fresh-message integrity for an application send selected online. Both
+KEM reservations must follow the cut, and the target signing secrets and
+designated epoch entropy must remain undisclosed. Every acquired version
+of that session must have been first saved on or before the cut. The
+adversary may obtain the copy itself later.
