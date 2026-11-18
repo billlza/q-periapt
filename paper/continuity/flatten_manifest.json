@@ -2,7 +2,7 @@
   "schema": "qperiapt-joc-single-source/1",
   "input_entry": "main.tex",
   "output": "joc-submission.tex",
-  "output_sha256": "488e5e4508c66383c76a828fd8b370a9561e2d3a4158f289e7fd99c789e9e1aa",
+  "output_sha256": "4902db7d6bd52575e5378df6a965386cba1ae31890a08a05379af5e6472db521",
   "inputs": {
     "acquisition-nonadditivity.tex": {
       "sha256": "16ff2701ede1f13bb933204c1ab2ce9d3c26e22d3e7d09c91cba91f9f43beebb",
@@ -29,8 +29,8 @@
       "bytes": 9062
     },
     "chain-prefix-continuation.tex": {
-      "sha256": "56993018a53e571fd2afb930004333df393e96460484ec98e8d2de681d9f0f31",
-      "bytes": 10384
+      "sha256": "a677008bff9ecf0791729b1eed37216919909e9fc63f3b1190e866cd119316f7",
+      "bytes": 10369
     },
     "common-virtual-accounting.tex": {
       "sha256": "ca879879d6d3e433e13236fa00b6d25144cbf001c76dcb63761d964a2723e061",
@@ -57,16 +57,16 @@
       "bytes": 1371
     },
     "discussion.tex": {
-      "sha256": "434c04629f9e3795304a95d16c1afd52ae7d96ab27dafff39ed1ec07feb2e237",
-      "bytes": 8405
+      "sha256": "b537f2325ccde81f5e62673de6a9644f3fc2b0b840a0a8584bee663b76094f72",
+      "bytes": 8494
     },
     "established-results.tex": {
-      "sha256": "396c1203b5a902d1e12c2dc2d8390c94429dcdb6aecaa77a803d33e2ccfd1255",
-      "bytes": 6429
+      "sha256": "4eabef2c3091f4e7e131b6109df4ea7600299000b4fa9e4aee328e47eb85a730",
+      "bytes": 6245
     },
     "evaluation.tex": {
-      "sha256": "449b7e390f287dc2cab5f48d0b1c727578865c6cc69a22a84c78cfc38aaab45e",
-      "bytes": 13570
+      "sha256": "de4116473eaeb97cbfc68b836c64851afd88495252a09b30797a49036f5e7ca3",
+      "bytes": 13398
     },
     "guarded-provenance.tex": {
       "sha256": "43474ac9bc2080d88a5e9025c932b8676170927d9657bf790fe0aa7397dc8596",
@@ -161,8 +161,8 @@
       "bytes": 30331
     },
     "source-attribution.tex": {
-      "sha256": "053ff691e18f6040aa38bd44b290c97e0c49fdb86fa2568329ccbc0f10d1831e",
-      "bytes": 12838
+      "sha256": "392f130f9ad10b56c38478594deb423ea6aee979301dd268f189a924229c89ae",
+      "bytes": 12925
     }
   },
   "figure": "figures/confirmation-cut.pdf",

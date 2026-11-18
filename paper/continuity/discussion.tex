@@ -40,14 +40,15 @@ resources. Table~\ref{tab:native-online-substitutions} gives the
 primitive and record costs for those comparisons.
 
 \paragraph{Primitive instantiation and reusable interfaces.}
-For root derivation, the placement of a surviving secret determines the
-required comparison. Equation~\eqref{eq:root} gives
+Consider root derivation after disclosure of the parent root.
+Equation~\eqref{eq:root} gives
 \[
  p_e=\operatorname{HMAC}_{R_{e-1}}(S_e).
 \]
-Disclosure of the parent root leaves the new contribution in HMAC's
-message input, as studied by
-extractor and swap-PRF formulations~\cite{hmacswap2023,rfc5869}.
+The disclosed value is HMAC's key. Any secrecy we get from this step
+has to come from the new contribution $S_e$ in the message input. This
+use of HMAC is studied in extractor and swap-PRF
+formulations~\cite{hmacswap2023,rfc5869}.
 The shared-oracle entry proof in Appendix~\ref{app:joint-root-entry}
 supplies the uniform-root interface after the complete-tuple comparison
 of Section~\ref{sec:contextbound-connection}. The finite-family extension
@@ -73,10 +74,9 @@ adapter carries original randomizers and exact retries into a shared-XOF
 comparison, expressing the native reservation-interface bound through
 ordinary hedged ML-DSA unforgeability, with explicit replay-coupling and
 oracle-query losses
-(Theorem~\ref{thm:native-mldsa-reservation-bridge}). These two connections
-instantiate different parts of the final bound: the key-entry argument
-supplies recovered secret material, and the signature bridge supplies
-its original-source attribution.
+(Theorem~\ref{thm:native-mldsa-reservation-bridge}). In the final bound the
+key-entry argument supplies recovered secret material. The signature
+bridge accounts for attributing it to the original calls.
 
 \paragraph{From original bootstrap sources to peer activation.}
 The bootstrap connection preserves the source order in which initial
@@ -119,7 +119,9 @@ first applications, 265 ACKs and 40 control frames, out of the same
 The extra deliveries required more bytes and persistence work in total.
 In these alternating runs both bytes and \texttt{sync\_data} calls per
 delivery fell. All twelve bidirectional or resumed pairs delivered more
-messages, with costs that depend on the schedule. On the one-way control,
+messages. After the offline prefix at $b=32$, the fraction of keys we
+could reconstruct fell from $32/612$ to $33/878$. We recovered one
+more key. On the one-way control,
 both policies delivered the 32 or 64 applications the budget admitted.
 The rest stayed queued, both confirmed epochs stayed at zero, and every
 admitted post-capture key was reconstructible. Waiting longer to retry

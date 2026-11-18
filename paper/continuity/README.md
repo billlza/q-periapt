@@ -8,6 +8,8 @@ The repository maintains one manuscript on **`paper/joc-persistent-recovery`**. 
 
 ## Research structure
 
+The [reservation and exposure checks](artifacts/editorial-review/reservations-counters-and-exposure/validation.json) identify which draw supplied the rekey, what the confirmed counters recorded, and how many keys the predictor recovered under each of the two compared schedules.
+
 The [recovery and service comparison](artifacts/editorial-review/recovery-claims-and-service/validation.json) ties the observed restart, the one-way suspension and the fixed-budget retry result to their respective claims. The [record history and message selection review](artifacts/editorial-review/record-history-and-selection/validation.json) follows a saved version from capture to readability, identifies the first computation of a marked step, and ties a delayed READY proof to its original activation. It also checks the retry clock against the recorded driver and results.
 
 The [exposition review](artifacts/editorial-review/recovery-exposition/validation.json) follows the opening crash through the message theorem and the stored-record calculation. The abstract also gives the alternating-schedule result at a fixed send budget. The [source comparison](artifacts/editorial-review/recovery-exposition/source-preservation.json) records the exact formal statements, proofs, displays and tables used in this reading copy.

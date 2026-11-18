@@ -1,13 +1,13 @@
 \subsection{Online selection within a finite message chain}
 \label{sec:chain-prefix}
 
-The same recovered direction supports selection after earlier messages
-have been processed. We retain the joint root, confirmation and traffic
-interfaces of Section~\ref{sec:joint-continuation} and give the selected
-direction a finite chain prefix. Earlier message keys may be disclosed;
-the selected message's successor seed may be disclosed after its
-derivation. The comparison tracks the seeds connecting those two
-observation boundaries.
+Suppose the observer has seen earlier message keys in one direction.
+It uses that history to choose a step before either endpoint computes it.
+Once the step has been computed, we can even give the observer its
+successor seed. It can now follow the rest of that chain. What can it
+learn about the message at the step it chose? We keep the joint root,
+confirmation and traffic interfaces of Section~\ref{sec:joint-continuation}
+and bound how many steps the observer has in which to choose.
 
 \paragraph{Prefix interface and selection.}
 At the first allocation of a fresh traffic information string, designate
@@ -192,7 +192,6 @@ information strings, constant-width index encoding and zero AEAD
 nonce, advances a send index once, and reuses exact outbox bytes on
 Resume. Transaction-private receive advancement can compute skipped
 keys before commitment; failed-transaction resumption retains their
-first-computation identity in the proof ledger. The established native
-next-rekey results retain their first-message controller; the
-present theorem supplies the finite-chain continuation with its
-explicit selection and observation interface.
+first-computation identity in the proof ledger.
+Section~\ref{sec:native-online-chain} uses this comparison to carry the
+same choice of message into the native next-rekey experiment.

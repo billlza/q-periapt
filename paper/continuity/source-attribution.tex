@@ -1,15 +1,19 @@
 \subsection{Executed sources and signing reservations}
 \label{sec:executed-source-attribution}
 
-The attribution question can be resolved for an independently specified
-source selector. Use the established-session controller with one
-authoritative history per endpoint for the selected session. Its key is
-the actual signer, session and epoch, including the admitted context and
-control parent. Passive copies, exact pending-target reconciliation and
-reopening preserve that history. This premise is substantive: the journal
-identity enters an operation scope but is absent from the signed control
-prefix, so two independently active journals with identical session
-coordinates would require an additional ownership rule.
+An honestly signed offer identifies its session and epoch. If an endpoint's
+first save failed, it may have drawn twice under those same coordinates.
+Which draw should we use to date its contribution? We use the one that
+reached the private KEM call. The retained plan lets us follow that draw
+through a restart.
+
+We assume one authoritative history per endpoint for the selected session,
+keyed by the actual signer, session and epoch, with the admitted context
+and control parent. Passive copies, exact pending-target reconciliation
+and reopening preserve this history. The journal identity is part of the
+operation scope. The signed control prefix omits it. With two independently
+active journals at the same coordinates we would need an additional
+ownership rule.
 
 For each local epoch, register its original generation or encapsulation
 slot immediately before the first actual private KEM computation. The
@@ -119,11 +123,10 @@ evaluate them with an unknown selected tape. This proves the implication;
 the probability bound follows by a union bound.
 \end{proof}
 
-The failed-first-retention trace in
-Section~\ref{sec:live-core-instantiation} keeps its original two draws.
-Its executed generation register contains $g_2$ because $g_1$ never
-reaches computation. Thus the new selector removes that mismatch while
-preserving the general metadata-selector experiment and its residual.
+In the failed-save trace of Section~\ref{sec:live-core-instantiation},
+both draws stay in the history. Only $g_2$ reached computation, so the
+executed generation register names $g_2$. A selector that uses the
+metadata alone still has to account for the mismatch.
 
 \paragraph{The signing-coin interface.}
 Fix a signature scheme whose internal signing procedure is deterministic

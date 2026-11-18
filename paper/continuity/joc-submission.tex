@@ -2592,13 +2592,13 @@ including known old roots and allowed later disclosure.
 \subsection{Online selection within a finite message chain}
 \label{sec:chain-prefix}
 
-The same recovered direction supports selection after earlier messages
-have been processed. We retain the joint root, confirmation and traffic
-interfaces of Section~\ref{sec:joint-continuation} and give the selected
-direction a finite chain prefix. Earlier message keys may be disclosed;
-the selected message's successor seed may be disclosed after its
-derivation. The comparison tracks the seeds connecting those two
-observation boundaries.
+Suppose the observer has seen earlier message keys in one direction.
+It uses that history to choose a step before either endpoint computes it.
+Once the step has been computed, we can even give the observer its
+successor seed. It can now follow the rest of that chain. What can it
+learn about the message at the step it chose? We keep the joint root,
+confirmation and traffic interfaces of Section~\ref{sec:joint-continuation}
+and bound how many steps the observer has in which to choose.
 
 \paragraph{Prefix interface and selection.}
 At the first allocation of a fresh traffic information string, designate
@@ -2783,10 +2783,9 @@ information strings, constant-width index encoding and zero AEAD
 nonce, advances a send index once, and reuses exact outbox bytes on
 Resume. Transaction-private receive advancement can compute skipped
 keys before commitment; failed-transaction resumption retains their
-first-computation identity in the proof ledger. The established native
-next-rekey results retain their first-message controller; the
-present theorem supplies the finite-chain continuation with its
-explicit selection and observation interface.
+first-computation identity in the proof ledger.
+Section~\ref{sec:native-online-chain} uses this comparison to carry the
+same choice of message into the native next-rekey experiment.
 % END SECTION SOURCE: chain-prefix-continuation.tex
 % BEGIN SECTION SOURCE: contextbound-connection.tex
 % New module; existing joint-continuation and primitive appendices are unchanged.
@@ -3525,15 +3524,19 @@ budget, connecting the present bound to the original recovery experiment.
 \subsection{Executed sources and signing reservations}
 \label{sec:executed-source-attribution}
 
-The attribution question can be resolved for an independently specified
-source selector. Use the established-session controller with one
-authoritative history per endpoint for the selected session. Its key is
-the actual signer, session and epoch, including the admitted context and
-control parent. Passive copies, exact pending-target reconciliation and
-reopening preserve that history. This premise is substantive: the journal
-identity enters an operation scope but is absent from the signed control
-prefix, so two independently active journals with identical session
-coordinates would require an additional ownership rule.
+An honestly signed offer identifies its session and epoch. If an endpoint's
+first save failed, it may have drawn twice under those same coordinates.
+Which draw should we use to date its contribution? We use the one that
+reached the private KEM call. The retained plan lets us follow that draw
+through a restart.
+
+We assume one authoritative history per endpoint for the selected session,
+keyed by the actual signer, session and epoch, with the admitted context
+and control parent. Passive copies, exact pending-target reconciliation
+and reopening preserve this history. The journal identity is part of the
+operation scope. The signed control prefix omits it. With two independently
+active journals at the same coordinates we would need an additional
+ownership rule.
 
 For each local epoch, register its original generation or encapsulation
 slot immediately before the first actual private KEM computation. The
@@ -3643,11 +3646,10 @@ evaluate them with an unknown selected tape. This proves the implication;
 the probability bound follows by a union bound.
 \end{proof}
 
-The failed-first-retention trace in
-Section~\ref{sec:live-core-instantiation} keeps its original two draws.
-Its executed generation register contains $g_2$ because $g_1$ never
-reaches computation. Thus the new selector removes that mismatch while
-preserving the general metadata-selector experiment and its residual.
+In the failed-save trace of Section~\ref{sec:live-core-instantiation},
+both draws stay in the history. Only $g_2$ reached computation, so the
+executed generation register names $g_2$. A selector that uses the
+metadata alone still has to account for the mismatch.
 
 \paragraph{The signing-coin interface.}
 Fix a signature scheme whose internal signing procedure is deterministic
@@ -5740,12 +5742,13 @@ initial-source comparison additionally preserving adaptive reply families.
 
 \subsection{The multi-epoch symbolic theorem}
 
-The checked symbolic model includes inherited roots, alternating proposers,
-asymmetric confirmation, initial traffic, and unbounded epochs. Signing and
-wrapping keys may be shared across their modeled uses. Its \textsf{Cut} event
-exposes the selected wrapping keys; exposure of other epochs' entropy is
-represented separately. We state the main theorem in terms of its recorded
-events, preserving its original target and disclosure predicates.
+For the native result we selected one application send after the next
+rekey. In the symbolic model we can ask about a message arbitrarily many
+epochs later. The peers inherit their roots, take turns proposing rekeys
+and may confirm at different times. The model includes initial traffic
+and permits signing and wrapping keys to be shared across their modeled
+uses. A \textsf{Cut} exposes the selected wrapping keys. Disclosure of
+another epoch's entropy has its own event.
 
 Let $\tau$ be a trace of that model. Write
 $\mathsf{SessionKeys}(s,a,b)$ for the actual identity keys associated with session
@@ -5783,18 +5786,16 @@ when a sibling write carries it into a later aggregate image.
 
 \subsection{Executability and the freshness boundary}
 
-A finite two-round construction exercises the operational rules with an exposed
-ancestor root and satisfies the complete original positive existential formula.
-A separate source-derived evaluator checks its rule instances and global
-quantifiers. This provides a concrete execution for the modeled recovery
-premises.
+Can an execution satisfy all those conditions once an ancestor root has
+been exposed? Our two-round execution does. A separate evaluator derived
+from the model source checks each rule instance and the global quantifiers
+of the original positive existential formula.
 
 The delayed-receipt construction instead contains a pre-Cut epoch-two
 generation reservation and a post-Cut encapsulation. It derives the target
 payload while satisfying the remaining main-theorem antecedents. Its point
 audit identifies $c<g$ as the sole false antecedent. Seven countertraces are
-rejected by the witness checker. Together, the positive and separating traces
-connect the recovery condition to executable schedules.
+rejected by the witness checker.
 
 \subsection{Native reservation disclosure}
 
@@ -5816,9 +5817,11 @@ For each cut, both honest peers complete the rekey and reopen their journals.
 The driver then creates fresh 128-byte application payloads, sends three in each
 direction, and checks honest delivery. Independently reconstructed traffic
 owners authenticate and decrypt all six intercepted frames. The two cuts
-therefore yield twelve actual post-restart plaintext recoveries. The
-delayed-receipt extension repeats the six-message check at epoch two using one
-responder snapshot.
+therefore yield twelve actual post-restart plaintext recoveries.
+In the delayed-receipt run, the confirmed epochs at capture were zero
+and one. Each peer reported the last epoch it had confirmed. I count
+epoch two as exposed because we could read six of its messages using
+the responder's captured state and the later public traffic.
 
 \begin{proposition}[Execution-time and counter-based separation]
 \label{prop:counter-separation}
@@ -5847,14 +5850,11 @@ messages in each build profile. The new global revision and outer encryption
 nonce coexist with the old target reservation. This execution instantiates the
 alias/provenance distinction in the record model.
 
-The positive symbolic execution establishes joint satisfiability of the
-modeled recovery premises, and the delayed-receipt witness identifies the
-reservation-order condition on which its secrecy conclusion depends. The
-native reconstructions bind that distinction to retained tapes and process
-recovery; the aggregate execution shows how the same source survives a new
-physical image. Section~\ref{sec:evaluation} follows these histories into
-record-readability checks and measured application exposure, service and
-communication work.
+For the target session, the sibling write left us with another copy of the
+same reservation. We therefore count the target source once even though it
+appears in two images. Section~\ref{sec:evaluation} checks this accounting
+on finite record histories and measures what the endpoints delivered after
+capture.
 % END SECTION SOURCE: established-results.tex
 % BEGIN SECTION SOURCE: evaluation.tex
 \section{Exposure, communication and admitted service}
@@ -6124,17 +6124,17 @@ One-way & 38.875 & 70.875 & 1223.938 & 44.969 & 25.954\\
 \end{table}
 % END SECTION SOURCE: reference-schedule-table.tex
 
-Table~\ref{tab:reference-schedules} extends the comparison to every retained
-schedule at the same capture coordinate. Increasing the SPQR chunk width
-from 32 to 64 bytes changes the alternating trace from 172 to 88
-reconstructed keys, while mean component traffic rises from 32.150 to
-58.971 bytes per send. Under 9:1 traffic, those reconstructed sets contain
-748 and 388 keys. The whole-KEM interval-32 trace similarly changes from
-66 keys under alternating traffic to 338 under 9:1 traffic, while its mean
-bytes per send fall from 44.047 to 21.031. These paired observations show
-how communication direction and control progress shape exposure alongside
-the amount of transmitted material. The retained construction and disclosure
-interface identify the comparison in each column.
+At the same capture point, widening the SPQR chunks from 32 to 64 bytes
+reduced the alternating count from 172 keys to 88. The wider chunks cost
+58.971 component bytes per send on average, up from 32.150. Under 9:1
+traffic the corresponding key counts were 748 and 388
+(Table~\ref{tab:reference-schedules}).
+
+Now keep the whole-KEM interval at 32. On the 9:1 schedule the component
+used 21.031 bytes per send, about half the 44.047 on the alternating
+schedule. I would count that as a bandwidth saving for this workload.
+At the same capture point the predictor recovered 338 of the next
+2,047 keys, up from 66.
 
 The offline prefix leaves substantial exposure even for the whole-KEM
 interval-1 control: its predictor reconstructs 260 future keys at this cut,
@@ -6467,14 +6467,15 @@ resources. Table~\ref{tab:native-online-substitutions} gives the
 primitive and record costs for those comparisons.
 
 \paragraph{Primitive instantiation and reusable interfaces.}
-For root derivation, the placement of a surviving secret determines the
-required comparison. Equation~\eqref{eq:root} gives
+Consider root derivation after disclosure of the parent root.
+Equation~\eqref{eq:root} gives
 \[
  p_e=\operatorname{HMAC}_{R_{e-1}}(S_e).
 \]
-Disclosure of the parent root leaves the new contribution in HMAC's
-message input, as studied by
-extractor and swap-PRF formulations~\cite{hmacswap2023,rfc5869}.
+The disclosed value is HMAC's key. Any secrecy we get from this step
+has to come from the new contribution $S_e$ in the message input. This
+use of HMAC is studied in extractor and swap-PRF
+formulations~\cite{hmacswap2023,rfc5869}.
 The shared-oracle entry proof in Appendix~\ref{app:joint-root-entry}
 supplies the uniform-root interface after the complete-tuple comparison
 of Section~\ref{sec:contextbound-connection}. The finite-family extension
@@ -6500,10 +6501,9 @@ adapter carries original randomizers and exact retries into a shared-XOF
 comparison, expressing the native reservation-interface bound through
 ordinary hedged ML-DSA unforgeability, with explicit replay-coupling and
 oracle-query losses
-(Theorem~\ref{thm:native-mldsa-reservation-bridge}). These two connections
-instantiate different parts of the final bound: the key-entry argument
-supplies recovered secret material, and the signature bridge supplies
-its original-source attribution.
+(Theorem~\ref{thm:native-mldsa-reservation-bridge}). In the final bound the
+key-entry argument supplies recovered secret material. The signature
+bridge accounts for attributing it to the original calls.
 
 \paragraph{From original bootstrap sources to peer activation.}
 The bootstrap connection preserves the source order in which initial
@@ -6546,7 +6546,9 @@ first applications, 265 ACKs and 40 control frames, out of the same
 The extra deliveries required more bytes and persistence work in total.
 In these alternating runs both bytes and \texttt{sync\_data} calls per
 delivery fell. All twelve bidirectional or resumed pairs delivered more
-messages, with costs that depend on the schedule. On the one-way control,
+messages. After the offline prefix at $b=32$, the fraction of keys we
+could reconstruct fell from $32/612$ to $33/878$. We recovered one
+more key. On the one-way control,
 both policies delivered the 32 or 64 applications the budget admitted.
 The rest stayed queued, both confirmed epochs stayed at zero, and every
 admitted post-capture key was reconstructible. Waiting longer to retry

@@ -233,17 +233,17 @@ outside these measurements.}
 
 \input{reference-schedule-table}
 
-Table~\ref{tab:reference-schedules} extends the comparison to every retained
-schedule at the same capture coordinate. Increasing the SPQR chunk width
-from 32 to 64 bytes changes the alternating trace from 172 to 88
-reconstructed keys, while mean component traffic rises from 32.150 to
-58.971 bytes per send. Under 9:1 traffic, those reconstructed sets contain
-748 and 388 keys. The whole-KEM interval-32 trace similarly changes from
-66 keys under alternating traffic to 338 under 9:1 traffic, while its mean
-bytes per send fall from 44.047 to 21.031. These paired observations show
-how communication direction and control progress shape exposure alongside
-the amount of transmitted material. The retained construction and disclosure
-interface identify the comparison in each column.
+At the same capture point, widening the SPQR chunks from 32 to 64 bytes
+reduced the alternating count from 172 keys to 88. The wider chunks cost
+58.971 component bytes per send on average, up from 32.150. Under 9:1
+traffic the corresponding key counts were 748 and 388
+(Table~\ref{tab:reference-schedules}).
+
+Now keep the whole-KEM interval at 32. On the 9:1 schedule the component
+used 21.031 bytes per send, about half the 44.047 on the alternating
+schedule. I would count that as a bandwidth saving for this workload.
+At the same capture point the predictor recovered 338 of the next
+2,047 keys, up from 66.
 
 The offline prefix leaves substantial exposure even for the whole-KEM
 interval-1 control: its predictor reconstructs 260 future keys at this cut,
