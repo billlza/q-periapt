@@ -1139,6 +1139,14 @@ jobs:
         run: |
           case "$QPERIAPT_PYTHON" in /*) ;; *) echo "setup-python returned a non-absolute interpreter path" >&2; exit 2 ;; esac
           "$QPERIAPT_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.implementation.name == "cpython" and sys.version_info[:3] == (3, 14, 7) else 2)'
+      - name: Repackage published Continuity slices for SwiftPM
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          base="$RUNNER_TEMP/QPeriaptContinuity-Apple-0.2.0.zip"
+          curl --fail --show-error --location --retry 3 --output "$base" \
+            https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/QPeriaptContinuity-Apple-0.2.0.zip
+          sh artifact/python-run.sh artifact/continuity_apple_r1.py --base-archive "$base" --output "$RUNNER_TEMP/apple-r1"
       - name: Test Darwin release transaction adapters
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
@@ -1237,10 +1245,6 @@ jobs:
         env:
           QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
         run: |
-          base="$RUNNER_TEMP/QPeriaptContinuity-Apple-0.2.0.zip"
-          curl --fail --show-error --location --retry 3 --output "$base" \
-            https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/QPeriaptContinuity-Apple-0.2.0.zip
-          sh artifact/python-run.sh artifact/continuity_apple_r1.py --base-archive "$base" --output "$RUNNER_TEMP/apple-r1"
           sh artifact/python-run.sh artifact/apple_package_coexistence.py \
             --sdk target/qperiapt-swift-xcframework/q-periapt-swift-0.2.0/QPeriapt-Swift-SDK-0.2.0.zip \
             --continuity "$RUNNER_TEMP/apple-r1/QPeriaptContinuity-Apple-0.2.0-r1.zip" \

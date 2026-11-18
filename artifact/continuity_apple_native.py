@@ -66,7 +66,15 @@ def isolate_archive(source: Path, work: Path, arch: str, platform: tuple, run) -
         (work / "common.s").write_bytes(definitions)
         triple = f"{arch}-apple-{platform[0]}{minimum}" + ("-simulator" if platform[1] else "")
         tool(["clang", "-target", triple, "-c", "common.s", "-o", "common.o"], "common")
-        tool([*link, "owner.rel.o", "common.o", "-o", "CQPCOwner.o"], "localize")
+        # Resolve again from the original archive with storage present. Linking
+        # an already-localized object a second time on Xcode 26 can turn its
+        # unwind personality into an external dependency.
+        tool([*link, *roots, str(source), "common.o", "-o", "CQPCOwner.o"], "localize")
+        imports = ["nm", "--no-llvm-bc", "-u", "-j"]
+        original = tool([*imports, "owner.rel.o"], "initial-imports")
+        final = tool([*imports, "CQPCOwner.o"], "packaged-imports")
+        sdk.require(set(original.splitlines()) == set(final.splitlines()),
+                    "Apple owner external dependencies changed during localization")
     else:
         (work / "owner.rel.o").rename(work / "CQPCOwner.o")
     tool(["libtool", "-static", "-D", "-o", source.name, "CQPCOwner.o"], "archive")
