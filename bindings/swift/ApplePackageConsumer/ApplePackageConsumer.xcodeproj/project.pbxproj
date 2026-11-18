@@ -1,0 +1,60 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 60;
+	objects = {
+		100000000000000000000001 = {
+			isa = PBXProject;
+			buildConfigurationList = 100000000000000000000011;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			knownRegions = (en, Base);
+			mainGroup = 100000000000000000000003;
+			productRefGroup = 100000000000000000000004;
+			packageReferences = (200000000000000000000001, 300000000000000000000001);
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (100000000000000000000002);
+		};
+		100000000000000000000002 = {
+			isa = PBXNativeTarget;
+			name = ApplePackageConsumer;
+			productName = ApplePackageConsumer;
+			productReference = 100000000000000000000005;
+			productType = "com.apple.product-type.application";
+			buildConfigurationList = 100000000000000000000012;
+			buildPhases = (100000000000000000000008, 100000000000000000000009, 10000000000000000000000A);
+			buildRules = ();
+			dependencies = ();
+			packageProductDependencies = (200000000000000000000002, 300000000000000000000002);
+		};
+		100000000000000000000003 = {isa = PBXGroup; children = (100000000000000000000006, 100000000000000000000007, 100000000000000000000025, 10000000000000000000000D, 100000000000000000000004); sourceTree = "<group>"; };
+		100000000000000000000004 = {isa = PBXGroup; children = (100000000000000000000005); name = Products; sourceTree = "<group>"; };
+		100000000000000000000005 = {isa = PBXFileReference; explicitFileType = wrapper.application; path = ApplePackageConsumer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		100000000000000000000006 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Probe.swift; sourceTree = "<group>"; };
+		100000000000000000000007 = {isa = PBXFileReference; lastKnownFileType = text.json; path = "signed-policy-vectors.json"; sourceTree = "<group>"; };
+		100000000000000000000008 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (10000000000000000000000B); runOnlyForDeploymentPostprocessing = 0; };
+		100000000000000000000009 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (200000000000000000000003, 300000000000000000000003, 10000000000000000000000E); runOnlyForDeploymentPostprocessing = 0; };
+		10000000000000000000000A = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (10000000000000000000000C); runOnlyForDeploymentPostprocessing = 0; };
+		10000000000000000000000B = {isa = PBXBuildFile; fileRef = 100000000000000000000006; };
+		10000000000000000000000C = {isa = PBXBuildFile; fileRef = 100000000000000000000007; };
+		10000000000000000000000D = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
+		10000000000000000000000E = {isa = PBXBuildFile; fileRef = 10000000000000000000000D; settings = {ATTRIBUTES = (Weak); }; };
+		100000000000000000000011 = {isa = XCConfigurationList; buildConfigurations = (100000000000000000000021, 100000000000000000000022); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		100000000000000000000012 = {isa = XCConfigurationList; buildConfigurations = (100000000000000000000023, 100000000000000000000024); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		100000000000000000000021 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; };
+		100000000000000000000022 = {isa = XCBuildConfiguration; name = Release; buildSettings = {SWIFT_OPTIMIZATION_LEVEL = "-O"; }; };
+		100000000000000000000023 = {isa = XCBuildConfiguration; name = Debug; baseConfigurationReference = 100000000000000000000025; buildSettings = {}; };
+		100000000000000000000024 = {isa = XCBuildConfiguration; name = Release; baseConfigurationReference = 100000000000000000000025; buildSettings = {}; };
+		100000000000000000000025 = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Consumer.xcconfig; sourceTree = SOURCE_ROOT; };
+
+		200000000000000000000001 = {isa = XCLocalSwiftPackageReference; relativePath = ../QPeriapt; };
+		200000000000000000000002 = {isa = XCSwiftPackageProductDependency; package = 200000000000000000000001; productName = QPeriaptSDK; };
+		200000000000000000000003 = {isa = PBXBuildFile; productRef = 200000000000000000000002; };
+		300000000000000000000001 = {isa = XCLocalSwiftPackageReference; relativePath = ../QPeriaptContinuity; };
+		300000000000000000000002 = {isa = XCSwiftPackageProductDependency; package = 300000000000000000000001; productName = QPeriaptContinuity; };
+		300000000000000000000003 = {isa = PBXBuildFile; productRef = 300000000000000000000002; };
+	};
+	rootObject = 100000000000000000000001;
+}

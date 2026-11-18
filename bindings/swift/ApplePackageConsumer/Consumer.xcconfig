@@ -1,0 +1,17 @@
+PRODUCT_NAME = ApplePackageConsumer
+PRODUCT_BUNDLE_IDENTIFIER = dev.qperiapt.apple-package-consumer
+GENERATE_INFOPLIST_FILE = YES
+CURRENT_PROJECT_VERSION = 1
+MARKETING_VERSION = 1.0
+ALWAYS_SEARCH_USER_PATHS = NO
+SDKROOT = auto
+SUPPORTED_PLATFORMS = macosx iphoneos iphonesimulator
+MACOSX_DEPLOYMENT_TARGET = 13.0
+IPHONEOS_DEPLOYMENT_TARGET = 16.0
+TARGETED_DEVICE_FAMILY = 1,2
+INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphone*] = YES
+INFOPLIST_KEY_UISupportedInterfaceOrientations[sdk=iphone*] = UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+SWIFT_VERSION = 6.0
+SWIFT_STRICT_CONCURRENCY = complete
+SWIFT_TREAT_WARNINGS_AS_ERRORS = YES
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = PROBE_SDK PROBE_CONTINUITY

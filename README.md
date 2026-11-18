@@ -12,7 +12,7 @@ cargo install --locked --version 0.2.0 q-periapt-cli
 ```
 
 Choose a [language and installation command](https://github.com/billlza/q-periapt/blob/main/docs/SDK_GETTING_STARTED.md). The twelve Rust SDK
-crates are on crates.io. Download the [Apple SDK](https://github.com/billlza/q-periapt/releases/tag/v0.2.0) for Swift or the
+crates are on crates.io. Download the [Apple SDK](https://github.com/billlza/q-periapt/releases/download/v0.2.0/QPeriapt-Swift-SDK-0.2.0.zip) and [Apple Continuity 0.2.0 r1](https://github.com/billlza/q-periapt/releases/download/continuity-apple-v0.2.0-r1/QPeriaptContinuity-Apple-0.2.0-r1.zip) for Swift, or the
 [platform SDKs and Continuity distributions](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0) for Android, JVM,
 JavaScript/WASM, native libraries and persistent sessions. The
 [verified release record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0) identifies the published bytes and evidence.

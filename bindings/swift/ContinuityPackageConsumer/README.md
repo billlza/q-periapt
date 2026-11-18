@@ -1,10 +1,10 @@
 # Installed Continuity Swift owner
 
-[Download the Apple Swift package and XCFramework.](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/QPeriaptContinuity-Apple-0.2.0.zip)
+[Download the 0.2.0 r1 Apple Swift package and XCFramework.](https://github.com/billlza/q-periapt/releases/download/continuity-apple-v0.2.0-r1/QPeriaptContinuity-Apple-0.2.0-r1.zip)
 
 ```sh
-curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/QPeriaptContinuity-Apple-0.2.0.zip
-unzip QPeriaptContinuity-Apple-0.2.0.zip
+curl -fLO https://github.com/billlza/q-periapt/releases/download/continuity-apple-v0.2.0-r1/QPeriaptContinuity-Apple-0.2.0-r1.zip
+unzip QPeriaptContinuity-Apple-0.2.0-r1.zip
 ```
 
 Select the `QPeriaptContinuity` product from the extracted `QPeriaptContinuity` directory.
@@ -48,7 +48,7 @@ transaction handling, simulator execution and canonical release-pipeline admissi
 remain separate work.
 
 The installed native qualification now accepts `--with-apple-package` alongside
-`--with-c-consumer`. It builds `QPeriaptContinuity-Apple-0.2.0.zip` from the
+`--with-c-consumer`. It builds `QPeriaptContinuity-Apple-0.2.0-r1.zip` from the
 same admitted C source and normalized dependency graph, with macOS arm64, iOS
 arm64, arm64 simulator and x86_64 simulator static slices. The existing Swift CI job selects this
 step. Each slice must expose the exact owner functions, and target-specific

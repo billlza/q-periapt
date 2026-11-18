@@ -2,8 +2,9 @@
 
 Q-Periapt **0.2.0** was published on 17 November 2026. Get Rust packages
 from [crates.io](https://crates.io/crates/q-periapt-sdk/0.2.0), the Swift SDK from the
-[Apple release](https://github.com/billlza/q-periapt/releases/tag/v0.2.0), and the other SDKs and Continuity packages from
-the [platform release](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0). Verify GitHub downloads against
+[Apple release](https://github.com/billlza/q-periapt/releases/tag/v0.2.0), and Apple Continuity from the
+[0.2.0 r1 release](https://github.com/billlza/q-periapt/releases/tag/continuity-apple-v0.2.0-r1).
+The [platform release](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0) provides the other distributions. Verify GitHub downloads against
 `SHA256SUMS` on the corresponding release page. The
 [verified cohort](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0) records the source and package identities.
 
@@ -30,11 +31,34 @@ Its Rust crate is a GitHub source archive and its native interface is `qpc-owner
 
 ## Swift package selection
 
-On Apple Silicon with Xcode 27.2 and Swift 6.4.2, an application can build
-and run with either released Apple package on its own. Adding both
-`QPeriaptSDK` and `QPeriaptContinuity` to one SwiftPM executable fails in the
-default build system. Both XCFrameworks produce `include/module.modulemap` in
-the Release products directory. Choose the package for the API your app uses.
+Use the signed Swift SDK 0.2.0 and the Apple Continuity 0.2.0 **r1** package.
+Each works on its own. To use both in one target, unpack them next to your project:
+
+```sh
+curl -fLO https://github.com/billlza/q-periapt/releases/download/v0.2.0/QPeriapt-Swift-SDK-0.2.0.zip
+curl -fLO https://github.com/billlza/q-periapt/releases/download/continuity-apple-v0.2.0-r1/QPeriaptContinuity-Apple-0.2.0-r1.zip
+unzip QPeriapt-Swift-SDK-0.2.0.zip
+unzip QPeriaptContinuity-Apple-0.2.0-r1.zip
+```
+
+In Xcode, add the local folders `QPeriapt` and `QPeriaptContinuity` under
+**Package Dependencies**. Add the products `QPeriaptSDK` and `QPeriaptContinuity`
+to the same app target. For a Swift package, the equivalent manifest entries are:
+
+```swift
+// Package dependencies
+.package(path: "../QPeriapt"),
+.package(path: "../QPeriaptContinuity"),
+
+// Dependencies of the target that imports both modules
+.product(name: "QPeriaptSDK", package: "QPeriapt"),
+.product(name: "QPeriaptContinuity", package: "QPeriaptContinuity"),
+```
+
+If you already use the original 0.2.0 Continuity ZIP, replace the extracted
+`QPeriaptContinuity` folder with r1. Its C module map has a distinct path and
+its static library keeps implementation symbols private. The Swift product and
+the `qpc-owner/1` interface retain their existing names.
 
 ## First integration
 

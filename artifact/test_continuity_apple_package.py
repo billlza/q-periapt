@@ -8,6 +8,7 @@ import unittest
 
 import continuity_apple_package as apple
 import continuity_c_consumer as c
+from continuity_apple_native import common_storage, verify_public_symbols
 from continuity_apple_consumer import verify_linkage
 
 
@@ -66,7 +67,7 @@ class ApplePackageTests(unittest.TestCase):
             name = "slice-" + str(index); folder = root / name
             data = slice_name.encode(); apple.write(folder / apple.LIBRARY, data)
             apple.write(folder / "Headers/qpc_owner.h", b"public header")
-            apple.write(folder / "Headers/module.modulemap", apple.MODULE)
+            apple.write(folder / "Headers" / apple.MODULE_PATH, apple.MODULE)
             row = dict(LibraryIdentifier=name, LibraryPath=apple.LIBRARY, HeadersPath="Headers",
                        SupportedArchitectures=[apple.ARCHITECTURES[target] for target in targets], SupportedPlatform=platform)
             if variant: row["SupportedPlatformVariant"] = variant
@@ -107,12 +108,34 @@ class ApplePackageTests(unittest.TestCase):
     def test_headers_and_modules_must_match_the_owned_contract(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); rows, binaries = self.fixture(root)
-            for name in ["qpc_owner.h", "module.modulemap"]:
+            for name in ["qpc_owner.h", apple.MODULE_PATH]:
                 path = root / rows[0]["LibraryIdentifier"] / "Headers" / name
                 original = path.read_bytes(); path.write_bytes(b"changed")
                 with self.assertRaisesRegex(ValueError, "C interface differs"):
                     apple.verify_xcframework(root, binaries, b"public header")
                 path.write_bytes(original)
+            # Xcode copies every XCFramework's headers into one output directory.
+            apple.write(root / rows[0]["LibraryIdentifier"] / "Headers/module.modulemap", apple.MODULE)
+            with self.assertRaisesRegex(ValueError, "C interface differs"):
+                apple.verify_xcframework(root, binaries, b"public header")
+
+    def test_partial_link_preserves_common_size_and_alignment(self):
+        definitions = (b"0000000000000048 (common) (alignment 2^3) private external _state\n"
+                       b"0000000000000020 (__TEXT,__text) external _function\n")
+        self.assertEqual(common_storage(definitions),
+                         b".globl _state\n.zerofill __DATA,__common,_state,72,3\n")
+        for invalid in (definitions.replace(b"2^3", b"3"), definitions.replace(b"0048", b"0000"),
+                        definitions.replace(b"_state", b"_state,extra")):
+            with self.assertRaisesRegex(ValueError, "Mach-O"):
+                common_storage(invalid)
+
+    def test_packaged_archive_exports_only_the_owner_functions(self):
+        rows = [f"0000000000001234 T _{name}\n".encode() for name in sorted(c.EXPORTS)]
+        verify_public_symbols(b"owner.a(CQPCOwner.o):\n" + b"".join(rows))
+        for invalid in (rows[1:], rows + rows[:1], rows + [b"00000000 T __rust_alloc\n"],
+                        rows + [b"00000048 C _state\n"], [rows[0].replace(b" T ", b" D "), *rows[1:]]):
+            with self.assertRaises(ValueError):
+                verify_public_symbols(b"".join(invalid))
 
     def test_installed_members_cannot_be_added_deleted_or_changed(self):
         with tempfile.TemporaryDirectory() as tmp:

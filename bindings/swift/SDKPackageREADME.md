@@ -7,7 +7,7 @@ curl -fLO https://github.com/billlza/q-periapt/releases/download/v0.2.0/QPeriapt
 unzip QPeriapt-Swift-SDK-0.2.0.zip
 ```
 
-For applications that also require the other Apple package, see the [SwiftPM integration result](https://github.com/billlza/q-periapt/blob/main/docs/SDK_GETTING_STARTED.md#swift-package-selection).
+To use Continuity in the same target, add the [0.2.0 r1 Apple package](https://github.com/billlza/q-periapt/releases/download/continuity-apple-v0.2.0-r1/QPeriaptContinuity-Apple-0.2.0-r1.zip). The [integration guide](https://github.com/billlza/q-periapt/blob/main/docs/SDK_GETTING_STARTED.md#swift-package-selection) lists both product names.
 
 This package provides `QPeriaptSDK` (owned runtime, keys and standard hybrid TLS
 connections) and the retained byte-oriented `QPeriaptHybrid` compatibility API.

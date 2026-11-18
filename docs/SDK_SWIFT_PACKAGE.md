@@ -8,6 +8,8 @@ unzip QPeriapt-Swift-SDK-0.2.0.zip
 ```
 
 Add the extracted `QPeriapt` folder as a local Swift package and select `QPeriaptSDK`.
+For persistent sessions in the same target, add the [Apple Continuity r1 package](https://github.com/billlza/q-periapt/releases/download/continuity-apple-v0.2.0-r1/QPeriaptContinuity-Apple-0.2.0-r1.zip).
+The [SwiftPM example](SDK_GETTING_STARTED.md#swift-package-selection) shows both dependencies.
 
 ## Build from source
 
