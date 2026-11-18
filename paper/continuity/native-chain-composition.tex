@@ -1,13 +1,13 @@
 \subsection{Native recovery with an online selected message}
 \label{sec:native-online-chain}
 
-The finite-chain comparison can now be connected to the original native
-recovery experiment. The connection preserves its acquisition-based
-eligibility and executed source slots while allowing earlier message-key
-disclosures to influence which later application send is challenged.
-The root, traffic material and message step have separate allocation
-boundaries; keeping those boundaries explicit makes the selection
-implementable by the same native execution ledger.
+Suppose the receiver skips ahead in the message chain and then rejects
+the packet. If it was the first endpoint to compute a step, the observer
+had to decide whether to mark it just before that computation. Waiting
+for the sender would be too late. Earlier message keys may inform this
+choice. We retain the native acquisition history and executed reservation
+slots and track the root, traffic material and message step at their
+distinct allocation times.
 
 \paragraph{The online native controller.}
 Retain the established-session live core of
@@ -21,20 +21,18 @@ traffic entry $I^*$ and direction before that entry's first block allocation.
 These designations are retained through later acceptance, recovery and
 equal-input aliases.
 
-The controller maintains a private bookkeeping table indexed by
-$(\mathcal M,d,i)$, where $\mathcal M$ is the complete original traffic
-material handle, $d$ its direction and $i$ its chain index. Equal-info
-aliases of the same root schedule share $\mathcal M$; an independently
-allocated material has its own handle even when its epoch, index or
-numeric key bytes coincide. Immediately before a previously unseen
-selected-direction step, the controller chooses either Continue or
-Mark, using its available history and the public descriptor of that
-step. Mark occurs at most once and only for $i<L$. A receive-side
-advance, including a skipped step followed by failed authentication,
-is a first computation for this purpose. Repeating a computation after
-a failed write retrieves the existing ledger entry and offers no new
-selection point. This ledger is reduction bookkeeping and changes no
-native state transition or response.
+The controller records each computed step under $(\mathcal M,d,i)$.
+Here $\mathcal M$ identifies the complete original traffic material,
+$d$ the direction and $i$ the chain index. Equal-info aliases of one
+root schedule share $\mathcal M$. Independently allocated material has
+its own handle even if the epoch, index or key bytes coincide.
+
+Immediately before a new step in the selected direction, the controller
+uses the history so far and the step's public descriptor to choose
+Continue or Mark. It can mark at most once, at an index $i<L$. An exact retry after a
+failed write finds the entry for its original step. This table belongs
+to the reduction. The endpoints follow their ordinary transitions and
+return their ordinary responses.
 
 For each step passed with Continue before Mark, the observer may obtain
 its message key; the prefix seed and Extract value retain private
@@ -48,12 +46,12 @@ marked message key have only the uses in the preceding interfaces.
 The already admitted successor-root, opposite-direction and other
 traffic-entry observations remain available.
 
-These typed projections are the complete additional observation
-interface. Acquiring a complete session version still has its original
-scope and save time. In particular, a version containing an available
-successor seed also contains an acquired session version and remains
-subject to the original acquisition predicate. Public commitments and
-failed captures retain their original behavior.
+These named projections are the only extra observations. Asking for
+the successor seed returns that one value. Acquiring a session version
+that contains the very same seed gives the observer the record too.
+The acquisition keeps its full scope and the version's original
+first-save time. Public commitments and failed captures keep their
+ordinary behavior.
 
 There is one left-or-right application operation, tied to the marked
 step's original send. Its messages have equal length and common

@@ -518,28 +518,25 @@ confirmation counter retaining its own value.
 \section{Reservation origins, persistent records, and recovery}
 \label{sec:security-model}
 
-An interrupted cryptographic operation can retain its random tape before it
-has produced a key or a ciphertext.  Its later execution and confirmation
-therefore have to be related to the original reservation.  We make this
-relationship explicit at two levels: the origin of a cryptographic operation,
-and the origin of a saved session-state version.  A third identifier describes
-the physical image that carries that version.  This distinction lets us
-account for a target record copied by another session's write, an unapplied
-pending image, and a ciphertext acquired before its wrapping key.
+A write to one session can reseal a journal that also holds a reservation
+for another session. The journal image is new. The untouched session
+still has the same saved version and the same reserved randomness.
+To describe even this one write, we need an identity for the original
+draw, one for the saved version, and one for the image that carries it.
+These identities also let us follow a pending write before installation
+and a copy acquired before its wrapping key.
 
-The model is an interface model for an asynchronous protocol machine
-$\mathcal P$.  The adversary schedules public messages, process loss, honest
-recovery, and the disclosure operations specified below.  Application
-deliveries are private to the honest applications.  Capture grants read access
-to the stated assets; it does not grant an additional operation for replacing
-the authoritative journal.  An implementation with adversarial rollback or
-forking requires those transitions in its storage machine.  The protocol,
-its cryptographic primitives, and its public outputs are parameters of the
-record-normalization lemma.  Fix finite execution, record-size, and query
-budgets; the wrapper's bookkeeping is polynomial in their total
-representation size.
-
-Table~\ref{tab:record-notation} summarizes the principal objects.
+The adversary schedules public messages, process loss, honest recovery
+and the disclosures specified below for the asynchronous machine
+$\mathcal P$. A successful capture gives the adversary the retained
+bytes and leaves the authoritative journal in place. Adversarial rollback
+or forking would require an explicit transition that replaces or branches
+that history. Application deliveries remain private to the honest
+applications. We take the protocol, its primitives and its public
+outputs as parameters of the record-normalization lemma. With finite
+budgets for execution, record sizes and queries, the wrapper's bookkeeping
+is polynomial in their total representation size.
+Table~\ref{tab:record-notation} gives the notation.
 
 \begin{table}[t]
 \centering
@@ -697,13 +694,13 @@ An unsuccessful request for unavailable state returns its ordinary error and
 adds no acquisition.
 \end{definition}
 
-Both sets describe the specified disclosure interfaces, using provenance and
-key identities.  They do not test whether the adversary has guessed a secret.
-The read set can grow without another capture: if $h$ was obtained at
-$t_1$ and its final missing wrapping key is disclosed at $t_2>t_1$, the
-corresponding versions enter $\mathcal L_{t_2}$.  Host deletion at an
-intermediate time leaves $h$ in $\mathcal A_{t_2}$.  Acquisition, by contrast,
-already occurred at $t_1$.
+Suppose the adversary acquires its first copy of $v$ in an encrypted
+image $h$ at $t_1$. Its only path to $v$ still lacks one wrapping key.
+The host deletes $h$, and the key is disclosed at $t_2>t_1$. The copy
+in the adversary's archive survives the deletion. Thus $v$ enters
+$\mathcal C_{t_1}$ when the bytes arrive and $\mathcal L_{t_2}$ when
+the key arrives. There was only one capture. Both sets describe the
+declared disclosures and key identities. Guessing a value changes neither.
 
 An additional key that is explicitly recoverable from an opened record can be
 included by a declared extraction rule.  In this extension, iterate
@@ -885,24 +882,21 @@ accounting.
 \subsection{Explicit guarded normalization of record readability}
 \label{sec:guarded-provenance}
 
-The path and readability definitions above already account for copying and
-later key disclosure. We now give their explicit guarded normalization and
-an executable realization for a record-decryption specialization. Here key
-derivation has fixed public edges independent of recovered plaintext. The
-optional plaintext-dependent key-extraction extension remains as defined
-above and is outside this specialization. The set $\Omega_{\rm src}$ below
-contains reservation-source identities; it is distinct from saved record
-versions and from the original-payload table $\mathcal O[v]$. Likewise,
-$\mathcal E^{\rm src}_t$ projects derivability onto protected source values,
-whereas $\mathcal C_t$ and $\mathcal L_t$ track acquired and readable versions.
-The graph is a fixed representation of admitted retained objects, not a
-replacement for the provenance transition rules or the byte renderer.
+A session version may contain several reserved values. Conversely, the
+same reserved value may occur in several encrypted records. We now ask
+which of those values are readable from the objects and keys acquired
+so far. A source $o\in\Omega_{\rm src}$ names one original draw.
+$\mathcal E^{\rm src}_t$ contains the identities of the sources whose
+protected values are derivable at time $t$. The sets $\mathcal C_t$ and $\mathcal L_t$ still refer to
+versions, and $\mathcal O[v]$ still holds the original payload of $v$.
 
-
-A source identifier names one original sampling operation.  An acquisition
-history records what the adversary obtains, including objects obtained at
-different times.  These are distinct objects of the model: a copy preserves
-the former, while an additional acquisition can change the latter.
+Here we fix the graph of admitted records and the public key-derivation
+edges. Key derivation in this fragment is independent of recovered
+plaintext. The preceding interface specifies how to add an explicit
+plaintext-dependent key-extraction rule. The provenance rules supply
+the identities in the graph, and the renderer supplies the corresponding
+bytes. A second copy carries the same source identity and can give the
+adversary another route to its value.
 
 \paragraph{Immutable record graph.}
 Let $\mathcal R$ be a finite set of immutable encrypted record objects.
@@ -956,8 +950,8 @@ path.  Its exposure expression is
  \{o:\exists(r,g,o,p),\ r\in A_t\ \land\ g\subseteq K_t^*\}.
  \tag{GP}
 \]
-Alternative records and paths are disjoined, while all keys on one path
-are conjoined.  Equal key identities occur only once in the guard set.
+One available path to $o$ suffices. Along that path every required
+key must be available, and a key used twice need only be known once.
 
 \begin{theorem}[Exact guarded normalization]
 \label{thm:guarded-normalization}
@@ -986,11 +980,13 @@ or advance choice of the acquisition schedule was used.
 \end{proof}
 
 \paragraph{Incremental evaluation.}
-Equation (GP) is a declarative normal form: a compressed record DAG can
-have exponentially many paths. Its exposure set can instead be maintained
-directly from the decryption rules. The evaluator specializes indexed
-forward chaining for Horn rules~\cite[Section~4]{dowlingGallier1984}
-to cumulative record acquisitions and disclosures. Put
+Equation (GP) tells us exactly which sources are readable at a given
+time. Even a compressed record DAG can have exponentially many paths
+in that table. We can update the derivable facts as each acquisition
+or disclosure arrives without constructing the table. The
+evaluator specializes indexed forward chaining for Horn
+rules~\cite[Section~4]{dowlingGallier1984} to this cumulative history.
+Write
 \[
 \begin{aligned}
  N&=|\mathcal R|+|\mathcal K|+|\Omega_{\rm src}|,\\
@@ -1073,17 +1069,15 @@ of $A_t$ and therefore cannot invalidate a satisfied route.
 \end{proof}
 
 \paragraph{Interface significance.}
-The theorem gives an exact finite normalization of the chosen
-record-decryption semantics.  It supports a precise original-operation
-leakage oracle: a query for source $o$ can be evaluated against the
-complete acquisition history, with a path and its key guards as a witness.
-The cryptographic transition from native ciphertexts and public
-commitments to this interface has a separate simulation obligation.
-The derivation rules do not model guessing, cryptanalysis, timing leakage
-or a quantum decryption oracle.  Accordingly, absence from $\mathcal E^{\rm src}_t$ is
-recorded as non-derivability by these rules; message indistinguishability
-outside an exposure set is supplied by a security theorem for the
-surrounding protocol.
+For a query about source $o$, an acquired path together with its key
+guards witnesses readability through the records. Direct disclosure
+puts the source in $\mathcal E^{\rm src}_t$ immediately. If $o$ is
+absent, the stated rules cannot derive its value from this history.
+They cover record decryption and fixed public key derivation. Guessing,
+cryptanalysis, timing leakage and a quantum decryption oracle are outside
+that fragment. To reach a claim about an application message, we still
+need to simulate the native ciphertexts and public commitments and prove
+indistinguishability in the protocol experiment.
 
 \paragraph{Native shape and finite checks.}
 At the fixed research source, operation reservations are encrypted under
@@ -1104,7 +1098,9 @@ implemented finite model and supplement the general proof above.
 % Standalone manuscript fragment; no preamble.
 % Requires proposition and proof environments (e.g. amsthm).
 \paragraph{Why exposure must retain conjunctive guards.}
-The following elementary separation explains the conjunction in (GP).
+Could we label each item with the sources it exposes and take the
+union of those labels as items arrive? A single encrypted record and
+its wrapping key settle the question.
 
 \begin{proposition}[Acquisition exposure is not additive]
 \label{prop:acquisition-nonadditivity}
@@ -1158,15 +1154,11 @@ information-theoretic illustration of acquisition; the protocol's record
 encryption is handled by its cryptographic record interface.
 
 \paragraph{Consequence for provenance routes.}
-A source label and an exposure decision serve different purposes.  Copying
-a retained record preserves the source label, while subsequent acquisition
-of a matching key may change exposure.  A guarded-route representation
-retains this distinction: alternative acquired records supply alternative
-routes to the same source, and every route retains the conjunction of its
-required keys.  Exposure is therefore evaluated from the joint acquisition
-and key-derivation history. The separation applies specifically to an
-exact exposure representation formed by the union of fixed per-object
-labels.
+A fixed origin label correctly identifies the seed in a copy. A union
+of fixed per-item exposure labels misses what happens when the record
+and its key arrive separately. Another copy offers another route to the
+same seed. Each route becomes usable when the record and all its
+required keys are available.
 % END SECTION SOURCE: acquisition-nonadditivity.tex
 
 \subsection{A recovery experiment with acquisition-based eligibility}
@@ -1230,11 +1222,16 @@ source/authentication obligation: a failure of $\mathsf{Attr}$ can occur while
 $\mathsf{Eligible}_{s,e,c}$ holds and is charged in the computational
 accounting.
 
-The final line of~\eqref{eq:eligibility} concerns every saved version of session
-$s$, across its roles and epochs.  It uses acquisition
-$\mathcal C_T$, including protected bytes, at the time they are obtained.
-Readability $\mathcal L_T$ is evaluated separately. Other epochs' entropy disclosures retain their ordinary
-behavior.  Both peers' confirmation is not an additional send prerequisite.
+Consider a journal image sealed after $c$ by a write to another session.
+What does acquiring that image mean for the target session $s$? Read the
+last line of~\eqref{eq:eligibility} using the first save of each version
+of $s$ in the image. If all of them were first saved by $c$, this
+capture adds no post-cut version of $s$. A single version first
+saved after $c$ violates it, even while the bytes are encrypted. The
+test uses $\mathcal C_T$ across all roles and epochs of $s$.
+$\mathcal L_T$ answers when the acquired versions become readable.
+Other epochs' entropy disclosures keep their usual behavior, and a send
+may precede confirmation by both peers.
 
 Define the unconditional centered advantage by
 \begin{equation}
@@ -1323,16 +1320,12 @@ fixed-candidate event in the reduction.  One possible candidate becoming
 ineligible does not justify terminating a game that can still select a
 different eligible target.
 
-Two short executions illustrate why both kinds of origin are necessary.
-If $v$ was saved before $c$ and a sibling write reseals it after $c$, the
-acquisition still refers to the original pre-cut $v$.  The new global image
-time alone does not falsify the final conjunct of~\eqref{eq:eligibility}.
-If instead $v$ was saved after $c$, a later write attributed to a sibling
-does not change its subject or make its capture eligible.  Likewise, a
-pre-cut generation reservation retained through a delayed receipt remains
-pre-cut when its KEM computation completes later. The reservation condition
-in~\eqref{eq:eligibility} determines that case, with the endpoints retaining
-their respective confirmed counters.
+The same timing issue arises for the reservation itself. A generation
+tape reserved before $c$ can still be the tape used after a delayed
+receipt. In that execution the reservation condition
+in~\eqref{eq:eligibility} fails even if the KEM computation completes
+later. The two endpoints' confirmed counters record their own progress
+during the delay.
 
 \subsection{Connection to the cryptographic argument}
 
@@ -1508,16 +1501,19 @@ retains the common-virtual-game accounting variant.
 \subsection{An explicit renderer for private images and intents}
 \label{sec:opaque-rendering}
 
-The alias lemma preserves a renderer that can read every original payload.
-A component reduction additionally needs to execute record management when
-the selected KEM challenger supplies public outputs and a shared-secret
-challenge without supplying the selected random tape. We construct that
-record-management algorithm for a finite image/intent interface. Its tables
-contain immutable handles, known fields and locally sampled sealing coins.
-The protocol's public computations are supplied by a common functional
-interface $F$, instantiated by the original-operation adapter. This section
-holds $F$ fixed and isolates the image/intent contribution to the record
-connection in Proposition~\ref{prop:native-local-accounting}.
+If the protocol asks twice for the head digest of the same saved image,
+both answers must agree. In the alias lemma the renderer can look up
+the payload, render the image and hash its bytes. The KEM reduction
+faces a harder case. Its challenger gives it the public operation outputs and a
+shared-secret challenge, while the selected random tape stays private
+even when it occurs in a saved image.
+
+We construct the record-management algorithm for this finite image and
+intent interface. It keeps immutable handles, the fields it knows and
+sealing coins it samples locally. The original-operation adapter supplies
+the protocol's public computations through the common interface $F$.
+Holding $F$ fixed here lets us account for the image and intent part of
+Proposition~\ref{prop:native-local-accounting}.
 
 \paragraph{Typed record interface.}
 An opaque block is an immutable fixed-length private value, represented by a
@@ -1959,11 +1955,12 @@ covers dependent immutable report rows.
 \subsection{Candidate-local simulation in the native experiment}
 \label{sec:candidate-local-accounting}
 
-A guessed origin pair can determine which records are opaque, which report
-rows are protected, and where the reduction stops.  We therefore localize
-the score in one native experiment before comparing its candidate-specific
-continuations.  This formulation preserves the original target eligibility
-and does not require the local real-component games to coincide.
+The pair of reservations determines which records stay opaque, which
+report rows are protected and when the simulator can stop. We score
+the native run first. An ineligible run contributes zero. Each eligible
+send with a unique usable pair contributes to that pair's term. We keep
+eligible attribution failures separate, then compare each candidate
+under its own record and stopping rules.
 
 Let $\mathsf G_{\rm nat}$ be the full native experiment and
 $J=[G]\times[C]$ its fixed reservation-slot budget.  Write $E$ for original
@@ -2022,10 +2019,12 @@ exactly
 \[
        L_s\le c<\min\{\mathsf{res}(g),\mathsf{res}(a)\}.
 \]
-The remaining eligibility conditions retain their own tests.  This statistic
-uses original version times, not the enclosing image's latest sealing time.
-A batch-only key fragment or a public commitment supplies no intact-session
-witness merely because a report depends on that session.
+If this interval is empty, no later choice of $c$ can make the pair
+eligible. Resealing an acquired version leaves its first-save time,
+and hence $L_s$, unchanged. A batch-only key fragment or a public
+commitment may depend on the session without supplying an intact
+version for this test. A cut within the interval must still satisfy
+the other eligibility conditions.
 
 \paragraph{One native residual.}
 In the full native run let $B_I$ denote the charged event for its final
@@ -4247,13 +4246,13 @@ specify exactly the executions to which the bound applies.
 \subsection{Native recovery with an online selected message}
 \label{sec:native-online-chain}
 
-The finite-chain comparison can now be connected to the original native
-recovery experiment. The connection preserves its acquisition-based
-eligibility and executed source slots while allowing earlier message-key
-disclosures to influence which later application send is challenged.
-The root, traffic material and message step have separate allocation
-boundaries; keeping those boundaries explicit makes the selection
-implementable by the same native execution ledger.
+Suppose the receiver skips ahead in the message chain and then rejects
+the packet. If it was the first endpoint to compute a step, the observer
+had to decide whether to mark it just before that computation. Waiting
+for the sender would be too late. Earlier message keys may inform this
+choice. We retain the native acquisition history and executed reservation
+slots and track the root, traffic material and message step at their
+distinct allocation times.
 
 \paragraph{The online native controller.}
 Retain the established-session live core of
@@ -4267,20 +4266,18 @@ traffic entry $I^*$ and direction before that entry's first block allocation.
 These designations are retained through later acceptance, recovery and
 equal-input aliases.
 
-The controller maintains a private bookkeeping table indexed by
-$(\mathcal M,d,i)$, where $\mathcal M$ is the complete original traffic
-material handle, $d$ its direction and $i$ its chain index. Equal-info
-aliases of the same root schedule share $\mathcal M$; an independently
-allocated material has its own handle even when its epoch, index or
-numeric key bytes coincide. Immediately before a previously unseen
-selected-direction step, the controller chooses either Continue or
-Mark, using its available history and the public descriptor of that
-step. Mark occurs at most once and only for $i<L$. A receive-side
-advance, including a skipped step followed by failed authentication,
-is a first computation for this purpose. Repeating a computation after
-a failed write retrieves the existing ledger entry and offers no new
-selection point. This ledger is reduction bookkeeping and changes no
-native state transition or response.
+The controller records each computed step under $(\mathcal M,d,i)$.
+Here $\mathcal M$ identifies the complete original traffic material,
+$d$ the direction and $i$ the chain index. Equal-info aliases of one
+root schedule share $\mathcal M$. Independently allocated material has
+its own handle even if the epoch, index or key bytes coincide.
+
+Immediately before a new step in the selected direction, the controller
+uses the history so far and the step's public descriptor to choose
+Continue or Mark. It can mark at most once, at an index $i<L$. An exact retry after a
+failed write finds the entry for its original step. This table belongs
+to the reduction. The endpoints follow their ordinary transitions and
+return their ordinary responses.
 
 For each step passed with Continue before Mark, the observer may obtain
 its message key; the prefix seed and Extract value retain private
@@ -4294,12 +4291,12 @@ marked message key have only the uses in the preceding interfaces.
 The already admitted successor-root, opposite-direction and other
 traffic-entry observations remain available.
 
-These typed projections are the complete additional observation
-interface. Acquiring a complete session version still has its original
-scope and save time. In particular, a version containing an available
-successor seed also contains an acquired session version and remains
-subject to the original acquisition predicate. Public commitments and
-failed captures retain their original behavior.
+These named projections are the only extra observations. Asking for
+the successor seed returns that one value. Acquiring a session version
+that contains the very same seed gives the observer the record too.
+The acquisition keeps its full scope and the version's original
+first-save time. Public commitments and failed captures keep their
+ordinary behavior.
 
 There is one left-or-right application operation, tied to the marked
 step's original send. Its messages have equal length and common
@@ -4946,14 +4943,15 @@ separate concrete application of the finite entry proof.
 \subsection{Bootstrap authentication from an original surviving source}
 \label{sec:bootstrap-authentication}
 
-The same origin model also applies before an established session exists.
-Bootstrap first combines an initiator encapsulation to the responder's
-prekeys into $S_0$, then combines the response encapsulation to the
-initiator's newly reserved reply key into $S_1$. Initial confirmation
-already uses $S_0$. The joint schedule subsequently incorporates both
-contributions, retains a pending root, and activates message state after
-Final. We connect this order to authentication of the responder's
-historical activation of the exact signed transcript.
+At bootstrap the peers use the first contribution before the second
+one exists. The initiator encapsulates to the responder's prekeys to
+obtain $S_0$ and already uses $S_0$ for Initial confirmation. The
+responder then encapsulates to the initiator's newly reserved reply
+key to obtain $S_1$. The joint schedule uses both contributions,
+retains a pending root and activates message state after Final. We
+follow that order to determine what a successful connection tells the
+initiator about the responder's earlier activation of the signed
+transcript.
 
 \paragraph{Transcript and schedule.}
 Let $c=(\mathit{ctx},x,y)$ contain the admitted context and the complete
@@ -5415,24 +5413,27 @@ the matching historical activation. Later global recipe stops preserve the event
 observed on the earlier prefix.
 \end{proof}
 
-The conclusion follows the original transcript through restart and
-delayed delivery. Current local authority is checked at each connection
-return; the authenticated peer event is its matching earlier activation.
-The source-bound supplement records the exact schedule and durable-order
-pins, independent HMAC equations, short/long alias controls, late
-registration countermodels and both-endpoint acquisition accounting.
+A READY proof may arrive after the initiator restarts. The initiator
+checks its current local authority when it returns the connection.
+Under the theorem's conditions, the proof authenticates the expected
+responder's earlier durable activation of the same signed transcript.
+An exact replay of READY refers to that event. The supplement records
+the schedule and durable-order pins, independent HMAC equations,
+short/long alias controls, late registration countermodels and
+both-endpoint acquisition accounting.
 % END SECTION SOURCE: bootstrap-authentication.tex
 % BEGIN SECTION SOURCE: bootstrap-initial-source.tex
 \subsection{Initial-source authentication with adaptive reply families}
 \label{sec:bootstrap-initial-source}
 
-The first bootstrap contribution admits a complementary source connection.
-Its initial confirmation is computed before a Reply exists, while later
-Replies determine the second contribution and the long-Extract descriptor.
-The joint entry theorem preserves both uses. We first compare the complete
-service of one original source, then localize its resulting private table
-to the parent family of the selected registration. This order charges the
-source and entry comparisons once per original pair.
+Suppose the surviving secret comes from the Initial. The initiator has
+already used that contribution for confirmation before a Reply can
+arrive. Each possible Reply fixes a second contribution and a descriptor
+for the long Extract. We compare the complete service of the original
+source, preserving both uses through the joint entry theorem. We then
+restrict its private table to the parent family of the selected
+registration. The source and entry comparisons are paid once per
+original pair.
 
 \paragraph{Initial-surviving profile.}
 Use Definition~\ref{def:bootstrap-online}, adding the authoritative
@@ -6344,30 +6345,23 @@ validation records.
 \subsection{Retry readiness under the common opportunity budget}
 \label{sec:retry-readiness}
 
-The frame accounting above identifies application-retry readiness as a
-concrete scheduling parameter. A paired native experiment changes this
-parameter while retaining the protocol source, send budgets, capture cut,
-request stream, transport schedules and 2,048-opportunity budget of
-Section~\ref{sec:matched-opportunities}. It executes both the original
-immediate policy and an age-four policy for each of the two budgets and
-seven schedules, giving 28 traces. All 14 fresh immediate-policy rows agree
-with their retained counterparts. This ablation measures completed service
-and communication work in the native driver at fixed cryptographic and
-durability interfaces.
+We compared immediate and age-four retries at both send budgets under
+the seven schedules in Section~\ref{sec:matched-opportunities}. Each
+of the 14 pairs used the same protocol source, requests, capture cut,
+2,048 transmission opportunities, and cryptographic and durability
+interfaces. All 14 fresh immediate-policy runs reproduced their
+original rows.
 
 \paragraph{A public retry clock.}
-Each endpoint counts its own designated transmission opportunities. The
-counter advances after the opportunity and request are recorded and before
-local control planning. The driver records this counter on every first
-application emission and exact application retry. An unacknowledged request
-becomes retry-ready when the current counter exceeds its last emission
-counter by at least four. Within the existing fair cyclic arbitration, the
-retry class selects the oldest eligible unacknowledged request. Control
-planning, cumulative ACK processing, first-application admission and the
-remaining arbitration rules retain their original code. Retries obtain the
-retained ciphertext through the same resume operation. The readiness rule
-uses public scheduling and the sender's ACK state; delivery history is used
-only by the independent analyst when classifying transmissions.
+The clock counts the sender's own turns. Each endpoint advances its
+counter after recording the opportunity and request, before planning
+control traffic. If it sends on turn $k$, an unacknowledged request is
+eligible again at $k+4$ at the earliest. An exact retry records a new
+emission turn. When fair cyclic arbitration selects the retry class,
+the oldest eligible request resumes with its saved ciphertext. Control
+planning, cumulative ACK processing, first admission and the other
+arbitration rules keep their original code. The sender goes by its
+clock and its ACK state. Only the analyst uses delivery history.
 
 % BEGIN SECTION SOURCE: retry-readiness-table.tex
 % Generated by artifacts/retry-readiness/analyze_retry.py.
@@ -6396,47 +6390,43 @@ One-way & 32 $\to$ 32 & 64 $\to$ 64 & +0.09\% & +0.10\%\\
 % END SECTION SOURCE: retry-readiness-table.tex
 
 \paragraph{Completed service and frame use.}
-Age four increases logical deliveries in all twelve budget--schedule pairs
-with bidirectional or resumed communication, by 16.84--43.39\%
-(Table~\ref{tab:retry-readiness}). Alternating traffic delivers 971 applications
-at $b=32$ and 999 at $b=64$, compared with 688 and 718 under immediate
-readiness: increases of 41.13\% and 39.14\%. Application retries fall from
-604 to 16 and from 579 to 8. The respective 592 and 572 retries emitted
-after a request's first logical delivery fall to zero. These runs emit
-706,764 and 455,388 total bytes; dividing the complete frame traffic by
-logical deliveries gives 11.41\% and 19.70\% lower byte cost per delivery.
-The two captured endpoints still each derive 63 or 127 post-capture keys,
-now among 970 or 998 post-capture first commitments. Thus the additional
-alternating service retains the observed current-epoch exposure count.
-Physical \texttt{sync\_data} calls rise from 14,219 to 20,015 and from
-14,579 to 20,255; the respective counts per delivery change from 20.67 to
-20.61 and from 20.31 to 20.28, retaining the real durability work in the
-service accounting.
+Age four increased logical deliveries by 16.84--43.39\% across the
+twelve bidirectional or resumed budget--schedule pairs
+(Table~\ref{tab:retry-readiness}). On the alternating schedule,
+deliveries rose from 688 to 971 at $b=32$ (41.13\%) and from 718 to
+999 at $b=64$ (39.14\%). Application retries fell from 604 to 16 and
+from 579 to 8. Neither age-four run retried a message after its first
+delivery. The immediate policy had done so 592 and 572 times.
+
+The two age-four runs emitted 706,764 and 455,388 bytes, respectively.
+Bytes per delivery fell by 11.41\% and 19.70\%. Each captured endpoint
+still yielded 63 or 127 post-capture keys, out of 970 or 998 post-capture
+first commitments. Physical \texttt{sync\_data} calls rose from 14,219
+to 20,015 and from 14,579 to 20,255. Per delivery, those counts fell
+from 20.67 to 20.61 and from 20.31 to 20.28.
 
 \paragraph{Schedule-dependent accounting.}
-The common opportunity budget also exposes differences in communication
-cost. At $b=32$, the lossy and reordered schedules deliver 36.09\% and
-16.84\% more applications while their bytes per delivery rise by 14.37\%
-and 3.94\%. Age four leaves one committed application undelivered at the
-end of each lossy run and the $b=64$ asymmetric run; the corresponding
-committed/delivered counts are 906/905, 966/965 and 858/857. All exposure
-denominators continue to count post-capture first commitments. Under the
-offline prefix, the derived counts change from 32 to 33 and from 64 to 65,
-with the respective denominators changing from 612 to 878 and from 652 to
-934. These counts remain within the same $2b-1$ allocation envelope while
-the actual allocation histories change.
+On the lossy and reordered schedules at $b=32$, the endpoints delivered
+36.09\% and 16.84\% more applications. They also spent 14.37\% and
+3.94\% more bytes per delivery. A committed message can still be waiting
+when a run ends. With age four, the two lossy runs committed/delivered
+906/905 and 966/965 applications, and the $b=64$ asymmetric run reached
+858/857. We count post-capture first commitments in the exposure
+denominator. Under the offline prefix, the derived counts rose from
+32 to 33 and from 64 to 65 as those denominators rose from 612 to 878
+and from 652 to 934. The allocation histories changed within the same
+$2b-1$ bound.
 
-The one-way control retains exactly 32 or 64 commitments and deliveries,
-the same queued demand, and confirmed epoch zero at both endpoints. Each
-run emits one additional 4,746-byte control frame and one fewer 141-byte
-application retry, adding 4,605 bytes. Retry readiness therefore improves
-the measured service under renewed exchange while the one-way admission
-boundary remains fixed by the send budget.
+With traffic in one direction only, each policy admits and delivers
+exactly 32 or 64 applications. The remaining requests stay queued and
+both confirmed epochs stay at zero. Switching to age four adds one
+4,746-byte control frame and saves one 141-byte retry, a net increase
+of 4,605 bytes for the same service.
 
-The artifact retains all fourteen paired rows, their original counts and
-denominators, the twenty-eight public traces' identities, and an independent
-recount of retry ages and frame outcomes. Appendix~\ref{app:retry-readiness}
-identifies the executed driver and the checks used to regenerate the table.
+Appendix~\ref{app:retry-readiness} identifies the driver and the checks
+that regenerate the table. The artifact records all 14 pairs, their
+original counts and denominators, the identities of the 28 public traces
+and an independent recount of retry ages and frame outcomes.
 % END SECTION SOURCE: retry-readiness.tex
 % END SECTION SOURCE: evaluation.tex
 % BEGIN SECTION SOURCE: discussion.tex

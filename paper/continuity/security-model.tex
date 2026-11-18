@@ -6,28 +6,25 @@
 \section{Reservation origins, persistent records, and recovery}
 \label{sec:security-model}
 
-An interrupted cryptographic operation can retain its random tape before it
-has produced a key or a ciphertext.  Its later execution and confirmation
-therefore have to be related to the original reservation.  We make this
-relationship explicit at two levels: the origin of a cryptographic operation,
-and the origin of a saved session-state version.  A third identifier describes
-the physical image that carries that version.  This distinction lets us
-account for a target record copied by another session's write, an unapplied
-pending image, and a ciphertext acquired before its wrapping key.
+A write to one session can reseal a journal that also holds a reservation
+for another session. The journal image is new. The untouched session
+still has the same saved version and the same reserved randomness.
+To describe even this one write, we need an identity for the original
+draw, one for the saved version, and one for the image that carries it.
+These identities also let us follow a pending write before installation
+and a copy acquired before its wrapping key.
 
-The model is an interface model for an asynchronous protocol machine
-$\mathcal P$.  The adversary schedules public messages, process loss, honest
-recovery, and the disclosure operations specified below.  Application
-deliveries are private to the honest applications.  Capture grants read access
-to the stated assets; it does not grant an additional operation for replacing
-the authoritative journal.  An implementation with adversarial rollback or
-forking requires those transitions in its storage machine.  The protocol,
-its cryptographic primitives, and its public outputs are parameters of the
-record-normalization lemma.  Fix finite execution, record-size, and query
-budgets; the wrapper's bookkeeping is polynomial in their total
-representation size.
-
-Table~\ref{tab:record-notation} summarizes the principal objects.
+The adversary schedules public messages, process loss, honest recovery
+and the disclosures specified below for the asynchronous machine
+$\mathcal P$. A successful capture gives the adversary the retained
+bytes and leaves the authoritative journal in place. Adversarial rollback
+or forking would require an explicit transition that replaces or branches
+that history. Application deliveries remain private to the honest
+applications. We take the protocol, its primitives and its public
+outputs as parameters of the record-normalization lemma. With finite
+budgets for execution, record sizes and queries, the wrapper's bookkeeping
+is polynomial in their total representation size.
+Table~\ref{tab:record-notation} gives the notation.
 
 \begin{table}[t]
 \centering
@@ -185,13 +182,13 @@ An unsuccessful request for unavailable state returns its ordinary error and
 adds no acquisition.
 \end{definition}
 
-Both sets describe the specified disclosure interfaces, using provenance and
-key identities.  They do not test whether the adversary has guessed a secret.
-The read set can grow without another capture: if $h$ was obtained at
-$t_1$ and its final missing wrapping key is disclosed at $t_2>t_1$, the
-corresponding versions enter $\mathcal L_{t_2}$.  Host deletion at an
-intermediate time leaves $h$ in $\mathcal A_{t_2}$.  Acquisition, by contrast,
-already occurred at $t_1$.
+Suppose the adversary acquires its first copy of $v$ in an encrypted
+image $h$ at $t_1$. Its only path to $v$ still lacks one wrapping key.
+The host deletes $h$, and the key is disclosed at $t_2>t_1$. The copy
+in the adversary's archive survives the deletion. Thus $v$ enters
+$\mathcal C_{t_1}$ when the bytes arrive and $\mathcal L_{t_2}$ when
+the key arrives. There was only one capture. Both sets describe the
+declared disclosures and key identities. Guessing a value changes neither.
 
 An additional key that is explicitly recoverable from an opened record can be
 included by a declared extraction rule.  In this extension, iterate
@@ -432,11 +429,16 @@ source/authentication obligation: a failure of $\mathsf{Attr}$ can occur while
 $\mathsf{Eligible}_{s,e,c}$ holds and is charged in the computational
 accounting.
 
-The final line of~\eqref{eq:eligibility} concerns every saved version of session
-$s$, across its roles and epochs.  It uses acquisition
-$\mathcal C_T$, including protected bytes, at the time they are obtained.
-Readability $\mathcal L_T$ is evaluated separately. Other epochs' entropy disclosures retain their ordinary
-behavior.  Both peers' confirmation is not an additional send prerequisite.
+Consider a journal image sealed after $c$ by a write to another session.
+What does acquiring that image mean for the target session $s$? Read the
+last line of~\eqref{eq:eligibility} using the first save of each version
+of $s$ in the image. If all of them were first saved by $c$, this
+capture adds no post-cut version of $s$. A single version first
+saved after $c$ violates it, even while the bytes are encrypted. The
+test uses $\mathcal C_T$ across all roles and epochs of $s$.
+$\mathcal L_T$ answers when the acquired versions become readable.
+Other epochs' entropy disclosures keep their usual behavior, and a send
+may precede confirmation by both peers.
 
 Define the unconditional centered advantage by
 \begin{equation}
@@ -525,16 +527,12 @@ fixed-candidate event in the reduction.  One possible candidate becoming
 ineligible does not justify terminating a game that can still select a
 different eligible target.
 
-Two short executions illustrate why both kinds of origin are necessary.
-If $v$ was saved before $c$ and a sibling write reseals it after $c$, the
-acquisition still refers to the original pre-cut $v$.  The new global image
-time alone does not falsify the final conjunct of~\eqref{eq:eligibility}.
-If instead $v$ was saved after $c$, a later write attributed to a sibling
-does not change its subject or make its capture eligible.  Likewise, a
-pre-cut generation reservation retained through a delayed receipt remains
-pre-cut when its KEM computation completes later. The reservation condition
-in~\eqref{eq:eligibility} determines that case, with the endpoints retaining
-their respective confirmed counters.
+The same timing issue arises for the reservation itself. A generation
+tape reserved before $c$ can still be the tape used after a delayed
+receipt. In that execution the reservation condition
+in~\eqref{eq:eligibility} fails even if the KEM computation completes
+later. The two endpoints' confirmed counters record their own progress
+during the delay.
 
 \subsection{Connection to the cryptographic argument}
 

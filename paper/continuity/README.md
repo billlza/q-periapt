@@ -8,6 +8,8 @@ The repository maintains one manuscript on **`paper/joc-persistent-recovery`**. 
 
 ## Research structure
 
+The [record history and message selection review](artifacts/editorial-review/record-history-and-selection/validation.json) follows a saved version from capture to readability, identifies the first computation of a marked step, and ties a delayed READY proof to its original activation. It also checks the retry clock against the recorded driver and results.
+
 The [exposition review](artifacts/editorial-review/recovery-exposition/validation.json) follows the opening crash through the message theorem and the stored-record calculation. The abstract also gives the alternating-schedule result at a fixed send budget. The [source comparison](artifacts/editorial-review/recovery-exposition/source-preservation.json) records the exact formal statements, proofs, displays and tables used in this reading copy.
 
 The paper models original randomness reservations and the acquisition of their persistent representations. Alias normalization preserves the original operations, and the guarded-path characterization identifies the combined effect of captured ciphertexts and disclosed keys. Native separating executions and the retained multi-epoch symbolic theorem give concrete recovery statements for that model.

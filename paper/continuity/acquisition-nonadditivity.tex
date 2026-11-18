@@ -1,7 +1,9 @@
 % Standalone manuscript fragment; no preamble.
 % Requires proposition and proof environments (e.g. amsthm).
 \paragraph{Why exposure must retain conjunctive guards.}
-The following elementary separation explains the conjunction in (GP).
+Could we label each item with the sources it exposes and take the
+union of those labels as items arrive? A single encrypted record and
+its wrapping key settle the question.
 
 \begin{proposition}[Acquisition exposure is not additive]
 \label{prop:acquisition-nonadditivity}
@@ -55,12 +57,8 @@ information-theoretic illustration of acquisition; the protocol's record
 encryption is handled by its cryptographic record interface.
 
 \paragraph{Consequence for provenance routes.}
-A source label and an exposure decision serve different purposes.  Copying
-a retained record preserves the source label, while subsequent acquisition
-of a matching key may change exposure.  A guarded-route representation
-retains this distinction: alternative acquired records supply alternative
-routes to the same source, and every route retains the conjunction of its
-required keys.  Exposure is therefore evaluated from the joint acquisition
-and key-derivation history. The separation applies specifically to an
-exact exposure representation formed by the union of fixed per-object
-labels.
+A fixed origin label correctly identifies the seed in a copy. A union
+of fixed per-item exposure labels misses what happens when the record
+and its key arrive separately. Another copy offers another route to the
+same seed. Each route becomes usable when the record and all its
+required keys are available.

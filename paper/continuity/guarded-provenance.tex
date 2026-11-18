@@ -2,24 +2,21 @@
 \subsection{Explicit guarded normalization of record readability}
 \label{sec:guarded-provenance}
 
-The path and readability definitions above already account for copying and
-later key disclosure. We now give their explicit guarded normalization and
-an executable realization for a record-decryption specialization. Here key
-derivation has fixed public edges independent of recovered plaintext. The
-optional plaintext-dependent key-extraction extension remains as defined
-above and is outside this specialization. The set $\Omega_{\rm src}$ below
-contains reservation-source identities; it is distinct from saved record
-versions and from the original-payload table $\mathcal O[v]$. Likewise,
-$\mathcal E^{\rm src}_t$ projects derivability onto protected source values,
-whereas $\mathcal C_t$ and $\mathcal L_t$ track acquired and readable versions.
-The graph is a fixed representation of admitted retained objects, not a
-replacement for the provenance transition rules or the byte renderer.
+A session version may contain several reserved values. Conversely, the
+same reserved value may occur in several encrypted records. We now ask
+which of those values are readable from the objects and keys acquired
+so far. A source $o\in\Omega_{\rm src}$ names one original draw.
+$\mathcal E^{\rm src}_t$ contains the identities of the sources whose
+protected values are derivable at time $t$. The sets $\mathcal C_t$ and $\mathcal L_t$ still refer to
+versions, and $\mathcal O[v]$ still holds the original payload of $v$.
 
-
-A source identifier names one original sampling operation.  An acquisition
-history records what the adversary obtains, including objects obtained at
-different times.  These are distinct objects of the model: a copy preserves
-the former, while an additional acquisition can change the latter.
+Here we fix the graph of admitted records and the public key-derivation
+edges. Key derivation in this fragment is independent of recovered
+plaintext. The preceding interface specifies how to add an explicit
+plaintext-dependent key-extraction rule. The provenance rules supply
+the identities in the graph, and the renderer supplies the corresponding
+bytes. A second copy carries the same source identity and can give the
+adversary another route to its value.
 
 \paragraph{Immutable record graph.}
 Let $\mathcal R$ be a finite set of immutable encrypted record objects.
@@ -73,8 +70,8 @@ path.  Its exposure expression is
  \{o:\exists(r,g,o,p),\ r\in A_t\ \land\ g\subseteq K_t^*\}.
  \tag{GP}
 \]
-Alternative records and paths are disjoined, while all keys on one path
-are conjoined.  Equal key identities occur only once in the guard set.
+One available path to $o$ suffices. Along that path every required
+key must be available, and a key used twice need only be known once.
 
 \begin{theorem}[Exact guarded normalization]
 \label{thm:guarded-normalization}
@@ -103,11 +100,13 @@ or advance choice of the acquisition schedule was used.
 \end{proof}
 
 \paragraph{Incremental evaluation.}
-Equation (GP) is a declarative normal form: a compressed record DAG can
-have exponentially many paths. Its exposure set can instead be maintained
-directly from the decryption rules. The evaluator specializes indexed
-forward chaining for Horn rules~\cite[Section~4]{dowlingGallier1984}
-to cumulative record acquisitions and disclosures. Put
+Equation (GP) tells us exactly which sources are readable at a given
+time. Even a compressed record DAG can have exponentially many paths
+in that table. We can update the derivable facts as each acquisition
+or disclosure arrives without constructing the table. The
+evaluator specializes indexed forward chaining for Horn
+rules~\cite[Section~4]{dowlingGallier1984} to this cumulative history.
+Write
 \[
 \begin{aligned}
  N&=|\mathcal R|+|\mathcal K|+|\Omega_{\rm src}|,\\
@@ -190,17 +189,15 @@ of $A_t$ and therefore cannot invalidate a satisfied route.
 \end{proof}
 
 \paragraph{Interface significance.}
-The theorem gives an exact finite normalization of the chosen
-record-decryption semantics.  It supports a precise original-operation
-leakage oracle: a query for source $o$ can be evaluated against the
-complete acquisition history, with a path and its key guards as a witness.
-The cryptographic transition from native ciphertexts and public
-commitments to this interface has a separate simulation obligation.
-The derivation rules do not model guessing, cryptanalysis, timing leakage
-or a quantum decryption oracle.  Accordingly, absence from $\mathcal E^{\rm src}_t$ is
-recorded as non-derivability by these rules; message indistinguishability
-outside an exposure set is supplied by a security theorem for the
-surrounding protocol.
+For a query about source $o$, an acquired path together with its key
+guards witnesses readability through the records. Direct disclosure
+puts the source in $\mathcal E^{\rm src}_t$ immediately. If $o$ is
+absent, the stated rules cannot derive its value from this history.
+They cover record decryption and fixed public key derivation. Guessing,
+cryptanalysis, timing leakage and a quantum decryption oracle are outside
+that fragment. To reach a claim about an application message, we still
+need to simulate the native ciphertexts and public commitments and prove
+indistinguishability in the protocol experiment.
 
 \paragraph{Native shape and finite checks.}
 At the fixed research source, operation reservations are encrypted under
