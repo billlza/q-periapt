@@ -1,6 +1,7 @@
 # Q-Periapt Continuity specification workspace
 
-Q-Periapt Continuity 0.2.0 ships through the [platform release](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0).
+For Apple, download [Continuity 0.2.0 r1](https://github.com/billlza/q-periapt/releases/tag/continuity-apple-v0.2.0-r1).
+The other Continuity 0.2.0 packages ship through the [platform release](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0).
 The [verified record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0) identifies the frozen packages and qualification
 evidence. The native interface is `qpc-owner/1`. The ABI 2 SDK handles
 owned keys and has its own [installation guide](../SDK_GETTING_STARTED.md).

@@ -2,8 +2,9 @@
 
 Q-Periapt **0.2.0** was published on 17 November 2026. Get Rust packages
 from [crates.io](https://crates.io/crates/q-periapt-sdk/0.2.0), the Swift SDK from the
-[Apple release](https://github.com/billlza/q-periapt/releases/tag/v0.2.0), and the other SDKs and Continuity packages from
-the [platform release](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0). Verify GitHub downloads against
+[Apple release](https://github.com/billlza/q-periapt/releases/tag/v0.2.0), and Apple Continuity from the
+[0.2.0 r1 release](https://github.com/billlza/q-periapt/releases/tag/continuity-apple-v0.2.0-r1).
+The [platform release](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0) provides the other distributions. Verify GitHub downloads against
 `SHA256SUMS` on the corresponding release page. The
 [verified cohort](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0) records the source and package identities.
 
