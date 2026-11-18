@@ -4,12 +4,14 @@ This adds packaging and consumer admission to the existing native qualification;
 it does not freeze qpc-owner/1, publish a release, or infer device execution.
 """
 from pathlib import Path, PurePosixPath
+import hashlib
 import json
 import os
 import plistlib
 import re
 
 import continuity_c_consumer as c
+from continuity_apple_native import isolate_archive
 import continuity_package as package
 import rust_sdk_profile as sdk
 import third_party_licenses as licenses
@@ -30,13 +32,17 @@ SLICES = {
 }
 NAME = "QPeriaptContinuity"
 VERSION = "0.2.0"
-ARCHIVE = "QPeriaptContinuity-Apple-0.2.0.zip"
+PACKAGING_REVISION = 1
+ARCHIVE = f"{NAME}-Apple-{VERSION}-r{PACKAGING_REVISION}.zip"
 LIBRARY = "libq_periapt_continuity_c_consumer.a"
 CONTENTS = "PACKAGE_CONTENTS.json"
 MTIME = 1767225600
 LIMITS = ArchiveLimits(maximum_archive_bytes=256 * 1024**2,
                        maximum_member_bytes=128 * 1024**2, maximum_total_bytes=256 * 1024**2)
-MODULE = b'module CQPCOwner [system] {\n    header "qpc_owner.h"\n    export *\n}\n'
+# Xcode copies the contents of every static XCFramework HeadersPath into one
+# include directory. Keep the original public header path and scope its map.
+MODULE_PATH = "CQPCOwner/module.modulemap"
+MODULE = b'module CQPCOwner [system] {\n    header "../qpc_owner.h"\n    export *\n}\n'
 MANIFEST = b'''// swift-tools-version:6.0
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 import PackageDescription
@@ -146,10 +152,10 @@ def verify_xcframework(root: Path, slices: dict, header: bytes) -> None:
         folder = root / relative_path(row.get("LibraryIdentifier"))
         actual = sdk.snapshot(folder / relative_path(row.get("LibraryPath")), maximum=LIMITS.maximum_member_bytes)
         sdk.require(actual.sha256 == slices[name]["sha256"], "XCFramework selected the wrong native target")
-        headers = folder / relative_path(row.get("HeadersPath"))
-        sdk.require(sdk.snapshot(headers / "qpc_owner.h").data == header
-                    and sdk.snapshot(headers / "module.modulemap").data == MODULE,
-                    "XCFramework C interface differs")
+        sdk.require(row.get("HeadersPath") == "Headers", "XCFramework header root differs")
+        expected_headers = {"qpc_owner.h": hashlib.sha256(header).hexdigest(),
+                            MODULE_PATH: hashlib.sha256(MODULE).hexdigest()}
+        sdk.require(file_hashes(folder / "Headers") == expected_headers, "XCFramework C interface differs")
     sdk.require(observed == set(TARGETS.values()), "XCFramework platform set differs")
 
 
@@ -163,6 +169,49 @@ def verify_package(root: Path, expected: dict, slices: dict, header: bytes) -> N
     verify_xcframework(root / "CQPCOwner.xcframework", slices, header)
     for target in TARGETS:
         licenses.verify(root / "LICENSES" / target, expected_target=target, root_package=c.NAME)
+
+
+def write_contents(root: Path) -> dict:
+    contents = {"schema_version": 1, "kind": "qperiapt.continuity_apple_contents",
+                "name": NAME, "version": VERSION, "abi": "qpc-owner/1",
+                "targets": list(TARGETS), "files": file_hashes(root)}
+    write(root / CONTENTS, (json.dumps(contents, indent=2, sort_keys=True) + "\n").encode())
+    return contents
+
+
+def assemble_xcframework(inputs: dict, work: Path, staging: Path, header: bytes, result: dict, run) -> None:
+    headers = work / "headers"
+    write(headers / "qpc_owner.h", header)
+    write(headers / MODULE_PATH, MODULE)
+    arguments = ["/usr/bin/xcodebuild", "-create-xcframework"]
+    libraries = {}
+    for target in TARGETS:
+        library = isolate_archive(inputs[target], work / "isolated" / target,
+                                  ARCHITECTURES[target], TARGETS[target], run)
+        snapshot = sdk.snapshot(library, maximum=LIMITS.maximum_member_bytes)
+        result["native"][target].update(packaged_sha256=snapshot.sha256, packaged_bytes=snapshot.size)
+        libraries[target] = library
+    for name, targets in SLICES.items():
+        library = libraries[targets[0]]
+        if len(targets) > 1:
+            library = work / "simulator" / LIBRARY
+            library.parent.mkdir()
+            run(["/usr/bin/xcrun", "lipo", "-create", *(str(libraries[target]) for target in targets),
+                 "-output", str(library)], "combine-simulator")
+            verify_architectures(run(["/usr/bin/xcrun", "lipo", "-archs", str(library)], "arch-simulator"),
+                                 tuple(ARCHITECTURES[target] for target in targets))
+            for target in targets:
+                thin = library.parent / (target + ".a")
+                run(["/usr/bin/xcrun", "lipo", str(library), "-thin", ARCHITECTURES[target],
+                     "-output", str(thin)], "readback-" + target)
+                sdk.require(sdk.snapshot(thin, maximum=LIMITS.maximum_member_bytes).sha256
+                            == result["native"][target]["packaged_sha256"], "combined simulator archive changed a native target")
+        snapshot = sdk.snapshot(library, maximum=LIMITS.maximum_member_bytes)
+        result["slices"][name] = {"targets": list(targets), "sha256": snapshot.sha256, "bytes": snapshot.size}
+        arguments += ["-library", str(library), "-headers", str(headers)]
+    run([*arguments, "-output", str(staging / "CQPCOwner.xcframework")], "xcframework")
+    info = staging / "CQPCOwner.xcframework/Info.plist"
+    info.write_bytes(canonical_xcframework_info(sdk.snapshot(info).data))
 
 
 def qualify_apple(outside: Path, output: Path, environment: dict) -> dict:
@@ -202,9 +251,6 @@ def qualify_apple(outside: Path, output: Path, environment: dict) -> dict:
         result["xcode"] = run(["/usr/bin/xcodebuild", "-version"], "xcode-version").decode()
         header = sdk.snapshot(consumer / "qpc_owner.h").data
         sdk.require(header == sdk.snapshot(c.FIXTURE / "qpc_owner.h").data, "admitted C header differs from current source")
-        headers = work / "headers"
-        write(headers / "qpc_owner.h", header); write(headers / "module.modulemap", MODULE)
-        arguments = ["/usr/bin/xcodebuild", "-create-xcframework"]
         libraries = {}
         for target in TARGETS:
             compiled = run([str(tool / "cargo"), "rustc", "--locked", "--offline", "--lib", "--release",
@@ -221,27 +267,7 @@ def qualify_apple(outside: Path, output: Path, environment: dict) -> dict:
             notice_root = staging / "LICENSES" / target
             notice_root.mkdir(parents=True)
             licenses.collect(consumer, notice_root, target, root_package=c.NAME, resolved_metadata=metadata)
-        for name, targets in SLICES.items():
-            library = libraries[targets[0]]
-            if len(targets) > 1:
-                library = work / "simulator" / LIBRARY
-                library.parent.mkdir()
-                run(["/usr/bin/xcrun", "lipo", "-create", *(str(libraries[target]) for target in targets),
-                     "-output", str(library)], "combine-simulator")
-                verify_architectures(run(["/usr/bin/xcrun", "lipo", "-archs", str(library)], "arch-simulator"),
-                                     tuple(ARCHITECTURES[target] for target in targets))
-                for target in targets:
-                    thin = library.parent / (target + ".a")
-                    run(["/usr/bin/xcrun", "lipo", str(library), "-thin", ARCHITECTURES[target],
-                         "-output", str(thin)], "readback-" + target)
-                    sdk.require(sdk.snapshot(thin, maximum=LIMITS.maximum_member_bytes).sha256
-                                == result["native"][target]["sha256"], "combined simulator archive changed a native target")
-            snapshot = sdk.snapshot(library, maximum=LIMITS.maximum_member_bytes)
-            result["slices"][name] = {"targets": list(targets), "sha256": snapshot.sha256, "bytes": snapshot.size}
-            arguments += ["-library", str(library), "-headers", str(headers)]
-        run([*arguments, "-output", str(staging / "CQPCOwner.xcframework")], "xcframework")
-        info = staging / "CQPCOwner.xcframework/Info.plist"
-        info.write_bytes(canonical_xcframework_info(sdk.snapshot(info).data))
+        assemble_xcframework(libraries, work, staging, header, result, run)
         write(staging / "Package.swift", MANIFEST)
         swift = package.ROOT / "bindings/swift/ContinuityPackageConsumer"
         for path in (swift / "Sources/QPeriaptContinuity").rglob("*"):
@@ -259,10 +285,7 @@ def qualify_apple(outside: Path, output: Path, environment: dict) -> dict:
                     "Rust standard-library notices differ from the pinned compiler")
         for path in (rust_docs / "licenses").rglob("*"):
             if path.is_file(): copy(path, staging / "LICENSES/rust-standard-library" / path.relative_to(rust_docs / "licenses"))
-        contents = {"schema_version": 1, "kind": "qperiapt.continuity_apple_contents",
-                    "name": NAME, "version": VERSION, "abi": "qpc-owner/1",
-                    "targets": list(TARGETS), "files": file_hashes(staging)}
-        write(staging / CONTENTS, (json.dumps(contents, indent=2, sort_keys=True) + "\n").encode())
+        contents = write_contents(staging)
         verify_package(staging, contents, result["slices"], header)
         archive = output / ARCHIVE
         audit = create_zip(staging, archive, root_name=NAME, mtime=MTIME, limits=LIMITS)

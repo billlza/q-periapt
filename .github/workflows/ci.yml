@@ -1233,12 +1233,25 @@ jobs:
         run: |
           unset RUSTFLAGS CARGO_INCREMENTAL
           sh artifact/swift-xcframework.sh --profile sdk-020
+      - name: Build and run single and combined SwiftPM consumers
+        env:
+          QPERIAPT_PYTHON: ${{ steps.proof_python.outputs.python-path }}
+        run: |
+          base="$RUNNER_TEMP/QPeriaptContinuity-Apple-0.2.0.zip"
+          curl --fail --show-error --location --retry 3 --output "$base" \
+            https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/QPeriaptContinuity-Apple-0.2.0.zip
+          sh artifact/python-run.sh artifact/continuity_apple_r1.py --base-archive "$base" --output "$RUNNER_TEMP/apple-r1"
+          sh artifact/python-run.sh artifact/apple_package_coexistence.py \
+            --sdk target/qperiapt-swift-xcframework/q-periapt-swift-0.2.0/QPeriapt-Swift-SDK-0.2.0.zip \
+            --continuity "$RUNNER_TEMP/apple-r1/QPeriaptContinuity-Apple-0.2.0-r1.zip" \
+            --output target/apple-swiftpm-consumers
       - name: Retain Apple SDK packages and failed-attempt diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: apple-sdk-020
           path: |
+            target/apple-swiftpm-consumers/
             target/qperiapt-swift-xcframework/*.log
             target/qperiapt-swift-xcframework/SOURCE_INPUTS.*.json
             target/qperiapt-swift-xcframework/q-periapt-swift-*/*.zip

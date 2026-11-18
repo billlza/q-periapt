@@ -1,13 +1,14 @@
 # QPeriapt Continuity for Apple platforms
 
-[Download the 0.2.0 Apple Continuity package.](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/QPeriaptContinuity-Apple-0.2.0.zip)
+[Download the 0.2.0 r1 Apple Continuity package.](https://github.com/billlza/q-periapt/releases/download/continuity-apple-v0.2.0-r1/QPeriaptContinuity-Apple-0.2.0-r1.zip)
 
 ```sh
-curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/QPeriaptContinuity-Apple-0.2.0.zip
-unzip QPeriaptContinuity-Apple-0.2.0.zip
+curl -fLO https://github.com/billlza/q-periapt/releases/download/continuity-apple-v0.2.0-r1/QPeriaptContinuity-Apple-0.2.0-r1.zip
+unzip QPeriaptContinuity-Apple-0.2.0-r1.zip
 ```
 
-For applications that also require the other Apple package, see the [SwiftPM integration result](https://github.com/billlza/q-periapt/blob/main/docs/SDK_GETTING_STARTED.md#swift-package-selection).
+You can use this product on its own or in the same Xcode target as the
+[signed Swift SDK 0.2.0](https://github.com/billlza/q-periapt/releases/download/v0.2.0/QPeriapt-Swift-SDK-0.2.0.zip). See the [two-package installation example](https://github.com/billlza/q-periapt/blob/main/docs/SDK_GETTING_STARTED.md#swift-package-selection).
 
 Add the extracted `QPeriaptContinuity` directory as a local Swift package, select
 the `QPeriaptContinuity` product, and `import QPeriaptContinuity`. It contains the

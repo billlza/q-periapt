@@ -56,7 +56,7 @@ def source_inputs() -> dict:
         "artifact/continuity_android_contract.py", "artifact/continuity_android_roster.py",
         "artifact/continuity_android_roster_witness.py", "artifact/continuity_android_policy_roster.py",
         "artifact/continuity_android_roster_qualification.py", "artifact/continuity_android_retirement.py",
-        "artifact/continuity_android_root.py", "artifact/continuity_apple_package.py",
+        "artifact/continuity_android_root.py", "artifact/continuity_apple_package.py", "artifact/continuity_apple_native.py",
         "artifact/continuity_apple_consumer.py", "artifact/apple_sdk_profile.py",
         "artifact/continuity_native_package.py", "docs/continuity/NATIVE_DISTRIBUTION_0_2.md",
         "artifact/deterministic_archive.py"))
