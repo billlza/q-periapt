@@ -7,6 +7,8 @@ curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-
 unzip QPeriaptContinuity-Apple-0.2.0.zip
 ```
 
+For applications that also require the other Apple package, see the [SwiftPM integration result](https://github.com/billlza/q-periapt/blob/main/docs/SDK_GETTING_STARTED.md#swift-package-selection).
+
 Add the extracted `QPeriaptContinuity` directory as a local Swift package, select
 the `QPeriaptContinuity` product, and `import QPeriaptContinuity`. It contains the
 Swift interface and native XCFramework. Consumers need no Rust toolchain, C

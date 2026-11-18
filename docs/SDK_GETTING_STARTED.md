@@ -28,6 +28,14 @@ and libraries. For persistent sessions and multi-device recovery, choose a
 [Continuity download and first-use guide](continuity/README.md#start-an-integration).
 Its Rust crate is a GitHub source archive and its native interface is `qpc-owner/1`.
 
+## Swift package selection
+
+On Apple Silicon with Xcode 27.2 and Swift 6.4.2, an application can build
+and run with either released Apple package on its own. Adding both
+`QPeriaptSDK` and `QPeriaptContinuity` to one SwiftPM executable fails in the
+default build system. Both XCFrameworks produce `include/module.modulemap` in
+the Release products directory. Choose the package for the API your app uses.
+
 ## First integration
 
 Provision a trusted ML-DSA-65 policy root and a signed policy through your

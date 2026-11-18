@@ -7,6 +7,8 @@ curl -fLO https://github.com/billlza/q-periapt/releases/download/v0.2.0/QPeriapt
 unzip QPeriapt-Swift-SDK-0.2.0.zip
 ```
 
+For applications that also require the other Apple package, see the [SwiftPM integration result](https://github.com/billlza/q-periapt/blob/main/docs/SDK_GETTING_STARTED.md#swift-package-selection).
+
 This package provides `QPeriaptSDK` (owned runtime, keys and standard hybrid TLS
 connections) and the retained byte-oriented `QPeriaptHybrid` compatibility API.
 The native ABI remains **2**. It contains static XCFramework slices for macOS
