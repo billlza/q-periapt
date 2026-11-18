@@ -21,9 +21,11 @@ release and preview builds through the same private channel described below.
 | `v0.1.0-alpha.2-r1`, `abi2-platforms-v0.1.0-alpha.2-r2` | Published prerelease predecessors, superseded by the verified 0.1.3 stable receipts | No |
 | Older publications | Superseded historical artifacts | No |
 
-The [0.2.0 Windows x64 MSVC archive](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip) is distributed through GitHub.
-Its published checksum identifies the bytes. Authenticode and SmartScreen
-publisher identity require their own evidence.
+Under the historical 0.1.5 profile, the Windows diagnostic is unsigned and is excluded
+from the stable candidate for that release. Version 0.2.0 distributes the
+[Windows x64 MSVC archive](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip) on GitHub. A checksum verifies the bytes.
+A GitHub release attestation does not establish Windows publisher identity or
+SmartScreen reputation.
 
 ## Reporting a vulnerability
 

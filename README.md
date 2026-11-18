@@ -528,6 +528,12 @@ consumer compile, Kotlin/Panama, WASM Node, and the proof-to-byte manifest. The
 Rust packages with an external consumer. The [verified 0.2.0 release record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0)
 identifies the independent registry and platform checks for the distributed bytes.
 
+The `artifact/rust-publish-contract.sh` job produces a pre-publication package-ready
+report by rebuilding archives without uploading them. Uploading involves separate
+checks for upload-API acceptance, crate-name ownership, publishing credentials and
+server-side policy acceptance. The [verified 0.2.0 cohort](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0) contains
+the registry receipt for all twelve public packages.
+
 ### Crate tree
 
 ```

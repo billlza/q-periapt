@@ -1,7 +1,7 @@
 # C ABI 2 product smoke
 
 Download the native SDK for [Apple Silicon](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-aarch64-apple-darwin.tar.gz), [Linux x86_64](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu.tar.gz), [Linux arm64](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-aarch64-unknown-linux-gnu.tar.gz), [Windows x64 MSVC](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-pc-windows-msvc.zip).
-For example, on GNU/Linux x86_64:
+On GNU/Linux x86_64, run the following commands.
 
 ```sh
 curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-c-abi2-0.2.0-x86_64-unknown-linux-gnu.tar.gz

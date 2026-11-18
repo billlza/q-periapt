@@ -1,8 +1,8 @@
 # Offline native maintenance tool
 
 The 0.2.0 maintenance archive contains a precompiled `bin/qperiapt`.
-Select the download for the machine containing the store: [Apple Silicon](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin.tar.gz), [Linux x86_64](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu.tar.gz), [Linux arm64](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu.tar.gz).
-For example, on Apple Silicon:
+Select the archive for your store host from [Apple Silicon](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin.tar.gz), [Linux x86_64](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-policy-maintenance-0.2.0-x86_64-unknown-linux-gnu.tar.gz), [Linux arm64](https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-policy-maintenance-0.2.0-aarch64-unknown-linux-gnu.tar.gz).
+On Apple Silicon, run the following commands.
 
 ```sh
 curl -fLO https://github.com/billlza/q-periapt/releases/download/abi2-platforms-v0.2.0/q-periapt-policy-maintenance-0.2.0-aarch64-apple-darwin.tar.gz
