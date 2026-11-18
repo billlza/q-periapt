@@ -7,6 +7,10 @@ the [platform release](https://github.com/billlza/q-periapt/releases/tag/abi2-pl
 `SHA256SUMS` on the corresponding release page. The
 [verified cohort](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0) records the source and package identities.
 
+Some 0.2.0 archives include a README written before publication. To check the
+version in the public registry, run `cargo info q-periapt-sdk@0.2.0 --registry crates-io`.
+The release links above identify the matching platform downloads.
+
 ## Choose your language
 
 | Platform | Download | Installation |
