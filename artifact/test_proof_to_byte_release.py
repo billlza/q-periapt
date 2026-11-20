@@ -1613,7 +1613,8 @@ class BoundVerifierWiringTests(unittest.TestCase):
         # Every independently successful target and the coverage validator
         # must precede publication. Analysis has no upload authority.
         for job in (rust, macos_prepare, macos_analysis):
-            self.assertNotIn("security-events:", job)
+            self.assertEqual(re.findall(r"^      security-events: (.+)$", job, re.MULTILINE),
+                             ["read"], "Rust analysis requires read-only CodeQL configuration access")
             self.assertNotIn("upload-sarif", job)
             self.assertNotIn(action.format(action="analyze"), job)
         for job in (rust, macos_prepare, macos_analysis, publication):
@@ -1706,6 +1707,21 @@ class BoundVerifierWiringTests(unittest.TestCase):
                 with self.subTest(mutation=original), mock.patch(__name__ + ".CODEQL_WORKFLOW", workflow), \
                         self.assertRaisesRegex(AssertionError, "not found"):
                     self.test_rust_codeql_analysis_has_a_fail_closed_database_quality_gate()
+
+    def test_rust_codeql_analysis_rejects_publication_authority(self) -> None:
+        source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as temporary:
+            workflow = pathlib.Path(temporary) / "codeql.yml"
+            for name in ("rust", "rust-macos-prepare", "rust-macos-analyze"):
+                with self.subTest(job=name):
+                    job = extract_workflow_job(source, name)
+                    grant = "      security-events: read\n"
+                    self.assertEqual(job.count(grant), 1)
+                    escalated = job.replace(grant, "      security-events: write\n")
+                    workflow.write_text(source.replace(job, escalated, 1), encoding="utf-8")
+                    with mock.patch(__name__ + ".CODEQL_WORKFLOW", workflow), \
+                            self.assertRaisesRegex(AssertionError, "read-only CodeQL configuration access"):
+                        self.test_rust_codeql_analysis_has_a_fail_closed_database_quality_gate()
 
     def test_rust_codeql_publication_rejects_wrong_target_categories(self) -> None:
         source = CODEQL_WORKFLOW.read_text(encoding="utf-8")
