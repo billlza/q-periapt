@@ -15,37 +15,32 @@
     "bibliography_style_sha256": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
     "style_derivation": "sn-basic.bst; renamed derived file; all authors retained; alphabetical sorting unchanged",
     "single_tex_entry": "joc-submission.tex",
-    "single_tex_sha256": "f47d13513836752726f8cc11392a2c0fb3a56c768e635b0a56d513da4f2bbf5b",
+    "single_tex_sha256": "860ecaba5075d754382d32539ba59027031005741ad845cef416b1afe260d2e9",
     "layout": "single-column",
     "layout_decision": "format/layout_decision.md",
     "layout_decision_sha256": "8bab36c0e36f3668c54d34c25a052e9bd277e2b93a808100ffd1fed1af3e1d9e"
   },
   "pdf_path": "continuity.pdf",
-  "schema": "qperiapt-joc-integration/33",
-  "completed_at_utc": "2026-11-20T19:05:49.249312+00:00",
-  "previous_integration_record": "https://github.com/billlza/q-periapt/blob/06c6c9bf9d520e62d0f4079cb4f6bf17657da79d/paper/continuity/integration_record.json",
-  "previous_integration_record_sha256": "76fd74781477d998f96099497cf570e2e3f53e9aaea89181b528c987d875debb",
-  "previous_pdf_sha256": "78b61abe01d127ebd4cca00a27b1873a41dc395e5c7420cf159223ab3c6b180f",
+  "schema": "qperiapt-joc-integration/34",
+  "completed_at_utc": "2026-11-20T19:22:28.663552+00:00",
+  "previous_integration_record": "https://github.com/billlza/q-periapt/blob/a97387c6ffb65d87642968554e89792739af29ae/paper/continuity/integration_record.json",
+  "previous_integration_record_sha256": "4af3b8844e724f02e198adc52bf070b46a09a160e9e36d27899c1c76d2a1d59e",
+  "previous_pdf_sha256": "ec7e4c2af167e89d02ff43069e3ebbd67897c7edfe571668dd465f0b85a64467",
   "pdf_pages": 122,
-  "pdf_sha256": "ec7e4c2af167e89d02ff43069e3ebbd67897c7edfe571668dd465f0b85a64467",
+  "pdf_sha256": "14339c74404dffb23df93c2924b0e4dd91ec1d0089dc572480acd22b075b5fa5",
   "abstract_words": 243,
   "keywords": 7,
   "bibliography_entries": 35,
   "new_results": [],
   "retained_results": {
-    "record": "https://github.com/billlza/q-periapt/blob/06c6c9bf9d520e62d0f4079cb4f6bf17657da79d/paper/continuity/integration_record.json",
+    "record": "https://github.com/billlza/q-periapt/blob/a97387c6ffb65d87642968554e89792739af29ae/paper/continuity/integration_record.json",
     "formal_preservation": {
-      "base_commit": "06c6c9bf9d520e62d0f4079cb4f6bf17657da79d",
-      "source_preservation": "artifacts/editorial-review/strict-typesetting/source-preservation.json",
+      "base_commit": "a97387c6ffb65d87642968554e89792739af29ae",
+      "source_preservation": "artifacts/editorial-review/pdf-math-encoding/source-preservation.json",
       "canonical_modules": 40,
-      "byte_identical_modules": 34,
+      "byte_identical_modules": 39,
       "changed_modules": [
-        "computational-roadmap.tex",
-        "construction.tex",
-        "main.tex",
-        "native-chain-composition.tex",
-        "native-correspondence.tex",
-        "report-composition.tex"
+        "main.tex"
       ],
       "all_original_statement_blocks_byte_identical": true,
       "all_original_proof_blocks_byte_identical": true,
@@ -69,17 +64,18 @@
         "scope": "Supporting algorithmic proposition and implementation; classical Horn-worklist method is attributed to Dowling and Gallier (1984), Section 4."
       }
     ],
-    "historical_artifact_files_retained": 721
+    "historical_artifact_files_retained": 725
   },
   "current_research_checks": {
     "retained_before_revision": {
-      "record": "https://github.com/billlza/q-periapt/blob/06c6c9bf9d520e62d0f4079cb4f6bf17657da79d/paper/continuity/integration_record.json",
+      "record": "https://github.com/billlza/q-periapt/blob/a97387c6ffb65d87642968554e89792739af29ae/paper/continuity/integration_record.json",
       "scope": "Prior native, formal, reference and retry evidence retains its source and execution identity."
     },
     "current_make_source": {
       "status": "passed",
-      "receipt": "artifacts/editorial-review/strict-typesetting/validation.json",
+      "receipt": "artifacts/editorial-review/pdf-math-encoding/validation.json",
       "checks": [
+        "Extracted mathematical symbol comparison against the reviewed PDF",
         "Strict final-log diagnostics and regression checks",
         "chain-prefix finite controls",
         "native online-chain controls",
@@ -96,7 +92,7 @@
   "build_review": {
     "status": "passed",
     "pdf_pages": 122,
-    "pdf_sha256": "ec7e4c2af167e89d02ff43069e3ebbd67897c7edfe571668dd465f0b85a64467",
+    "pdf_sha256": "14339c74404dffb23df93c2924b0e4dd91ec1d0089dc572480acd22b075b5fa5",
     "undefined_references_or_citations": 0,
     "overfull_boxes": 0,
     "underfull_box_notices": 0,
@@ -122,9 +118,9 @@
       "font_count": 48,
       "undefined_references_or_citations": 0,
       "overfull_boxes": 0,
-      "zip_sha256": "ea8fb356ebbc7ce41652ec29cd17138c04fd582638111b96d6669ca5bdc6e975",
-      "pdf_sha256": "ec7e4c2af167e89d02ff43069e3ebbd67897c7edfe571668dd465f0b85a64467",
-      "export_pdf_sha256": "3a92fc3b3599e51090249594f805d448861514159b175da80f47726010bf8f49",
+      "zip_sha256": "63b91d6fdfeb4a34af60157e29ac4603d01bca8b6c88f149b7475c81c7767fc4",
+      "pdf_sha256": "14339c74404dffb23df93c2924b0e4dd91ec1d0089dc572480acd22b075b5fa5",
+      "export_pdf_sha256": "3e3bcfe3359b926881496ddc2f804e00677bb688985f9d92a4cf79e9e0c65dd6",
       "exported_files": [
         "README.md",
         "SHA256SUMS.json",
@@ -139,21 +135,21 @@
       "verification_script_sha256": "31c7ba9ae83f1d610ec60e56f1c445c63aa43766b408510f576d908b98bee3b2",
       "method": "Exact nine-file inventory and digest verification, fresh pdfLaTeX/BibTeX build, complete plain/layout text comparison and font/log checks."
     },
-    "build_receipt_sha256": "a36bc8e0b3267f269e726501aac8478178661aa28e01150e335cbd1e9948588f",
-    "source_export_receipt_sha256": "54258a970b938fc2e97e00e6c5d6bbb77eb77d4d1a2979bd38ad48ec30efeae9",
-    "visual_review": "The title and folios remain in place. The five revised tables on pages 7, 23, 35 and 69 have legible left-aligned text columns and retain their captions and values. The conclusion remains on page 100.",
+    "build_receipt_sha256": "430186e2d7308cd5265ae1aac941dfcd1d42a5b75063d7209616f6f9e0f22452",
+    "source_export_receipt_sha256": "3642ecbf3a10213dfd997c27adce652184ff9f4cce8a298cee7abda771219f89",
+    "visual_review": "All 122 local page drawing streams and page dimensions match the preceding typesetting review. Complete plain and layout text also match. The five affected tables retain their verified page layout.",
     "environment": "macOS arm64, pdfTeX 1.40.29 (TeX Live 2026), latexmk 4.88 and Poppler 26.05.0."
   },
   "paper_workflow": {
     "path": "../../.github/workflows/joc-manuscript.yml",
-    "sha256": "055df3361a65d01882fa2d8deae9a2df0cd1d0c71a85d24834fd5ab97df4f901",
+    "sha256": "004dc0c46fda3fc512214e252bbe7be3407d44bcdee08b7376b1d2b4ddf2d6a0",
     "branch": "paper/joc-persistent-recovery",
     "base": "main",
     "url": "https://github.com/billlza/q-periapt/tree/paper/joc-persistent-recovery",
     "integration_base": "d54e6d0096584235737a9bf8d29119ffc96234fa",
     "snapshot": "Prepublication paper, source and build identity. Hosted checks are associated with the resulting published head.",
-    "new_execution": "Rebuilt the manuscript and its standalone source package with the strict final-log gate. A separate figure rebuild and the existing finite controls also passed locally.",
-    "manuscript_revision_base": "06c6c9bf9d520e62d0f4079cb4f6bf17657da79d"
+    "new_execution": "Compared formula text in the preceding Ubuntu and repository artifacts, checked both distributed glyph maps and rebuilt the manuscript and its standalone source package. The native page drawing streams and reviewed mathematical symbols were compared locally.",
+    "manuscript_revision_base": "a97387c6ffb65d87642968554e89792739af29ae"
   },
   "completed_connection": "Ordinary IND-CCA -> actual deferred ML-KEM component game -> original-operation ContextBound and key-entry adapters -> retained native confidentiality, authentication and complementary bootstrap source compositions.",
   "source_hashes": {
@@ -178,12 +174,12 @@
     "guarded-provenance.tex": "b435f7b300137bcdd848b115544712cf0901ee5cafe759247471817dc9de2058",
     "introduction.tex": "7786cc86835a2d026c77a3fe25790ad54890c2f6fe724949e7687fdb14c755d7",
     "joc-basic.bst": "1a3719a587bd27ac2321339315e2a67dcacca1c28fda6f5d5d8f70119bc558a1",
-    "joc-submission.tex": "f47d13513836752726f8cc11392a2c0fb3a56c768e635b0a56d513da4f2bbf5b",
+    "joc-submission.tex": "860ecaba5075d754382d32539ba59027031005741ad845cef416b1afe260d2e9",
     "joint-continuation.tex": "2a7c2a6e89ad22b3bdf2c147d27e637bc002abe09dc151bd37ae17876ea4144e",
     "joint-primitive-bounds.tex": "46096229bdb41e29725ef76698f935af1cc748eebccc1accaec787f4db069367",
     "kem-ordinary-bridge.tex": "f14ca35e3e2e2d464664d41e146423c47f299357eddd4a562e51045a5996274b",
     "live-core-instantiation.tex": "f0a610b89ad81bf878b11e5a74f6e903a230cb208f45bdfda104fa38355f3c4c",
-    "main.tex": "02d9548d0e67610175305465ed228dbaca746944325c1379353fd2e4edfeaa98",
+    "main.tex": "31710c8b9b72b3d2bbc894423cb526490ab26f156b668736bfbe5886e7ee1ede",
     "matched-opportunities.tex": "7def72b8f8d96b8a1f3d3845d6579e421579015862261dc49a1c6e1632a05667",
     "matched-opportunity-tables.tex": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
     "multiple-root-entry.tex": "688367398ef403eed528e2180b8a0b1b5e093a71150176032ff0a086736dfca9",
@@ -206,28 +202,22 @@
     "source-attribution.tex": "c4d52d007dde5ccf4c9f09279a830c31c05758ffb6fefaf3ddcf9b60a71d86a7"
   },
   "editorial_revision": {
-    "scope": "Strict typesetting diagnostics, PDF outline and table alignment",
+    "scope": "Preserve extractable mathematical operators in the compiled submission",
     "new_mathematical_results": false,
     "expository_results": [
-      "Attach each paragraph bookmark directly to the enclosing section or subsection.",
-      "Use left-aligned prose columns in five tables and retain the complete contents of all fifteen."
+      "Preserve mathematical symbols in extracted PDF text on the older Ubuntu paper runner."
     ],
     "main_result": "Theorem 5.28, native online selected-message security; its statement and proof remain byte-identical.",
     "review": {
-      "path": "artifacts/editorial-review/strict-typesetting/validation.json",
-      "source_preservation": "artifacts/editorial-review/strict-typesetting/source-preservation.json",
+      "path": "artifacts/editorial-review/pdf-math-encoding/validation.json",
+      "source_preservation": "artifacts/editorial-review/pdf-math-encoding/source-preservation.json",
       "all_original_theorems_and_proofs_byte_identical": true,
       "all_original_displayed_mathematics_retained": true,
       "historical_data_and_author_declarations_unchanged": true,
       "abstract_words": 243,
       "introduction_unchanged": true,
       "changed_canonical_modules": [
-        "computational-roadmap.tex",
-        "construction.tex",
-        "main.tex",
-        "native-chain-composition.tex",
-        "native-correspondence.tex",
-        "report-composition.tex"
+        "main.tex"
       ]
     },
     "completed_editorial_passes": [
@@ -245,7 +235,8 @@
       "Recovery judgments, comparison targets and observed service in the author-facing exposition",
       "Source attribution after a failed save, meaning of asynchronous counters, and exposure counts under two traffic changes",
       "Whole-manuscript exposition linking original reservations, message selection and delivered service",
-      "Strict typesetting diagnostics, PDF outline and table alignment"
+      "Strict typesetting diagnostics, PDF outline and table alignment",
+      "Preserve extractable mathematical operators in the compiled submission"
     ],
     "remaining_submission_inputs": [
       "Author review and approval of the assembled submission"
@@ -255,8 +246,8 @@
   "current_supporting_hashes": {
     ".gitattributes": "ce31a7ca88fa6aca38587ee367ee79be2ecbbb06574954482f7ed8a0a21f41f7",
     ".gitignore": "8d1d7e93cbe39f9fe8262e453b7c34cb9a5935181da322a468e37959405226b8",
-    "Makefile": "5e68bb2ecb5af6e9fb7dfc94f2732d60de34dbe91bba4c7d26d63eae2dbb3490",
-    "README.md": "9c3d972d4ea25529a87d980f5aeac9997a2491b07dde9f2ceb63e7cffde0440f",
+    "Makefile": "4277b61463ca65fe4c685d3873a93e8b3dbaefbd850ae0f6d7ae470da08d8062",
+    "README.md": "fb8c1aa58a2344c1fff13ec916f46692e191c46c50f3fe972469649bf4f0536d",
     "artifacts/bootstrap/README.md": "172103ab4ae00ecc8a2d255cbb2f10e23f4d37e70019d179a1d04c666d979642",
     "artifacts/bootstrap/ack/SOURCE_PINS.json": "cf9c16f4dc8069717c1a40386f96290cae0aec89c356f02f824d8b3143c73eb5",
     "artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages.rs": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
@@ -573,6 +564,10 @@
     "artifacts/editorial-review/manuscript-narrative/source-export-check.json": "f73c3b1ce12247679a40467bcadce7ff29c2202dec5086291f27cf098d83e14b",
     "artifacts/editorial-review/manuscript-narrative/source-preservation.json": "edf74e05d303c5615c9db64e35e1de85109a6c9c78a4ee90d82e68264e72d1ad",
     "artifacts/editorial-review/manuscript-narrative/validation.json": "c2b162a5f6d82aa62fac56d867ecfe60502e35ff27233bc2780b7d01943f790c",
+    "artifacts/editorial-review/pdf-math-encoding/build-check.json": "430186e2d7308cd5265ae1aac941dfcd1d42a5b75063d7209616f6f9e0f22452",
+    "artifacts/editorial-review/pdf-math-encoding/source-export-check.json": "3642ecbf3a10213dfd997c27adce652184ff9f4cce8a298cee7abda771219f89",
+    "artifacts/editorial-review/pdf-math-encoding/source-preservation.json": "b01529794985d958e71b8d14a2a8f1adea7e4fc5b5676bcc35f784047b76ccd3",
+    "artifacts/editorial-review/pdf-math-encoding/validation.json": "86f8a9df8778ec1a724a3dd3a535c32ba230c191deb9b019fa46360ca6448ab3",
     "artifacts/editorial-review/primitive-bound-entry/build-check.json": "934c059e6942a5d09e34815f775003c6bef6618df795503edb872883019c7987",
     "artifacts/editorial-review/primitive-bound-entry/review.md": "f7ff5f44cf9a08952920b2974400d59896e4d9ecc9522fd2179210d6d6ff6d74",
     "artifacts/editorial-review/primitive-bound-entry/source-export-check.json": "ac853bdd3fa578414507fd623741d9b24a90a58163dfc563f83c30a0bd197d69",
@@ -982,11 +977,11 @@
     "artifacts/source-attribution/source_attribution_proof.md": "86f36ea6864242a3c55cd834702ffacbf0a5eec0d13996ad8034722d789e42e3",
     "artifacts/source-attribution/source_check_receipt.json": "1070a90191aa6d589c247e714159a9a4a5bed39d9824de6eb95c977e11a77d3c",
     "artifacts/source-attribution/source_identity.json": "5dde1719d0c0ac7386f5fcbfc81f57427253714d332508ee13f6c5cee5785cc3",
-    "check_build.py": "b19292def24fb86cf13cf5c15d05512782609b39b3f01a4d0b3c671de20b67fe",
+    "check_build.py": "5c9e79fc6d64e1cf96961520e90a51d58c35dba2223624d1078ad0215f3a6d62",
     "export_submission.py": "fd76730d9abb02e4d0daab6c5cba654ed1385f5a3ef73516f5e9289615edfcf3",
     "figures/confirmation-cut.tex": "eaed162d2f95c1d1b043380b6a404f02f4042bc20017eb409b2cdbdee4047579",
     "figures/confirmation-cut.tikz": "1c8122292094aefe5efeb3d3d336540cbeeb429bf36de3ea97a44571b1338286",
-    "flatten_manifest.json": "3966ddfc46be390cd3e27044b0e79e66885db4b701289fa6e0749fee040047e3",
+    "flatten_manifest.json": "4b80c2f746878ee6ad3e58a84be403aca2ca52a2ced4a1f84c0814b664ea56e3",
     "flatten_manuscript.py": "01bf82ca69991ab9fb981ff84eaa5eb38739fb19074e95fb05b7451b1693c139",
     "format/bibliography_adaptation.json": "70b5da1214422749bbab0778d0ee2602fde74fbadb5ca5af89fc519c13e8700b",
     "format/layout_decision.md": "8bab36c0e36f3668c54d34c25a052e9bd277e2b93a808100ffd1fed1af3e1d9e",
@@ -997,6 +992,6 @@
     "notes/SUBMISSION_READINESS.md": "c696be036d5f8e525a122ffa5c0cdee9fa3d6fe236d10af6a5b646a565912584",
     "notes/WORKFLOW.md": "53b46d937c15ca779313857a144baea1eb5d5ebb979008a808d2eb15265a4da3",
     "notes/skybridge-scope.md": "31e5e709f04d12edccb0951554a887df065ecdcf22c284cef7507f97c0aa3a0f",
-    "test_build_diagnostics.py": "c9ce4d68797258a098f72011fbec84b1208be04380fd5c5de12389c51e67b07a"
+    "test_build_diagnostics.py": "da978b287ebb4ec7ccb9e9bfb64ea05d14539647006f61ea4b6ac844b571872d"
   }
 }

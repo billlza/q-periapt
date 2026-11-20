@@ -1,0 +1,66 @@
+{
+  "base_paper_commit": "a97387c6ffb65d87642968554e89792739af29ae",
+  "scope": "Preserve extractable mathematical operators in the compiled submission",
+  "status": "passed",
+  "previous_ubuntu_artifact": {
+    "run_id": 44798984832,
+    "head_sha": "a97387c6ffb65d87642968554e89792739af29ae",
+    "pdf_sha256": "7d5b3fa8a554ef038f17b8e7844c071906bb5b4c0f6296b8b03549cec9c6231c",
+    "extracted_operators": {
+      "∑": 0,
+      "↦": 0,
+      "⋃": 0
+    },
+    "unexpected_control_characters": {
+      "U+0001": 33,
+      "U+0002": 3,
+      "U+0003": 2,
+      "U+0008": 8,
+      "U+001A": 7,
+      "U+0010": 2,
+      "U+0011": 2,
+      "U+001B": 7,
+      "U+0012": 3,
+      "U+0013": 3,
+      "U+0019": 2,
+      "U+0018": 2
+    }
+  },
+  "mapping": {
+    "ubuntu_package": "texlive-latex-extra 2023.20240207-1",
+    "older_map": "pdfx/glyphtounicode-cmr.tex",
+    "older_map_sha256": "4390c8bfb8a6f709b90b7502ae4accb74815a5269d99f18bb97c1dde95c16c2a",
+    "modern_map": "glyphtounicode-cmex.tex",
+    "matching_extended_map_entries": 132
+  },
+  "native_reading_copy": {
+    "pages": 122,
+    "abstract_words": 243,
+    "extracted_operators": {
+      "∑": 47,
+      "↦": 9,
+      "⋃": 2
+    },
+    "reviewed_math_symbol_counts_identical": true,
+    "page_drawing_streams_and_dimensions_identical": 122,
+    "plain_and_layout_text_identical_to_preceding_reading_copy": true,
+    "strict_final_log_checks": "passed",
+    "source_package_independently_compiled": true
+  },
+  "receipts": {
+    "source-preservation.json": {
+      "path": "artifacts/editorial-review/pdf-math-encoding/source-preservation.json",
+      "sha256": "b01529794985d958e71b8d14a2a8f1adea7e4fc5b5676bcc35f784047b76ccd3"
+    },
+    "build-check.json": {
+      "path": "artifacts/editorial-review/pdf-math-encoding/build-check.json",
+      "sha256": "430186e2d7308cd5265ae1aac941dfcd1d42a5b75063d7209616f6f9e0f22452"
+    },
+    "source-export-check.json": {
+      "path": "artifacts/editorial-review/pdf-math-encoding/source-export-check.json",
+      "sha256": "3642ecbf3a10213dfd997c27adce652184ff9f4cce8a298cee7abda771219f89"
+    }
+  },
+  "new_mathematical_results": false,
+  "new_protocol_experiments": false
+}

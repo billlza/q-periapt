@@ -34,12 +34,13 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE"
           mkdir -p paper/continuity/build
           git rev-parse HEAD > paper/continuity/build/source-commit.txt
+          cp paper/continuity/continuity.pdf paper/continuity/build/reviewed.pdf
       - name: Install LaTeX and PDF tools
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y latexmk texlive-latex-extra texlive-fonts-recommended texlive-science lmodern poppler-utils
       - name: Compile and verify the manuscript
-        run: make -B -C paper/continuity check PYTHON="sh $GITHUB_WORKSPACE/artifact/python-run.sh"
+        run: make -B -C paper/continuity check REVIEWED_PDF=build/reviewed.pdf PYTHON="sh $GITHUB_WORKSPACE/artifact/python-run.sh"
       - name: Exercise the retained finite-record model
         run: |
           mkdir -p paper/continuity/build/finite-model

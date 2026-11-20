@@ -17,6 +17,11 @@
 \usepackage{microtype}
 \usepackage{xurl}
 \usepackage[capitalize,noabbrev]{cleveref}
+% Older pdfLaTeX formats need explicit Unicode mappings for math extension fonts.
+\InputIfFileExists{glyphtounicode-cmex.tex}{}{%
+  \InputIfFileExists{glyphtounicode-cmr.tex}{}{%
+    \PackageError{joc-manuscript}{Math glyph Unicode mappings are missing}
+      {Install the pdfx support files or a current LaTeX base.}}}
 \pdfgentounicode=1
 \hypersetup{hidelinks,pdftitle={Exposure and Recovery with Persistent Randomness Reservations},pdfauthor={Ziang Li}}
 \theoremstyle{thmstyleone}

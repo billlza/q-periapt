@@ -5,7 +5,8 @@ from tempfile import TemporaryDirectory
 import unittest
 
 
-log_failures = runpy.run_path(str(Path(__file__).with_name('check_build.py')))['log_failures']
+checker = runpy.run_path(str(Path(__file__).with_name('check_build.py')))
+log_failures = checker['log_failures']
 
 
 class BuildDiagnosticsTests(unittest.TestCase):
@@ -37,6 +38,14 @@ class BuildDiagnosticsTests(unittest.TestCase):
             path.write_text('Package rerunfilecheck Info: File unchanged.\n'
                             'Output written on paper.pdf (122 pages).\n')
             self.assertEqual(log_failures([path]), [])
+
+    def test_formula_text_from_legacy_math_fonts(self):
+        self.assertEqual(checker['math_inventory']('∑ aᵢ\nx ↦ y\n⋃ Aᵢ'), {'∑': 1, '↦': 1, '⋃': 1})
+        self.assertEqual(checker['math_inventory']('X aᵢ\nx 7 y\nS Aᵢ'), {})
+        self.assertEqual(checker['extraction_failures']('∑ aᵢ\n\f', 'test.pdf'), [])
+        self.assertEqual(checker['extraction_failures']('\x01x\ufffd', 'test.pdf'),
+                         ['test.pdf: invalid extracted character U+0001',
+                          'test.pdf: invalid extracted character U+FFFD'])
 
 
 if __name__ == '__main__':

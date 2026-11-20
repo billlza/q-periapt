@@ -36,7 +36,7 @@ check: continuity.pdf
 	$(PYTHON) "$(CURDIR)/artifacts/matched-comparison/check_input_controls.py"
 	$(PYTHON) "$(CURDIR)/artifacts/matched-comparison/test_audit_input_boundaries.py"
 	$(PYTHON) "$(CURDIR)/artifacts/retry-readiness/analyze_retry.py" --check
-	$(PYTHON) "$(CURDIR)/check_build.py"
+	$(PYTHON) "$(CURDIR)/check_build.py" $(if $(REVIEWED_PDF),--reference-pdf "$(abspath $(REVIEWED_PDF))")
 
 source: check
 	$(PYTHON) "$(CURDIR)/export_submission.py" --output "$(CURDIR)/$(BUILD)/joc-source.zip"

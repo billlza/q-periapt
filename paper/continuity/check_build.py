@@ -2,10 +2,12 @@
 """Check the actual compiled manuscript and its single-file source identity."""
 from __future__ import annotations
 import argparse
+from collections import Counter
 import hashlib
 import json
 import re
 import subprocess
+import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -32,10 +34,23 @@ def log_failures(paths: list[Path]) -> list[str]:
     return failures
 
 
+def math_inventory(text: str) -> Counter[str]:
+    return Counter(char for char in text if unicodedata.category(char) == 'Sm')
+
+
+def extraction_failures(text: str, name: str) -> list[str]:
+    invalid = {char for char in text if char == '\ufffd' or
+               (unicodedata.category(char) == 'Cc' and char not in '\n\r\t\f')}
+    return [f'{name}: invalid extracted character U+{ord(char):04X}' for char in sorted(invalid)]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--logs', type=Path, nargs='+', metavar='PATH',
-                        help='Check only the specified final TeX or BibTeX logs')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--logs', type=Path, nargs='+', metavar='PATH',
+                      help='Check only the specified final TeX or BibTeX logs')
+    mode.add_argument('--reference-pdf', type=Path, metavar='PDF',
+                      help='Compare mathematical symbol counts with the reviewed reading copy')
     args = parser.parse_args()
     if args.logs:
         diagnostics = log_failures(args.logs)
@@ -75,6 +90,18 @@ def main() -> None:
             failures.append('Author missing from title page: ' + author['display_name'])
         if author['corresponding'] and author['email'] not in text:
             failures.append('Corresponding email missing from title page')
+    full_text = subprocess.run(['pdftotext', str(pdf), '-'], check=True,
+                               capture_output=True, text=True).stdout
+    symbols = math_inventory(full_text)
+    failures.extend(extraction_failures(full_text, pdf.name))
+    if args.reference_pdf:
+        reference = subprocess.run(['pdftotext', str(args.reference_pdf), '-'], check=True,
+                                   capture_output=True, text=True).stdout
+        failures.extend(extraction_failures(reference, args.reference_pdf.name))
+        expected = math_inventory(reference)
+        for char in sorted(symbols.keys() | expected.keys()):
+            if symbols[char] != expected[char]:
+                failures.append(f'U+{ord(char):04X} ({char}): reviewed {expected[char]}, built {symbols[char]}')
     info = subprocess.run(['pdfinfo', str(pdf)], check=True, capture_output=True, text=True).stdout
     pages = re.search(r'^Pages:\s+(\d+)', info, re.M)
     if pages is None:
@@ -86,9 +113,13 @@ def main() -> None:
     report = {'build_inputs': build_inputs, 'status': 'failed' if failures else 'passed', 'pdf_sha256': digest(pdf),
               'pages': int(pages.group(1)) if pages else None,
               'abstract_words': word_count, 'keywords': keyword_count,
+              'math_symbol_counts': dict(sorted(symbols.items())),
               'generated_source_sha256': manifest['output_sha256'],
               'underfull_notices': tex_log.read_text().count('Underfull'), 'failures': failures,
               'scope': 'Build, source identity and document metadata; not a mathematical or experimental security proof.'}
+    if args.reference_pdf:
+        report['reviewed_pdf_sha256'] = digest(args.reference_pdf)
+        report['reviewed_math_symbols_identical'] = symbols == expected
     (ROOT / 'build/build-check.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report))
     if failures:

@@ -117,6 +117,8 @@ The [update workflow](notes/WORKFLOW.md) maintains stable manuscript names, comp
 
 The build checks the final TeX and BibTeX logs once references have settled. Compiler warnings, missing glyphs and underfull or overfull boxes fail the build. CI applies the same checks to the figure and the independently compiled submission package. The [typesetting review](artifacts/editorial-review/strict-typesetting/validation.json) records the bookmark hierarchy, table contents and comparison with the preceding reading copy.
 
+The preamble loads the mathematical glyph mappings supplied by the LaTeX base or, on older TeX Live installations, by the `pdfx` support files. CI extracts text from the committed reading copy and the rebuilt PDF and compares their Unicode mathematical symbol counts. The [glyph check](artifacts/editorial-review/pdf-math-encoding/validation.json) records the affected operators in the earlier Ubuntu artifact.
+
 CI and the repository commands above use the common isolated Python launcher. The Makefile supplies absolute script and output paths so that the launcher's repository-root working directory preserves the manuscript's build locations.
 
 ## Publisher format
