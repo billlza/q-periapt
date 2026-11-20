@@ -51,7 +51,7 @@ jobs:
           fi
       - name: Set up canonical artifact Python
         id: proof_python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14.7"
           check-latest: false
@@ -246,7 +246,7 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         id: maintenance_python
         with:
           python-version: "3.14.7"
@@ -483,7 +483,7 @@ jobs:
           fetch-depth: 0
       - name: Provision hardened proof Python
         id: proof_python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14.7"
           check-latest: false
@@ -968,7 +968,7 @@ jobs:
             --output target/continuity-browser \
             --node "$(command -v node)" \
             --cli "$RUNNER_TEMP/qperiapt-playwright/node_modules/@playwright/cli/playwright-cli.js"
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         id: browser_python
         with:
           python-version: "3.14.7"
@@ -1128,7 +1128,7 @@ jobs:
           persist-credentials: false
       - name: Provision hardened proof Python
         id: proof_python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14.7"
           check-latest: false
@@ -1337,7 +1337,7 @@ jobs:
           persist-credentials: false
       - name: Provision hardened package Python
         id: jvm_python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14.7"
           check-latest: false
@@ -1432,7 +1432,7 @@ jobs:
           persist-credentials: false
       - name: Provision hardened proof Python
         id: proof_python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14.7"
           check-latest: false
@@ -1546,7 +1546,7 @@ jobs:
           test "$actual_commit" = "$EXPECTED_COMMIT"
       - name: Provision hardened proof Python
         id: proof_python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14.7"
           check-latest: false
@@ -1907,7 +1907,7 @@ jobs:
         run: test "$(git rev-parse --verify 'HEAD^{commit}')" = "$GITHUB_SHA"
       - name: Provision hardened proof Python
         id: proof_python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14.7"
           check-latest: false
@@ -2084,7 +2084,7 @@ jobs:
         with:
           toolchain: 1.98.1
           components: clippy,rustfmt
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         id: reference_python
         with:
           python-version: "3.14.7"
@@ -2196,7 +2196,7 @@ jobs:
         with:
           toolchain: 1.98.1
           components: clippy
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         id: continuity_python
         with:
           python-version: "3.14.7"
@@ -2322,7 +2322,7 @@ jobs:
         if: matrix.consumer == 'swift'
         with:
           toolchain: 1.90.0
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         id: continuity_python
         with:
           python-version: "3.14.7"
@@ -2511,7 +2511,7 @@ jobs:
           GIT_CONFIG_VALUE_0: main
         with:
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         id: continuity_coverage_python
         with:
           python-version: "3.14.7"
@@ -2559,7 +2559,7 @@ jobs:
           toolchain: 1.98.1
           components: clippy
           targets: aarch64-linux-android
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         id: python
         with:
           python-version: "3.14.7"
@@ -2889,7 +2889,7 @@ jobs:
         run: |
           cargo +1.98.1 fmt --manifest-path research/continuity-identity-candidate/Cargo.toml --package q-periapt-continuity -- --check 2>&1 | tee target/continuity-native-checks/format.log
           cargo +1.98.1 doc --manifest-path research/continuity-identity-candidate/Cargo.toml --all-features --locked --no-deps 2>&1 | tee target/continuity-native-checks/doc.log
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         if: matrix.os == 'macos-15' && matrix.partition == 'suite'
         id: candidate_python
         with:
