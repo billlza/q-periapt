@@ -195,6 +195,8 @@ jobs:
     permissions:
       contents: read
       actions: read
+      # The pinned CodeQL setup action reads repository feature configuration.
+      security-events: read
     strategy:
       fail-fast: false
       matrix:
@@ -342,6 +344,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      security-events: read
     outputs:
       transfer_sha256: ${{ steps.rust_transfer.outputs.transfer_sha256 }}
       origin_attempt: ${{ steps.rust_transfer.outputs.origin_attempt }}
@@ -448,6 +451,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      security-events: read
     env:
       RUST_PROFILE: macos
       CODEQL_EXPECTED_COMMIT: ${{ github.sha }}

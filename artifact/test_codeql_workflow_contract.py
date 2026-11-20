@@ -59,6 +59,17 @@ class CodeQLWorkflowContractTests(unittest.TestCase):
             self.assertEqual(keys(block, 4), {"branches"})
             self.assertIn("branches: [main]", block)
 
+    def test_rust_cli_setup_can_read_configuration_and_only_publication_can_write(self) -> None:
+        workflow = self.read("codeql.yml")
+        roles = {"rust": "read", "rust-macos-prepare": "read",
+                 "rust-macos-analyze": "read", "rust-publication": "write"}
+        for job, security_access in roles.items():
+            with self.subTest(job=job):
+                permissions = mapping(mapping(workflow, job, 2), "permissions", 4)
+                grants = dict(re.findall(r"^      ([a-z-]+): ([a-z]+)$", permissions, re.MULTILINE))
+                self.assertEqual(grants, {"contents": "read", "actions": "read",
+                                          "security-events": security_access})
+
     def test_macos_quality_runs_after_authenticated_import_before_security_queries(self) -> None:
         workflow = self.read("codeql.yml")
         origin = mapping(workflow, "rust-macos-prepare", 2)
