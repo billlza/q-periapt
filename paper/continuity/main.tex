@@ -34,6 +34,19 @@
 \newcommand{\sourcecommit}{\texttt{228c944f}}
 \raggedbottom
 
+% The journal's single-column page styles print a folio and leave the header empty.
+\makeatletter
+\newcommand*\joc@emptyheads{\let\@oddhead\@empty\let\@evenhead\@empty}
+\AddToHook{cmd/ps@headings/after}{\joc@emptyheads}
+\AddToHook{cmd/ps@titlepage/after}{\joc@emptyheads}
+% Place each descriptive heading directly under its enclosing section in the PDF.
+\AddToHook{cmd/section/before}{\def\toclevel@paragraph{2}}
+\AddToHook{cmd/subsection/before}{\def\toclevel@paragraph{3}}
+\AddToHook{cmd/subsubsection/before}{\def\toclevel@paragraph{4}}
+\makeatother
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
 \begin{document}
 \title[Persistent randomness: exposure and recovery]{Exposure and Recovery with Persistent Randomness Reservations}
 % Author and corresponding address confirmed by the author on 7 November 2026.

@@ -84,7 +84,9 @@ jobs:
       - name: Package the single-file source
         run: sh artifact/python-run.sh paper/continuity/export_submission.py --output paper/continuity/build/joc-source.zip
       - name: Verify the exported manuscript source
-        run: sh artifact/python-run.sh paper/continuity/artifacts/bootstrap/verify_source_export.py --archive paper/continuity/build/joc-source.zip --reading-copy paper/continuity/continuity.pdf --work-directory paper/continuity/build/source-export --output paper/continuity/build/source-export-check.json
+        run: |
+          sh artifact/python-run.sh paper/continuity/artifacts/bootstrap/verify_source_export.py --archive paper/continuity/build/joc-source.zip --reading-copy paper/continuity/continuity.pdf --work-directory paper/continuity/build/source-export --output paper/continuity/build/source-export-check.json
+          sh artifact/python-run.sh paper/continuity/check_build.py --logs paper/continuity/build/source-export/joc-submission.log paper/continuity/build/source-export/joc-submission.blg
       - name: Upload manuscript and source
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -121,6 +123,9 @@ jobs:
           path: |
             paper/continuity/build/*.log
             paper/continuity/build/*.blg
+            paper/continuity/build/figures/confirmation-cut.log
+            paper/continuity/build/source-export/*.log
+            paper/continuity/build/source-export/*.blg
             paper/continuity/build/build-check.json
             paper/continuity/build/indexed-exposure.json
             paper/continuity/build/indexed-exposure-review.json

@@ -13,14 +13,17 @@ joc-submission.tex: $(TEX_SOURCES) flatten_manuscript.py
 figures/confirmation-cut.pdf: figures/confirmation-cut.tex figures/confirmation-cut.tikz
 	mkdir -p $(BUILD)/figures
 	cd figures && latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=../$(BUILD)/figures confirmation-cut.tex
+	$(PYTHON) "$(CURDIR)/check_build.py" --logs "$(CURDIR)/$(BUILD)/figures/confirmation-cut.log"
 	cp $(BUILD)/figures/confirmation-cut.pdf $@
 
 continuity.pdf: joc-submission.tex $(SOURCES) figures/confirmation-cut.pdf
 	latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=$(BUILD) joc-submission.tex
+	$(PYTHON) "$(CURDIR)/check_build.py" --logs "$(CURDIR)/$(BUILD)/joc-submission.log" "$(CURDIR)/$(BUILD)/joc-submission.blg"
 	cp $(BUILD)/joc-submission.pdf $@
 
 check: continuity.pdf
 	mkdir -p "$(BUILD)"
+	$(PYTHON) "$(CURDIR)/test_build_diagnostics.py"
 	$(PYTHON) "$(CURDIR)/artifacts/chain-prefix/check_prefix.py"
 	$(PYTHON) "$(CURDIR)/artifacts/native-online-chain/check_native_chain.py"
 	$(PYTHON) "$(CURDIR)/artifacts/guarded-provenance/check_indexed_exposure.py" --output "$(CURDIR)/$(BUILD)/indexed-exposure.json"

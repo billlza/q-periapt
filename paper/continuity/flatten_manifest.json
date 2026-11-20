@@ -2,7 +2,7 @@
   "schema": "qperiapt-joc-single-source/1",
   "input_entry": "main.tex",
   "output": "joc-submission.tex",
-  "output_sha256": "1996a233d89641617b6eb598006677ab2056e164a1b809c64a3eb10be96db947",
+  "output_sha256": "f47d13513836752726f8cc11392a2c0fb3a56c768e635b0a56d513da4f2bbf5b",
   "inputs": {
     "acquisition-nonadditivity.tex": {
       "sha256": "1b75f2d2a2fb36a00f44ad44f3c9cfab85c6538b45888536173322d0b8fb2c54",
@@ -37,7 +37,7 @@
       "bytes": 4474
     },
     "computational-roadmap.tex": {
-      "sha256": "d83bfe49ac0615ab3c3cc1ce068734a5d890820e0d61c17ec562c05c2fa2ef64",
+      "sha256": "c10467f5ea1d79fa6442a69475cf6610ba5de46f95eff679cdfc5205a1f53fa5",
       "bytes": 7962
     },
     "confirmation-traffic.tex": {
@@ -45,7 +45,7 @@
       "bytes": 9985
     },
     "construction.tex": {
-      "sha256": "4bf19ab3090793e6d09553dffa4de9a19163bb91805dda7e4afab88429fd05d0",
+      "sha256": "2b5e0e62497d5861a0e0158f8d5f832f6e554a1e996ba48adca65b479d6fb860",
       "bytes": 5818
     },
     "contextbound-connection.tex": {
@@ -93,8 +93,8 @@
       "bytes": 5588
     },
     "main.tex": {
-      "sha256": "6ca33aa002d0176d2869666e933b67dc296e0d1ef8bf1b8c1349318195ff748d",
-      "bytes": 4045
+      "sha256": "02d9548d0e67610175305465ed228dbaca746944325c1379353fd2e4edfeaa98",
+      "bytes": 4708
     },
     "matched-opportunities.tex": {
       "sha256": "7def72b8f8d96b8a1f3d3845d6579e421579015862261dc49a1c6e1632a05667",
@@ -113,11 +113,11 @@
       "bytes": 13585
     },
     "native-chain-composition.tex": {
-      "sha256": "f2e8775ea9d3dc6b504230bfab84346462ead012f5482a535ec4f9b12e389f3c",
-      "bytes": 19033
+      "sha256": "3fb3cadd7d50b4b90e83a8cc26b1742d79cf281acb1066db42190fd3ffb42532",
+      "bytes": 19003
     },
     "native-correspondence.tex": {
-      "sha256": "e806562dd7eb50cab2496247d137c3cdc5a9f928a02460b31024d1b2a0576bc1",
+      "sha256": "2843c8d39f694bb3814b14cfeab9de223b9716d7ecfb53c0c3f5371b2dedb730",
       "bytes": 5464
     },
     "opaque-rendering.tex": {
@@ -137,8 +137,8 @@
       "bytes": 9565
     },
     "report-composition.tex": {
-      "sha256": "d4dd0dd6f63b9db40cffca1edbb1c15120841041f54861b43f02fd07589a8b8d",
-      "bytes": 13000
+      "sha256": "9facf3f407fbb1830a063acc91f76808cbe517c8afda4ff293a4b6dff6656410",
+      "bytes": 12981
     },
     "reservation-signature-bridge.tex": {
       "sha256": "7b209b7bea38f3c17788bfcaacbf6b26e03ce4fcedc13fd77f31c6ef446f685d",

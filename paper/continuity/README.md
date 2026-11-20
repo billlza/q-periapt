@@ -115,6 +115,8 @@ The build expands the modules into **`joc-submission.tex`**, compiles that sourc
 
 The [update workflow](notes/WORKFLOW.md) maintains stable manuscript names, complete proof records and a connected academic narrative. The manuscript CI compiles the actual PR head, runs the retained finite-record and ContextBound checks, and uploads the PDF, source package and verification receipts.
 
+The build checks the final TeX and BibTeX logs once references have settled. Compiler warnings, missing glyphs and underfull or overfull boxes fail the build. CI applies the same checks to the figure and the independently compiled submission package. The [typesetting review](artifacts/editorial-review/strict-typesetting/validation.json) records the bookmark hierarchy, table contents and comparison with the preceding reading copy.
+
 CI and the repository commands above use the common isolated Python launcher. The Makefile supplies absolute script and output paths so that the launcher's repository-root working directory preserves the manuscript's build locations.
 
 ## Publisher format

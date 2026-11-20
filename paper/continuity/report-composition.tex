@@ -43,7 +43,7 @@ through a previously returned tag.  The flag uses origin references, not
 actual key equality or the primitive challenger's bit, and is recomputed in
 each comparison world's history.
 
-The following operations specify the interface.  Creation computes
+When the protocol creates a report, it computes
 $t_i=\operatorname{HMAC}_h(K_i,m_i)$ and retains the actual nonzero-ID check,
 encoding errors, and persistence outcomes.  Replay or validation names the
 original report and uses that same $m_i$; supplied identifiers can be compared

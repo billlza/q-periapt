@@ -1,0 +1,55 @@
+{
+  "base_paper_commit": "06c6c9bf9d520e62d0f4079cb4f6bf17657da79d",
+  "status": "passed",
+  "scope": "Strict typesetting diagnostics, PDF outline and table alignment",
+  "red": {
+    "local_and_ubuntu_final_log_counts": {
+      "bookmark_warnings": 33,
+      "underfull_hboxes": 13,
+      "underfull_vboxes": 122
+    },
+    "strict_gate_exit": "nonzero",
+    "ubuntu_run": 44797720687,
+    "ubuntu_final_log_sha256": "6417b1b8d9258b0b927eb50bae25088e69b1d6015d36f943476b5d974a02e7e5",
+    "local_final_log_sha256": "d344302cc38f15d82d6d4b99374bd852b8a779b9afab070d01600283c79d75e8"
+  },
+  "green_local": {
+    "manuscript": "make -C paper/continuity source with the isolated repository Python runner",
+    "figure": "fresh standalone pdfLaTeX compile, final log gate, previous and rebuilt diagram layout text equal",
+    "export": "verify_source_export.py followed by check_build.py --logs on final TeX and BibTeX logs",
+    "strict_gate_regressions": 2,
+    "final_manuscript_figure_and_export_diagnostics": 0,
+    "pdf_sha256": "ec7e4c2af167e89d02ff43069e3ebbd67897c7edfe571668dd465f0b85a64467",
+    "pages": 122,
+    "abstract_words": 243
+  },
+  "outline": {
+    "ordered_titles_retained": 162,
+    "entries_with_corrected_depth": 59
+  },
+  "pages_visually_inspected": [
+    1,
+    7,
+    23,
+    35,
+    69,
+    100
+  ],
+  "visual_review": "The title and folios remain in place. The five revised tables on pages 7, 23, 35 and 69 have legible left-aligned text columns and retain their captions and values. The conclusion remains on page 100.",
+  "receipts": {
+    "source-preservation.json": {
+      "path": "artifacts/editorial-review/strict-typesetting/source-preservation.json",
+      "sha256": "fe79d638a72b34ed6c33e9610539bbd046f6da4d1cb034a76352a939b960bf57"
+    },
+    "build-check.json": {
+      "path": "artifacts/editorial-review/strict-typesetting/build-check.json",
+      "sha256": "a36bc8e0b3267f269e726501aac8478178661aa28e01150e335cbd1e9948588f"
+    },
+    "source-export-check.json": {
+      "path": "artifacts/editorial-review/strict-typesetting/source-export-check.json",
+      "sha256": "54258a970b938fc2e97e00e6c5d6bbb77eb77d4d1a2979bd38ad48ec30efeae9"
+    }
+  },
+  "new_mathematical_results": false,
+  "new_protocol_experiments": false
+}

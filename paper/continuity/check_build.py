@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Check the actual compiled manuscript and its single-file source identity."""
 from __future__ import annotations
+import argparse
 import hashlib
 import json
 import re
@@ -9,16 +10,43 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 
+DIAGNOSTIC = re.compile(
+    r"^!|^(?:Under|Over)full \\[hv]box\b|^Missing character:"
+    r"|\bwarning(?:\s*\([^)]*\))?\s*(?::|--)"
+    r"|LaTeX Error:|Fatal error|There were undefined references"
+    r"|(?:Citation|Reference) .+ undefined|Rerun to get cross-references right"
+    r"|Label .+ multiply defined",
+    re.IGNORECASE,
+)
+
+
+def log_failures(paths: list[Path]) -> list[str]:
+    """Read the final compiler logs after references and citations have settled."""
+    failures = []
+    for path in paths:
+        lines = path.read_text().splitlines()
+        if not lines:
+            failures.append(f'{path}: empty compiler log')
+        failures.extend(f'{path}:{number}: {line.strip()}'
+                        for number, line in enumerate(lines, 1) if DIAGNOSTIC.search(line))
+    return failures
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--logs', type=Path, nargs='+', metavar='PATH',
+                        help='Check only the specified final TeX or BibTeX logs')
+    args = parser.parse_args()
+    if args.logs:
+        diagnostics = log_failures(args.logs)
+        if diagnostics:
+            raise SystemExit('\n'.join(diagnostics))
+        return
+
     pdf = ROOT / 'continuity.pdf'
     built = ROOT / 'build/joc-submission.pdf'
-    log = (ROOT / 'build/joc-submission.log').read_text(errors='strict')
-    failures = []
-    for pattern in [r'^!', r'Overfull \\[hv]box', r'There were undefined references',
-                    r'(?:Citation|Reference) .+ undefined', r'Rerun to get cross-references right',
-                    r'Label .+ multiply defined', r'LaTeX Error:', r'Fatal error']:
-        if re.search(pattern, log, re.MULTILINE):
-            failures.append('LaTeX log: ' + pattern)
+    tex_log = built.with_suffix('.log')
+    failures = log_failures([tex_log, built.with_suffix('.blg')])
     if pdf.read_bytes() != built.read_bytes():
         failures.append('Reading copy differs from the actual build output')
     digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
@@ -59,7 +87,7 @@ def main() -> None:
               'pages': int(pages.group(1)) if pages else None,
               'abstract_words': word_count, 'keywords': keyword_count,
               'generated_source_sha256': manifest['output_sha256'],
-              'underfull_notices': log.count('Underfull'), 'failures': failures,
+              'underfull_notices': tex_log.read_text().count('Underfull'), 'failures': failures,
               'scope': 'Build, source identity and document metadata; not a mathematical or experimental security proof.'}
     (ROOT / 'build/build-check.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report))
