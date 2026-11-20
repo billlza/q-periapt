@@ -1,21 +1,21 @@
 \section{Accounting through one common virtual experiment}
 \label{app:common-virtual}
 
-This appendix records the alternative accounting route when one common
-real-component virtual experiment and a global native-to-virtual comparison
-have been established. In that setting the shared comparison cost is charged
-once; uniform resource bounds follow by direct substitution. Section~\ref{sec:candidate-local-accounting} gives the candidate-local
-route used by the record and report interfaces.
+Section~\ref{sec:candidate-local-accounting} compares each candidate
+under its own record and report rules. When a single real-component
+virtual experiment and a global comparison with the native game are
+available, we can charge their shared cost once. We derive that
+accounting here and then substitute uniform resource bounds.
 
 \subsection{A selected-target experiment}
 
 Let $V$ be the virtual original-record experiment with the real KEM component.
-The adversary chooses its target after its observed interaction. Eligibility
-$E$ retains the selected recovery conditions: both original target reservations
-follow Cut, the actual target signing keys and target-epoch entropy remain
-unexposed, and no selected-session record saved after Cut is acquired.
-The experiment follows allowed asynchronous control and application transitions,
-including sending after the local FinalReady transition.
+The adversary chooses its target after observing the interaction.
+Eligibility $E$ requires both original reservations to follow the cut,
+the target signing keys and target-epoch entropy to remain undisclosed,
+and each acquired target-session version to have been first saved by
+the cut. The experiment admits asynchronous control and application
+transitions, including a send after local FinalReady.
 
 Let $\mathsf{Attr}$ mean that the selected target has a unique usable pair of
 original slots, and let $I\in J$ denote that pair. The mapping and every event

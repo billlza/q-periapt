@@ -1,21 +1,22 @@
 \subsection{A native live-core instantiation}
 \label{sec:live-core-instantiation}
 
-The next-rekey comparison has a concrete record cost on the authoritative
-live-session profile. Its application owns plaintext-bearing Send and
-delivery; the network interface includes exact Resume, active control and
-message processing, ACKs, status and public commitments. Storage follows
-the native immutable-image and pending-intent history through failed writes,
-process loss and reopening. Captures of old or unrelated records remain
-available. A complete post-cut target-session acquisition invokes the
-original eligibility stop. The selected successor-root and next-chain-seed
-projections use the ownership and phase checks of the joint continuation.
-The partial secret-field interface consists exactly of these two named,
-phase-checked projections; other record acquisitions return the declared
-complete objects. These observations and the private-application/Resume
-boundary define the core's complete call surface. The retained live-profile
-artifact records their source correspondence in
-Appendix~\ref{app:joint-artifacts}.
+We now count the cost of simulating the records for the next rekey
+in an authoritative live session. The application supplies the plaintext
+to Send and receives the delivered payload. The network can request an
+exact Resume, process control and message traffic, obtain ACKs and
+inspect statuses and public commitments. The journal follows the
+native image and pending intent through write failure, process loss
+and reopening.
+
+An adversary can still acquire old or unrelated records. An intact
+target-session version first saved after the cut triggers the original
+eligibility stop on acquisition. The only partial secret-field replies
+are the selected successor root and next chain seed, subject to the
+ownership and phase checks of the joint continuation. Other acquisitions
+return their declared complete objects. These operations define the
+observation interface used here. Appendix~\ref{app:joint-artifacts}
+maps each to the native source.
 
 This core obtains all its replies through the record, primitive and
 application interfaces already constructed. Its ordinary calls expose

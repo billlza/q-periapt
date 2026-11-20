@@ -8,6 +8,8 @@ The repository maintains one manuscript on **`paper/joc-persistent-recovery`**. 
 
 ## Research structure
 
+The manuscript follows the random tape saved before a restart through the record model and the proof for a send selected online. The evaluation reports how many messages were delivered alongside how many keys the predictor reconstructed. The [reading-copy review](artifacts/editorial-review/manuscript-narrative/validation.json) identifies the corresponding pages and links the formal-text comparison and independent source build.
+
 The [reservation and exposure checks](artifacts/editorial-review/reservations-counters-and-exposure/validation.json) identify which draw supplied the rekey, what the confirmed counters recorded, and how many keys the predictor recovered under each of the two compared schedules.
 
 The [recovery and service comparison](artifacts/editorial-review/recovery-claims-and-service/validation.json) ties the observed restart, the one-way suspension and the fixed-budget retry result to their respective claims. The [record history and message selection review](artifacts/editorial-review/record-history-and-selection/validation.json) follows a saved version from capture to readability, identifies the first computation of a marked step, and ties a delayed READY proof to its original activation. It also checks the retry clock against the recorded driver and results.

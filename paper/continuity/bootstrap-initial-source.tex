@@ -1,14 +1,14 @@
 \subsection{Initial-source authentication with adaptive reply families}
 \label{sec:bootstrap-initial-source}
 
-Suppose the surviving secret comes from the Initial. The initiator has
-already used that contribution for confirmation before a Reply can
-arrive. Each possible Reply fixes a second contribution and a descriptor
-for the long Extract. We compare the complete service of the original
-source, preserving both uses through the joint entry theorem. We then
-restrict its private table to the parent family of the selected
-registration. The source and entry comparisons are paid once per
-original pair.
+Now suppose the Initial supplies the surviving secret. Before a Reply
+arrives, the initiator has already used that contribution for
+confirmation. Different replies can supply different second
+contributions and thus different inputs to the long Extract. We first
+compare the original source's complete service, including both uses,
+and only then restrict the private table to the parent family of the
+selected registration. In this order the source and entry comparisons
+are charged once per original pair, however many reply families arise.
 
 \paragraph{Initial-surviving profile.}
 Use Definition~\ref{def:bootstrap-online}, adding the authoritative

@@ -1,13 +1,14 @@
 \subsection{Online selection within a finite message chain}
 \label{sec:chain-prefix}
 
-Suppose the observer has seen earlier message keys in one direction.
-It uses that history to choose a step before either endpoint computes it.
-Once the step has been computed, we can even give the observer its
-successor seed. It can now follow the rest of that chain. What can it
-learn about the message at the step it chose? We keep the joint root,
-confirmation and traffic interfaces of Section~\ref{sec:joint-continuation}
-and bound how many steps the observer has in which to choose.
+Earlier message keys can help an observer decide which step to mark.
+Once either endpoint first computes that step, the choice is fixed.
+The observer may then learn the paired successor seed and compute the
+rest of the chain. We ask whether the marked message remains protected
+with both its earlier keys and its suffix available. We use the joint
+root, confirmation and traffic interfaces of
+Section~\ref{sec:joint-continuation} and bound the number of steps
+available for selection.
 
 \paragraph{Prefix interface and selection.}
 At the first allocation of a fresh traffic information string, designate

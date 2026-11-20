@@ -5,12 +5,13 @@
 \subsection{Joint continuation from an epoch root to a message}
 \label{sec:joint-continuation}
 
-A recovered root feeds confirmation, traffic derivation and the next epoch.
-We treat these uses jointly and then isolate a selected message key.
-The resulting continuation permits later contributions, successor roots and
-the next chain seed to be disclosed. The current root is an internal value.
-Each hybrid generates all outputs using that hybrid's root and subsequent
-key schedule.
+Before an application uses its first message key, the same root has
+already supplied confirmation keys and traffic material. It also feeds
+the next epoch. We follow these uses together so that a comparison
+that changes the root also changes every output derived from it. The
+current root stays private. The observer may learn later contributions,
+successor roots and the next chain seed. We ask what it can learn
+about the selected message under those disclosures.
 
 \paragraph{Primitive experiments.}
 Let $F(k,m)$ be HMAC-SHA256 over one public quantum compression oracle

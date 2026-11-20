@@ -1,15 +1,14 @@
 \section{Computational interfaces and composition}
 \label{sec:computation}
 
-We want to protect a particular application send after the next rekey.
-The first-message bound (Corollary~\ref{cor:live-core-next-rekey})
-covers the marked first message. What changes if several earlier
-message keys have been disclosed before
-the observer chooses its target? Theorem~\ref{thm:native-online-message}
-answers that question. Its proof follows the same original sources,
-saved records and recovered root used for selected-root authentication
-(Theorem~\ref{thm:native-selected-authentication}). We first specify
-when the observer makes each choice, then connect those choices to the
+The observer might see earlier message keys before deciding which
+message to test. Corollary~\ref{cor:live-core-next-rekey} handles the
+first message. To reach Theorem~\ref{thm:native-online-message} we
+must allow the observer that choice while still tying the chosen send
+to the records and original draws that supplied its root. The same
+root also governs the confirmation events in
+Theorem~\ref{thm:native-selected-authentication}. The order of the
+observer's choices determines how we connect all three results to the
 native execution.
 
 \paragraph{The experiment and its selection boundaries.}
@@ -102,34 +101,34 @@ ordinary hedged ML-DSA
 \end{tabularx}
 \end{table}
 
-The final confidentiality bounds compare a signed score: a comparison
-whose output-bit advantage is $\varepsilon$ contributes at most
-$2\varepsilon$ before the final factor $1/2$ converts that score to
-message advantage. The operational component uses the two actual
-positive and negative output tests, giving $a_j^++a_j^-+2\delta_j$.
-Authentication compares its own Boolean event, so the corresponding
-record cost is $\varepsilon_{{\rm rec},j}$ and its component cost is
+Why does a record comparison enter the confidentiality calculation
+twice? Confidentiality uses a signed score. An output-bit gap of
+$\varepsilon$ changes that score by at most $2\varepsilon$, and the
+final factor $1/2$ converts it to message advantage. The component
+comparison uses both signs, giving $a_j^++a_j^-+2\delta_j$.
+Authentication tests one Boolean event. Its record cost is
+$\varepsilon_{{\rm rec},j}$ and its component cost is
 $a_j^{\rm auth}+\delta_j$, or $a_j^{\rm msg}+\delta_j$ for online
-message integrity. Each of these adapters retains its own
-whole-execution query budget. The source-attribution residual is
-localized once in the original game. The live core supplies its complete
-observation interface in Section~\ref{sec:live-core-instantiation}; the
-separate report extension carries its declared projection event.
+message integrity. Each adapter accounts for its complete execution.
+We charge source-attribution failure once in the original game.
+Section~\ref{sec:live-core-instantiation} gives the observations for
+the live core. The report extension also charges its declared
+projection event.
 
 Proposition~\ref{prop:kem-deferred-challenge} bounds each operational
 component term by an ordinary ML-KEM IND-CCA advantage and an explicit
 prechallenge ciphertext-intersection cost. This substitution retains the
 real decapsulation prefix and the original source-selection accounting.
 
-Consequently the three native statements share the record and source
-connection, with the continuation selected by the terminal test:
-the first-message score in~\eqref{eq:live-core-next-rekey}, the
-confirmation/first-message event in~\eqref{eq:native-selected-authentication},
-and the online message score and event
-in~\eqref{eq:native-online-confidentiality}--\eqref{eq:native-online-integrity}.
-The native online correspondence
-(Lemma~\ref{lem:native-online-chain-correspondence}) is the additional
-source-order connection for the last pair.
+We thus use the same records and original sources in all three native
+results. What we test at the end determines the remaining comparison.
+For the first message it is the score in~\eqref{eq:live-core-next-rekey}.
+For confirmation and first-message authentication it is the event
+in~\eqref{eq:native-selected-authentication}. For a step selected online
+we use the score and event in~\eqref{eq:native-online-confidentiality}--%
+\eqref{eq:native-online-integrity}. This last pair also uses the native
+order of first computations established by
+Lemma~\ref{lem:native-online-chain-correspondence}.
 
 The final subsections instantiate adaptive descriptor families for multiple
 roots and SDK purpose keys, then connect both original bootstrap sources to

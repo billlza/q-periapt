@@ -1,13 +1,14 @@
 \subsection{Native recovery with an online selected message}
 \label{sec:native-online-chain}
 
-Suppose the receiver skips ahead in the message chain and then rejects
-the packet. If it was the first endpoint to compute a step, the observer
-had to decide whether to mark it just before that computation. Waiting
-for the sender would be too late. Earlier message keys may inform this
-choice. We retain the native acquisition history and executed reservation
-slots and track the root, traffic material and message step at their
-distinct allocation times.
+The receiver may advance the chain and then reject the incoming
+packet. If it computed a step for the first time during that attempt,
+the observer had to decide whether to mark the step just beforehand.
+Waiting for the sender would let it choose a step that had already
+been computed. Earlier disclosed keys may guide the choice. We now
+tie that choice to the accepted send by following its root, traffic
+material and step from their first allocations, together with the
+original reservations and the session's acquisition history.
 
 \paragraph{The online native controller.}
 Retain the established-session live core of
@@ -180,8 +181,9 @@ as $a_j^{\rm msg}$ and define
   +\Delta_{{\rm prefix},j}(L)+\varepsilon_{{\rm INT},j}\bigr\}.
  \label{eq:native-chain-integrity-cost}
 \end{equation}
-The costs for the two terminal tests use their own complete-query
-bounds; sharing notation does not identify their distinguishers.
+The confidentiality test and the installation event each have their
+own distinguisher. We use the complete query budget of the
+distinguisher for the test being evaluated.
 
 \begin{theorem}[Native online selected-message security]
 \label{thm:native-online-message}
@@ -274,13 +276,12 @@ coefficients; no additional guess of the marked message index is used.
 \end{proof}
 
 \paragraph{Reading the bound in ordinary primitives.}
-For the executed-slot selector, Table~\ref{tab:native-online-substitutions}
-collects the substitutions in
-\eqref{eq:native-online-confidentiality}--\eqref{eq:native-online-integrity}.
-The index $\sigma\in\{+,-,\mathrm{msg}\}$ identifies the actual terminal
-test: each test retains its own complete-execution resources. The table
-instantiates the displayed terms without changing the original candidate
-partition or the selected message.
+Table~\ref{tab:native-online-substitutions} expresses
+\eqref{eq:native-online-confidentiality}--\eqref{eq:native-online-integrity}
+in ordinary primitives for the executed-slot selector. Read each
+$\sigma\in\{+,-,\mathrm{msg}\}$ term with the complete resources of
+that terminal test. The source pair and the send it identifies are the
+same throughout the substitution.
 
 \begin{table}[htbp]
 \caption{Primitive substitutions for native online selected-message security.
@@ -357,10 +358,10 @@ $L$-term prefix sum; its complete-query budgets include preparation,
 failed attempts, endpoint aliases, real suffix computation and terminal
 testing. These are the same interfaces and budgets as in the theorem.
 
-For $L=1$, the prefix cost reduces to the existing first-message
-schedule cost. The enlarged controller adds the choice of a later
-uncomputed index after observing earlier keys, while preserving the
-native source and acquisition semantics. An explicitly modeled
-record/report projection extension keeps its original
-$\eta_{\rm proj}^{\rm nat}$ and corresponding local comparison costs,
-as in the preceding native theorems.
+Setting $L=1$ recovers the first-message schedule cost. For a longer
+chain the observer can see earlier keys and mark a later step while
+it is still uncomputed. That choice adds the prefix cost above. The
+reservations and acquisitions are still those of the accepted send.
+If the interface also permits partial record or report projections,
+its $\eta_{\rm proj}^{\rm nat}$ and local comparison costs enter as
+in the preceding native theorems.

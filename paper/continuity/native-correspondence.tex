@@ -1,12 +1,13 @@
 \subsection{Native constructors and retained-object transitions}
 \label{sec:native-correspondence}
 
-We map the declared record constructors to the fixed Continuity source.
-The accompanying audit contains 37 entries across 27 directly cited files,
-with exact source ranges and checked Git-blob and SHA-256 identities. It
-separates constructor layout, state transition, known-input computation
-and the protocol's additional output interfaces. The following correspondences
-give the native instances of the objects used in the preceding proofs.
+To use the record argument for Continuity we must identify what the
+implementation retains when a write fails, what it reuses on a retry
+and which bytes it shows its caller. The source audit traces those
+questions through 37 entries in 27 files. It gives the source ranges,
+Git blob identities and SHA-256 digests for the constructors, state
+transitions, known-input computations and additional public outputs
+discussed here.
 
 \paragraph{Images, intents and commitments.}
 \texttt{durable::seal} encodes and bounds the payload before drawing a
@@ -41,14 +42,12 @@ containing unchanged target payload bytes, preserving the target's source
 while creating a new physical sealing invocation.
 
 \paragraph{Uncertain commit and recovery.}
-The native state distinguishes a caller's outcome from the durable directory.
-An unconfirmed commit maps to \texttt{CommitUncertain}; the owner is closed
-and subsequently reopened against the retained image and pending target.
-An actual committed write therefore persists across an error response.
-The explicit storage machine records this outcome and retains the original
-operation on resumption. The cited acquisition rule uses the contained
-session version's original save event, including when that version is
-carried by a later aggregate.
+A caller can learn that a commit is uncertain even when the new
+image is already durable. On \texttt{CommitUncertain} the owner closes
+and later reopens against the retained image and pending target. The
+storage machine therefore keeps the actual durable outcome and resumes
+the operation found there. If a later aggregate contains that version,
+acquisition still refers to the version's first save.
 
 \paragraph{Report dependencies.}
 Table~\ref{tab:native-report-families} identifies the three report families.

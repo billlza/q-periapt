@@ -1,15 +1,15 @@
 \subsection{Bootstrap authentication from an original surviving source}
 \label{sec:bootstrap-authentication}
 
-At bootstrap the peers use the first contribution before the second
-one exists. The initiator encapsulates to the responder's prekeys to
-obtain $S_0$ and already uses $S_0$ for Initial confirmation. The
-responder then encapsulates to the initiator's newly reserved reply
-key to obtain $S_1$. The joint schedule uses both contributions,
-retains a pending root and activates message state after Final. We
-follow that order to determine what a successful connection tells the
-initiator about the responder's earlier activation of the signed
-transcript.
+When the initiator accepts a bootstrap connection, what can it infer
+about the responder? The order in which the peers use the two secrets
+matters. The initiator first encapsulates to the responder's prekeys
+and uses the resulting $S_0$ for Initial confirmation. Only then does
+the responder encapsulate to the initiator's newly reserved reply key
+to obtain $S_1$. The joint schedule retains a pending root and activates
+message state after Final. We follow that order back from connection
+acceptance to the expected responder's earlier activation of the same
+signed transcript.
 
 \paragraph{Transcript and schedule.}
 Let $c=(\mathit{ctx},x,y)$ contain the admitted context and the complete

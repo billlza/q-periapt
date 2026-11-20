@@ -2,8 +2,10 @@
 \subsection{Several root entries from one recovered contribution}
 \label{sec:multiple-root-entry}
 
-One recovered contribution can feed several available old roots and complete
-root-information strings. The comparison below retains these uses jointly.
+The same recovered contribution may be used with different old roots
+or different root-information strings. An observer who learns one
+result may use it to select the inputs for another. We compare the
+whole family so that a repeated request still gets its original root.
 Let $S$ be uniform on 256 bits, initially independent of the public compression
 oracle $h$ and auxiliary state, and retain $F$ and $\Gamma$ from
 Section~\ref{sec:joint-continuation}. Each root request supplies a 32-byte

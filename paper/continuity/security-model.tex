@@ -79,16 +79,14 @@ A record version $v$ has an immutable payload $X_v$ and semantic metadata
   \bigl(\mathsf{subject}(v),\mathsf{role}(v),
          \mathsf{epoch}(v),\mathsf{phase}(v)\bigr).
 \]
-The subject identifies the session whose state is represented. A write to the
-enclosing journal preserves this subject, including a write by another session.
-A version can
-refer to several reservation origins and to roots or traffic state derived
-from earlier origins.  Preparing a version allocates its handle.  The event
-$\mathsf{Saved}(v)$ occurs when that version first enters the durable
-acquisition surface, and its time is denoted $\mathsf{save}(v)$.  In particular,
-an intact target in a durable pending-write intent is saved before the
-corresponding image is applied.  A storage operation may have made this
-transition even when its caller receives an unknown-outcome error.
+The subject is the session whose state the version records. A sibling
+session writing the enclosing journal preserves that subject. A single
+version may contain several reservations and state derived from earlier
+ones. Preparing a version gives it a handle. Its first durable retention
+is a different event, $\mathsf{Saved}(v)$, at time $\mathsf{save}(v)$.
+For example, a pending intent may already hold an intact target before
+the journal installs it. A caller can receive an unknown-outcome error
+after the storage operation has reached this point.
 
 A physical object $h$ has a separate creation or sealing index.  It may carry
 one version, several sessions' versions, an exact earlier image, or a pending
@@ -263,13 +261,11 @@ specified interfaces.
   the answer for subsequent openings.
 \end{enumerate}
 
-The renderer is an explicit trusted interface in this intermediate
-experiment.  It has access to the original payload table and evaluates the
-stated byte operations, including operations on undisclosed payloads.
-Consequently, it can produce real ciphertexts, commitment digests, and report
-MACs.  This definition does not supply an algorithm for producing those bytes
-from an unknown KEM-challenge tape.  It gives a precise location for the
-subsequent cryptographic replacement of that interface.
+At this stage we trust the renderer with the original payload table.
+It can compute ciphertexts, commitment digests and report MACs over
+private bytes because it has those bytes. Later the KEM challenger
+withholds the selected tape. The next reduction must produce a
+consistent record interface from the information it actually receives.
 
 The operational contract has three further requirements.
 First, all publicly visible payload-dependent bytes and statuses are obtained
@@ -358,12 +354,11 @@ plaintext opening by $v$ proves the query bound; reservation and fresh-seal
 indices were preserved separately throughout.
 \end{proof}
 
-The lemma places multiplicity in the correct ledger.  An adversary may retain
-many ciphertext aliases of one version, and those ciphertexts may have many
-different public heads.  All such byte-level observations remain in the view.
-The repeated payload uses one original-record opening, whereas each genuinely
-fresh seal and each public hash or MAC computation keeps its own resource
-accounting.
+The adversary can retain several ciphertexts for one version and
+observe a different public head for each. The simulation preserves
+all those observations. Opening the payload once suffices for every
+alias of that version. Each fresh seal and each public hash or MAC computation still incurs
+its own cost.
 
 \input{guarded-provenance}
 \input{acquisition-nonadditivity}
@@ -463,16 +458,14 @@ independent fair guess, the conventional advantage over one half is
 \]
 The computational accounting uses this latter convention.
 
-The adaptive version retains one application challenge and permits the
-candidate selector to choose its coordinates and reservation-event handles
-adaptively from the observed interaction. Eligibility
-requires those coordinates to identify the challenge's accepted logical send;
-selection never transfers its test bit to another send.  Eligibility
-and the usable-pair attribution are evaluated on that experiment's complete
-history.  An origin-pair reduction fixes a slot pair in $[G]\times[C]$ and
-scores the event that the final selector attributes the target to that pair.
-The selector and disclosure predicates are recomputed in each comparison
-world.  No independence between that selection and the transcript is imposed.
+The adaptive experiment still has one application challenge. After
+interacting, the selector can name its coordinates and reservation
+handles, provided they identify the same accepted logical send. The
+test bit stays with that send. For each fixed pair in $[G]\times[C]$,
+the reduction scores executions in which the selector attributes the
+send to that pair. It evaluates eligibility, disclosures and attribution
+from each comparison world's own complete history, allowing the
+selection to depend on the transcript.
 
 The record restriction in~\eqref{eq:eligibility} is the one used by the
 retained multi-epoch symbolic theorem: its \textsf{Snapshot} action outputs

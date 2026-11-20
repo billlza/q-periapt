@@ -2,13 +2,13 @@
 \subsection{Explicit guarded normalization of record readability}
 \label{sec:guarded-provenance}
 
-A session version may contain several reserved values. Conversely, the
-same reserved value may occur in several encrypted records. We now ask
-which of those values are readable from the objects and keys acquired
-so far. A source $o\in\Omega_{\rm src}$ names one original draw.
-$\mathcal E^{\rm src}_t$ contains the identities of the sources whose
-protected values are derivable at time $t$. The sets $\mathcal C_t$ and $\mathcal L_t$ still refer to
-versions, and $\mathcal O[v]$ still holds the original payload of $v$.
+One session version can contain several reserved values, and several
+records can contain the same value. Suppose we are given the objects
+and keys acquired up to time $t$. Which original draws can we now read?
+A source $o\in\Omega_{\rm src}$ names one such draw, and
+$\mathcal E^{\rm src}_t$ records the identities of the sources whose
+protected values we can derive. We continue to use $\mathcal C_t$ and
+$\mathcal L_t$ for versions and $\mathcal O[v]$ for the payload of $v$.
 
 Here we fix the graph of admitted records and the public key-derivation
 edges. Key derivation in this fragment is independent of recovered
@@ -100,12 +100,11 @@ or advance choice of the acquisition schedule was used.
 \end{proof}
 
 \paragraph{Incremental evaluation.}
-Equation (GP) tells us exactly which sources are readable at a given
-time. Even a compressed record DAG can have exponentially many paths
-in that table. We can update the derivable facts as each acquisition
-or disclosure arrives without constructing the table. The
-evaluator specializes indexed forward chaining for Horn
-rules~\cite[Section~4]{dowlingGallier1984} to this cumulative history.
+Equation (GP) answers the readability question by listing the paths to
+each source. A small record DAG can have exponentially many such paths.
+As acquisitions and disclosures arrive, we can instead track the facts
+that each event makes derivable. The evaluator uses indexed forward
+chaining for Horn rules~\cite[Section~4]{dowlingGallier1984}.
 Write
 \[
 \begin{aligned}
@@ -188,16 +187,18 @@ restricts future acquisition from that local store; it removes no member
 of $A_t$ and therefore cannot invalidate a satisfied route.
 \end{proof}
 
-\paragraph{Interface significance.}
-For a query about source $o$, an acquired path together with its key
-guards witnesses readability through the records. Direct disclosure
-puts the source in $\mathcal E^{\rm src}_t$ immediately. If $o$ is
-absent, the stated rules cannot derive its value from this history.
-They cover record decryption and fixed public key derivation. Guessing,
-cryptanalysis, timing leakage and a quantum decryption oracle are outside
-that fragment. To reach a claim about an application message, we still
-need to simulate the native ciphertexts and public commitments and prove
-indistinguishability in the protocol experiment.
+\paragraph{What a readable source tells us.}
+For a source $o$, a path from an acquired record and the keys that
+open every wrapper on that path give a witness for its readability.
+Direct disclosure enters $o$ in $\mathcal E^{\rm src}_t$ immediately.
+Absence from the set has a precise meaning within this fragment. These
+record decryption and fixed public key-derivation rules have no way
+to derive the value from the history so far. Other ways of learning a
+secret, including guessing, cryptanalysis, timing leakage or access to
+a quantum decryption oracle, require their own model. For a claim
+about the selected application message we simulate the native
+ciphertexts and commitments and bound the adversary's advantage in
+the protocol experiment.
 
 \paragraph{Native shape and finite checks.}
 At the fixed research source, operation reservations are encrypted under

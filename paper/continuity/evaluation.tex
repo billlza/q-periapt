@@ -1,25 +1,24 @@
 \section{Exposure, communication and admitted service}
 \label{sec:evaluation}
 
-Before I take a small exposure count as an improvement, I want to know
-how many messages the protocol actually sent. In the one-way control
-at a send budget of 32, the endpoints delivered 32 of the 2,048 offered
-requests. One of those messages was committed before capture, and all
-31 post-capture keys could be reconstructed. The other 2,016 requests
-were still in the queue. This is suspension at the send budget. Giving
-the protocol credit for protecting the queued requests would reward it
+How many messages did the endpoints deliver to obtain the reported
+exposure count? In our one-way control with a send budget of 32, they
+delivered 32 of the 2,048 requests. They had committed one before
+capture. We could reconstruct the keys for all 31 committed after it.
+The other 2,016 requests remained queued when the budget ran out.
+Counting the backlog as protected traffic would credit the protocol
 for messages it never sent.
 
-For that reason we record first commitments and completed deliveries
-alongside exposure, emitted bytes and persistence work. The native
-executions in Section~\ref{sec:established} identify the original
-reservations, and the finite-record checks establish what the declared
-acquisitions and disclosures reveal in each fixture. We use pinned
-reference snapshots to compare component keys across seven schedules.
-For the service comparison we give the native and reference protocols
-the same requests and transmission opportunities. For the effect of retry
-timing itself we keep the native protocol and change that rule alone.
-Table~\ref{tab:validation-questions} gives the corresponding measurements.
+We therefore report first commitments and completed deliveries alongside
+reconstructed keys, emitted bytes and persistence work. The native runs
+in Section~\ref{sec:established} identify which reservation supplied a
+rekey. The finite-record checks ask when that source becomes readable.
+We then use pinned reference snapshots to study exposure across seven
+schedules. To compare delivered service, we give the native and
+reference protocols the same requests and directed opportunities.
+Finally, we hold the native protocol fixed and vary the time before a
+retry. Table~\ref{tab:validation-questions} identifies the measurement
+for each question.
 
 \begin{table}[t]
 \centering
@@ -56,13 +55,13 @@ accounting.\\
 
 \label{sec:guarded-checks}
 
-The retained finite checker for Section~\ref{sec:guarded-provenance} compares
-two executable realizations: iterative decryption of available record objects, and evaluation
-of normalized paths after computing key reachability. Their common inputs
-are a finite immutable record graph, canonical key identities, fixed public
-key-derivation edges, acquired records, directly disclosed keys, and directly
-disclosed source values. The evaluator checks equality of their exposed-source
-sets for every subset assignment in each declared graph.
+For each record graph in Section~\ref{sec:guarded-provenance} we ask
+two evaluators which sources are exposed. One decrypts the available
+records iteratively. The other computes reachable keys and tests the
+normalized paths. Both receive the same immutable records, canonical
+key identities, fixed public derivations, acquisitions and direct
+disclosures of keys and source values. We compare their exposed-source
+sets on every subset assignment for each graph.
 
 Table~\ref{tab:guarded-checks} gives the complete finite inventory. The 5,360
 assignments include direct-source subsets; they are separate from the 420
@@ -164,44 +163,41 @@ counts on declared control graphs.}
 \label{tab:indexed-key-work}
 \end{table}
 
-A separate 128-layer containment DAG has 257 records, 510 containment edges
-and $2^{128}$ root-to-source paths, counted from its construction.
-The indexed evaluator processes 1,027 queue, guard and payload visits to
-reach the exact closure. A further 2,000 repeated acquisitions and key
-disclosures perform no additional propagation visits. A 4,096-record chain
-checks iterative handling of deep containment. Throughout these controls,
-the indexed evaluator's path-oracle constructor is replaced by a failing
-sentinel; any indexed request for route enumeration would fail the check.
-The result records the graph
-dimensions, individual visit counters and source hashes. These controls
-exercise the indexed implementation and its output accounting under the
-fixed-graph semantics of Proposition~\ref{prop:guarded-worklist}.
+In a 128-layer DAG, 257 records and 510 containment edges give
+$2^{128}$ root-to-source paths. The indexed evaluator reached the
+exact closure in 1,027 queue, guard and payload visits. Another 2,000
+repeated acquisitions and key disclosures required no further
+propagation visits. We also checked a chain of 4,096 records to
+exercise deep containment. In each case any call to the path
+enumerator would have failed the check. The recorded graph dimensions,
+visit counts and source hashes tie these measurements to the
+fixed-graph hypothesis of Proposition~\ref{prop:guarded-worklist}.
 
 \subsection{Reference snapshots and communication schedules}
 
-The pinned SPQR source is
-\texttt{f2589fef855c10f39d72634dab3d14654dd410bf}.
-Seven schedules each contain 2,048 sends: alternating, loss, reordering,
-duplication, 9:1 asymmetry, offline-then-exchange, and one-way traffic.
-Six capture points for each endpoint produce 84 passive snapshot cases.
-An authenticated whole-KEM control runs those schedules at local-send
-intervals 1, 32 and 64, producing 252 corresponding cases. Together these
-are 28 configuration--schedule combinations and 336 snapshots. An isolated
-64-byte polynomial-chunk SPQR variant supplies another seven schedules and
-84 snapshots with its own source identity. The combined comparison therefore
-has 35 configuration--schedule combinations and 420 snapshots. The 32-byte
-and 64-byte labels describe the polynomial chunk width.
+The reference traces cover seven schedules of 2,048 sends each. They alternated directions,
+introduced loss, reordered or duplicated frames, imposed 9:1 asymmetry,
+restored exchange after an offline prefix, or allowed one-way traffic
+only. Taking six snapshots per endpoint on each schedule gave 84
+cases for SPQR at revision
+\path{f2589fef855c10f39d72634dab3d14654dd410bf}. The authenticated
+whole-KEM controls at local-send intervals 1, 32 and 64 contributed
+252 cases. Together these four profiles account for 28 combinations
+and 336 snapshots. An isolated SPQR variant with its own source
+identity contributed the remaining 84. In all, the comparison covers
+35 profile--schedule combinations and 420 snapshots. The 32- and
+64-byte SPQR labels specify the polynomial chunk width.
 
 \subsection{Exposure and communication observations}
 
 
-The snapshot predictor receives one endpoint's serialized state and the full
-public transcript, including packets lost before peer delivery. A separate
-harness compares every derived key with the actual sender's key. Public
-deterministic seeds are test fixtures; the measurement establishes causal key
-derivation through the declared predictor interface. The output label
-\texttt{not\_derived} denotes that predictor's result. It is separate from the
-security predicate of a computational experiment.
+The predictor receives one endpoint's serialized state and the full
+public transcript, including packets that never reached the peer. A
+separate harness checks each key it derives against the sender's actual
+key. The deterministic seeds are public test fixtures. A
+\texttt{not\_derived} entry means that this predictor did not reconstruct
+that key from its specified inputs. The confidentiality claim for an
+eligible send comes from the computational experiment.
 
 Table~\ref{tab:reference} reports the alternating-schedule
 observations. The snapshot is taken at $A$ immediately after its first send,
@@ -239,11 +235,11 @@ reduced the alternating count from 172 keys to 88. The wider chunks cost
 traffic the corresponding key counts were 748 and 388
 (Table~\ref{tab:reference-schedules}).
 
-Now keep the whole-KEM interval at 32. On the 9:1 schedule the component
-used 21.031 bytes per send, about half the 44.047 on the alternating
-schedule. I would count that as a bandwidth saving for this workload.
-At the same capture point the predictor recovered 338 of the next
-2,047 keys, up from 66.
+With the whole-KEM interval fixed at 32, changing the schedule from
+alternating to 9:1 cut the mean component traffic per send from 44.047
+to 21.031 bytes. At the same capture point the predictor recovered 338
+of the next 2,047 keys, up from 66. The bandwidth saving and the larger
+exposed set occurred in the same workload.
 
 The offline prefix leaves substantial exposure even for the whole-KEM
 interval-1 control: its predictor reconstructs 260 future keys at this cut,

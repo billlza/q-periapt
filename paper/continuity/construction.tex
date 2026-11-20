@@ -2,13 +2,12 @@
 \label{sec:construction}
 
 \qperiapt{} combines ML-KEM-768 and X25519 in its ContextBound hybrid
-KEM and authenticates protocol controls with an ML-DSA-65/P-256
-identity. Consider what an endpoint must save if it expects to finish
-a rekey after a crash. It first reserves the randomness and places the
-token for that reservation in a durable plan. When the endpoint executes
-or replays the operation, it uses that token again. The peers alternate
-as proposer across epochs, and each maintains its own send, receive and
-confirmed-epoch state.
+KEM and authenticates control messages with an ML-DSA-65/P-256
+identity. The peers take turns proposing rekeys. Each tracks its own
+send, receive and confirmed epochs. Before an endpoint executes a
+reserved operation, it saves the token for the original draw in a
+durable plan. After a crash it can recover that token and finish the
+operation with the same inputs.
 
 \paragraph{Fixed cryptographic context.}
 The combiner hashes a length-delimited encoding of the two component secrets,
@@ -29,12 +28,13 @@ the host wrapping key. It persists the selected target in a pending write before
 installing that target as the next journal image. Applying or reopening that
 write preserves its original contents.
 
-A journal image aggregates state from multiple sessions. Updating a sibling
-session advances the global image revision and samples a new outer encryption
-nonce, while the target session's retained reservation can remain unchanged.
-Consequently, the journal revision, outer nonce, local operation identifier,
-and original entropy reservation represent distinct identities. We preserve
-these distinctions in the model and relate them to the native execution boundaries.
+One image holds state for several sessions. A write to a sibling
+session advances the journal revision and draws a new outer encryption
+nonce. The target session can keep precisely the reservation it had
+before the write. We therefore track the original draw separately
+from the local operation identifier, journal revision and outer nonce.
+Table~\ref{tab:events} shows which of these events can create a source
+and which can give the adversary another copy.
 
 \begin{table}[t]
 \centering
@@ -109,9 +109,9 @@ fresh encapsulation; it does not refresh the earlier generation reservation.}
 \label{fig:delayed-receipt}
 \end{figure}
 
-The resulting counterexample targets the proposed bound
-$\min(c_A,c_B)+1$: its value is one, yet epoch-two traffic is exposed.
-The protocol permits this asymmetric progress. Recovery reasoning therefore
-follows the retained inputs and their descendants, with each endpoint's
-confirmation counter retaining its own value.
+At capture, $\min(c_A,c_B)+1$ equals one. The six messages recovered
+in the native run belong to epoch two. The two counters correctly
+record each peer's progress, but the responder had already reserved the
+inputs for a later epoch. To decide which traffic the snapshot exposes,
+we follow those inputs through the subsequent exchange.
 

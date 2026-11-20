@@ -1,11 +1,11 @@
 \subsection{Executed sources and signing reservations}
 \label{sec:executed-source-attribution}
 
-An honestly signed offer identifies its session and epoch. If an endpoint's
-first save failed, it may have drawn twice under those same coordinates.
-Which draw should we use to date its contribution? We use the one that
-reached the private KEM call. The retained plan lets us follow that draw
-through a restart.
+An honestly signed offer identifies a session and epoch. Those
+coordinates alone can describe two draws if the first save failed
+before a token became durable. To date the contribution we follow the
+retained plan to the draw whose token reached the private KEM call.
+That plan also identifies the draw after a restart.
 
 We assume one authoritative history per endpoint for the selected session,
 keyed by the actual signer, session and epoch, with the admitted context

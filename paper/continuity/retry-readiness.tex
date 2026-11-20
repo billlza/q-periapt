@@ -1,12 +1,14 @@
 \subsection{Retry readiness under the common opportunity budget}
 \label{sec:retry-readiness}
 
-We compared immediate and age-four retries at both send budgets under
-the seven schedules in Section~\ref{sec:matched-opportunities}. Each
-of the 14 pairs used the same protocol source, requests, capture cut,
-2,048 transmission opportunities, and cryptographic and durability
-interfaces. All 14 fresh immediate-policy runs reproduced their
-original rows.
+How much of the service difference can retry timing alone explain?
+We kept the protocol source, send budget, requests, capture cut,
+cryptographic and durability interfaces, and 2,048 transmission
+opportunities fixed within each pair. We varied only whether an
+unacknowledged frame could be retried immediately or after four sender
+turns. Testing both budgets on the seven schedules in
+Section~\ref{sec:matched-opportunities} gave 14 pairs. All 14 new
+immediate-retry runs reproduced the corresponding original rows.
 
 \paragraph{A public retry clock.}
 The clock counts the sender's own turns. Each endpoint advances its
@@ -16,8 +18,9 @@ eligible again at $k+4$ at the earliest. An exact retry records a new
 emission turn. When fair cyclic arbitration selects the retry class,
 the oldest eligible request resumes with its saved ciphertext. Control
 planning, cumulative ACK processing, first admission and the other
-arbitration rules keep their original code. The sender goes by its
-clock and its ACK state. Only the analyst uses delivery history.
+arbitration rules keep their original code.
+The sender can observe its clock and whether an ACK has arrived.
+Only the analyst can tell whether a retry followed the first delivery.
 
 \input{retry-readiness-table}
 

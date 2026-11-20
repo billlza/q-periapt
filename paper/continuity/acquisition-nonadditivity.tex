@@ -39,13 +39,12 @@ acquisition, contradicting $E(\{r,k\})=\{o\}$.
 \end{proof}
 
 \paragraph{Meaning of exposure.}
-Membership of an origin $o$ in $E(A)$ records derivability of its
-protected seed under the specified closure rules; the identifier itself
-may be public. Computational estimation is measured separately by success
-probability. A one-time-pad illustration makes the dependence on joint
-observations explicit: let $S,W$ be independent uniform $\lambda$-bit strings and
-$C=S\mathbin{\oplus}W$, with no additional observation depending on $S$ or
-$W$.  Then
+The origin identifier $o$ may be public. Membership in $E(A)$ says that
+the rules let us derive its protected seed. To see what joint
+observations can do to an estimator's success probability, take two
+independent uniform $\lambda$-bit strings $S,W$ and let
+$C=S\mathbin{\oplus}W$. Assume there is no further observation that
+depends on either string. Then
 \[
   H(S\mid C)=H(S\mid W)=\lambda,
   \qquad H(S\mid C,W)=0.

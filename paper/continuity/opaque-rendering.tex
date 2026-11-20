@@ -8,11 +8,11 @@ faces a harder case. Its challenger gives it the public operation outputs and a
 shared-secret challenge, while the selected random tape stays private
 even when it occurs in a saved image.
 
-We construct the record-management algorithm for this finite image and
-intent interface. It keeps immutable handles, the fields it knows and
-sealing coins it samples locally. The original-operation adapter supplies
-the protocol's public computations through the common interface $F$.
-Holding $F$ fixed here lets us account for the image and intent part of
+The reduction records a handle for each private object. It knows the
+public fields and samples the sealing coins itself. The original-operation
+adapter supplies the protocol's public computations through $F$. By
+holding $F$ fixed, we can ask exactly what it costs to reproduce the
+saved images and pending intents in
 Proposition~\ref{prop:native-local-accounting}.
 
 \paragraph{Typed record interface.}

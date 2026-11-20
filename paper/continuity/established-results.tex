@@ -3,13 +3,13 @@
 
 \subsection{The multi-epoch symbolic theorem}
 
-For the native result we selected one application send after the next
-rekey. In the symbolic model we can ask about a message arbitrarily many
-epochs later. The peers inherit their roots, take turns proposing rekeys
-and may confirm at different times. The model includes initial traffic
-and permits signing and wrapping keys to be shared across their modeled
-uses. A \textsf{Cut} exposes the selected wrapping keys. Disclosure of
-another epoch's entropy has its own event.
+The native theorem follows one send after the next rekey. To ask about a
+message arbitrarily many epochs later, we turn to the symbolic model.
+Its peers inherit their roots, take turns proposing rekeys and can
+confirm at different times. The model includes initial traffic and
+allows signing and wrapping keys to be shared across their modeled
+uses. A \textsf{Cut} exposes the selected wrapping keys. A separate
+event discloses entropy from another epoch.
 
 Let $\tau$ be a trace of that model. Write
 $\mathsf{SessionKeys}(s,a,b)$ for the actual identity keys associated with session
@@ -74,15 +74,18 @@ authenticated control wires. Its prediction interface has no journal or
 filesystem input, and the experiment withholds signer files and future private
 owners. A wrong wrapping key is rejected.
 
-For each cut, both honest peers complete the rekey and reopen their journals.
-The driver then creates fresh 128-byte application payloads, sends three in each
-direction, and checks honest delivery. Independently reconstructed traffic
-owners authenticate and decrypt all six intercepted frames. The two cuts
-therefore yield twelve actual post-restart plaintext recoveries.
-In the delayed-receipt run, the confirmed epochs at capture were zero
-and one. Each peer reported the last epoch it had confirmed. I count
-epoch two as exposed because we could read six of its messages using
-the responder's captured state and the later public traffic.
+At each cut both honest peers finished the rekey and reopened their
+journals. The driver then generated fresh 128-byte application
+payloads and checked delivery of three messages in each direction.
+Independently reconstructed traffic owners authenticated and decrypted
+all six intercepted frames. Across the two cuts we thus recovered
+twelve post-restart plaintexts.
+
+In the delayed-receipt run the two confirmed epochs at capture were
+zero and one. We decrypted six epoch-two messages using the captured
+responder state and the later public traffic. Each counter correctly
+reported the last epoch its endpoint had confirmed. The successful
+decryptions tell us which later traffic the capture exposed.
 
 \begin{proposition}[Execution-time and counter-based separation]
 \label{prop:counter-separation}

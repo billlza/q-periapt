@@ -40,29 +40,30 @@
 % The alternative address is retained in author-metadata.json.
 \author*[1]{\fnm{Ziang} \sur{Li}}\email{2403871950@qq.com}
 \affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
-\abstract{Both peers accepted the rekey in our restart experiment. We could still
-read the traffic that followed. The endpoint had finished a call whose
-random tape was already in the captured state. We therefore date each contribution from its original reservation
-and each acquired session version from its first durable save.
-For Q-Periapt Continuity we prove confidentiality and fresh-message
-integrity for one application send selected online after the next rekey
-of an established session. Both original key-encapsulation reservations
-must follow the compromise cut under the stated acquisition and disclosure
-conditions. Earlier message keys can inform the choice before either
-endpoint first computes the target step. The observer may obtain its
-designated successor seed and choose the cut after interaction. Our
-reduction simulates private records from public operation outputs and
-preserves exact retries even when it lacks the selected tape. Its bound
-accounts for records and source attribution alongside ordinary ML-KEM
-and hedged ML-DSA security, shared-oracle key derivation and authenticated
-encryption in the stated quantum random-oracle models. On fixed indexed record and
-key-derivation graphs we maintain the exact exposure set in total work linear in the
-graph size and input history. A mechanized symbolic theorem covers
-secrecy across unbounded epochs under its provenance condition. In
-49 matched executions we count deliveries alongside reconstructed keys.
-In a paired 28-run retry experiment, waiting four sender turns raised
-deliveries from 688 to 971 on the alternating schedule at budget 32. Both policies yielded 63
-reconstructible post-capture keys.}
+\abstract{In our restart experiment, both endpoints accepted the rekey,
+yet we could decrypt the traffic that followed. One endpoint had saved
+the randomness it would use after restart. When is a later message
+confidential if an adversary can acquire an encrypted record and learn
+its wrapping key at different times?
+For the next rekey of an established Q-Periapt Continuity session, we
+prove confidentiality and fresh-message integrity for one application
+send selected online. The original key-generation and encapsulation
+reservations must follow the compromise cut. Each acquired version of
+the session must have reached durable storage by the cut, and the target
+signing secrets and designated epoch entropy must remain undisclosed.
+The observer may use earlier message keys to mark the target before either
+endpoint first computes it, then learn its successor seed. It may select
+the cut after interaction. Our reduction reproduces commitments and exact
+retries from public operation outputs even when the reserved tape is
+private. The bound accounts for record simulation, source attribution,
+ordinary ML-KEM and hedged ML-DSA security, shared-oracle key derivation
+and authenticated encryption in the stated quantum random-oracle models.
+On fixed indexed graphs we track readable sources in total work linear in
+graph size and input history. A mechanized symbolic theorem covers secrecy
+across unbounded epochs under its provenance condition. With 2,048
+alternating transmission opportunities and a send budget of 32, waiting
+four sender turns before retrying raised deliveries from 688 to 971.
+Both runs yielded 63 reconstructible post-capture keys.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
 

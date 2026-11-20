@@ -34,31 +34,28 @@ key-updatable primitive needed by their strongest recovery requirements
 unidirectional ratcheting to bounded leakage between send calls, with
 separate key-indistinguishability and one-way formulations
 \cite{collins2025leakage}.
-Our model resolves record acquisition into the encrypted representations,
-disclosed keys, and original operations that determine source readability.
-The guarded characterization establishes this relation for its record
-fragment. Constructive image and report simulations then carry these
-observations into the native message experiment.
+Here an adversary may acquire an encrypted record at one time and a
+key that helps open it at another. Which original operations can it
+reconstruct once it has both? We characterize
+that dependence for the record fragment and simulate the resulting
+images and reports in the native message experiment.
 
 \paragraph{Persistence, exact replay, and crash recovery.}
 The Signal specification discusses deferring ratchet-key generation to shorten
 the lifetime of sensitive state \cite[Section~8.5]{doubleratchet2025}.
-A persistent reservation can fix that state before the deferred call runs.
-The original-reservation event therefore identifies the lifetime relevant to
-our freshness condition. Exact replay and a fresh sealing nonce preserve that
-source identity even when they change the operational or physical
-representation.
+Persistence changes when that lifetime begins. If an endpoint has
+reserved the tape for a deferred call, its inputs are already fixed.
+We date the operation from that reservation. Replaying the call uses
+the same tape, even when the new image has a fresh sealing nonce.
 
-Crash consistency addresses the state recovered after an interrupted update.
-For example, GoJournal provides verified atomicity for storage applications
-through concurrent crash specifications \cite{gojournal2021}. This storage
-property explains which retained operation an endpoint resumes. Our exposure
-interface additionally records which copies an adversary acquires and which
-key disclosures enable their contents. The native reservation executions
-illustrate the interaction: an operation resumes with its original inputs,
-and those inputs can also determine the adversary's later derivation. The
-guarded normalization theorem expresses that relation for the stated
-encrypted-record fragment.
+GoJournal gives storage applications verified atomicity through
+concurrent crash specifications~\cite{gojournal2021}. For our protocol,
+a crash-consistency argument identifies the operation that the endpoint
+resumes. We also need to know which copies the adversary acquired and
+when it obtained the keys to open them. In our restart experiment the
+peers and the adversary derived traffic keys from the same original
+inputs. The guarded normalization theorem describes
+when those inputs become readable in the encrypted-record fragment.
 
 \paragraph{Simulation under adaptive compromise.}
 Jaeger and Tyagi give a modular framework for encryption and PRFs under
@@ -87,7 +84,6 @@ reservation-aware signature experiment and uses it to associate an accepted
 rekey with its original KEM calls. Section~\ref{sec:reservation-ordinary-bridge}
 then connects this interface to ordinary native hedged-signature security.
 
-\paragraph{Hedging and exposed nonces.}
 Nonce-based cryptography treats nonce handling as an explicit security
 interface; Bellare and Tackmann develop this perspective and introduce
 hedged extractors~\cite{bellare2016nonce}. Aranha et al. analyze hedged
@@ -95,12 +91,13 @@ Fiat--Shamir signatures under fault attacks~\cite{aranha2020hedged}, and
 Grilo et al. give quantum random-oracle analyses of hedged Fiat--Shamir
 security against nonce and fault attacks~\cite{grilo2021reprogramming}.
 Kosuge and Xagawa study the fault security of ML-DSA
-\cite{kosuge2025mldsa}. Our signing connection uses this hedging perspective
-for persistent reservations: opening an original randomizer, selecting a
-reserved call, exact replay, and failed publication preserve their original
-message ledger. The native reduction compares the shared key-generation
-and hedging XOF with a private random-function interface and then returns
-to ordinary hedged ML-DSA security
+\cite{kosuge2025mldsa}.
+In our setting a signer can reserve randomness before it has published
+a signature. The message ledger records the first private signing call
+even if publication fails. Opening the randomizer or retrying the call
+preserves that history. The reduction compares the XOF shared by key
+generation and hedging with a private random function, then relates the
+reservation experiment to ordinary hedged ML-DSA unforgeability
 (Theorem~\ref{thm:native-mldsa-reservation-bridge}).
 
 \paragraph{Session handling and state loss.}
@@ -108,12 +105,12 @@ Cremers, Jacomme, and Naska analyze how the session-handling layer determines
 conversation security and give a Tamarin analysis of Signal's Sesame
 \cite{sessionhandling2023}. Cremers, Medinger, and Naska prove incompatibilities
 between full end-user PCS and specified state-loss resilience requirements
-\cite{stateloss2025}. These results make the surviving state and authentication
-resources essential parts of a recovery claim. Our failure model retains the
-bound journal and resumes its original operations. Its disclosure conditions
-follow actual key identities, including a key shared across sessions, and
-acquisition of the target projection inside an aggregate record. This specifies
-the persistence and authentication setting of the symbolic recovery theorem.
+\cite{stateloss2025}. To state recovery in our setting we specify what survives a crash
+and who owns each signing key. The endpoint resumes its operations
+from the bound journal. A disclosure in another session can still
+reveal the target's signer if the two share a key. A journal image
+can likewise contain a saved version of the target alongside versions
+of other sessions. The symbolic theorem checks both kinds of exposure.
 
 \paragraph{Admissible network behavior.}
 Fischlin, G\"unther, and Janson formalize robustness for channels over unreliable
@@ -130,22 +127,25 @@ Cheval, Jacomme, and Richards give an automated Double Ratchet analysis covering
 out-of-order messages and key-compromise scenarios, including PCS results and
 forward-secrecy attacks and fixes \cite{doubleratchet2026}. H\'erouard et al.
 mechanize computational PCS for a two-party asymmetric ratchet with unbounded
-steps and a fixed non-adaptive compromise scenario \cite{squirrel2026}. Their
-proof distinguishes non-deduction of intermediate roots from real-or-random
-security of derived keys. Our symbolic recovery theorem and quantitative
-interface theorems retain their respective conclusion types. The private-record
-simulator addresses the separate task of executing a specified storage interface
-when selected operation bytes are unavailable to a reduction.
+steps and a fixed non-adaptive compromise scenario \cite{squirrel2026}.
+Their proof distinguishes non-deduction of intermediate roots from
+real-or-random security of derived keys. We ask a symbolic secrecy
+question across unbounded epochs and a computational question about
+one send selected online. For the latter the reduction must also
+answer storage calls while some of the operation's bytes remain
+private. That obligation motivates our record simulator.
 
 Bhargavan et al. study SPQR and its implementation \cite{spqr2026}. The authors'
 public account describes ProVerif protocol models and hax/F* verification of
 panic-freedom and selected correctness properties of the Rust core
-\cite{spqrverification2025}. These developments motivate comparison at the level
-of explicit state and observation interfaces. Our source correspondence records
-the native constructors and transitions represented by the original-record
-model. The SPQR reference corpus supplies independently identified executable
-measurements of retained-secret exposure and communication; its observations
-keep their source revision and predictor interface.
+\cite{spqrverification2025}.
+For our source correspondence we identify the native constructors
+and transitions that implement the original-record model. We use the
+SPQR reference corpus for a different question. Given an endpoint
+snapshot and the later public traffic, which component keys does its
+predictor reconstruct, and how many bytes does the component send?
+We report those measurements with the source revision and predictor
+that produced them.
 
 \paragraph{Key extraction and dependent uses.}
 HKDF-Extract places its input key material in HMAC's message argument

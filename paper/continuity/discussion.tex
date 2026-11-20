@@ -45,10 +45,10 @@ Equation~\eqref{eq:root} gives
 \[
  p_e=\operatorname{HMAC}_{R_{e-1}}(S_e).
 \]
-The disclosed value is HMAC's key. Any secrecy we get from this step
-has to come from the new contribution $S_e$ in the message input. This
-use of HMAC is studied in extractor and swap-PRF
-formulations~\cite{hmacswap2023,rfc5869}.
+Once the parent root is disclosed, HMAC's key is known. The secret
+input available to this extraction step is the new contribution $S_e$,
+which enters HMAC as its message. Extractor and swap-PRF formulations
+study this use of HMAC~\cite{hmacswap2023,rfc5869}.
 The shared-oracle entry proof in Appendix~\ref{app:joint-root-entry}
 supplies the uniform-root interface after the complete-tuple comparison
 of Section~\ref{sec:contextbound-connection}. The finite-family extension
@@ -78,43 +78,44 @@ oracle-query losses
 key-entry argument supplies recovered secret material. The signature
 bridge accounts for attributing it to the original calls.
 
-\paragraph{From original bootstrap sources to peer activation.}
-The bootstrap connection preserves the source order in which initial
-confirmation uses the first contribution before the response contribution
-exists. Its joint short/long entry retains that shared use, and the terminal
-comparison protects the ACK while preserving sibling outputs. The reply-source
-profile establishes the expected responder's historical activation of the
-exact transcript even when the first contribution and initiator signing
-identity are disclosed. The initial-source profile supplies the complementary
-case with the responder identity and later reply contributions available.
+\paragraph{What a delayed bootstrap confirmation establishes.}
+Suppose the initiator receives a READY proof after a restart. The
+relevant event is the expected responder's earlier activation of the
+same signed transcript. Retrying the confirmation can change when
+the proof arrives while preserving that event. The first contribution
+already served to confirm the initial flight before the reply
+contribution existed. The joint short/long entry preserves that shared
+use. The terminal comparison protects the ACK while keeping the
+sibling outputs available.
 
-These conclusions retain meaning through exact retries and delayed READY
-delivery because the original sources and complete signed transcript remain
-fixed. In the initial-source composition, replacing the complete joint entry
-before partitioning reply families confines the family multiplicity to the
-later tail terms. Each profile keeps its own immutable-version acquisition
-contribution. Section~\ref{sec:bootstrap-authentication} specifies the joint
-journal/derived-key interface for a broader captured-byte simulation.
+Which source survived determines the guarantee. With the reply source
+protected, we establish the earlier activation even if the first
+contribution and the initiator's signing identity are disclosed. With
+the initial source protected, the responder identity and later reply
+contributions may be available. In the latter proof we replace the
+joint entry before partitioning by reply family, so only the later
+terms incur the family multiplicity. Each proof charges acquisition
+of its own immutable versions. Section~\ref{sec:bootstrap-authentication}
+specifies the joint journal and derived-key interface for simulating a
+broader set of captured bytes.
 
 \paragraph{Exposure budgets and completed service.}
-Halving the send budget from 64 to 32 on the alternating schedule
-reduces the reconstructed set from 127 to 63 applications. Each
-direction has at most $b$ first allocations in the captured epoch,
-and at our cut the derived set reaches $2b-1$. There is a cost to
-getting the smaller set this way. With immediate retries, deliveries
-fall from 718 to 688. The peers complete more rekeys and send 565,288
-bytes, up from 407,596.
+On the alternating schedule, reducing the send budget from 64 to 32
+reduced the reconstructed set from 127 to 63 keys. Each direction
+admits at most $b$ first allocations in the captured epoch, and the
+derived set at our cut reached $2b-1$ for both budgets. With immediate
+retries, the smaller budget also reduced deliveries from 718 to 688.
+The peers completed more rekeys and sent 565,288 bytes, up from 407,596.
 
-The retry comparison gives a different result. At $b=32$ the same peers
-delivered 971 applications when they waited four sender turns before a
-retry, up from 688. Both policies yielded 63 reconstructible keys. At
-$b=64$ deliveries rose from 718 to 999, with 127 keys under either
-policy. We attribute the extra deliveries on this schedule to the
-retry rule. The protocol, the budget and the opportunities were fixed,
-and we can account for where the turns went. Application retries fell from 604 to 16 at $b=32$ and from 579
-to 8 at $b=64$. The 588 turns freed at $b=32$ went to 283 additional
-first applications, 265 ACKs and 40 control frames, out of the same
-2,048 opportunities (Appendix~\ref{app:retry-readiness}).
+Holding the budget fixed lets us isolate the effect of the retry
+rule. Waiting four sender turns raised deliveries from 688 to 971 at
+$b=32$ and from 718 to 999 at $b=64$. The two policies yielded 63
+reconstructible keys at the smaller budget and 127 at the larger one.
+The transmission history accounts for the gain. Application retries
+fell from 604 to 16 at $b=32$ and from 579 to 8 at $b=64$. The 588
+turns freed at $b=32$ went to 283 additional first applications, 265
+ACKs and 40 control frames within the same 2,048 opportunities
+(Appendix~\ref{app:retry-readiness}).
 
 The extra deliveries required more bytes and persistence work in total.
 In these alternating runs both bytes and \texttt{sync\_data} calls per
@@ -128,22 +129,23 @@ admitted post-capture key was reconstructible. Waiting longer to retry
 could not supply the missing return traffic in that run.
 
 \paragraph{Conclusion.}
-The rekey in the opening execution succeeded. I still count the
-subsequent traffic in that run as exposed, because the earlier capture
-and the public response were enough to recover its keys. Both peers
-behaved correctly. After the crash the endpoint finished the very call
-whose tape it had saved before the compromise.
+The two peers in our restart experiment completed the rekey and
+delivered new messages. The earlier capture explains why we could
+still read them. It contained the tape for the call that the endpoint
+would finish after restart. For an encrypted copy, the time of
+acquisition and the time the tape becomes readable can differ. On
+fixed indexed record and key-derivation graphs we track exactly which
+sources become readable as records and keys arrive, in total work
+linear in graph size and input history
+(Proposition~\ref{prop:guarded-worklist}).
 
-For a later send we need the original draws and the record history.
-On fixed indexed record and key-derivation graphs we can maintain the
-exact set of readable sources in total work linear in the graph size
-and input history (Proposition~\ref{prop:guarded-worklist}).
-
-For the next rekey of an established session, suppose both KEM
-reservations follow the cut and the target signing secrets and designated
-epoch entropy remain undisclosed. Every acquired version of that session
-must have been first saved by the cut, even if the adversary obtained
-the copy later. Under the assumptions of
-Theorem~\ref{thm:native-online-message}, that is enough to claim
-confidentiality and fresh-message integrity for an application send
-selected online.
+For a send after the next rekey of an established session, we can
+now state which history suffices for recovery. Both original KEM
+reservations must follow the cut. The target signing secrets and
+designated epoch entropy must remain undisclosed, and the first durable
+save of each acquired target-session version must fall on or before the
+cut. A copy acquired later keeps that save time. Under the assumptions
+of Theorem~\ref{thm:native-online-message}, the observer can use earlier
+keys to choose a step before either endpoint first computes it and can
+subsequently learn its designated successor seed. The selected
+application send retains confidentiality and fresh-message integrity.
