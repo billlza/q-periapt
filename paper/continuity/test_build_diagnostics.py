@@ -1,6 +1,9 @@
 """Regression checks for the final TeX and BibTeX log gate."""
+from hashlib import sha256
+from io import BytesIO, StringIO
 from pathlib import Path
 import runpy
+import subprocess
 from tempfile import TemporaryDirectory
 import unittest
 
@@ -46,6 +49,20 @@ class BuildDiagnosticsTests(unittest.TestCase):
         self.assertEqual(checker['extraction_failures']('\x01x\ufffd', 'test.pdf'),
                          ['test.pdf: invalid extracted character U+0001',
                           'test.pdf: invalid extracted character U+FFFD'])
+
+    def test_log_label_is_display_only(self):
+        label = 'review.log'
+        message = 'Package hyperref Warning: invalid bookmark depth'
+        self.assertEqual(checker['check_log'](StringIO(message), label),
+                         [f'{label}:1: {message}'])
+
+    def test_reviewed_pdf_digest_identifies_the_extracted_stream(self):
+        pdf = Path(__file__).with_name('continuity.pdf').read_bytes()
+        text, digest = checker['read_reviewed_pdf'](BytesIO(pdf))
+        self.assertEqual(digest, sha256(pdf).hexdigest())
+        self.assertIn('∑', text)
+        with self.assertRaises(subprocess.CalledProcessError):
+            checker['read_reviewed_pdf'](BytesIO(b'incomplete PDF'))
 
 
 if __name__ == '__main__':

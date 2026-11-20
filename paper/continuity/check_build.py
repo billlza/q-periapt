@@ -7,8 +7,11 @@ import hashlib
 import json
 import re
 import subprocess
+import sys
+from tempfile import TemporaryFile
 import unicodedata
 from pathlib import Path
+from typing import BinaryIO, Iterable
 
 ROOT = Path(__file__).resolve().parent
 
@@ -22,15 +25,23 @@ DIAGNOSTIC = re.compile(
 )
 
 
+def check_log(lines: Iterable[str], name: str) -> list[str]:
+    """Check a final compiler log after references and citations have settled."""
+    failures = []
+    number = 0
+    for number, line in enumerate(lines, 1):
+        if DIAGNOSTIC.search(line):
+            failures.append(f'{name}:{number}: {line.strip()}')
+    if number == 0:
+        failures.append(f'{name}: empty compiler log')
+    return failures
+
+
 def log_failures(paths: list[Path]) -> list[str]:
-    """Read the final compiler logs after references and citations have settled."""
     failures = []
     for path in paths:
-        lines = path.read_text().splitlines()
-        if not lines:
-            failures.append(f'{path}: empty compiler log')
-        failures.extend(f'{path}:{number}: {line.strip()}'
-                        for number, line in enumerate(lines, 1) if DIAGNOSTIC.search(line))
+        with path.open() as source:
+            failures.extend(check_log(source, str(path)))
     return failures
 
 
@@ -44,16 +55,29 @@ def extraction_failures(text: str, name: str) -> list[str]:
     return [f'{name}: invalid extracted character U+{ord(char):04X}' for char in sorted(invalid)]
 
 
+def read_reviewed_pdf(source: BinaryIO) -> tuple[str, str]:
+    """Hash and extract text from the same byte stream, including when it is a pipe."""
+    digest = hashlib.sha256()
+    with TemporaryFile() as snapshot:
+        for block in iter(lambda: source.read(1024 * 1024), b''):
+            digest.update(block)
+            snapshot.write(block)
+        snapshot.seek(0)
+        result = subprocess.run(['pdftotext', '-', '-'], stdin=snapshot,
+                                check=True, capture_output=True, text=True)
+    return result.stdout, digest.hexdigest()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument('--logs', type=Path, nargs='+', metavar='PATH',
-                      help='Check only the specified final TeX or BibTeX logs')
-    mode.add_argument('--reference-pdf', type=Path, metavar='PDF',
-                      help='Compare mathematical symbol counts with the reviewed reading copy')
+    mode.add_argument('--check-log', metavar='LABEL',
+                      help='Check the final compiler log on standard input, using LABEL in diagnostics')
+    mode.add_argument('--reference-stdin', action='store_true',
+                      help='Compare mathematical symbols with the reviewed PDF supplied on standard input')
     args = parser.parse_args()
-    if args.logs:
-        diagnostics = log_failures(args.logs)
+    if args.check_log is not None:
+        diagnostics = check_log(sys.stdin, args.check_log)
         if diagnostics:
             raise SystemExit('\n'.join(diagnostics))
         return
@@ -94,10 +118,9 @@ def main() -> None:
                                capture_output=True, text=True).stdout
     symbols = math_inventory(full_text)
     failures.extend(extraction_failures(full_text, pdf.name))
-    if args.reference_pdf:
-        reference = subprocess.run(['pdftotext', str(args.reference_pdf), '-'], check=True,
-                                   capture_output=True, text=True).stdout
-        failures.extend(extraction_failures(reference, args.reference_pdf.name))
+    if args.reference_stdin:
+        reference, reviewed_digest = read_reviewed_pdf(sys.stdin.buffer)
+        failures.extend(extraction_failures(reference, 'reviewed PDF'))
         expected = math_inventory(reference)
         for char in sorted(symbols.keys() | expected.keys()):
             if symbols[char] != expected[char]:
@@ -117,8 +140,8 @@ def main() -> None:
               'generated_source_sha256': manifest['output_sha256'],
               'underfull_notices': tex_log.read_text().count('Underfull'), 'failures': failures,
               'scope': 'Build, source identity and document metadata; not a mathematical or experimental security proof.'}
-    if args.reference_pdf:
-        report['reviewed_pdf_sha256'] = digest(args.reference_pdf)
+    if args.reference_stdin:
+        report['reviewed_pdf_sha256'] = reviewed_digest
         report['reviewed_math_symbols_identical'] = symbols == expected
     (ROOT / 'build/build-check.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report))

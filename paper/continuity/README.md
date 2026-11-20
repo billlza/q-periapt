@@ -119,6 +119,8 @@ The build checks the final TeX and BibTeX logs once references have settled. Com
 
 The preamble loads the mathematical glyph mappings supplied by the LaTeX base or, on older TeX Live installations, by the `pdfx` support files. CI extracts text from the committed reading copy and the rebuilt PDF and compares their Unicode mathematical symbol counts. The [glyph check](artifacts/editorial-review/pdf-math-encoding/validation.json) records the affected operators in the earlier Ubuntu artifact.
 
+For a separately reviewed PDF, pass `REVIEWED_PDF=/path/to/reviewed.pdf` to `make check`. The build passes its bytes to the verifier on standard input. The reported SHA-256 digest identifies the same bytes used for text extraction.
+
 CI and the repository commands above use the common isolated Python launcher. The Makefile supplies absolute script and output paths so that the launcher's repository-root working directory preserves the manuscript's build locations.
 
 ## Publisher format

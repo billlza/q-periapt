@@ -87,6 +87,23 @@
         "manuscript build and source identity",
         "nine-file single-source export"
       ]
+    },
+    "review_input_handling": {
+      "base_commit": "d11dc22681d7fc982701ae87782dfdc685ed2019",
+      "reported_rule": "py/path-injection",
+      "reported_analysis_run": 44801558753,
+      "alert": 3438,
+      "source": "Standard input supplies externally selected PDFs and compiler logs. The verifier hashes the same snapshot it passes to pdftotext.",
+      "local_result": "passed",
+      "checks": [
+        "Five input and diagnostics regressions",
+        "Full manuscript make check with a reviewed PDF supplied by the caller",
+        "Git blob piped into the verifier and independently hashed",
+        "Five retained Ubuntu compiler logs",
+        "168 previous diagnostics rejected by the streamed log gate"
+      ],
+      "reviewed_pdf_sha256": "14339c74404dffb23df93c2924b0e4dd91ec1d0089dc572480acd22b075b5fa5",
+      "document_content": "The modular TeX sources, submission entry, reading copy and export verifier are byte-identical to the base commit."
     }
   },
   "build_review": {
@@ -142,14 +159,15 @@
   },
   "paper_workflow": {
     "path": "../../.github/workflows/joc-manuscript.yml",
-    "sha256": "004dc0c46fda3fc512214e252bbe7be3407d44bcdee08b7376b1d2b4ddf2d6a0",
+    "sha256": "4832588c5d4c486d67e316199b86869449f7a6de1d220202e2018ece322668ce",
     "branch": "paper/joc-persistent-recovery",
     "base": "main",
     "url": "https://github.com/billlza/q-periapt/tree/paper/joc-persistent-recovery",
     "integration_base": "d54e6d0096584235737a9bf8d29119ffc96234fa",
     "snapshot": "Prepublication paper, source and build identity. Hosted checks are associated with the resulting published head.",
     "new_execution": "Compared formula text in the preceding Ubuntu and repository artifacts, checked both distributed glyph maps and rebuilt the manuscript and its standalone source package. The native page drawing streams and reviewed mathematical symbols were compared locally.",
-    "manuscript_revision_base": "a97387c6ffb65d87642968554e89792739af29ae"
+    "manuscript_revision_base": "a97387c6ffb65d87642968554e89792739af29ae",
+    "verifier_revision_base": "d11dc22681d7fc982701ae87782dfdc685ed2019"
   },
   "completed_connection": "Ordinary IND-CCA -> actual deferred ML-KEM component game -> original-operation ContextBound and key-entry adapters -> retained native confidentiality, authentication and complementary bootstrap source compositions.",
   "source_hashes": {
@@ -246,8 +264,8 @@
   "current_supporting_hashes": {
     ".gitattributes": "ce31a7ca88fa6aca38587ee367ee79be2ecbbb06574954482f7ed8a0a21f41f7",
     ".gitignore": "8d1d7e93cbe39f9fe8262e453b7c34cb9a5935181da322a468e37959405226b8",
-    "Makefile": "4277b61463ca65fe4c685d3873a93e8b3dbaefbd850ae0f6d7ae470da08d8062",
-    "README.md": "fb8c1aa58a2344c1fff13ec916f46692e191c46c50f3fe972469649bf4f0536d",
+    "Makefile": "90122f7639799e34d26a1f0beb0468c0d831ef568becdcad5ed690b6879e46ef",
+    "README.md": "48232a0fd6162344054b2d723960923d86fc5134e64adc5da6c38d84c0d9b8f4",
     "artifacts/bootstrap/README.md": "172103ab4ae00ecc8a2d255cbb2f10e23f4d37e70019d179a1d04c666d979642",
     "artifacts/bootstrap/ack/SOURCE_PINS.json": "cf9c16f4dc8069717c1a40386f96290cae0aec89c356f02f824d8b3143c73eb5",
     "artifacts/bootstrap/ack/source/research/continuity-identity-candidate/src/durable/messages.rs": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
@@ -977,7 +995,7 @@
     "artifacts/source-attribution/source_attribution_proof.md": "86f36ea6864242a3c55cd834702ffacbf0a5eec0d13996ad8034722d789e42e3",
     "artifacts/source-attribution/source_check_receipt.json": "1070a90191aa6d589c247e714159a9a4a5bed39d9824de6eb95c977e11a77d3c",
     "artifacts/source-attribution/source_identity.json": "5dde1719d0c0ac7386f5fcbfc81f57427253714d332508ee13f6c5cee5785cc3",
-    "check_build.py": "5c9e79fc6d64e1cf96961520e90a51d58c35dba2223624d1078ad0215f3a6d62",
+    "check_build.py": "68753763d67749051121e961f1707bde118ac696d33c2e55da94dd5d64fa37f5",
     "export_submission.py": "fd76730d9abb02e4d0daab6c5cba654ed1385f5a3ef73516f5e9289615edfcf3",
     "figures/confirmation-cut.tex": "eaed162d2f95c1d1b043380b6a404f02f4042bc20017eb409b2cdbdee4047579",
     "figures/confirmation-cut.tikz": "1c8122292094aefe5efeb3d3d336540cbeeb429bf36de3ea97a44571b1338286",
@@ -992,6 +1010,6 @@
     "notes/SUBMISSION_READINESS.md": "c696be036d5f8e525a122ffa5c0cdee9fa3d6fe236d10af6a5b646a565912584",
     "notes/WORKFLOW.md": "53b46d937c15ca779313857a144baea1eb5d5ebb979008a808d2eb15265a4da3",
     "notes/skybridge-scope.md": "31e5e709f04d12edccb0951554a887df065ecdcf22c284cef7507f97c0aa3a0f",
-    "test_build_diagnostics.py": "da978b287ebb4ec7ccb9e9bfb64ea05d14539647006f61ea4b6ac844b571872d"
+    "test_build_diagnostics.py": "482294ce0f04bae484e67cea643762f081f8abddf31c0d3d2d5372c28999c83f"
   }
 }

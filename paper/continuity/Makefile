@@ -13,12 +13,13 @@ joc-submission.tex: $(TEX_SOURCES) flatten_manuscript.py
 figures/confirmation-cut.pdf: figures/confirmation-cut.tex figures/confirmation-cut.tikz
 	mkdir -p $(BUILD)/figures
 	cd figures && latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=../$(BUILD)/figures confirmation-cut.tex
-	$(PYTHON) "$(CURDIR)/check_build.py" --logs "$(CURDIR)/$(BUILD)/figures/confirmation-cut.log"
+	$(PYTHON) "$(CURDIR)/check_build.py" --check-log confirmation-cut.log < "$(BUILD)/figures/confirmation-cut.log"
 	cp $(BUILD)/figures/confirmation-cut.pdf $@
 
 continuity.pdf: joc-submission.tex $(SOURCES) figures/confirmation-cut.pdf
 	latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=$(BUILD) joc-submission.tex
-	$(PYTHON) "$(CURDIR)/check_build.py" --logs "$(CURDIR)/$(BUILD)/joc-submission.log" "$(CURDIR)/$(BUILD)/joc-submission.blg"
+	$(PYTHON) "$(CURDIR)/check_build.py" --check-log joc-submission.log < "$(BUILD)/joc-submission.log"
+	$(PYTHON) "$(CURDIR)/check_build.py" --check-log joc-submission.blg < "$(BUILD)/joc-submission.blg"
 	cp $(BUILD)/joc-submission.pdf $@
 
 check: continuity.pdf
@@ -36,7 +37,7 @@ check: continuity.pdf
 	$(PYTHON) "$(CURDIR)/artifacts/matched-comparison/check_input_controls.py"
 	$(PYTHON) "$(CURDIR)/artifacts/matched-comparison/test_audit_input_boundaries.py"
 	$(PYTHON) "$(CURDIR)/artifacts/retry-readiness/analyze_retry.py" --check
-	$(PYTHON) "$(CURDIR)/check_build.py" $(if $(REVIEWED_PDF),--reference-pdf "$(abspath $(REVIEWED_PDF))")
+	$(PYTHON) "$(CURDIR)/check_build.py" $(if $(REVIEWED_PDF),--reference-stdin < "$(REVIEWED_PDF)")
 
 source: check
 	$(PYTHON) "$(CURDIR)/export_submission.py" --output "$(CURDIR)/$(BUILD)/joc-source.zip"

@@ -87,7 +87,9 @@ jobs:
       - name: Verify the exported manuscript source
         run: |
           sh artifact/python-run.sh paper/continuity/artifacts/bootstrap/verify_source_export.py --archive paper/continuity/build/joc-source.zip --reading-copy paper/continuity/continuity.pdf --work-directory paper/continuity/build/source-export --output paper/continuity/build/source-export-check.json
-          sh artifact/python-run.sh paper/continuity/check_build.py --logs paper/continuity/build/source-export/joc-submission.log paper/continuity/build/source-export/joc-submission.blg
+          for log in joc-submission.log joc-submission.blg; do
+            sh artifact/python-run.sh paper/continuity/check_build.py --check-log "$log" < "paper/continuity/build/source-export/$log"
+          done
       - name: Upload manuscript and source
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
