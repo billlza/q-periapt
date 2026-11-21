@@ -44,7 +44,7 @@ The recorded run used macOS arm64 and Rust 1.98.1. Of the 24 exact native test e
 
 The hosted persistence study checks the retained model and both public archives, then rebuilds the reference and the prototype on Ubuntu and runs the native cases in Debug and Release. Each completed run publishes its own observations and results. The public development diagnostics use `<home>` for the workstation's home directory in two early build logs. [Hosted workflow](../../../.github/workflows/continuity-persistence-study.yml)
 
-From the repository root, the first command below verifies the included public data. To repeat the native experiment, use a fresh work path and output path, the repository's selected CPython and a Rust 1.98.1 installation with the locked dependencies cached. The source archive, build products and private fixtures belong to the isolated work area. The public archive contains observations, case logs, binary digests, source identity and the toolchain record.
+From the repository root, the first command below verifies the included public data. To repeat the native experiment, use a fresh work path and output path, the repository's selected CPython and a Rust 1.98.1 installation with the locked dependencies cached. The source archive, build products and private fixtures belong to the isolated work area. The exporter reads 55 fixed public paths, checks the 24 log bindings, and validates the complete archive before creating its destination. The archive contains observations, case logs, binary digests, source identity and the toolchain record.
 
 ```sh
 study=research/continuity-persistence-030/stage4

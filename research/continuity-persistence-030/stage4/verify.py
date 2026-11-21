@@ -2,13 +2,19 @@
 
 import argparse
 import hashlib
+import io
 import json
 from pathlib import Path
 import re
+import runpy
 import zipfile
 
 HERE = Path(__file__).resolve().parent
 CASES = {"legacy-local": (4, 245), "candidate-local": (10, 0), "candidate-witness": (10, 0)}
+TEST_COUNTS = {"reference-debug": 4, "prototype-debug": 10, "prototype-release": 10}
+TEST_LOGS = [(mode, f"{mode}/test-{index:02}.log")
+             for mode, count in TEST_COUNTS.items() for index in range(count)]
+MAX_MEMBER = 16 * 1024 * 1024
 
 
 def require(ok, message):
@@ -45,10 +51,25 @@ def check_witness(data):
     return receipts
 
 
-def verify(archive):
-    with zipfile.ZipFile(archive) as z:
-        filenames = z.namelist()
-        require(len(filenames) == len(set(filenames)) and z.testzip() is None, "corrupt or duplicate archive member")
+def public_names():
+    names = {"run.json", *(path for _, path in TEST_LOGS)}
+    for mode in ("prototype-debug", "prototype-release"):
+        for case in CASES:
+            fields = {"input-cut.txt", "recovered-response.bin"}
+            if case != "legacy-local":
+                fields.update(("before-ready.bin", "provider-bodies.bin", "selected-body.bin", "discarded-body.bin"))
+            if case == "candidate-witness":
+                fields.add("witness.txt")
+            names.update(f"{mode}/{case}/{field}" for field in fields)
+    return names
+
+
+def verify_bytes(data):
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        names = public_names()
+        require(len(z.infolist()) == len(names) and set(z.namelist()) == names, "public archive inventory differs")
+        require(all(item.file_size <= MAX_MEMBER for item in z.infolist()) and z.testzip() is None,
+                "oversized or corrupt public archive member")
         run = json.loads(z.read("run.json"))
         lock = json.loads((HERE / "source-lock.json").read_bytes())
         require(run["reference"] == lock["reference"] and run["rustflags"] == "-Dwarnings"
@@ -58,18 +79,18 @@ def verify(archive):
                 all(sha((HERE / "overlay" / p).read_bytes()) == h for p, h in lock["added"].items()),
                 "study overlay differs")
         tests = {}
-        for item in run["tests"]:
-            cfg = item["configuration"]
+        require(len(run["tests"]) == len(TEST_LOGS), "wrong test census")
+        for item, (cfg, log_path) in zip(run["tests"], TEST_LOGS, strict=True):
+            require((item["configuration"], item["log"]) == (cfg, log_path), "wrong test log binding")
             name = item["test"]
-            log = z.read(item["log"])
+            log = z.read(log_path)
             require(item["exit"] == 0 and item["log_sha256"] == sha(log) and name.encode() in log and
                     re.search(rb"test result: ok\. 1 passed; 0 failed; 0 ignored;", log), "exact run missing")
             require(item["executable"] in run["binaries"][cfg], "unknown test executable")
             group = tests.setdefault(cfg, {})
             require(name not in group, "duplicate test")
             group[name] = log
-        require({g: len(t) for g, t in tests.items()} ==
-                {"reference-debug": 4, "prototype-debug": 10, "prototype-release": 10}, "missing configurations")
+        require({g: len(t) for g, t in tests.items()} == TEST_COUNTS, "missing configurations")
         ref = b"\n".join(tests["reference-debug"].values())
         for cut in (b"rekey-key-reserved", b"rekey-response-kem-reserved"):
             require(b"cut=" + cut + b" confirmed_epoch=1 recovered_messages=6 directions=2 private_input=one_snapshot"
@@ -114,26 +135,26 @@ def verify(archive):
                     row["reconciled_advances"] = check_witness(z.read(prefix + "witness.txt"))
         return {"reference": run["reference"], "exact_test_executions": len(run["tests"]),
                 "original_workload_recovered_messages_per_reservation_cut": 6,
-                "profiles": profiles, "public_archive_sha256": sha(archive.read_bytes())}
+                "profiles": profiles, "public_archive_sha256": sha(data)}
+
+
+def verify(archive):
+    return verify_bytes(archive.read_bytes())
 
 
 def pack(folder, archive):
-    run = json.loads((folder / "run.json").read_bytes())
-    names = {"run.json", *(t["log"] for t in run["tests"])}
-    for mode in ("prototype-debug", "prototype-release"):
-        for case in CASES:
-            fields = {"input-cut.txt", "recovered-response.bin"}
-            if case != "legacy-local":
-                fields.update(("before-ready.bin", "provider-bodies.bin", "selected-body.bin", "discarded-body.bin"))
-            if case == "candidate-witness":
-                fields.add("witness.txt")
-            names.update(f"{mode}/{case}/{f}" for f in fields)
-    with zipfile.ZipFile(archive, "x", compression=zipfile.ZIP_DEFLATED) as z:
-        for name in sorted(names):
-            path = Path(name)
-            require(not path.is_absolute() and ".." not in path.parts and
-                    not (folder / path).is_symlink(), "unexpected public record path")
-            z.write(folder / path, name)
+    reader = runpy.run_path(str(HERE.parents[2] / "artifact/evidence_io.py"))["read_regular_snapshot"]
+    folder = folder.resolve(strict=True)
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        for name in sorted(public_names()):
+            member = reader(folder / name, maximum=MAX_MEMBER, label="stage-4 public record")
+            z.writestr(zipfile.ZipInfo(name), member.data, compress_type=zipfile.ZIP_DEFLATED)
+    data = buffer.getvalue()
+    result = verify_bytes(data)
+    with archive.open("xb") as destination:
+        destination.write(data)
+    return result
 
 
 if __name__ == "__main__":
@@ -141,6 +162,5 @@ if __name__ == "__main__":
     parser.add_argument("archive", type=Path)
     parser.add_argument("--pack", type=Path, help="collect completed runs and public observations into a new archive")
     args = parser.parse_args()
-    if args.pack:
-        pack(args.pack, args.archive)
-    print(json.dumps(verify(args.archive), indent=2, sort_keys=True))
+    result = pack(args.pack, args.archive) if args.pack else verify(args.archive)
+    print(json.dumps(result, indent=2, sort_keys=True))

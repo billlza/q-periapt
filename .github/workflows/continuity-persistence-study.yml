@@ -44,6 +44,7 @@ jobs:
           set -eu
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           study=research/continuity-persistence-030
+          sh artifact/python-run.sh "$study/stage4/test_public_archive.py" -v
           sh artifact/python-run.sh "$study/attempt_model.py" > "$RUNNER_TEMP/attempt-model.json"
           cmp "$study/evidence/attempt-model.json" "$RUNNER_TEMP/attempt-model.json"
           sh artifact/python-run.sh "$study/baseline_readback.py" "$study/evidence/baseline-public.zip" > "$RUNNER_TEMP/baseline.json"
