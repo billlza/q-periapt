@@ -651,6 +651,8 @@ jobs:
   # the compiler. (Placeholder: extend with gcc/clang FFI builds + differential KATs.)
   cross-compiler:
     runs-on: ubuntu-latest
+    env:
+      CARGO_BUILD_WARNINGS: deny
     strategy:
       matrix:
         toolchain: [stable, beta, nightly]
