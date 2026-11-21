@@ -1,0 +1,91 @@
+{
+  "output": {
+    "finite_candidate_violations": 0,
+    "negative_controls": {
+      "BARE_OUTPUT": {
+        "events": [
+          "compute A",
+          "observe volatile pair A",
+          "peer accepts A"
+        ],
+        "property": "peer accepted an undecided output"
+      },
+      "DECIDE_FROM_RAM": {
+        "events": [
+          "compute A",
+          "decide A",
+          "lose volatile state"
+        ],
+        "property": "decided output or successor unavailable after crash"
+      },
+      "HISTORICAL_AUTHORITY": {
+        "events": [
+          "compute A",
+          "observe volatile pair A",
+          "persist wire and successor A",
+          "decide A",
+          "revoke",
+          "obtain receipt A",
+          "peer accepts A"
+        ],
+        "property": "new acceptance after revocation"
+      },
+      "ONE_DECISION_PER_ATTEMPT": {
+        "events": [
+          "compute A",
+          "persist wire and successor A",
+          "compute B",
+          "decide A",
+          "persist wire and successor B",
+          "decide B"
+        ],
+        "property": "two decisions for one original slot"
+      },
+      "SHARED_RECEIPT_SIGNER": {
+        "events": [
+          "compute A",
+          "observe volatile pair A",
+          "issue receipt in exposed domain A",
+          "peer accepts A"
+        ],
+        "property": "peer accepted an undecided output"
+      },
+      "SLOT_ONLY_RECEIPT": {
+        "events": [
+          "compute A",
+          "observe volatile pair A",
+          "compute B",
+          "persist wire and successor B",
+          "decide B",
+          "obtain receipt B",
+          "peer accepts A"
+        ],
+        "property": "peer accepted an undecided output"
+      }
+    },
+    "reachable_states": 738,
+    "transitions_examined": 4275
+  },
+  "retry": {
+    "finite_candidate_violations": 0,
+    "negative_controls": {
+      "RETRY_ON_UNKNOWN": {
+        "events": [
+          "submit A, outcome unknown",
+          "start B on timeout"
+        ],
+        "property": "new attempt without negative resolution"
+      },
+      "UNFENCED_ABSENCE": {
+        "events": [
+          "submit A, outcome unknown",
+          "resolve absence",
+          "commit A, no reply"
+        ],
+        "property": "old request committed after negative resolution"
+      }
+    },
+    "reachable_states": 15,
+    "transitions_examined": 19
+  }
+}

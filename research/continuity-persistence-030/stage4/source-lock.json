@@ -1,0 +1,52 @@
+{
+  "added": {
+    "examples/stage4_kem.rs": "6fc6b1a67db985c6912afabd387b85dff8f8981c812153bdf16e53eb70d56578",
+    "src/durable/messages/rekey/response/stage4.rs": "1ebe4db51d0b0bf97c0cb3352bfcb271fb86ebc525539f1ea19dec10f4e0f253",
+    "src/durable/messages/tests/stage4_matched.rs": "0f1cbd64c3b66dcad3c59c388dc89f4b3fae61e0c07f8b6a1aa51dae326f59b3",
+    "tests/owned_connection/stage4.rs": "86eae72580c6f16bcc31baa793b135469377db6355e877717025af9d7f78a9e3",
+    "tests/owned_connection/stage4/witness.rs": "84cdd1f25d758aef98ea7d036a0fc4cd24f351bd76afe3e8ba79cf5820a8acef",
+    "tests/owned_connection/stage4/worker.rs": "389459b79fe59b0c325eec59b8f6f75d5b38668cd1f9ad3a93b829cac8b63d43"
+  },
+  "engine_lock_sha256": "e36336d120817bd9b8955f34a93c51cdd5f2ca1a1a3ba7183ae0e6261fa26d49",
+  "modified": {
+    "Cargo.toml": {
+      "baseline": "9bc73696980974a17cfdcb243292ee1148d7db34a4205cc496c861eff79b1fe8",
+      "prototype": "aed4010f2e6db2cf8ba5d098cd5c5c28dfdbb41883a282beba935cf01b2a6b07"
+    },
+    "src/anchor.rs": {
+      "baseline": "f7075af51796451d4796036241fab5ddd6b1068293b1fe4c2e3c7e2412df3e3b",
+      "prototype": "8598dac06b059c1ea50361b4c2bdfe9efc2ccbbad81f367b5e1fa8bd2cb7ba94"
+    },
+    "src/crypto.rs": {
+      "baseline": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4",
+      "prototype": "5c2e92cda34be80b9c57dfd0ddee342307d66391dd53694fa3e8be50baf2ce37"
+    },
+    "src/durable/messages.rs": {
+      "baseline": "3a8c16f24214fcd624ff5de77144a5b3ece9f0981cc2e4c80d4290685f894d82",
+      "prototype": "359c95a4e3ed6d99453270cb75b9d6170d6cae78b7359bbbed58d90e89b6f18b"
+    },
+    "src/durable/messages/rekey.rs": {
+      "baseline": "74f8b76dad4fc7f95a5cbaf47bc7cf51ef2231f18bc1f940e68793a050483a10",
+      "prototype": "201e210d03252eb990209fc0c4228f2516015d230df8d1fd45d38bbe3e016e4b"
+    },
+    "src/durable/messages/rekey/response.rs": {
+      "baseline": "e2c1dfe4122c9f2ae41101dfb7b392abcd801f09dd63b5f39e6722f3585cee59",
+      "prototype": "0cfc46559f6717169cc2da9f5f2d6735568b716b1b470a5ac561b494808109a4"
+    },
+    "src/durable/messages/tests.rs": {
+      "baseline": "3f1ef2cf7cdbb65262c3f7406aa8238d41a327b2789b2a96c95d3e8f4466ada5",
+      "prototype": "9d967c402f5b75542cb82da3097b76423b236a2722566d2bb98dbd7ce9455049"
+    },
+    "src/durable/write_intent.rs": {
+      "baseline": "502bbd9de26958575704edbd0207c6579c4a07e3b9ed4a57650f407f3fdb312d",
+      "prototype": "ed1d55562d22958c7b77942b0e3cb648f440eebc79f6b7bee66e400102bb2bd5"
+    },
+    "tests/owned_connection.rs": {
+      "baseline": "5d071f0183d2b4a5565774f9bc960c23a6a3e12c3c73706cdd0d521ab6b324b5",
+      "prototype": "9cc1b4ac783662895f5e55e432e77f74c5eefced78b6815cf7bd6bf801564ff3"
+    }
+  },
+  "patch_sha256": "1ba68e89f88c310696b6b3305df3153f8c053429f58aa13b1fefd640d9a31f57",
+  "reference": "f70fa0970d7cbe27718309b8da11e7db4288c0e7",
+  "release_crate_sha256": "fd51d1ef614b6143867e381cc7b7099081fd259d7ee5145083db0a4d9d9bc6c9"
+}

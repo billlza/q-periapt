@@ -1,0 +1,394 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -55,6 +55,8 @@
+ async-trait = "=0.1.92"
+ 
+ [features]
++# Isolated study only: capture the public signed wire before the Ready write.
++stage4-observation = []
+ # Explicit standard TLS carrier; no plaintext or classic-only fallback.
+ control-tls = ["dep:q-periapt-rustls"]
+ # Complete bootstrap and application delivery over the same standard TLS engine.
+--- a/src/anchor.rs
++++ b/src/anchor.rs
+@@ -1024,6 +1024,26 @@
+     pub fn identity(&self) -> AnchorIdentity {
+         self.identity
+     }
++    /// Study observer for a real request/reply after AnchorStore::handle succeeded.
++    #[cfg(feature = "stage4-observation")]
++    pub fn stage4_observe(
++        &self,
++        wire: &[u8],
++        reply: &[u8],
++    ) -> Result<(AnchorReply, [u8; 32]), Error> {
++        let inc = incoming(self, wire)?;
++        let request = AnchorRequest {
++            authority: self.binding,
++            subject: inc.subject,
++            operation: inc.operation,
++            command: inc.command,
++            attempt: inc.attempt,
++            wire: wire.to_vec(),
++            closed: AtomicBool::new(false),
++        };
++        Ok((self.verify_reply(&request, reply)?, inc.attempt))
++    }
++
+     /// Pinned public verification key; this does not expose signing material.
+     pub fn public_key(&self) -> &PublicKey {
+         &self.key
+--- a/src/crypto.rs
++++ b/src/crypto.rs
+@@ -307,6 +307,28 @@
+         message: &[u8],
+         randomness: &ZeroizingBytes<ML_DSA_65_SIGN_RAND_LEN>,
+     ) -> Result<Vec<u8>, Error> {
++        #[cfg(all(unix, feature = "stage4-observation"))]
++        if let Some(path) = std::env::var_os("QPERIAPT_STAGE4_PROVIDER") {
++            let encoded = message
++                .strip_prefix(SIGNATURE_CONTEXT)
++                .ok_or(Error::Encoding)?;
++            if let Some((&tag, frame)) = encoded.split_first() {
++                if tag == Purpose::RekeyResponse as u8 {
++                    use std::io::Write;
++                    let audit = std::fs::OpenOptions::new()
++                        .append(true)
++                        .open(path)
++                        .and_then(|mut file| {
++                            file.write_all(frame)?;
++                            file.sync_all()
++                        });
++                    if let Err(error) = audit {
++                        eprintln!("stage-4 provider observation failed: {error}");
++                        return Err(Error::Provider);
++                    }
++                }
++            }
++        }
+         let mut pq_signature = [0u8; ML_DSA_65_SIG_LEN];
+         let written = MlDsa65
+             .sign_ctx(
+--- a/src/durable/messages/rekey/response.rs
++++ b/src/durable/messages/rekey/response.rs
+@@ -1,6 +1,9 @@
+ // SPDX-License-Identifier: Apache-2.0 OR MIT
+ //! Exact responder contribution, pending final confirmation and epoch installation.
+ use super::*;
++
++#[cfg(unix)]
++mod stage4;
+ use hmac::{Hmac, Mac};
+ use q_periapt_sdk::{Ciphertext, CIPHERTEXT_LEN};
+ 
+@@ -22,10 +25,13 @@
+     SignatureReserved,
+     /// The exact signed response is durable and may be conditionally replayed.
+     Committed,
++    /// Experimental input-only response slot. No encapsulation coins have been reserved.
++    InputBound,
+ }
+ 
+ pub(super) enum Stage {
+     Encapsulation(SealedOperation),
++    InputBound,
+     Signing {
+         body: Vec<u8>,
+         root: ZeroizingBytes<32>,
+@@ -44,6 +50,7 @@
+     pub(super) fn phase(&self) -> u8 {
+         match self.stage {
+             Stage::Encapsulation(_) => 4,
++            Stage::InputBound => 10,
+             Stage::Signing { .. } => 5,
+             Stage::Ready { .. } => 6,
+         }
+@@ -51,6 +58,7 @@
+     fn status(&self) -> RekeyResponseStatus {
+         match self.stage {
+             Stage::Encapsulation(_) => RekeyResponseStatus::EncapsulationReserved,
++            Stage::InputBound => RekeyResponseStatus::InputBound,
+             Stage::Signing { .. } => RekeyResponseStatus::SignatureReserved,
+             Stage::Ready { .. } => RekeyResponseStatus::Committed,
+         }
+@@ -65,7 +73,7 @@
+         control.check_body(session, context, offer_body)?;
+         let prefix = prefix(control, session, context, &self.offer)?;
+         match &self.stage {
+-            Stage::Encapsulation(_) => Ok(()),
++            Stage::Encapsulation(_) | Stage::InputBound => Ok(()),
+             Stage::Signing { body, root, .. } => check_body(&prefix, body, root),
+             Stage::Ready { wire, root } => {
+                 let (body, _) = open_envelope(wire)?;
+@@ -77,6 +85,7 @@
+         bytes.extend_from_slice(&self.offer);
+         match &self.stage {
+             Stage::Encapsulation(token) => bytes.extend_from_slice(token.as_bytes()),
++            Stage::InputBound => {}
+             Stage::Signing {
+                 body,
+                 root,
+@@ -95,6 +104,7 @@
+     pub(super) fn decode(d: &mut Decoder<'_>, phase: u8) -> Result<Self, Error> {
+         let offer = d.take(WIRE_LEN)?.to_vec();
+         let stage = match phase {
++            10 => Stage::InputBound,
+             4 => Stage::Encapsulation(SealedOperation::from_bytes(d.take(TOKEN_LEN)?)?),
+             5 => Stage::Signing {
+                 body: d.take(RESPONSE_BODY_LEN)?.to_vec(),
+@@ -144,6 +154,39 @@
+         .map_err(|_| Error::Provider)?;
+     Ok(root)
+ }
++fn operation_scope(
++    image: &Image,
++    state: &State,
++    context: &BootstrapContext,
++    session: &[u8; 32],
++    offer: &[u8],
++) -> Result<[u8; 32], Error> {
++    Ok(hash(
++        b"response-operation",
++        &[
++            image.id.as_slice(),
++            &state.control.scope(&image.id, session, &context.digest())?,
++            &hash(b"offer-wire", offer),
++        ]
++        .concat(),
++    ))
++}
++
++fn contribution(
++    state: &State,
++    session: &[u8; 32],
++    context: &[u8; 32],
++    offer: &[u8],
++    ciphertext: &Ciphertext,
++    shared: &ZeroizingBytes<32>,
++) -> Result<(Vec<u8>, ZeroizingBytes<32>), Error> {
++    let mut body = prefix(&state.control, session, context, offer)?;
++    body.extend_from_slice(&ciphertext.to_bytes());
++    let root = derive_root(&state.rekey, shared, &body)?;
++    body.extend_from_slice(&confirmation(&root, &body)?.finalize().into_bytes());
++    Ok((body, root))
++}
++
+ fn confirmation(root: &ZeroizingBytes<32>, core: &[u8]) -> Result<Hmac<Sha256>, Error> {
+     let mut secret = ZeroizingBytes::<32>::zeroed();
+     Hkdf::<Sha256>::new(None, root.as_bytes())
+@@ -216,6 +259,9 @@
+             if saved.offer != offer {
+                 return Err(DurableError::Conflict);
+             }
++            if matches!(saved.stage, Stage::InputBound) {
++                return Err(DurableError::Suspended);
++            }
+             if let Stage::Ready { wire, .. } = &saved.stage {
+                 let (body, signature) = open_envelope(wire)?;
+                 if let Err(error) =
+@@ -235,17 +281,7 @@
+             return Err(Error::Scope.into());
+         }
+         state.admit_history_retirement()?;
+-        let scope = hash(
+-            b"response-operation",
+-            &[
+-                image.id.as_slice(),
+-                &state
+-                    .control
+-                    .scope(&image.id, &session, &context.digest())?,
+-                &hash(b"offer-wire", offer),
+-            ]
+-            .concat(),
+-        );
++        let scope = operation_scope(&image, &state, context, &session, offer)?;
+         let signing_scope = hash(b"response-sign", &scope);
+         if state.control.plan.is_none() {
+             let recovery = self.rekey_recovery_key()?;
+@@ -302,15 +338,14 @@
+                 Err(error) => return Err(Error::from(error).into()),
+             };
+             // End the mutable plan borrow before binding the immutable control.
+-            let mut body = prefix(&state.control, &session, &context.digest(), offer)?;
+-            body.extend_from_slice(&result.ciphertext.to_bytes());
+-            let root = derive_root(
+-                &state.rekey,
++            let (body, root) = contribution(
++                &state,
++                &session,
++                &context.digest(),
++                offer,
++                &result.ciphertext,
+                 &result.secret.export_for_protocol().map_err(Error::from)?,
+-                &body,
+             )?;
+-            let tag = confirmation(&root, &body)?.finalize().into_bytes();
+-            body.extend_from_slice(&tag);
+             #[cfg(all(test, unix))]
+             after_effect("rekey-response-kem-computed", &body);
+             let signing = SigningReservation::reserve(
+@@ -347,6 +382,8 @@
+             Err(error) => return Err(error.into()),
+         };
+         let wire = envelope(body, &signature)?;
++        #[cfg(all(unix, feature = "stage4-observation"))]
++        stage4::observe("QPERIAPT_STAGE4_SIGNED", "signed-wire", &wire)?;
+         #[cfg(all(test, unix))]
+         after_effect("rekey-response-signature-computed", &wire);
+         let Some(super::Plan::Response(Plan {
+--- a/src/durable/messages/rekey.rs
++++ b/src/durable/messages/rekey.rs
+@@ -7,6 +7,48 @@
+     expert::replay::{RecoveryKey, SealedOperation},
+     PublicKey, PUBLIC_KEY_LEN,
+ };
++#[cfg(all(unix, feature = "stage4-observation"))]
++pub(in crate::durable) fn study_input_records(
++    old: &Image,
++    new: &Image,
++    session: &[u8; 32],
++    offer: &[u8],
++) -> Result<(u8, usize), DurableError> {
++    let id = record_id(session);
++    let prior = old.records.get(&id).ok_or(DurableError::Absent)?;
++    let target = new.records.get(&id).ok_or(DurableError::Absent)?;
++    let before = State::decode(&prior.payload)?;
++    let mut after = State::decode(&target.payload)?;
++    if before.control.plan.is_some() {
++        return Err(DurableError::Conflict);
++    }
++    let mut control = Zeroizing::new(Vec::new());
++    after.control.encode(&mut *control);
++    let mut prefix = Zeroizing::new(Vec::new());
++    before.control.encode(&mut *prefix);
++    if prefix.pop() != Some(0) {
++        return Err(DurableError::Corrupt);
++    }
++    let suffix = control
++        .strip_prefix(prefix.as_slice())
++        .ok_or(DurableError::Corrupt)?;
++    let (phase, rest) = suffix.split_first().ok_or(DurableError::Corrupt)?;
++    let extra = rest.strip_prefix(offer).ok_or(DurableError::Corrupt)?;
++    match (*phase, extra.len()) {
++        (4, 245) => {
++            q_periapt_sdk::expert::replay::SealedOperation::from_bytes(extra)
++                .map_err(Error::from)?;
++        }
++        (10, 0) => (),
++        _ => return Err(DurableError::Corrupt),
++    }
++    after.control.plan = None;
++    if after.encode()?.as_slice() != prior.payload.as_slice() {
++        return Err(DurableError::Conflict);
++    }
++    Ok((*phase, extra.len()))
++}
++
+ mod completion;
+ mod driver;
+ mod request;
+@@ -265,7 +307,7 @@
+                     _ => return Err(Error::Encoding),
+                 })
+             }
+-            4..=6 => Some(Plan::Response(response::Plan::decode(d, phase)?)),
++            4..=6 | 10 => Some(Plan::Response(response::Plan::decode(d, phase)?)),
+             7..=9 => Some(Plan::Completing(completion::Plan::decode(d, phase)?)),
+             _ => return Err(Error::Encoding),
+         };
+--- a/src/durable/messages/tests.rs
++++ b/src/durable/messages/tests.rs
+@@ -20,6 +20,8 @@
+ mod renewal;
+ mod reservation_disclosure;
+ mod send_budget;
++#[cfg(all(unix, feature = "stage4-observation"))]
++mod stage4_matched;
+ #[cfg(any(feature = "connection-tls", feature = "control-tls"))]
+ mod tls_identity;
+ 
+@@ -635,6 +637,15 @@
+         .try_into()
+         .expect("width");
+     match operation.as_str() {
++        #[cfg(feature = "stage4-observation")]
++        "study-input" => {
++            journal.stage4_bind(
++                &f.responder,
++                session,
++                &fs::read(path.join("rekey-offer"))?,
++                150,
++            )?;
++        }
+         "session-reserved" => {
+             let message = journal.next_message_id(&f.responder, session, 150)?;
+             journal.send_message(
+--- a/src/durable/messages.rs
++++ b/src/durable/messages.rs
+@@ -5,6 +5,8 @@
+ use hkdf::Hkdf;
+ use sha2::Sha256;
+ 
++#[cfg(all(unix, feature = "stage4-observation"))]
++pub(super) use rekey::study_input_records;
+ mod acknowledgement;
+ mod closure;
+ pub use closure::{
+--- a/src/durable/write_intent.rs
++++ b/src/durable/write_intent.rs
+@@ -641,6 +641,42 @@
+ ) -> Result<(), DurableError> {
+     let pending = PendingWrite::new(active, image, target)?;
+     reserve(active, &pending)?;
++    #[cfg(all(unix, feature = "stage4-observation"))]
++    if let Some(dir) = std::env::var_os("QPERIAPT_STAGE4_INPUT_CUT") {
++        use std::io::Write;
++        let path = std::path::Path::new(&dir);
++        let (old, retained) = load_snapshot_with_client(
++            &active.db,
++            &active.key,
++            active.owner,
++            active.anchor_client(),
++        )?;
++        let retained = retained.ok_or(DurableError::Corrupt)?;
++        if retained.wire != pending.wire || retained.expected_digest != old.digest {
++            return Err(DurableError::Conflict);
++        }
++        let target = retained.authenticated_target(&active.key, active.owner)?;
++        let wrong_key = JournalKey(Box::new(ZeroizingBytes::from_bytes([0; 32])));
++        if !matches!(
++            retained.authenticated_target(&wrong_key, active.owner),
++            Err(DurableError::Authentication)
++        ) {
++            return Err(DurableError::Corrupt);
++        }
++        let session = std::fs::read(path.join("session"))?
++            .try_into()
++            .map_err(|_| DurableError::Corrupt)?;
++        let offer = std::fs::read(path.join("offer"))?;
++        let (phase, size) = messages::study_input_records(&old, &target, &session, &offer)?;
++        let mut log = std::fs::File::create_new(path.join("input.tmp"))?;
++        writeln!(log, "current_phase=0 pending_phase={phase} encapsulation_token_bytes={size} exact_offer=true normalized_prior_equal=true wrong_key_rejected=true")?;
++        log.sync_all()?;
++        drop(log);
++        std::fs::rename(path.join("input.tmp"), path.join("input-cut"))?;
++        loop {
++            std::thread::park();
++        }
++    }
+     #[cfg(all(test, unix))]
+     tests::after_intent(&pending, image);
+     reconcile(active, &pending).await
+--- a/tests/owned_connection.rs
++++ b/tests/owned_connection.rs
+@@ -26,6 +26,10 @@
+     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+ };
+ use zeroize::Zeroizing;
++
++#[cfg(all(unix, feature = "stage4-observation"))]
++#[path = "owned_connection/stage4.rs"]
++mod stage4;
+ 
+ #[path = "owned_connection/platform.rs"]
+ mod platform;

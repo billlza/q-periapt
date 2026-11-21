@@ -1,0 +1,82 @@
+name: Continuity persistence study
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - '.github/workflows/continuity-persistence-study.yml'
+      - 'research/continuity-persistence-030/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage4:
+    name: Stage 4 recovery and evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          sparse-checkout: |
+            artifact
+            crates
+            LICENSES
+            research/continuity-identity-candidate
+            research/continuity-persistence-030
+            research/sdk-alpha1/evidence/20261106-installed-throughput
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        id: python
+        with:
+          python-version: '3.14.7'
+          check-latest: false
+          update-environment: false
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: 1.98.1
+      - name: Verify the checked-in observations and model
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          study=research/continuity-persistence-030
+          sh artifact/python-run.sh "$study/attempt_model.py" > "$RUNNER_TEMP/attempt-model.json"
+          cmp "$study/evidence/attempt-model.json" "$RUNNER_TEMP/attempt-model.json"
+          sh artifact/python-run.sh "$study/baseline_readback.py" "$study/evidence/baseline-public.zip" > "$RUNNER_TEMP/baseline.json"
+          cmp "$study/evidence/baseline.json" "$RUNNER_TEMP/baseline.json"
+          sh artifact/python-run.sh "$study/stage4/verify.py" "$study/stage4/evidence/observations.zip" > "$RUNNER_TEMP/stage4-retained.json"
+          cmp "$study/stage4/evidence/RESULTS.json" "$RUNNER_TEMP/stage4-retained.json"
+      - name: Run the native reference, Debug and Release experiments
+        env:
+          QPERIAPT_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          set -eu
+          study=research/continuity-persistence-030/stage4
+          work="$RUNNER_TEMP/stage4-work"
+          output="$RUNNER_TEMP/stage4-run"
+          sh artifact/python-run.sh "$study/run.py" prepare "$work"
+          cargo +1.98.1 fetch --locked --manifest-path "$work/reference/research/continuity-identity-candidate/Cargo.toml"
+          sh artifact/python-run.sh "$study/run.py" run "$work" "$output"
+          sh artifact/python-run.sh "$study/verify.py" "$RUNNER_TEMP/stage4-public.zip" --pack "$output" > "$RUNNER_TEMP/stage4-results.json"
+      - name: Retain the verified public observations
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: continuity-stage4-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/stage4-public.zip
+            ${{ runner.temp }}/stage4-results.json
+      - name: Retain diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: continuity-stage4-diagnostics-${{ github.sha }}
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/stage4-run/failure.json
+            ${{ runner.temp }}/stage4-run/*/build-*.stderr
+            ${{ runner.temp }}/stage4-run/*/test-*.log

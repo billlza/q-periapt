@@ -1,0 +1,138 @@
+{
+  "altered_observations_rejected": 500,
+  "archive_sha256": "c4a9182e7811c5bee719ab10833fe66a400e63c32564bb9c56e6dfde7adc0286",
+  "cargo_lock_sha256": "1797c4db63bae69db6f9f7ae9256a1c6266322a3119fa26f52b1aaff52a5fecc",
+  "failed_or_timed_out_cohorts": 0,
+  "groups": {
+    "fanout-local": {
+      "ordinary_intervals": [
+        {
+          "deliveries": 24,
+          "ns": 4175292209,
+          "witness_bytes": 0,
+          "witness_exchanges": 0
+        },
+        {
+          "deliveries": 24,
+          "ns": 4124881708,
+          "witness_bytes": 0,
+          "witness_exchanges": 0
+        },
+        {
+          "deliveries": 24,
+          "ns": 4725667709,
+          "witness_bytes": 0,
+          "witness_exchanges": 0
+        },
+        {
+          "deliveries": 24,
+          "ns": 4492741041,
+          "witness_bytes": 0,
+          "witness_exchanges": 0
+        }
+      ],
+      "pooled_deliveries_s": 5.479895367382462
+    },
+    "fanout-witness": {
+      "ordinary_intervals": [
+        {
+          "deliveries": 24,
+          "ns": 8467704959,
+          "witness_bytes": 6709674,
+          "witness_exchanges": 914
+        },
+        {
+          "deliveries": 24,
+          "ns": 8481601000,
+          "witness_bytes": 6709674,
+          "witness_exchanges": 914
+        },
+        {
+          "deliveries": 24,
+          "ns": 8929832208,
+          "witness_bytes": 6709674,
+          "witness_exchanges": 914
+        },
+        {
+          "deliveries": 24,
+          "ns": 9140779041,
+          "witness_bytes": 6709674,
+          "witness_exchanges": 914
+        }
+      ],
+      "pooled_deliveries_s": 2.7412971718296815
+    },
+    "lifecycle-local": {
+      "epoch1_1024B_32B_AD": {
+        "max_ms": 203.736958,
+        "median_ms": 154.793396,
+        "n": 32
+      },
+      "ordinary_intervals": [
+        {
+          "deliveries": 48,
+          "ns": 7550001125,
+          "witness_bytes": 0,
+          "witness_exchanges": 0
+        },
+        {
+          "deliveries": 48,
+          "ns": 7859032208,
+          "witness_bytes": 0,
+          "witness_exchanges": 0
+        },
+        {
+          "deliveries": 48,
+          "ns": 8194229542,
+          "witness_bytes": 0,
+          "witness_exchanges": 0
+        },
+        {
+          "deliveries": 48,
+          "ns": 8529018375,
+          "witness_bytes": 0,
+          "witness_exchanges": 0
+        }
+      ],
+      "pooled_deliveries_s": 5.975299372807525
+    },
+    "lifecycle-witness": {
+      "epoch1_1024B_32B_AD": {
+        "max_ms": 332.218,
+        "median_ms": 284.6645625,
+        "n": 32
+      },
+      "ordinary_intervals": [
+        {
+          "deliveries": 48,
+          "ns": 14668656917,
+          "witness_bytes": 9124863,
+          "witness_exchanges": 1243
+        },
+        {
+          "deliveries": 48,
+          "ns": 14204645500,
+          "witness_bytes": 9124863,
+          "witness_exchanges": 1243
+        },
+        {
+          "deliveries": 48,
+          "ns": 14533398292,
+          "witness_bytes": 9124863,
+          "witness_exchanges": 1243
+        },
+        {
+          "deliveries": 48,
+          "ns": 15127691000,
+          "witness_bytes": 9124863,
+          "witness_exchanges": 1243
+        }
+      ],
+      "pooled_deliveries_s": 3.2801229225122177
+    }
+  },
+  "scope": "Published 0.2.0 serial macOS workload; four pilots excluded from timings.",
+  "successful_measured_cohorts": 16,
+  "successful_pilots": 4,
+  "verified_synthetic_effect_files": 750
+}
