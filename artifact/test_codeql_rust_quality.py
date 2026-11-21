@@ -1758,14 +1758,21 @@ class CodeQLRustQualityTests(unittest.TestCase):
         tracked = codeql_rust_quality.tracked_rust_paths()
         pinned = codeql_rust_quality.pinned_archive_sources()
         self.assertEqual(len(pinned), 68)
-        self.assertEqual(len(tracked - pinned.keys()), 1174)
-        self.assertEqual(len(tracked), 1242)
+        self.assertEqual(len(tracked - pinned.keys()), 1180)
+        self.assertEqual(len(tracked), 1248)
         umask_test = "services/q-periapt-policy-agent/tests/private_file_umask.rs"
         self.assertIn(umask_test, tracked)
         self.assertEqual(codeql_rust_quality.validate_archive_inventory(codeql_rust_quality.REPOSITORY_ROOT, tracked), frozenset(pinned))
         metrics = clean_metrics(len(tracked))
         codeql_rust_quality.validate_extraction_quality(tracked, tracked, metrics)
-        for relative in (*pinned, umask_test):
+        overlay = "research/continuity-persistence-030/stage4/overlay/"
+        study = {path for path in tracked if path.startswith(overlay)}
+        self.assertEqual({p.removeprefix(overlay) for p in study}, {
+            "examples/stage4_kem.rs", "src/durable/messages/rekey/response/stage4.rs",
+            "src/durable/messages/tests/stage4_matched.rs", "tests/owned_connection/stage4.rs",
+            "tests/owned_connection/stage4/witness.rs", "tests/owned_connection/stage4/worker.rs",
+        })
+        for relative in (*pinned, umask_test, *study):
             with self.subTest(snapshot=relative), self.assertRaisesRegex(
                 codeql_rust_quality.CodeQLRustQualityError, "successfully extracted path set differs"
             ):

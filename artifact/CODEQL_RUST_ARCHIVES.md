@@ -2,9 +2,9 @@
 
 The CodeQL source census at integration commit `0e2ca2d79ab0000bed79130cec97b31181e936ea` contains 1241 tracked Rust files: 1173 current sources and the 68 snapshots below. These snapshots preserve the implementation inputs assessed by the proof packets. They are partial source exports with no Cargo manifests, not additional compilation roots.
 
-The isolated `services/q-periapt-policy-agent/tests/private_file_umask.rs` integration test adds one current source. The live census is now 1242 tracked Rust files: 1174 current sources and the same 68 snapshots. Cargo includes the new test in its existing all-targets compilation.
+The isolated `services/q-periapt-policy-agent/tests/private_file_umask.rs` integration test adds one current source. Cargo includes it in the all-targets compilation. The stage-4 responder experiment adds six current sources in its study overlay. The live census contains 1248 tracked Rust files, including 1180 current sources and the same 68 snapshots. Native Linux and macOS require compiler depfiles for all six overlay paths in the pinned, patched engine.
 
-`codeql_rust_quality.py` pins the exact five `SOURCE_PINS.json` manifests. Each manifest binds every listed file by original path, byte length, SHA-256 and Git blob identity. Inventory admission checks those identities before extraction and again when publication validates current checkout bytes. The complete 1242-file extraction requirement and its zero-diagnostic/integrity checks remain in force.
+`codeql_rust_quality.py` pins the exact five `SOURCE_PINS.json` manifests. Each manifest binds every listed file by original path, byte length, SHA-256 and Git blob identity. Inventory admission checks those identities before extraction and again when publication validates current checkout bytes. The complete 1248-file extraction requirement and its zero-diagnostic/integrity checks remain in force.
 
 The raw macro census retains every snapshot entity and its unresolved state. Paired coverage reports their expanded and unresolved counts separately; only current source macros participate in executable target coverage. A snapshot cannot be admitted as a compiler input, cover an active-source failure, or supply the current-source macro sentinel.
 

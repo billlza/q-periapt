@@ -166,6 +166,18 @@ class RustPublicationTests(unittest.TestCase):
             self.assertEqual((output / (name + ".sarif")).read_bytes(),
                              (self.paths[name] / "results.sarif").read_bytes())
 
+    def test_native_publication_requires_compiler_evidence_for_each_tracked_study_module(self) -> None:
+        source = publication.stage4.OVERLAY / "src/probe.rs"
+        path = self.root / source
+        path.parent.mkdir(parents=True)
+        path.write_text("fn study() {}\n")
+        profile = self.read(self.paths["native"] / "PROFILE.json")
+        profile["source_sha256"][source.as_posix()] = self.digest(path)
+        self.rebind_profile("native", profile)
+        with mock.patch.object(quality, "tracked_rust_paths", return_value=frozenset(profile["source_sha256"])), \
+                self.assertRaisesRegex(ValueError, "compiler evidence omits a tracked stage-4 module"):
+            self.validate("native")
+
     def test_official_selection_reaches_all_profiles_and_binds_the_paired_manifest(self) -> None:
         self.official_analysis()
         with mock.patch.object(publication.plan, "validate_publication") as validator, \

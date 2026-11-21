@@ -53,6 +53,30 @@ class CompilerSourceTests(unittest.TestCase):
         with self.assertRaisesRegex(CodeQLRustQualityError, "depfile"):
             self.success()
 
+    def test_pinned_external_owner_still_requires_an_actual_matching_depfile_and_tracked_bytes(self) -> None:
+        owner = self.root.parent / "pinned-lib.rs"
+        owner.write_text("mod enabled;\n")
+        pinned = {owner: hashlib.sha256(owner.read_bytes()).hexdigest()}
+        self.artifact["target"]["src_path"] = str(owner)
+        self.depfile.write_text(f"out: {owner} src/enabled.rs\n")
+        events = self.events(self.artifact, {"reason": "build-finished", "success": True})
+
+        def collect(owners):
+            return collect_compiled_sources(self.root, self.cwd, events, self.tracked, external_crate_roots=owners)
+
+        self.assertEqual(set(collect(pinned)), {"crates/example/src/enabled.rs"})
+        with self.assertRaisesRegex(CodeQLRustQualityError, "nonempty compilation"):
+            collect({})
+        with self.assertRaisesRegex(CodeQLRustQualityError, "external compiler crate root changed"):
+            collect({owner: "0" * 64})
+        self.depfile.write_text("out: src/lib.rs src/enabled.rs\n")
+        with self.assertRaisesRegex(CodeQLRustQualityError, "bind the crate source"):
+            collect(pinned)
+        (self.cwd / "src/extra.rs").write_text("fn extra() {}\n")
+        self.depfile.write_text(f"out: {owner} src/extra.rs\n")
+        with self.assertRaisesRegex(CodeQLRustQualityError, "untracked Rust source"):
+            collect(pinned)
+
     def test_windows_dll_and_import_library_bind_the_same_crate_depfile(self) -> None:
         self.artifact["target"]["kind"] = ["rlib", "cdylib"]
         self.artifact["filenames"] = [str(self.target / name) for name in

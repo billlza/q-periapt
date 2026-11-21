@@ -64,7 +64,8 @@ def _depfile_candidates(filenames: list[str], kinds: list[str]) -> set[Path]:
 
 
 def collect_compiled_sources(
-    root: Path, cwd: Path, cargo_stdout: bytes, tracked_sha256: Mapping[str, str]
+    root: Path, cwd: Path, cargo_stdout: bytes, tracked_sha256: Mapping[str, str],
+    *, external_crate_roots: Mapping[Path, str] | None = None,
 ) -> dict[str, str]:
     root = root.resolve(strict=True)
     cwd = cwd.resolve(strict=True)
@@ -100,9 +101,13 @@ def collect_compiled_sources(
                 raise CodeQLRustQualityError("Cargo crate source must be absolute")
             crate_source = crate_source.resolve(strict=True)
             if not crate_source.is_relative_to(root):
-                continue
-            relative_crate = crate_source.relative_to(root).as_posix()
-            if relative_crate not in tracked_sha256:
+                # A pinned study crate may own modules in the tracked tree.
+                # Inspect its actual depfile only for an exact, bound crate root.
+                if external_crate_roots is None or crate_source not in external_crate_roots:
+                    continue
+                if _snapshot(crate_source, 5 * 1024**2, "external crate root").sha256 != external_crate_roots[crate_source]:
+                    raise CodeQLRustQualityError("external compiler crate root changed")
+            elif crate_source.relative_to(root).as_posix() not in tracked_sha256:
                 raise CodeQLRustQualityError("Cargo compiled an untracked crate source")
             workspace_artifacts += 1
             matches = []

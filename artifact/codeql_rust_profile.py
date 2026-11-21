@@ -15,6 +15,7 @@ import time
 
 from bounded_process import BoundedProcessError, TimeoutPolicy, capture_output
 import codeql_consumer_context as consumers
+import codeql_stage4_context as stage4
 from codeql_compiler_sources import collect_compiled_sources
 import codeql_rust_quality as quality
 import codeql_rust_plan as analysis_plan
@@ -160,6 +161,7 @@ def compiler_commands(root: Path, profile: str):
         ("workspace", root, ["check", "--workspace", "--all-targets", "--features",
                               "q-periapt-sdk/sealed-operations,q-periapt-cli/policy-store-migration"]),
         ("engine", root / consumers.CANDIDATE, ["check", "--all-targets", "--all-features"]),
+        ("stage4", root / stage4.OVERLAY, ["check", "--all-targets", "--all-features"]),
         ("independent-peer", root / "research/continuity-openssl-peer/native", ["check", "--all-targets", "--all-features"]),
         ("reference-account", root / "research/continuity-reference-app", ["check", "--all-targets", "--all-features"]),
         ("spqr", root / "research/continuity-spqr-reference", ["check", "--all-targets"]),
@@ -257,15 +259,17 @@ def collect_quality(run: ProfileRun, compiled: dict[str, str], source: dict[str,
     return metrics
 
 
-def extract_database(run: ProfileRun, database: Path) -> None:
+def extract_database(run: ProfileRun, database: Path, *, study_package: Path | None = None) -> None:
     # setup-codeql installs the CLI but does not create init's database parent.
     # Require a fresh owned parent; existing analysis state must not be reused.
     database.parent.mkdir(mode=0o700)
     # The pinned partial source packets have no Cargo manifests. Load their
     # bytes into rust-analyzer's file view while retaining their non-module
     # status; the complete source census and diagnostic gates still apply.
-    run.environment["CODEQL_EXTRACTOR_RUST_OPTION_EXTRA_INCLUDES"] = json.dumps(
-        [str(run.root / quality.ARCHIVE_ROOT)])
+    includes = [str(run.root / quality.ARCHIVE_ROOT)]
+    if study_package is not None:
+        includes.append(str(study_package))
+    run.environment["CODEQL_EXTRACTOR_RUST_OPTION_EXTRA_INCLUDES"] = json.dumps(includes)
     run.command("extract", [str(run.codeql), "database", "create", str(database),
                             "--language=rust", "--build-mode=none", "--source-root=" + str(run.root),
                             f"--threads={run.configuration.threads}", f"--ram={run.configuration.ram_mb}",
@@ -314,15 +318,18 @@ def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:
     for index, lock in enumerate(locks):
         manifest = (run.root / lock).with_name("Cargo.toml")
         run.command("fetch-" + str(index), ["cargo", "+" + COMPILER, "fetch", "--manifest-path", str(manifest), "--locked"])
+    study_package = stage4.materialize(run, COMPILER)
     run.environment["CARGO_NET_OFFLINE"] = "true"
     compiled = {}
-    with prepared_consumers(run):
+    with prepared_consumers(run), stage4.cargo_context(run.root, study_package) as external_roots:
         for label, cwd, options in compiler_commands(run.root, profile):
             argv = ["cargo", "+" + COMPILER, *options, "--target", TARGETS[profile],
                     "--locked", "--offline", "--message-format=json-render-diagnostics"]
             stdout = run.command("compile-" + label, argv, cwd=cwd)
-            compiled.update(collect_compiled_sources(run.root, cwd, stdout, source))
-        extract_database(run, run.configuration.database)
+            compiled.update(collect_compiled_sources(run.root, cwd, stdout, source,
+                            external_crate_roots=external_roots if label == "stage4" else None))
+        stage4.require_compiled(profile, source, compiled)
+        extract_database(run, run.configuration.database, study_package=study_package)
     sdk.require(all(sdk.snapshot(run.root / path).sha256 == digest for path, digest in lock_hashes.items()), "workspace lock changed")
     sdk.require(all(sdk.snapshot(run.root / path, maximum=5 * 1024**2).sha256 == digest for path, digest in source.items()), "analyzed Rust source changed")
     quality.require_clean_checkout(expected_commit)

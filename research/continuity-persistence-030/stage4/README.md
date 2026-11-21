@@ -4,6 +4,8 @@ The responder can lose its process after the real hybrid signature is readable a
 
 ## Scope and signing boundary
 
+The Rust CodeQL profiles load the tracked overlay through the pinned prototype Cargo package. On native Linux and macOS they check all six module paths and digests against rustc depfiles. The separate recovery workflow executes the reference, Debug and Release experiments with Rust 1.98.1 and publishes the independently readable observations.
+
 The native experiment is an opt-in overlay on `f70fa0970d7cbe27718309b8da11e7db4288c0e7`. The distributed 0.2.0 Cargo archive has SHA-256 `fd51d1ef614b6143867e381cc7b7099081fd259d7ee5145083db0a4d9d9bc6c9`. Eight reference paths, including the signer, Witness, journal, response and disclosure fixture, were compared byte for byte with that archive. The study keeps the original 0.2.0 entry point for the positive control and for legacy reservations. The candidate path binds its input explicitly. [Source lock](source-lock.json) · [Released package](https://github.com/billlza/q-periapt/releases/tag/abi2-platforms-v0.2.0)
 
 | Stage | Durable record and decision |

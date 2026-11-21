@@ -452,6 +452,8 @@ class RustProfileTests(unittest.TestCase):
                         (profile_module, "install_metadata_adapter", {}),
                         (profile_module, "run_git_bytes", {"return_value": "\n".join(locks).encode()}),
                         (profile_module, "prepared_consumers", {"side_effect": lambda _: contextlib.nullcontext()}),
+                        (profile_module.stage4, "materialize", {"return_value": root / "pinned-package"}),
+                        (profile_module.stage4, "cargo_context", {"return_value": contextlib.nullcontext({})}),
                         (profile_module, "collect_compiled_sources", {"return_value": source}),
                         (profile_module, "extract_database", {}),
                         (profile_module, "collect_quality", {"side_effect": check_quality}),
@@ -480,9 +482,10 @@ class RustProfileTests(unittest.TestCase):
         native = compiler_commands(root, "native")
         self.assertEqual(compiler_commands(root, "macos"), native)
         self.assertEqual({label for label, _cwd, _args in native},
-                         {"workspace", "engine", "independent-peer", "reference-account",
+                         {"workspace", "engine", "stage4", "independent-peer", "reference-account",
                           "spqr", "whole-kem", "continuity-c", "sdk-rust"})
-        for label, relative in (("independent-peer", "research/continuity-openssl-peer/native"),
+        for label, relative in (("stage4", str(profile_module.stage4.OVERLAY)),
+                                ("independent-peer", "research/continuity-openssl-peer/native"),
                                 ("reference-account", "research/continuity-reference-app")):
             self.assertIn((label, root / relative, ["check", "--all-targets", "--all-features"]), native)
             self.assertNotIn(label, {name for name, _cwd, _args in wasm})

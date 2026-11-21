@@ -260,7 +260,9 @@ jobs:
         timeout-minutes: 55
         env:
           CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
-        run: sh artifact/python-run.sh artifact/codeql_rust_profile.py prepare --profile "$RUST_PROFILE"
+        run: |
+          git fetch --no-tags --depth=1 origin f70fa0970d7cbe27718309b8da11e7db4288c0e7
+          sh artifact/python-run.sh artifact/codeql_rust_profile.py prepare --profile "$RUST_PROFILE"
       - name: Download the authenticated official query runtime
         timeout-minutes: 12
         run: |
@@ -380,7 +382,9 @@ jobs:
         timeout-minutes: 55
         env:
           CODEQL_BINARY: ${{ steps.rust_codeql.outputs.codeql-path }}
-        run: sh artifact/python-run.sh artifact/codeql_rust_profile.py prepare --profile "$RUST_PROFILE"
+        run: |
+          git fetch --no-tags --depth=1 origin f70fa0970d7cbe27718309b8da11e7db4288c0e7
+          sh artifact/python-run.sh artifact/codeql_rust_profile.py prepare --profile "$RUST_PROFILE"
       - name: Export the source-bound macOS database
         id: rust_export
         timeout-minutes: 15

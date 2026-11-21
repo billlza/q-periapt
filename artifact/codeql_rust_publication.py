@@ -8,6 +8,7 @@ import re
 
 import codeql_rust_plan as plan
 import codeql_rust_quality as quality
+import codeql_stage4_context as stage4
 from codeql_rust_profile import (COMPILER, QUERY_VERSION, ROOT, TARGETS, VERSION,
                                  profile_host, validate_sarif, validate_linux_query_memory)
 from codeql_rust_transfer import validate_transfer_record, validate_qualified_profile
@@ -113,6 +114,7 @@ def validate_profile_artifact(directory: Path, name: str, root: Path,
     sdk.require(isinstance(compiled, dict) and compiled and set(compiled) <= source.keys()
                 and all(source[path] == digest for path, digest in compiled.items()),
                 "compiler source identity differs")
+    stage4.require_compiled(name, source, compiled)
     expected_queries = {path.name: sdk.snapshot(path).sha256
                         for path in sorted((root / "artifact/codeql-rust-quality").glob("*.ql"))}
     sdk.require(profile.get("quality_queries_sha256") == expected_queries
