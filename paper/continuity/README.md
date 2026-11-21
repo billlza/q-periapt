@@ -8,6 +8,14 @@ The repository maintains one manuscript on **`paper/joc-persistent-recovery`**. 
 
 ## Research structure
 
+The manuscript follows the random tape saved before a restart through the record model and the proof for a send selected online. The evaluation reports how many messages were delivered alongside how many keys the predictor reconstructed. The [reading-copy review](artifacts/editorial-review/manuscript-narrative/validation.json) identifies the corresponding pages and links the formal-text comparison and independent source build.
+
+The [reservation and exposure checks](artifacts/editorial-review/reservations-counters-and-exposure/validation.json) identify which draw supplied the rekey, what the confirmed counters recorded, and how many keys the predictor recovered under each of the two compared schedules.
+
+The [recovery and service comparison](artifacts/editorial-review/recovery-claims-and-service/validation.json) ties the observed restart, the one-way suspension and the fixed-budget retry result to their respective claims. The [record history and message selection review](artifacts/editorial-review/record-history-and-selection/validation.json) follows a saved version from capture to readability, identifies the first computation of a marked step, and ties a delayed READY proof to its original activation. It also checks the retry clock against the recorded driver and results.
+
+The [exposition review](artifacts/editorial-review/recovery-exposition/validation.json) follows the opening crash through the message theorem and the stored-record calculation. The abstract also gives the alternating-schedule result at a fixed send budget. The [source comparison](artifacts/editorial-review/recovery-exposition/source-preservation.json) records the exact formal statements, proofs, displays and tables used in this reading copy.
+
 The paper models original randomness reservations and the acquisition of their persistent representations. Alias normalization preserves the original operations, and the guarded-path characterization identifies the combined effect of captured ciphertexts and disclosed keys. Native separating executions and the retained multi-epoch symbolic theorem give concrete recovery statements for that model.
 
 The computational development constructs private-record and dependent-report simulations, connects them through candidate-local accounting, and carries a recovered contribution through root initialization, confirmation, traffic derivation and a selected first message. The complete ContextBound tuple comparison and original-operation adapter connect the actual ML-KEM component game to this continuation. The next-rekey source induction supplies one concrete native instance. The [ordinary KEM bridge](artifacts/kem-game-bridge/README.md) now instantiates the operational component advantage with ordinary IND-CCA security. It preserves real prechallenge decapsulation and adds the explicit challenge-intersection cost; its K-PKE message-recovery failure term remains distinct from the existing KEM shared-key correctness term.
@@ -106,6 +114,12 @@ normal/optimized Python comparisons and source-tampering controls.
 The build expands the modules into **`joc-submission.tex`**, compiles that source and copies its PDF to `continuity.pdf`. `flatten_manifest.json` binds the generated source to its modules. `make check` verifies references, citations, overflow, author/contact metadata, the four bootstrap source packets and the retained research checks. `make source` produces `build/joc-source.zip` with the single-file entry and its dependencies. Manuscript CI also compiles the exported package in a clean directory and compares its complete plain and layout text with the reading copy; separate receipts retain the bootstrap and source-export results.
 
 The [update workflow](notes/WORKFLOW.md) maintains stable manuscript names, complete proof records and a connected academic narrative. The manuscript CI compiles the actual PR head, runs the retained finite-record and ContextBound checks, and uploads the PDF, source package and verification receipts.
+
+The build checks the final TeX and BibTeX logs once references have settled. Compiler warnings, missing glyphs and underfull or overfull boxes fail the build. CI applies the same checks to the figure and the independently compiled submission package. The [typesetting review](artifacts/editorial-review/strict-typesetting/validation.json) records the bookmark hierarchy, table contents and comparison with the preceding reading copy.
+
+The preamble loads the mathematical glyph mappings supplied by the LaTeX base or, on older TeX Live installations, by the `pdfx` support files. CI extracts text from the committed reading copy and the rebuilt PDF and compares their Unicode mathematical symbol counts. The [glyph check](artifacts/editorial-review/pdf-math-encoding/validation.json) records the affected operators in the earlier Ubuntu artifact.
+
+For a separately reviewed PDF, pass `REVIEWED_PDF=/path/to/reviewed.pdf` to `make check`. The build passes its bytes to the verifier on standard input. The reported SHA-256 digest identifies the same bytes used for text extraction.
 
 CI and the repository commands above use the common isolated Python launcher. The Makefile supplies absolute script and output paths so that the launcher's repository-root working directory preserves the manuscript's build locations.
 

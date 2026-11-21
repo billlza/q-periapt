@@ -3,12 +3,13 @@
 
 \subsection{The multi-epoch symbolic theorem}
 
-The checked symbolic model includes inherited roots, alternating proposers,
-asymmetric confirmation, initial traffic, and unbounded epochs. Signing and
-wrapping keys may be shared across their modeled uses. Its \textsf{Cut} event
-exposes the selected wrapping keys; exposure of other epochs' entropy is
-represented separately. We state the main theorem in terms of its recorded
-events, preserving its original target and disclosure predicates.
+The native theorem follows one send after the next rekey. To ask about a
+message arbitrarily many epochs later, we turn to the symbolic model.
+Its peers inherit their roots, take turns proposing rekeys and can
+confirm at different times. The model includes initial traffic and
+allows signing and wrapping keys to be shared across their modeled
+uses. A \textsf{Cut} exposes the selected wrapping keys. A separate
+event discloses entropy from another epoch.
 
 Let $\tau$ be a trace of that model. Write
 $\mathsf{SessionKeys}(s,a,b)$ for the actual identity keys associated with session
@@ -46,18 +47,16 @@ when a sibling write carries it into a later aggregate image.
 
 \subsection{Executability and the freshness boundary}
 
-A finite two-round construction exercises the operational rules with an exposed
-ancestor root and satisfies the complete original positive existential formula.
-A separate source-derived evaluator checks its rule instances and global
-quantifiers. This provides a concrete execution for the modeled recovery
-premises.
+Can an execution satisfy all those conditions once an ancestor root has
+been exposed? Our two-round execution does. A separate evaluator derived
+from the model source checks each rule instance and the global quantifiers
+of the original positive existential formula.
 
 The delayed-receipt construction instead contains a pre-Cut epoch-two
 generation reservation and a post-Cut encapsulation. It derives the target
 payload while satisfying the remaining main-theorem antecedents. Its point
 audit identifies $c<g$ as the sole false antecedent. Seven countertraces are
-rejected by the witness checker. Together, the positive and separating traces
-connect the recovery condition to executable schedules.
+rejected by the witness checker.
 
 \subsection{Native reservation disclosure}
 
@@ -75,13 +74,18 @@ authenticated control wires. Its prediction interface has no journal or
 filesystem input, and the experiment withholds signer files and future private
 owners. A wrong wrapping key is rejected.
 
-For each cut, both honest peers complete the rekey and reopen their journals.
-The driver then creates fresh 128-byte application payloads, sends three in each
-direction, and checks honest delivery. Independently reconstructed traffic
-owners authenticate and decrypt all six intercepted frames. The two cuts
-therefore yield twelve actual post-restart plaintext recoveries. The
-delayed-receipt extension repeats the six-message check at epoch two using one
-responder snapshot.
+At each cut both honest peers finished the rekey and reopened their
+journals. The driver then generated fresh 128-byte application
+payloads and checked delivery of three messages in each direction.
+Independently reconstructed traffic owners authenticated and decrypted
+all six intercepted frames. Across the two cuts we thus recovered
+twelve post-restart plaintexts.
+
+In the delayed-receipt run the two confirmed epochs at capture were
+zero and one. We decrypted six epoch-two messages using the captured
+responder state and the later public traffic. Each counter correctly
+reported the last epoch its endpoint had confirmed. The successful
+decryptions tell us which later traffic the capture exposed.
 
 \begin{proposition}[Execution-time and counter-based separation]
 \label{prop:counter-separation}
@@ -110,12 +114,8 @@ messages in each build profile. The new global revision and outer encryption
 nonce coexist with the old target reservation. This execution instantiates the
 alias/provenance distinction in the record model.
 
-The positive symbolic execution establishes joint satisfiability of the
-modeled recovery premises, and the delayed-receipt witness identifies the
-reservation-order condition on which its secrecy conclusion depends. The
-native reconstructions bind that distinction to retained tapes and process
-recovery; the aggregate execution shows how the same source survives a new
-physical image. Section~\ref{sec:evaluation} follows these histories into
-record-readability checks and measured application exposure, service and
-communication work.
-
+For the target session, the sibling write left us with another copy of the
+same reservation. We therefore count the target source once even though it
+appears in two images. Section~\ref{sec:evaluation} checks this accounting
+on finite record histories and measures what the endpoints delivered after
+capture.

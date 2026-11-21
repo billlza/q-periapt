@@ -34,12 +34,13 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE"
           mkdir -p paper/continuity/build
           git rev-parse HEAD > paper/continuity/build/source-commit.txt
+          cp paper/continuity/continuity.pdf paper/continuity/build/reviewed.pdf
       - name: Install LaTeX and PDF tools
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y latexmk texlive-latex-extra texlive-fonts-recommended texlive-science lmodern poppler-utils
       - name: Compile and verify the manuscript
-        run: make -B -C paper/continuity check PYTHON="sh $GITHUB_WORKSPACE/artifact/python-run.sh"
+        run: make -B -C paper/continuity check REVIEWED_PDF=build/reviewed.pdf PYTHON="sh $GITHUB_WORKSPACE/artifact/python-run.sh"
       - name: Exercise the retained finite-record model
         run: |
           mkdir -p paper/continuity/build/finite-model
@@ -84,7 +85,11 @@ jobs:
       - name: Package the single-file source
         run: sh artifact/python-run.sh paper/continuity/export_submission.py --output paper/continuity/build/joc-source.zip
       - name: Verify the exported manuscript source
-        run: sh artifact/python-run.sh paper/continuity/artifacts/bootstrap/verify_source_export.py --archive paper/continuity/build/joc-source.zip --reading-copy paper/continuity/continuity.pdf --work-directory paper/continuity/build/source-export --output paper/continuity/build/source-export-check.json
+        run: |
+          sh artifact/python-run.sh paper/continuity/artifacts/bootstrap/verify_source_export.py --archive paper/continuity/build/joc-source.zip --reading-copy paper/continuity/continuity.pdf --work-directory paper/continuity/build/source-export --output paper/continuity/build/source-export-check.json
+          for log in joc-submission.log joc-submission.blg; do
+            sh artifact/python-run.sh paper/continuity/check_build.py --check-log "$log" < "paper/continuity/build/source-export/$log"
+          done
       - name: Upload manuscript and source
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -121,6 +126,9 @@ jobs:
           path: |
             paper/continuity/build/*.log
             paper/continuity/build/*.blg
+            paper/continuity/build/figures/confirmation-cut.log
+            paper/continuity/build/source-export/*.log
+            paper/continuity/build/source-export/*.blg
             paper/continuity/build/build-check.json
             paper/continuity/build/indexed-exposure.json
             paper/continuity/build/indexed-exposure-review.json

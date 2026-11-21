@@ -2,16 +2,16 @@
 \subsection{From an accepted ContextBound operation to the message continuation}
 \label{sec:contextbound-connection}
 
-We now discharge the ContextBound comparison left explicit in
-Section~\ref{sec:joint-continuation} for one concrete native profile.
-The protected component is ML-KEM-768 with a real-versus-uniform 32-byte
-shared-secret challenge. X25519 supplies its native output and rejection
-behavior. Write $H$ for the whole SHA3-256 random oracle and
-$h$ for the independent SHA-256 compression oracle of
-Section~\ref{sec:joint-continuation}. Both remain available throughout every
-comparison. All oracle-dependent preparation, including construction of an
-established starting state, is executed and counted as part of the complete
-reduction.
+The joint schedule needs a recovered contribution. In Continuity that
+value comes from the complete ContextBound tuple, while the component
+challenger supplies only a real or uniform 32-byte ML-KEM-768 shared
+secret. We must connect the two without changing what X25519 returns
+or rejects. Write $H$ for the whole SHA3-256 random oracle and $h$ for
+the independent SHA-256 compression oracle of
+Section~\ref{sec:joint-continuation}. Both are available in every
+comparison. The query budget includes all oracle-dependent preparation,
+including construction of the established starting state, and the
+entire continuation.
 
 \paragraph{Complete effective tuples.}
 For a byte string $x$, let
@@ -79,12 +79,13 @@ counted in $Q_H$. The comparison covers the unconditional experiment,
 including collisions and executions that end without acceptance.
 \end{proof}
 
-The cache key in this lemma cannot be replaced by an origin identifier.
-Two different original calls can have the same effective tuple: their real
-answers agree with probability one, whereas two independent per-origin
-ideal answers agree with probability $2^{-256}$. Conversely, dropping the
-other shared secret or any effective field could merge distinct real hash
-inputs. Provenance and hash consistency therefore require separate tables.
+Two original calls can supply the same effective tuple. Hashing that
+tuple twice gives the same answer with certainty. Assigning independent
+ideal answers to the two calls would give agreement with probability
+only $2^{-256}$. Conversely, omitting the other shared secret or another
+effective field can merge distinct inputs. We therefore use the original
+call to track provenance and the complete tuple to cache the hash
+answer.
 
 \paragraph{Accepted original component calls.}
 Fix $j=(g,a)$ in the existing original-reservation ledger. The component

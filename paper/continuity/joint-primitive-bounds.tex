@@ -3,15 +3,16 @@
 \section{Shared-oracle primitives for the joint continuation}
 \label{app:joint-primitives}
 
-This appendix supplies the primitive reductions used in
-Section~\ref{sec:joint-continuation}. They use the same idealized SHA-256
-compression oracle throughout. Each experiment begins with independent
-oracle, hidden uniform 256-bit input and auxiliary state. All
-oracle-dependent preparation is executed within the counted algorithm.
-The designated hidden value is accessed through its stated interfaces.
-It and the private random tables remain internal throughout terminal testing.
-Ordinary public queries may be quantum; private function queries are
-classical and exact repeats are cached.
+The root, confirmation and traffic computations in
+Section~\ref{sec:joint-continuation} all use the same idealized SHA-256
+compression oracle. We keep that oracle throughout the comparisons
+below. At the start of each experiment the oracle, the uniform hidden
+256-bit input and the auxiliary state are mutually independent.
+Preparation that depends on the oracle forms part of the measured
+query budget. The hidden value and private random tables stay inside
+their stated interfaces through the terminal test. Public queries may
+be quantum. Private function calls are classical and reuse the answer
+to an exact repeat.
 
 We use $\Phi_{256}$ and $E_{\rm NMAC}$ from
 Appendix~\ref{app:primitive-inputs}, with

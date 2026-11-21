@@ -70,12 +70,10 @@ jobs:
         with:
           toolchain: 1.98.1
           components: clippy
-      - name: Install the scoped audit tool
-        run: cargo +1.98.1 install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/sdk-package-tools"
       - name: Produce and verify SDK archives from this checkout
         run: |
-          PATH="$RUNNER_TEMP/sdk-package-tools/bin:$PATH"
-          export PATH
+          export PATH="$RUNNER_TEMP/sdk-package-tools/bin:$PATH"
+          cargo +1.98.1 install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/sdk-package-tools"
           sh artifact/rust-publish-contract.sh --profile sdk-020 --output target/sdk-rust-package
       - name: Preserve SDK archives and producer evidence
         if: always()

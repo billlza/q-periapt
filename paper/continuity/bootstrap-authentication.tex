@@ -1,14 +1,15 @@
 \subsection{Bootstrap authentication from an original surviving source}
 \label{sec:bootstrap-authentication}
 
-The same origin model also applies before an established session exists.
-Bootstrap first combines an initiator encapsulation to the responder's
-prekeys into $S_0$, then combines the response encapsulation to the
-initiator's newly reserved reply key into $S_1$. Initial confirmation
-already uses $S_0$. The joint schedule subsequently incorporates both
-contributions, retains a pending root, and activates message state after
-Final. We connect this order to authentication of the responder's
-historical activation of the exact signed transcript.
+When the initiator accepts a bootstrap connection, what can it infer
+about the responder? The order in which the peers use the two secrets
+matters. The initiator first encapsulates to the responder's prekeys
+and uses the resulting $S_0$ for Initial confirmation. Only then does
+the responder encapsulate to the initiator's newly reserved reply key
+to obtain $S_1$. The joint schedule retains a pending root and activates
+message state after Final. We follow that order back from connection
+acceptance to the expected responder's earlier activation of the same
+signed transcript.
 
 \paragraph{Transcript and schedule.}
 Let $c=(\mathit{ctx},x,y)$ contain the admitted context and the complete
@@ -470,9 +471,11 @@ the matching historical activation. Later global recipe stops preserve the event
 observed on the earlier prefix.
 \end{proof}
 
-The conclusion follows the original transcript through restart and
-delayed delivery. Current local authority is checked at each connection
-return; the authenticated peer event is its matching earlier activation.
-The source-bound supplement records the exact schedule and durable-order
-pins, independent HMAC equations, short/long alias controls, late
-registration countermodels and both-endpoint acquisition accounting.
+A READY proof may arrive after the initiator restarts. The initiator
+checks its current local authority when it returns the connection.
+Under the theorem's conditions, the proof authenticates the expected
+responder's earlier durable activation of the same signed transcript.
+An exact replay of READY refers to that event. The supplement records
+the schedule and durable-order pins, independent HMAC equations,
+short/long alias controls, late registration countermodels and
+both-endpoint acquisition accounting.

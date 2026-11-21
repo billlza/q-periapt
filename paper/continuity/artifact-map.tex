@@ -1,14 +1,13 @@
 \section{Source and evidence map}
 \label{app:artifacts}
 
-The source snapshot for this manuscript's established protocol and experiment
-records is commit
-\texttt{228c944fc476e3e57d6c08063cacb19bca5b360e}
-of \href{https://github.com/billlza/q-periapt}{\texttt{billlza/q-periapt}}.
-Each retained execution keeps its original source and tool identity.
-The local record model and accounting proofs in this manuscript are mathematical
-arguments; the following entries identify the independently recorded
-mechanization and native observations.
+The repository \href{https://github.com/billlza/q-periapt}{\texttt{billlza/q-periapt}}
+contains the protocol snapshot used for the established runs at commit
+\path{228c944fc476e3e57d6c08063cacb19bca5b360e}.
+To trace a result back to its execution, use the source revision,
+toolchain and output recorded for that run. The table locates the
+mechanized certificate and the native observations. The record model
+and the accounting arguments are proved in the manuscript.
 
 \begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.25\linewidth}>{\raggedright\arraybackslash}p{0.69\linewidth}@{}}
 \toprule
@@ -81,12 +80,12 @@ it completed in 816.903 seconds. The output certificate was byte-identical to
 the retained input. Appendix~\ref{app:artifacts} gives its digest and archive
 member, making the theorem's exact formula and proof available for inspection.
 
-The complete inventory contains 40 queries: 27 verified and 13 incomplete.
-The latter comprise eleven multi-round existence queries and two historical
-all-trace queries outside the main theorem's dependency group. Two subsequent
-finite ground-trace constructions supply the concrete executions discussed
-below. Their independently checked formulas and original certificate inventory
-remain separately identifiable.
+Tamarin verified 27 of the 40 queries in the recorded inventory.
+Eleven multi-round existence queries and two historical all-trace
+queries remained incomplete. All thirteen lie outside the main
+theorem's dependency group. The two later ground-trace constructions
+provide concrete finite executions. Each has its own checked formula
+and evidence record.
 
 
 \subsection{Guarded-normalization supplement}
@@ -97,7 +96,7 @@ The complete manuscript extends the previously retained source at commit
 \end{center}
 under \path{paper/continuity}. The manuscript and its directly used evidence
 are maintained in the repository's
-\href{https://github.com/billlza/q-periapt/pull/194}{current manuscript PR}.
+\href{https://github.com/billlza/q-periapt/pull/194}{manuscript revision}.
 The filenames below are relative to \path{paper/continuity} in that distribution.
 
 The explicit normalization theorem and its proof are in
@@ -511,9 +510,9 @@ timing and classical component calls by a quantum adversary.
 The bootstrap supplement is retained in \path{artifacts/bootstrap/}.
 Its entry, terminal-schedule, original reply-source and original initial-source packets retain their
 complete proof notes, source identities, executable controls and original
-results. The source assessments are \texttt{b1cff2a0}, \texttt{360aa810}
-\texttt{68549dbc} and \texttt{471900bf}, respectively; full commit identities and Git-blob
-and SHA-256 checks are stored with the corresponding source snapshots.
+results. The four assessments use \texttt{b1cff2a0}, \texttt{360aa810},
+\texttt{68549dbc} and \texttt{471900bf}, respectively. Each source
+snapshot records the full commit identity, Git blob and SHA-256 checks.
 The manuscript integration separately binds the added ACK-row correspondence
 to \texttt{471900bf}. The mathematical statements appear in
 Sections~\ref{sec:bootstrap-authentication}

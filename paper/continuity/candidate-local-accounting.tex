@@ -2,11 +2,13 @@
 \subsection{Candidate-local simulation in the native experiment}
 \label{sec:candidate-local-accounting}
 
-A guessed origin pair can determine which records are opaque, which report
-rows are protected, and where the reduction stops.  We therefore localize
-the score in one native experiment before comparing its candidate-specific
-continuations.  This formulation preserves the original target eligibility
-and does not require the local real-component games to coincide.
+Which record can the reduction leave opaque? The answer depends on
+which two reservations supplied the accepted send. We begin in the
+native experiment and assign each eligible send with a unique usable
+pair to that pair. An ineligible run contributes zero. We account for
+eligible runs where attribution fails in the original game. We can
+then compare each candidate using the records, protected report rows
+and stopping rule appropriate to its own reservations.
 
 Let $\mathsf G_{\rm nat}$ be the full native experiment and
 $J=[G]\times[C]$ its fixed reservation-slot budget.  Write $E$ for original
@@ -65,10 +67,12 @@ exactly
 \[
        L_s\le c<\min\{\mathsf{res}(g),\mathsf{res}(a)\}.
 \]
-The remaining eligibility conditions retain their own tests.  This statistic
-uses original version times, not the enclosing image's latest sealing time.
-A batch-only key fragment or a public commitment supplies no intact-session
-witness merely because a report depends on that session.
+Once the interval is empty, the selector can no longer choose an
+eligible cut for this pair. Resealing the acquired version preserves
+its first-save time and hence $L_s$. A batch-only key fragment or a
+public commitment can depend on the target session without containing
+an intact version. Neither raises $L_s$ on that account. A cut inside
+the interval must also meet the remaining eligibility conditions.
 
 \paragraph{One native residual.}
 In the full native run let $B_I$ denote the charged event for its final

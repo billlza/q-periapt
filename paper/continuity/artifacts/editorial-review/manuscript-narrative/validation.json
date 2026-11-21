@@ -1,0 +1,141 @@
+{
+  "base_paper_commit": "a5779c6471afa1e8256216a88fedd753f5c4e087",
+  "scope": "Trace the opening restart through the storage model, the proof for a send selected online, the paired service measurements and the conclusion. Revise the exposition throughout the main text and appendices.",
+  "status": "passed",
+  "reading_copy_pages": {
+    "abstract": 1,
+    "selection_and_eligibility": 2,
+    "source_model": 8,
+    "computational_argument": 22,
+    "main_theorem": 68,
+    "substitutions": 69,
+    "symbolic_theorem": 87,
+    "one_way_denominator": 89,
+    "matched_protocols": 93,
+    "paired_retry_table": 97,
+    "conclusion": 100,
+    "evidence_appendix": 105
+  },
+  "checks": {
+    "manuscript": "make -C paper/continuity source with the repository Python runner",
+    "source_package": "verify_source_export.py compiled the exported nine-file package in a fresh directory and compared plain and layout-preserving PDF text.",
+    "retained_reference_analysis": "analyze_reference.py --check",
+    "make_source_checks": [
+      "chain-prefix finite controls",
+      "native online-chain controls",
+      "four bootstrap source packet checks",
+      "49 matched profile/schedule rows and directed input controls",
+      "28 native retry executions / 14 pairs retained analysis",
+      "indexed closure equivalence, histories, expected cases, input rejection and structural-work controls",
+      "independent typed-Horn least-model enumeration",
+      "manuscript build and source identity",
+      "nine-file single-source export"
+    ],
+    "finite_record_assignments": 5360,
+    "finite_history_prefixes": 2189,
+    "independent_horn_seed_sets": 2592,
+    "matched_configuration_schedule_pairs": 49,
+    "native_retry_executions_in_existing_data": 28,
+    "native_retry_pairs": 14,
+    "reference_snapshot_reanalysis": {
+      "status": "passed",
+      "source_files": 4,
+      "configuration_schedule_pairs": 35,
+      "validated_snapshot_cases": 420,
+      "selected_rows": 35,
+      "mode": "check"
+    }
+  },
+  "paired_result": {
+    "source": "artifacts/retry-readiness/analysis.json",
+    "sha256": "0f2deb41f94f561a265cf1ccb8a3951c77cfaa8090ddcdd03229fe8aa96ad5c3",
+    "schedule": "alternating",
+    "per_direction_budget": 32,
+    "observations": {
+      "immediate": {
+        "opportunities": 2048,
+        "committed": 688,
+        "delivered": 688,
+        "post_capture_committed": 687,
+        "derived_owner_A": 63,
+        "derived_owner_B": 63,
+        "application_frames": 688,
+        "retry_application_frames": 604,
+        "ack_frames": 676,
+        "control_frames": 80
+      },
+      "age4": {
+        "opportunities": 2048,
+        "committed": 971,
+        "delivered": 971,
+        "post_capture_committed": 970,
+        "derived_owner_A": 63,
+        "derived_owner_B": 63,
+        "application_frames": 971,
+        "retry_application_frames": 16,
+        "ack_frames": 941,
+        "control_frames": 120
+      }
+    }
+  },
+  "reading_copy": {
+    "pdf_sha256": "78b61abe01d127ebd4cca00a27b1873a41dc395e5c7420cf159223ab3c6b180f",
+    "pages": 122,
+    "abstract_words": 243,
+    "all_pages_rendered_and_reviewed_in_overview": 122,
+    "pages_examined_in_detail": [
+      1,
+      2,
+      4,
+      8,
+      22,
+      27,
+      42,
+      68,
+      69,
+      87,
+      89,
+      91,
+      92,
+      93,
+      96,
+      97,
+      98,
+      100,
+      105,
+      122
+    ],
+    "visual_review": "The abstract fits on page 1. The timing condition and equation reference read together on page 2. The main theorem and its substitution table are legible on pages 68 and 69. Table 14 on page 97 gives the retry comparison, and page 100 ties the two exposure counts to the completed deliveries before returning to the opening restart.",
+    "checked_pages": 122,
+    "in_page_pdf_word_boxes": 56394,
+    "unresolved_text_markers": 0,
+    "underfull_notices": {
+      "baseline": 137,
+      "revised": 135,
+      "new_kind_or_badness": {}
+    },
+    "bookmark_level_notices": {
+      "baseline": 33,
+      "revised": 33,
+      "new_messages": {}
+    }
+  },
+  "build_environment_note": "On macOS the initial audit input test compared the /var spelling of the system temporary directory to its resolved /private/var spelling. With TMPDIR set to its physical path, the same ten tests and the full repository manuscript target passed. The check code and its assertions retain their original bytes.",
+  "receipts": {
+    "build-check.json": {
+      "path": "artifacts/editorial-review/manuscript-narrative/build-check.json",
+      "sha256": "e30f243359fbe48f90d4b039dfce31005e4de1636e5bc11e836342e280f8c894"
+    },
+    "source-export-check.json": {
+      "path": "artifacts/editorial-review/manuscript-narrative/source-export-check.json",
+      "sha256": "f73c3b1ce12247679a40467bcadce7ff29c2202dec5086291f27cf098d83e14b"
+    },
+    "source-preservation.json": {
+      "path": "artifacts/editorial-review/manuscript-narrative/source-preservation.json",
+      "sha256": "edf74e05d303c5615c9db64e35e1de85109a6c9c78a4ee90d82e68264e72d1ad"
+    }
+  },
+  "new_protocol_experiments": false,
+  "new_mathematical_results": false,
+  "hosted_ci_run": false
+}

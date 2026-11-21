@@ -1,13 +1,14 @@
 \subsection{Initial-source authentication with adaptive reply families}
 \label{sec:bootstrap-initial-source}
 
-The first bootstrap contribution admits a complementary source connection.
-Its initial confirmation is computed before a Reply exists, while later
-Replies determine the second contribution and the long-Extract descriptor.
-The joint entry theorem preserves both uses. We first compare the complete
-service of one original source, then localize its resulting private table
-to the parent family of the selected registration. This order charges the
-source and entry comparisons once per original pair.
+Now suppose the Initial supplies the surviving secret. Before a Reply
+arrives, the initiator has already used that contribution for
+confirmation. Different replies can supply different second
+contributions and thus different inputs to the long Extract. We first
+compare the original source's complete service, including both uses,
+and only then restrict the private table to the parent family of the
+selected registration. In this order the source and entry comparisons
+are charged once per original pair, however many reply families arise.
 
 \paragraph{Initial-surviving profile.}
 Use Definition~\ref{def:bootstrap-online}, adding the authoritative

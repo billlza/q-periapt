@@ -2,13 +2,15 @@
 \subsection{An owned SDK purpose-key table}
 \label{sec:sdk-purpose-connection}
 
-The native SDK already derives several application keys from one combined
-secret. Its \texttt{SharedSecret::derive\_key} operation takes a purpose,
-protocol label and context, and returns a new \texttt{DerivedKey} owner.
-The same source owner supports repeated calls. The pinned source exercises
-all five purposes at both peers and checks their corresponding outputs and
-lifecycle behavior. This supplies a concrete application of the finite
-entry-table argument with the SDK's own information encoding.
+If two SDK callers request the same purpose key, what should agree?
+The key bytes agree for the same source and complete derivation inputs.
+Each successful call nevertheless returns its own \texttt{DerivedKey}
+owner, which can be closed separately. The native
+\texttt{SharedSecret::derive\_key} operation takes a purpose, protocol
+label and context and allows repeated calls on the source owner. The
+source checks cover all five purposes at both peers, including output
+agreement and owner lifetimes. We apply the finite entry-table
+argument to the SDK's actual information encoding.
 
 \begin{lemma}[Information-length form of the entry comparison]
 \label{lem:entry-information-length}
@@ -82,12 +84,13 @@ roles. The effective digest bytes determine their respective info fields.
 Fix a protected contribution family with common value $S$ and preserve the
 actual metadata of each source and derived owner. Represent a derived owner
 by $(\mathit{runtime},\mathit{live},I)$ and a reference to the common key
-entry $K_I$. Every accepted derivation creates a new owner; equal $I$ values
-reference the same entry. Closing one derived owner changes its own live
-flag. Closing a source owner changes its future derivation access; existing
-derived owners retain their stored key. Runtime closure makes later open checks fail. An admitted derivation or an
-export whose open check already succeeded follows its actual completion
-path. Previously exported copies remain available to their recipients.
+entry $K_I$. Every accepted derivation creates an owner, and equal $I$ values refer
+to the same key entry. Closing a derived owner changes its own live
+flag. Closing a source owner prevents subsequent derivation through
+that owner, while previously returned owners keep their keys. Once a
+runtime closes, later open checks fail. A derivation or export that
+already passed admission follows its actual completion path. Recipients
+keep any copies they have exported.
 
 These transitions follow directly from the source's separate
 \texttt{Option} fields, shared runtime state and admission checks. The inspected FFI derivation path additionally retains reservation,

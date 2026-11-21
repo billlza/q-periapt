@@ -1,0 +1,11 @@
+{
+  "base_paper_commit": "a97387c6ffb65d87642968554e89792739af29ae",
+  "canonical_modules": 40,
+  "changed_modules": [
+    "main.tex"
+  ],
+  "scope": "Only the Unicode-map preamble changed. The complete main document after that preamble and the other 39 input modules are byte-identical to the reviewed manuscript.",
+  "all_58_formal_blocks_53_proofs_170_displays_and_15_full_tables_byte_identical": true,
+  "prior_artifact_files_verified_against_git_blobs": 725,
+  "prior_artifact_tree_index_sha256": "36047150ab1f002fc54b141b774f913404fbf6baaf059d1832e72259b742ffec"
+}

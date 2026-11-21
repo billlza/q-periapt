@@ -1,0 +1,86 @@
+{
+  "base_paper_commit": "9ce25285856790663ee35109f5732929bac693df",
+  "integration_base_commit": "d54e6d0096584235737a9bf8d29119ffc96234fa",
+  "method": "Compare exact ordered TeX blocks per canonical module using comment-masked offsets. Hash each preserved sequence with an eight-byte big-endian length prefix per block. Compare the original artifact files with the Git blobs at the base paper commit.",
+  "canonical_modules": 40,
+  "changed_modules": [
+    "computational-roadmap.tex",
+    "construction.tex",
+    "discussion.tex",
+    "evaluation.tex",
+    "introduction.tex",
+    "main.tex",
+    "matched-opportunities.tex",
+    "related-work.tex"
+  ],
+  "changes": [
+    {
+      "file": "computational-roadmap.tex",
+      "before": "26533cacec6b94b4b6cf0b83778aa538e7ba0f690c2f6b42409524dd3464db76",
+      "after": "47a25156ef9662cce566298521df9c25bc1c1729161a85110fed6d3f452d4e97"
+    },
+    {
+      "file": "construction.tex",
+      "before": "8613314bfb5d15b417e1ea12a9ed8c949dbecbe28d2896b0f01f5276c2640a44",
+      "after": "8d7319298230b119846d9195db1fc1625ab3300aaeb9fc20779e7ea990a45020"
+    },
+    {
+      "file": "discussion.tex",
+      "before": "dfaa695269f67083043a1c7da176ff24c7c9343f842352587c8b8da757f1a25c",
+      "after": "856b195e02b61dd3366d17b6a034f8a80ce1cacb85824606a069935487c37097"
+    },
+    {
+      "file": "evaluation.tex",
+      "before": "62e27bda1ffb6f2be7ce68dcf96f586fd864742d9f0bd2abbba9ba510e953472",
+      "after": "970a48ef650e951feccdf07be64f5df6d9850fae9d83833f0587cb66074a2878"
+    },
+    {
+      "file": "introduction.tex",
+      "before": "4d79744628d36d87e5eb992dce3edc1808fd9ff5dad727865f389a460783fe19",
+      "after": "a7c0fb7bfeeba8b6f7c75992502a9b80e283dfacb487c08761227b83845528d4"
+    },
+    {
+      "file": "main.tex",
+      "before": "6cd59ec3cf8fce94a84579449686d088420a2836e2b86355b31b50631254bd3e",
+      "after": "de7c611b0c6a393f84c7144c8611259d1e7162caee193144927859d9df6e7128"
+    },
+    {
+      "file": "matched-opportunities.tex",
+      "before": "ae042652493acb5d0d8328071988867a8eae00e752e02d441eef4f14a800b437",
+      "after": "eef4a9c3ea5c5ea8f80ee7440302e27cdd32337374d6b781b501b0a173d0d40c"
+    },
+    {
+      "file": "related-work.tex",
+      "before": "79986b07fb2984f048337edb6c06abeb59cda5087fc227cc5bab3fb4a12b71c8",
+      "after": "f8135dc5465b5037d740fae7c3775c91f14b6fdc651c1539ebe14433c7584e58"
+    }
+  ],
+  "byte_identical_ordered_blocks": {
+    "formal": {
+      "count": 58,
+      "ordered_sha256": "6208d7d0d76f57ef1dd2529d06e7f001847d6c75d793193123085bdf4b1b4d26"
+    },
+    "proof": {
+      "count": 53,
+      "ordered_sha256": "2f2bf9c855135ce84d3ea580de81fb03a102aff551d3a1046102d312113d2300"
+    },
+    "display": {
+      "count": 170,
+      "ordered_sha256": "56088d48efa0e1a03632b1866826ceb58670653e75a5fca505a0bfa67ae23db3"
+    },
+    "labels": {
+      "count": 187,
+      "ordered_sha256": "b122cf69fabbaecca5a555bc2f27675bfb871aae9c518855bc5cd526035c8d22"
+    },
+    "tables": {
+      "count": 15,
+      "ordered_sha256": "012f74320ba08e674218a6165d1bf9fc27eb67c7d6c1d999fb7d5ecd18bbcf18"
+    }
+  },
+  "citation_keys": 35,
+  "cross_reference_keys": 148,
+  "original_artifact_files_checked": 701,
+  "original_artifact_git_blob_index_sha256": "3d06c917f39688fb96d95c377e27c83c8270848fdb731c704acdba4184537ee2",
+  "author_declarations_and_bibliography_unchanged": true,
+  "generated_tex_sha256": "50b0dee3a89cde5d256df61af1e0795f0151a3056ac242a92c86d1b631cb7017"
+}

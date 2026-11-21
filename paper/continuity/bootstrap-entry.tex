@@ -1,12 +1,13 @@
 \section{Joint entry from either bootstrap contribution}
 \label{app:bootstrap-entry}
 
-Bootstrap uses two 32-byte contributions, first $S_0$ and then $S_1$.
-The first also supplies initial confirmation before the second exists.
-This appendix gives the joint comparison needed when either contribution
-is the surviving hidden input. It uses the public compression oracle $h$,
-the HMAC notation $F$, and the pad maps $I,O,B,P,\Gamma$ of
-Appendix~\ref{app:joint-primitives}. Put
+Bootstrap first uses $S_0$ to confirm the Initial. When $S_1$
+becomes available, the same $S_0$ enters the joint schedule alongside
+it. Both contributions have 32 bytes. If $S_0$ survives, the comparison
+has to preserve both uses. If $S_1$ survives, the earlier confirmation
+has already used the available first contribution. We use the public
+compression oracle $h$, HMAC notation $F$ and pad maps $I,O,B,P,\Gamma$
+of Appendix~\ref{app:joint-primitives} for both cases. Put
 \[
  Q=\mathtt{80}\Vert0^{55}\Vert\operatorname{BE64}(1024).
 \]

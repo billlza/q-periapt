@@ -1,11 +1,11 @@
 \section{Primitive inputs to the record and report bounds}
 \label{app:primitive-inputs}
 
-The composition theorems use operational distinguishing bounds: a record
-commitment comparison and a single immutable report row. This appendix fixes
-the concrete parameter conventions. The public hash and compression oracles
-are idealized in the stated games; the source construction uses the specified
-SHA3 and HMAC-SHA256 algorithms.
+The record argument must reproduce a commitment to private bytes.
+The report argument must reproduce a tag for one immutable HMAC row.
+We give the distinguishing bounds and parameter conventions for each
+comparison here. The implementation uses SHA3 and HMAC-SHA256. The
+games specify which public hash and compression oracles are idealized.
 
 \subsection{Hidden-input random-oracle replacement}
 

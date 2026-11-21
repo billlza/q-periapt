@@ -1,16 +1,19 @@
 \subsection{An explicit renderer for private images and intents}
 \label{sec:opaque-rendering}
 
-The alias lemma preserves a renderer that can read every original payload.
-A component reduction additionally needs to execute record management when
-the selected KEM challenger supplies public outputs and a shared-secret
-challenge without supplying the selected random tape. We construct that
-record-management algorithm for a finite image/intent interface. Its tables
-contain immutable handles, known fields and locally sampled sealing coins.
-The protocol's public computations are supplied by a common functional
-interface $F$, instantiated by the original-operation adapter. This section
-holds $F$ fixed and isolates the image/intent contribution to the record
-connection in Proposition~\ref{prop:native-local-accounting}.
+If the protocol asks twice for the head digest of the same saved image,
+both answers must agree. In the alias lemma the renderer can look up
+the payload, render the image and hash its bytes. The KEM reduction
+faces a harder case. Its challenger gives it the public operation outputs and a
+shared-secret challenge, while the selected random tape stays private
+even when it occurs in a saved image.
+
+The reduction records a handle for each private object. It knows the
+public fields and samples the sealing coins itself. The original-operation
+adapter supplies the protocol's public computations through $F$. By
+holding $F$ fixed, we can ask exactly what it costs to reproduce the
+saved images and pending intents in
+Proposition~\ref{prop:native-local-accounting}.
 
 \paragraph{Typed record interface.}
 An opaque block is an immutable fixed-length private value, represented by a

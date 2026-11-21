@@ -3,11 +3,12 @@
 \subsection{Immutable report families and reverse-order composition}
 \label{sec:report-composition}
 
-A later cleanup report can authenticate an earlier report's private key and
-tag.  We compose the one-report HMAC replacement by creation order, retaining
-these dependencies.  The reduction below supplies a concrete algorithm for
-handling a selected unknown report key: later dependent rows are already ideal,
-and earlier immutable transcripts precede that key.
+A cleanup report can authenticate a key and a tag from an earlier
+report. Replacing the earlier tag alone would leave a later computation
+that still needs the private key. We therefore replace protected rows
+in reverse order of creation. By the time the reduction reaches a
+chosen key, it has already replaced the later dependent rows. The
+earlier transcripts were fixed before that key existed.
 
 \paragraph{Finite interface.}
 Fix a public budget $N$ for fresh report-key draws and index the actual draws
@@ -42,7 +43,7 @@ through a previously returned tag.  The flag uses origin references, not
 actual key equality or the primitive challenger's bit, and is recomputed in
 each comparison world's history.
 
-The following operations specify the interface.  Creation computes
+When the protocol creates a report, it computes
 $t_i=\operatorname{HMAC}_h(K_i,m_i)$ and retains the actual nonzero-ID check,
 encoding errors, and persistence outcomes.  Replay or validation names the
 original report and uses that same $m_i$; supplied identifiers can be compared
@@ -218,13 +219,14 @@ or independence of later target selection is used.
 \end{proof}
 
 \paragraph{Consequences for the record connection.}
-The residual is zero on a disclosure surface whose actual provenance already
-makes the original target permanently ineligible.  A batch-only report-key
-fragment requires its own mapping: it is not automatically a member-session
-capture.  This distinction is material.  Given a known transcript and its
-later disclosed key, recomputing HMAC distinguishes the real tag from an
-independent tag with difference $1-2^{-256}$.  This example does not assert
-that a native batch fragment also reveals its members' complete transcript.
+If a disclosure permanently rules out the original target, its
+residual is zero. A batch report can expose a key fragment without
+yielding an intact record from a member session, so we trace what the
+fragment actually contains. For example, if the transcript is known
+and its key is later disclosed, recomputing HMAC distinguishes the
+real tag from an independent one with difference $1-2^{-256}$.
+Applying this example to a native batch would require evidence that
+the transcript is available as well as the key.
 
 The report replacement precedes KEM embedding.  Afterwards every protected
 row needs only its original cached tag, and every unprotected recipe is free
