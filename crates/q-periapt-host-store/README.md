@@ -24,11 +24,11 @@ it returns `UpdateOwnerRequired`. Apply updates through `replace_policy()` so
 the signed image and trusted state commit before successor activation. Reopening
 preserves this separation, and store close/drop revokes every operational alias.
 
-See [the API sequence, storage assumptions and actual validation](../../docs/SDK_HOST_STORE.md).
+See [the API sequence, storage assumptions and actual validation](https://github.com/billlza/q-periapt/blob/main/docs/SDK_HOST_STORE.md).
 This is neither a cross-process authorization service nor a hardware rollback
 counter. Additive C ABI 2 functions and Swift's `QPeriaptPersistentRuntime` now
-share this implementation. Installed packages and Linux runtime qualification
-remain release gates.
+share this implementation. The [published 0.2.0 record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0)
+identifies the selected packages and their platform qualification.
 
 `filesystem::publish_private_bytes` publishes complete immutable key images on
 macOS/Linux/Android/iOS: private staging write, file sync, NOREPLACE rename, published-inode
@@ -38,7 +38,7 @@ and process crashes can leave unpublished private staging orphans; automatic sel
 sweeping and physical erasure are not provided. `filesystem::reclaim_private_publication`
 can explicitly reclaim one inactive, bound v2 payload under a whole-tree budget,
 with original-intent recovery and a retained exact result. Legacy/incomplete
-controls are refused. See the [maintenance contract](../../docs/PRIVATE_PUBLICATION_MAINTENANCE.md).
+controls are refused. See the [maintenance contract](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/PRIVATE_PUBLICATION_MAINTENANCE.md).
 Database provisioning reuses the same internal publication capability. This
 does not migrate old partial formal files.
 
@@ -67,6 +67,13 @@ The iOS path uses the existing Apple descriptor-ACL check and search-only access
 to intermediate sandbox directories. The final directory must still be readable,
 owned by the current user and exactly `0700`; private files remain `0600`.
 Callers supply the canonical app-owned path, without Foundation path abbreviation.
-The [initial physical iOS checkpoint](../../research/sdk-alpha1/evidence/20261012-ios-main-integrated/README.md)
+The [initial physical iOS checkpoint](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/research/sdk-alpha1/evidence/20261012-ios-main-integrated/README.md)
 covers identity creation and process reopening, including symlink and loose-mode
 refusals. It does not qualify every policy-recovery or Continuity lifecycle route.
+
+## Release and evidence
+
+- [0.2.0 Rust API](https://docs.rs/q-periapt-host-store/0.2.0/q_periapt_host_store/)
+- [Published 0.2.0 package and qualification record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0)
+- [Proofs, performance results and reproduction entry points](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+- [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)

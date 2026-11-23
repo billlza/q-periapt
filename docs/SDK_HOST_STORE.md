@@ -1,14 +1,20 @@
-# Host policy persistence (0.2.0 development)
+# Host policy persistence in 0.2.0
 
 `q-periapt-host-store::PolicyStore` supplies the SDK's persist-before-activate
 sequence on macOS/Linux. Rust, the C functions and Swift/Kotlin's
-`QPeriaptPersistentRuntime` share that implementation. Both peers in the local
-connection diagnostic recover persisted state before use. Installed packages
-and native Linux execution remain unfinished. **C ABI major stays 2; the SDK
+`QPeriaptPersistentRuntime` share that implementation. The crate is published as
+0.2.0, and the released native SDK has qualified Linux x86_64 and aarch64 package
+consumers. Both peers in the retained installed macOS-to-Linux connection
+checkpoint recover separate persisted state before use. The
+[release evidence](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0)
+and the checkpoints below identify the exact source, package and runtime scope.
+**C ABI major stays 2; the SDK
 table now has 51 exports**, including eight explicit policy-recovery helpers and
-entry points. Existing declarations/layouts remain unchanged. This crate is unpublished.
+entry points. Existing declarations/layouts remain unchanged. SDK C persistent-runtime
+entry points support macOS/Linux; the Rust storage and native Continuity platform
+scope is recorded separately in the [installation guide](SDK_GETTING_STARTED.md).
 
-The Windows candidate adds file-level private storage on local NTFS through the
+The Windows Rust host-store implementation adds file-level private storage on local NTFS through the
 same persist-before-activate sequence. It requires an absolute drive path and
 current-user ownership, with DACL grants restricted to that user or LocalSystem.
 Exclusive creation applies a protected DACL; admission never repairs permissions
@@ -200,9 +206,11 @@ image. This path does not erase exported keys or retained backups, authorize an
 expired Continuity credential, change a policy family, retire remote sessions,
 or establish post-compromise message confidentiality. Continuity's family is
 bound to its own policy signing key, and its renewal fixes family, signer and SDK
-binding. That migration, installed product qualification and
-independent security review remain release work; they must not be replaced with
-weaker comparisons or an implicit new installation.
+binding. Cross-family migration is outside this host-policy operation and must
+preserve Continuity's separate authorization contract. The released package's
+[installed qualification](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/qualification/installed_coverage.json)
+retains its declared execution scope; host-policy recovery does not substitute
+for protocol review or authorize an implicit new installation.
 
 ## C, Swift and Kotlin ownership
 
@@ -350,7 +358,23 @@ valid whole-disk/database snapshot is outside this local boundary and requires
 an external monotonic authority. No hardware power-loss qualification or
 production IPC authority is claimed.
 
-## Current evidence
+## Released 0.2.0 evidence
+
+The [verified publication cohort](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/publication/VERIFIED_COHORT.json)
+records all twelve published SDK crates, including `q-periapt-host-store`, and
+the public platform assets. The [selected CI qualification](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/qualification/ci.json)
+records successful native Linux x86_64/aarch64 package extraction and consumer
+execution. The [native package readbacks](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/evidence/catalogs/sdk-native.json)
+bind those archives to their original runtime jobs; the later readback itself
+does not rerun native consumers.
+
+The [installed macOS-to-Linux checkpoint](../research/sdk-alpha1/evidence/20261008-installed-macos-linux-connection/README.md)
+passes all twelve connection cases, including persisted revocation, restart
+rollback refusal and re-enabling. Its Linux peer runs in a native aarch64 VM
+on the same physical Mac. This establishes that observed OS boundary while
+retaining the checkpoint's separate source identities and physical-host scope.
+
+## Development checkpoints and retained test scope
 
 Thirteen host-store tests pass: six retained filesystem tests and seven new
 policy/store tests. They use real files and subprocesses for exclusive access,
@@ -388,9 +412,11 @@ state on both peers. Each peer explicitly provisions once and subsequently
 opens its existing store. The last three cases persist a signed revocation,
 reject an older configured policy after restart, then persist a newer
 re-enabling policy and complete fresh client connections. Executables and the
-loaded dylib are frozen and hashed. Native Linux execution remains open.
+loaded dylib are frozen and hashed. That earlier diagnostic used macOS peers;
+the subsequent installed macOS-to-Linux checkpoint above supplies native Linux
+execution with its own package and source identities.
 
-The current proof-input map adds the shared crate and the agent adapter, growing
+At that checkpoint, the proof-input map adds the shared crate and the agent adapter, growing
 from 249 to 254 inputs. The historical 0.1.5 results file is unchanged and is
 explicitly rejected as a current initial/installed baseline. No current source
 transition, proof, receipt or publication is inferred from the map update.
@@ -399,7 +425,7 @@ and [release-readiness ledger](SDK_0_2_RELEASE_READINESS.md).
 
 ## Storage dependency refresh
 
-The 0.2.0 candidate now uses redb 4.3.0 and requires Rust 1.90 or newer. New
+The 0.2.0 storage implementation uses redb 4.3.0 and requires Rust 1.90 or newer. New
 stores use redb file format v3. Existing redb 2.6 format-v2 files are refused
 with the underlying `UpgradeRequired(2)` error; opening never initializes an
 empty replacement or automatically migrates a protected store. Preserve the
@@ -415,7 +441,9 @@ This command does not migrate Continuity state or enroll recovery authority.
 The [standalone maintenance package](POLICY_MAINTENANCE.md) provides the same
 command without a Rust installation. Its native CI lanes build from the
 qualified SDK archives, retain the required notices, and execute the tool after
-archive extraction; candidate availability and release approval remain separate.
+archive extraction. The [0.2.0 package qualification](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/qualification/package_readback.json)
+and verified publication cohort retain the completed distribution evidence;
+minimum-OS execution and hardware power-loss behavior keep their separate scope.
 
 The [format-upgrade investigation](../research/sdk-alpha1/evidence/20261008-storage-format-upgrade/README.md)
 records successful interrupted policy-image conversions and continuous-lock

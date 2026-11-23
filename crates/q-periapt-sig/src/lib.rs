@@ -15,6 +15,12 @@
 //! `q-periapt-backends` behind cargo features; this crate defines the algorithm-agnostic
 //! trait surface that the policy layer and FFI build on. (RustCrypto `ml-dsa` appears only
 //! as a `[dev-dependencies]` differential cross-check, not as a shipped backend.)
+//!
+//! ## Guides and evidence
+//!
+//! - [Signature and backend guide](https://github.com/billlza/q-periapt/blob/main/crates/q-periapt-sig/README.md)
+//! - [Proofs, performance and release evidence](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+//! - [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)
 
 use q_periapt_core::Error;
 

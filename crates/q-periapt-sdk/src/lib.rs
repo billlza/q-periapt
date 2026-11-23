@@ -12,6 +12,12 @@
 //! cancellation of an outer task must not detach a native call from its owner.
 //! Runtime close revokes new operations. Already admitted operations may finish.
 //! Key close requires exclusive access, erases its storage, and returns its quota.
+//!
+//! ## Guides and evidence
+//!
+//! - [Owned SDK guide](https://github.com/billlza/q-periapt/blob/main/crates/q-periapt-sdk/README.md)
+//! - [Proofs, performance and release evidence](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+//! - [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)
 
 mod purpose;
 pub use purpose::{DerivedKey, KeyPurpose, MAX_PROTOCOL_LABEL_BYTES};

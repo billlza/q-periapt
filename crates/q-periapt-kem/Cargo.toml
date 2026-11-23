@@ -7,7 +7,8 @@ rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-readme = "../../README.md"
+documentation = "https://docs.rs/q-periapt-kem"
+readme = "README.md"
 
 [lints]
 workspace = true

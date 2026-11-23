@@ -13,6 +13,12 @@
 //!   recommends a PQ/T replacement + policy.
 //!
 //! Output is plain `serde_json` so it diffs cleanly and needs no derive.
+//!
+//! ## Guides and evidence
+//!
+//! - [CLI commands and maintenance](https://github.com/billlza/q-periapt/blob/main/crates/q-periapt-cli/README.md)
+//! - [Proofs, performance and release evidence](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+//! - [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)
 
 use q_periapt_backends::{
     MlDsa44, MlDsa65, MlDsa87, MlKem1024, MlKem512, MlKem768, Sha3_256Xof, X25519,

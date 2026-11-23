@@ -7,7 +7,14 @@
 //! the JS caller as `Uint8Array`, so no in-WASM entropy source is required and the
 //! operations stay deterministic / KAT-able.
 //!
-//! Build: `wasm-pack build crates/q-periapt-wasm --target web` (see `README.md`).
+//! Build from a repository checkout with
+//! `wasm-pack build crates/q-periapt-wasm --target web`; see the guide below.
+//!
+//! ## Guides and evidence
+//!
+//! - [Expert WASM guide](https://github.com/billlza/q-periapt/blob/main/crates/q-periapt-wasm/README.md)
+//! - [Proofs, performance and release evidence](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+//! - [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)
 
 #[cfg(feature = "signed-policy")]
 use q_periapt_backends::MlDsa65;

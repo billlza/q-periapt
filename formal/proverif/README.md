@@ -14,9 +14,11 @@ complements the EasyCrypt proof in [`../easycrypt`](../easycrypt), which establi
 This model is deliberately limited to the current four-flight demo handshake. It is
 not PQXDH, SPQR/Triple Ratchet, ML-KEM Braid, Sesame, PQ3, or a persistent session
 state machine, and it proves nothing about prekey consumption, multi-device
-convergence, crash consistency, rollback, or compromise-timed PQ healing. The
-future-only Continuity verification gates are in
-[`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md).
+convergence, crash consistency, rollback, or compromise-timed PQ healing.
+Released Continuity's separate [0.2.0 contract and completed analysis](../../docs/continuity/ADOPTION_0_2.md),
+[multi-epoch symbolic evidence](../../docs/continuity/RECOVERY_DEPENDENCIES_V1.md)
+and [computational manuscript](../../paper/continuity/README.md) identify its
+results and assumptions; they do not extend this demo-handshake model.
 The test-only lifecycle model under `models/` is not a ProVerif protocol model and
 does not extend any query in this directory.
 

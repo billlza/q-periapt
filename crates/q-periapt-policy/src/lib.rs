@@ -16,6 +16,12 @@
 //! (SLH-DSA for a long-term root) with fail-closed semantics. Plain TOML loading is
 //! [`Policy::from_toml`]. The signature covers the exact policy bytes, so there is
 //! no canonical-encoding ambiguity.
+//!
+//! ## Guides and evidence
+//!
+//! - [Policy update contract](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/SDK_POLICY_UPDATES.md)
+//! - [Proofs, performance and release evidence](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+//! - [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)
 
 use core::num::NonZeroU32;
 

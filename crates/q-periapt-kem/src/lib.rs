@@ -11,7 +11,7 @@
 //! This crate is generic over the two [`Kem`] backends and the [`Xof256`] used
 //! by the combiner, so the same logic runs against any compatible primitive
 //! implementation. Concrete release-graph backends are wired in
-//! `q-periapt-backends` and tracked in `docs/ROADMAP.md`; isolated research
+//! `q-periapt-backends` and the [dependency policy](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/SDK_DEPENDENCY_POLICY.md); isolated research
 //! candidates do not acquire a suite code or ABI merely by implementing [`Kem`].
 //!
 //! ## Safety invariant (`CompatXWing` backend guard)
@@ -21,6 +21,12 @@
 //! both independent capabilities: raw/imported-key or non-C2PRI first-slot KEMs
 //! are rejected with [`Error::PolicyDenied`]. Those components must use
 //! [`Profile::ContextBound`], which binds every ciphertext and public key.
+//!
+//! ## Guides and evidence
+//!
+//! - [Combiner specification](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/COMBINER_SPEC.md)
+//! - [Proofs, performance and release evidence](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+//! - [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)
 
 use core::marker::PhantomData;
 use q_periapt_core::{

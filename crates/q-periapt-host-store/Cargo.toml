@@ -1,12 +1,13 @@
 [package]
 name = "q-periapt-host-store"
 version.workspace = true
-description = "Private host policy persistence and runtime ownership for Q-Periapt"
+description = "Durable host policy persistence and runtime ownership for Q-Periapt"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
+documentation = "https://docs.rs/q-periapt-host-store"
 readme = "README.md"
 publish = ["crates-io"]
 

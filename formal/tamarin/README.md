@@ -8,11 +8,14 @@ in the computational model; Tamarin establishes the *protocol's* authentication 
 hybrid secrecy in the symbolic model.
 
 This is a **four-flight demo-handshake model**, not a model of PQXDH, Signal's
-SPQR/Triple Ratchet, ML-KEM Braid, Sesame, Apple PQ3, or the future Q-Periapt
-Continuity work. It has no identity directory, prekey lifecycle, persistent ratchet,
-multi-device state, crash/rollback behavior, or recovery. The future proof matrix is
-specified in [`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md);
-none of those claims may be inferred from the five lemmas below.
+SPQR/Triple Ratchet, ML-KEM Braid, Sesame, Apple PQ3, or Q-Periapt Continuity.
+It has no identity directory, prekey lifecycle, persistent ratchet,
+multi-device state, crash/rollback behavior, or recovery. Released Continuity's
+separate [0.2.0 contract and completed analysis](../../docs/continuity/ADOPTION_0_2.md),
+[multi-epoch symbolic evidence](../../docs/continuity/RECOVERY_DEPENDENCIES_V1.md)
+and [computational manuscript](../../paper/continuity/README.md) identify those
+results and their assumptions. They are not consequences of the five demo-handshake
+lemmas below.
 The separate `publish = false` lifecycle model exercises opaque persistence/effect
 ordering only; it is not imported into this Tamarin theory and proves no session
 authentication, FS, PCS, or rollback property.

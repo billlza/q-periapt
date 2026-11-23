@@ -1,16 +1,18 @@
 # Formal proof plan — ContextBound binding (EasyCrypt)
 
-This directory holds the proof that is the project's actual **mathematical**
-contribution. Per `docs/BINDING_SECURITY.md`, the defensible delta vs X-Wing is
+This directory holds the project's machine-checked **ContextBound binding**
+proof. Per `docs/BINDING_SECURITY.md`, the comparative claim vs X-Wing is
 **stronger proof coverage / minimal assumptions** (and the *mechanization
 itself*), **not** a stronger primitive. Read `BINDING_SECURITY.md` first; this
 file is the engineering plan for §4.
 
 This proof covers a combiner binding game only. It does not model identities,
 prekeys, replay, ratchets, FS/PCS, multi-device state, recovery, or persistence,
-and it is not a spec-to-Rust refinement. The future Q-Periapt Continuity work has
-separate protocol, storage, and implementation-linkage gates in
-[`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md).
+and it is not a spec-to-Rust refinement. Released Q-Periapt Continuity has its
+own [0.2.0 contract and completed analysis](../../docs/continuity/ADOPTION_0_2.md),
+[multi-epoch symbolic evidence](../../docs/continuity/RECOVERY_DEPENDENCIES_V1.md)
+and [computational manuscript](../../paper/continuity/README.md). Those results
+retain their own models and assumptions and do not enlarge this combiner game.
 The `publish = false` lifecycle model under `models/` is finite executable testing.
 Its separate [`continuity`](continuity) diagnostics prove only LP8 projection
 injectivity and explicit Lifecycle policy/direction plus named prekey-field omission

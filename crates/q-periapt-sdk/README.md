@@ -16,17 +16,17 @@ policy retains its trusted state while denying cryptographic operations.
 
 The returned `SharedSecret` is a non-cloneable owner. `export_for_protocol()` is
 an explicit copy into a zeroizing Rust buffer for a separately reviewed
-protocol. `derive_key` implements the specified [purpose-key schedule](../../docs/SDK_KEY_DERIVATION.md)
+protocol. `derive_key` implements the specified [purpose-key schedule](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/SDK_KEY_DERIVATION.md)
 without exporting the combined secret. Authentication, confirmation and a
 long-lived session protocol still belong to the integrating protocol.
 
-Professional plaintext key transfer is isolated in [`expert`](../../docs/SDK_KEY_TRANSFER.md).
+Professional plaintext key transfer is isolated in [`expert`](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/SDK_KEY_TRANSFER.md).
 The optional `sealed-operations` feature adds
-[exact KEM operation recovery](../../docs/SDK_SEALED_OPERATIONS.md). Platform-generated
+[exact KEM operation recovery](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/SDK_SEALED_OPERATIONS.md). Platform-generated
 coins are sealed to the policy, operation ID and complete inputs; a trusted durable
 service can replay the same operation after a crash. It is not a journal or permission
 to reuse ephemeral material for another connection. Default generation remains fresh.
-[`prepare_policy_update`](../../docs/SDK_POLICY_UPDATES.md) verifies a future policy;
+[`prepare_policy_update`](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/SDK_POLICY_UPDATES.md) verifies a future policy;
 the host atomically persists its state pair before activating it. Activation
 revokes old owners and returns an independent, possibly disabled runtime.
 
@@ -51,5 +51,13 @@ same-process code. Quotas bound live keys and in-flight KEM work, not process OO
 number of runtimes, host inputs or externally retained results. Policy parsing
 and initial owner allocations still use Rust's ordinary allocator.
 
-This crate is part of the 0.2.0 Rust package cohort. Its source and package
-qualification precede the release transaction. See [current readiness](../../docs/SDK_0_2_RELEASE_READINESS.md).
+This crate is part of the twelve-crate 0.2.0 Rust cohort published on
+17 November 2026. The [verified release record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0)
+identifies the published package bytes and their qualification evidence.
+
+## Release and evidence
+
+- [0.2.0 Rust API](https://docs.rs/q-periapt-sdk/0.2.0/q_periapt_sdk/)
+- [Published 0.2.0 package and qualification record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0)
+- [Proofs, performance results and reproduction entry points](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+- [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)

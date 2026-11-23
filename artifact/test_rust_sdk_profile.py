@@ -38,7 +38,7 @@ def browser_metadata():
     return value, package
 
 
-def archive(extra=(), *, trailing=b"", name="q-periapt-sdk", manifest=None):
+def archive(extra=(), *, trailing=b"", name="q-periapt-sdk", manifest=None, readme=b"fixture README"):
     if manifest is None:
         manifest = f'[package]\nname="{name}"\nversion="{sdk.VERSION}"\n'.encode()
     stream = io.BytesIO()
@@ -47,7 +47,7 @@ def archive(extra=(), *, trailing=b"", name="q-periapt-sdk", manifest=None):
             ("Cargo.toml", manifest, tarfile.REGTYPE),
             ("Cargo.toml.orig", b"fixture manifest", tarfile.REGTYPE),
             ("Cargo.lock", b"version = 4\n", tarfile.REGTYPE),
-            ("README.md", b"fixture README", tarfile.REGTYPE), *extra,
+            ("README.md", readme, tarfile.REGTYPE), *extra,
         ]:
             entry = tarfile.TarInfo(f"{name}-{sdk.VERSION}/{path}")
             entry.type = kind
@@ -165,6 +165,30 @@ class RustSDKProfileTests(unittest.TestCase):
             sdk.archive_files(archive(), "q-periapt-core")
         with self.assertRaisesRegex(ValueError, "source package list"):
             sdk.validate_archive(archive(), "q-periapt-sdk", {}, {"Cargo.toml"})
+
+    def test_new_archive_rejects_repository_relative_readme_link(self):
+        # This was shipped in the host-store README; docs/ is outside its crate.
+        data = archive(readme=b"[API and validation](../../docs/SDK_HOST_STORE.md)")
+        paths = {"Cargo.toml", "Cargo.toml.orig", "Cargo.lock", "README.md"}
+        with self.assertRaisesRegex(ValueError, "README references a file outside the package"):
+            sdk.validate_archive(data, "q-periapt-sdk", {}, paths)
+
+    def test_readme_allows_absolute_fragment_and_bundled_provenance_links(self):
+        text = b"""[API](https://docs.rs/q-periapt-core/0.2.0/q_periapt_core/)
+[Section](#security) [Provenance](vendor/PROVENANCE.md#source)
+[Maintainer](mailto:maintainer@example.org)
+[proof]: <https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md>
+```markdown
+[example only](../../outside.md)
+```
+"""
+        sdk.validate_readme_links(text, {"README.md", "vendor/PROVENANCE.md"})
+
+    def test_readme_rejects_missing_reference_image_and_encoded_parent_links(self):
+        for text in (b"[proof]: docs/BINDING_SECURITY.md", b"![figure](images/missing.png)",
+                     b"[API](%2e%2e/docs/SDK_HOST_STORE.md)", b"[API](/docs/SDK_HOST_STORE.md)"):
+            with self.subTest(text=text), self.assertRaisesRegex(ValueError, "outside the package"):
+                sdk.validate_readme_links(text, {"README.md"})
 
     def test_external_lock_identity_requires_exact_registry_and_checksums(self):
         good = ('version = 4\n[[package]]\nname = "dep"\nversion = "1.0.0"\n'

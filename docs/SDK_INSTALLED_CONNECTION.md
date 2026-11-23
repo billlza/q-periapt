@@ -13,6 +13,12 @@ native Linux peer in a local VM. Independent physical-host qualification remains
 open. The reference's wire and trust contract is described in
 [SDK_CONNECTION.md](SDK_CONNECTION.md).
 
+The SDK is published as 0.2.0. Its [selected CI qualification](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/qualification/ci.json)
+and [verified publication cohort](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/publication/VERIFIED_COHORT.json)
+record the released source and packages. The dated experiments below retain
+their original source identities; publication does not turn an earlier
+connection measurement into an execution of different package bytes.
+
 ## Package selection and build
 
 Select the complete Swift ZIP, its original XCFramework ZIP, and a completed
@@ -67,7 +73,8 @@ The standalone Rust manifest declares the imported examples' own dependencies,
 including the Unix `rustix` readiness API; a dependency's dev-dependencies are
 not inherited by this consumer. CI retains the package reports, build logs,
 link map and connection observations, excluding generated TLS test keys and
-policy databases. This wiring is separate from an observed hosted CI result.
+policy databases. The selected 0.2.0 hosted results are retained in the CI
+qualification above, separately from this producer's implementation contract.
 
 ## Runtime evidence
 
@@ -94,7 +101,7 @@ The same archive-built `standard_peer` can also run through
 That result covers standard TLS 1.3/X25519MLKEM768 authentication and rejection;
 it does not claim that OpenSSL implements the SDK's application-policy protocol.
 
-## Observed local candidate
+## 2026-09-26 installed macOS checkpoint
 
 The 2026-09-26 run completed all twelve installed-package cases on macOS ARM64.
 The same Rust executable passed eight independent OpenSSL 3.6.3 cases across both
@@ -109,8 +116,12 @@ unsigned Swift package is 19,628,601 bytes with SHA-256
 `09ca75158c4d9bb339617505d6e160fc48a6e7378e5e92ab9797cfa2d6124343`.
 The native ZIP is bound separately by SHA-256
 `cb30961c78c1bbb121a00e450cb95bff9e8e0bf361ebb9a828690c762ba9fab9`.
-Native Linux, current devices/minimum OS, hosted CI and performance/energy
-remain open in the [readiness ledger](SDK_0_2_RELEASE_READINESS.md).
+This September checkpoint did not execute native Linux or establish
+device/minimum-OS, hosted CI or performance/energy coverage. The October 8
+checkpoint below subsequently establishes the native Linux OS boundary, and
+the final 0.2.0 qualification records the selected hosted CI results. Physical
+hosts, device/minimum-OS and performance/energy claims retain their own evidence
+scope in the [readiness ledger](SDK_0_2_RELEASE_READINESS.md).
 
 The subsequent [loader-provenance checkpoint](../research/sdk-alpha1/evidence/20260926-installed-sdk-loader-provenance/manifest.json)
 corrects an overbroad path-substring check in the diagnostic harness. A retained
@@ -148,6 +159,6 @@ attempts precede the successful fresh run and remain in the checkpoint.
 This establishes execution across different OS kernels and filesystems using
 the same SDK implementation. It does not establish independent physical hosts,
 an independent application protocol implementation, minimum-OS/device execution,
-controlled latency/energy results or full Continuity/release readiness. The
+controlled latency/energy results or, by itself, full Continuity/release readiness. The
 main producer above still provides the same-host baseline; the isolated VM
 adapter is a retained experiment, not a general remote-host setup interface.

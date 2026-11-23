@@ -54,7 +54,9 @@ is not promised for every partial write or power-loss state.
 
 `MANIFEST.json` binds the binary, documentation and notices to their build inputs;
 it is an integrity inventory, not a signature or independent builder attestation.
-The package qualification records execution on the build host. macOS deployment
-metadata does not establish testing on macOS 13, and Linux runtime requirements
-are recorded for the producing runner. Physical minimum-OS, signing/notarization
-and release approval remain separate gates.
+The [0.2.0 package qualification](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/qualification/package_readback.json)
+records execution on the build hosts, and the [verified publication cohort](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/publication/VERIFIED_COHORT.json)
+records the released archive bytes. macOS deployment metadata does not establish
+testing on macOS 13, and Linux runtime requirements are recorded for the producing
+runner. Physical minimum-OS execution and signing/notarization retain their
+separate qualification scope.
