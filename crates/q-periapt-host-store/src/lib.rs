@@ -4,6 +4,12 @@
 //!
 //! The private filesystem boundary is shared with the policy agent. Native
 //! descriptor/handle operations are quarantined in the platform adapters.
+//!
+//! ## Guides and evidence
+//!
+//! - [Storage API and platform evidence](https://github.com/billlza/q-periapt/blob/main/docs/SDK_HOST_STORE.md)
+//! - [Proofs, performance and release evidence](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+//! - [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)
 
 pub mod database_format;
 pub mod filesystem;

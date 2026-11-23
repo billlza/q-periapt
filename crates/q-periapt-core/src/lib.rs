@@ -24,12 +24,15 @@
 //!   secret-dependent information (e.g. *why* a decapsulation failed). Variants
 //!   represent either public conditions (length, policy, public-key validity) or
 //!   an opaque internal backend failure. Correctly sized FO-KEM ciphertexts use
-//!   implicit rejection rather than an error oracle — see `docs/COMBINER_SPEC.md`.
-//! - The combiner constructions here are pinned by `docs/COMBINER_SPEC.md` and
-//!   `docs/BINDING_SECURITY.md`, validated by KATs, which are authoritative.
+//!   implicit rejection rather than an error oracle — see the
+//!   [combiner specification](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/COMBINER_SPEC.md).
+//! - The [binding-security analysis](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/BINDING_SECURITY.md)
+//!   gives the proof scope; the combiner specification and KATs define its exact bytes.
 //! - The constant-time helpers ([`ct_select32`], [`ct_eq`]) are best-effort in
-//!   portable Rust; real constant-time assurance comes from the side-channel CI
-//!   (dudect / binary-level checks) — see `docs/ROADMAP.md`.
+//!   portable Rust. Binary-level checks qualify the declared build; empirical
+//!   timing measurements remain local diagnostics. See the
+//!   [evidence index](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+//!   for the selected source, platform, proof and measurement records.
 
 /// Length in bytes of a combined hybrid shared secret (SHA3-256 / SHAKE-256-32).
 pub const SHARED_SECRET_LEN: usize = 32;

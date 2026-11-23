@@ -44,6 +44,13 @@
 //!   `&mut [u8]` while possibly uninitialized. Each entry point writes them through raw-pointer
 //!   primitives (or zero-initializes first when a slice is required), so passing fresh
 //!   `malloc`-style storage is sound.
+//!
+//! ## Guides and evidence
+//!
+//! - [C header](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/crates/q-periapt-ffi/include/q_periapt.h)
+//! - [Installation guide](https://github.com/billlza/q-periapt/blob/main/docs/SDK_GETTING_STARTED.md)
+//! - [Proofs, performance and release evidence](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+//! - [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)
 
 use core::slice;
 use q_periapt_backends::{

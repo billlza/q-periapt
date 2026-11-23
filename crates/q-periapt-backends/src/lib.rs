@@ -22,6 +22,12 @@
 //! This is the single high-level primitive-adapter crate. Native C and `unsafe`
 //! integration stay below it in `q-periapt-mlkem-native-sys`; security-critical
 //! composition stays in the dependency-free `q-periapt-core`.
+//!
+//! ## Guides and evidence
+//!
+//! - [Dependency policy](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/SDK_DEPENDENCY_POLICY.md)
+//! - [Proofs, performance and release evidence](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+//! - [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)
 
 use q_periapt_core::{Error, Kem, PreparedKem, Xof256, ZeroizingBytes, SHARED_SECRET_LEN};
 use q_periapt_mlkem_native_sys::{

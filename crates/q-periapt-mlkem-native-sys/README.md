@@ -126,12 +126,12 @@ an AVX2 build running the portable path is not an AVX2 CT/performance result.
 This new dispatcher and its assembly are integration TCB; upstream proofs do
 not by themselves verify this integration.
 
-See [candidate validation and open gates](../../docs/SDK_X86_CANDIDATE.md).
+See [candidate validation and open gates](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/SDK_X86_CANDIDATE.md).
 
 ## Vendored source
 
-[`vendor/PROVENANCE.md`](vendor/PROVENANCE.md) records the immutable commit and
-archive hashes. [`vendor/INVENTORY.sha256`](vendor/INVENTORY.sha256) covers all
+[`vendor/PROVENANCE.md`](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/crates/q-periapt-mlkem-native-sys/vendor/PROVENANCE.md) records the immutable commit and
+archive hashes. [`vendor/INVENTORY.sha256`](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/crates/q-periapt-mlkem-native-sys/vendor/INVENTORY.sha256) covers all
 125 files in the repository copy of the upstream `mlkem/` subtree. From a full
 Q-Periapt repository checkout, run:
 
@@ -178,3 +178,10 @@ source-bound stack verification:
 | ML-KEM-1024 | 15,552 bytes | 19,136 bytes | 20,704 bytes |
 
 These bounds do not include caller, Rust, or native assembly stack use.
+
+## Release and evidence
+
+- [0.2.0 Rust API](https://docs.rs/q-periapt-mlkem-native-sys/0.2.0/q_periapt_mlkem_native_sys/)
+- [Published 0.2.0 package and qualification record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0)
+- [Proofs, performance results and reproduction entry points](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+- [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)

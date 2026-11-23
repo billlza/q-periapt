@@ -20,6 +20,7 @@ import shutil
 import tarfile
 import tempfile
 import tomllib
+from urllib.parse import unquote, urlsplit
 
 from installed_rust_graph import external_lock, verify_resolution as verify_installed_resolution
 from bounded_process import capture_output
@@ -191,9 +192,33 @@ def archive_files(data: bytes, name: str, *, version: str = VERSION) -> dict[str
     return result
 
 
+def validate_readme_links(readme: bytes, packaged_files: set[str]) -> None:
+    """Reject Markdown links to repository files absent from a fresh crate.
+
+    Absolute URLs and same-page fragments work on registry pages. Relative
+    links may name an actual bundled file, such as vendor provenance. This
+    checks the inline/reference Markdown forms used by the package READMEs;
+    it does not perform a network availability check.
+    """
+    text = readme.decode("utf-8")
+    text = re.sub(r"(?ms)^ {0,3}(`{3,}|~{3,})[^\n]*\n.*?^ {0,3}\1[ \t]*$", "", text)
+    inline = re.findall(r"\[[^\]\n]*\]\(\s*(?:<([^>\n]*)>|([^\s)\n]+))", text)
+    references = re.findall(r"(?m)^ {0,3}\[[^\]\n]+\]:\s*(?:<([^>\n]*)>|(\S+))", text)
+    for bracketed, plain in (*inline, *references):
+        target = bracketed or plain
+        parsed = urlsplit(target)
+        if parsed.scheme or parsed.netloc or target.startswith("#"):
+            continue
+        path = PurePosixPath(unquote(parsed.path))
+        require(bool(parsed.path) and not path.is_absolute() and ".." not in path.parts
+                and path.as_posix() in packaged_files,
+                f"README references a file outside the package: {target}; use an absolute documentation URL")
+
+
 def validate_archive(data: bytes, name: str, package: dict, expected_files: set[str]) -> dict[str, bytes]:
     files = archive_files(data, name)
     require(set(files) == expected_files, f"crate differs from Cargo's source package list: {name}")
+    validate_readme_links(files["README.md"], set(files))
     manifest = tomllib.loads(files["Cargo.toml"].decode())
     require(manifest["package"]["name"] == name and manifest["package"]["version"] == VERSION,
             "normalized crate identity differs")

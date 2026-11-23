@@ -17,6 +17,13 @@
 //! whereas these private groups expose Q-Periapt's 32-byte combiner output to the TLS key
 //! schedule. The private provider is a research deployment of the suite's own design and a
 //! baseline-comparable evaluation target, not a standardized TLS group.
+//!
+//! ## Guides and evidence
+//!
+//! - [Standard TLS guide](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/SDK_STANDARD_TLS.md)
+//! - [SDK connection guide](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/SDK_CONNECTION.md)
+//! - [Proofs, performance and release evidence](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+//! - [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)
 
 use std::fmt;
 

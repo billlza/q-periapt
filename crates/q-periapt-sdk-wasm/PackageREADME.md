@@ -70,14 +70,16 @@ bytes. Labels are 1–255 printable ASCII bytes; context is at most 65536 bytes.
 
 Policy update is prepare → persist the signed policy and trusted state atomically
 → `activate_after_persist()`. Activation revokes the old epoch. The raw runtime does not supply a persistent session service. The browser
-policy store and Continuity lifecycle owner below provide separate persistence
-contracts; complete Continuity session bindings remain under development.
+policy store and Continuity lifecycle owner below provide separate persistence,
+session and recovery contracts.
 
 `PACKAGE_CONTENTS.json` records package bytes and source/tool identities;
 distribution signatures are verified separately. `THIRD_PARTY/rust/INVENTORY.json` records
-the target-filtered production dependency license closure. Current platform,
-security and release gates are documented in the repository's
-[release readiness ledger](https://github.com/billlza/q-periapt/blob/main/docs/SDK_0_2_RELEASE_READINESS.md).
+the target-filtered production dependency license closure. The
+[release and evidence index](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+links the selected package/platform records, performance results and proofs;
+the [changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md) records released changes.
+
 # Browser policy storage
 
 `q-periapt-sdk-wasm/web/storage` provides `QPeriaptPolicyStore.create` and `open`.

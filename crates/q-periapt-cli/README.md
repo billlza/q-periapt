@@ -56,7 +56,7 @@ qperiapt publication-reclaim /absolute/private/.private-attempt-v2-ORIGINAL_NONC
 ```
 
 The actual 32-character lowercase hex nonce replaces `ORIGINAL_NONCE`. Read the
-[publication maintenance contract](../../docs/PRIVATE_PUBLICATION_MAINTENANCE.md)
+[publication maintenance contract](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/PRIVATE_PUBLICATION_MAINTENANCE.md)
 before selecting an attempt. `reclaimed` repeats the original durable totals;
 `no-payload` is only an absence observation and does not authorize reprovisioning.
 A live owner, wrong scope, legacy/incomplete record or insufficient budget refuses
@@ -164,3 +164,10 @@ my-service/hash.rs:7: [critical] SHA-1 (collision-broken) (sha1)
 
 The CBOM/SBOM JSON is standard CycloneDX 1.6 and feeds any compliant consumer
 (Dependency-Track, etc.).
+
+## Release and evidence
+
+- [0.2.0 Rust API](https://docs.rs/q-periapt-cli/0.2.0/q_periapt_cli/)
+- [Published 0.2.0 package and qualification record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0)
+- [Proofs, performance results and reproduction entry points](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+- [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)

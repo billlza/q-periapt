@@ -1,9 +1,13 @@
 # Actual SDK path performance diagnostic
 
-The unpublished alpha now measures calls from a compiled C consumer and the
-public Swift bindings through the actual ABI 2 dynamic library. These are local
-source builds, not installed release packages. The existing core performance
-proofs, budgets and historical Rust diagnostic remain separately scoped.
+This document retains the SDK performance experiments and their original
+source and runtime identities. The first C/Swift comparison, captured on
+2026-09-25, measures a compiled C consumer and the public Swift bindings through
+the actual ABI 2 dynamic library. Those measurements use local source builds;
+they are not measurements of the subsequently published release packages.
+The [0.2.0 release evidence](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0),
+core performance proofs, budgets and later archive-based
+[X25519 comparison](SDK_X25519_TABLES.md) retain their separate scope.
 
 The separate [full connection diagnostic](SDK_CONNECTION_PERFORMANCE.md) now
 records setup, first connection, subsequent fresh TLS connections, request/response

@@ -5,6 +5,36 @@ guide](SDK_GETTING_STARTED.md) and [release evidence](https://github.com/billlza
 This note also records the earlier ABI 2 embedding gates and their target-specific
 results.
 
+## Released 0.2.0 qualification
+
+The SDK and Continuity distributions were published on 17 November 2026.
+The [verified cohort](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/publication/VERIFIED_COHORT.json)
+records twelve registry versions and fresh byte-exact verification of all 67
+admitted GitHub assets. The [release evidence overview](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/README.md)
+identifies the qualified source and the separate SDK ABI 2 / Continuity
+`qpc-owner/1` interfaces.
+
+| Surface | Completed evidence | Scope retained |
+| --- | --- | --- |
+| Rust SDK | Twelve exact 0.2.0 crates, external archive-based consumers and public registry readback in the [package qualification](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/qualification/package_readback.json). | Public download verification and original consumer execution remain separately identified. |
+| Native SDK | Released macOS arm64, Linux x86_64/aarch64 and Windows x64 packages; the [selected 72-job CI qualification](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/qualification/ci.json) includes native Linux archive extraction and isolated consumers. | Package readbacks do not rerun native execution. SDK C persistent-runtime entry points support macOS/Linux; Rust host storage and native Continuity have their own Windows scope. |
+| Swift, Android, JVM and WASM SDKs | Published packages and installation commands in the [0.2.0 guide](SDK_GETTING_STARTED.md), with selected archives bound by the package qualification. | Platform, minimum-OS, signing and runtime observations remain those of each selected report. |
+| Installed Continuity | The [installed coverage qualification](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/qualification/installed_coverage.json) completes the same-source Swift/Kotlin/Android Debug/Release union. Linux Rust/C and Windows lifecycle have their separate selected executions. | A one-profile report retains its original `completed: false`; the verified union establishes the six-profile result. This adds no physical-device or all-JVM claim. |
+| Reference services and independent implementation | [Installed Linux services](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/qualification/services.json) and [Linux/macOS source and installed Python-wheel checks](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/qualification/independent.json) completed. | Source-built counterpart/directory executables remain identified as such; these checks do not independently implement every SDK layer. |
+
+The [installed SDK connection](SDK_INSTALLED_CONNECTION.md) also retains the
+earlier twelve-case macOS-to-native-Linux checkpoint, including separate
+persistent policy stores. That Linux VM ran on the same physical Mac.
+Independent physical hosts, broader device/minimum-OS coverage and controlled
+performance/energy retain their separate evidence scope. Released Continuity's
+protocol and recovery analysis is specified by its
+[adopted 0.2.0 contract](continuity/ADOPTION_0_2.md).
+
+The historical sections below preserve earlier gate designs and observations.
+Their old package versions, candidate labels and remaining-work lists do not
+reopen completed 0.2.0 publication or qualification decisions. For an installed
+0.2.0 artifact, use the selected release records above.
+
 ## Historical 0.1.5 embedding baseline
 
 Publication completion (2026-09-06): the `v0.1.5` Apple and
@@ -19,19 +49,23 @@ release identities. Package publication does not close the physical-device or
 controlled-performance requirements below; those requirements do not require
 recreating the existing 0.1.5 GitHub releases.
 
-It covers the implemented KEM/policy/binding faces only. It does not establish
+That embedding baseline covers the implemented KEM/policy/binding faces only. It does not establish
 identity-directory, prekey, ratchet, multi-device, recovery, or key-transparency
-readiness. The future Q-Periapt Continuity plan is separate
-([`CONTINUITY_RESEARCH.md`](CONTINUITY_RESEARCH.md)). Its `publish = false`
-lifecycle model now checks trusted pairwise session/current-context admission and
+readiness. The then-planned Q-Periapt Continuity work was separate
+([`CONTINUITY_RESEARCH.md`](CONTINUITY_RESEARCH.md)); the subsequently released
+protocol and analysis use the adopted contract linked above. The early `publish = false`
+lifecycle model checks trusted pairwise session/current-context admission and
 preserves that authority across abstract reconstruction. It deliberately has no
 context-advance API. It is not a product dependency,
 does not authenticate its trusted genesis or authorize its caller-selected provider profile, and
-proves no deployed protocol behavior; until a
-real session crate and its own gates exist, this embedding command cannot be used as
-a PQ3/Signal-parity claim.
+proves no deployed protocol behavior. That model and this embedding command do
+not establish a PQ3/Signal-parity claim.
 
-## Current Gate
+## Historical ABI 2 embedding harness
+
+The following commands and gate descriptions retain the earlier embedding
+workflow. Their local result selectors and historical source inputs are distinct
+from the completed 0.2.0 release cohort above.
 
 Run from the repository root:
 
@@ -391,7 +425,11 @@ freestanding builds. There is no runtime dispatch. This is an
 internal implementation selection: ABI 2 exports/layouts, ML-KEM key/ciphertext
 formats, and combiner wire bytes remain unchanged.
 
-## Per-Face Status
+## Historical 0.1.5 per-face status
+
+This table preserves the earlier package and qualification snapshot. Its
+ten-crate/nine-export identities and candidate requirements apply to that
+snapshot; the current 0.2.0 surface and completed evidence are listed above.
 
 | Face | Status | Boundary |
 |---|---|---|
@@ -443,12 +481,14 @@ or authorization, server-side policy acceptance, or a registry receipt. The stab
 `abi2-platforms-v0.1.5` Android/Linux packages; only their
 verified receipts may assert public, immutable and current status
 (see `artifact/stable-release-notes.md` for scope, verification, and explicit
-non-goals). Fresh same-source device/performance evidence, independent cryptographic,
-C/FFI and ABI review, clean signed or transparency-backed source provenance,
-publication through each supported distribution channel, and a future signed Windows lane
-remain hard requirements for production promotion.
+non-goals). The historical promotion plan called for fresh same-source
+device/performance evidence, independent cryptographic/C/FFI/ABI review,
+signed or transparency-backed provenance, publication through supported
+channels and a signed Windows lane. The selected 0.2.0 admission and publication
+records above identify the decisions and completed executions for that release;
+they retain each platform's actual signing, device and performance scope.
 
-## Apple Device Matrix
+## Historical Apple device-matrix contract
 
 The full Apple family matrix means iPad plus iPhone, not just one attached device. A valid matrix
 proof is source-bound, artifact-bound, run-bound, and device-family-bound:
@@ -482,7 +522,13 @@ as current merely because their files still exist. The raw run directory is igno
 git because it contains local signing/profile/device metadata and should not be uploaded as a public
 release artifact.
 
-## Remaining Work Before Product Embedding
+## Historical 0.1.5 integration work list
+
+The following list retains the earlier integration plan. Subsequent 0.2.0
+package publication, installed consumers and Continuity adoption are recorded
+above; this list is not an outstanding checklist for that released cohort.
+Downstream application integration and any broader device, physical-host or
+performance claims still require evidence for their actual scope.
 
 - Rust crate pre-publication package surface: retain the coordinated dependency order for every
   subsequent version — `q-periapt-mlkem-native-sys`, core, KEM/signature traits,

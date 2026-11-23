@@ -17,7 +17,7 @@ platform randomness, explicit object lifetimes and no private-key getter.
 The WASM face is the current stateless KEM/policy API, not a prekey or ratchet
 implementation. It provides no persistent session, multi-device, recovery, or
 PQ3/Signal parity claim. See
-[`../../docs/CONTINUITY_RESEARCH.md`](../../docs/CONTINUITY_RESEARCH.md) for the research background. The [Continuity browser entry](https://github.com/billlza/q-periapt/blob/main/crates/q-periapt-sdk-wasm/PackageREADME.md#browser-continuity-lifecycle) ships in the product tarball.
+[`../../docs/CONTINUITY_RESEARCH.md`](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/docs/CONTINUITY_RESEARCH.md) for the research background. The [Continuity browser entry](https://github.com/billlza/q-periapt/blob/main/crates/q-periapt-sdk-wasm/PackageREADME.md#browser-continuity-lifecycle) ships in the product tarball.
 
 Randomness (encapsulation coins, key seeds) is supplied **by the JS caller** as a
 `Uint8Array`, so there is no in-WASM entropy dependency.
@@ -43,9 +43,9 @@ cargo build --locked -p q-periapt-wasm --target wasm32-unknown-unknown
 wasm-pack build crates/q-periapt-wasm --target web
 ```
 
-## Current-source local footprint (platform/toolchain-specific)
+## Recorded local footprint (platform/toolchain-specific)
 
-On Darwin 27.0.0 arm64, the current working source built with Rust 1.96.1,
+The retained Darwin 27.0.0 arm64 measurement used Rust 1.96.1,
 `wasm-pack` 0.15.0, and Homebrew LLVM Clang 22.1.8 measured **97.7 KiB**
 (100,034 bytes) for the lean default module (`encapsulate` / `decapsulate` /
 `combine` / keygen only):
@@ -62,16 +62,15 @@ off-by-default `signed-policy` feature) links an ML-DSA verifier and measured
 wasm-pack build crates/q-periapt-wasm --release --target web -- --features signed-policy
 ```
 
-These are current-source **local diagnostics**, not architecture-independent package
-sizes, clean signed provenance, or a cross-platform binary claim. Reproduce all
+These are recorded **local diagnostics** for that source/toolchain, not the
+footprint of every later source or published package. Reproduce all
 three local artifacts (including the C ABI row) from a repository checkout with:
 
 ```sh
 CC_wasm32_unknown_unknown="$(brew --prefix llvm)/bin/clang" sh paper/footprint.sh
 ```
 
-The exact host/toolchain/result rows live at `paper/footprint.csv` in the repository
-checkout (that file is not part of this crate package); regenerate them for every
+The exact host/toolchain/result rows live in the [retained footprint table](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/paper/footprint.csv); regenerate them for every
 platform or toolchain named in a footprint claim.
 
 ## API
@@ -136,3 +135,10 @@ expanded keys and CompatXWing seed-dk keys, including ContextBound fixed-suite
 metadata and strict CompatXWing metadata absence. Running the *actual* WASM build
 against the vector uses `wasm-pack test` (needs Node); the wasm32 build itself is
 gated in CI.
+
+## Release and evidence
+
+- [0.2.0 Rust API](https://docs.rs/q-periapt-wasm/0.2.0/q_periapt_wasm/)
+- [Published 0.2.0 package and qualification record](https://github.com/billlza/q-periapt/tree/v0.2.0-verified-cohort/release/0.2.0)
+- [Proofs, performance results and reproduction entry points](https://github.com/billlza/q-periapt/blob/main/docs/EVIDENCE_INDEX.md)
+- [Changelog](https://github.com/billlza/q-periapt/blob/main/CHANGELOG.md)
