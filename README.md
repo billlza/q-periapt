@@ -303,8 +303,9 @@ production-X-Wing parity. We never claim a combiner speed win.
   workflow paths, and workflow-source digests are stored in an attested private receipt
   that is structurally
   retained by pending and verified publication receipts, but is not a public product
-  asset. This is a release contract, not a claim that the still-required exact-R runs
-  already exist. Earlier `libcrux` logs
+  asset. The completed [0.2.0 CI qualification](https://github.com/billlza/q-periapt/blob/v0.2.0-verified-cohort/release/0.2.0/qualification/ci.json)
+  records the selected source and job identities; the release contract above does
+  not replace those execution records. Earlier `libcrux` logs
   are historical too. Other
   primitive paths and riscv64/wasm32 binary-CT remain **TODO**. See
   [`ctstats/README.md`](ctstats/README.md) for the honest per-cell scope.
