@@ -2,23 +2,25 @@
 \label{sec:discussion}
 
 \paragraph{A recovery condition attached to original operations.}
-Suppose an adversary acquires an encrypted journal today and obtains
-its wrapping key later. At which point can it read a particular
-reservation? We identify the operation's original sample, the first
-save of the session version, the acquisition of the physical image and
-the disclosure of the matching key. A retry uses the original sample.
-An aggregate write can give the adversary another copy of that same
-sample. Proposition~\ref{prop:guarded-worklist} tracks the exact
-readable-source set on a fixed indexed graph as acquisitions and
-disclosures arrive. It reports each newly exposed source once. Exporting
-the full set incurs the additional cost of its output.
+An encrypted journal can be acquired before its wrapping key is
+disclosed. Determining when a reservation becomes readable therefore
+requires the history of both objects. We connect that history to the
+operation's original sample, the first save of the session version,
+and the acquisition of each physical image. Retries reuse the sample,
+and aggregate writes can create further copies of it.
+Proposition~\ref{prop:guarded-worklist} tracks the exact readable-source
+set on a fixed indexed graph as acquisitions and disclosures arrive.
+Reporting each newly exposed source once makes the incremental result
+follow the original operation through its copies; exporting the full
+set incurs the additional cost of its output.
 
-For the recovery theorem we also need the history of the chosen send.
-Equation~\eqref{eq:eligibility} asks when both KEM operations were
-reserved and when each acquired version of the target session was first
-saved. The graph closure answers the readability question. The native
-reduction carries the reservation and first-save events through each
-comparison so that the chosen cut still refers to the original execution.
+The chosen send connects this readability analysis to the recovery
+theorem. Equation~\eqref{eq:eligibility} records when both KEM
+operations were reserved and when each acquired target-session version
+was first saved. The graph closure determines which sources become
+readable, while the native reduction preserves the original reservation
+and first-save events through each comparison. Thus the theorem's cut
+continues to refer to the execution whose storage history is being assessed.
 
 \paragraph{From a recovered epoch to application security.}
 A recovered root feeds confirmation and the traffic chain before the
@@ -30,14 +32,15 @@ retry uses the original computation. After the marked step, the
 observer may obtain the paired successor seed and use it to compute
 the real suffix.
 
-Theorem~\ref{thm:native-online-message} gives confidentiality and
-fresh-message integrity for the eligible send.
-Theorem~\ref{thm:native-selected-authentication} accounts for the
-earlier confirmation of its selected root. Candidate-local stopping
-keeps the original acquisition condition in force. We evaluate each
-terminal event in its own comparison world with complete-execution
-resources. Table~\ref{tab:native-online-substitutions} gives the
-primitive and record costs for those comparisons.
+This observation interface still permits confidentiality and
+fresh-message integrity for the eligible send, as established by
+Theorem~\ref{thm:native-online-message}.
+Theorem~\ref{thm:native-selected-authentication} establishes the
+authentication guarantee for the earlier confirmation of its selected
+root. Candidate-local stopping preserves the original acquisition
+condition in both arguments. Each terminal event has its own comparison
+world and complete-execution resource accounting, with the primitive
+and record costs given in Table~\ref{tab:native-online-substitutions}.
 
 \paragraph{Primitive instantiation and reusable interfaces.}
 Consider root derivation after disclosure of the parent root.
@@ -51,13 +54,14 @@ which enters HMAC as its message. Extractor and swap-PRF formulations
 study this use of HMAC~\cite{hmacswap2023,rfc5869}.
 The shared-oracle entry proof in Appendix~\ref{app:joint-root-entry}
 supplies the uniform-root interface after the complete-tuple comparison
-of Section~\ref{sec:contextbound-connection}. The finite-family extension
-preserves exact pad-state and information-string aliases
-(Section~\ref{sec:multiple-root-entry}). Its purpose-key instance permits
-all outputs of the declared derivation table to be exported while
-retaining a separate lifecycle for each returned owner
-(Section~\ref{sec:sdk-purpose-connection}). A marked private entry supports
-the corresponding one-key application experiment.
+of Section~\ref{sec:contextbound-connection}. Extending this argument
+to a finite family requires preserving exact pad-state and
+information-string aliases (Section~\ref{sec:multiple-root-entry}).
+At the purpose-key interface, the declared export experiment permits
+all outputs of the derivation table to be exported with a separate
+lifecycle for each returned owner
+(Section~\ref{sec:sdk-purpose-connection}). The corresponding one-key
+application experiment uses a marked entry that remains private.
 
 At the component interface, the deferred-challenge bridge gives an
 ordinary ML-KEM IND-CCA instantiation while preserving the actual
@@ -75,8 +79,8 @@ comparison, expressing the native reservation-interface bound through
 ordinary hedged ML-DSA unforgeability, with explicit replay-coupling and
 oracle-query losses
 (Theorem~\ref{thm:native-mldsa-reservation-bridge}). In the final bound the
-key-entry argument supplies recovered secret material. The signature
-bridge accounts for attributing it to the original calls.
+key-entry argument supplies recovered secret material, and the
+signature bridge justifies its attribution to the original calls.
 
 \paragraph{What a delayed bootstrap confirmation establishes.}
 Suppose the initiator receives a READY proof after a restart. The
@@ -88,16 +92,17 @@ contribution existed. The joint short/long entry preserves that shared
 use. The terminal comparison protects the ACK while keeping the
 sibling outputs available.
 
-Which source survived determines the guarantee. With the reply source
-protected, we establish the earlier activation even if the first
-contribution and the initiator's signing identity are disclosed. With
-the initial source protected, the responder identity and later reply
-contributions may be available. In the latter proof we replace the
-joint entry before partitioning by reply family, so only the later
-terms incur the family multiplicity. Each proof charges acquisition
-of its own immutable versions. Section~\ref{sec:bootstrap-authentication}
-specifies the joint journal and derived-key interface for simulating a
-broader set of captured bytes.
+The surviving source determines which disclosures this guarantee
+tolerates. Protecting the reply source establishes the earlier
+activation even if the first contribution and the initiator's signing
+identity are disclosed. Protecting the initial source allows the
+responder identity and later reply contributions to be available.
+In the latter proof, replacing the joint entry before partitioning by
+reply family confines the family multiplicity to the later terms.
+Each proof charges acquisition of its own immutable versions.
+Section~\ref{sec:bootstrap-authentication} specifies the joint journal
+and derived-key interface needed to simulate a broader set of captured
+bytes.
 
 \paragraph{Exposure budgets and completed service.}
 On the alternating schedule, reducing the send budget from 64 to 32
@@ -121,26 +126,27 @@ The extra deliveries required more bytes and persistence work in total.
 In these alternating runs both bytes and \texttt{sync\_data} calls per
 delivery fell. All twelve bidirectional or resumed pairs delivered more
 messages. After the offline prefix at $b=32$, the fraction of keys we
-could reconstruct fell from $32/612$ to $33/878$. We recovered one
-more key. On the one-way control,
-both policies delivered the 32 or 64 applications the budget admitted.
+could reconstruct fell from $32/612$ to $33/878$ because the admission
+denominator grew, even as we recovered one more key. On the one-way
+control, both policies delivered the 32 or 64 applications the budget
+admitted.
 The rest stayed queued, both confirmed epochs stayed at zero, and every
 admitted post-capture key was reconstructible. Waiting longer to retry
 could not supply the missing return traffic in that run.
 
 \paragraph{Conclusion.}
-The two peers in our restart experiment completed the rekey and
-delivered new messages. The earlier capture explains why we could
-still read them. It contained the tape for the call that the endpoint
-would finish after restart. For an encrypted copy, the time of
-acquisition and the time the tape becomes readable can differ. On
-fixed indexed record and key-derivation graphs we track exactly which
-sources become readable as records and keys arrive, in total work
-linear in graph size and input history
-(Proposition~\ref{prop:guarded-worklist}).
+The restart experiment identifies the event that a recovery claim must
+follow. Both peers completed the rekey and delivered new messages, yet
+the earlier capture let us read them because it contained the tape for
+the operation completed after restart. That original reservation also
+survives retries and aggregate copies. For encrypted copies, acquisition
+and readability can occur at different times. On fixed indexed record
+and key-derivation graphs, we track exactly which original sources become
+readable as records and keys arrive, in total work linear in graph size
+and input history (Proposition~\ref{prop:guarded-worklist}).
 
-For a send after the next rekey of an established session, we can
-now state which history suffices for recovery. Both original KEM
+For a send after the next rekey of an established session, the resulting
+history gives a sufficient recovery condition. Both original KEM
 reservations must follow the cut. The target signing secrets and
 designated epoch entropy must remain undisclosed, and the first durable
 save of each acquired target-session version must fall on or before the
@@ -149,3 +155,8 @@ of Theorem~\ref{thm:native-online-message}, the observer can use earlier
 keys to choose a step before either endpoint first computes it and can
 subsequently learn its designated successor seed. The selected
 application send retains confidentiality and fresh-message integrity.
+This connects the recovered send to the original inputs that justify
+it: reservation, persistence and acquisition remain traceable through
+restart and replay. The service measurements then show the traffic
+actually delivered under the allocation and retry rules accompanying
+that recovery claim.

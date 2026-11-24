@@ -1,15 +1,15 @@
 \section{Computational interfaces and composition}
 \label{sec:computation}
 
-The observer might see earlier message keys before deciding which
-message to test. Corollary~\ref{cor:live-core-next-rekey} handles the
-first message. To reach Theorem~\ref{thm:native-online-message} we
-must allow the observer that choice while still tying the chosen send
-to the records and original draws that supplied its root. The same
-root also governs the confirmation events in
-Theorem~\ref{thm:native-selected-authentication}. The order of the
-observer's choices determines how we connect all three results to the
-native execution.
+The first-message result in Corollary~\ref{cor:live-core-next-rekey}
+leaves a further choice to account for: an observer can see earlier
+message keys and use them to decide which later message to test.
+Theorem~\ref{thm:native-online-message} allows that choice while tying
+the selected send to the records and original draws that supplied its
+root. The confirmation events are evaluated for that same root in
+Theorem~\ref{thm:native-selected-authentication}. We connect these three
+results by following when each choice becomes fixed in the native
+execution and what information remains available afterwards.
 
 \paragraph{The experiment and its selection boundaries.}
 Fix public lifetime budgets $G,C\geq1$ for original generation and
@@ -101,8 +101,8 @@ ordinary hedged ML-DSA
 \end{tabularx}
 \end{table}
 
-Why does a record comparison enter the confidentiality calculation
-twice? Confidentiality uses a signed score. An output-bit gap of
+The coefficient of a record comparison follows from the terminal test.
+Confidentiality uses a signed score: an output-bit gap of
 $\varepsilon$ changes that score by at most $2\varepsilon$, and the
 final factor $1/2$ converts it to message advantage. The component
 comparison uses both signs, giving $a_j^++a_j^-+2\delta_j$.
@@ -120,8 +120,8 @@ component term by an ordinary ML-KEM IND-CCA advantage and an explicit
 prechallenge ciphertext-intersection cost. This substitution retains the
 real decapsulation prefix and the original source-selection accounting.
 
-We thus use the same records and original sources in all three native
-results. What we test at the end determines the remaining comparison.
+The three native results therefore share the same records and original
+sources. Their terminal tests determine the remaining comparisons.
 For the first message it is the score in~\eqref{eq:live-core-next-rekey}.
 For confirmation and first-message authentication it is the event
 in~\eqref{eq:native-selected-authentication}. For a step selected online
@@ -130,12 +130,14 @@ we use the score and event in~\eqref{eq:native-online-confidentiality}--%
 order of first computations established by
 Lemma~\ref{lem:native-online-chain-correspondence}.
 
-The final subsections instantiate adaptive descriptor families for multiple
-roots and SDK purpose keys, then connect both original bootstrap sources to
-historical responder activation. The reply-source profile defines its
-record-acquisition term in Section~\ref{sec:bootstrap-authentication};
-the initial-source construction charges the complete joint entry before
-partitioning its adaptive reply families
+We next apply the same source and record reasoning to adaptive descriptor
+families for multiple roots and SDK purpose keys. Bootstrap adds the
+question of which earlier responder activation a delayed confirmation
+authenticates. Its two original-source connections resolve that question
+under their respective observation interfaces. The reply-source profile
+defines its record-acquisition term in
+Section~\ref{sec:bootstrap-authentication}; the initial-source construction
+charges the complete joint entry before partitioning its adaptive reply families
 (Theorem~\ref{thm:bootstrap-initial-schedule}). Appendix~\ref{app:common-virtual}
 retains the common-virtual-game accounting variant.
 

@@ -49,11 +49,12 @@ computation and disclosure may proceed. Private persistence uses the
 same justified opaque interface. If the execution ends without a mark,
 the selected application event and score are zero.
 
-This timing separates observing earlier keys from choosing an already
-observed target. It also fixes when each protected seed can first be
-installed in a reduction. The root's other traffic entries, the opposite
-direction, real confirmation and ACK checks, and successor-root disclosure
-remain available as in the preceding joint continuation.
+Deciding before the first computation lets the observer use earlier keys
+to select among steps that have not yet been computed. This order also
+lets the reduction install each protected seed before its first use. The root's other
+traffic entries, the opposite direction, real confirmation and ACK checks,
+and successor-root disclosure remain available as in the preceding joint
+continuation.
 
 Let $\Delta_{\rm traffic}$ denote the first three terms of
 \eqref{eq:joint-schedule-error}, capped at one, with $q_R,q_0,q_1$
@@ -188,11 +189,13 @@ respective score and Boolean event. This yields the two bounds.
 For $L=1$, the comparison has the same five primitive terms as
 the selected first-message theorem. A fixed target index $\ell$
 can use $L=\ell+1$; online selection uses a lifetime bound fixed
-before execution. The native chain source uses the stated 56-byte
-information strings, constant-width index encoding and zero AEAD
-nonce, advances a send index once, and reuses exact outbox bytes on
-Resume. Transaction-private receive advancement can compute skipped
-keys before commitment; failed-transaction resumption retains their
-first-computation identity in the proof ledger.
+before execution.
+
+The native chain source realizes this interface with the stated 56-byte
+information strings, constant-width index encoding and zero AEAD nonce.
+It advances a send index once and reuses exact outbox bytes on Resume.
+Transaction-private receive advancement can compute skipped keys before
+commitment, so the proof ledger retains their first-computation identity
+through failed-transaction resumption.
 Section~\ref{sec:native-online-chain} uses this comparison to carry the
 same choice of message into the native next-rekey experiment.

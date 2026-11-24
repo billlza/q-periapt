@@ -4,11 +4,12 @@
 \label{sec:report-composition}
 
 A cleanup report can authenticate a key and a tag from an earlier
-report. Replacing the earlier tag alone would leave a later computation
-that still needs the private key. We therefore replace protected rows
-in reverse order of creation. By the time the reduction reaches a
-chosen key, it has already replaced the later dependent rows. The
-earlier transcripts were fixed before that key existed.
+report. If we replace the earlier tag first, the later report still
+requires the earlier private key. This dependency determines the order
+of the argument: we replace protected rows in reverse order of creation.
+When the reduction reaches a chosen key, its later dependent rows have
+already been replaced, and the earlier transcripts were fixed before
+that key existed.
 
 \paragraph{Finite interface.}
 Fix a public budget $N$ for fresh report-key draws and index the actual draws
@@ -228,13 +229,15 @@ real tag from an independent one with difference $1-2^{-256}$.
 Applying this example to a native batch would require evidence that
 the transcript is available as well as the key.
 
-The report replacement precedes KEM embedding.  Afterwards every protected
-row needs only its original cached tag, and every unprotected recipe is free
-of $\mathcal X$ and protected raw-key dependencies.  The report layer can
-therefore use opaque source handles for tag generation and immutable tag
-validation.  A native composition first charges the actual eligible-exposure
-residual, then uses a private-record correspondence proved for the
-explicitly stopped native interface, and finally applies the report hybrids.
+Report replacement takes place while the source bytes are still available,
+before KEM embedding. Afterwards every protected row needs only its original
+cached tag, and every unprotected recipe is free of $\mathcal X$ and protected
+raw-key dependencies. This is what lets the report layer generate and
+validate immutable tags using opaque source handles. To connect that
+construction to the native experiment, we first charge the actual
+eligible-exposure residual, then use a private-record correspondence proved
+for the explicitly stopped native interface, and finally apply the report
+hybrids.
 This record hop retains its own comparison error and acquisition rules. For
 key-only fragments, that correspondence requires an explicit mapping of
 their actual provenance and justification of every permanent-ineligibility

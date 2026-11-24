@@ -1,8 +1,9 @@
 \subsection{A native live-core instantiation}
 \label{sec:live-core-instantiation}
 
-We now count the cost of simulating the records for the next rekey
-in an authoritative live session. The application supplies the plaintext
+The next-rekey theorem leaves the native record-comparison cost to
+instantiate. We now bound that cost for an authoritative live session.
+The application supplies the plaintext
 to Send and receives the delivered payload. The network can request an
 exact Resume, process control and message traffic, obtain ACKs and
 inspect statuses and public commitments. The journal follows the
@@ -98,6 +99,7 @@ attribution. Every control signature and transcript hash in this trace is
 honest. This execution is already charged by
 $\eta_{\rm attr}^{\rm nat}$ in the general theorem.
 
+To bind selection to the source that actually produced the traffic material,
 Section~\ref{sec:executed-source-attribution} defines an executed-slot
 selector that registers $g,a$ before their first private KEM computations
 return. A retained-plan induction preserves those original slots, and the

@@ -163,10 +163,12 @@ record or derivation edge changes the indexed input and requires its own
 update accounting. An implementation using dictionaries has the
 corresponding expected bounds under constant expected lookup and insertion
 costs; normalization of external identities is charged separately.
-The finite checker retains explicit route enumeration
-for its small fixtures, where it compares the guarded normal form with
-forward decryption. The indexed evaluator avoids that enumeration;
-materializing all route witnesses can itself require exponential output.
+The finite checker enumerates routes in its small fixtures to compare
+the guarded normal form directly with forward decryption. For larger
+graphs, the indexed evaluator obtains the exposure set by propagating
+newly available facts. This distinction matters because the set of
+derivable sources can be small even when materializing all of its route
+witnesses requires exponential output.
 
 \begin{corollary}[Copies, deletion and late disclosure]
 \label{cor:guarded-history}
@@ -188,26 +190,27 @@ of $A_t$ and therefore cannot invalidate a satisfied route.
 \end{proof}
 
 \paragraph{What a readable source tells us.}
-For a source $o$, a path from an acquired record and the keys that
-open every wrapper on that path give a witness for its readability.
-Direct disclosure enters $o$ in $\mathcal E^{\rm src}_t$ immediately.
-Absence from the set has a precise meaning within this fragment. These
-record decryption and fixed public key-derivation rules have no way
-to derive the value from the history so far. Other ways of learning a
-secret, including guessing, cryptanalysis, timing leakage or access to
-a quantum decryption oracle, require their own model. For a claim
-about the selected application message we simulate the native
-ciphertexts and commitments and bound the adversary's advantage in
-the protocol experiment.
+For a source $o$, readability has a concrete witness: an acquired record,
+a path through its nested wrappers, and the keys that open every wrapper
+on that path. Direct disclosure enters $o$ in
+$\mathcal E^{\rm src}_t$ immediately. Exactness also specifies what absence
+establishes. An absent source has no derivation from the history so far
+under the declared record-decryption and fixed public key-derivation rules.
+Other ways of learning a secret, including guessing, cryptanalysis,
+timing leakage or access to a quantum decryption oracle, require their
+own model. For the selected application message, we simulate the native
+ciphertexts and commitments and bound the adversary's advantage in the
+protocol experiment.
 
 \paragraph{Native shape and finite checks.}
+The native storage nesting gives a concrete instance of these routes.
 At the fixed research source, operation reservations are encrypted under
 a wrapping key derived from the journal key, and tokens are retained
-within encrypted durable images or pending targets.  The corresponding
-route therefore includes the image key and the token key, with their
-actual derivation edge.  A fresh aggregate image can preserve an older
-token and its original source.  Public image-head digests are distinct
-observations from the record objects needed by the decryption rules.
+within encrypted durable images or pending targets. The route therefore
+includes both the image key and the token key, joined by their actual
+derivation edge. A fresh aggregate image can carry an older token and
+preserve its original source. Public image-head digests remain public
+observations; the decryption rules use the corresponding record objects.
 The executable supplement independently evaluates iterative decryption
 and guarded-route normalization, exhausts all acquisition/key/direct-source
 subsets for its declared finite graphs, and checks histories with late

@@ -47,12 +47,11 @@ marked message key have only the uses in the preceding interfaces.
 The already admitted successor-root, opposite-direction and other
 traffic-entry observations remain available.
 
-These named projections are the only extra observations. Asking for
-the successor seed returns that one value. Acquiring a session version
-that contains the very same seed gives the observer the record too.
-The acquisition keeps its full scope and the version's original
-first-save time. Public commitments and failed captures keep their
-ordinary behavior.
+The added observations are precisely these named projections. A
+successor-seed query returns that one value. Acquiring a session version
+that contains the same seed remains an observation of the complete record, with
+its full scope and the version's original first-save time. Public
+commitments and failed captures keep their ordinary behavior.
 
 There is one left-or-right application operation, tied to the marked
 step's original send. Its messages have equal length and common
@@ -159,10 +158,9 @@ evaluated in this expanded experiment. For candidate $j$, set
 Every budget is fixed before interaction and covers preparation,
 failed attempts, all endpoint aliases, the adaptive mark, real suffix
 computation and the terminal test in its corresponding comparison.
-The prefix sum in \eqref{eq:prefix-error} gives the explicit index-wise
-comparison cost. No additional combinatorial message-index guessing
-factor is introduced; all other whole-execution budgets may also grow
-with $L$.
+The index-wise prefix sum in \eqref{eq:prefix-error} accounts for online
+selection, so the bound needs no separate message-index guess. The other
+whole-execution budgets may also grow with $L$.
 
 Let $\mathsf{Bad}_{\rm msg}^{\rm chain}$ record a fresh authenticated
 receive and inbox installation under the marked step whose complete
@@ -359,9 +357,10 @@ failed attempts, endpoint aliases, real suffix computation and terminal
 testing. These are the same interfaces and budgets as in the theorem.
 
 Setting $L=1$ recovers the first-message schedule cost. For a longer
-chain the observer can see earlier keys and mark a later step while
-it is still uncomputed. That choice adds the prefix cost above. The
-reservations and acquisitions are still those of the accepted send.
+chain, the result protects a message chosen online after disclosure of
+earlier keys, provided its step is still uncomputed when marked. The
+explicit prefix sum accounts for that choice. The reservations and
+acquisitions remain those of the accepted send.
 If the interface also permits partial record or report projections,
 its $\eta_{\rm proj}^{\rm nat}$ and local comparison costs enter as
 in the preceding native theorems.

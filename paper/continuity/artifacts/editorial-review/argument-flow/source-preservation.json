@@ -1,0 +1,285 @@
+{
+  "baseline_commit": "03cdd1fb3d3173f885bb39f83108e9b3b36c82fc",
+  "status": "passed",
+  "method": "Compare ordered exact TeX blocks per canonical module using comment-masked offsets; use an eight-byte big-endian length prefix for sequence hashes. Compare citation and cross-reference multiplicities and inline mathematics per module. Baseline files were checked against the pinned Git blob identities during retrieval.",
+  "canonical_modules": 40,
+  "changed_modules": [
+    "acquisition-nonadditivity.tex",
+    "artifact-map.tex",
+    "bootstrap-authentication.tex",
+    "bootstrap-entry.tex",
+    "bootstrap-initial-source.tex",
+    "candidate-local-accounting.tex",
+    "chain-prefix-continuation.tex",
+    "common-virtual-accounting.tex",
+    "computational-roadmap.tex",
+    "confirmation-traffic.tex",
+    "construction.tex",
+    "contextbound-connection.tex",
+    "discussion.tex",
+    "established-results.tex",
+    "evaluation.tex",
+    "guarded-provenance.tex",
+    "introduction.tex",
+    "joint-continuation.tex",
+    "joint-primitive-bounds.tex",
+    "kem-ordinary-bridge.tex",
+    "live-core-instantiation.tex",
+    "main.tex",
+    "matched-opportunities.tex",
+    "multiple-root-entry.tex",
+    "native-authentication.tex",
+    "native-chain-composition.tex",
+    "native-correspondence.tex",
+    "opaque-rendering.tex",
+    "primitive-inputs.tex",
+    "related-work.tex",
+    "report-composition.tex",
+    "reservation-signature-bridge.tex",
+    "retry-readiness.tex",
+    "sdk-purpose-connection.tex",
+    "security-model.tex",
+    "source-attribution.tex"
+  ],
+  "module_source_hashes": [
+    {
+      "file": "acquisition-nonadditivity.tex",
+      "before_sha256": "1b75f2d2a2fb36a00f44ad44f3c9cfab85c6538b45888536173322d0b8fb2c54",
+      "after_sha256": "976a23959f031ad9226bd6b874f3e4fd99f6da78a8ee84edb3af0da2ca79abf6"
+    },
+    {
+      "file": "artifact-map.tex",
+      "before_sha256": "484c481658bcc0fa06d5bc25ec5376416c28fbbb2d8b95d90f0f8814d6274a08",
+      "after_sha256": "af58bb39c433233bf992a2cf114c8ef26975f8528ed273bc3ff7f9d68fac9b30"
+    },
+    {
+      "file": "bootstrap-authentication.tex",
+      "before_sha256": "fb11ae6a88d47ac424470b2e25a4cfc84ebebc4a13226f964649717294c091fd",
+      "after_sha256": "36a8f9bfc4238274da4b6fce4db0364adb1040c65206a0cd2eceaf8c35c4fe47"
+    },
+    {
+      "file": "bootstrap-entry.tex",
+      "before_sha256": "94ab68d526434ea1c8d09501a38230ad1439ad778a9ddc8322fdcdaf7917def0",
+      "after_sha256": "1100765312aa95f9fdda4b41fde1761e42ea6e31650c9cd9ce4af37d392f0c53"
+    },
+    {
+      "file": "bootstrap-initial-source.tex",
+      "before_sha256": "d0e7480806e5289612f2dee26fa95ab9537ad32b7ba199e5172bff7f8bee990f",
+      "after_sha256": "05c7f4008df5d652e322439d5a448bee922d503fc4847762e63ecd1144c2c8f9"
+    },
+    {
+      "file": "candidate-local-accounting.tex",
+      "before_sha256": "7f795b86410d4181e6b2f784b5c70531ff8ee247bce49912cd68fc638db7a3d9",
+      "after_sha256": "4bc1cf62bb4c2c58a34d1abe06a1535ee1f5dfdfc4c5b6beaaed9d57dfacf682"
+    },
+    {
+      "file": "chain-prefix-continuation.tex",
+      "before_sha256": "17de532dc264e6dad76c8ca9ecf164c222099d02cd437e83d141c0fb122936ad",
+      "after_sha256": "a5eeffef05c0812701fcef558c2a2171cef5f01826c386a8ca00ddf855919aba"
+    },
+    {
+      "file": "common-virtual-accounting.tex",
+      "before_sha256": "514b7ce52b2fc28bf45dd026703473172f339086af7c8a33541467d3bd9b5fda",
+      "after_sha256": "7d6d3957032b6452a1dfd085e8eb6270f0169bca124815e231f9062dd81ed433"
+    },
+    {
+      "file": "computational-roadmap.tex",
+      "before_sha256": "c10467f5ea1d79fa6442a69475cf6610ba5de46f95eff679cdfc5205a1f53fa5",
+      "after_sha256": "5c49c7083cf3403b1a7143d7535998a9353bc6bf9739a785bf83c16d266481dd"
+    },
+    {
+      "file": "confirmation-traffic.tex",
+      "before_sha256": "a7f22b87e8f201c1c397f783191781bb85b981e04f5c66f7bfceef982e2ea264",
+      "after_sha256": "af40ffd1a79c0577f90c49b315ff25ed4bbd81eceda94a7065da44bf7097f304"
+    },
+    {
+      "file": "construction.tex",
+      "before_sha256": "2b5e0e62497d5861a0e0158f8d5f832f6e554a1e996ba48adca65b479d6fb860",
+      "after_sha256": "33f6381e3e71dcf1fc8a50f881fc2578283ed12573e4a47f729ffe77becbe23a"
+    },
+    {
+      "file": "contextbound-connection.tex",
+      "before_sha256": "2cb35981e471c95a0a294bd884cc209b498e4788658ff5b2c62e4d369b020711",
+      "after_sha256": "a988118bf1e041aefa34ca269f48c9115e654a5ca1d97f444660cae6551cf702"
+    },
+    {
+      "file": "declarations.tex",
+      "before_sha256": "f5bd2d2e1433dd8ae1fc19ce8a871eb9a663518a54b70d62cdc994cab4fbaf2a",
+      "after_sha256": "f5bd2d2e1433dd8ae1fc19ce8a871eb9a663518a54b70d62cdc994cab4fbaf2a"
+    },
+    {
+      "file": "discussion.tex",
+      "before_sha256": "a57828c0fdffdae5e6c6c797f629333be9398aee9aa1296546f24bfe34c38658",
+      "after_sha256": "203f749be4c2c8403aa11db7cfff03146e138331a1eaefcd675d950bc97d989b"
+    },
+    {
+      "file": "established-results.tex",
+      "before_sha256": "59764e975fb40298552a9ce401321cf8fc5a41cbfc6fb0c0f64c6fd19ae204d4",
+      "after_sha256": "bb9674beb241a086a374383563cfb6d402f7e9ea7fdce4099d5464df28550775"
+    },
+    {
+      "file": "evaluation.tex",
+      "before_sha256": "8b1f8ee99ec4a9e08506c0fb431aacb516c87b93b92d7b6e8ad048947c517ad8",
+      "after_sha256": "36962bf87d3c9b3eac59f3c5ba11a111fcf59eb1ae56a3cf8ebd2a77df015aa8"
+    },
+    {
+      "file": "guarded-provenance.tex",
+      "before_sha256": "b435f7b300137bcdd848b115544712cf0901ee5cafe759247471817dc9de2058",
+      "after_sha256": "853cdc615820610d5744168504a7773e798888f07bd721dc19034fe94eac9691"
+    },
+    {
+      "file": "introduction.tex",
+      "before_sha256": "7786cc86835a2d026c77a3fe25790ad54890c2f6fe724949e7687fdb14c755d7",
+      "after_sha256": "10e30faac8953bc29bc65ee0dbbe116ef5b78fe479bf2ff104ba6c861f1e8b3d"
+    },
+    {
+      "file": "joint-continuation.tex",
+      "before_sha256": "2a7c2a6e89ad22b3bdf2c147d27e637bc002abe09dc151bd37ae17876ea4144e",
+      "after_sha256": "8b0a88f5d10a57d9d025a89ea403a069c6975c004b15a1f7f6bf83e59f8ca470"
+    },
+    {
+      "file": "joint-primitive-bounds.tex",
+      "before_sha256": "46096229bdb41e29725ef76698f935af1cc748eebccc1accaec787f4db069367",
+      "after_sha256": "d6924de4fa0bb4f18d20af174418456b8e59ce84a743559432ad0e74b74ee8dd"
+    },
+    {
+      "file": "kem-ordinary-bridge.tex",
+      "before_sha256": "f14ca35e3e2e2d464664d41e146423c47f299357eddd4a562e51045a5996274b",
+      "after_sha256": "88f088ee4e49e12777a81fc7a7aa72a03ea82a3850e70dfea79da1e8d0536d83"
+    },
+    {
+      "file": "live-core-instantiation.tex",
+      "before_sha256": "f0a610b89ad81bf878b11e5a74f6e903a230cb208f45bdfda104fa38355f3c4c",
+      "after_sha256": "8f0b1239d754456590feb67dcc719a62dd9014bb9b3193d8621415770f079566"
+    },
+    {
+      "file": "main.tex",
+      "before_sha256": "31710c8b9b72b3d2bbc894423cb526490ab26f156b668736bfbe5886e7ee1ede",
+      "after_sha256": "1ecf3d91330f26883cb1e086536e26d1b6b7c3baa40c5f6d66d032849053e844"
+    },
+    {
+      "file": "matched-opportunities.tex",
+      "before_sha256": "7def72b8f8d96b8a1f3d3845d6579e421579015862261dc49a1c6e1632a05667",
+      "after_sha256": "5ee6def0ef7aab41fc255d7e2dbdd02bbc7e2cdb35858ab560e22d53fff78a48"
+    },
+    {
+      "file": "matched-opportunity-tables.tex",
+      "before_sha256": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570",
+      "after_sha256": "e7d7d1909edc67d296b02df3f87a0a9f6048dd53761511438acaf99f2139d570"
+    },
+    {
+      "file": "multiple-root-entry.tex",
+      "before_sha256": "688367398ef403eed528e2180b8a0b1b5e093a71150176032ff0a086736dfca9",
+      "after_sha256": "6a59cf54c73664de9580826270460c750347a1e4f8f63c28554f99c06454f2e3"
+    },
+    {
+      "file": "native-authentication.tex",
+      "before_sha256": "8f48e9c416e9cc8ba19c3d20560627cb878ba45f762c53097d0fe2c8d6256d3e",
+      "after_sha256": "bb82662efeac3fe44c0f832a56ac8e3c456f48acc6f1acf8c7e0b70db6c2b40c"
+    },
+    {
+      "file": "native-chain-composition.tex",
+      "before_sha256": "3fb3cadd7d50b4b90e83a8cc26b1742d79cf281acb1066db42190fd3ffb42532",
+      "after_sha256": "b86a24b170594285b966dcbf74aabde7b61bf2073b5898d499c085f018d17e60"
+    },
+    {
+      "file": "native-correspondence.tex",
+      "before_sha256": "2843c8d39f694bb3814b14cfeab9de223b9716d7ecfb53c0c3f5371b2dedb730",
+      "after_sha256": "9ca81119eff131e8d8de6d0fbb6d0fd94307fb9eac062c84e1a1756527a94f0b"
+    },
+    {
+      "file": "opaque-rendering.tex",
+      "before_sha256": "3159e5e80a2c5fc76446adfbb50314ae729196c8f1a4acbc47bd1a924b1528b5",
+      "after_sha256": "2d3dd41000cc0dd6bbe7c17315e33c22801706d67346d475df4bc250ca296d55"
+    },
+    {
+      "file": "primitive-inputs.tex",
+      "before_sha256": "98312b261727ea811499ab5cb27f6ae49fe3ebb6989c451111b4714cd085a9e0",
+      "after_sha256": "85a9b96c765ea42336216a0a06cbf10a05345b3661a061f68413aa18d579c886"
+    },
+    {
+      "file": "reference-schedule-table.tex",
+      "before_sha256": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9",
+      "after_sha256": "2773674cdaf608cbb5999eccf913b85f6bd2ffdb7234fa0fa6338091554341c9"
+    },
+    {
+      "file": "related-work.tex",
+      "before_sha256": "fa9fa3994595fa61b7f54e4688376724943beec99d8d290b5f1eef4eef40d6eb",
+      "after_sha256": "570d4d733e4b41f9c15655b6090610f25d6652ab20c1f464c61dfa6f72c3b88f"
+    },
+    {
+      "file": "report-composition.tex",
+      "before_sha256": "9facf3f407fbb1830a063acc91f76808cbe517c8afda4ff293a4b6dff6656410",
+      "after_sha256": "91366ed43d184b95aa4a08b7cda65b776859bbab55c0e43264511e8e678243af"
+    },
+    {
+      "file": "reservation-signature-bridge.tex",
+      "before_sha256": "7b209b7bea38f3c17788bfcaacbf6b26e03ce4fcedc13fd77f31c6ef446f685d",
+      "after_sha256": "27a06d143261332fa8819631c2a4a6789f0e3bff36908bd7fd668c0220fd2c69"
+    },
+    {
+      "file": "retry-readiness-table.tex",
+      "before_sha256": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5",
+      "after_sha256": "b2350187e1567dab26f2e09f39be277f476497e8b31d23abd54a1ff880a0adf5"
+    },
+    {
+      "file": "retry-readiness.tex",
+      "before_sha256": "7511cc1a02d7ea23b4ee6181b9736f54ed391be6456f776665bebf97ba35b402",
+      "after_sha256": "a0a03fbc03a363945db6510c6d43a601bea1ddf0c0a5eb91a60949577abeaa5c"
+    },
+    {
+      "file": "sdk-purpose-connection.tex",
+      "before_sha256": "ddbd06df3ca3b4a30fe21d6e870a3b9439d6ca27ac4d1d690acc1818657ce29b",
+      "after_sha256": "0020c07d46723853f376b021f81c7fdf3e402b6d1ef29b616ced2b7bacd401f0"
+    },
+    {
+      "file": "security-model.tex",
+      "before_sha256": "8e1330affecf952952f1239a8d557239492a8e11152b82e002c9340a76ce347c",
+      "after_sha256": "c70103a718f02bca3fc0d8c689f707f7f2325c6e012cc6275f2083ae2c634bdf"
+    },
+    {
+      "file": "source-attribution.tex",
+      "before_sha256": "c4d52d007dde5ccf4c9f09279a830c31c05758ffb6fefaf3ddcf9b60a71d86a7",
+      "after_sha256": "5646e7a8b4b23abf91fa6e0f5a858cc42605047da3804803856f2bc4ea784c39"
+    }
+  ],
+  "byte_identical_ordered_blocks": {
+    "formal_statements": {
+      "count": 58,
+      "ordered_sha256": "6208d7d0d76f57ef1dd2529d06e7f001847d6c75d793193123085bdf4b1b4d26"
+    },
+    "proofs": {
+      "count": 53,
+      "ordered_sha256": "2f2bf9c855135ce84d3ea580de81fb03a102aff551d3a1046102d312113d2300"
+    },
+    "displays": {
+      "count": 170,
+      "ordered_sha256": "56088d48efa0e1a03632b1866826ceb58670653e75a5fca505a0bfa67ae23db3"
+    },
+    "tables": {
+      "count": 15,
+      "ordered_sha256": "6b627de301734c3f8101eec16833931bfff5d763965cc147f6fbed0ded0803e8"
+    },
+    "labels": {
+      "count": 187,
+      "ordered_sha256": "b122cf69fabbaecca5a555bc2f27675bfb871aae9c518855bc5cd526035c8d22"
+    }
+  },
+  "citation_and_reference_multiplicities_preserved": true,
+  "inline_mathematics_preserved": true,
+  "numeric_token_differences_for_review": [
+    {
+      "file": "artifact-map.tex",
+      "removed": {
+        "194": 1
+      },
+      "added": {
+        "200": 1
+      }
+    }
+  ],
+  "original_artifact_files_checked": 729,
+  "original_artifacts_byte_identical": true,
+  "author_declarations_and_bibliography_unchanged": true,
+  "failures": []
+}

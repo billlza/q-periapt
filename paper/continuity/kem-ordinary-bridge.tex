@@ -4,9 +4,11 @@
 By the time the native adapter reaches its chosen encapsulation, it
 may already have answered decapsulation requests. In the ordinary
 single-challenge ML-KEM game the challenge ciphertext is fixed from
-the outset. Our comparison keeps the real answers to those earlier
-requests and charges the event that one of them names the ciphertext
-that the adapter will later receive as its challenge.
+the outset, so an earlier request can name a ciphertext that is already
+excluded there. The comparison must account for this timing difference.
+We keep the real answers to the earlier requests and charge the event
+that one of them names the ciphertext the adapter will later receive
+as its challenge.
 
 In the ordinary game, an honest key pair and a fresh encapsulation
 $(c^*,K^*)$ are generated, and the adversary receives

@@ -8,20 +8,22 @@ authenticated key exchange and prove security for that abstraction
 derive secure messaging relative to direction- and index-sensitive vulnerable
 message sets \cite{scka2025}. Their Definition~3.2 includes current chains,
 already produced future-epoch keys, and pending out-of-order messages;
-Theorem~3.3 gives the corresponding messaging composition. A persistent
-endpoint may already have reserved the randomness for a key it has yet
-to compute. In that case the relevant object to look for in storage is
-the reservation.
+Theorem~3.3 gives the corresponding messaging composition. Persistence
+adds a question about the origin of this material: an endpoint may
+already have reserved the randomness for a key it has yet to compute.
+The reservation then fixes the future key's inputs and becomes the
+relevant object in a storage exposure.
 
 Triple Ratchet distributes its larger post-quantum messages across
 transmissions while combining classical and post-quantum key agreement
 \cite{tripleratchet2025}. Remark~4.3 already accounts for next-epoch
 material sampled during distribution. Our delayed-receipt execution
-illustrates that point. The further question for us is what happens
-when several encrypted copies of one reservation survive. They can be
-acquired at different times and opened under different keys, yet all
-refer to the same original operation. That is why the model records both
-the identity of the draw and the history of each acquired copy.
+illustrates that point. We follow the material through a further
+step: several encrypted copies of one reservation can survive, be
+acquired at different times and become readable under different keys.
+Their exposure histories differ while their original operation remains
+the same. The model therefore records both the identity of the draw and
+the acquisition history of each copy.
 
 \paragraph{State and randomness compromise.}
 Jaeger and Stepanovs define bidirectional channel security under repeated
@@ -34,11 +36,12 @@ key-updatable primitive needed by their strongest recovery requirements
 unidirectional ratcheting to bounded leakage between send calls, with
 separate key-indistinguishability and one-way formulations
 \cite{collins2025leakage}.
-Here an adversary may acquire an encrypted record at one time and a
-key that helps open it at another. Which original operations can it
-reconstruct once it has both? We characterize
-that dependence for the record fragment and simulate the resulting
-images and reports in the native message experiment.
+In the record interface studied here, compromise accumulates across
+time: an adversary can acquire an encrypted record first and a key
+that helps open it later. We characterize which original operations
+become reconstructible from the combined observations. The native
+message experiment then requires a simulation of the corresponding
+images and reports while the undisclosed operation inputs remain private.
 
 \paragraph{Persistence, exact replay, and crash recovery.}
 The Signal specification discusses deferring ratchet-key generation to shorten
@@ -49,12 +52,12 @@ We date the operation from that reservation. Replaying the call uses
 the same tape, even when the new image has a fresh sealing nonce.
 
 GoJournal gives storage applications verified atomicity through
-concurrent crash specifications~\cite{gojournal2021}. For our protocol,
-a crash-consistency argument identifies the operation that the endpoint
-resumes. We also need to know which copies the adversary acquired and
-when it obtained the keys to open them. In our restart experiment the
-peers and the adversary derived traffic keys from the same original
-inputs. The guarded normalization theorem describes
+concurrent crash specifications~\cite{gojournal2021}. Crash consistency
+identifies the operation that an endpoint resumes. The exposure question
+then depends on which copies of its inputs the adversary acquired and
+when it obtained the keys to open them. Our restart experiment connects
+these questions: the peers and the adversary derived traffic keys from
+the same original inputs. The guarded normalization theorem characterizes
 when those inputs become readable in the encrypted-record fragment.
 
 \paragraph{Simulation under adaptive compromise.}
@@ -63,14 +66,15 @@ adaptive key compromise, including practical symmetric constructions in
 ideal models~\cite{jaeger2020adaptive}. Jaeger develops composable variants
 that support multi-user reductions, cascaded PRFs, and constructions
 sharing one ideal primitive~\cite{jaeger2023program}.
-Our retained-state comparison supplies a simulator with an original
-operation's public outputs while its random tape remains private.
-Immutable record identities preserve equality and retries; dependent
-reports are replaced in reverse causal order. Candidate-local stopping
-certificates connect those simulations to the original execution's
-eligibility event. The subsequent shared-oracle key-schedule comparisons
-retain the real verification operations and disclosed successor values
-within the same continuation.
+Our retained-state comparison addresses the case in which a simulator
+receives an original operation's public outputs while its random tape
+remains private. Immutable record identities let the simulator preserve
+equality and retries; replacing dependent reports in reverse causal order
+preserves their dependencies. Candidate-local stopping certificates carry
+the original execution's eligibility event through these simulations.
+The subsequent shared-oracle key-schedule comparisons retain real
+verification operations and disclosed successor values within the same
+continuation, so these dependent uses enter the reduction's accounting.
 
 \paragraph{Signing-randomness leakage.}
 Damm et al. recover ML-DSA secret-key material from noisy bit leakage of
@@ -105,12 +109,13 @@ Cremers, Jacomme, and Naska analyze how the session-handling layer determines
 conversation security and give a Tamarin analysis of Signal's Sesame
 \cite{sessionhandling2023}. Cremers, Medinger, and Naska prove incompatibilities
 between full end-user PCS and specified state-loss resilience requirements
-\cite{stateloss2025}. To state recovery in our setting we specify what survives a crash
-and who owns each signing key. The endpoint resumes its operations
-from the bound journal. A disclosure in another session can still
-reveal the target's signer if the two share a key. A journal image
-can likewise contain a saved version of the target alongside versions
-of other sessions. The symbolic theorem checks both kinds of exposure.
+\cite{stateloss2025}. These questions make the surviving state and actual
+key ownership part of a recovery claim. In our setting the endpoint
+resumes its operations from the bound journal. A disclosure in another
+session can reveal the target's signer when the two share a key. An
+aggregate journal image can also carry a saved target version alongside
+versions of other sessions. The symbolic theorem follows the actual
+signing keys and target-session projections through both forms of sharing.
 
 \paragraph{Admissible network behavior.}
 Fischlin, G\"unther, and Janson formalize robustness for channels over unreliable
@@ -129,23 +134,25 @@ forward-secrecy attacks and fixes \cite{doubleratchet2026}. H\'erouard et al.
 mechanize computational PCS for a two-party asymmetric ratchet with unbounded
 steps and a fixed non-adaptive compromise scenario \cite{squirrel2026}.
 Their proof distinguishes non-deduction of intermediate roots from
-real-or-random security of derived keys. We ask a symbolic secrecy
-question across unbounded epochs and a computational question about
-one send selected online. For the latter the reduction must also
-answer storage calls while some of the operation's bytes remain
-private. That obligation motivates our record simulator.
+real-or-random security of derived keys. Our analysis states the symbolic
+and computational questions separately: secrecy across unbounded epochs,
+and security of one send selected online. The latter includes storage
+calls while some original operation inputs remain private. Our record
+simulator supplies the responses needed to carry that interface through
+the computational reduction.
 
 Bhargavan et al. study SPQR and its implementation \cite{spqr2026}. The authors'
 public account describes ProVerif protocol models and hax/F* verification of
 panic-freedom and selected correctness properties of the Rust core
 \cite{spqrverification2025}.
-For our source correspondence we identify the native constructors
-and transitions that implement the original-record model. We use the
-SPQR reference corpus for a different question. Given an endpoint
-snapshot and the later public traffic, which component keys does its
-predictor reconstruct, and how many bytes does the component send?
-We report those measurements with the source revision and predictor
-that produced them.
+Our source correspondence identifies the native constructors and
+transitions that implement the original-record model. The SPQR reference
+corpus supplies a separate measurement: from an endpoint snapshot and
+later public traffic, its predictor reconstructs a specified set of
+component keys. We report that set alongside the component's transmitted
+bytes, retaining the source revision and predictor that produced both
+measurements. This relates retained material to the communication history
+that determines its later use.
 
 \paragraph{Key extraction and dependent uses.}
 HKDF-Extract places its input key material in HMAC's message argument

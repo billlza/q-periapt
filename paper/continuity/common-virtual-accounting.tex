@@ -4,8 +4,9 @@
 Section~\ref{sec:candidate-local-accounting} compares each candidate
 under its own record and report rules. When a single real-component
 virtual experiment and a global comparison with the native game are
-available, we can charge their shared cost once. We derive that
-accounting here and then substitute uniform resource bounds.
+available, we can charge their shared cost once. The accounting below
+shows how that common comparison combines with the costs of each
+candidate's component override.
 
 \subsection{A selected-target experiment}
 
@@ -89,10 +90,10 @@ $2\epsilon_{\rm rec}$ to the score difference. Dividing by two and using the
 maximum bit-guessing advantage proves \eqref{eq:accounting}.
 \end{proof}
 
-The selector may depend adaptively on its entire observed transcript.
-The absolute values in $\sum_j|b_j|$ retain each override world's own target
-selection. In particular, the override probabilities are not normalized as
-though they belonged to one common ideal distribution. The score decomposition
-also retains failed and ineligible executions in the experiment, avoiding an
-uncontrolled division by the probability of eligibility.
+Adaptive selection is handled by evaluating the target on the transcript
+of each experiment. Each override world therefore contributes its own
+score to $\sum_j|b_j|$; the partition used in the proof belongs to the
+single real-component experiment. Failed and ineligible executions remain
+in these unconditional scores, so the bound requires no division by the
+probability of eligibility.
 

@@ -2,11 +2,13 @@
 \subsection{From an accepted ContextBound operation to the message continuation}
 \label{sec:contextbound-connection}
 
-The joint schedule needs a recovered contribution. In Continuity that
-value comes from the complete ContextBound tuple, while the component
-challenger supplies only a real or uniform 32-byte ML-KEM-768 shared
-secret. We must connect the two without changing what X25519 returns
-or rejects. Write $H$ for the whole SHA3-256 random oracle and $h$ for
+To enter the joint schedule, we need to justify replacing the combined
+contribution by a uniform value. Continuity derives that contribution
+from the complete ContextBound tuple, while
+the component challenger supplies a real or uniform 32-byte ML-KEM-768
+shared secret. We therefore compare the complete ContextBound operation,
+retaining the native X25519 computation and its rejection path.
+Write $H$ for the whole SHA3-256 random oracle and $h$ for
 the independent SHA-256 compression oracle of
 Section~\ref{sec:joint-continuation}. Both are available in every
 comparison. The query budget includes all oracle-dependent preparation,
@@ -99,23 +101,25 @@ challenge; a fresh entropy reservation, including one after an unsuccessful
 attempt, receives its actual new original slot. Copies and reopenings do
 not create a new challenge invocation.
 
+The operational component game has two stages. It first supplies its
+generated public key and permits ordinary prechallenge decapsulation.
+A single challenge is requested at the specified first computation of
+$a$; it returns a fresh encapsulation ciphertext and either its real key
+or an independent uniform 32-byte key. Thereafter its decapsulation
+oracle rejects that challenge ciphertext. Before challenge creation,
+selected-key decapsulation follows the prechallenge interface; a query
+that happens to equal the later sampled $c_M^*$ retains its original
+answer throughout the execution.
+
 After challenge creation, a PQ decapsulation under the selected generation
 owner with ciphertext $c_M^*$ returns the cached $K_{\rm ch}$, regardless
 of accompanying traditional ciphertext or context. All other PQ
 ciphertexts are routed to the component decapsulation interface. The
 traditional decapsulation and its rejection path remain native; a rejected
 traditional leg produces no ContextBound call. The challenged PQ
-ciphertext is never submitted to the postchallenge CCA oracle. The operational component game first supplies its generated public key
-and permits an ordinary prechallenge decapsulation phase. A single
-challenge is requested at the specified first computation of $a$; it
-returns a fresh encapsulation ciphertext and either its real key or an
-independent uniform 32-byte key. Thereafter its decapsulation oracle
-rejects that challenge ciphertext. Before challenge creation, selected-key
-decapsulation follows this ordinary prechallenge interface; a query that
-happens to equal the later sampled $c_M^*$ retains its original answer
-throughout the execution. Other original owners use their locally known
-keys, even when public-key bytes happen to coincide. The component costs
-below refer to this two-stage game.
+ciphertext is never submitted to the postchallenge CCA oracle. Other
+original owners use their locally known keys, even when public-key bytes
+happen to coincide. The component costs below refer to this two-stage game.
 
 The immutable admitted binding must show that $a$ consumes the original
 offer from $g$. An immutable contrary binding makes attribution to $j$
@@ -159,8 +163,8 @@ processing, the marked first-message interface of
 Corollary~\ref{cor:joint-first-message}, and subsequent epochs. Selected
 private owners are used exclusively through this call surface; read-only
 copies remain passive.
-These are an initial state and call surface; the original eligibility
-predicate is unchanged.
+This profile specifies the starting state and permitted calls; eligibility
+remains the original recovery predicate.
 
 \begin{lemma}[Next-rekey root-use correspondence]
 \label{lem:cb-native-root-use}
@@ -213,9 +217,9 @@ become the target. If the selected original $a$ never supplies a usable
 target, the original candidate score is zero; no substitute tuple is chosen.
 In the private-random-function game,
 $S^*=\mathcal T(m^*)$ is a freshly allocated uniform 32-byte value;
-replays and aliases retrieve that same entry. It can be presampled and
-withheld at this allocation. This is an online allocation argument,
-not a claim of uniformity after conditioning on the future transcript.
+replays and aliases retrieve that same entry. Its uniformity holds at
+this online allocation, before the future transcript is generated.
+Equivalently, the value can be presampled and withheld until allocation.
 Other entries of $\mathcal T$ can be sampled by the controller. By
 Lemma~\ref{lem:cb-native-root-use}, all selected uses of $S^*$ are the
 one Extract/Expand required by Appendix~\ref{app:joint-root-entry}.
@@ -232,10 +236,9 @@ Corollary~\ref{cor:joint-first-message}. A hidden challenge bit is not an
 additional input to that predicate. This condition matters: if the guess
 is always zero and a fictitious predicate accepts exactly when the hidden
 bit is zero, the qualified signed score has expectation $1/2$ even for an
-otherwise bit-independent view. For the admitted predicate, making an
-independent fair guess on disqualified runs implements the full qualified
-score in the actual AEAD game; no unsupported zero-mean idealization is
-needed.
+otherwise bit-independent view. For the admitted predicate, an independent
+fair guess on disqualified runs realizes the full qualified score in the
+actual AEAD game.
 
 \begin{theorem}[ContextBound connection for the next native rekey]
 \label{thm:cb-next-rekey}
@@ -294,7 +297,8 @@ $|b_j|\le1$, and substitute in
 Proposition~\ref{prop:native-local-accounting}.
 \end{proof}
 
-The result supplies the previously explicit ContextBound comparison for the
-next-rekey instance. Its source requirement is expressed through the root-use
-descriptor, so extensions can retain the same tuple-level comparison while
-establishing their corresponding root-entry interface.
+The theorem completes the next-rekey continuation bound by supplying the
+ContextBound comparison from the original component game. Its
+source-specific step is the one-entry root-use invariant. Extensions can
+reuse the complete-tuple comparison once their corresponding root-entry
+interface is established.

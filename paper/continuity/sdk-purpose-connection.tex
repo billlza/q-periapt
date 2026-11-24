@@ -2,10 +2,11 @@
 \subsection{An owned SDK purpose-key table}
 \label{sec:sdk-purpose-connection}
 
-If two SDK callers request the same purpose key, what should agree?
-The key bytes agree for the same source and complete derivation inputs.
-Each successful call nevertheless returns its own \texttt{DerivedKey}
-owner, which can be closed separately. The native
+Repeated SDK derivation raises two questions: which calls share key
+bytes, and how their owners retain separate lifetimes. Calls with the
+same source and complete derivation inputs share the key bytes. Each
+successful call creates its own \texttt{DerivedKey} owner, which can be
+closed separately. The native
 \texttt{SharedSecret::derive\_key} operation takes a purpose, protocol
 label and context and allows repeated calls on the source owner. The
 source checks cover all five purposes at both peers, including output
@@ -168,7 +169,7 @@ complete-tuple ContextBound comparison contributes its established
 $2\Phi_{256}(d,Q_H)$ term when the stopped execution realizes that source
 family and available controller.
 
-This consequence concerns the exported purpose key's declared application
-use. The durable rekey driver retains its own 97-byte pending-root
-information and established source invariant; the SDK table provides a
-separate concrete application of the finite entry proof.
+The SDK table thus instantiates the finite entry proof for owned purpose
+keys and their declared application use. The durable rekey driver is the
+corresponding instance with its own 97-byte pending-root information and
+established source invariant.

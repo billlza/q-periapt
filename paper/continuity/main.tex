@@ -58,30 +58,31 @@
 % The alternative address is retained in author-metadata.json.
 \author*[1]{\fnm{Ziang} \sur{Li}}\email{2403871950@qq.com}
 \affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
-\abstract{In our restart experiment, both endpoints accepted the rekey,
-yet we could decrypt the traffic that followed. One endpoint had saved
-the randomness it would use after restart. When is a later message
-confidential if an adversary can acquire an encrypted record and learn
-its wrapping key at different times?
+\abstract{Our restart experiment shows why an accepted rekey can leave
+later traffic exposed: an endpoint resumed an operation using randomness
+saved before the crash. We study recovery when record acquisition and
+wrapping-key disclosure occur at different times.
 For the next rekey of an established Q-Periapt Continuity session, we
 prove confidentiality and fresh-message integrity for one application
-send selected online. The original key-generation and encapsulation
-reservations must follow the compromise cut. Each acquired version of
-the session must have reached durable storage by the cut, and the target
-signing secrets and designated epoch entropy must remain undisclosed.
-The observer may use earlier message keys to mark the target before either
-endpoint first computes it, then learn its successor seed. It may select
-the cut after interaction. Our reduction reproduces commitments and exact
-retries from public operation outputs even when the reserved tape is
-private. The bound accounts for record simulation, source attribution,
-ordinary ML-KEM and hedged ML-DSA security, shared-oracle key derivation
-and authenticated encryption in the stated quantum random-oracle models.
-On fixed indexed graphs we track readable sources in total work linear in
-graph size and input history. A mechanized symbolic theorem covers secrecy
-across unbounded epochs under its provenance condition. With 2,048
-alternating transmission opportunities and a send budget of 32, waiting
-four sender turns before retrying raised deliveries from 688 to 971.
-Both runs yielded 63 reconstructible post-capture keys.}
+send selected online. Both original key-generation and encapsulation
+reservations must follow the compromise cut; every acquired target-session
+version must have reached durable storage by the cut, while the target
+signing secrets and designated epoch entropy remain undisclosed.
+The observer may use earlier message keys to mark the target before
+either endpoint first computes it, learn its successor seed after
+derivation, and select the cut after interaction.
+The reduction reproduces commitments and exact retries from public
+operation outputs even when the reserved tape is private. Its bound
+accounts for record simulation, source attribution, ordinary ML-KEM and
+hedged ML-DSA security, shared-oracle key derivation and authenticated
+encryption in the stated quantum random-oracle models. On fixed indexed
+graphs, we track readable sources in total work linear in graph size and
+input history. A mechanized symbolic theorem covers secrecy across
+unbounded epochs under its provenance condition. With 2,048 alternating
+transmission opportunities and a per-epoch, per-direction send budget of
+32, waiting four sender
+turns before retry raised deliveries from 688 to 971; both runs yielded
+63 reconstructible post-capture keys.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
 

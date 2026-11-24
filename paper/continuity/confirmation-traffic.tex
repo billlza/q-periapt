@@ -3,8 +3,10 @@
 
 The recovered root supplies three confirmation keys as well as the
 directional traffic material in Theorem~\ref{thm:joint-message-leaf}.
-To ask what a successful confirmation authenticates, we keep the keys
-behind the same MAC and verification calls that the protocol makes.
+We now use that joint comparison to bound acceptance of a confirmation
+core or first-message ciphertext with no earlier honest origin. For
+confirmation, the keys remain behind the protocol's actual MAC and
+verification calls.
 The adversary may query the independent public oracles $H$ and $h$ in
 superposition. The protocol requests, MAC inputs, verification requests
 and replies are classical.
@@ -184,8 +186,9 @@ complete-continuation budget. For an independent application challenge
 bit, both arguments may first fix that bit and then average.
 \end{proof}
 
-The native composition in Section~\ref{sec:native-authentication}
-precedes this uniform epoch-root interface with the record, component,
-complete-tuple and root-initialization comparisons. Each comparison uses
-the selected authentication event's terminal bit and complete continuation
-budget, connecting the present bound to the original recovery experiment.
+To carry this bound into the original recovery experiment,
+Section~\ref{sec:native-authentication} places the record, component,
+complete-tuple and root-initialization comparisons before the uniform
+epoch-root interface. The selected authentication event supplies the
+terminal bit for each comparison, whose budget covers its complete
+continuation.

@@ -1,14 +1,16 @@
 \subsection{Retry readiness under the common opportunity budget}
 \label{sec:retry-readiness}
 
-How much of the service difference can retry timing alone explain?
-We kept the protocol source, send budget, requests, capture cut,
-cryptographic and durability interfaces, and 2,048 transmission
-opportunities fixed within each pair. We varied only whether an
-unacknowledged frame could be retried immediately or after four sender
-turns. Testing both budgets on the seven schedules in
+The retry experiment tests whether delaying retransmission frees
+opportunities for completed service under the same allocation cap.
+Within each pair we kept the protocol source, send budget, requests,
+capture cut, cryptographic and durability interfaces, and 2,048
+transmission opportunities fixed. The only change was whether an
+unacknowledged frame became eligible for retry immediately or after
+four sender turns. Testing both budgets on the seven schedules in
 Section~\ref{sec:matched-opportunities} gave 14 pairs. All 14 new
-immediate-retry runs reproduced the corresponding original rows.
+immediate-retry runs reproduced the corresponding original rows,
+establishing the baseline for the comparison.
 
 \paragraph{A public retry clock.}
 The clock counts the sender's own turns. Each endpoint advances its
@@ -19,8 +21,10 @@ emission turn. When fair cyclic arbitration selects the retry class,
 the oldest eligible request resumes with its saved ciphertext. Control
 planning, cumulative ACK processing, first admission and the other
 arbitration rules keep their original code.
-The sender can observe its clock and whether an ACK has arrived.
-Only the analyst can tell whether a retry followed the first delivery.
+This rule uses information available to the sender: its clock and ACK
+history. The analyst additionally observes first delivery, allowing the
+trace audit to identify retries sent while a delivered message still
+awaited acknowledgement.
 
 \input{retry-readiness-table}
 
@@ -31,20 +35,27 @@ twelve bidirectional or resumed budget--schedule pairs
 deliveries rose from 688 to 971 at $b=32$ (41.13\%) and from 718 to
 999 at $b=64$ (39.14\%). Application retries fell from 604 to 16 and
 from 579 to 8. Neither age-four run retried a message after its first
-delivery. The immediate policy had done so 592 and 572 times.
+delivery. The immediate policy had done so 592 and 572 times. With
+requests and opportunities fixed, the paired runs attribute the service
+gain to the changed retry-readiness rule; the frame counts show the
+reduction in retry work through which that gain occurred.
 
 The two age-four runs emitted 706,764 and 455,388 bytes, respectively.
-Bytes per delivery fell by 11.41\% and 19.70\%. Each captured endpoint
-still yielded 63 or 127 post-capture keys, out of 970 or 998 post-capture
+The extra service increased total byte cost, while bytes per delivery
+fell by 11.41\% and 19.70\%. Each captured endpoint still yielded 63 or
+127 post-capture keys, out of 970 or 998 post-capture
 first commitments. Physical \texttt{sync\_data} calls rose from 14,219
 to 20,015 and from 14,579 to 20,255. Per delivery, those counts fell
-from 20.67 to 20.61 and from 20.31 to 20.28.
+from 20.67 to 20.61 and from 20.31 to 20.28. The same distinction
+therefore applies to persistence: more completed work required more
+sync calls in total and slightly fewer per delivery.
 
 \paragraph{Schedule-dependent accounting.}
-On the lossy and reordered schedules at $b=32$, the endpoints delivered
-36.09\% and 16.84\% more applications. They also spent 14.37\% and
-3.94\% more bytes per delivery. A committed message can still be waiting
-when a run ends. With age four, the two lossy runs committed/delivered
+The cost of the additional service depends on the schedule. On the lossy
+and reordered schedules at $b=32$, the endpoints delivered 36.09\% and
+16.84\% more applications while spending 14.37\% and 3.94\% more bytes
+per delivery. First commitment and completed delivery can also separate
+at the end of a run. With age four, the two lossy runs committed/delivered
 906/905 and 966/965 applications, and the $b=64$ asymmetric run reached
 858/857. We count post-capture first commitments in the exposure
 denominator. Under the offline prefix, the derived counts rose from

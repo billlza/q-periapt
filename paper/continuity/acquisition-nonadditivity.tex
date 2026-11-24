@@ -56,8 +56,9 @@ information-theoretic illustration of acquisition; the protocol's record
 encryption is handled by its cryptographic record interface.
 
 \paragraph{Consequence for provenance routes.}
-A fixed origin label correctly identifies the seed in a copy. A union
-of fixed per-item exposure labels misses what happens when the record
-and its key arrive separately. Another copy offers another route to the
-same seed. Each route becomes usable when the record and all its
-required keys are available.
+A fixed origin label identifies the seed carried by a copy. Readability
+also depends on how the observations combine: the record and its key
+may arrive separately and enable recovery only together. Provenance
+routes retain this conjunction. Copies retain the same source identity,
+and each route becomes usable when its record and every required key
+are available.

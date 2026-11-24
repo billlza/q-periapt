@@ -1,0 +1,147 @@
+{
+  "deferred_table_parent": {
+    "distinct_joint_views": 320,
+    "executions_each": 512,
+    "fresh_after_selection_one_probability": "1/2",
+    "numerical_coincidence_executions_retained": 320,
+    "posthoc_gap": "1/4",
+    "posthoc_selected_one_probability": "3/4"
+  },
+  "exact_entry_aliases": {
+    "accepted_rank_after_failed_use": 2,
+    "complete_descriptors": 3,
+    "descriptor_ranks": [
+      1,
+      1,
+      2,
+      3,
+      1
+    ],
+    "new_rank_after_live_deletion": 3,
+    "shared_raw_bytes": 96,
+    "shared_raw_input_sha256": "6fd0c519d19461e79c618d5591f4ec96efb838bf1ef7004481715abb6d68216d",
+    "wrong_inner_cache_classes": 1,
+    "wrong_recycled_rank_collides": 2,
+    "wrong_salt_cache_classes": 4
+  },
+  "original_fresh_slot_bound": {
+    "actual_match_probability": "7/16",
+    "executions": 64,
+    "one_executed_ciphertext_bound_fails": "1/4",
+    "two_original_slots_bound": "1/2"
+  },
+  "original_slot_history": {
+    "component_owner_cases": 4,
+    "failed_draws_and_live_consumption_preserved": true,
+    "traces": 54
+  },
+  "schema": "q-periapt/bootstrap-initial-source-check/v1",
+  "scope": "exact source identities, byte encodings, finite online accounting and explicit negative controls; no native KEM/provider execution",
+  "source_correspondence": {
+    "checks": [
+      "inventory reservation is durable before generation",
+      "generated public component is committed before publication",
+      "inventory rejects duplicate published component fingerprints",
+      "inventory generation scope keeps image owner request and intent",
+      "selected inventory owner restores from original sealed seed",
+      "inventory restore checks published component",
+      "actual PQ and traditional references remain separate",
+      "response receives components from their respective owners",
+      "response commits both inventory references before restoration",
+      "only selected one-time tokens become operation tombstones",
+      "prekey fingerprint binds algorithm and exact public bytes",
+      "initial plan is durable before private advancement",
+      "each advanced initial phase persists before further advancement",
+      "separate initial reservation and encapsulation stages",
+      "Initial encapsulation retains original prefix peer context and tape",
+      "restored initial plan checks exact recomputed body",
+      "initial body signature verifies before private decapsulation",
+      "initial decapsulation checks actual selected composite peer",
+      "SDK short confirmation is computed with first contribution",
+      "Initial short confirmation precedes purpose-5 signing",
+      "long IKM order is S0 then S1",
+      "three bootstrap labels use the same long Extract",
+      "complete Initial wire affects Reply family",
+      "both complete wires affect session descriptor",
+      "response verifies composite selected public key",
+      "original replay tape widths",
+      "sealed-operation binding and nonce widths",
+      "generation consumes PQ then traditional tape",
+      "seed regeneration retains embedded-public consistency check"
+    ],
+    "count": 29
+  },
+  "source_pins": {
+    "base_commit": "471900bfe8070d1021a1feb67481437d599d80ba",
+    "base_tree": "3ee8cf20e75008949f02c0dfe013b962dd3a7a0a",
+    "checked_files": 35,
+    "source_pins_sha256": "56edba39cb6639b2b1ea251ec84bbdd86c38eaf838c6318b47624671f43452f2"
+  },
+  "two_level_localization": {
+    "adjacent_summaries": [
+      {
+        "capture_zeroing_gap_change": "13/1024",
+        "endpoint_score_gap": "5/256",
+        "registration_rank": 1,
+        "two_endpoint_capture_residual": "3/4"
+      },
+      {
+        "capture_zeroing_gap_change": "0",
+        "endpoint_score_gap": "0",
+        "registration_rank": 2,
+        "two_endpoint_capture_residual": "1/4"
+      }
+    ],
+    "coin_tapes": 16384,
+    "descriptor_budget_per_source": 2,
+    "endpoint_executions": 49152,
+    "global_stop_must_keep_prefix_witness": {
+      "D": 1,
+      "bits": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1
+      ],
+      "latched": true,
+      "rank": 1,
+      "side": 1
+    },
+    "naive_all_costs_times_rank": "231/500",
+    "one_endpoint_capture_bound_fails_witness": {
+      "bits": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "left_capture": false,
+      "rank": 1,
+      "right_capture": true,
+      "right_score": 1
+    },
+    "registration_budget": 2,
+    "source_count": 2,
+    "two_level_cost": "51/500"
+  }
+}

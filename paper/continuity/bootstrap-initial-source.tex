@@ -191,8 +191,10 @@ continuation. Denote this transformed endpoint by $T_{rj,b}$ and put
  \end{split}
  \label{eq:bootstrap-initial-upstream}
 \end{equation}
-All query bounds cover the entire experiment in every replacement,
-including all later long requests. None is restarted for each family.
+Each query bound covers the entire experiment in its replacement,
+including all later long requests. The source comparison therefore pays
+for that complete continuation once, before allocation ranks separate
+the possible parent families.
 
 \begin{lemma}[Allocation-local parent comparison]
 \label{lem:bootstrap-initial-allocation}
@@ -310,6 +312,8 @@ The construction is pinned to the inventory, staged initiation and
 complete-tuple source at commit \texttt{471900bf}. Its complete source
 map, analytical reduction and retained finite controls appear in the
 \href{https://github.com/billlza/q-periapt/blob/81483b52a24a4cc81c2276c5a0d0b667c42761cd/docs/continuity/BOOTSTRAP_INITIAL_SOURCE_ADAPTER_V1.md}{initial-source supplement}.
-The two source profiles therefore yield historical activation under
-their respective original-operation eligibility conditions, with the
-initial-source comparison additionally preserving adaptive reply families.
+Both source profiles therefore authenticate historical responder
+activation under their respective original-operation eligibility
+conditions. For the initial source, comparing its complete service first
+also preserves adaptive reply families while charging the source and
+joint-entry costs once per original pair.

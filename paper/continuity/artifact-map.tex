@@ -4,10 +4,12 @@
 The repository \href{https://github.com/billlza/q-periapt}{\texttt{billlza/q-periapt}}
 contains the protocol snapshot used for the established runs at commit
 \path{228c944fc476e3e57d6c08063cacb19bca5b360e}.
-To trace a result back to its execution, use the source revision,
-toolchain and output recorded for that run. The table locates the
-mechanized certificate and the native observations. The record model
-and the accounting arguments are proved in the manuscript.
+Each result is tied to the source revision, toolchain and output of
+the run that produced it. The table below locates the mechanized
+certificate and native observations, allowing their claims to be traced
+back to those executions. The manuscript supplies the proofs of the
+record model and computational accounting; the supplements identify
+the source correspondences and executable checks used by those arguments.
 
 \begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.25\linewidth}>{\raggedright\arraybackslash}p{0.69\linewidth}@{}}
 \toprule
@@ -64,8 +66,8 @@ The jointly checked certificate has SHA-256
 Its source-base receipt identifies
 \texttt{6084f3bfb09333f6b66291b38809ed512296a27b}.
 The fixed 4 November replay retained all 40 queries and its exact tool,
-resource and output receipts. Reading and checking this retained artifact while
-preparing the manuscript is distinct from executing another Tamarin run.
+resource and output receipts. That replay's certificate and receipts
+supply the mechanized evidence inspected during manuscript preparation.
 
 
 
@@ -80,12 +82,12 @@ it completed in 816.903 seconds. The output certificate was byte-identical to
 the retained input. Appendix~\ref{app:artifacts} gives its digest and archive
 member, making the theorem's exact formula and proof available for inspection.
 
-Tamarin verified 27 of the 40 queries in the recorded inventory.
-Eleven multi-round existence queries and two historical all-trace
-queries remained incomplete. All thirteen lie outside the main
-theorem's dependency group. The two later ground-trace constructions
-provide concrete finite executions. Each has its own checked formula
-and evidence record.
+Tamarin verified 27 of the 40 queries in the recorded inventory,
+including the main theorem and its dependency group. Eleven multi-round
+existence queries and two historical all-trace queries remained
+incomplete; all thirteen lie outside that group. The two later
+ground-trace constructions establish concrete finite executions under
+their own checked formulas, with a separate evidence record for each.
 
 
 \subsection{Guarded-normalization supplement}
@@ -96,7 +98,7 @@ The complete manuscript extends the previously retained source at commit
 \end{center}
 under \path{paper/continuity}. The manuscript and its directly used evidence
 are maintained in the repository's
-\href{https://github.com/billlza/q-periapt/pull/194}{manuscript revision}.
+\href{https://github.com/billlza/q-periapt/pull/200}{manuscript revision}.
 The filenames below are relative to \path{paper/continuity} in that distribution.
 
 The explicit normalization theorem and its proof are in
@@ -135,9 +137,11 @@ python3 check_indexed_exposure.py --output indexed-results.json
 python3 review_indexed_exposure.py --output indexed-review-results.json
 \end{verbatim}
 \end{quote}
-These commands exercise the finite record model and its independent expected
-cases. The retained native and Tamarin evidence remains at the source
-checkpoints listed in the preceding map.
+These commands reproduce the finite record evaluations and compare their
+outputs with the independent expected cases. They connect the executable
+semantics to the normalization argument. The preceding map identifies
+the source checkpoints for the native observations and Tamarin proof
+that supply the other parts of the evidence.
 
 \subsection{Constructive image/intent simulation}
 \label{app:opaque-artifacts}
@@ -159,9 +163,10 @@ recorded in \path{artifacts/native-interface/native_interface_map.md} and
 \path{artifacts/native-interface/map.json}. The machine-readable map binds
 the source ranges and file identities to the fixed protocol checkpoint.
 \path{artifacts/native-interface/native_map_validation.json} records the
-source checks. These are source observations associated with the declared
-interfaces; historical execution receipts retain their own dates and
-source identities.
+source checks. The map establishes where the declared interfaces occur
+in the inspected source. The historical execution receipts identify
+the dates and source revisions on which their recorded outcomes were
+obtained.
 
 \subsection{Immutable report composition}
 \label{app:report-artifacts}
@@ -253,9 +258,11 @@ Earlier project work on SkyBridge Compass studies policy-governed
 authenticated establishment, complete-transcript binding, and a control-only
 recovery phase before application traffic
 (\href{https://github.com/billlza/Skybridge-Compass/blob/d49d2a9ed4e1fb00905adeb06c02989562e375af/Docs/TDSC-2026-01-0318_IEEE_Paper_SkyBridge_Compass_patched.tex}{unpublished manuscript, revision \texttt{d49d2a9}}).
-It supplies the operation-admission and traffic-release perspective. Here we
-follow the admitted operation's original randomness through persistence and
-acquisition, and develop record and report simulations. The artifact's
+It supplies the operation-admission and traffic-release perspective.
+Following an admitted operation through persistence raises the further
+question of which original randomness survives and becomes available
+after acquisition. The record and report simulations in this paper
+address that question. The artifact's
 \path{notes/skybridge-scope.md} fixes the source versions and allocates material
 between these research questions.
 

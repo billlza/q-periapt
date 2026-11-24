@@ -8,6 +8,8 @@ The repository maintains one manuscript on **`paper/joc-persistent-recovery`**. 
 
 ## Research structure
 
+The [whole-manuscript argument-flow review](artifacts/editorial-review/argument-flow/validation.json) follows the observed restart through the original-source model, record simulation, computational connections and service experiments. It covers all 40 canonical modules and revises explanatory prose in 36 of them. The formal statements, proofs, displayed and inline mathematics, tables and original evidence retain their identities; the review records the source comparison and the current PDF and standalone-source checks.
+
 The manuscript follows the random tape saved before a restart through the record model and the proof for a send selected online. The evaluation reports how many messages were delivered alongside how many keys the predictor reconstructed. The [reading-copy review](artifacts/editorial-review/manuscript-narrative/validation.json) identifies the corresponding pages and links the formal-text comparison and independent source build.
 
 The [reservation and exposure checks](artifacts/editorial-review/reservations-counters-and-exposure/validation.json) identify which draw supplied the rekey, what the confirmed counters recorded, and how many keys the predictor recovered under each of the two compared schedules.

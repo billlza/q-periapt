@@ -3,11 +3,13 @@
 \label{sec:reservation-ordinary-bridge}
 
 The native signer can open a reserved randomizer and later use it on
-a retry. To compare it with an ordinary signer we must reproduce every
-opened value and recognize when a call repeats. For the latter we use
+a retry. An ordinary signing query returns a signature, while the
+reservation interface also permits the randomizer to be opened. The
+bridge must therefore reproduce the opened values and preserve the
+dependence between repeated executions. We recognize those repeats by
 the pair consisting of the original randomizer and the complete public
-message representative. For ML-DSA we also account for the oracle
-shared by key generation and hedging.
+message representative. For ML-DSA, the argument also accounts for the
+oracle shared by key generation and hedging.
 
 Use the owner interface of
 Proposition~\ref{prop:reservation-signature-components}. A fresh owner

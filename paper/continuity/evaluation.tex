@@ -1,24 +1,26 @@
 \section{Exposure, communication and admitted service}
 \label{sec:evaluation}
 
-How many messages did the endpoints deliver to obtain the reported
-exposure count? In our one-way control with a send budget of 32, they
-delivered 32 of the 2,048 requests. They had committed one before
-capture. We could reconstruct the keys for all 31 committed after it.
-The other 2,016 requests remained queued when the budget ran out.
-Counting the backlog as protected traffic would credit the protocol
-for messages it never sent.
+An exposure count acquires its meaning from the traffic admitted under
+the same workload. In our one-way control with a send budget of 32,
+the endpoints delivered 32 of the 2,048 requests. They had committed
+one before capture, and we reconstructed the keys for all 31 committed
+after it. The other 2,016 requests remained queued when the budget ran
+out. This run therefore demonstrates an admission limit with a measured
+backlog; every admitted post-capture message was exposed.
 
-We therefore report first commitments and completed deliveries alongside
-reconstructed keys, emitted bytes and persistence work. The native runs
-in Section~\ref{sec:established} identify which reservation supplied a
-rekey. The finite-record checks ask when that source becomes readable.
-We then use pinned reference snapshots to study exposure across seven
-schedules. To compare delivered service, we give the native and
-reference protocols the same requests and directed opportunities.
-Finally, we hold the native protocol fixed and vary the time before a
-retry. Table~\ref{tab:validation-questions} identifies the measurement
-for each question.
+We report first commitments and completed deliveries alongside
+reconstructed keys, emitted bytes and persistence work to distinguish
+these outcomes. The native runs in Section~\ref{sec:established}
+identify which reservation supplied a rekey. The finite-record checks
+then ask when that source becomes readable, and the pinned reference
+snapshots measure how retained material affects exposure across seven
+schedules. Giving the native and reference protocols the same requests
+and directed opportunities connects these measurements to delivered
+service. Holding the native protocol fixed and varying retry timing
+then isolates one cause of its service cost.
+Table~\ref{tab:validation-questions} connects each question to its
+measurement.
 
 \begin{table}[t]
 \centering
@@ -55,13 +57,15 @@ accounting.\\
 
 \label{sec:guarded-checks}
 
-For each record graph in Section~\ref{sec:guarded-provenance} we ask
-two evaluators which sources are exposed. One decrypts the available
-records iteratively. The other computes reachable keys and tests the
-normalized paths. Both receive the same immutable records, canonical
-key identities, fixed public derivations, acquisitions and direct
-disclosures of keys and source values. We compare their exposed-source
-sets on every subset assignment for each graph.
+The finite-record experiment tests whether the normalized paths recover
+exactly the sources obtainable by iterated decryption. For each graph
+in Section~\ref{sec:guarded-provenance}, one evaluator decrypts the
+available records iteratively; the other computes reachable keys and
+tests the normalized paths. Both receive the same immutable records,
+canonical key identities, fixed public derivations, acquisitions and
+direct disclosures of keys and source values. Comparing their
+exposed-source sets on every subset assignment holds the exposure inputs
+fixed while changing their evaluation method.
 
 Table~\ref{tab:guarded-checks} gives the complete finite inventory. The 5,360
 assignments include direct-source subsets; they are separate from the 420
@@ -106,19 +110,20 @@ disclosure. All records in these finite histories are initially available;
 record-creation events and operation-context validation remain in the
 surrounding provenance interface.
 
-An independent review driver adds 17 cases with explicitly specified expected
-outputs. These cover seeded and unseeded key cycles, a self-loop, a reversed
-key-derivation chain, shared-child paths, direct child capture, partial keys
-from distinct paths, and local deletion of an embedded record's standalone
-copy. Expected outputs are checked independently of the agreement between
-the two algorithms. All 17 cases pass.
+Agreement between implementations is supplemented by 17 cases with
+independently specified expected outputs. These cover seeded and unseeded
+key cycles, a self-loop, a reversed key-derivation chain, shared-child paths,
+direct child capture, partial keys from distinct paths, and local deletion
+of an embedded record's standalone copy. The review driver checks these
+outputs directly, so a shared implementation error must also evade the
+declared expectations. All 17 cases pass.
 
-Five semantic controls exhibit the effect of discarding an adversary's copy
-on local deletion, fixing exposure at capture despite later key disclosure,
-resetting a source to the newest image identifier, dropping an inner-key
-guard, and treating a public digest as record acquisition. Each produces a
-specified disagreement with the declared semantics. They are controls on
-interpretations of the record model.
+Five semantic controls identify which modeling choices change the answer:
+discarding an adversary's copy on local deletion, fixing exposure at capture
+despite later key disclosure, resetting a source to the newest image
+identifier, dropping an inner-key guard, and treating a public digest as
+record acquisition. Each produces a specified disagreement with the
+declared semantics, making the effect of that interpretation observable.
 
 Appendix~\ref{app:artifacts} identifies the source, result files and
 independent expected-result checks. The reproduction entry point rejects
@@ -138,12 +143,13 @@ of 24 small typed Horn theories. For each of 2,592 seed sets, it intersects
 all satisfying assignments that contain the seeds and compares that least
 model with the indexed result in all three sorts. Every comparison agrees.
 
-Structural-work controls separate rule propagation from path enumeration.
-For a key-derivation chain with $m$ edges listed in reverse order, the retained
-scan performs $m(m+1)$ key-edge visits, while the indexed evaluator visits
-each edge once. Table~\ref{tab:indexed-key-work} records the executed cases.
-The count concerns key-derivation incidences; queue and record visits are
-also retained in the machine-readable result.
+The structural-work controls test the mechanism behind the indexed cost
+bound. For a key-derivation chain with $m$ edges listed in reverse order,
+the retained scan performs $m(m+1)$ key-edge visits, while the indexed
+evaluator visits each edge once. Table~\ref{tab:indexed-key-work} records
+the executed cases. Counting key-derivation incidences isolates the work
+caused by rescanning; the machine-readable result also retains queue and
+record visits.
 
 \begin{table}[t]
 \centering
@@ -175,10 +181,11 @@ fixed-graph hypothesis of Proposition~\ref{prop:guarded-worklist}.
 
 \subsection{Reference snapshots and communication schedules}
 
-The reference traces cover seven schedules of 2,048 sends each. They alternated directions,
-introduced loss, reordered or duplicated frames, imposed 9:1 asymmetry,
-restored exchange after an offline prefix, or allowed one-way traffic
-only. Taking six snapshots per endpoint on each schedule gave 84
+The reference traces ask how communication history affects the keys
+reconstructible from retained endpoint state. They cover seven schedules
+of 2,048 sends each: alternating directions, loss, reordering,
+duplication, 9:1 asymmetry, restored exchange after an offline prefix,
+and one-way traffic. Taking six snapshots per endpoint on each schedule gave 84
 cases for SPQR at revision
 \path{f2589fef855c10f39d72634dab3d14654dd410bf}. The authenticated
 whole-KEM controls at local-send intervals 1, 32 and 64 contributed
@@ -193,11 +200,12 @@ identity contributed the remaining 84. In all, the comparison covers
 
 The predictor receives one endpoint's serialized state and the full
 public transcript, including packets that never reached the peer. A
-separate harness checks each key it derives against the sender's actual
-key. The deterministic seeds are public test fixtures. A
-\texttt{not\_derived} entry means that this predictor did not reconstruct
-that key from its specified inputs. The confidentiality claim for an
-eligible send comes from the computational experiment.
+separate harness checks each derived key against the sender's actual key,
+so a successful match establishes reconstruction from those inputs. The
+deterministic seeds are public test fixtures. A \texttt{not\_derived}
+entry records the absence of a reconstruction by this predictor; the
+confidentiality claim for an eligible send follows from the computational
+experiment's specified interface and assumptions.
 
 Table~\ref{tab:reference} reports the alternating-schedule
 observations. The snapshot is taken at $A$ immediately after its first send,
@@ -233,7 +241,9 @@ At the same capture point, widening the SPQR chunks from 32 to 64 bytes
 reduced the alternating count from 172 keys to 88. The wider chunks cost
 58.971 component bytes per send on average, up from 32.150. Under 9:1
 traffic the corresponding key counts were 748 and 388
-(Table~\ref{tab:reference-schedules}).
+(Table~\ref{tab:reference-schedules}). The chunk-width comparison thus
+shows the measured exchange between component traffic and the retained
+state's future reach under each schedule.
 
 With the whole-KEM interval fixed at 32, changing the schedule from
 alternating to 9:1 cut the mean component traffic per send from 44.047
@@ -241,23 +251,26 @@ to 21.031 bytes. At the same capture point the predictor recovered 338
 of the next 2,047 keys, up from 66. The bandwidth saving and the larger
 exposed set occurred in the same workload.
 
-The offline prefix leaves substantial exposure even for the whole-KEM
-interval-1 control: its predictor reconstructs 260 future keys at this cut,
+The offline prefix explains why the configured update interval alone is
+insufficient to determine the observed exposure. For the whole-KEM
+interval-1 control, the predictor reconstructs 260 future keys at this cut,
 compared with four in the alternating trace. Exact duplicate delivery leaves
 the emitted-byte and reconstructed-key measurements unchanged in all five
 profiles. The accompanying deterministic analysis checks all 420 snapshot
 inventories and reproduces the displayed rows directly from four hash-bound
-corpus files. It preserves the original execution identities and the exact
+corpus files, preserving the original execution identities and the exact
 derived-key interpretation.
 
-The one-way schedule produces no fresh PQ epoch in these references and the
-predictor derives every post-snapshot key. The whole-KEM active-control
-experiment addresses a different property: one initial endpoint-state capture
-allows two attacker forks to replace subsequent exchanges while honest
-confirmed epochs increase. All 1,536 sender keys across three 512-send profiles
-match the attacker-derived keys. This supplies a concrete distinction between
-fresh KEM execution and authenticated recovery when the ongoing authentication
-authority is itself derived from captured session state.
+The one-way schedule produces no fresh PQ epoch in these references, and
+the predictor derives every post-snapshot key. A separate whole-KEM
+active-control experiment examines what renewed exchange achieves when
+the capture also exposes the ongoing authentication authority. One initial
+endpoint-state capture allows two attacker forks to replace subsequent
+exchanges while honest confirmed epochs increase. All 1,536 sender keys
+across three 512-send profiles match the attacker-derived keys. The
+execution therefore identifies the authentication dependency that fresh
+KEM calls alone leave unresolved when that authority derives from captured
+session state.
 
 \input{matched-opportunities}
 

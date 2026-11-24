@@ -3,11 +3,11 @@
 
 \qperiapt{} combines ML-KEM-768 and X25519 in its ContextBound hybrid
 KEM and authenticates control messages with an ML-DSA-65/P-256
-identity. The peers take turns proposing rekeys. Each tracks its own
-send, receive and confirmed epochs. Before an endpoint executes a
-reserved operation, it saves the token for the original draw in a
-durable plan. After a crash it can recover that token and finish the
-operation with the same inputs.
+identity. The peers take turns proposing rekeys and each tracks its own
+send, receive and confirmed epochs. To carry a reserved operation through
+a crash, an endpoint saves the token for the original draw in a durable
+plan before execution. Recovery reopens that plan and finishes the
+operation with the same token and inputs.
 
 \paragraph{Fixed cryptographic context.}
 The combiner hashes a length-delimited encoding of the two component secrets,
@@ -28,13 +28,15 @@ the host wrapping key. It persists the selected target in a pending write before
 installing that target as the next journal image. Applying or reopening that
 write preserves its original contents.
 
-One image holds state for several sessions. A write to a sibling
+The distinction between an operation and its stored representation becomes
+visible when several sessions share one image. A write to a sibling
 session advances the journal revision and draws a new outer encryption
-nonce. The target session can keep precisely the reservation it had
-before the write. We therefore track the original draw separately
-from the local operation identifier, journal revision and outer nonce.
-Table~\ref{tab:events} shows which of these events can create a source
-and which can give the adversary another copy.
+nonce while the target session can retain precisely its earlier
+reservation. The new image therefore dates the enclosing write; the
+original draw still dates the reserved operation. We track that draw
+separately from the local operation identifier, journal revision and outer
+nonce. Table~\ref{tab:events} shows which events create a source and which
+give the adversary another copy.
 
 \begin{table}[t]
 \centering
@@ -76,13 +78,14 @@ length in bytes. $T_e$ supplies two directional traffic chains and two
 acknowledgement keys. The actual domain strings and encodings are pinned by the
 source locations in Appendix~\ref{app:artifacts}.
 
-These equations describe a concrete derivation path. A captured generation
-reservation and matching wrapping key reconstruct the private key; a subsequent
-public ciphertext then yields $S_e$. A captured encapsulation reservation yields
-the same contribution using its retained offer. Combining $S_e$ with a disclosed
-$R_{e-1}$ and the public control wires reproduces $R_e$ and the traffic material.
-Honest admission checks can still reject an operation inside the SDK while an
-adversary holding these inputs performs the underlying computation independently.
+These equations also show how the captured inputs expose traffic. A generation
+reservation and its matching wrapping key reconstruct the private key, which
+decapsulates a subsequent public ciphertext to obtain $S_e$. An encapsulation
+reservation reaches the same contribution by replaying its retained offer.
+From either route, combining $S_e$ with a disclosed $R_{e-1}$ and the public
+control wires completes the computation of $R_e$ and the traffic material.
+This computation is available to an adversary holding the inputs even when
+the SDK's admission checks reject the corresponding operation.
 
 \subsection{Asynchronous confirmation and a later exposed epoch}
 
@@ -110,8 +113,9 @@ fresh encapsulation; it does not refresh the earlier generation reservation.}
 \end{figure}
 
 At capture, $\min(c_A,c_B)+1$ equals one. The six messages recovered
-in the native run belong to epoch two. The two counters correctly
-record each peer's progress, but the responder had already reserved the
-inputs for a later epoch. To decide which traffic the snapshot exposes,
-we follow those inputs through the subsequent exchange.
+in the native run belong to epoch two because the responder had already
+reserved the inputs for that later epoch. Both counters correctly record
+their peer's progress at capture. Exposure follows a different dependency:
+the saved inputs survive the delay and enter the subsequent exchange.
+Following those inputs determines which traffic the snapshot exposes.
 

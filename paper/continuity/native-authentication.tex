@@ -241,11 +241,11 @@ hybrid worlds is required.
 \end{proof}
 
 \paragraph{Interpreting the authentication bound.}
-For the root identified by the accepted send, the theorem bounds the
-probability of a confirmation or marked first-message installation
-with no matching honest origin. The same Boolean event is tested at
-each stage, so a record or primitive comparison enters with
-coefficient one. In particular, $a_j^{\rm auth}$ is the operational
-component advantage for the distinguisher that tests this event. The
-component assumption applies to that output bit with its own budget
-for the complete continuation.
+The theorem establishes honest-origin authentication for the root
+identified by the accepted send: it bounds the probability of a confirmation
+or marked first-message installation with no matching honest origin.
+Testing the same Boolean event at each stage makes each record or primitive comparison
+enter with coefficient one. In particular, $a_j^{\rm auth}$ is the
+operational component advantage for the distinguisher that tests this
+event, with the component assumption evaluated at that distinguisher's
+budget for the complete continuation.

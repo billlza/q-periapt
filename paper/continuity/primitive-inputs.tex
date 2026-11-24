@@ -85,9 +85,9 @@ NMAC replacement gives an admissible row bound
  =\min\!\left\{1,
  \Phi_{256}(2,q+\ell T)+E_{\rm NMAC}(T,q,\ell)\right\}.
 \]
-This is a restricted single-transcript application of the primitive results.
-The ideal NMAC function is queried on one original transcript only, so its
-first reply is a uniform tag and exact repeats retrieve the same value.
+For reports, the immutable transcript restricts the ideal NMAC function
+to one original input. Its first reply is therefore a uniform tag, and
+exact repeats retrieve the same value.
 Report nonzero-ID checks act on that reply in both games. All other real
 HMAC work remains in $q$; the multi-report theorem supplies the dependency
 order and its actual disclosure residual.

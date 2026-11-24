@@ -101,8 +101,9 @@ export replacement; all sibling outputs, confirmations and subsequent
 verification remain those of the current experiment.
 
 \paragraph{A concrete surviving-source profile.}
-For the source instantiation below, every protected class has an honest
-authoritative Initial. The first contribution $S_0$ is publicly available
+We trace the ACK key back to the original KEM pair that supplies the
+surviving entropy. In this profile, every protected class has an
+honest authoritative Initial. The first contribution $S_0$ is publicly available
 at creation, and the traditional KEM scalars are available at their
 original sampling events. The initiator's signing identity may also be
 disclosed. The expected responder's signing owner is protected, with its
@@ -277,10 +278,11 @@ corresponding hidden-byte simulation.
 \paragraph{From effective descriptors to protected classes.}
 For an incoming independent opaque PRK family $p$, the root descriptor
 is $e=(p,\Gamma(s_c),I_B)$. Its seed's only raw uses are the root-entry
-Extracts; each PRK's raw uses are its three labelled Expand calls.
-The private-table comparisons remove the parent row interfaces before
-embedding child keys. The source retains $K_B$ in its pending state
-before activation, leaving a real interval for the online registration.
+Extracts; each PRK's raw uses are its
+three labelled Expand calls. We therefore replace the parent row
+interfaces by private tables before embedding their child keys. The
+source retains $K_B$ in its pending state before activation, leaving
+the interval in which online registration can take place.
 
 \begin{lemma}[Deferred roots and full-wire classes]
 \label{lem:bootstrap-deferred}
@@ -471,11 +473,11 @@ the matching historical activation. Later global recipe stops preserve the event
 observed on the earlier prefix.
 \end{proof}
 
-A READY proof may arrive after the initiator restarts. The initiator
-checks its current local authority when it returns the connection.
-Under the theorem's conditions, the proof authenticates the expected
-responder's earlier durable activation of the same signed transcript.
-An exact replay of READY refers to that event. The supplement records
-the schedule and durable-order pins, independent HMAC equations,
+A READY proof remains evidence of the expected responder's earlier
+durable activation of the same signed transcript under the theorem's
+conditions. It may arrive after the initiator restarts; the initiator
+checks its current local authority when returning the connection.
+An exact replay of READY refers to the same activation event. The supplement
+records the schedule and durable-order pins, independent HMAC equations,
 short/long alias controls, late registration countermodels and
 both-endpoint acquisition accounting.
