@@ -2,15 +2,15 @@
   "schema": "qperiapt-joc-single-source/1",
   "input_entry": "main.tex",
   "output": "joc-submission.tex",
-  "output_sha256": "aa1542a9b352deaad160cac9d0060fe95498b9a587a25847208a7f74c15dad69",
+  "output_sha256": "c1705f48c0ba7da10e2882598b227f7d145c7867f2eb02e59d75869100ffc99a",
   "inputs": {
     "acquisition-nonadditivity.tex": {
       "sha256": "976a23959f031ad9226bd6b874f3e4fd99f6da78a8ee84edb3af0da2ca79abf6",
       "bytes": 2504
     },
     "artifact-map.tex": {
-      "sha256": "af58bb39c433233bf992a2cf114c8ef26975f8528ed273bc3ff7f9d68fac9b30",
-      "bytes": 30605
+      "sha256": "269a73876767dcf87690699e9591e2f8a4d8af3183ba17af924ee6d252a46ca9",
+      "bytes": 32482
     },
     "bootstrap-authentication.tex": {
       "sha256": "36a8f9bfc4238274da4b6fce4db0364adb1040c65206a0cd2eceaf8c35c4fe47",
@@ -56,17 +56,21 @@
       "sha256": "f5bd2d2e1433dd8ae1fc19ce8a871eb9a663518a54b70d62cdc994cab4fbaf2a",
       "bytes": 1371
     },
+    "delivery-latency-table.tex": {
+      "sha256": "7233ff3133ae51e65149d6baa9441bcfec00edf4a07fe9365e30d84caa762d92",
+      "bytes": 608
+    },
     "discussion.tex": {
-      "sha256": "203f749be4c2c8403aa11db7cfff03146e138331a1eaefcd675d950bc97d989b",
-      "bytes": 9280
+      "sha256": "ed79626ad2f04df9ee94a6c3fe9e8f424a4fb625775726ee052d1fbd4ad9ea47",
+      "bytes": 13293
     },
     "established-results.tex": {
       "sha256": "bb9674beb241a086a374383563cfb6d402f7e9ea7fdce4099d5464df28550775",
       "bytes": 6833
     },
     "evaluation.tex": {
-      "sha256": "36962bf87d3c9b3eac59f3c5ba11a111fcf59eb1ae56a3cf8ebd2a77df015aa8",
-      "bytes": 13721
+      "sha256": "b53483732dc4c0936e0c78165d516f8e3674bc79c9914d39152a96e629f6bd79",
+      "bytes": 14035
     },
     "guarded-provenance.tex": {
       "sha256": "853cdc615820610d5744168504a7773e798888f07bd721dc19034fe94eac9691",
@@ -87,6 +91,14 @@
     "kem-ordinary-bridge.tex": {
       "sha256": "88f088ee4e49e12777a81fc7a7aa72a03ea82a3850e70dfea79da1e8d0536d83",
       "bytes": 6776
+    },
+    "latency-table.tex": {
+      "sha256": "033756e576287fe3b989481efb7253099a4e818c181c08758af6ae796242d135",
+      "bytes": 657
+    },
+    "latency.tex": {
+      "sha256": "664a6c96eafc711ef2accd9dccf8356f3ae446f51d3ddd20de2ae4d7a2522b57",
+      "bytes": 2810
     },
     "live-core-instantiation.tex": {
       "sha256": "8f0b1239d754456590feb67dcc719a62dd9014bb9b3193d8621415770f079566",

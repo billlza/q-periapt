@@ -1,0 +1,82 @@
+{
+  "schema": "qperiapt-local-durable-delivery-v1",
+  "source_commit": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+  "binary_sha256": "6b80d603cf2e774de2b5392fe69acaec208090a72e2e00ea24b01f57031e1238",
+  "lock_sha256": "31e3a20d5826f5f5e8503101197ce674d6eadae5f305bba65175fc7a3e4be573",
+  "cpu_affinity": [
+    0
+  ],
+  "base_directory": "/workspace/scratch/c6bfb3dc1522/wei-latency/measurement-358b/journals",
+  "filesystem": {
+    "argv": [
+      "stat",
+      "-f",
+      "-c",
+      "%T",
+      "/workspace/scratch/c6bfb3dc1522/wei-latency/measurement-358b/journals"
+    ],
+    "exit_code": 0,
+    "output": "ext2/ext3\n"
+  },
+  "mount": {
+    "argv": [
+      "findmnt",
+      "--json",
+      "-T",
+      "/workspace/scratch/c6bfb3dc1522/wei-latency/measurement-358b/journals",
+      "-o",
+      "TARGET,SOURCE,FSTYPE,OPTIONS"
+    ],
+    "exit_code": 0,
+    "output": "{\n   \"filesystems\": [\n      {\n         \"target\": \"/workspace\",\n         \"source\": \"/dev/vdb\",\n         \"fstype\": \"ext4\",\n         \"options\": \"rw,nosuid,nodev,relatime\"\n      }\n   ]\n}\n"
+  },
+  "scope": "same process, two real distinct FileBackend journals, no socket/network; one 1024-byte message with 32-byte AD from next_message_id entry through committed receiver plaintext return",
+  "outside_timed_interval": [
+    "credential/policy/prekey provisioning",
+    "full initial three-flight handshake",
+    "message-chain activation",
+    "plaintext equality checks",
+    "application consume",
+    "acknowledgement creation and acceptance",
+    "directory deletion"
+  ],
+  "journal": "original DeviceJournal with immediate redb durability and two-phase commit; FileBackend synchronization retained",
+  "workload": {
+    "pairs": 16,
+    "warmup_deliveries_per_pair": 2,
+    "timed_deliveries_per_pair": 16,
+    "total_timed_deliveries": 256,
+    "directions": "alternating; 128 each",
+    "payload_bytes": 1024,
+    "associated_data_bytes": 32,
+    "loss": false,
+    "reordering": false,
+    "rekey_in_interval": false,
+    "calls_to_os_randomness": "unchanged original APIs"
+  },
+  "start": {
+    "utc": "2026-11-25T10:50:57.233404+00:00",
+    "loadavg": [
+      0.6416015625,
+      0.81494140625,
+      0.41357421875
+    ],
+    "proc_stat": "cpu  31588 0 10314 1242912 275 0 263 15794 0 0\ncpu0 3861 0 992 137671 13 0 36 2312 0 0\ncpu1 4321 0 1059 136707 31 0 17 2594 0 0\ncpu2 4380 0 1341 137366 44 0 26 1309 0 0\ncpu3 4069 0 1251 137879 26 0 41 1090 0 0\ncpu4 4045 0 1389 137956 16 0 23 990 0 0\ncpu5 2936 0 1287 139122 51 0 22 924 0 0\ncpu6 2420 0 866 138734 13 0 63 2603 0 0\ncpu7 2829 0 1114 138094 46 0 13 2655 0 0\ncpu8 2724 0 1012 139379 32 0 17 1313 0 0\nintr 1111795 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 1 1 1 16026 0 36 0 1252 0 1 1 7473 887 1 14873 12560 0 1202 1909 1 0 6578 0 17 0 448 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\nctxt 1001130\nbtime 1795602411\nprocesses 8670\nprocs_running 1\nprocs_blocked 0\nsoftirq 321989 0 45814 345 75914 8341 0 285 93330 148 97812\n",
+    "pressure_cpu": null,
+    "pressure_io": null
+  },
+  "end": {
+    "utc": "2026-11-25T10:51:12.328033+00:00",
+    "loadavg": [
+      0.7890625,
+      0.8408203125,
+      0.42919921875
+    ],
+    "proc_stat": "cpu  32384 0 10442 1254742 587 0 311 16380 0 0\ncpu0 4636 0 1055 137760 244 0 77 2643 0 0\ncpu1 4325 0 1065 138182 32 0 18 2638 0 0\ncpu2 4383 0 1345 138844 45 0 27 1344 0 0\ncpu3 4071 0 1282 139254 100 0 47 1111 0 0\ncpu4 4046 0 1394 139447 17 0 24 998 0 0\ncpu5 2937 0 1290 140624 51 0 22 932 0 0\ncpu6 2423 0 870 140224 14 0 63 2618 0 0\ncpu7 2832 0 1122 139521 47 0 14 2778 0 0\ncpu8 2726 0 1015 140881 33 0 17 1314 0 0\nintr 1157408 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4 0 1 1 1 16205 0 36 0 1266 0 1 1 7473 887 1 14914 12597 0 1203 1912 1 0 23875 0 17 0 448 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\nctxt 1052260\nbtime 1795602411\nprocesses 8737\nprocs_running 2\nprocs_blocked 0\nsoftirq 345494 0 46571 353 75997 25915 0 287 95997 148 100226\n",
+    "pressure_cpu": null,
+    "pressure_io": null
+  },
+  "exit_code": 0,
+  "raw_sha256": "52e617ac81968ff80a7eba2dca3acf1993e3205f5921489e36d082f5432178ed",
+  "stderr": "pairs=16;samples_per_pair=16;warmup_deliveries_per_pair=2;real_distinct_file_journals=true;timing=next_id_to_committed_plaintext;bootstrap_and_ack_outside=true;network=none;os_randomness_as_called_by_original_protocol=true;sync_audit=false\n"
+}

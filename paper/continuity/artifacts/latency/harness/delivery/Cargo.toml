@@ -1,0 +1,25 @@
+[package]
+name = "qperiapt-paper-delivery-harness"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+resolver = "2"
+members = ["."]
+
+[dependencies]
+q-periapt-continuity-identity-candidate = { path = "../protocol-source/research/continuity-identity-candidate" }
+q-periapt-backends = { path = "../protocol-source/crates/q-periapt-backends" }
+q-periapt-core = { path = "../protocol-source/crates/q-periapt-core" }
+q-periapt-sdk = { path = "../protocol-source/crates/q-periapt-sdk" }
+q-periapt-policy = { path = "../protocol-source/crates/q-periapt-policy" }
+q-periapt-sig = { path = "../protocol-source/crates/q-periapt-sig" }
+tempfile = "=3.27.0"
+zeroize = "1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+overflow-checks = true

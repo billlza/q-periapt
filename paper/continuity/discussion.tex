@@ -104,6 +104,69 @@ Section~\ref{sec:bootstrap-authentication} specifies the joint journal
 and derived-key interface needed to simulate a broader set of captured
 bytes.
 
+\paragraph{Multiple devices and shared history.}
+Sesame manages device-to-device sessions, and WhatsApp's documented
+one-to-one design uses pairwise encryption with client
+fanout~\cite{sesame2017,whatsapp2021multidevice}.
+A natural extension gives each device its own journal, with its fanout
+sessions represented as local siblings. Reservation bindings would identify
+the device, session incarnation and original operation. Each endpoint's
+session history would retain one authoritative journal. A restarted device
+then resumes its retained operation; another device continues its own
+sessions. Synchronizing message history need not copy these pending
+cryptographic operations. Shared keys would still resolve to the same
+actual-key identity across devices.
+
+If synchronization copies a reserved tape, it keeps its original draw.
+An unchanged copied session version also keeps its first-save event.
+A passive copy can be represented as another physical image, including any
+additional wrapping-key path. Renaming the device, resealing the copy or
+transferring ownership supplies no new randomness. If both devices advance
+the same copied endpoint state, they introduce a fork absent from our
+current transition system. Such an extension would need exclusive ownership
+transfer or explicit fork semantics; fencing a former owner must still
+preserve the original reservation identities. The present results thus
+inform each session's storage boundary. Account-wide confidentiality would
+additionally have to account for device membership, fanout and plaintext
+copies delivered to other authorized devices. Group protocols also require
+their own membership and shared-key analysis.
+
+\paragraph{Mapping the journal to SQLite/WAL.}
+The same ordering can be expressed using SQLite transactions. An adapter
+would store the sealed reservation, canonical binding, operation identifier
+and phase in one pending-operation transaction, and commit it durably before
+executing the reserved operation. A subsequent transaction in the same
+database would install the resulting session state and exact outbox bytes
+before network release. This gates release; delivery still uses the
+protocol's retry and duplicate-handling rules. After an uncertain outcome,
+reopening would reconcile the saved phase and identifier and resume the
+original reservation or result. SQLite serializes local writers; protocol
+ownership across transactions still requires owner and expected-version
+checks~\cite{sqliteTransactions}.
+In WAL mode, \texttt{synchronous=FULL} adds a WAL synchronization at each
+commit; \texttt{NORMAL} can lose acknowledged transactions after power loss
+or an operating-system crash. Both retain committed transactions across an
+application crash alone~\cite{sqliteSynchronous}. The underlying storage
+must honor the synchronization. A durable commit need not wait for a
+checkpoint, which transfers committed pages to the main
+database~\cite{sqliteWal}.
+
+The physical acquisition surface also changes. A valid instantiation must
+map main-database pages, WAL frames and retained backups to their original
+record versions; checkpointing and copying do not refresh a reservation's
+origin or an unchanged version's first-save time. An intact representation
+retained in uncommitted WAL frames must be counted when it first becomes
+durably acquirable, even if SQL recovery subsequently discards the
+transaction~\cite{sqliteWalInterface}. SQLCipher encrypts database and WAL
+page data, and WCDB builds on SQLite and
+SQLCipher~\cite{sqlcipherDesign,wcdb}. Page encryption and authentication do
+not themselves establish protocol ownership, rollback freshness or
+multi-device synchronization. Keeping the application-level sealed objects
+would retain their existing encodings. The adapter work consists of the
+operation schema, recovery phases, durability settings, ownership checks
+and correspondence between physical pages and acquired records. This is an
+implementation mapping; the measured backend remains the native journal.
+
 \paragraph{Exposure budgets and completed service.}
 On the alternating schedule, reducing the send budget from 64 to 32
 reduced the reconstructed set from 127 to 63 keys. Each direction

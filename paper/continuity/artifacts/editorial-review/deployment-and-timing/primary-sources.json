@@ -1,0 +1,60 @@
+{
+  "schema": "qperiapt-deployment-discussion-sources/1",
+  "checked_on": "2026-11-25",
+  "scope": "Official mechanism documentation supporting a proposed deployment mapping; no SQLite adapter or complete multi-device protocol was implemented in this revision.",
+  "sources": [
+    {
+      "key": "sesame2017",
+      "url": "https://signal.org/docs/specifications/sesame/",
+      "version": "Revision 2, 2017-04-14",
+      "locations": ["2.1 Overview", "3.1 Device state", "4.1 Retry requests and delivery receipts"],
+      "checked_claims": ["Sessions are maintained between devices.", "The specification permits both per-user and per-device identity keys.", "Application retransmission can use a new active session and is not necessarily the paper's exact replay."]
+    },
+    {
+      "key": "whatsapp2021multidevice",
+      "url": "https://engineering.fb.com/2021/07/14/security/whatsapp-multi-device/",
+      "published_on": "2021-07-14",
+      "locations": ["Maintaining message privacy", "Keeping message history and other application states in sync across devices"],
+      "checked_claims": ["The documented one-to-one design uses pairwise encrypted sessions and client fanout.", "Group Sender Key operation is separately described.", "Message history and application-state synchronization are separately described."]
+    },
+    {
+      "key": "sqliteTransactions",
+      "url": "https://www.sqlite.org/lang_transaction.html",
+      "locations": ["2.1 Read transactions versus write transactions", "2.3 Implicit versus explicit transactions", "3 Response To Errors Within A Transaction"],
+      "checked_claims": ["SQLite permits one simultaneous local write transaction.", "Error handling must inspect actual transaction state rather than equate every error with a wholly absent transaction."]
+    },
+    {
+      "key": "sqliteSynchronous",
+      "url": "https://www.sqlite.org/pragma.html#pragma_synchronous",
+      "locations": ["PRAGMA synchronous: FULL and NORMAL"],
+      "checked_claims": ["WAL FULL adds a synchronization for each committed transaction.", "WAL NORMAL may lose committed transactions after system crash or power loss, while committed transactions remain durable across application crashes."]
+    },
+    {
+      "key": "sqliteWal",
+      "url": "https://www.sqlite.org/wal.html",
+      "locations": ["1 Overview", "2 How WAL Works", "2.1 Checkpointing", "2.2 Concurrency", "2.3 Performance Considerations", "4 The WAL File"],
+      "checked_claims": ["A WAL commit does not require a prior checkpoint into the main database.", "Checkpointing transfers committed page content.", "WAL is persistent database state; copying only the main database can omit it.", "WAL does not provide atomic commit across multiple attached databases as a group or distributed device synchronization."]
+    },
+    {
+      "key": "sqliteWalInterface",
+      "url": "https://github.com/sqlite/sqlite/blob/b5fb535663df6593c749cb48d1f5d5672988d959/src/wal.h",
+      "source_commit": "b5fb535663df6593c749cb48d1f5d5672988d959",
+      "locations": ["sqlite3WalUndo", "sqlite3WalSavepoint"],
+      "checked_claims": ["WAL frames may have been written before their transaction commits."],
+      "inference_from_paper": "An intact recoverable version retained in those frames belongs to the acquisition history at its first durable retention; a later logical rollback does not erase an already acquired copy. This does not identify every incomplete frame with Saved(v)."
+    },
+    {
+      "key": "sqlcipherDesign",
+      "url": "https://www.zetetic.net/sqlcipher/design/",
+      "locations": ["Security Design", "Database Encryption and Temporary Files"],
+      "checked_claims": ["SQLCipher encrypts individual database pages and authenticates encrypted page data.", "Page data in WAL files is encrypted with the database key."],
+      "inference_from_mechanism": "Page encryption and authentication alone do not establish the protocol's ownership, rollback freshness, or multi-device synchronization contract."
+    },
+    {
+      "key": "wcdb",
+      "url": "https://github.com/Tencent/wcdb",
+      "locations": ["README: WCDB", "Encryption Support"],
+      "checked_claims": ["WCDB is based on SQLite and SQLCipher and exposes SQLCipher encryption support."]
+    }
+  ]
+}

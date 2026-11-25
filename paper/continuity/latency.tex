@@ -1,0 +1,49 @@
+\subsection{Wall-clock and CPU costs}
+\label{sec:latency}
+
+A directed transmission opportunity is a service budget, not a unit of
+time. We therefore measure execution cost separately using the native
+source revision \texttt{358b921a} from the retry-readiness experiment.
+The host is a virtualized x86-64 Linux environment reporting an Intel Xeon
+Platinum 8573C processor. The process is pinned to one logical CPU. We use
+Rust 1.98.1 in release mode, with the default portable-C ML-KEM backend
+from mlkem-native 2.0.0 and fips204 0.4.6 for ML-DSA.
+
+Table~\ref{tab:primitive-latency} reports mean wall-clock and process CPU
+time per backend call. Each operation has 256 warm-up calls and 1,600
+measured calls over 64 input cases, recorded in 200 batches of eight.
+Seeds, coins and input buffers are prepared before each timed interval;
+signing and verification use 1,024-byte messages and an empty context.
+The intervals include the backend API's key decoding and output handling,
+but exclude operating-system random-number acquisition, journal work and
+message transport. We retain every batch, including scheduling delays.
+The artifact records the source and executable hashes, build settings,
+timer control, raw wall-clock and CPU readings, and the corresponding
+dispersion (Appendix~\ref{app:latency}).
+
+\input{latency-table}
+
+We also measure the complete local send-to-delivery path for 256
+applications across 16 independently established session pairs. Each pair
+uses two separate native \texttt{FileBackend} journals, performs two warm-up
+deliveries and then records 16 deliveries, alternating direction. Payloads
+are 1,024 bytes with 32 bytes of associated data. The send budget is 1,024,
+so this short run remains within one established epoch.
+The interval starts before message-identifier allocation and ends when the
+receiver returns committed plaintext. It includes the sender's reservation,
+chain and outbox persistence and the receiver's authenticated processing,
+chain and inbox persistence. The original protocol's random-number calls
+remain inside this interval. Wire bytes pass directly between the two
+endpoints in one process. Provisioning, bootstrap, application consumption
+and the acknowledgement exchange occur outside it; no network delay or
+rekey is included.
+
+Table~\ref{tab:delivery-latency} reports mean wall time of 24.531\,ms and
+process CPU time of 18.691\,ms. The sender and receiver portions average
+16.296 and 8.236\,ms of wall time, respectively. All 256 samples are
+retained, including the largest observed wall time of 257.105\,ms. These
+values describe the stated host and native storage path. They do not
+measure mobile scheduling, SQLite/WAL performance or the time spent
+waiting for communication opportunities in the earlier workloads.
+
+\input{delivery-latency-table}

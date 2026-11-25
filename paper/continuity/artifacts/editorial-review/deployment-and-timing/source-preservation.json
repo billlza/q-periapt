@@ -1,0 +1,33 @@
+{
+  "baseline_commit": "9503f0228d74651e33d46be2443092c7fc624d46",
+  "status": "passed",
+  "method": "Exact ordered TeX environment and display-block comparison per original canonical module; raw byte comparison of every retained artifact and specified source file. Comments are masked to select source offsets. The original research-question table gains one row; quantitative tables remain byte-identical.",
+  "original_canonical_modules": 40,
+  "changed_original_modules": [
+    "artifact-map.tex",
+    "discussion.tex",
+    "evaluation.tex"
+  ],
+  "unchanged_block_counts": {
+    "formal_statements": 58,
+    "proofs": 53,
+    "displays": 170
+  },
+  "original_artifact_files_byte_identical": 741,
+  "specified_files_byte_identical": {
+    "main.tex": true,
+    "author-metadata.json": true,
+    "declarations.tex": true,
+    "sn-jnl.cls": true,
+    "joc-basic.bst": true,
+    "sn-basic.bst": true,
+    "matched-opportunities.tex": true,
+    "matched-opportunity-tables.tex": true,
+    "reference-schedule-table.tex": true,
+    "retry-readiness.tex": true,
+    "retry-readiness-table.tex": true
+  },
+  "all_original_bibliography_entries_preserved": true,
+  "failures": [],
+  "bibliography_preservation_method": "The complete original bibliography remains a contiguous byte-identical prefix; eight new entries follow it."
+}

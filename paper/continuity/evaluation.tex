@@ -19,6 +19,8 @@ schedules. Giving the native and reference protocols the same requests
 and directed opportunities connects these measurements to delivered
 service. Holding the native protocol fixed and varying retry timing
 then isolates one cause of its service cost.
+Separate wall-clock and CPU measurements identify the cost of the
+underlying operations on a stated host.
 Table~\ref{tab:validation-questions} connects each question to its
 measurement.
 
@@ -49,6 +51,9 @@ How does retry readiness affect completed service? &
 Paired native immediate and age-four policies with the same protocol, send
 budget, request stream and opportunity list; complete frame and durability
 accounting.\\
+How long do the underlying operations take? &
+Warmed wall-clock and process CPU measurements with fixed source and
+dependency versions, explicit timing boundaries and retained raw samples.\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -275,3 +280,5 @@ session state.
 \input{matched-opportunities}
 
 \input{retry-readiness}
+
+\input{latency}

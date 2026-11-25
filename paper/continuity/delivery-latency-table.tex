@@ -1,0 +1,17 @@
+% Statistics recomputed from all 256 retained individual delivery intervals.
+\begin{table}[t]
+\centering
+\small
+\caption{Same-host delivery costs between two native file journals in an
+established session. All times are in milliseconds. The 95th percentile
+uses the nearest rank among all 256 individual message intervals.}
+\label{tab:delivery-latency}
+\begin{tabularx}{\linewidth}{@{}Xrrrr@{}}
+\toprule
+Interval & Mean & Median & 95th percentile & Maximum\\
+\midrule
+Wall-clock & 24.531 & 17.007 & 37.046 & 257.105\\
+Process CPU & 18.691 & 13.591 & 27.253 & 178.035\\
+\bottomrule
+\end{tabularx}
+\end{table}

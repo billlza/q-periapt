@@ -5958,6 +5958,8 @@ schedules. Giving the native and reference protocols the same requests
 and directed opportunities connects these measurements to delivered
 service. Holding the native protocol fixed and varying retry timing
 then isolates one cause of its service cost.
+Separate wall-clock and CPU measurements identify the cost of the
+underlying operations on a stated host.
 Table~\ref{tab:validation-questions} connects each question to its
 measurement.
 
@@ -5988,6 +5990,9 @@ How does retry readiness affect completed service? &
 Paired native immediate and age-four policies with the same protocol, send
 budget, request stream and opportunity list; complete frame and durability
 accounting.\\
+How long do the underlying operations take? &
+Warmed wall-clock and process CPU measurements with fixed source and
+dependency versions, explicit timing boundaries and retained raw samples.\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -6536,6 +6541,97 @@ that regenerate the table. The artifact records all 14 pairs, their
 original counts and denominators, the identities of the 28 public traces
 and an independent recount of retry ages and frame outcomes.
 % END SECTION SOURCE: retry-readiness.tex
+
+% BEGIN SECTION SOURCE: latency.tex
+\subsection{Wall-clock and CPU costs}
+\label{sec:latency}
+
+A directed transmission opportunity is a service budget, not a unit of
+time. We therefore measure execution cost separately using the native
+source revision \texttt{358b921a} from the retry-readiness experiment.
+The host is a virtualized x86-64 Linux environment reporting an Intel Xeon
+Platinum 8573C processor. The process is pinned to one logical CPU. We use
+Rust 1.98.1 in release mode, with the default portable-C ML-KEM backend
+from mlkem-native 2.0.0 and fips204 0.4.6 for ML-DSA.
+
+Table~\ref{tab:primitive-latency} reports mean wall-clock and process CPU
+time per backend call. Each operation has 256 warm-up calls and 1,600
+measured calls over 64 input cases, recorded in 200 batches of eight.
+Seeds, coins and input buffers are prepared before each timed interval;
+signing and verification use 1,024-byte messages and an empty context.
+The intervals include the backend API's key decoding and output handling,
+but exclude operating-system random-number acquisition, journal work and
+message transport. We retain every batch, including scheduling delays.
+The artifact records the source and executable hashes, build settings,
+timer control, raw wall-clock and CPU readings, and the corresponding
+dispersion (Appendix~\ref{app:latency}).
+
+% BEGIN SECTION SOURCE: latency-table.tex
+% Means recomputed from the retained 358b921a raw timing batches.
+\begin{table}[t]
+\centering
+\small
+\caption{Warmed backend operation costs on the stated virtualized host.
+Each mean covers 1,600 calls; all times are in milliseconds.}
+\label{tab:primitive-latency}
+\begin{tabularx}{\linewidth}{@{}Xrr@{}}
+\toprule
+Operation & Mean wall time & Mean CPU time\\
+\midrule
+ML-KEM-768 key generation & 0.041 & 0.040\\
+ML-KEM-768 encapsulation & 0.047 & 0.047\\
+ML-KEM-768 decapsulation & 0.056 & 0.056\\
+ML-DSA-65 key generation & 0.381 & 0.380\\
+ML-DSA-65 signing & 0.890 & 0.886\\
+ML-DSA-65 verification & 0.232 & 0.232\\
+\bottomrule
+\end{tabularx}
+\end{table}
+% END SECTION SOURCE: latency-table.tex
+
+We also measure the complete local send-to-delivery path for 256
+applications across 16 independently established session pairs. Each pair
+uses two separate native \texttt{FileBackend} journals, performs two warm-up
+deliveries and then records 16 deliveries, alternating direction. Payloads
+are 1,024 bytes with 32 bytes of associated data. The send budget is 1,024,
+so this short run remains within one established epoch.
+The interval starts before message-identifier allocation and ends when the
+receiver returns committed plaintext. It includes the sender's reservation,
+chain and outbox persistence and the receiver's authenticated processing,
+chain and inbox persistence. The original protocol's random-number calls
+remain inside this interval. Wire bytes pass directly between the two
+endpoints in one process. Provisioning, bootstrap, application consumption
+and the acknowledgement exchange occur outside it; no network delay or
+rekey is included.
+
+Table~\ref{tab:delivery-latency} reports mean wall time of 24.531\,ms and
+process CPU time of 18.691\,ms. The sender and receiver portions average
+16.296 and 8.236\,ms of wall time, respectively. All 256 samples are
+retained, including the largest observed wall time of 257.105\,ms. These
+values describe the stated host and native storage path. They do not
+measure mobile scheduling, SQLite/WAL performance or the time spent
+waiting for communication opportunities in the earlier workloads.
+
+% BEGIN SECTION SOURCE: delivery-latency-table.tex
+% Statistics recomputed from all 256 retained individual delivery intervals.
+\begin{table}[t]
+\centering
+\small
+\caption{Same-host delivery costs between two native file journals in an
+established session. All times are in milliseconds. The 95th percentile
+uses the nearest rank among all 256 individual message intervals.}
+\label{tab:delivery-latency}
+\begin{tabularx}{\linewidth}{@{}Xrrrr@{}}
+\toprule
+Interval & Mean & Median & 95th percentile & Maximum\\
+\midrule
+Wall-clock & 24.531 & 17.007 & 37.046 & 257.105\\
+Process CPU & 18.691 & 13.591 & 27.253 & 178.035\\
+\bottomrule
+\end{tabularx}
+\end{table}
+% END SECTION SOURCE: delivery-latency-table.tex
+% END SECTION SOURCE: latency.tex
 % END SECTION SOURCE: evaluation.tex
 % BEGIN SECTION SOURCE: discussion.tex
 \section{Consequences and further instantiation}
@@ -6643,6 +6739,69 @@ Each proof charges acquisition of its own immutable versions.
 Section~\ref{sec:bootstrap-authentication} specifies the joint journal
 and derived-key interface needed to simulate a broader set of captured
 bytes.
+
+\paragraph{Multiple devices and shared history.}
+Sesame manages device-to-device sessions, and WhatsApp's documented
+one-to-one design uses pairwise encryption with client
+fanout~\cite{sesame2017,whatsapp2021multidevice}.
+A natural extension gives each device its own journal, with its fanout
+sessions represented as local siblings. Reservation bindings would identify
+the device, session incarnation and original operation. Each endpoint's
+session history would retain one authoritative journal. A restarted device
+then resumes its retained operation; another device continues its own
+sessions. Synchronizing message history need not copy these pending
+cryptographic operations. Shared keys would still resolve to the same
+actual-key identity across devices.
+
+If synchronization copies a reserved tape, it keeps its original draw.
+An unchanged copied session version also keeps its first-save event.
+A passive copy can be represented as another physical image, including any
+additional wrapping-key path. Renaming the device, resealing the copy or
+transferring ownership supplies no new randomness. If both devices advance
+the same copied endpoint state, they introduce a fork absent from our
+current transition system. Such an extension would need exclusive ownership
+transfer or explicit fork semantics; fencing a former owner must still
+preserve the original reservation identities. The present results thus
+inform each session's storage boundary. Account-wide confidentiality would
+additionally have to account for device membership, fanout and plaintext
+copies delivered to other authorized devices. Group protocols also require
+their own membership and shared-key analysis.
+
+\paragraph{Mapping the journal to SQLite/WAL.}
+The same ordering can be expressed using SQLite transactions. An adapter
+would store the sealed reservation, canonical binding, operation identifier
+and phase in one pending-operation transaction, and commit it durably before
+executing the reserved operation. A subsequent transaction in the same
+database would install the resulting session state and exact outbox bytes
+before network release. This gates release; delivery still uses the
+protocol's retry and duplicate-handling rules. After an uncertain outcome,
+reopening would reconcile the saved phase and identifier and resume the
+original reservation or result. SQLite serializes local writers; protocol
+ownership across transactions still requires owner and expected-version
+checks~\cite{sqliteTransactions}.
+In WAL mode, \texttt{synchronous=FULL} adds a WAL synchronization at each
+commit; \texttt{NORMAL} can lose acknowledged transactions after power loss
+or an operating-system crash. Both retain committed transactions across an
+application crash alone~\cite{sqliteSynchronous}. The underlying storage
+must honor the synchronization. A durable commit need not wait for a
+checkpoint, which transfers committed pages to the main
+database~\cite{sqliteWal}.
+
+The physical acquisition surface also changes. A valid instantiation must
+map main-database pages, WAL frames and retained backups to their original
+record versions; checkpointing and copying do not refresh a reservation's
+origin or an unchanged version's first-save time. An intact representation
+retained in uncommitted WAL frames must be counted when it first becomes
+durably acquirable, even if SQL recovery subsequently discards the
+transaction~\cite{sqliteWalInterface}. SQLCipher encrypts database and WAL
+page data, and WCDB builds on SQLite and
+SQLCipher~\cite{sqlcipherDesign,wcdb}. Page encryption and authentication do
+not themselves establish protocol ownership, rollback freshness or
+multi-device synchronization. Keeping the application-level sealed objects
+would retain their existing encodings. The adapter work consists of the
+operation schema, recovery phases, durability settings, ownership checks
+and correspondence between physical pages and acquired records. This is an
+implementation mapping; the measured backend remains the native journal.
 
 \paragraph{Exposure budgets and completed service.}
 On the alternating schedule, reducing the send budget from 64 to 32
@@ -7176,6 +7335,40 @@ post-capture denominator. Reproduction from the compact packet is:
 python3 artifacts/retry-readiness/analyze_retry.py --check
 \end{verbatim}
 \end{quote}
+
+\subsection{Wall-clock and CPU measurements}
+\label{app:latency}
+
+Section~\ref{sec:latency} uses the native source at
+\path{358b921ab3469ce49f166633fc9a762ff6ed7e3d}, with mlkem-native 2.0.0 and
+fips204 0.4.6. The supporting capture is retained under
+\path{artifacts/latency/}. It identifies the source files, resolved
+dependencies, compiler, build options, executable and host environment.
+The primitive harness first checks KEM agreement and signature acceptance
+and rejection on all 64 input cases. It rotates operation order between
+batches and retains all 1,600 measured calls for each operation.
+Wall time uses \texttt{CLOCK\_MONOTONIC\_RAW}; CPU time uses
+\texttt{CLOCK\_PROCESS\_CPUTIME\_ID}. The CPU interval encloses the wall-clock
+reads, and no timer overhead is subtracted. Means divide the accumulated
+batch times by the total number of calls. The retained batch dispersion
+does not measure the tail latency of individual calls.
+
+The delivery capture records 16 independent established pairs with two
+distinct file journals each. Its 256 measured intervals contain 128 sends
+in each direction, after two warm-up deliveries per pair. The payload,
+message identifier and returned plaintext are checked for every delivery;
+sender and receiver wall times sum to the complete interval. Provisioning
+and the acknowledgement exchange are outside the measurement. The source
+map follows the public journal calls through pending-intent reservation
+and application to the native file backend's immediate two-phase commits.
+The separate attempted system-call trace was unavailable because the
+capture environment disallowed tracing. No observed synchronization-call
+count is claimed for this timing capture.
+The retained values and both manuscript tables are regenerated and checked
+with:
+\begin{verbatim}
+python3 artifacts/latency/analyze_latency.py --check
+\end{verbatim}
 
 \subsection{Online finite-chain selection}
 \label{app:chain-prefix}

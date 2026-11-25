@@ -439,6 +439,40 @@ python3 artifacts/retry-readiness/analyze_retry.py --check
 \end{verbatim}
 \end{quote}
 
+\subsection{Wall-clock and CPU measurements}
+\label{app:latency}
+
+Section~\ref{sec:latency} uses the native source at
+\path{358b921ab3469ce49f166633fc9a762ff6ed7e3d}, with mlkem-native 2.0.0 and
+fips204 0.4.6. The supporting capture is retained under
+\path{artifacts/latency/}. It identifies the source files, resolved
+dependencies, compiler, build options, executable and host environment.
+The primitive harness first checks KEM agreement and signature acceptance
+and rejection on all 64 input cases. It rotates operation order between
+batches and retains all 1,600 measured calls for each operation.
+Wall time uses \texttt{CLOCK\_MONOTONIC\_RAW}; CPU time uses
+\texttt{CLOCK\_PROCESS\_CPUTIME\_ID}. The CPU interval encloses the wall-clock
+reads, and no timer overhead is subtracted. Means divide the accumulated
+batch times by the total number of calls. The retained batch dispersion
+does not measure the tail latency of individual calls.
+
+The delivery capture records 16 independent established pairs with two
+distinct file journals each. Its 256 measured intervals contain 128 sends
+in each direction, after two warm-up deliveries per pair. The payload,
+message identifier and returned plaintext are checked for every delivery;
+sender and receiver wall times sum to the complete interval. Provisioning
+and the acknowledgement exchange are outside the measurement. The source
+map follows the public journal calls through pending-intent reservation
+and application to the native file backend's immediate two-phase commits.
+The separate attempted system-call trace was unavailable because the
+capture environment disallowed tracing. No observed synchronization-call
+count is claimed for this timing capture.
+The retained values and both manuscript tables are regenerated and checked
+with:
+\begin{verbatim}
+python3 artifacts/latency/analyze_latency.py --check
+\end{verbatim}
+
 \subsection{Online finite-chain selection}
 \label{app:chain-prefix}
 

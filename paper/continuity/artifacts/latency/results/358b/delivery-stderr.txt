@@ -1,0 +1,1 @@
+pairs=16;samples_per_pair=16;warmup_deliveries_per_pair=2;real_distinct_file_journals=true;timing=next_id_to_committed_plaintext;bootstrap_and_ack_outside=true;network=none;os_randomness_as_called_by_original_protocol=true;sync_audit=false
