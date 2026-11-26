@@ -1,0 +1,60 @@
+{
+  "base_paper_commit": "9503f0228d74651e33d46be2443092c7fc624d46",
+  "checked_on": "2026-11-25",
+  "status": "passed",
+  "scope": "Multi-device and SQLite/WAL discussion, supporting absolute wall-clock and CPU measurements, and manuscript integration.",
+  "paper_source_commit_for_new_measurements": "358b921ab3469ce49f166633fc9a762ff6ed7e3d",
+  "new_primary_references": 8,
+  "build": {
+    "status": "passed",
+    "pages": 128,
+    "abstract_words": 229,
+    "keywords": 7,
+    "pdf_sha256": "bac15196e4b467a1804fcd7872c0a65f5142aed16638394cd02ab448f211e90e",
+    "underfull_notices": 0,
+    "failures": []
+  },
+  "preservation": {
+    "formal_statements": 58,
+    "proofs": 53,
+    "displayed_math_groups": 170,
+    "original_artifact_files": 741,
+    "all_byte_identical": true,
+    "research_question_table": "One row added; existing quantitative tables unchanged."
+  },
+  "measurements": {
+    "primitive_operations": 6,
+    "calls_per_operation": 1600,
+    "delivery_pairs": 16,
+    "delivery_samples": 256,
+    "all_samples_retained": true,
+    "raw_statistics_independently_recomputed": true,
+    "two_generated_paper_tables_checked": true,
+    "verified_upstream_source_blobs": 625
+  },
+  "reviews": {
+    "deployment_discussion": "Independent read-only comparison with original model and official documents passed.",
+    "delivery_boundary": "Independent public-API-to-FileBackend review confirmed reservation/result persistence and committed-plaintext delivery boundary.",
+    "runtime_trace": "Optional syscall tracing unavailable under the capture environment; no dynamic sync count is claimed."
+  },
+  "validation": [
+    "make check, including the new latency inventory/hash/statistics/table check",
+    "Fresh nine-file submission export compiled independently; full plain and layout text matched the reading copy",
+    "Strict TeX/BibTeX logs passed with no warnings, missing glyphs or underfull/overfull boxes",
+    "All 48 PDF fonts embedded",
+    "Optimized Python mode explicitly rejected by latency analysis and source preparation",
+    "Fresh source preparation and both locked Cargo metadata checks passed"
+  ],
+  "visual_review": {
+    "pages": [
+      100,
+      101,
+      103,
+      104,
+      110,
+      117,
+      118
+    ],
+    "result": "No observed clipping, overlapping text, missing glyphs or table overflow on inspected pages."
+  }
+}

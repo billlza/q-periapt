@@ -1,0 +1,10 @@
+{
+  "schema": "qperiapt-sync-audit-v1",
+  "status": "blocked_by_ptrace_permissions",
+  "instrumented_execution_started": false,
+  "excluded_from_timing_summary": true,
+  "source_path_review": "Immediate durability, two-phase commit and LockedFileBackend delegating to redb FileBackend.sync_data confirmed in exact source",
+  "dynamic_sync_call_count": null,
+  "stderr": "strace: test_ptrace_get_syscall_info: PTRACE_TRACEME: Operation not permitted\nstrace: ptrace(PTRACE_TRACEME, ...): Operation not permitted\nstrace: PTRACE_SETOPTIONS: Operation not permitted\nstrace: cleanup: waitpid(-1, __WALL): No child processes\n",
+  "note": "The original collector failed parsing absent markers after strace was denied. The 256-row uninstrumented run completed before this audit attempt. No syscall-count claim is made."
+}

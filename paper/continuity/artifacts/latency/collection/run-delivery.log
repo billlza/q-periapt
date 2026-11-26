@@ -1,0 +1,20 @@
+{
+  "exit_code": 0,
+  "stderr": "pairs=16;samples_per_pair=16;warmup_deliveries_per_pair=2;real_distinct_file_journals=true;timing=next_id_to_committed_plaintext;bootstrap_and_ack_outside=true;network=none;os_randomness_as_called_by_original_protocol=true;sync_audit=false\n",
+  "filesystem": {
+    "argv": [
+      "stat",
+      "-f",
+      "-c",
+      "%T",
+      "/workspace/scratch/c6bfb3dc1522/wei-latency/measurement-358b/journals"
+    ],
+    "exit_code": 0,
+    "output": "ext2/ext3\n"
+  }
+}
+Traceback (most recent call last):
+  File "/workspace/scratch/c6bfb3dc1522/wei-latency/run-delivery.py", line 38, in <module>
+    text=(OUT/'sync-audit.strace').read_text();start=text.index('QPERIAPT_DELIVERY_BEGIN');end=text.index('QPERIAPT_DELIVERY_END',start);segment=text[start:end]
+                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: substring not found

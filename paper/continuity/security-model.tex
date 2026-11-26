@@ -6,28 +6,25 @@
 \section{Reservation origins, persistent records, and recovery}
 \label{sec:security-model}
 
-An interrupted cryptographic operation can retain its random tape before it
-has produced a key or a ciphertext.  Its later execution and confirmation
-therefore have to be related to the original reservation.  We make this
-relationship explicit at two levels: the origin of a cryptographic operation,
-and the origin of a saved session-state version.  A third identifier describes
-the physical image that carries that version.  This distinction lets us
-account for a target record copied by another session's write, an unapplied
-pending image, and a ciphertext acquired before its wrapping key.
+A write to one session can reseal a journal while preserving another
+session's saved version and reserved randomness. The resulting image
+belongs to the new write, but the untouched reservation still belongs
+to its original draw. Describing this execution requires three identities:
+one for the draw, one for the saved version, and one for the image that
+carries it. The same distinction lets us follow a pending write before
+installation and a copy acquired before its wrapping key.
 
-The model is an interface model for an asynchronous protocol machine
-$\mathcal P$.  The adversary schedules public messages, process loss, honest
-recovery, and the disclosure operations specified below.  Application
-deliveries are private to the honest applications.  Capture grants read access
-to the stated assets; it does not grant an additional operation for replacing
-the authoritative journal.  An implementation with adversarial rollback or
-forking requires those transitions in its storage machine.  The protocol,
-its cryptographic primitives, and its public outputs are parameters of the
-record-normalization lemma.  Fix finite execution, record-size, and query
-budgets; the wrapper's bookkeeping is polynomial in their total
-representation size.
-
-Table~\ref{tab:record-notation} summarizes the principal objects.
+The adversary schedules public messages, process loss, honest recovery
+and the disclosures specified below for the asynchronous machine
+$\mathcal P$. A successful capture gives the adversary the retained
+bytes and leaves the authoritative journal in place. Adversarial rollback
+or forking would require an explicit transition that replaces or branches
+that history. Application deliveries remain private to the honest
+applications. We take the protocol, its primitives and its public
+outputs as parameters of the record-normalization lemma. With finite
+budgets for execution, record sizes and queries, the wrapper's bookkeeping
+is polynomial in their total representation size.
+Table~\ref{tab:record-notation} gives the notation.
 
 \begin{table}[t]
 \centering
@@ -82,16 +79,14 @@ A record version $v$ has an immutable payload $X_v$ and semantic metadata
   \bigl(\mathsf{subject}(v),\mathsf{role}(v),
          \mathsf{epoch}(v),\mathsf{phase}(v)\bigr).
 \]
-The subject identifies the session whose state is represented. A write to the
-enclosing journal preserves this subject, including a write by another session.
-A version can
-refer to several reservation origins and to roots or traffic state derived
-from earlier origins.  Preparing a version allocates its handle.  The event
-$\mathsf{Saved}(v)$ occurs when that version first enters the durable
-acquisition surface, and its time is denoted $\mathsf{save}(v)$.  In particular,
-an intact target in a durable pending-write intent is saved before the
-corresponding image is applied.  A storage operation may have made this
-transition even when its caller receives an unknown-outcome error.
+The subject is the session whose state the version records. A sibling
+session writing the enclosing journal preserves that subject. A single
+version may contain several reservations and state derived from earlier
+ones. Preparing a version gives it a handle. Its first durable retention
+is a different event, $\mathsf{Saved}(v)$, at time $\mathsf{save}(v)$.
+For example, a pending intent may already hold an intact target before
+the journal installs it. A caller can receive an unknown-outcome error
+after the storage operation has reached this point.
 
 A physical object $h$ has a separate creation or sealing index.  It may carry
 one version, several sessions' versions, an exact earlier image, or a pending
@@ -129,9 +124,10 @@ For an original reservation actually retained in $v$, causality requires
   \mathsf{res}(o)\ \leq\ \mathsf{save}(v).
   \label{eq:origin-causality}
 \end{equation}
-A later physical object's creation time gives an additional timestamp, not a
-replacement for either side of~\eqref{eq:origin-causality}.  The interval
-between drawing $\rho_o$ and first retaining it remains explicit.  The
+A later physical object's creation time dates the representation carrying
+the reservation. Both original events in~\eqref{eq:origin-causality} remain
+fixed, so the interval between drawing $\rho_o$ and first retaining it stays
+explicit. The
 symbolic reservation-and-save transition can represent that interval only
 through a separately justified source correspondence.
 
@@ -157,11 +153,11 @@ the new wrapper and retains the same $v$ values.  Thus resealing decoded
 plaintext and wrapping an old ciphertext are distinct operations.
 
 Only intact, recoverably embedded record payloads create these paths.  A
-public hash or MAC of a private record is a public computation of that record,
-not a path to the record itself.  The renderer introduced below preserves
-that computation and its output.  This distinction prevents a public head
-query from being relabeled as a snapshot merely because its computation used
-private bytes.
+public hash or MAC of a private record is represented by its computation and
+output in the renderer introduced below. Its use of private bytes creates a
+public observation, while an acquisition path requires an intact embedded
+payload. The model therefore records a public head query as a commitment
+observation.
 
 \begin{definition}[Record acquisition and readability]
 \label{def:record-acquisition}
@@ -185,13 +181,13 @@ An unsuccessful request for unavailable state returns its ordinary error and
 adds no acquisition.
 \end{definition}
 
-Both sets describe the specified disclosure interfaces, using provenance and
-key identities.  They do not test whether the adversary has guessed a secret.
-The read set can grow without another capture: if $h$ was obtained at
-$t_1$ and its final missing wrapping key is disclosed at $t_2>t_1$, the
-corresponding versions enter $\mathcal L_{t_2}$.  Host deletion at an
-intermediate time leaves $h$ in $\mathcal A_{t_2}$.  Acquisition, by contrast,
-already occurred at $t_1$.
+Suppose the adversary acquires its first copy of $v$ in an encrypted
+image $h$ at $t_1$. Its only path to $v$ still lacks one wrapping key.
+The host deletes $h$, and the key is disclosed at $t_2>t_1$. The copy
+in the adversary's archive survives the deletion. Thus $v$ enters
+$\mathcal C_{t_1}$ when the bytes arrive and $\mathcal L_{t_2}$ when
+the key arrives. There was only one capture. Both sets describe the
+declared disclosures and key identities. Guessing a value changes neither.
 
 An additional key that is explicitly recoverable from an opened record can be
 included by a declared extraction rule.  In this extension, iterate
@@ -222,17 +218,19 @@ their own record fields.  For the implemented root schedule, an edge is
  R_e=\mathsf{HKDF}\bigl(R_{e-1},S_e,
        D_{\rm root}\Vert H_{\rm core}(C_e),32\bigr).
 \]
-Closing these explicit edges over the nodes of the bounded execution yields
-a computable set of message keys with replay witnesses.  It supplies positive
-exposure certificates; the
-confidentiality game below is the separate criterion for messages outside
-the declared disclosure conditions.  Confirmation counters belong to the
-public progress state and do not reset this graph.
+Closing these edges over the bounded execution yields a computable set of
+message keys, each accompanied by the operations that reconstruct it. These
+are positive exposure certificates. For messages outside the declared
+disclosure conditions, the confidentiality game below measures the adversary's
+remaining advantage. Confirmation counters record public progress while the
+graph retains the dependencies of each replay computation.
 
 \subsection{An original-record implementation of the copy interface}
 
-We now isolate a property of record management that is independent of KEM
-secrecy.  The following two storage machines use the same protocol machine
+We can now ask whether each physical copy needs its own private payload.
+The following comparison normalizes copies to the original records they
+carry and concerns record management independently of KEM secrecy.
+The following two storage machines use the same protocol machine
 $\mathcal P$, random-tape source, scheduler, and cryptographic interfaces.
 
 The \emph{literal-copy machine} materializes the immutable payload $X_v$ in
@@ -266,13 +264,11 @@ specified interfaces.
   the answer for subsequent openings.
 \end{enumerate}
 
-The renderer is an explicit trusted interface in this intermediate
-experiment.  It has access to the original payload table and evaluates the
-stated byte operations, including operations on undisclosed payloads.
-Consequently, it can produce real ciphertexts, commitment digests, and report
-MACs.  This definition does not supply an algorithm for producing those bytes
-from an unknown KEM-challenge tape.  It gives a precise location for the
-subsequent cryptographic replacement of that interface.
+The renderer in this comparison has the original payload table, so it can
+compute ciphertexts, commitment digests and report MACs directly from the
+private bytes. A KEM embedding changes the information available to the
+reduction: the challenger withholds the selected tape. The next reduction
+must preserve the record interface from the information it actually receives.
 
 The operational contract has three further requirements.
 First, all publicly visible payload-dependent bytes and statuses are obtained
@@ -361,12 +357,11 @@ plaintext opening by $v$ proves the query bound; reservation and fresh-seal
 indices were preserved separately throughout.
 \end{proof}
 
-The lemma places multiplicity in the correct ledger.  An adversary may retain
-many ciphertext aliases of one version, and those ciphertexts may have many
-different public heads.  All such byte-level observations remain in the view.
-The repeated payload uses one original-record opening, whereas each genuinely
-fresh seal and each public hash or MAC computation keeps its own resource
-accounting.
+The adversary may retain several ciphertexts for one version and observe
+a different public head for each. Alias normalization preserves all of
+these observations, and a single opening of the common payload serves
+every alias of that version. Each fresh seal and each public hash or MAC
+computation still incurs its own cost.
 
 \input{guarded-provenance}
 \input{acquisition-nonadditivity}
@@ -432,11 +427,16 @@ source/authentication obligation: a failure of $\mathsf{Attr}$ can occur while
 $\mathsf{Eligible}_{s,e,c}$ holds and is charged in the computational
 accounting.
 
-The final line of~\eqref{eq:eligibility} concerns every saved version of session
-$s$, across its roles and epochs.  It uses acquisition
-$\mathcal C_T$, including protected bytes, at the time they are obtained.
-Readability $\mathcal L_T$ is evaluated separately. Other epochs' entropy disclosures retain their ordinary
-behavior.  Both peers' confirmation is not an additional send prerequisite.
+Consider a journal image sealed after $c$ by a write to another session.
+What does acquiring that image mean for the target session $s$? Read the
+last line of~\eqref{eq:eligibility} using the first save of each version
+of $s$ in the image. If all of them were first saved by $c$, this
+capture adds no post-cut version of $s$. A single version first
+saved after $c$ violates it, even while the bytes are encrypted. The
+test uses $\mathcal C_T$ across all roles and epochs of $s$.
+$\mathcal L_T$ answers when the acquired versions become readable.
+Other epochs' entropy disclosures keep their usual behavior, and a send
+may precede confirmation by both peers.
 
 Define the unconditional centered advantage by
 \begin{equation}
@@ -449,9 +449,10 @@ Define the unconditional centered advantage by
  \right|.
  \label{eq:recovery-score}
 \end{equation}
-Invalid or ineligible executions contribute zero.  This definition retains
-failures and adaptive disclosures in the probability space and avoids
-conditioning a reduction on an uncontrolled eligibility probability.
+Invalid or ineligible executions contribute zero. Keeping these executions
+in the probability space lets the reduction compare unconditional
+expectations, including failures and adaptive disclosures. Its score thus
+remains defined even when the adversary changes the probability of eligibility.
 If every execution with $\mathsf{Eligible}_{s,e,c}=0$ is completed by an
 independent fair guess, the conventional advantage over one half is
 \[
@@ -461,16 +462,14 @@ independent fair guess, the conventional advantage over one half is
 \]
 The computational accounting uses this latter convention.
 
-The adaptive version retains one application challenge and permits the
-candidate selector to choose its coordinates and reservation-event handles
-adaptively from the observed interaction. Eligibility
-requires those coordinates to identify the challenge's accepted logical send;
-selection never transfers its test bit to another send.  Eligibility
-and the usable-pair attribution are evaluated on that experiment's complete
-history.  An origin-pair reduction fixes a slot pair in $[G]\times[C]$ and
-scores the event that the final selector attributes the target to that pair.
-The selector and disclosure predicates are recomputed in each comparison
-world.  No independence between that selection and the transcript is imposed.
+The adaptive experiment still has one application challenge. After
+interacting, the selector can name its coordinates and reservation
+handles, provided they identify the same accepted logical send. The
+test bit stays with that send. For each fixed pair in $[G]\times[C]$,
+the reduction scores executions in which the selector attributes the
+send to that pair. It evaluates eligibility, disclosures and attribution
+from each comparison world's own complete history, allowing the
+selection to depend on the transcript.
 
 The record restriction in~\eqref{eq:eligibility} is the one used by the
 retained multi-epoch symbolic theorem: its \textsf{Snapshot} action outputs
@@ -514,27 +513,23 @@ The final assertion follows from
 $c<\mathsf{res}(o)\leq\mathsf{save}(v)$.
 \end{proof}
 
-The stopping test uses the successful acquisition event and its record
-metadata; it can run before the response's private bytes are serialized by
-a challenge adapter.  It is not an SDK rejection of the capture.  A public
-digest, an unrelated record, or an unsuccessful capture keeps its real
-behavior.  In particular, difficulty computing a permitted digest or report
-MAC does not trigger this corollary.
-For adaptive target selection, stopping is applied to the corresponding
-fixed-candidate event in the reduction.  One possible candidate becoming
-ineligible does not justify terminating a game that can still select a
-different eligible target.
+The successful acquisition event and its record metadata determine the
+stopping test before a challenge adapter serializes the response's private
+bytes. The reduction stops because every continuation already has zero
+eligible score; the native experiment retains the SDK's capture behavior.
+A public digest, an unrelated record, or an unsuccessful capture keeps its
+real behavior, so permitted digests and report MACs must still be supplied
+through their declared interfaces.
+For adaptive target selection, the same reasoning applies within each
+fixed-candidate comparison. The stopping certificate applies to that
+candidate; the original game may still select another eligible target.
 
-Two short executions illustrate why both kinds of origin are necessary.
-If $v$ was saved before $c$ and a sibling write reseals it after $c$, the
-acquisition still refers to the original pre-cut $v$.  The new global image
-time alone does not falsify the final conjunct of~\eqref{eq:eligibility}.
-If instead $v$ was saved after $c$, a later write attributed to a sibling
-does not change its subject or make its capture eligible.  Likewise, a
-pre-cut generation reservation retained through a delayed receipt remains
-pre-cut when its KEM computation completes later. The reservation condition
-in~\eqref{eq:eligibility} determines that case, with the endpoints retaining
-their respective confirmed counters.
+The same timing issue arises for the reservation itself. A generation
+tape reserved before $c$ can still be the tape used after a delayed
+receipt. In that execution the reservation condition
+in~\eqref{eq:eligibility} fails even if the KEM computation completes
+later. The two endpoints' confirmed counters record their own progress
+during the delay.
 
 \subsection{Connection to the cryptographic argument}
 
@@ -560,5 +555,6 @@ The computational composition evaluates accepted operations, eligibility, and
 all public outputs anew in each comparison world. Exact component repeats
 retain one response and one correctness event. The native constructor map in
 Section~\ref{sec:native-correspondence} identifies the storage operations used
-by these interfaces; Section~\ref{sec:discussion} specifies the joint root and
-message continuation to which their bounds connect.
+by these interfaces. Sections~\ref{sec:joint-continuation}
+and~\ref{sec:chain-prefix} construct the joint root and message
+continuation used in Theorem~\ref{thm:native-online-message}.

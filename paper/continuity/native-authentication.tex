@@ -1,10 +1,12 @@
 \subsection{Native authentication for the selected recovered root}
 \label{sec:native-authentication}
 
-The confirmation and first-message authentication bound can be transported
-through the native execution by comparing its own terminal event bit.  This
-gives an end-to-end authentication statement for the same recovered root whose
-first message appears in the confidentiality game.
+Suppose the selected send identifies a recovered root. Which earlier
+confirmation or first-message installation can we attribute to honest
+work under that root? We record the authentication event in the native
+history and compare its Boolean outcome through the same sequence of
+games. This gives an authentication bound for the root whose first
+message the confidentiality experiment tests.
 
 \paragraph{Target event.}
 Fix the live-core, single-root next-rekey profile and an admitted marked
@@ -238,13 +240,12 @@ own selectors and event flags throughout, so no partition of different
 hybrid worlds is required.
 \end{proof}
 
-\paragraph{What the composition establishes.}
-The theorem connects an eligible native recovery execution to origin
-authentication of its selected confirmation schedule and marked first
-message.  The comparison uses a single probability event at every stage;
-record and primitive reductions therefore enter with coefficient one.  The
-operational component advantage $a_j^{\rm auth}$ is attached to this event's
-derived distinguisher.  Its value is independently controlled by the same
-component security assumption as any output bit admitted by that experiment.
-The target scope, final eligibility, and whole-continuation budgets above
-specify exactly the executions to which the bound applies.
+\paragraph{Interpreting the authentication bound.}
+The theorem establishes honest-origin authentication for the root
+identified by the accepted send: it bounds the probability of a confirmation
+or marked first-message installation with no matching honest origin.
+Testing the same Boolean event at each stage makes each record or primitive comparison
+enter with coefficient one. In particular, $a_j^{\rm auth}$ is the
+operational component advantage for the distinguisher that tests this
+event, with the component assumption evaluated at that distinguisher's
+budget for the complete continuation.

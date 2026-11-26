@@ -1,5 +1,5 @@
 {
-  "status": "ready_for_final_independent_review",
+  "status": "cross_reference_and_finite_control_results_recorded",
   "new_module": {
     "path": "/workspace/scratch/084f6c1d017a/research-next/native-authentication.tex",
     "sha256": "8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170",
@@ -15,5 +15,6 @@
     "status": "passed",
     "compatible_pointwise_assignments": 160
   },
-  "proof_scope": "Native joint E and selected-root authentication event; fixed single application challenge; inherited marked-controller interface; separate authentication-specific component output bit."
+  "proof_scope": "Native joint E and selected-root authentication event; fixed single application challenge; inherited marked-controller interface; separate authentication-specific component output bit.",
+  "record_type": "historical automated check"
 }

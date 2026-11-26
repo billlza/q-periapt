@@ -1,0 +1,98 @@
+{
+  "base_paper_commit": "78d0ab4f5e82a751fb53dfedc24b9d7bc6dffaa8",
+  "earlier_comparison_commit": "9ce25285856790663ee35109f5732929bac693df",
+  "method": "For each canonical module, compare raw ordered formal blocks using comment-masked offsets. Hash each sequence using an eight-byte big-endian length prefix per block. Check the sequence hashes against the preceding exposition audit. Verify historical artifacts against their Git blob IDs.",
+  "canonical_modules": 40,
+  "changed_modules": [
+    "acquisition-nonadditivity.tex",
+    "bootstrap-authentication.tex",
+    "bootstrap-initial-source.tex",
+    "candidate-local-accounting.tex",
+    "guarded-provenance.tex",
+    "native-chain-composition.tex",
+    "opaque-rendering.tex",
+    "retry-readiness.tex",
+    "security-model.tex"
+  ],
+  "changes": [
+    {
+      "file": "acquisition-nonadditivity.tex",
+      "before_sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
+      "after_sha256": "16ff2701ede1f13bb933204c1ab2ce9d3c26e22d3e7d09c91cba91f9f43beebb"
+    },
+    {
+      "file": "bootstrap-authentication.tex",
+      "before_sha256": "9622e924761b46033821a5207f2539e31f2af3452d884a2705101c9c2ff679f1",
+      "after_sha256": "fc8a8560a08eb90055875ed1cedb7e39806565b6df2264abcfcacf8cd74bb411"
+    },
+    {
+      "file": "bootstrap-initial-source.tex",
+      "before_sha256": "f20c4944424d6ff5ac9fff6513eda5faaea265c135d3b71d2cd4fd45b9b95812",
+      "after_sha256": "b6dcb649c9a00cde4c98bd19e734561824bdacbbc21655b1b74e08f7a0164bbf"
+    },
+    {
+      "file": "candidate-local-accounting.tex",
+      "before_sha256": "4b1249b0f7bb8937e0b1018dff1e66826ab9a6fb97d1add16e5bb06cd332f2ad",
+      "after_sha256": "0838f608211e29ce554792334b28e8544b0b043c489b13f2908bc76ce6dd5b4a"
+    },
+    {
+      "file": "guarded-provenance.tex",
+      "before_sha256": "c6310397b5892bf2f6875d942cef1b2adb8a6f6e962810bb9c3c1e1a7f68fba0",
+      "after_sha256": "43474ac9bc2080d88a5e9025c932b8676170927d9657bf790fe0aa7397dc8596"
+    },
+    {
+      "file": "native-chain-composition.tex",
+      "before_sha256": "6670da70f63e544bea8bb7786b31db8324bd23c26bbaefa2a9e96642c05e5030",
+      "after_sha256": "490d5730fee9f912c517d80134e86af8ee914cfedbeeb002493db3fa9248cf5a"
+    },
+    {
+      "file": "opaque-rendering.tex",
+      "before_sha256": "31855e812d80d2f6cc4afada05db5e33ca8e039eace89e9a13ba791b43849298",
+      "after_sha256": "a5c65520126c2e3189020e6d6ab14d1e837f7f312fa8795151ede855a3e84e4e"
+    },
+    {
+      "file": "retry-readiness.tex",
+      "before_sha256": "35b1f1aa5eb5be7c306de857bfce361685c8dfc216315fc77149d47e00bbc516",
+      "after_sha256": "1e926162a70066958179ca98ed8b812a7638b7764ca8ca9ca02a320d6ea078cf"
+    },
+    {
+      "file": "security-model.tex",
+      "before_sha256": "4d78ea142a89805869c76b7d8b47c1d2e5f9c410185f40e709c7c22b161e58b7",
+      "after_sha256": "4c12e5dcf2e791f9492497be9b880b450a5196b9f719e80fe22d6db25d8b8b73"
+    }
+  ],
+  "byte_identical_ordered_blocks": {
+    "formal": {
+      "count": 58,
+      "ordered_sha256": "6208d7d0d76f57ef1dd2529d06e7f001847d6c75d793193123085bdf4b1b4d26"
+    },
+    "proof": {
+      "count": 53,
+      "ordered_sha256": "2f2bf9c855135ce84d3ea580de81fb03a102aff551d3a1046102d312113d2300"
+    },
+    "display": {
+      "count": 170,
+      "ordered_sha256": "56088d48efa0e1a03632b1866826ceb58670653e75a5fca505a0bfa67ae23db3"
+    },
+    "labels": {
+      "count": 187,
+      "ordered_sha256": "b122cf69fabbaecca5a555bc2f27675bfb871aae9c518855bc5cd526035c8d22"
+    },
+    "tables": {
+      "count": 15,
+      "ordered_sha256": "012f74320ba08e674218a6165d1bf9fc27eb67c7d6c1d999fb7d5ecd18bbcf18"
+    }
+  },
+  "citation_keys": 35,
+  "cross_reference_keys": 148,
+  "original_artifact_files_checked": 705,
+  "original_artifact_git_blob_index_sha256": "66680362d4395cc2257b0bbdf72cc85d6f02df8073e67d549038715eb5177e8a",
+  "unchanged_front_matter_conclusion_and_references": [
+    "author-metadata.json",
+    "declarations.tex",
+    "references.bib",
+    "main.tex",
+    "discussion.tex"
+  ],
+  "generated_tex_sha256": "e65b425da85af613e07ce131c6d2e2cd82503a228fcd450593e6f471dc379627"
+}

@@ -1,0 +1,48 @@
+{
+  "schema": "qperiapt-manuscript-review-revision/1",
+  "base_commit": "947297e59be9d7fc8febb5d81a4e2b945e328208",
+  "pdf_sha256": "02de5073b22c89af6d5d6b296d240f186003744fb3178e708af08a2f8dbfd5ed",
+  "generated_source_sha256": "c348c512a1f51b25bd2c1d53578d1df9ee3a8086d912a092cce2be093f68b883",
+  "source_zip_sha256": "e501d69ea0806416bc491cd6452015c6d2f75abcd451602e4525fe2814ac125f",
+  "local_manuscript_checks": "passed",
+  "independent_source_export": "passed",
+  "visual_review": {
+    "pdf_sha256": "02de5073b22c89af6d5d6b296d240f186003744fb3178e708af08a2f8dbfd5ed",
+    "pages": [
+      1,
+      5,
+      22,
+      23,
+      69,
+      70,
+      83,
+      84,
+      88,
+      96,
+      97,
+      107,
+      110,
+      113,
+      114,
+      118,
+      121,
+      122,
+      123
+    ],
+    "result": "No clipping, missing glyphs, overlapping content or equation numbers, split table rows, or broken proof continuation on the rendered pages. Tables 3 and 12 fit on their pages; Appendix B.1 continues coherently across pages 121-123."
+  },
+  "codeql_prerequisite_tests": 249,
+  "receipts": {
+    "bootstrap-entry.json": "3fa74c8ce32c56794f3f2b12266ac90b010fe3ad547eef8a6f2c81e74c08959b",
+    "bootstrap-initial.json": "b53cdf1a373c1ac60aeb26600914f7d682d3a6d8d74544a5e2995e787a419181",
+    "bootstrap-reply.json": "ead62bb6fdaa6fd655e7bb7b923334c914a699e3784ef478abf6033f347dae8f",
+    "bootstrap-terminal.json": "0bc8798af1e6c60cbf51053bd6e8795bcd7a81f068cd3d678a9583cb022bd7af",
+    "build-check.json": "435cf9760d251f276751cb463f6ec59c1e449c81e0f00a4b3f81e6b086bef300",
+    "codeql-archive-tests.txt": "4bffc8d43b0f34a14a799c987e2a72fca4ba3d86f23249539eed25d3f6bfdbfb",
+    "codeql-archive-validation.json": "7574b281cd47b35fe617e6bc37166732479f64eb1c565d2b5a68ad2768b6d571",
+    "display-preservation.json": "587779d02e2533591c262148c398d51e4b152d29e7f262ebc99e907d37dab717",
+    "indexed-exposure-review.json": "d1f25b05a2110e6a9ee303d24affd3aaaf6dd638929bf3e52369614618cd8db8",
+    "indexed-exposure.json": "ddf893d3d304135057d0e1b4652dfd37b531a7e97088e4de4cc6f4bbb21b8488",
+    "source-export-check.json": "cdcb8e6f5fda2ed891485507d86e60bc78dfc54d7fc8d309904537bb6c5ea0df"
+  }
+}

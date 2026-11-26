@@ -1,21 +1,22 @@
 \section{Accounting through one common virtual experiment}
 \label{app:common-virtual}
 
-This appendix records the alternative accounting route when one common
-real-component virtual experiment and a global native-to-virtual comparison
-have been established. In that setting the shared comparison cost is charged
-once; uniform resource bounds follow by direct substitution. Section~\ref{sec:candidate-local-accounting} gives the candidate-local
-route used by the record and report interfaces.
+Section~\ref{sec:candidate-local-accounting} compares each candidate
+under its own record and report rules. When a single real-component
+virtual experiment and a global comparison with the native game are
+available, we can charge their shared cost once. The accounting below
+shows how that common comparison combines with the costs of each
+candidate's component override.
 
 \subsection{A selected-target experiment}
 
 Let $V$ be the virtual original-record experiment with the real KEM component.
-The adversary chooses its target after its observed interaction. Eligibility
-$E$ retains the selected recovery conditions: both original target reservations
-follow Cut, the actual target signing keys and target-epoch entropy remain
-unexposed, and no selected-session record saved after Cut is acquired.
-The experiment follows allowed asynchronous control and application transitions,
-including sending after the local FinalReady transition.
+The adversary chooses its target after observing the interaction.
+Eligibility $E$ requires both original reservations to follow the cut,
+the target signing keys and target-epoch entropy to remain undisclosed,
+and each acquired target-session version to have been first saved by
+the cut. The experiment admits asynchronous control and application
+transitions, including a send after local FinalReady.
 
 Let $\mathsf{Attr}$ mean that the selected target has a unique usable pair of
 original slots, and let $I\in J$ denote that pair. The mapping and every event
@@ -89,10 +90,10 @@ $2\epsilon_{\rm rec}$ to the score difference. Dividing by two and using the
 maximum bit-guessing advantage proves \eqref{eq:accounting}.
 \end{proof}
 
-The selector may depend adaptively on its entire observed transcript.
-The absolute values in $\sum_j|b_j|$ retain each override world's own target
-selection. In particular, the override probabilities are not normalized as
-though they belonged to one common ideal distribution. The score decomposition
-also retains failed and ineligible executions in the experiment, avoiding an
-uncontrolled division by the probability of eligibility.
+Adaptive selection is handled by evaluating the target on the transcript
+of each experiment. Each override world therefore contributes its own
+score to $\sum_j|b_j|$; the partition used in the proof belongs to the
+single real-component experiment. Failed and ineligible executions remain
+in these unconditional scores, so the bound requires no division by the
+probability of eligibility.
 

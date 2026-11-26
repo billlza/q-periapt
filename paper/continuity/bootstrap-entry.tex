@@ -1,12 +1,14 @@
 \section{Joint entry from either bootstrap contribution}
 \label{app:bootstrap-entry}
 
-Bootstrap uses two 32-byte contributions, first $S_0$ and then $S_1$.
-The first also supplies initial confirmation before the second exists.
-This appendix gives the joint comparison needed when either contribution
-is the surviving hidden input. It uses the public compression oracle $h$,
-the HMAC notation $F$, and the pad maps $I,O,B,P,\Gamma$ of
-Appendix~\ref{app:joint-primitives}. Put
+Bootstrap first uses $S_0$ to confirm the Initial. When $S_1$
+becomes available, the same $S_0$ enters the joint schedule alongside
+it. Both contributions have 32 bytes. A comparison based on surviving
+$S_0$ must therefore preserve its short Initial-confirmation use together
+with its later concatenated use. With surviving $S_1$, the earlier
+confirmation is computed from the available first contribution. We use the public
+compression oracle $h$, HMAC notation $F$ and pad maps $I,O,B,P,\Gamma$
+of Appendix~\ref{app:joint-primitives} for both cases. Put
 \[
  Q=\mathtt{80}\Vert0^{55}\Vert\operatorname{BE64}(1024).
 \]
@@ -113,9 +115,9 @@ one long padding call per raw class and long outer calls. This exact
 memoization preserves deterministic repeats; numerical coincidences
 between differently named inputs still use the shared oracle.
 
-Each fresh long-table entry can initialize an opaque three-label
-bootstrap PRK before its first use. Applying the downstream comparisons
-in descriptor-allocation order composes the theorem with
+Each fresh long-table entry can supply an opaque three-label bootstrap PRK
+before its first use. The resulting table is the interface needed by
+the downstream comparisons, applied in descriptor-allocation order in
 Sections~\ref{sec:bootstrap-authentication}
 and~\ref{sec:bootstrap-initial-source}. The reply-source adapter realizes
 the hidden-second service from its original KEM pair. The initial-source

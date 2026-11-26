@@ -59,13 +59,15 @@
     "finite_classical_controls_executed_normal_and_optimized": true,
     "formal_proof_verifier_execution": false,
     "native_lattice_signer_execution": false,
-    "prior_work_bibliographic_audit": "Author primary-source research; this independent review focuses on the mathematical statements and source correspondence.",
+    "prior_work_bibliographic_audit": "Separate primary-source lookup recorded in the research materials; this automated review concerns the mathematical statements and source correspondence.",
     "proof_read_in_full": true,
     "proposed_fragment_read_in_full": true,
     "quantum_circuit_or_attack_execution": false,
     "source_control_flow_independently_inspected": true
   },
   "review_time_utc": "2026-11-08 21:45:55 UTC",
-  "reviewer": "Independent internal mathematical review",
-  "verdict": "accepted under the stated owner, lineage, and joint-oracle interfaces"
+  "record_type": "historical internal automated argument review",
+  "historical_assessment": "accepted under the stated owner, lineage, and joint-oracle interfaces",
+  "identity_baseline_commit": "288133c3c695d773c011d7db1f378b2958180b47",
+  "identity_scope": "The files entries identify the historical inputs at identity_baseline_commit, before editorial attribution corrections. The recorded digests are unchanged."
 }

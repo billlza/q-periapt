@@ -1,16 +1,19 @@
 \subsection{An explicit renderer for private images and intents}
 \label{sec:opaque-rendering}
 
-The alias lemma preserves a renderer that can read every original payload.
-A component reduction additionally needs to execute record management when
-the selected KEM challenger supplies public outputs and a shared-secret
-challenge without supplying the selected random tape. We construct that
-record-management algorithm for a finite image/intent interface. Its tables
-contain immutable handles, known fields and locally sampled sealing coins.
-The protocol's public computations are supplied by a common functional
-interface $F$, instantiated by the original-operation adapter. This section
-holds $F$ fixed and isolates the image/intent contribution to the record
-connection in Proposition~\ref{prop:native-local-accounting}.
+Two head-digest queries for the same saved image must agree. The alias
+lemma obtains this consistency by looking up the payload, rendering the
+image and hashing its bytes. During KEM embedding, however, the challenger
+supplies the public operation outputs and a shared-secret challenge while
+keeping the selected random tape private. The reduction must preserve
+the same observations even when that tape occurs in a saved image.
+
+We retain each private object's identity through a handle, together with
+its known public fields, and let the reduction sample the sealing coins.
+The original-operation adapter supplies the protocol's public computations
+through $F$. Holding $F$ fixed isolates the cost of reproducing the saved
+images and pending intents in
+Proposition~\ref{prop:native-local-accounting}.
 
 \paragraph{Typed record interface.}
 An opaque block is an immutable fixed-length private value, represented by a
@@ -192,10 +195,12 @@ to a test that returns one with probability $(1+Z)/2$ proves the score bound.
 Without a private-wire equality operation the first replacement is absent.
 \end{proof}
 
-The hybrid order starts with constructible real record inputs, replaces
-their private commitments, and then uses the table algorithm for the KEM
-challenge embedding. Every changed commitment is consumed by that world's
-subsequent intent prefixes, checks and outputs. For an adaptive origin-pair
+The order of replacements follows the information available to the
+reduction. It starts with constructible real record inputs, replaces their
+private commitments, and then uses the table algorithm to embed the KEM
+challenge. Each commitment reply enters that world's subsequent intent
+prefixes, checks and outputs, so those computations follow the reply
+actually returned. For an adaptive origin-pair
 event $E_j$, early stopping is justified only by a computable event making
 $E_j$ false for every continuation and every still-admissible final target
 choice attributed to $j$. The disjoint-event accounting above retains this

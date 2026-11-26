@@ -157,12 +157,15 @@ The measured overrun motivates a separate 900-second Metrics allowance and the l
 job bound for quality checks and diagnostic retention. Current-source CI remains required.
 
 Before any Rust result is uploaded, a fail-closed database gate requires the exact path set of all
-1242 tracked `.rs` files to be successfully extracted. This includes 1174 current
-sources and 68 retained bootstrap proof snapshots, whose exact paths and bytes
-are bound by five pinned `SOURCE_PINS.json` manifests. The
+1245 tracked `.rs` files to be successfully extracted. This includes 1174 current
+sources, 68 retained bootstrap proof snapshots and three retained latency
+measurement sources. Their exact paths and bytes are bound by five pinned
+`SOURCE_PINS.json` manifests and the explicit latency source identities. The
 [archive inventory](artifact/CODEQL_RUST_ARCHIVES.md) identifies every snapshot's
-source commit and role. Added, removed or changed snapshots and Cargo manifests
-inside their source packets fail the gate. Each profile requires zero
+source commit and role. Added, removed or changed snapshots and unreviewed Cargo
+manifests inside their source packets fail the gate. Only the two byte-pinned
+latency reproduction recipes are temporarily displaced during extraction and
+verified restored on normal and exceptional exits. Each profile requires zero
 extraction warnings, extraction errors, unextracted elements, AST/CFG/SSA/data-flow
 inconsistencies, and source format arguments without an expression or data-flow
 node, together with non-vacuous macro and format-argument sentinels. Path and type
@@ -176,7 +179,7 @@ analysis; current-source extraction, macro coverage and query results are still
 required.
 
 The full macro census preserves entity multiplicity and raw unresolved counts.
-The 68 frozen source snapshots remain in that census, with expanded and unresolved
+The 71 frozen source snapshots remain in that census, with expanded and unresolved
 archive entities counted separately. They cannot appear in compiler inputs or
 supply the current-source macro sentinel. The current sources retain the same
 target-specific compilation and macro-coverage requirements.

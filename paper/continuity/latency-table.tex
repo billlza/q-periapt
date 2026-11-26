@@ -1,0 +1,20 @@
+% Means recomputed from the retained 358b921a raw timing batches.
+\begin{table}[t]
+\centering
+\small
+\caption{Warmed backend operation costs on the stated virtualized host.
+Each mean covers 1,600 calls; all times are in milliseconds.}
+\label{tab:primitive-latency}
+\begin{tabularx}{\linewidth}{@{}Xrr@{}}
+\toprule
+Operation & Mean wall time & Mean CPU time\\
+\midrule
+ML-KEM-768 key generation & 0.041 & 0.040\\
+ML-KEM-768 encapsulation & 0.047 & 0.047\\
+ML-KEM-768 decapsulation & 0.056 & 0.056\\
+ML-DSA-65 key generation & 0.381 & 0.380\\
+ML-DSA-65 signing & 0.890 & 0.886\\
+ML-DSA-65 verification & 0.232 & 0.232\\
+\bottomrule
+\end{tabularx}
+\end{table}

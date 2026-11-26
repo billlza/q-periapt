@@ -1,0 +1,11 @@
+[package]
+name = "qperiapt-paper-latency-harness"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+q-periapt-backends = { path = "../crates/q-periapt-backends" }
+q-periapt-core = { path = "../crates/q-periapt-core" }
+q-periapt-sig = { path = "../crates/q-periapt-sig" }
+q-periapt-mlkem-native-sys = { path = "../crates/q-periapt-mlkem-native-sys" }

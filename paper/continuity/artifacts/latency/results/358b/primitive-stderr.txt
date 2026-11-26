@@ -1,0 +1,1 @@
+implementation=mlkem-native-2.0.0/portable-c;corpus=64;samples=200;batch=8;warmup_batches=32;message_bytes=1024;context_bytes=0;os_rng_inside_interval=false;negative_controls=64

@@ -23,8 +23,10 @@ linux-x86_64-avx2 = ["q-periapt-backends/linux-x86_64-avx2"]
 
 [dependencies]
 q-periapt-core = { version = "=0.2.0", path = "../crates/q-periapt-core" }
-q-periapt-kem = { version = "=0.2.0", path = "../crates/q-periapt-kem" }
 q-periapt-backends = { version = "=0.2.0", path = "../crates/q-periapt-backends" }
+
+[dev-dependencies]
+q-periapt-kem = { version = "=0.2.0", path = "../crates/q-periapt-kem" }
 
 [build-dependencies]
 cc = "1"

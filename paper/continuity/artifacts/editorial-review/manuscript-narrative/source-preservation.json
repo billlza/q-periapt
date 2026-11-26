@@ -1,0 +1,85 @@
+{
+  "base_paper_commit": "a5779c6471afa1e8256216a88fedd753f5c4e087",
+  "canonical_modules": 40,
+  "changed_modules": [
+    "acquisition-nonadditivity.tex",
+    "artifact-map.tex",
+    "bootstrap-authentication.tex",
+    "bootstrap-entry.tex",
+    "bootstrap-initial-source.tex",
+    "candidate-local-accounting.tex",
+    "chain-prefix-continuation.tex",
+    "common-virtual-accounting.tex",
+    "computational-roadmap.tex",
+    "confirmation-traffic.tex",
+    "construction.tex",
+    "contextbound-connection.tex",
+    "discussion.tex",
+    "established-results.tex",
+    "evaluation.tex",
+    "guarded-provenance.tex",
+    "introduction.tex",
+    "joint-continuation.tex",
+    "joint-primitive-bounds.tex",
+    "kem-ordinary-bridge.tex",
+    "live-core-instantiation.tex",
+    "main.tex",
+    "matched-opportunities.tex",
+    "multiple-root-entry.tex",
+    "native-authentication.tex",
+    "native-chain-composition.tex",
+    "native-correspondence.tex",
+    "opaque-rendering.tex",
+    "primitive-inputs.tex",
+    "related-work.tex",
+    "report-composition.tex",
+    "reservation-signature-bridge.tex",
+    "retry-readiness.tex",
+    "sdk-purpose-connection.tex",
+    "security-model.tex",
+    "source-attribution.tex"
+  ],
+  "unchanged_modules": [
+    "declarations.tex",
+    "matched-opportunity-tables.tex",
+    "reference-schedule-table.tex",
+    "retry-readiness-table.tex"
+  ],
+  "ordered_byte_identical_blocks": {
+    "formal": {
+      "count": 58,
+      "sha256": "6208d7d0d76f57ef1dd2529d06e7f001847d6c75d793193123085bdf4b1b4d26"
+    },
+    "proof": {
+      "count": 53,
+      "sha256": "2f2bf9c855135ce84d3ea580de81fb03a102aff551d3a1046102d312113d2300"
+    },
+    "display": {
+      "count": 170,
+      "sha256": "56088d48efa0e1a03632b1866826ceb58670653e75a5fca505a0bfa67ae23db3"
+    },
+    "labels": {
+      "count": 187,
+      "sha256": "b122cf69fabbaecca5a555bc2f27675bfb871aae9c518855bc5cd526035c8d22"
+    },
+    "tables": {
+      "count": 15,
+      "sha256": "012f74320ba08e674218a6165d1bf9fc27eb67c7d6c1d999fb7d5ecd18bbcf18"
+    },
+    "figure": {
+      "count": 1,
+      "sha256": "d417984ee2075d6c9e58b1124b1e29d8c68477553b7b552ad866582d3cbf120a"
+    }
+  },
+  "bibliography_citation_keys": 35,
+  "cross_reference_keys_before": 148,
+  "cross_reference_keys_after": 149,
+  "added_cross_references": [
+    "tab:events"
+  ],
+  "original_artifact_files_checked": 717,
+  "original_artifact_git_blob_index_sha256": "e8d6b0db6865a82637aa31db69ca1cdc94cd4272b0e25836aafd3f8ab0d6feaf",
+  "author_metadata_declarations_bibliography_figure_class_and_bibliography_style_byte_identical": true,
+  "generated_source_sha256": "1996a233d89641617b6eb598006677ab2056e164a1b809c64a3eb10be96db947",
+  "method": "Compare original bytes for each matched block in each input named by the flatten manifest. Mask comments for matching and take bytes from the original unmasked text. The digest uses an eight-byte big-endian length prefix per block in module-name order. Compare every previously tracked artifact with its Git blob."
+}

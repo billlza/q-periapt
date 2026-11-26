@@ -18,7 +18,7 @@ The ledger retains original messages and every private invocation, including a s
 
 - [Full proof](proof.md) gives the generic joint-PRF bridge, native ROM/QROM construction, actual-key/lineage relationship, query accounting, and native-pair corollary.
 - [Manuscript module](proposed.tex) contains the reviewed theorem statements and compact proofs.
-- [Independent review](generic_bridge_review.md) and [frozen review identities](independent_bridge_review_identity.json) record the accepted mathematical statements and the precise proof/module bytes.
+- [Internal automated review](generic_bridge_review.md) and [historical input identities](independent_bridge_review_identity.json) record the argument checks and the inspected proof/module bytes.
 - [Literature positioning](literature-positioning.md), [related-work paragraph](positioning.tex), and [bibliographic additions](references-additions.bib) connect the result to nonce-based cryptography and hedged Fiat–Shamir/ML-DSA work.
 - [Integration replacements](integration_replacements.json) supplies three contribution passages and two consistency updates against the recorded integration checkpoint. The proposed abstract has 243 words under the manuscript's whitespace-count gate.
 
@@ -35,7 +35,7 @@ python review_generic_controls.py
 python -O review_generic_controls.py
 ```
 
-The default author checker reads the audited source copies in `sources/`. Frozen Rust witnesses use the `.rs.txt` suffix; `source_identity.json` retains their original upstream or native `.rs` paths and unchanged byte digests. This keeps historical evidence separate from compilable repository inputs. `snapshot_layout.json` records the eleven path mappings and the CI failure that motivated this packaging correction. It verifies the fixed manifest digest, all 24 source/metadata/license file identities, the two lockfile pins, exact external-randomizer routing, native framing, and the XOF input-length inventory. It requires no repository checkout, package download, Rust build, or network access. Each command emits JSON and exits nonzero on a failed check.
+The default checker reads the audited source copies in `sources/`. Frozen Rust witnesses use the `.rs.txt` suffix; `source_identity.json` retains their original upstream or native `.rs` paths and unchanged byte digests. This keeps historical evidence separate from compilable repository inputs. `snapshot_layout.json` records the eleven path mappings and the CI failure that motivated this packaging correction. It verifies the fixed manifest digest, all 24 source/metadata/license file identities, the two lockfile pins, exact external-randomizer routing, native framing, and the XOF input-length inventory. It requires no repository checkout, package download, Rust build, or network access. Each command emits JSON and exits nonzero on a failed check.
 
 For the finite controls alone:
 
@@ -54,7 +54,7 @@ python check_bridge.py \
 
 `--repository` expects the native source files and license files identified by `source_identity.json`; the paper-only branch does not need to contain the SDK. `--crate-archive` verifies the original archive checksum and compares every included upstream source/license byte with that archive. The archive is an optional extra for reproduction; the default hosted check uses the authenticated extracted source packet.
 
-The author controls cover component/pair-ledger inclusion, failed publication with descriptor aliases, all target seed re-expansions and hedge retries, adaptive family selection, and disjoint hidden-support query mass. The independent controls additionally include explicit countermodels for per-slot caching, unrestricted foreign-key disclosure through ordinary signing oracles, and an incorrectly shared observable query cap. The receipts report finite/source checks rather than Rust execution or formal verification.
+The draft-stage controls cover component/pair-ledger inclusion, failed publication with descriptor aliases, all target seed re-expansions and hedge retries, adaptive family selection, and disjoint hidden-support query mass. The independent controls additionally include explicit countermodels for per-slot caching, unrestricted foreign-key disclosure through ordinary signing oracles, and an incorrectly shared observable query cap. The receipts report finite/source checks rather than Rust execution or formal verification.
 
 ## Source identity and licensing
 
@@ -70,4 +70,4 @@ The checked context literal has 42 bytes, giving a protocol descriptor input of 
 
 [author_check_receipt.json](author_check_receipt.json) records the normal/optimized pairs for the self-contained audit, finite controls, and external-checkpoint/original-archive comparison. All three pairs are byte-identical. [independent_bridge_review_checks.json](independent_bridge_review_checks.json) records the independent control and source checks. The original outputs are retained alongside the receipts.
 
-`artifact_manifest.json` inventories this supplement except the manifest itself. It includes the literature note and applicable source licenses. The proof/module identities in the independent review remain the acceptance record for the mathematical statements.
+`artifact_manifest.json` records this supplement at repository commit `288133c3c695d773c011d7db1f378b2958180b47`, before editorial attribution corrections. It includes the literature note and applicable source licenses. The recorded hashes identify the historical inputs; they do not certify the corrected review text.

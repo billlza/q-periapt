@@ -2,62 +2,76 @@
 \label{sec:discussion}
 
 \paragraph{A recovery condition attached to original operations.}
-The model distinguishes an operation's original entropy reservation, the
-first save of a session-record version, acquisition of a retained
-representation, and later availability of matching decryption material.
-This distinction
-makes exact replay compatible with precise recovery statements: retries and
-aggregate writes preserve the original source, while fresh operations obtain
-new origins. The guarded characterization explains how records and keys
-combine to expose that source. On a fixed indexed graph,
-Proposition~\ref{prop:guarded-worklist} maintains the exact readable-source set
-through cumulative acquisitions and disclosures, reporting each newly exposed
-source once. Its total work follows the stored incidences and input events,
-with complete-set exports charged by their output size.
+An encrypted journal can be acquired before its wrapping key is
+disclosed. Determining when a reservation becomes readable therefore
+requires the history of both objects. We connect that history to the
+operation's original sample, the first save of the session version,
+and the acquisition of each physical image. Retries reuse the sample,
+and aggregate writes can create further copies of it.
+Proposition~\ref{prop:guarded-worklist} tracks the exact readable-source
+set on a fixed indexed graph as acquisitions and disclosures arrive.
+Reporting each newly exposed source once makes the incremental result
+follow the original operation through its copies; exporting the full
+set incurs the additional cost of its output.
 
-The recovery experiment binds its selected send and cut to the original
-reservation and first-save events through~\eqref{eq:eligibility}.
-The graph closure supplies the record model's source-readability semantics;
-the native proof preserves those original event predicates through each
-comparison. The native executions demonstrate their operational significance
-at the persistence and asynchronous-confirmation boundaries.
+The recovery condition in Equation~\eqref{eq:eligibility} requires both
+KEM reservations to follow the cut and excludes acquisition of any target-session version first
+saved after that cut. The readable-source closure describes a broader
+storage history, in which acquisition and key disclosure can occur in
+either order. The current reduction preserves reservation and first-save
+events but uses the acquisition condition to stop before simulating a
+protected record. Extending eligibility to the closure's readability
+condition requires a corresponding record-simulation argument.
+
+\paragraph{Replay and resampling before publication.}
+The prototype resumes the saved operation after a crash. Before an
+operation has produced a commitment or public output, an alternative
+design could cancel its saved intent and reserve fresh randomness. Such
+a transition must durably invalidate the old intent and prevent it from
+being replayed later. The reservation-disclosure experiment evaluates the
+prototype's replay policy; a cancel-and-resample state machine would
+require its own execution and recovery analysis.
 
 \paragraph{From a recovered epoch to application security.}
-The computational composition carries an original contribution through its
-root, confirmation, traffic material and selected message. Its native
-controller fixes the target before that step's first private computation
-across endpoint aliases, including receive advances followed by failed
-authentication or persistence. Earlier message keys may inform that choice;
-the paired successor seed may then be disclosed and used for real suffix
-computation. Exact retries retain the original computation.
+A recovered root feeds confirmation and the traffic chain before the
+application has a message key to use. The native controller lets the
+observer see earlier message keys and then select a step, provided
+neither endpoint has yet computed it. A receive-side advance counts
+even if authentication or persistence subsequently fails. An exact
+retry uses the original computation. After the marked step, the
+observer may obtain the paired successor seed and use it to compute
+the real suffix.
 
-Theorem~\ref{thm:native-online-message} applies confidentiality and fresh-message
-integrity to the resulting eligible send, while
-Theorem~\ref{thm:native-selected-authentication} accounts for the selected
-root's earlier confirmation history. Candidate-local stopping preserves the
-original acquisition condition through these observations. Each terminal
-event is evaluated in its own comparison world with complete-execution
-resources. Table~\ref{tab:native-online-substitutions} makes the ordinary
-primitive and record costs visible beside the main theorem.
+This observation interface still permits confidentiality and
+fresh-message integrity for the eligible send, as established by
+Theorem~\ref{thm:native-online-message}.
+Theorem~\ref{thm:native-selected-authentication} establishes the
+authentication guarantee for the earlier confirmation of its selected
+root. Candidate-local stopping preserves the original acquisition
+condition in both arguments. Each terminal event has its own comparison
+world and complete-execution resource accounting, with the primitive
+and record costs given in Table~\ref{tab:native-online-substitutions}.
 
 \paragraph{Primitive instantiation and reusable interfaces.}
-For root derivation, the placement of a surviving secret determines the
-required comparison. Equation~\eqref{eq:root} gives
+Consider root derivation after disclosure of the parent root.
+Equation~\eqref{eq:root} gives
 \[
  p_e=\operatorname{HMAC}_{R_{e-1}}(S_e).
 \]
-Disclosure of the parent root leaves the new contribution in HMAC's
-message input, as studied by
-extractor and swap-PRF formulations~\cite{hmacswap2023,rfc5869}.
+Once the parent root is disclosed, HMAC's key is known. The secret
+input available to this extraction step is the new contribution $S_e$,
+which enters HMAC as its message. Extractor and swap-PRF formulations
+study this use of HMAC~\cite{hmacswap2023,rfc5869}.
 The shared-oracle entry proof in Appendix~\ref{app:joint-root-entry}
 supplies the uniform-root interface after the complete-tuple comparison
-of Section~\ref{sec:contextbound-connection}. The finite-family extension
-preserves exact pad-state and information-string aliases
-(Section~\ref{sec:multiple-root-entry}). Its purpose-key instance permits
-all outputs of the declared derivation table to be exported while
-retaining a separate lifecycle for each returned owner
-(Section~\ref{sec:sdk-purpose-connection}). A marked private entry supports
-the corresponding one-key application experiment.
+of Section~\ref{sec:contextbound-connection}. Extending this argument
+to a finite family requires preserving exact pad-state and
+information-string aliases (Section~\ref{sec:multiple-root-entry}).
+At the purpose-key interface, the declared export experiment permits
+all outputs of the derivation table to be exported with a separate
+lifecycle for each returned owner
+(Section~\ref{sec:sdk-purpose-connection}). The corresponding one-key
+application experiment uses a marked entry that remains private.
 
 At the component interface, the deferred-challenge bridge gives an
 ordinary ML-KEM IND-CCA instantiation while preserving the actual
@@ -74,73 +88,148 @@ adapter carries original randomizers and exact retries into a shared-XOF
 comparison, expressing the native reservation-interface bound through
 ordinary hedged ML-DSA unforgeability, with explicit replay-coupling and
 oracle-query losses
-(Theorem~\ref{thm:native-mldsa-reservation-bridge}). These two connections
-instantiate different parts of the final bound: the key-entry argument
-supplies recovered secret material, and the signature bridge supplies
-its original-source attribution.
+(Theorem~\ref{thm:native-mldsa-reservation-bridge}). In the final bound the
+key-entry argument supplies recovered secret material, and the
+signature bridge justifies its attribution to the original calls.
 
-\paragraph{From original bootstrap sources to peer activation.}
-The bootstrap connection preserves the source order in which initial
-confirmation uses the first contribution before the response contribution
-exists. Its joint short/long entry retains that shared use, and the terminal
-comparison protects the ACK while preserving sibling outputs. The reply-source
-profile establishes the expected responder's historical activation of the
-exact transcript even when the first contribution and initiator signing
-identity are disclosed. The initial-source profile supplies the complementary
-case with the responder identity and later reply contributions available.
+\paragraph{What a delayed bootstrap confirmation establishes.}
+Suppose the initiator receives a READY proof after a restart. The
+relevant event is the expected responder's earlier activation of the
+same signed transcript. Retrying the confirmation can change when
+the proof arrives while preserving that event. The first contribution
+already served to confirm the initial flight before the reply
+contribution existed. The joint short/long entry preserves that shared
+use. The terminal comparison protects the ACK while keeping the
+sibling outputs available.
 
-These conclusions retain meaning through exact retries and delayed READY
-delivery because the original sources and complete signed transcript remain
-fixed. In the initial-source composition, replacing the complete joint entry
-before partitioning reply families confines the family multiplicity to the
-later tail terms. Each profile keeps its own immutable-version acquisition
-contribution. Section~\ref{sec:bootstrap-authentication} specifies the joint
-journal/derived-key interface for a broader captured-byte simulation.
+The surviving source determines which disclosures this guarantee
+tolerates. Protecting the reply source establishes the earlier
+activation even if the first contribution and the initiator's signing
+identity are disclosed. Protecting the initial source allows the
+responder identity and later reply contributions to be available.
+In the latter proof, replacing the joint entry before partitioning by
+reply family confines the family multiplicity to the later terms.
+Each proof charges acquisition of its own immutable versions.
+Section~\ref{sec:bootstrap-authentication} specifies the joint journal
+and derived-key interface needed to simulate a broader set of captured
+bytes.
+
+\paragraph{Multiple devices and shared history.}
+Sesame manages device-to-device sessions, and WhatsApp's documented
+one-to-one design uses pairwise encryption with client
+fanout~\cite{sesame2017,whatsapp2021multidevice}.
+A natural extension gives each device its own journal, with its fanout
+sessions represented as local siblings. Reservation bindings would identify
+the device, session incarnation and original operation. Each endpoint's
+session history would retain one authoritative journal. A restarted device
+then resumes its retained operation; another device continues its own
+sessions. Synchronizing message history need not copy these pending
+cryptographic operations. Shared keys would still resolve to the same
+actual-key identity across devices.
+
+If synchronization copies a reserved tape, it keeps its original draw.
+An unchanged copied session version also keeps its first-save event.
+A passive copy can be represented as another physical image, including any
+additional wrapping-key path. Renaming the device, resealing the copy or
+transferring ownership supplies no new randomness. If both devices advance
+the same copied endpoint state, they introduce a fork absent from our
+current transition system. Such an extension would need exclusive ownership
+transfer or explicit fork semantics; fencing a former owner must still
+preserve the original reservation identities. The present results thus
+inform each session's storage boundary. Account-wide confidentiality would
+additionally have to account for device membership, fanout and plaintext
+copies delivered to other authorized devices. Group protocols also require
+their own membership and shared-key analysis.
+
+\paragraph{Mapping the journal to SQLite/WAL.}
+The same ordering can be expressed using SQLite transactions. An adapter
+would store the sealed reservation, canonical binding, operation identifier
+and phase in one pending-operation transaction, and commit it durably before
+executing the reserved operation. A subsequent transaction in the same
+database would install the resulting session state and exact outbox bytes
+before network release. This gates release; delivery still uses the
+protocol's retry and duplicate-handling rules. After an uncertain outcome,
+reopening would reconcile the saved phase and identifier and resume the
+original reservation or result. SQLite serializes local writers; protocol
+ownership across transactions still requires owner and expected-version
+checks~\cite{sqliteTransactions}.
+In WAL mode, \texttt{synchronous=FULL} adds a WAL synchronization at each
+commit; \texttt{NORMAL} can lose acknowledged transactions after power loss
+or an operating-system crash. Both retain committed transactions across an
+application crash alone~\cite{sqliteSynchronous}. The underlying storage
+must honor the synchronization. A durable commit need not wait for a
+checkpoint, which transfers committed pages to the main
+database~\cite{sqliteWal}.
+
+The physical acquisition surface also changes. A valid instantiation must
+map main-database pages, WAL frames and retained backups to their original
+record versions; checkpointing and copying do not refresh a reservation's
+origin or an unchanged version's first-save time. An intact representation
+retained in uncommitted WAL frames must be counted when it first becomes
+durably acquirable, even if SQL recovery subsequently discards the
+transaction~\cite{sqliteWalInterface}. SQLCipher encrypts database and WAL
+page data, and WCDB builds on SQLite and
+SQLCipher~\cite{sqlcipherDesign,wcdb}. Page encryption and authentication do
+not themselves establish protocol ownership, rollback freshness or
+multi-device synchronization. Keeping the application-level sealed objects
+would retain their existing encodings. The adapter work consists of the
+operation schema, recovery phases, durability settings, ownership checks
+and correspondence between physical pages and acquired records. This is an
+implementation mapping; the measured backend remains the native journal.
 
 \paragraph{Exposure budgets and completed service.}
-The send budget and retry readiness control different parts of the native
-execution. The budget $b$ caps first allocations in each direction of the
-captured epoch, with alternating derived sets at the declared cut attaining
-$2b-1$. Reducing $b$ from 64 to 32 changes that observed set from 127 to 63
-applications. Under immediate retry readiness, the same change reduces
-completed service from 718 to 688 and increases emitted bytes from 407,596 to
-565,288 as the endpoints complete more rekeys. The original-source condition
-identifies recovery on later eligible sends; the admission denominator and
-backlog retain the service consequence of the selected budget.
+On the alternating schedule, reducing the send budget from 64 to 32
+reduced the reconstructed set from 127 to 63 keys. Each direction
+admits at most $b$ first allocations in the captured epoch, and the
+derived set at our cut reached $2b-1$ for both budgets. With immediate
+retries, the smaller budget also reduced deliveries from 718 to 688.
+The peers completed more rekeys and sent 565,288 bytes, up from 407,596.
 
-Retry readiness determines when an existing ciphertext competes for another
-transmission opportunity. Holding $b$ and the opportunity list fixed, the
-age-four intervention increases alternating deliveries from 688 to 971 and
-from 718 to 999, with the same respective derived counts of 63 and 127.
-Application retries fall from 604 to 16 and from 579 to 8. Total communication
-and persistence work increase with the additional service. At $b=32$, the
-reduction of 588 application retries is balanced by 283 additional first
-applications, 265 ACKs and 40 control frames; the four frame classes still
-sum to 2,048 (Appendix~\ref{app:retry-readiness}). Bytes and
-\texttt{sync\_data} calls per delivered application decrease in these
-alternating runs. Across all twelve bidirectional or resumed pairs, delivered
-service increases and the complete byte accounting retains the measured
-schedule-dependent unit costs.
+Holding the budget fixed lets us isolate the effect of the retry
+rule. Waiting four sender turns raised deliveries from 688 to 971 at
+$b=32$ and from 718 to 999 at $b=64$. The two policies yielded 63
+reconstructible keys at the smaller budget and 127 at the larger one.
+The transmission history accounts for the gain. Application retries
+fell from 604 to 16 at $b=32$ and from 579 to 8 at $b=64$. The 588
+turns freed at $b=32$ went to 283 additional first applications, 265
+ACKs and 40 control frames within the same 2,048 opportunities
+(Appendix~\ref{app:retry-readiness}).
 
-The one-way control completes the budget's 32 or 64 applications, retains
-the remaining offered demand in its queue and leaves both confirmed epochs
-at zero under either retry policy. Every admitted post-capture key is
-reconstructed there. Recording allocations, completed service and queued
-demand together therefore distinguishes the effects of the admission rule,
-the actual exchange schedule and the sender's retry policy.
+The extra deliveries required more bytes and persistence work in total.
+In these alternating runs both bytes and \texttt{sync\_data} calls per
+delivery fell. All twelve bidirectional or resumed pairs delivered more
+messages. After the offline prefix at $b=32$, the fraction of keys we
+could reconstruct fell from $32/612$ to $33/878$ because the admission
+denominator grew, even as we recovered one more key. On the one-way
+control, both policies delivered the 32 or 64 applications the budget
+admitted.
+The rest stayed queued, both confirmed epochs stayed at zero, and every
+admitted post-capture key was reconstructible. Waiting longer to retry
+could not supply the missing return traffic in that run.
 
 \paragraph{Conclusion.}
-Persistent recovery is governed by original secret sources and their
-acquisition histories. Exact record-exposure semantics identifies readable
-sources, and its indexed realization processes cumulative acquisitions and
-disclosures with
-total work linear in the fixed stored graph and input history. Constructive
-record/report simulations connect an eligible native rekey to confidentiality
-and authentication of its marked message. Original-operation and shared-XOF
-reductions preserve source attribution through retained randomizers and exact
-replay. The finite key-entry comparison supplies a purpose-key instance,
-and the bootstrap composition connects an original surviving source to
-historical peer activation. The mechanized multi-epoch theorem and concrete executions establish
-the corresponding provenance-based recovery statements. These results
-preserve the meaning of fresh randomness across durable retries, copies and
-asynchronous progress.
+The restart experiment identifies the event that a recovery claim must
+follow. Both peers completed the rekey and delivered new messages, yet
+the earlier capture let us read them because it contained the tape for
+the operation completed after restart. That original reservation also
+survives retries and aggregate copies. For encrypted copies, acquisition
+and readability can occur at different times. On fixed indexed record
+and key-derivation graphs, we track exactly which original sources become
+readable as records and keys arrive, in total work linear in graph size
+and input history (Proposition~\ref{prop:guarded-worklist}).
+
+For a send after the next rekey of an established session, the
+acquisition history gives a sufficient recovery condition. Both original KEM
+reservations must follow the cut. The target signing secrets and
+designated epoch entropy must remain undisclosed, and the first durable
+save of each acquired target-session version must fall on or before the
+cut. A copy acquired later keeps that save time. Under the assumptions
+of Theorem~\ref{thm:native-online-message}, the observer can use earlier
+keys to choose a step before either endpoint first computes it and can
+subsequently learn its designated successor seed. The selected
+application send retains confidentiality and fresh-message integrity.
+This connects the recovered send to the original inputs that justify
+it: reservation, persistence and acquisition remain traceable through
+restart and replay. The service measurements then show the traffic
+actually delivered under the allocation and retry rules accompanying
+that recovery claim.

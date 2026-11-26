@@ -3,15 +3,16 @@
 \section{Shared-oracle primitives for the joint continuation}
 \label{app:joint-primitives}
 
-This appendix supplies the primitive reductions used in
-Section~\ref{sec:joint-continuation}. They use the same idealized SHA-256
-compression oracle throughout. Each experiment begins with independent
-oracle, hidden uniform 256-bit input and auxiliary state. All
-oracle-dependent preparation is executed within the counted algorithm.
-The designated hidden value is accessed through its stated interfaces.
-It and the private random tables remain internal throughout terminal testing.
-Ordinary public queries may be quantum; private function queries are
-classical and exact repeats are cached.
+The root, confirmation and traffic computations in
+Section~\ref{sec:joint-continuation} all use the same idealized SHA-256
+compression oracle. We keep that oracle throughout the comparisons
+below. At the start of each experiment the oracle, the uniform hidden
+256-bit input and the auxiliary state are mutually independent.
+Preparation that depends on the oracle forms part of the measured
+query budget. The hidden value and private random tables stay inside
+their stated interfaces through the terminal test. Public queries may
+be quantum. Private function calls are classical and reuse the answer
+to an exact repeat.
 
 We use $\Phi_{256}$ and $E_{\rm NMAC}$ from
 Appendix~\ref{app:primitive-inputs}, with
@@ -145,20 +146,20 @@ Equal $\Gamma$ values must share a reply; their equality is never assumed
 to imply equal salts. Summing the three replacements proves the result.
 \end{proof}
 
-The lemma compares against the independent-table ideal. In particular it
-does not assert pointwise real equality at an exceptional cross-interface
-pair where both classical arguments equal the hidden root. Such guesses
-are admitted by the real experiment and covered by the three
-distinguishing steps. A different ideal that explicitly repairs this
-cross-pair needs its own comparison; it is not used here.
+The lemma uses the independent-table ideal throughout. The real
+experiment admits the exceptional cross-interface guess in which both
+classical arguments equal the hidden root. At that pair the real row and
+column agree, while the two independent ideal tables may differ. The
+three distinguishing steps account for this difference as part of the
+full comparison.
 
 \subsection{The multiple-message row and a single Extract column}
 
 For $\varepsilon_{\rm Hrow}(T,q,L)$, the adversary has an adaptive classical
 row oracle. It can choose later messages using earlier replies and its
 quantum computation with the common public oracle. Equal messages retrieve
-equal values. There is no requirement that the full transcript be fixed
-before the first reply, and there is no raw-key disclosure channel.
+equal values. The transcript develops through these adaptive calls;
+the interface returns row values while keeping the key internal.
 
 \begin{lemma}[Row and single-column instances]
 \label{lem:appendix-hmac-instances}
@@ -192,7 +193,9 @@ bound agrees with the existing shared-root accounting.
 \subsection{Root initialization at the actual entry boundary}
 \label{app:joint-root-entry}
 
-Let $S$ be an independent uniform 32-byte contribution. Executed
+The entry comparison connects a uniform contribution to the uniform-root
+joint continuation through the native Extract/Expand. Let $S$ be an
+independent uniform 32-byte contribution. Executed
 preparation may choose a known 32-byte old root $r$ and the response
 core using the public oracle, but has no other raw use of $S$. Consider
 one original Extract/Expand,

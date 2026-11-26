@@ -1,0 +1,18 @@
+% Statistics recomputed from all 256 retained individual delivery intervals.
+\begin{table}[t]
+\centering
+\small
+\caption{Same-host delivery costs between two native file journals in an
+established session. All times are in milliseconds. The 95th and 99th
+percentiles (P95 and P99) use the nearest rank among all 256 individual
+message intervals.}
+\label{tab:delivery-latency}
+\begin{tabularx}{\linewidth}{@{}Xrrrrr@{}}
+\toprule
+Interval & Mean & Median & P95 & P99 & Maximum\\
+\midrule
+Wall-clock & 24.531 & 17.007 & 37.046 & 200.311 & 257.105\\
+Process CPU & 18.691 & 13.591 & 27.253 & 149.392 & 178.035\\
+\bottomrule
+\end{tabularx}
+\end{table}

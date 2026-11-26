@@ -1,15 +1,19 @@
 \subsection{Executed sources and signing reservations}
 \label{sec:executed-source-attribution}
 
-The attribution question can be resolved for an independently specified
-source selector. Use the established-session controller with one
-authoritative history per endpoint for the selected session. Its key is
-the actual signer, session and epoch, including the admitted context and
-control parent. Passive copies, exact pending-target reconciliation and
-reopening preserve that history. This premise is substantive: the journal
-identity enters an operation scope but is absent from the signed control
-prefix, so two independently active journals with identical session
-coordinates would require an additional ownership rule.
+An honestly signed offer identifies a session and epoch, yet those
+coordinates can describe two draws if the first save failed before a
+token became durable. Dating the contribution therefore requires one
+more step: follow the retained plan to the draw whose token reached
+the private KEM call. The same plan identifies that draw after a restart.
+
+We assume one authoritative history per endpoint for the selected session,
+keyed by the actual signer, session and epoch, with the admitted context
+and control parent. Passive copies, exact pending-target reconciliation
+and reopening preserve this history. The journal identity is part of the
+operation scope. The signed control prefix omits it. With two independently
+active journals at the same coordinates we would need an additional
+ownership rule.
 
 For each local epoch, register its original generation or encapsulation
 slot immediately before the first actual private KEM computation. The
@@ -119,11 +123,11 @@ evaluate them with an unknown selected tape. This proves the implication;
 the probability bound follows by a union bound.
 \end{proof}
 
-The failed-first-retention trace in
-Section~\ref{sec:live-core-instantiation} keeps its original two draws.
-Its executed generation register contains $g_2$ because $g_1$ never
-reaches computation. Thus the new selector removes that mismatch while
-preserving the general metadata-selector experiment and its residual.
+In the failed-save trace of Section~\ref{sec:live-core-instantiation},
+both draws stay in the history. The executed generation register resolves
+their roles: it names $g_2$ because only $g_2$ reached computation.
+A selector using the metadata alone retains the mismatch in its
+attribution accounting.
 
 \paragraph{The signing-coin interface.}
 Fix a signature scheme whose internal signing procedure is deterministic
@@ -202,7 +206,8 @@ key seed, the external randomizer and the message representative
 external-randomizer interface. Section~\ref{sec:reservation-ordinary-bridge}
 connects it to ordinary native unforgeability in the shared random-XOF
 model. The ordinary P-256 inequality gives the classical instantiation.
-The following separation explains the role of the reserved-coin interface.
+The following separation shows what the extra observation of reserved
+coins can change in a generic signature scheme.
 
 \begin{proposition}[A separation induced by signing-coin disclosure]
 \label{prop:signature-coin-separation}
@@ -228,9 +233,11 @@ $s$, enabling a fresh signature with the base scheme's correctness
 probability.
 \end{proof}
 
-This generic witness distinguishes the experiments; its signing
-construction is separate from the native ML-DSA algorithm. For the
-executed-slot controller with the declared owner interface,
+The constructed scheme preserves ordinary unforgeability. Its signature
+and opened reservation together reveal the signing secret, establishing
+a separation between the two experiments. The native ML-DSA result uses
+the declared randomizer interface and the bridge to ordinary unforgeability.
+For the executed-slot controller with the declared owner interface,
 \eqref{eq:executed-attribution-cost} replaces the attribution residual
 in Corollary~\ref{cor:live-core-next-rekey}, using the appropriate component
 advantage from Proposition~\ref{prop:reservation-signature-components}.

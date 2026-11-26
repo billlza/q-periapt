@@ -1,0 +1,44 @@
+{
+  "schema": "qperiapt-local-delivery-summary-v1",
+  "samples": 256,
+  "all_samples_retained": true,
+  "quantile_rule": "nearest rank, ceil(p*n), one indexed",
+  "metrics": {
+    "wall_ns": {
+      "mean_ms": 24.53129784765625,
+      "sample_sd_ms": 31.96912593336216,
+      "median_ms": 17.0071,
+      "p95_ms": 37.045552,
+      "p99_ms": 200.310737,
+      "min_ms": 13.571707,
+      "max_ms": 257.105098
+    },
+    "process_cpu_ns": {
+      "mean_ms": 18.69072076953125,
+      "sample_sd_ms": 22.759989069957907,
+      "median_ms": 13.590518,
+      "p95_ms": 27.253009,
+      "p99_ms": 149.391711,
+      "min_ms": 11.303876,
+      "max_ms": 178.035019
+    },
+    "sender_wall_ns": {
+      "mean_ms": 16.29568569921875,
+      "sample_sd_ms": 25.12511229441168,
+      "median_ms": 11.122668999999998,
+      "p95_ms": 23.068253,
+      "p99_ms": 175.836502,
+      "min_ms": 8.980446,
+      "max_ms": 218.276386
+    },
+    "receiver_wall_ns": {
+      "mean_ms": 8.2356121484375,
+      "sample_sd_ms": 18.02734258346009,
+      "median_ms": 5.509682,
+      "p95_ms": 11.629293,
+      "p99_ms": 75.725501,
+      "min_ms": 4.402708,
+      "max_ms": 243.95803
+    }
+  }
+}

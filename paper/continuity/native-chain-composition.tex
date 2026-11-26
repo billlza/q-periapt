@@ -1,13 +1,14 @@
 \subsection{Native recovery with an online selected message}
 \label{sec:native-online-chain}
 
-The finite-chain comparison can now be connected to the original native
-recovery experiment. The connection preserves its acquisition-based
-eligibility and executed source slots while allowing earlier message-key
-disclosures to influence which later application send is challenged.
-The root, traffic material and message step have separate allocation
-boundaries; keeping those boundaries explicit makes the selection
-implementable by the same native execution ledger.
+The receiver may advance the chain and then reject the incoming
+packet. If it computed a step for the first time during that attempt,
+the observer had to decide whether to mark the step just beforehand.
+Waiting for the sender would let it choose a step that had already
+been computed. Earlier disclosed keys may guide the choice. We now
+tie that choice to the accepted send by following its root, traffic
+material and step from their first allocations, together with the
+original reservations and the session's acquisition history.
 
 \paragraph{The online native controller.}
 Retain the established-session live core of
@@ -21,20 +22,18 @@ traffic entry $I^*$ and direction before that entry's first block allocation.
 These designations are retained through later acceptance, recovery and
 equal-input aliases.
 
-The controller maintains a private bookkeeping table indexed by
-$(\mathcal M,d,i)$, where $\mathcal M$ is the complete original traffic
-material handle, $d$ its direction and $i$ its chain index. Equal-info
-aliases of the same root schedule share $\mathcal M$; an independently
-allocated material has its own handle even when its epoch, index or
-numeric key bytes coincide. Immediately before a previously unseen
-selected-direction step, the controller chooses either Continue or
-Mark, using its available history and the public descriptor of that
-step. Mark occurs at most once and only for $i<L$. A receive-side
-advance, including a skipped step followed by failed authentication,
-is a first computation for this purpose. Repeating a computation after
-a failed write retrieves the existing ledger entry and offers no new
-selection point. This ledger is reduction bookkeeping and changes no
-native state transition or response.
+The controller records each computed step under $(\mathcal M,d,i)$.
+Here $\mathcal M$ identifies the complete original traffic material,
+$d$ the direction and $i$ the chain index. Equal-info aliases of one
+root schedule share $\mathcal M$. Independently allocated material has
+its own handle even if the epoch, index or key bytes coincide.
+
+Immediately before a new step in the selected direction, the controller
+uses the history so far and the step's public descriptor to choose
+Continue or Mark. It can mark at most once, at an index $i<L$. An exact retry after a
+failed write finds the entry for its original step. This table belongs
+to the reduction. The endpoints follow their ordinary transitions and
+return their ordinary responses.
 
 For each step passed with Continue before Mark, the observer may obtain
 its message key; the prefix seed and Extract value retain private
@@ -48,12 +47,11 @@ marked message key have only the uses in the preceding interfaces.
 The already admitted successor-root, opposite-direction and other
 traffic-entry observations remain available.
 
-These typed projections are the complete additional observation
-interface. Acquiring a complete session version still has its original
-scope and save time. In particular, a version containing an available
-successor seed also contains an acquired session version and remains
-subject to the original acquisition predicate. Public commitments and
-failed captures retain their original behavior.
+The added observations are precisely these named projections. A
+successor-seed query returns that one value. Acquiring a session version
+that contains the same seed remains an observation of the complete record, with
+its full scope and the version's original first-save time. Public
+commitments and failed captures keep their ordinary behavior.
 
 There is one left-or-right application operation, tied to the marked
 step's original send. Its messages have equal length and common
@@ -160,10 +158,9 @@ evaluated in this expanded experiment. For candidate $j$, set
 Every budget is fixed before interaction and covers preparation,
 failed attempts, all endpoint aliases, the adaptive mark, real suffix
 computation and the terminal test in its corresponding comparison.
-The prefix sum in \eqref{eq:prefix-error} gives the explicit index-wise
-comparison cost. No additional combinatorial message-index guessing
-factor is introduced; all other whole-execution budgets may also grow
-with $L$.
+The index-wise prefix sum in \eqref{eq:prefix-error} accounts for online
+selection, so the bound needs no separate message-index guess. The other
+whole-execution budgets may also grow with $L$.
 
 Let $\mathsf{Bad}_{\rm msg}^{\rm chain}$ record a fresh authenticated
 receive and inbox installation under the marked step whose complete
@@ -182,8 +179,24 @@ as $a_j^{\rm msg}$ and define
   +\Delta_{{\rm prefix},j}(L)+\varepsilon_{{\rm INT},j}\bigr\}.
  \label{eq:native-chain-integrity-cost}
 \end{equation}
-The costs for the two terminal tests use their own complete-query
-bounds; sharing notation does not identify their distinguishers.
+The confidentiality test and the installation event each have their
+own distinguisher. We use the complete query budget of the
+distinguisher for the test being evaluated.
+
+\paragraph{Interface of the main result.}
+Table~\ref{tab:online-selection-boundaries} fixes the contribution tuple,
+traffic entry and direction before their respective first uses; the
+message index is then selected online within that material, before
+either endpoint computes the step. Application payloads remain private,
+and public Resume preserves the saved ciphertext. Complete-record
+acquisition uses the version's original scope and first-save event.
+For the ordinary-ML-DSA instantiation, the provisioned signer-owner
+interface of Section~\ref{sec:executed-source-attribution} supplies public
+identity and lifecycle metadata, reservations and signatures. Its target
+key and secret owner-file bytes remain private until the declared stop.
+The observations before that stop contain no byte-dependent output of
+the secret owner file, as required by
+Theorem~\ref{thm:native-mldsa-reservation-bridge}.
 
 \begin{theorem}[Native online selected-message security]
 \label{thm:native-online-message}
@@ -276,20 +289,19 @@ coefficients; no additional guess of the marked message index is used.
 \end{proof}
 
 \paragraph{Reading the bound in ordinary primitives.}
-For the executed-slot selector, Table~\ref{tab:native-online-substitutions}
-collects the substitutions in
-\eqref{eq:native-online-confidentiality}--\eqref{eq:native-online-integrity}.
-The index $\sigma\in\{+,-,\mathrm{msg}\}$ identifies the actual terminal
-test: each test retains its own complete-execution resources. The table
-instantiates the displayed terms without changing the original candidate
-partition or the selected message.
+Table~\ref{tab:native-online-substitutions} expresses
+\eqref{eq:native-online-confidentiality}--\eqref{eq:native-online-integrity}
+in ordinary primitives for the executed-slot selector. Read each
+$\sigma\in\{+,-,\mathrm{msg}\}$ term with the complete resources of
+that terminal test. The source pair and the send it identifies are the
+same throughout the substitution.
 
 \begin{table}[htbp]
 \caption{Primitive substitutions for native online selected-message security.
 The attribution cost is charged once outside the candidate sum.}
 \label{tab:native-online-substitutions}
 \small
-\begin{tabularx}{\textwidth}{@{}p{0.19\textwidth}>{\raggedright\arraybackslash}X@{}}
+\begin{tabularx}{\textwidth}{@{}L{0.19\textwidth}Y@{}}
 \toprule
 Term & Established substitution and its role \\
 \midrule
@@ -359,10 +371,11 @@ $L$-term prefix sum; its complete-query budgets include preparation,
 failed attempts, endpoint aliases, real suffix computation and terminal
 testing. These are the same interfaces and budgets as in the theorem.
 
-For $L=1$, the prefix cost reduces to the existing first-message
-schedule cost. The enlarged controller adds the choice of a later
-uncomputed index after observing earlier keys, while preserving the
-native source and acquisition semantics. An explicitly modeled
-record/report projection extension keeps its original
-$\eta_{\rm proj}^{\rm nat}$ and corresponding local comparison costs,
-as in the preceding native theorems.
+Setting $L=1$ recovers the first-message schedule cost. For a longer
+chain, the result protects a message chosen online after disclosure of
+earlier keys, provided its step is still uncomputed when marked. The
+explicit prefix sum accounts for that choice. The reservations and
+acquisitions remain those of the accepted send.
+If the interface also permits partial record or report projections,
+its $\eta_{\rm proj}^{\rm nat}$ and local comparison costs enter as
+in the preceding native theorems.

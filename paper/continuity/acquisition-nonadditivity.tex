@@ -1,7 +1,9 @@
 % Standalone manuscript fragment; no preamble.
 % Requires proposition and proof environments (e.g. amsthm).
 \paragraph{Why exposure must retain conjunctive guards.}
-The following elementary separation explains the conjunction in (GP).
+Could we label each item with the sources it exposes and take the
+union of those labels as items arrive? A single encrypted record and
+its wrapping key settle the question.
 
 \begin{proposition}[Acquisition exposure is not additive]
 \label{prop:acquisition-nonadditivity}
@@ -37,13 +39,12 @@ acquisition, contradicting $E(\{r,k\})=\{o\}$.
 \end{proof}
 
 \paragraph{Meaning of exposure.}
-Membership of an origin $o$ in $E(A)$ records derivability of its
-protected seed under the specified closure rules; the identifier itself
-may be public. Computational estimation is measured separately by success
-probability. A one-time-pad illustration makes the dependence on joint
-observations explicit: let $S,W$ be independent uniform $\lambda$-bit strings and
-$C=S\mathbin{\oplus}W$, with no additional observation depending on $S$ or
-$W$.  Then
+The origin identifier $o$ may be public. Membership in $E(A)$ says that
+the rules let us derive its protected seed. To see what joint
+observations can do to an estimator's success probability, take two
+independent uniform $\lambda$-bit strings $S,W$ and let
+$C=S\mathbin{\oplus}W$. Assume there is no further observation that
+depends on either string. Then
 \[
   H(S\mid C)=H(S\mid W)=\lambda,
   \qquad H(S\mid C,W)=0.
@@ -55,12 +56,9 @@ information-theoretic illustration of acquisition; the protocol's record
 encryption is handled by its cryptographic record interface.
 
 \paragraph{Consequence for provenance routes.}
-A source label and an exposure decision serve different purposes.  Copying
-a retained record preserves the source label, while subsequent acquisition
-of a matching key may change exposure.  A guarded-route representation
-retains this distinction: alternative acquired records supply alternative
-routes to the same source, and every route retains the conjunction of its
-required keys.  Exposure is therefore evaluated from the joint acquisition
-and key-derivation history. The separation applies specifically to an
-exact exposure representation formed by the union of fixed per-object
-labels.
+A fixed origin label identifies the seed carried by a copy. Readability
+also depends on how the observations combine: the record and its key
+may arrive separately and enable recovery only together. Provenance
+routes retain this conjunction. Copies retain the same source identity,
+and each route becomes usable when its record and every required key
+are available.

@@ -3,12 +3,14 @@
 
 \subsection{The multi-epoch symbolic theorem}
 
-The checked symbolic model includes inherited roots, alternating proposers,
-asymmetric confirmation, initial traffic, and unbounded epochs. Signing and
-wrapping keys may be shared across their modeled uses. Its \textsf{Cut} event
-exposes the selected wrapping keys; exposure of other epochs' entropy is
-represented separately. We state the main theorem in terms of its recorded
-events, preserving its original target and disclosure predicates.
+The symbolic model asks whether recovery persists across arbitrarily
+many epochs. Its peers inherit their roots, take turns proposing rekeys
+and can confirm at different times. It includes initial traffic and
+allows signing and wrapping keys to be shared across their modeled
+uses. A \textsf{Cut} exposes the selected wrapping keys; a separate
+event discloses entropy from another epoch. This gives the multi-epoch
+secrecy statement alongside the native theorem for one send after the
+next rekey.
 
 Let $\tau$ be a trace of that model. Write
 $\mathsf{SessionKeys}(s,a,b)$ for the actual identity keys associated with session
@@ -33,89 +35,101 @@ $\mathsf{AcquiredAfterSave}_c(s)$ is false, then $\tau$ contains no adversarial
 knowledge event $\mathsf K(m)$.
 \end{theorem}
 
-The theorem was checked with all 24 reusable dependencies in one Tamarin
-process. An independent replay produced a byte-identical proof certificate.
-Appendix~\ref{app:artifacts} identifies the exact query, source, toolchain,
-replay receipt and complete auxiliary-query inventory.
+Tamarin verified the main secrecy lemma and all 24 reusable dependencies
+in one process. A second replay produced a byte-identical proof certificate.
+The complete inventory contains 27 verified and 13 incomplete queries;
+eleven incomplete queries are multi-round execution witnesses, and two
+are unused historical all-trace queries. A separate source-derived checker
+validates the concrete two-round execution described below. That finite
+witness is recorded separately from the Tamarin proof certificate.
+Appendix~\ref{app:artifacts} identifies the exact queries, source, toolchain,
+replay receipt and auxiliary-query inventory.
 
-The theorem uses the modeled cryptographic constructors and record interface.
-Its key scope follows actual identity ownership: a shared signer exposed through
-another session is still a disclosure of that target key. Likewise, a retained
-target projection saved after Cut remains subject to the acquisition condition
-when a sibling write carries it into a later aggregate image.
+The theorem follows actual identity ownership within the modeled
+cryptographic constructors and record interface. Exposing a shared signer
+through another session discloses the target key, so that execution fails
+the stated key condition. The acquisition condition follows the saved
+target projection in the same way: a sibling write that carries it into
+a later aggregate image preserves its first-save history.
 
 \subsection{Executability and the freshness boundary}
 
-A finite two-round construction exercises the operational rules with an exposed
-ancestor root and satisfies the complete original positive existential formula.
-A separate source-derived evaluator checks its rule instances and global
-quantifiers. This provides a concrete execution for the modeled recovery
-premises.
+The retained two-round execution provides a concrete witness after an
+ancestor root has been exposed. The source-derived evaluator checks each
+rule instance and the complete positive existential formula, including its
+global quantifiers. This finite construction supplies the current
+executability evidence while the multi-round Tamarin witness queries
+remain incomplete.
 
-The delayed-receipt construction instead contains a pre-Cut epoch-two
-generation reservation and a post-Cut encapsulation. It derives the target
-payload while satisfying the remaining main-theorem antecedents. Its point
-audit identifies $c<g$ as the sole false antecedent. Seven countertraces are
-rejected by the witness checker. Together, the positive and separating traces
-connect the recovery condition to executable schedules.
+The delayed-receipt construction isolates the reservation-time condition.
+It contains a pre-Cut epoch-two generation reservation and a post-Cut
+encapsulation, and derives the target payload while satisfying the remaining
+main-theorem antecedents. Its point audit identifies $c<g$ as the sole false
+antecedent. Thus the positive execution and the separating execution locate
+the freshness boundary at the original reservation. Seven countertraces are
+rejected by the witness checker.
 
 \subsection{Native reservation disclosure}
 
-The native experiment stops a child process after committing a reservation,
-kills and reaps it, reopens the journal, and inspects the retained phase.
-It exercises two distinct boundaries:
-\begin{itemize}
-\item a 277-byte key-generation token, before key computation or offer publication;
-\item a 245-byte encapsulation token, after offer authentication and before
-encapsulation computation or response publication.
-\end{itemize}
+The native experiment asks whether a reservation captured before a crash
+suffices to reconstruct traffic produced after restart. It stops a child
+process after committing a reservation, kills and reaps it, reopens the
+journal, and inspects the retained phase. The first cut captures a 277-byte
+key-generation token before key computation or offer publication. The
+second captures a 245-byte encapsulation token after offer authentication
+and before encapsulation computation or response publication.
+
 The predictor obtains the previous root, journal identity, wrapping key and
 captured token. Thereafter it uses the public policy configuration and later
-authenticated control wires. Its prediction interface has no journal or
-filesystem input, and the experiment withholds signer files and future private
-owners. A wrong wrapping key is rejected.
+authenticated control wires. The prediction interface has no journal or
+filesystem input, and signer files and future private owners are withheld.
+Reconstruction therefore uses the captured inputs and later public traffic.
+A wrong wrapping key is rejected.
 
-For each cut, both honest peers complete the rekey and reopen their journals.
-The driver then creates fresh 128-byte application payloads, sends three in each
-direction, and checks honest delivery. Independently reconstructed traffic
-owners authenticate and decrypt all six intercepted frames. The two cuts
-therefore yield twelve actual post-restart plaintext recoveries. The
-delayed-receipt extension repeats the six-message check at epoch two using one
-responder snapshot.
+At each cut both honest peers finished the rekey and reopened their
+journals. The driver then generated fresh 128-byte application
+payloads and checked delivery of three messages in each direction.
+Independently reconstructed traffic owners authenticated and decrypted
+all six intercepted frames. Across the two cuts we thus recovered
+twelve post-restart plaintexts.
 
-\begin{proposition}[Execution-time and counter-based separation]
+In the delayed-receipt run the two confirmed epochs at capture were
+zero and one. We decrypted six epoch-two messages using the captured
+responder state and the later public traffic. The counters correctly
+reported each endpoint's last confirmed epoch, while the captured
+reservation fixed inputs for later traffic. The successful decryptions
+establish the resulting exposure beyond those confirmed epochs.
+
+\begin{observation}[Captured reservations in the recorded executions]
 \label{prop:counter-separation}
-In the native executions, computing a KEM after restart, completing
-the target epoch, and subsequently reopening the journal do not make a
-previously disclosed reservation an independent secret contribution.
-Moreover, $\min(c_A,c_B)+1$ is not a universal upper bound on the index of
-an exposed epoch.
-\end{proposition}
-\begin{proof}
-At both process-cut boundaries the captured reservation reconstructs the later
-honest KEM result exactly. Equations~\eqref{eq:root}--\eqref{eq:traffic} then
-reconstruct traffic keys from the captured predecessor root and public wires;
-authenticated decryption verifies the six corresponding plaintexts after
-completion and restart. In the delayed-receipt execution,
-$(c_A,c_B)=(0,1)$ at capture and six epoch-two plaintexts are recovered.
-Thus the proposed counter bound equals one while an exposed epoch equals two.
-\end{proof}
+At both process-cut boundaries, the captured reservation and the subsequent
+public transcript reconstructed the honest KEM result and six post-restart
+application plaintexts. In the delayed-receipt execution, the confirmed
+counters were $(c_A,c_B)=(0,1)$ at capture, while the recovered messages
+belonged to epoch two.
+\end{observation}
+
+Equations~\eqref{eq:root}--\eqref{eq:traffic} explain the reconstruction
+from the captured predecessor root, reservation and public wires; successful
+authenticated decryption checks the recorded plaintexts. This execution
+distinguishes confirmed progress from the origin of retained cryptographic
+inputs. The expression $\min(c_A,c_B)+1$ is a candidate counter-based
+heuristic considered here. The observed epoch-two exposure exceeds its
+value of one in this execution.
 
 \subsection{An aggregate write preserves the target origin}
 
-A separate two-session native execution changes a sibling session and writes a
-new aggregate image. It checks exact equality of the retained target record,
-reopens and retries the original operation, and decrypts six subsequent target
-messages in each build profile. The new global revision and outer encryption
-nonce coexist with the old target reservation. This execution instantiates the
+A separate two-session native execution tests whether a new aggregate
+image changes the origin of an unchanged target reservation. It changes a
+sibling session, writes the aggregate image, and checks exact equality of
+the retained target record. After reopening and retrying the original
+operation, it decrypts six subsequent target messages in each build
+profile. The write changes the global revision and outer encryption
+nonce while retaining the original target reservation, instantiating the
 alias/provenance distinction in the record model.
 
-The positive symbolic execution establishes joint satisfiability of the
-modeled recovery premises, and the delayed-receipt witness identifies the
-reservation-order condition on which its secrecy conclusion depends. The
-native reconstructions bind that distinction to retained tapes and process
-recovery; the aggregate execution shows how the same source survives a new
-physical image. Section~\ref{sec:evaluation} follows these histories into
-record-readability checks and measured application exposure, service and
-communication work.
-
+For the target session, the sibling write left us with another copy of the
+same reservation. We therefore count the target source once even though it
+appears in two images. Section~\ref{sec:evaluation} checks this accounting
+on finite record histories and measures what the endpoints delivered after
+capture.

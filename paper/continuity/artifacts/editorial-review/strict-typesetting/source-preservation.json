@@ -1,0 +1,27 @@
+{
+  "base_paper_commit": "06c6c9bf9d520e62d0f4079cb4f6bf17657da79d",
+  "canonical_modules": 40,
+  "changed_modules": [
+    "computational-roadmap.tex",
+    "construction.tex",
+    "main.tex",
+    "native-chain-composition.tex",
+    "native-correspondence.tex",
+    "report-composition.tex"
+  ],
+  "formal_blocks_proofs_displays_labels_and_figure_byte_identical": {
+    "formal": 58,
+    "proof": 53,
+    "display": 170,
+    "labels": 187,
+    "figure": 1
+  },
+  "tables": {
+    "count": 15,
+    "identical_complete_environments": 10,
+    "differ_only_in_tabularx_column_declaration": 5,
+    "all_cell_contents_order_captions_labels_and_values_byte_identical": true
+  },
+  "prior_artifact_files_verified_against_git_blobs": 721,
+  "prior_artifact_tree_index_sha256": "bb4e067bb7ef1c8731939b5ae961b724535dcb408d3b15dd6bc1e4680d95aac7"
+}

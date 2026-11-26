@@ -60,6 +60,14 @@ ARCHIVE_LOCKFILES = {
     # Installed native-consumer evidence; its prefixed manifest is archival.
     "research/sdk-alpha1/evidence/20261110-native-distribution/consumer-Cargo.lock":
         "9a10dfaca8599e74ca4a4783639c1bc9d34752cd73be3176e3d3499a28d0209e",
+    # Measurement locks retained at 947297e5; reproduction installs them in
+    # a separate pinned protocol-source tree, never in this live workspace.
+    "paper/continuity/artifacts/latency/locks/delivery-358b-Cargo.lock":
+        "31e3a20d5826f5f5e8503101197ce674d6eadae5f305bba65175fc7a3e4be573",
+    "paper/continuity/artifacts/latency/locks/primitives-358b-Cargo.lock":
+        "80ee2f22b3dfd7ec76a5824a7b6aa1edd7f27f489a0a9abc3e8b8abd8c95eb5f",
+    "paper/continuity/artifacts/latency/preliminary-9503/Cargo.lock":
+        "4d00439bc6b0ec7ce060d12ee583fc6e109486fdbb35beb2853a0fefb9ecc573",
 }
 
 
@@ -257,19 +265,71 @@ def collect_quality(run: ProfileRun, compiled: dict[str, str], source: dict[str,
     return metrics
 
 
+@contextlib.contextmanager
+def retained_latency_manifests(run: ProfileRun):
+    """Load exact measurement copies as archives, then restore both recipes.
+
+    This staging step requires the dedicated CI checkout with no concurrent
+    writers, as used by each platform's extraction job.
+    The retained Cargo paths resolve only in the separate reproduction tree.
+    Hard links preserve the original inode and mode, and exclusive creation
+    refuses to replace any unexpected file on entry or restoration. Rust source
+    paths and bytes stay in place for the complete extractor census.
+    """
+    quality.validate_latency_archive_manifests(run.root)
+    retained = {}
+    for relative in quality.LATENCY_ARCHIVE_MANIFESTS:
+        path = run.root / relative
+        backup = path.with_name("Cargo.toml.codeql-retained")
+        sdk.require(not os.path.lexists(backup), "archived manifest backup already exists")
+        retained[relative] = (path, backup, consumers.identity(path))
+    try:
+        for path, backup, expected in retained.values():
+            sdk.require(consumers.identity(path) == expected, "archived manifest changed before extraction")
+            os.link(path, backup, follow_symlinks=False)
+            sdk.require(consumers.identity(backup) == expected and consumers.identity(path) == expected,
+                        "archived manifest backup identity differs")
+            path.unlink()
+        yield
+    finally:
+        errors = []
+        for path, backup, expected in retained.values():
+            try:
+                if os.path.lexists(backup):
+                    sdk.require(consumers.identity(backup) == expected, "archived manifest backup changed")
+                    if not os.path.lexists(path):
+                        os.link(backup, path, follow_symlinks=False)
+                    sdk.require(consumers.identity(path) == expected, "archived manifest restoration path changed")
+                    backup.unlink()
+                sdk.require(consumers.identity(path) == expected, "archived manifest restoration differs")
+            except BaseException as exc:
+                errors.append(exc)
+        if errors:
+            for other in errors[1:]:
+                errors[0].add_note(f"Additional manifest restoration failure: {other}")
+            raise errors[0]
+        quality.validate_latency_archive_manifests(run.root)
+        sdk.write_json(run.evidence / "archived-manifests.json", {
+            "schema": 1, "archive_source_commit": quality.LATENCY_ARCHIVE_COMMIT,
+            "manifests": {relative: expected for relative, (_, _, expected) in retained.items()},
+            "restored": True,
+        })
+
+
 def extract_database(run: ProfileRun, database: Path) -> None:
     # setup-codeql installs the CLI but does not create init's database parent.
     # Require a fresh owned parent; existing analysis state must not be reused.
     database.parent.mkdir(mode=0o700)
-    # The pinned partial source packets have no Cargo manifests. Load their
-    # bytes into rust-analyzer's file view while retaining their non-module
-    # status; the complete source census and diagnostic gates still apply.
+    # Load all pinned snapshot bytes into rust-analyzer's file view. Only the
+    # two authenticated reproduction recipes are temporarily displaced; the
+    # complete source census and diagnostic gates still apply without filters.
     run.environment["CODEQL_EXTRACTOR_RUST_OPTION_EXTRA_INCLUDES"] = json.dumps(
-        [str(run.root / quality.ARCHIVE_ROOT)])
-    run.command("extract", [str(run.codeql), "database", "create", str(database),
-                            "--language=rust", "--build-mode=none", "--source-root=" + str(run.root),
-                            f"--threads={run.configuration.threads}", f"--ram={run.configuration.ram_mb}",
-                            "--common-caches=" + str(run.output / "cache")])
+        [str(run.root / prefix) for prefix in quality.ARCHIVE_ROOTS])
+    with retained_latency_manifests(run):
+        run.command("extract", [str(run.codeql), "database", "create", str(database),
+                                "--language=rust", "--build-mode=none", "--source-root=" + str(run.root),
+                                f"--threads={run.configuration.threads}", f"--ram={run.configuration.ram_mb}",
+                                "--common-caches=" + str(run.output / "cache")])
 
 
 def prepare(run: ProfileRun, profile: str, expected_commit: str) -> None:

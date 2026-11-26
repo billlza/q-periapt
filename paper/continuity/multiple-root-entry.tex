@@ -2,8 +2,11 @@
 \subsection{Several root entries from one recovered contribution}
 \label{sec:multiple-root-entry}
 
-One recovered contribution can feed several available old roots and complete
-root-information strings. The comparison below retains these uses jointly.
+The same recovered contribution may be used with different old roots
+or different root-information strings. An observer who learns one
+result may use it to select the inputs for another. We therefore compare
+the whole family as one interactive service, preserving the original
+root for every repeated request.
 Let $S$ be uniform on 256 bits, initially independent of the public compression
 oracle $h$ and auxiliary state, and retain $F$ and $\Gamma$ from
 Section~\ref{sec:joint-continuation}. Each root request supplies a 32-byte
@@ -36,8 +39,8 @@ Section~\ref{sec:joint-continuation}, including its session salt, confirmation
 and successor calls, complete traffic-information table and budgets. Other
 root entries may be disclosed and used in later available computations,
 including as salts. The retained handle supplies exactly that schedule's
-operations. This is a rule about available computation; a locally known salt
-can numerically coincide with a protected value.
+operations. Locally known salts retain their actual bytes, including any
+numerical coincidence with a protected value.
 
 Fix finite bounds $D,C,N_1,\ldots,N_C$ before execution: at most $D$ distinct
 salt strings, at most $C\le D$ classes, and at most $N_i$ distinct complete

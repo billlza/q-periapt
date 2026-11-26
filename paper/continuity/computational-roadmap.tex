@@ -1,13 +1,29 @@
 \section{Computational interfaces and composition}
 \label{sec:computation}
 
-The main result is native online selected-message security
-(Theorem~\ref{thm:native-online-message}). It extends the established-session
-first-message bound (Corollary~\ref{cor:live-core-next-rekey}) along the
-source, record and root connection also used by selected-root authentication
-(Theorem~\ref{thm:native-selected-authentication}). This section first supplies
-the interfaces required by that connection, then composes them with the native
-execution.
+The argument links exact exposure analysis, sufficient recovery conditions
+and constructive record simulation. Theorem~\ref{thm:guarded-normalization}
+characterizes readable original sources within the declared record and
+key-derivation rules. The recovery experiment uses the sufficient eligibility
+condition in~\eqref{eq:eligibility}, which requires every acquired
+target-session version to have been first saved by the cut, including copies
+acquired while encrypted. This acquisition condition supplies the adaptive
+stopping certificate of Lemma~\ref{lem:adaptive-origin-stop}.
+Theorem~\ref{thm:opaque-rendering} couples the materialized
+ideal-commitment experiment to an opaque table simulation, with nonce
+collisions charged explicitly. Corollary~\ref{cor:real-to-opaque} connects
+real records to that simulation by also accounting for the replacement of
+private record digests. These results let the reduction simulate records
+containing an undisclosed tape while using the original operation's public
+outputs.
+
+Corollary~\ref{cor:live-core-next-rekey} establishes the first-message
+result. Theorem~\ref{thm:native-online-message} lets the observer use earlier
+message keys to decide which later message to test, while tying the selected
+send to the records and original draws that supplied its root.
+Theorem~\ref{thm:native-selected-authentication} evaluates confirmation for
+that same root. Their composition follows the points at which each choice
+becomes fixed in the native execution.
 
 \paragraph{The experiment and its selection boundaries.}
 Fix public lifetime budgets $G,C\geq1$ for original generation and
@@ -17,7 +33,12 @@ reserved, including attempts that later fail; replaying or copying retains
 that slot. Unused slots remain unused. These lifetime budgets count work
 across the execution, including operations no longer resident in storage.
 
-Table~\ref{tab:online-selection-boundaries} locates the online choices.
+Table~\ref{tab:online-selection-boundaries} locates three online choices:
+the effective contribution tuple, the traffic entry and direction, and the
+message step. Each becomes fixed before its first private use at any relevant
+alias or endpoint. The terminal selector then names the original reservations
+and a cut for the same marked, accepted send; its score is evaluated against
+these retained allocations and the complete acquisition history.
 The target is one accepted logical send under the next rekey of an established
 session, with the eligibility predicate in~\eqref{eq:eligibility}.
 The live-core interface retains write failures, process loss, exact resumption
@@ -25,12 +46,11 @@ and asynchronous confirmation, including sends after local FinalReady.
 Complete record acquisitions keep their original scope and save time.
 
 \begin{table}[t]
-\caption{Selection boundaries in the native online-message experiment.
-The terminal source-pair and cut selection is evaluated against earlier
-allocation decisions.}
+\caption{Three online selection boundaries and the terminal provenance
+selection in the native online-message experiment.}
 \label{tab:online-selection-boundaries}
 \small
-\begin{tabularx}{\textwidth}{@{}p{0.26\textwidth}X@{}}
+\begin{tabularx}{\textwidth}{@{}L{0.26\textwidth}Y@{}}
 \toprule
 Object selected & Boundary and retained identity \\
 \midrule
@@ -74,7 +94,7 @@ Table~\ref{tab:online-selection-boundaries}.
 Each row identifies an interface and its establishing result.}
 \label{tab:computational-dependencies}
 \small
-\begin{tabularx}{\textwidth}{@{}p{0.25\textwidth}X@{}}
+\begin{tabularx}{\textwidth}{@{}L{0.25\textwidth}Y@{}}
 \toprule
 Connection & Supplied interface and principal result \\
 \midrule
@@ -99,41 +119,43 @@ ordinary hedged ML-DSA
 \end{tabularx}
 \end{table}
 
-The final confidentiality bounds compare a signed score: a comparison
-whose output-bit advantage is $\varepsilon$ contributes at most
-$2\varepsilon$ before the final factor $1/2$ converts that score to
-message advantage. The operational component uses the two actual
-positive and negative output tests, giving $a_j^++a_j^-+2\delta_j$.
-Authentication compares its own Boolean event, so the corresponding
-record cost is $\varepsilon_{{\rm rec},j}$ and its component cost is
+The coefficient of a record comparison follows from the terminal test.
+Confidentiality uses a signed score: an output-bit gap of
+$\varepsilon$ changes that score by at most $2\varepsilon$, and the
+final factor $1/2$ converts it to message advantage. The component
+comparison uses both signs, giving $a_j^++a_j^-+2\delta_j$.
+Authentication tests one Boolean event. Its record cost is
+$\varepsilon_{{\rm rec},j}$ and its component cost is
 $a_j^{\rm auth}+\delta_j$, or $a_j^{\rm msg}+\delta_j$ for online
-message integrity. Each of these adapters retains its own
-whole-execution query budget. The source-attribution residual is
-localized once in the original game. The live core supplies its complete
-observation interface in Section~\ref{sec:live-core-instantiation}; the
-separate report extension carries its declared projection event.
+message integrity. Each adapter accounts for its complete execution.
+We charge source-attribution failure once in the original game.
+Section~\ref{sec:live-core-instantiation} gives the observations for
+the live core. The report extension also charges its declared
+projection event.
 
 Proposition~\ref{prop:kem-deferred-challenge} bounds each operational
 component term by an ordinary ML-KEM IND-CCA advantage and an explicit
 prechallenge ciphertext-intersection cost. This substitution retains the
 real decapsulation prefix and the original source-selection accounting.
 
-Consequently the three native statements share the record and source
-connection, with the continuation selected by the terminal test:
-the first-message score in~\eqref{eq:live-core-next-rekey}, the
-confirmation/first-message event in~\eqref{eq:native-selected-authentication},
-and the online message score and event
-in~\eqref{eq:native-online-confidentiality}--\eqref{eq:native-online-integrity}.
-The native online correspondence
-(Lemma~\ref{lem:native-online-chain-correspondence}) is the additional
-source-order connection for the last pair.
+The three native results therefore share the same records and original
+sources. Their terminal tests determine the remaining comparisons.
+For the first message it is the score in~\eqref{eq:live-core-next-rekey}.
+For confirmation and first-message authentication it is the event
+in~\eqref{eq:native-selected-authentication}. For a step selected online
+we use the score and event in~\eqref{eq:native-online-confidentiality}--%
+\eqref{eq:native-online-integrity}. This last pair also uses the native
+order of first computations established by
+Lemma~\ref{lem:native-online-chain-correspondence}.
 
-The final subsections instantiate adaptive descriptor families for multiple
-roots and SDK purpose keys, then connect both original bootstrap sources to
-historical responder activation. The reply-source profile defines its
-record-acquisition term in Section~\ref{sec:bootstrap-authentication};
-the initial-source construction charges the complete joint entry before
-partitioning its adaptive reply families
+We next apply the same source and record reasoning to adaptive descriptor
+families for multiple roots and SDK purpose keys. Bootstrap adds the
+question of which earlier responder activation a delayed confirmation
+authenticates. Its two original-source connections resolve that question
+under their respective observation interfaces. The reply-source profile
+defines its record-acquisition term in
+Section~\ref{sec:bootstrap-authentication}; the initial-source construction
+charges the complete joint entry before partitioning its adaptive reply families
 (Theorem~\ref{thm:bootstrap-initial-schedule}). Appendix~\ref{app:common-virtual}
 retains the common-virtual-game accounting variant.
 

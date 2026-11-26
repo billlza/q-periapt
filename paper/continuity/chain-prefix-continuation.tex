@@ -1,13 +1,14 @@
 \subsection{Online selection within a finite message chain}
 \label{sec:chain-prefix}
 
-The same recovered direction supports selection after earlier messages
-have been processed. We retain the joint root, confirmation and traffic
-interfaces of Section~\ref{sec:joint-continuation} and give the selected
-direction a finite chain prefix. Earlier message keys may be disclosed;
-the selected message's successor seed may be disclosed after its
-derivation. The comparison tracks the seeds connecting those two
-observation boundaries.
+Earlier message keys can help an observer decide which step to mark.
+Once either endpoint first computes that step, the choice is fixed.
+The observer may then learn the paired successor seed and compute the
+rest of the chain. We ask whether the marked message remains protected
+with both its earlier keys and its suffix available. We use the joint
+root, confirmation and traffic interfaces of
+Section~\ref{sec:joint-continuation} and bound the number of steps
+available for selection.
 
 \paragraph{Prefix interface and selection.}
 At the first allocation of a fresh traffic information string, designate
@@ -48,11 +49,12 @@ computation and disclosure may proceed. Private persistence uses the
 same justified opaque interface. If the execution ends without a mark,
 the selected application event and score are zero.
 
-This timing separates observing earlier keys from choosing an already
-observed target. It also fixes when each protected seed can first be
-installed in a reduction. The root's other traffic entries, the opposite
-direction, real confirmation and ACK checks, and successor-root disclosure
-remain available as in the preceding joint continuation.
+Deciding before the first computation lets the observer use earlier keys
+to select among steps that have not yet been computed. This order also
+lets the reduction install each protected seed before its first use. The root's other
+traffic entries, the opposite direction, real confirmation and ACK checks,
+and successor-root disclosure remain available as in the preceding joint
+continuation.
 
 Let $\Delta_{\rm traffic}$ denote the first three terms of
 \eqref{eq:joint-schedule-error}, capped at one, with $q_R,q_0,q_1$
@@ -187,12 +189,13 @@ respective score and Boolean event. This yields the two bounds.
 For $L=1$, the comparison has the same five primitive terms as
 the selected first-message theorem. A fixed target index $\ell$
 can use $L=\ell+1$; online selection uses a lifetime bound fixed
-before execution. The native chain source uses the stated 56-byte
-information strings, constant-width index encoding and zero AEAD
-nonce, advances a send index once, and reuses exact outbox bytes on
-Resume. Transaction-private receive advancement can compute skipped
-keys before commitment; failed-transaction resumption retains their
-first-computation identity in the proof ledger. The established native
-next-rekey results retain their first-message controller; the
-present theorem supplies the finite-chain continuation with its
-explicit selection and observation interface.
+before execution.
+
+The native chain source realizes this interface with the stated 56-byte
+information strings, constant-width index encoding and zero AEAD nonce.
+It advances a send index once and reuses exact outbox bytes on Resume.
+Transaction-private receive advancement can compute skipped keys before
+commitment, so the proof ledger retains their first-computation identity
+through failed-transaction resumption.
+Section~\ref{sec:native-online-chain} uses this comparison to carry the
+same choice of message into the native next-rekey experiment.

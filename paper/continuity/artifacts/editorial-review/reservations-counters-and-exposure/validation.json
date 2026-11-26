@@ -1,0 +1,162 @@
+{
+  "base_paper_commit": "f494f9117776926ba60a58d19d84c633b87fcea2",
+  "scope": "Explain which reservation supplies a rekey and what confirmed counters, component bytes and reconstructed-key fractions establish in the recorded runs.",
+  "reading_copy_pages": {
+    "finite_chain_choice": 42,
+    "native_composition": 44,
+    "executed_source": 56,
+    "failed_save": 57,
+    "multi_epoch_model": 88,
+    "confirmed_counters": 89,
+    "aggregate_source_count": 90,
+    "reference_traffic": 94,
+    "root_derivation": 100,
+    "offline_retry_exposure": 101,
+    "conclusion": 101
+  },
+  "source_preservation": {
+    "path": "artifacts/editorial-review/reservations-counters-and-exposure/source-preservation.json",
+    "sha256": "1d206cb91c199b993d85cc5b03a6427f6b2391627438ddd203d15f1b9837605e"
+  },
+  "experimental_basis": {
+    "native_source_commit": "228c944fc476e3e57d6c08063cacb19bca5b360e",
+    "native_counter_observation": {
+      "repository_path": "research/continuity-identity-candidate/RESERVATION_DISCLOSURE.md",
+      "sha256": "3ab4eb878982c2d2c998eef1945e15fef08e675b8e20b27414ba1524dfc4d31a",
+      "confirmed_epochs_at_capture": [
+        0,
+        1
+      ],
+      "exposed_epoch": 2,
+      "recovered_plaintexts": 6
+    },
+    "symbolic_witness": {
+      "repository_path": "research/sdk-alpha1/evidence/20261105-delayed-receipt-ground-trace/READBACK.json",
+      "sha256": "c3ec4838221a7325a68efae55fc59fed9c299a319402f98f4507fd11d71511fb",
+      "sole_false_premise": "cut_before_generation"
+    },
+    "reference_traces": {
+      "path": "artifacts/reference-comparison/analysis.json",
+      "sha256": "630b067f08f4170570c534f2105b95cdcf0f6e0a40b8350d30dba35c6cca82a2",
+      "coordinate": {
+        "owner": "A",
+        "owner_index": 0,
+        "cut_before_send": 1,
+        "future_sends": 2047
+      },
+      "snapshot_cases": 420,
+      "selected_rows": {
+        "spqr32/ping_pong": {
+          "derived": 172,
+          "mean_component_bytes_per_send": "32.150"
+        },
+        "spqr32/asymmetric": {
+          "derived": 748,
+          "mean_component_bytes_per_send": "23.508"
+        },
+        "spqr64/ping_pong": {
+          "derived": 88,
+          "mean_component_bytes_per_send": "58.971"
+        },
+        "spqr64/asymmetric": {
+          "derived": 388,
+          "mean_component_bytes_per_send": "40.531"
+        },
+        "whole32/ping_pong": {
+          "derived": 66,
+          "mean_component_bytes_per_send": "44.047"
+        },
+        "whole32/asymmetric": {
+          "derived": 338,
+          "mean_component_bytes_per_send": "21.031"
+        }
+      }
+    },
+    "offline_retry_traces": {
+      "path": "artifacts/retry-readiness/analysis.json",
+      "sha256": "0f2deb41f94f561a265cf1ccb8a3951c77cfaa8090ddcdd03229fe8aa96ad5c3",
+      "observations": {
+        "32": {
+          "immediate": {
+            "derived_owner_A": 32,
+            "post_capture_committed": 612,
+            "delivered": 613
+          },
+          "age4": {
+            "derived_owner_A": 33,
+            "post_capture_committed": 878,
+            "delivered": 879
+          }
+        },
+        "64": {
+          "immediate": {
+            "derived_owner_A": 64,
+            "post_capture_committed": 652,
+            "delivered": 653
+          },
+          "age4": {
+            "derived_owner_A": 65,
+            "post_capture_committed": 934,
+            "delivered": 935
+          }
+        }
+      },
+      "bidirectional_or_resumed_pairs_with_more_deliveries": 12
+    }
+  },
+  "build": {
+    "command": "make -C paper/continuity source using artifact/python-run.sh",
+    "checks": [
+      "chain-prefix finite controls",
+      "native online-chain controls",
+      "four bootstrap source packet checks",
+      "49 matched profile/schedule rows and directed input controls",
+      "28 native retry executions / 14 pairs retained analysis",
+      "indexed closure equivalence, histories, expected cases, input rejection and structural-work controls",
+      "independent typed-Horn least-model enumeration",
+      "manuscript build and source identity",
+      "nine-file single-source export"
+    ],
+    "path": "artifacts/editorial-review/reservations-counters-and-exposure/build-check.json",
+    "sha256": "f28f7f84bad61a4e0ad41684ccd2afdd704f8cbd968b3cd2fe6e87141858315d"
+  },
+  "additional_checks": {
+    "source_attribution_finite_controls": 24,
+    "contextbound_controls": 36,
+    "reference_snapshot_reanalysis": {
+      "status": "passed",
+      "source_files": 4,
+      "configuration_schedule_pairs": 35,
+      "validated_snapshot_cases": 420,
+      "selected_rows": 35,
+      "mode": "check"
+    }
+  },
+  "source_export": {
+    "command": "artifacts/bootstrap/verify_source_export.py in a fresh build directory",
+    "path": "artifacts/editorial-review/reservations-counters-and-exposure/source-export-check.json",
+    "sha256": "2497fbbc62b27b9374d23b7d7d51f339c024fd2296821bc56c38e562c751e348"
+  },
+  "rendered_pages_inspected": [
+    1,
+    42,
+    44,
+    56,
+    57,
+    69,
+    88,
+    89,
+    90,
+    94,
+    100,
+    101
+  ],
+  "visual_review": "The selected-chain interface and source example fit with their formal statements on pages 42, 44 and 56–57. The symbolic theorem and native counter example remain together on pages 88–90. Table 11 and the whole-KEM comparison appear on page 94. The root-input discussion and the complete closing recovery claim remain readable on pages 100–101.",
+  "underfull_notices": {
+    "base": 137,
+    "current": 137,
+    "kind_and_badness_multisets_identical": true
+  },
+  "new_protocol_experiments": false,
+  "new_mathematical_results": false
+}

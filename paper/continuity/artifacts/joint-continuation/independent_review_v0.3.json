@@ -1,28 +1,23 @@
 {
   "schema": "qperiapt-joint-continuation-independent-review/1",
-  "reviewer_agent": "/root/evidence",
   "reviewed_at_utc": "2026-11-07T21:05:28.711978+00:00",
-  "status": "PASS",
-  "scope": "Frozen v0.3 mathematical continuation, native interface correspondence and exact MD/TeX consistency; hand review under the declared primitive assumptions.",
+  "scope": "Frozen v0.3 mathematical continuation, native interface correspondence and exact MD/TeX consistency; automated argument review under the declared primitive assumptions.",
   "proof_version": "0.3",
   "proof_files": [
     {
       "path": "joint_continuation.md",
       "sha256": "73898618516188281e5ac6c50ad9bf827c1a000c0ecc66259ba8c703b1e02aef",
-      "bytes": 35527,
-      "author_freeze_matches": true
+      "bytes": 35527
     },
     {
       "path": "joint-continuation.tex",
       "sha256": "f055eb16508e6e410631ee041298209df239bfcf4159363945fa3f7b4c11a225",
-      "bytes": 17161,
-      "author_freeze_matches": true
+      "bytes": 17161
     },
     {
       "path": "joint-primitive-bounds.tex",
       "sha256": "8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d",
-      "bytes": 10706,
-      "author_freeze_matches": true
+      "bytes": 10706
     }
   ],
   "native_profile_version": "0.3",
@@ -154,7 +149,7 @@
     {
       "id": "freeze_binding",
       "status": "PASS",
-      "finding": "All three local SHA-256 values equal the explicit theory-author freeze."
+      "finding": "All three local SHA-256 values equal the recorded input identities."
     }
   ],
   "check_count": 21,
@@ -175,5 +170,7 @@
     "path": "independent_review.md",
     "sha256": "15ab990a1133ac61f04b46b27968746ce206d5b323cbd20ca29b4b60b1cc7737",
     "bytes": 8121
-  }
+  },
+  "record_type": "historical internal automated argument review",
+  "historical_assessment": "PASS"
 }

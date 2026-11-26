@@ -1,11 +1,11 @@
 \section{Primitive inputs to the record and report bounds}
 \label{app:primitive-inputs}
 
-The composition theorems use operational distinguishing bounds: a record
-commitment comparison and a single immutable report row. This appendix fixes
-the concrete parameter conventions. The public hash and compression oracles
-are idealized in the stated games; the source construction uses the specified
-SHA3 and HMAC-SHA256 algorithms.
+The record argument must reproduce a commitment to private bytes.
+The report argument must reproduce a tag for one immutable HMAC row.
+We give the distinguishing bounds and parameter conventions for each
+comparison here. The implementation uses SHA3 and HMAC-SHA256. The
+games specify which public hash and compression oracles are idealized.
 
 \subsection{Hidden-input random-oracle replacement}
 
@@ -21,23 +21,81 @@ Exact repeats are cached before that interface is queried. The two budgets
 count private classical queries and all ordinary public-oracle queries;
 public queries may be quantum.
 
+\paragraph{Per-nonce confinement.}
+Use the typed image/intent interface of
+Section~\ref{sec:opaque-rendering}, after its structural-equality comparison
+and with its declared acquisition stop. For fresh seal $i$, the image
+payload, local encryption and intent-authentication keys, and non-nonce
+header fields are fixed before the independent draw
+$N_i\gets\{0,1\}^{192}$. The surrounding computation accesses this image
+family through its immutable handles, available metadata, image head and
+five intent-digest interfaces. Copies, exact retries and pending-target
+application retain the same family. Other records and downstream encodings
+use the returned commitments and their own available inputs; their raw
+inputs are computable without $N_i$, $B_i$ or $W_{i,P}$. This is the
+per-nonce confinement condition for the comparison. It permits adaptive
+creation and prefixes that depend on earlier replies, with every later
+check using the replies of its current execution.
+
+For the native digest framing, put
+\[
+ \operatorname{fr}_d(X)=
+ \operatorname{BE64}(|d|)\Vert d\Vert
+ \operatorname{BE64}(|X|)\Vert X.
+\]
+With the fixed recipe and local keys supplied as available encoding
+parameters, the private maps for image $i$, for
+$\nu\in\{0,1\}^{192}$, are
+\[
+ \begin{split}
+  f_i(\nu,\mathsf{head})&=\operatorname{fr}_{d_0}(B_i(\nu)),\\
+  f_i(\nu,(d,P))&=\operatorname{fr}_{d}(W_{i,P}(\nu)),
+ \end{split}
+\]
+where $d_0$ is the image-head domain and $d$ ranges over the five
+intent-digest domains. The real interface returns
+$H(f_i(N_i,\cdot))$. The complete prefix $P$ includes the image-head
+reply actually returned in that execution. For any fixed effective query,
+its encoded input contains $\nu$ verbatim at a known offset, giving point
+probability at most $2^{-192}$. Distinct domains have disjoint framed
+inputs. Within one intent domain, different tags differ at the start of
+$P$; equal tags fix its length, so distinct prefixes differ before the
+target image for every $\nu$. These facts separate distinct effective
+queries for every nonce value. Exact repeats retain the original cache entry.
+
 For image $i$, let $K_i^{\rm hdr}$ count original intent prefixes and let
-$d_i\le1+5K_i^{\rm hdr}$ count its distinct private digest inputs. There is
-one image-head domain and five intent-digest domains. With an independent
-192-bit seal nonce, the fixed-input encoding and per-nonce confinement
-conditions give the retained record bound
+$d_i\le1+5K_i^{\rm hdr}$ count its distinct private digest inputs, with
+$d_i=0$ for known, atom-free rows. Order the hybrids by fresh sealing
+invocation. In hop $i$, earlier designated families use their ideal cached
+replies and later families use locally sampled independent nonces and
+their real hashes. The reduction runs the complete prefix, supplies the
+fixed encoding parameters when family $i$ is created, and routes only that
+family's private digest queries to its challenge interface. Confinement
+lets it compute the surrounding execution from available inputs and the
+actual returned replies. Local image encryption and intent authentication
+introduce no additional shared SHA3 calls. The cost for family $i$ is
+$\Phi_{192}(d_i,Q_i)$, where $Q_i$ counts the entire derived distinguisher,
+including other real rows, downstream computations and the final test.
+A never-created slot contributes zero. Summing gives
 \[
  \epsilon_{\rm com}
  \le\min\left\{1,\sum_{i=1}^{M}\Phi_{192}(d_i,Q_i)\right\}.
 \]
-Here $d_i=0$ for known, atom-free rows. The budget $Q_i$ includes the
-entire derived distinguisher, all other real rows and the final test.
-The nonce remains private before the declared acquisition stop. Local
-image encryption and intent authentication introduce no additional shared
-SHA3 calls. This comparison is made after private-wire equality has been
-replaced by structural equality; its separate collision term is the one in
-Corollary~\ref{cor:real-to-opaque}. The exact encoding domains and fixed-source
-arguments are identified in Appendix~\ref{app:opaque-artifacts}.
+The hybrids retain the independent nonce distribution, including numerical
+collisions; other real hash queries that reach a selected hidden input are
+included in $Q_i$. The structural-equality comparison has its separate
+collision allowance in Corollary~\ref{cor:real-to-opaque}.
+
+The native paths mapped in Section~\ref{sec:native-correspondence} implement
+these families: \texttt{seal} encodes the bounded record payload before
+sampling the nonce at image offsets $[80,104)$; \texttt{unseal\_image}
+returns decoded fields and the image head; and \texttt{PendingWrite}
+retains its complete original target for exact application. The mapped
+fences and checkpoints encode the returned heads and intent digests with
+available metadata. A sibling write reseals the retained session payload
+with its own fresh nonce. These image/intent paths supply the confinement
+instance used by the record comparison; their digest domains and source
+locations are identified in Appendix~\ref{app:opaque-artifacts}.
 
 \subsection{One immutable HMAC row}
 
@@ -85,9 +143,9 @@ NMAC replacement gives an admissible row bound
  =\min\!\left\{1,
  \Phi_{256}(2,q+\ell T)+E_{\rm NMAC}(T,q,\ell)\right\}.
 \]
-This is a restricted single-transcript application of the primitive results.
-The ideal NMAC function is queried on one original transcript only, so its
-first reply is a uniform tag and exact repeats retrieve the same value.
+For reports, the immutable transcript restricts the ideal NMAC function
+to one original input. Its first reply is therefore a uniform tag, and
+exact repeats retrieve the same value.
 Report nonzero-ID checks act on that reply in both games. All other real
 HMAC work remains in $q$; the multi-report theorem supplies the dependency
 order and its actual disclosure residual.

@@ -1,0 +1,156 @@
+{
+  "status": "passed",
+  "method": "Enumerate all Boolean satisfying valuations of each typed Horn theory, then intersect those containing each seed set; compare all three closure sorts.",
+  "seed": 20261115,
+  "graph_count": 24,
+  "seed_set_comparisons": 2592,
+  "cross_sort_same_literal_names": true,
+  "graphs": [
+    {
+      "graph": 0,
+      "atoms": 6,
+      "satisfying_valuations": 36,
+      "seed_sets": 64
+    },
+    {
+      "graph": 1,
+      "atoms": 7,
+      "satisfying_valuations": 42,
+      "seed_sets": 128
+    },
+    {
+      "graph": 2,
+      "atoms": 7,
+      "satisfying_valuations": 46,
+      "seed_sets": 128
+    },
+    {
+      "graph": 3,
+      "atoms": 6,
+      "satisfying_valuations": 31,
+      "seed_sets": 64
+    },
+    {
+      "graph": 4,
+      "atoms": 6,
+      "satisfying_valuations": 34,
+      "seed_sets": 64
+    },
+    {
+      "graph": 5,
+      "atoms": 6,
+      "satisfying_valuations": 24,
+      "seed_sets": 64
+    },
+    {
+      "graph": 6,
+      "atoms": 7,
+      "satisfying_valuations": 69,
+      "seed_sets": 128
+    },
+    {
+      "graph": 7,
+      "atoms": 7,
+      "satisfying_valuations": 63,
+      "seed_sets": 128
+    },
+    {
+      "graph": 8,
+      "atoms": 7,
+      "satisfying_valuations": 43,
+      "seed_sets": 128
+    },
+    {
+      "graph": 9,
+      "atoms": 7,
+      "satisfying_valuations": 73,
+      "seed_sets": 128
+    },
+    {
+      "graph": 10,
+      "atoms": 5,
+      "satisfying_valuations": 24,
+      "seed_sets": 32
+    },
+    {
+      "graph": 11,
+      "atoms": 7,
+      "satisfying_valuations": 100,
+      "seed_sets": 128
+    },
+    {
+      "graph": 12,
+      "atoms": 6,
+      "satisfying_valuations": 28,
+      "seed_sets": 64
+    },
+    {
+      "graph": 13,
+      "atoms": 7,
+      "satisfying_valuations": 73,
+      "seed_sets": 128
+    },
+    {
+      "graph": 14,
+      "atoms": 7,
+      "satisfying_valuations": 82,
+      "seed_sets": 128
+    },
+    {
+      "graph": 15,
+      "atoms": 7,
+      "satisfying_valuations": 86,
+      "seed_sets": 128
+    },
+    {
+      "graph": 16,
+      "atoms": 7,
+      "satisfying_valuations": 74,
+      "seed_sets": 128
+    },
+    {
+      "graph": 17,
+      "atoms": 7,
+      "satisfying_valuations": 69,
+      "seed_sets": 128
+    },
+    {
+      "graph": 18,
+      "atoms": 6,
+      "satisfying_valuations": 35,
+      "seed_sets": 64
+    },
+    {
+      "graph": 19,
+      "atoms": 7,
+      "satisfying_valuations": 68,
+      "seed_sets": 128
+    },
+    {
+      "graph": 20,
+      "atoms": 7,
+      "satisfying_valuations": 56,
+      "seed_sets": 128
+    },
+    {
+      "graph": 21,
+      "atoms": 7,
+      "satisfying_valuations": 42,
+      "seed_sets": 128
+    },
+    {
+      "graph": 22,
+      "atoms": 7,
+      "satisfying_valuations": 72,
+      "seed_sets": 128
+    },
+    {
+      "graph": 23,
+      "atoms": 7,
+      "satisfying_valuations": 78,
+      "seed_sets": 128
+    }
+  ],
+  "source_sha256": "2096c4d30902671eadf1282c3f7ff1ed6a54f3d374c706cefad2c2131ba8211c",
+  "review_sha256": "8cec1e769a7b582107d35315946929bb80816abea804271c9938a5d2edc74991"
+}

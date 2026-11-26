@@ -1,11 +1,14 @@
 \subsection{Ordinary KEM security with a deferred challenge}
 \label{sec:kem-ordinary-bridge}
 
-The original-operation adapters request their component challenge at a
-specified private computation, after a possible decapsulation prefix.
-We connect this interface to the ordinary single-challenge ML-KEM game.
-The conversion retains that prefix's real answers and accounts for its
-possible intersection with the subsequently released challenge ciphertext.
+By the time the native adapter reaches its chosen encapsulation, it
+may already have answered decapsulation requests. In the ordinary
+single-challenge ML-KEM game the challenge ciphertext is fixed from
+the outset, so an earlier request can name a ciphertext that is already
+excluded there. The comparison must account for this timing difference.
+We keep the real answers to the earlier requests and charge the event
+that one of them names the ciphertext the adapter will later receive
+as its challenge.
 
 In the ordinary game, an honest key pair and a fresh encapsulation
 $(c^*,K^*)$ are generated, and the adversary receives
@@ -26,8 +29,10 @@ failure probability on this honest challenge distribution by
  \delta_{\rm mr}
  =\Pr[\mathsf{K\mbox{-}PKE.Dec}(sk_{\rm PKE},c^*)\ne m^*].
 \]
-This is a message-recovery event. The component adapters' shared-key
-correctness terms retain their separate definitions.
+Here failure means that K-PKE decryption does not recover $m^*$.
+The component adapters also have a shared-key correctness term, which
+accounts for agreement on the KEM key. We keep both events in the
+bound.
 
 \begin{proposition}[Deferred-challenge bridge]
 \label{prop:kem-deferred-challenge}

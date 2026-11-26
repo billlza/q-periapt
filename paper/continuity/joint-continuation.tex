@@ -5,12 +5,13 @@
 \subsection{Joint continuation from an epoch root to a message}
 \label{sec:joint-continuation}
 
-A recovered root feeds confirmation, traffic derivation and the next epoch.
-We treat these uses jointly and then isolate a selected message key.
-The resulting continuation permits later contributions, successor roots and
-the next chain seed to be disclosed. The current root is an internal value.
-Each hybrid generates all outputs using that hybrid's root and subsequent
-key schedule.
+By the time an application uses its first message key, the epoch root
+has already supplied confirmation keys and traffic material. It also
+feeds the next epoch. A security comparison must therefore follow these
+uses together: replacing the root requires regenerating every output
+derived from it. We ask whether the selected message remains protected
+when the current root stays private but the observer learns later
+contributions, successor roots and the next chain seed.
 
 \paragraph{Primitive experiments.}
 Let $F(k,m)$ be HMAC-SHA256 over one public quantum compression oracle
@@ -239,9 +240,10 @@ bound. Equivalently one may fix an independent application challenge bit,
 apply this bound, and average over that bit.
 \end{proof}
 
-The comparison installs an independent key and regenerates the complete
-continuation from it. Subsequent ciphertexts retain their dependence on that
-key, and the intermediate roots keep the joint distributions specified by
+In the theorem's ideal experiment, the message key is independent at
+installation and the complete continuation is regenerated from it.
+Subsequent ciphertexts therefore retain their dependence on that key,
+while the intermediate roots keep the joint distributions specified by
 the corresponding hybrids.
 
 \paragraph{Application confidentiality.}
@@ -295,12 +297,13 @@ Its centered success is exactly $\mathbb E Z$, bounded by
 $2\varepsilon_{\rm AEAD}$.
 \end{proof}
 
-The public application boundary is substantive. For two challenge
-plaintexts with different native send-intent digests, publishing the
-result of $\operatorname{send\_message}(id,m_0,ad)$ after the challenge
-would distinguish a retained result from an intent conflict. No
-record acquisition is needed for that test. The network profile uses
-Resume while the honest application retains the plaintext-bearing API;
+The Resume boundary is needed because a plaintext-bearing retry can
+itself reveal which message was sent. For two challenge plaintexts with
+different native send-intent digests, publishing the result of
+$\operatorname{send\_message}(id,m_0,ad)$ after the challenge would
+distinguish a retained result from an intent conflict. That test needs
+no record acquisition. Accordingly, the network profile uses Resume
+while the honest application retains the plaintext-bearing API;
 original eligibility is unchanged.
 
 \paragraph{Entry from a recovered contribution.}
@@ -320,9 +323,9 @@ and $S,P$ have no additional raw-use or disclosure channel.
 The retained root-initialization lemma applies with the entire controller
 above as continuation, at bit cost $\Delta_{\rm init}$. Its ideal reply
 can be presampled and withheld, providing precisely the joint uniform
-root initialization required here. It regenerates confirmations,
-signatures, traffic and future epochs; it does not replace a root inside
-a fixed public transcript.
+root initialization required here. Regenerating confirmations, signatures,
+traffic and future epochs preserves their dependence on the replacement
+root throughout the public transcript.
 
 Let $\mathsf W_{\rm cont}^{[j]}$ denote this uniform-combined-contribution
 continuation, with the same candidate-local score code $\Psi_j$, and put
@@ -350,7 +353,8 @@ code, counts all shared-oracle preparation and continuation, and recomputes
 events within each game's execution. Its actual tuple and disclosure
 conditions must hold. The randomized test with success probability
 $(\Psi_j+1)/2$ gives the first inequality; the second is the triangle
-inequality. Native correspondence $\rho_j$, component and authentication
-terms, and original-game projection residuals remain in their established
-locations. This supplies the continuation bound for the specified profile,
-including known old roots and allowed later disclosure.
+inequality. Together these comparisons bound the specified continuation
+with known old roots and the allowed later disclosures. Native
+correspondence $\rho_j$, component and authentication terms, and
+original-game projection residuals retain their established roles in
+the full accounting.

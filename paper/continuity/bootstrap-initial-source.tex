@@ -1,13 +1,14 @@
 \subsection{Initial-source authentication with adaptive reply families}
 \label{sec:bootstrap-initial-source}
 
-The first bootstrap contribution admits a complementary source connection.
-Its initial confirmation is computed before a Reply exists, while later
-Replies determine the second contribution and the long-Extract descriptor.
-The joint entry theorem preserves both uses. We first compare the complete
-service of one original source, then localize its resulting private table
-to the parent family of the selected registration. This order charges the
-source and entry comparisons once per original pair.
+Now suppose the Initial supplies the surviving secret. Before a Reply
+arrives, the initiator has already used that contribution for
+confirmation. Different replies can supply different second
+contributions and thus different inputs to the long Extract. We first
+compare the original source's complete service, including both uses,
+and only then restrict the private table to the parent family of the
+selected registration. In this order the source and entry comparisons
+are charged once per original pair, however many reply families arise.
 
 \paragraph{Initial-surviving profile.}
 Use Definition~\ref{def:bootstrap-online}, adding the authoritative
@@ -190,8 +191,10 @@ continuation. Denote this transformed endpoint by $T_{rj,b}$ and put
  \end{split}
  \label{eq:bootstrap-initial-upstream}
 \end{equation}
-All query bounds cover the entire experiment in every replacement,
-including all later long requests. None is restarted for each family.
+Each query bound covers the entire experiment in its replacement,
+including all later long requests. The source comparison therefore pays
+for that complete continuation once, before allocation ranks separate
+the possible parent families.
 
 \begin{lemma}[Allocation-local parent comparison]
 \label{lem:bootstrap-initial-allocation}
@@ -283,8 +286,9 @@ tail costs carry the additional sum over $\ell$. Common upper bounds give
 \begin{corollary}[Historical activation from the initial source]
 \label{cor:bootstrap-initial-terminal}
 For the initial-surviving profile and the latched event of
-Theorem~\ref{thm:bootstrap-terminal}, let $q_v<2^{256}$ bound distinct
-pre-activation tag guesses. Then
+Theorem~\ref{thm:bootstrap-terminal}, let $q_v<2^{256}$ bound the distinct
+pre-activation verification attempts defined in that theorem, with their
+registered class, complete authenticated ACK string and proposed tag. Then
 \[
  \Pr[\mathsf{Bad}]\le\min\left\{1,
   \Pr[\mathsf{Coll}]+\varepsilon^I_{\rm bs\text{-}schedule}
@@ -309,6 +313,8 @@ The construction is pinned to the inventory, staged initiation and
 complete-tuple source at commit \texttt{471900bf}. Its complete source
 map, analytical reduction and retained finite controls appear in the
 \href{https://github.com/billlza/q-periapt/blob/81483b52a24a4cc81c2276c5a0d0b667c42761cd/docs/continuity/BOOTSTRAP_INITIAL_SOURCE_ADAPTER_V1.md}{initial-source supplement}.
-The two source profiles therefore yield historical activation under
-their respective original-operation eligibility conditions, with the
-initial-source comparison additionally preserving adaptive reply families.
+Both source profiles therefore authenticate historical responder
+activation under their respective original-operation eligibility
+conditions. For the initial source, comparing its complete service first
+also preserves adaptive reply families while charging the source and
+joint-entry costs once per original pair.

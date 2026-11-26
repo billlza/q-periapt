@@ -1,0 +1,107 @@
+{
+  "checker_sha256": "313070caa20c755bbce28517a0753e8585293b05ae01dd5e9c2950254bd9a549",
+  "common_table_distribution": {
+    "block_alphabet_size": 4,
+    "distinct_available_views": 1024,
+    "joint_distributions_equal": true,
+    "normal_block_tuples": 1024,
+    "replacement_executions": 4096
+  },
+  "deferred_sampling": {
+    "counts": {
+      "eager": {
+        "distinct_available_views": 114,
+        "executions": 512,
+        "numeric_root_collisions": 128,
+        "protected_first_activations": 256
+      },
+      "first_exposure": {
+        "distinct_available_views": 114,
+        "executions": 512,
+        "numeric_root_collisions": 128,
+        "protected_first_activations": 256
+      }
+    },
+    "joint_distributions_equal": true,
+    "key_space": 4,
+    "oracle_domain": 4,
+    "oracle_range": 2
+  },
+  "evidence_kind": "executed finite controls and source checks; analytical theorem retained separately",
+  "forced_descriptor_alias": {
+    "ack": "e36ed661f0dbdf28819b64649fb8f359490a3fbe30564cf146c000087fea1ad6",
+    "all_five_blocks_equal": true,
+    "complete_alias_assignments": 4,
+    "equal_inner_output": "3131313131313131313131313131313131313131313131313131313131313131",
+    "finite_pad_assignments": 16,
+    "inner_input_a": "ce88456192d44ca92a68501938ddd1c7761f88dada6b071bec1313c4c82dee5736363636363636363636363636363636363636363636363636363636363636366a09e667bb67ae853c6ef372a54ff53a510e527f9b05688c1f83d9ab5be0cd19",
+    "inner_input_b": "4a7010b4196a551629ce1edbc95415fde74da9a90f46042c060695d832e8f25b36363636363636363636363636363636363636363636363636363636363636366a09e667bb67ae853c6ef372a54ff53a510e527f9b05688c1f83d9ab5be0cd19",
+    "inner_only_collision_assignments": 4,
+    "observed_compression_inputs": 34,
+    "oracle_scope": "deliberately forced finite compression oracle; not a SHA-256 collision",
+    "root": "45376ede3e2e6db6a0c3901a89f4bb37f0ccb40861083cf46cee1734eaa02d64",
+    "sid_a": "f8be7357a4e27a9f1c5e662f0eebe7f14029beecec5d312dda2525f2fe1bd861",
+    "sid_b": "7c4626822f5c63201ff828edff6223cbd17b9f9f3970321a3030a3ee04dec46d"
+  },
+  "historical_recipe_stop": {
+    "captured_then_deleted": true,
+    "earlier_bad_event_preserved": true,
+    "matching_key_would_expose": [
+      "ack-a",
+      "root-a"
+    ],
+    "pre_registration_opening_refuses_protection": true,
+    "protected_key_return_stopped": true,
+    "returned_key": null
+  },
+  "pins": {
+    "base_commit": "360aa8107aa7df502108627a4dcf89f30d106594",
+    "base_tree": "05c75d9d5848814a8b6b988df5e0c1240bec081a",
+    "checked_files": 18,
+    "source_pins_sha256": "52a2da009793fdb227548fafdc2caa5da33a69966e13c69169eb766e024895de"
+  },
+  "pre_registration_leak_counterexample": {
+    "event": "registered and used root has odd parity",
+    "incorrect_fresh_after_selection_probability": "1/4",
+    "premise_violation_detected": true,
+    "real_probability": "0"
+  },
+  "schema": "q-periapt/bootstrap-terminal-schedule-connection-controls/v1",
+  "source_equations": {
+    "ack_override": {
+      "incorrect_recomputed_block_5": "c917079f0cc6f6168a6e5bb6691011776f166dcf1efad23c4f819de2bf7bb277",
+      "incorrect_variant_detected": true,
+      "preserved_block_5": "a9cb7f29920eabc25d4f96d0b1314eb3916f715c0f38698f8cf5ae9af6b3cda8"
+    },
+    "activation_info_bytes": 111,
+    "activation_message_bytes": [
+      112,
+      144,
+      144,
+      144,
+      144
+    ],
+    "confirmation_controls": {
+      "mac_i_a": "7b0fa873ddeaca18954cfebd5b2981ad8dd187fcd43961e29bbb91f8bba05886",
+      "mac_i_b": "82197579097529330ec6efdb76546ede9b06aacd7c6deae2976b09f0264d9b1b",
+      "mac_r": "3577de9b360bab4df7c6ec2a9f165e4827a11e52b5901308b8f5cc78ce038c2b"
+    },
+    "final_prefix_bytes": 104,
+    "input_scope": "synthetic public bytes; no signature or provider execution",
+    "root_info_bytes": 93,
+    "same_body_alias": {
+      "ack_a": "7ad805779d727867ed074a1238697c12ab23b2214f0a437ab5073b7037c430c9",
+      "ack_b": "3914e0f4640ce99256c8260c7bf1ec197db39d9b3346fa6c80784cbb40a0b62f",
+      "root_a": "54d3df00ea08a922799c316b2a23b61940b3c79bfa300b327ef7222fdc7d6903",
+      "root_b": "4613f2a3207050ce954de51dfc8e33d983c42b8b2078dc52ac9edef775c78a43",
+      "sid_a": "2d7ab61e218e2fc1d790872f8ebb4c460539a5ad249e4bfcc0cbfa7486b1086f",
+      "sid_b": "8ba5dcb8c0f30b2953c3e74ec6135fe8f3cf907d1e90e9813a3cf05d78a3431b"
+    }
+  },
+  "source_order": {
+    "inspected_sequence_checks": 10,
+    "ready_uses_block_4_at_both_roles": true,
+    "root_before_activation": true
+  },
+  "status": "pass"
+}

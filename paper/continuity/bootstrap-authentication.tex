@@ -1,14 +1,15 @@
 \subsection{Bootstrap authentication from an original surviving source}
 \label{sec:bootstrap-authentication}
 
-The same origin model also applies before an established session exists.
-Bootstrap first combines an initiator encapsulation to the responder's
-prekeys into $S_0$, then combines the response encapsulation to the
-initiator's newly reserved reply key into $S_1$. Initial confirmation
-already uses $S_0$. The joint schedule subsequently incorporates both
-contributions, retains a pending root, and activates message state after
-Final. We connect this order to authentication of the responder's
-historical activation of the exact signed transcript.
+When the initiator accepts a bootstrap connection, what can it infer
+about the responder? The order in which the peers use the two secrets
+matters. The initiator first encapsulates to the responder's prekeys
+and uses the resulting $S_0$ for Initial confirmation. Only then does
+the responder encapsulate to the initiator's newly reserved reply key
+to obtain $S_1$. The joint schedule retains a pending root and activates
+message state after Final. We follow that order back from connection
+acceptance to the expected responder's earlier activation of the same
+signed transcript.
 
 \paragraph{Transcript and schedule.}
 Let $c=(\mathit{ctx},x,y)$ contain the admitted context and the complete
@@ -100,8 +101,9 @@ export replacement; all sibling outputs, confirmations and subsequent
 verification remain those of the current experiment.
 
 \paragraph{A concrete surviving-source profile.}
-For the source instantiation below, every protected class has an honest
-authoritative Initial. The first contribution $S_0$ is publicly available
+We trace the ACK key back to the original KEM pair that supplies the
+surviving entropy. In this profile, every protected class has an
+honest authoritative Initial. The first contribution $S_0$ is publicly available
 at creation, and the traditional KEM scalars are available at their
 original sampling events. The initiator's signing identity may also be
 disclosed. The expected responder's signing owner is protected, with its
@@ -276,10 +278,11 @@ corresponding hidden-byte simulation.
 \paragraph{From effective descriptors to protected classes.}
 For an incoming independent opaque PRK family $p$, the root descriptor
 is $e=(p,\Gamma(s_c),I_B)$. Its seed's only raw uses are the root-entry
-Extracts; each PRK's raw uses are its three labelled Expand calls.
-The private-table comparisons remove the parent row interfaces before
-embedding child keys. The source retains $K_B$ in its pending state
-before activation, leaving a real interval for the online registration.
+Extracts; each PRK's raw uses are its
+three labelled Expand calls. We therefore replace the parent row
+interfaces by private tables before embedding their child keys. The
+source retains $K_B$ in its pending state before activation, leaving
+the interval in which online registration can take place.
 
 \begin{lemma}[Deferred roots and full-wire classes]
 \label{lem:bootstrap-deferred}
@@ -406,8 +409,16 @@ proves~\eqref{eq:bootstrap-source-schedule}.
 \label{thm:bootstrap-terminal}
 Let $\mathsf{Bad}$ be the latched event that a registered initiator
 connection succeeds without an earlier durable activation of the same
-$c$ under its expected responder identity. If $q_v<2^{256}$ bounds
-distinct pre-activation tag guesses, then
+$c$ under its expected responder identity. Let $q_v<2^{256}$ be a
+deterministic bound, valid in every comparison below, on the number of
+distinct triples $(c,m,t)$ whose verification reaches the keyed ACK
+comparison before the first matching responder activation of $c$.
+Here $c$ is the registered complete class, $m$ is the complete 107-byte
+authenticated ACK string, and $t$ is the proposed 256-bit tag. Exact
+class aliases share $c$, and a repeated identical triple is counted once.
+Using the same tag with a different class or authenticated string counts
+as a different triple. A keyed comparison followed by a floor rejection
+also enters this count. Then
 \begin{equation}
  \Pr[\mathsf{Bad}]\le\min\left\{1,
   \Pr[\mathsf{Coll}]+\varepsilon_{\rm bs\text{-}schedule}
@@ -462,17 +473,27 @@ Before the first matching responder activation, that responder has no
 admitted role-2 message state that can release the direction-1 tag.
 The initiator's ordinary direction-2 ACK has a separately designated key and
 direction string. The client checks the exact session, direction, epoch-zero
-encoding and tag before connection success. The as-yet unreleased
-ideal tag is uniform among at least $2^{256}-q_v+1$ values after
-negative feedback. A union bound over distinct guesses gives the last
-term; the local zero stop cannot introduce a successful guess. Replaying a previously authentic READY proof already supplies
-the matching historical activation. Later global recipe stops preserve the event
-observed on the earlier prefix.
+encoding and tag before connection success. Write $W_c$ for the independent
+MAC function of registered class $c$, and consider the first pre-activation
+keyed equality $t=W_c(m)$, including one followed by a floor rejection.
+Before this equality, an exact repeated triple has the same negative
+outcome. For each new triple, prior negative comparisons at $(c,m)$ exclude
+only the tags already proposed at that pair; other class/message pairs
+have independent table entries. The unreleased value $W_c(m)$ is therefore
+uniform among at least $2^{256}-q_v+1$ values conditional on those misses.
+Summing the conditional first-hit probabilities over at most $q_v$
+distinct triples gives the last term. Connection success before matching
+activation entails such a hit, and the local capture-zero rule only removes
+executions from this event. Replaying a previously authentic READY proof
+already supplies the matching historical activation. Later global recipe
+stops preserve the event observed on the earlier prefix.
 \end{proof}
 
-The conclusion follows the original transcript through restart and
-delayed delivery. Current local authority is checked at each connection
-return; the authenticated peer event is its matching earlier activation.
-The source-bound supplement records the exact schedule and durable-order
-pins, independent HMAC equations, short/long alias controls, late
-registration countermodels and both-endpoint acquisition accounting.
+A READY proof remains evidence of the expected responder's earlier
+durable activation of the same signed transcript under the theorem's
+conditions. It may arrive after the initiator restarts; the initiator
+checks its current local authority when returning the connection.
+An exact replay of READY refers to the same activation event. The supplement
+records the schedule and durable-order pins, independent HMAC equations,
+short/long alias controls, late registration countermodels and
+both-endpoint acquisition accounting.

@@ -2,11 +2,14 @@
 \subsection{From signing reservations to ordinary unforgeability}
 \label{sec:reservation-ordinary-bridge}
 
-The retained randomizer can be incorporated into an ordinary-signature
-reduction. The simulator preserves every opened reservation and uses the
-complete pair of original randomizer and public message representative to
-identify repeated computations. For native ML-DSA, a shared-oracle
-comparison also accounts for the dependence created by key generation.
+The native signer can open a reserved randomizer and later use it on
+a retry. An ordinary signing query returns a signature, while the
+reservation interface also permits the randomizer to be opened. The
+bridge must therefore reproduce the opened values and preserve the
+dependence between repeated executions. We recognize those repeats by
+the pair consisting of the original randomizer and the complete public
+message representative. For ML-DSA, the argument also accounts for the
+oracle shared by key generation and hedging.
 
 Use the owner interface of
 Proposition~\ref{prop:reservation-signature-components}. A fresh owner

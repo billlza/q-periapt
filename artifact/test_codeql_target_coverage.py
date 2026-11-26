@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 import unittest
 
-from codeql_rust_quality import ARCHIVE_ROOT, CodeQLRustQualityError, pinned_archive_sources
+from codeql_rust_quality import ARCHIVE_ROOT, LATENCY_ARCHIVE_SOURCES, CodeQLRustQualityError, pinned_archive_sources
 from codeql_target_coverage import MacroCall, MacroProfile, parse_macro_calls, validate_macro_profiles
 
 
@@ -35,9 +35,9 @@ class TargetMacroCoverageTests(unittest.TestCase):
                                                "archived_snapshot_expanded": 0,
                                                "archived_snapshot_unresolved": 0})
 
-    def _archived_pair(self) -> tuple[list[MacroProfile], str]:
+    def _archived_pair(self, archived: str | None = None) -> tuple[list[MacroProfile], str]:
         sources = {path: pinned.sha256 for path, pinned in pinned_archive_sources().items()}
-        archived = sorted(sources)[0]
+        archived = sorted(sources)[0] if archived is None else archived
         sources.update(SOURCES)
         pair = []
         for current in valid_pair():
@@ -86,6 +86,19 @@ class TargetMacroCoverageTests(unittest.TestCase):
         pair[0] = dataclasses.replace(pair[0], compiled_sources=pair[0].compiled_sources | {archived})
         with self.assertRaisesRegex(CodeQLRustQualityError, "archived paper source appears in compiler inputs"):
             validate_macro_profiles(pair)
+
+    def test_latency_copies_preserve_raw_counts_without_claiming_current_compilation(self) -> None:
+        for archived in LATENCY_ARCHIVE_SOURCES:
+            with self.subTest(source=archived):
+                pair, _ = self._archived_pair(archived)
+                result = validate_macro_profiles(pair)
+                for counts in result.values():
+                    self.assertEqual(counts["archived_snapshot_unresolved"], 2)
+                    self.assertEqual(counts["archived_snapshot_expanded"], 1)
+                    self.assertEqual(sum(counts.values()), 5)
+                pair[0] = dataclasses.replace(pair[0], compiled_sources=pair[0].compiled_sources | {archived})
+                with self.assertRaisesRegex(CodeQLRustQualityError, "archived paper source appears in compiler inputs"):
+                    validate_macro_profiles(pair)
 
     def test_archives_cannot_supply_the_current_source_macro_sentinel(self) -> None:
         pair, _ = self._archived_pair()

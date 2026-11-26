@@ -2,11 +2,13 @@
 \subsection{Candidate-local simulation in the native experiment}
 \label{sec:candidate-local-accounting}
 
-A guessed origin pair can determine which records are opaque, which report
-rows are protected, and where the reduction stops.  We therefore localize
-the score in one native experiment before comparing its candidate-specific
-continuations.  This formulation preserves the original target eligibility
-and does not require the local real-component games to coincide.
+Which record can the reduction leave opaque? The answer depends on
+which two reservations supplied the accepted send. We therefore localize
+the score in the native experiment first: each eligible send with a unique
+usable pair is assigned to that pair, ineligible runs contribute zero,
+and eligible attribution failures remain in the original game. Each
+candidate can then be compared using the records, protected report rows
+and stopping rule determined by its own reservations.
 
 Let $\mathsf G_{\rm nat}$ be the full native experiment and
 $J=[G]\times[C]$ its fixed reservation-slot budget.  Write $E$ for original
@@ -65,10 +67,12 @@ exactly
 \[
        L_s\le c<\min\{\mathsf{res}(g),\mathsf{res}(a)\}.
 \]
-The remaining eligibility conditions retain their own tests.  This statistic
-uses original version times, not the enclosing image's latest sealing time.
-A batch-only key fragment or a public commitment supplies no intact-session
-witness merely because a report depends on that session.
+Once the interval is empty, the selector can no longer choose an
+eligible cut for this pair. Resealing the acquired version preserves
+its first-save time and hence $L_s$. A batch-only key fragment or a
+public commitment can depend on the target session without containing
+an intact version. Neither raises $L_s$ on that account. A cut inside
+the interval must also meet the remaining eligibility conditions.
 
 \paragraph{One native residual.}
 In the full native run let $B_I$ denote the charged event for its final
@@ -84,11 +88,13 @@ These are disjoint events in one game.  In particular,
  =\sum_{j\in J}\Pr_{\mathsf G_{\rm nat}}
        [E\land A\land(I=j)\land B_j].
 \]
-A projection affecting only another candidate is not charged to the selected
-one.  For the report construction, $B_j$ is the actual protected-key
-projection event for the closure induced by that candidate's source family.
-Its probability is retained explicitly; the theorem does not declare it
-negligible or turn the fragment into a session snapshot.
+The native residual counts the charged event for the selected pair. For
+the report construction, $B_j$ is the actual protected-key projection event
+for the closure induced by that candidate's source family. A projection
+affecting only another candidate therefore contributes nothing to this
+residual. The selected projection probability remains explicit in the
+native-game bound, and the experiment's original session-acquisition rule
+is preserved.
 
 \begin{lemma}[Native score localization with local stops]
 \label{lem:native-local-score}
@@ -173,10 +179,9 @@ by an independent fair guess gives
 $\operatorname{Adv}_{\rm msg}=\tfrac12|\mathbb E_{\mathsf G_{\rm nat}}Z|$.
 \end{proof}
 
-The ideal continuations may have different adaptive selectors.  The terms
-$|b_j|$ therefore remain separate; they are not probabilities from one
-partitioned ideal world.  If a genuine common intermediate game and a global
+The ideal continuations may have different adaptive selectors, so each
+$|b_j|$ belongs to its own continuation and remains a separate term.
+If a genuine common intermediate game and a global
 comparison have separately been established, that shared error can instead be
-charged once before the common-game accounting.  The proposition above
-covers the candidate-local constructions without asserting such a global
-identification.
+charged once before the common-game accounting. The proposition above uses
+the local comparisons available for each candidate.

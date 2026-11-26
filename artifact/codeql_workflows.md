@@ -105,11 +105,12 @@ bound to the current profile and publication receipts. Details of the
 transformation and production admission are in
 [the projection record](codeql_summary_projection.md).
 
-The normal extractor also loads the 68 authenticated partial Rust snapshots
-into its file view while retaining their non-module status. This repairs the
-recorded manifest-loading warnings without changing the complete source or
-diagnostic checks; [the archive record](CODEQL_RUST_ARCHIVES.md) explains the
-input identity and fixed-version extractor behavior.
+The normal extractor also loads the 71 authenticated Rust snapshots (68
+bootstrap sources and three measurement harness sources) into its file view
+while retaining their non-module status. The complete 1245-path source census
+and diagnostic checks remain required; [the archive record](CODEQL_RUST_ARCHIVES.md)
+explains the pinned source identities, the two temporary reproduction-recipe
+entries and their verified restoration, and the fixed-version extractor behavior.
 
 ## Reading long-running command evidence
 

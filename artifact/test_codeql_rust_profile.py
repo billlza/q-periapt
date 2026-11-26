@@ -29,6 +29,13 @@ def sarif(profile="native"):
 
 
 class RustProfileTests(unittest.TestCase):
+    def _copy_latency_fixture(self, root: Path) -> None:
+        for relative in (*profile_module.quality.LATENCY_ARCHIVE_MANIFESTS,
+                         *profile_module.quality.LATENCY_ARCHIVE_SOURCES):
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(profile_module.quality.REPOSITORY_ROOT / relative, path)
+
     def test_native_category_preserves_main_identity_without_accepting_other_targets(self) -> None:
         expected = {"native": "/language:rust", "wasm": "/language:rust/target:wasm",
                     "macos": "/language:rust/target:macos", "windows": "/language:rust/target:windows"}
@@ -570,6 +577,19 @@ class RustProfileTests(unittest.TestCase):
                         profile_module.tracked_lockfiles(root)
                     path.write_bytes(original)
 
+    def test_latency_lock_pins_match_the_retained_measurement_inputs(self) -> None:
+        root = profile_module.quality.REPOSITORY_ROOT
+        retained = {path: digest for path, digest in profile_module.ARCHIVE_LOCKFILES.items()
+                    if path.startswith(profile_module.quality.LATENCY_ARCHIVE_ROOT + "/")}
+        self.assertEqual(set(retained), {
+            "paper/continuity/artifacts/latency/locks/delivery-358b-Cargo.lock",
+            "paper/continuity/artifacts/latency/locks/primitives-358b-Cargo.lock",
+            "paper/continuity/artifacts/latency/preliminary-9503/Cargo.lock",
+        })
+        for relative, digest in retained.items():
+            with self.subTest(lock=relative):
+                self.assertEqual(hashlib.sha256((root / relative).read_bytes()).hexdigest(), digest)
+
     def test_workspace_lock_inventory_rejects_adjacent_archive_manifests(self) -> None:
         with self.archived_lock_inventory_fixture() as (root, _expected, archives):
             for relative in archives:
@@ -587,6 +607,7 @@ class RustProfileTests(unittest.TestCase):
     def test_macos_extraction_uses_its_own_finite_resource_budget(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
+            self._copy_latency_fixture(root)
             run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ), host="darwin")
             with mock.patch.object(run, "command") as command:
                 extract_database(run, root / "database-cluster/rust")
@@ -737,6 +758,7 @@ else:
     def test_database_parent_exists_before_codeql_runs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
+            self._copy_latency_fixture(root)
             run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
             database = root / "database-cluster" / "rust"
             def check_parent(_label, argv):
@@ -752,6 +774,7 @@ else:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve() / "checkout, retained sources"
             root.mkdir()
+            self._copy_latency_fixture(root)
             launcher = root / "codeql-input-probe"
             launcher.write_text(
                 "#!" + sys.executable + "\n"
@@ -765,11 +788,105 @@ else:
             database = root / "database-cluster" / "rust"
             extract_database(run, database)
             observed = json.loads((run.evidence / "extract.stdout").read_text())
-            self.assertEqual(observed, [str(root / profile_module.quality.ARCHIVE_ROOT)])
+            self.assertEqual(observed, [str(root / prefix) for prefix in profile_module.quality.ARCHIVE_ROOTS])
             command = json.loads((run.evidence / "extract.json").read_text())
             self.assertEqual(command["returncode"], 0)
             self.assertIn("--source-root=" + str(root), command["argv"])
             self.assertIn("--build-mode=none", command["argv"])
+
+    def test_extraction_restores_exact_recipes_after_success_or_failure(self) -> None:
+        for fail in (False, True):
+            with self.subTest(extractor_failure=fail), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                self._copy_latency_fixture(root)
+                untouched = root / "Cargo.toml"
+                untouched.write_text("[workspace]\n")
+                originals = {relative: profile_module.consumers.identity(root / relative)
+                             for relative in profile_module.quality.LATENCY_ARCHIVE_MANIFESTS}
+                sources = {relative: (root / relative).read_bytes()
+                           for relative in profile_module.quality.LATENCY_ARCHIVE_SOURCES}
+                run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+
+                def extract(*_args):
+                    for relative in originals:
+                        self.assertFalse(os.path.lexists(root / relative))
+                    for relative, data in sources.items():
+                        self.assertEqual((root / relative).read_bytes(), data)
+                    self.assertEqual(untouched.read_text(), "[workspace]\n")
+                    if fail:
+                        raise RuntimeError("extractor failed")
+
+                with mock.patch.object(run, "command", side_effect=extract):
+                    if fail:
+                        with self.assertRaisesRegex(RuntimeError, "extractor failed"):
+                            extract_database(run, root / "database-cluster/rust")
+                    else:
+                        extract_database(run, root / "database-cluster/rust")
+                self.assertEqual({relative: profile_module.consumers.identity(root / relative)
+                                  for relative in originals}, originals)
+                self.assertFalse(list(root.rglob("Cargo.toml.codeql-retained")))
+                receipt = json.loads((run.evidence / "archived-manifests.json").read_text())
+                self.assertTrue(receipt["restored"])
+                self.assertEqual(receipt["manifests"], originals)
+
+    def test_unreviewed_recipe_bytes_are_rejected_before_any_displacement(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._copy_latency_fixture(root)
+            changed = root / sorted(profile_module.quality.LATENCY_ARCHIVE_MANIFESTS)[-1]
+            changed.write_bytes(changed.read_bytes() + b"\n")
+            originals = {relative: (root / relative).read_bytes()
+                         for relative in profile_module.quality.LATENCY_ARCHIVE_MANIFESTS}
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+            with mock.patch.object(run, "command") as command, \
+                    self.assertRaisesRegex(ValueError, "manifest bytes differ"):
+                extract_database(run, root / "database-cluster/rust")
+            command.assert_not_called()
+            self.assertEqual({relative: (root / relative).read_bytes() for relative in originals}, originals)
+            self.assertFalse(list(root.rglob("Cargo.toml.codeql-retained")))
+
+    def test_partial_recipe_displacement_restores_every_original(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._copy_latency_fixture(root)
+            originals = {relative: profile_module.consumers.identity(root / relative)
+                         for relative in profile_module.quality.LATENCY_ARCHIVE_MANIFESTS}
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+            real_link = os.link
+            calls = 0
+
+            def fail_second_link(*args, **kwargs):
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    raise OSError("second archive link failed")
+                return real_link(*args, **kwargs)
+
+            with mock.patch.object(profile_module.os, "link", side_effect=fail_second_link), \
+                    mock.patch.object(run, "command") as command, \
+                    self.assertRaisesRegex(OSError, "second archive link failed"):
+                extract_database(run, root / "database-cluster/rust")
+            command.assert_not_called()
+            self.assertEqual({relative: profile_module.consumers.identity(root / relative)
+                              for relative in originals}, originals)
+            self.assertFalse(list(root.rglob("Cargo.toml.codeql-retained")))
+
+    def test_recipe_restoration_refuses_to_overwrite_an_unexpected_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._copy_latency_fixture(root)
+            paths = [root / relative for relative in profile_module.quality.LATENCY_ARCHIVE_MANIFESTS]
+            original = profile_module.consumers.identity(paths[0])
+            other = profile_module.consumers.identity(paths[1])
+            run = ProfileRun(root, root / "run", Path(sys.executable), dict(os.environ))
+            with self.assertRaisesRegex(ValueError, "restoration path changed"):
+                with profile_module.retained_latency_manifests(run):
+                    paths[0].write_bytes(b"unexpected replacement\n")
+            self.assertEqual(paths[0].read_bytes(), b"unexpected replacement\n")
+            backup = paths[0].with_name("Cargo.toml.codeql-retained")
+            self.assertEqual(profile_module.consumers.identity(backup), original)
+            self.assertEqual(profile_module.consumers.identity(paths[1]), other)
+            self.assertFalse((run.evidence / "archived-manifests.json").exists())
 
     def test_database_parent_is_not_reused_or_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

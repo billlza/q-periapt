@@ -1,0 +1,50 @@
+    Updating crates.io index
+ Downloading crates ...
+  Downloaded find-msvc-tools v0.1.14
+  Downloaded cpufeatures v0.2.17
+  Downloaded sha2 v0.10.9
+  Downloaded cc v1.5.1
+  Downloaded fips204 v0.4.6
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling typenum v1.20.1
+   Compiling version_check v0.9.5
+   Compiling cfg-if v1.0.5
+   Compiling semver v1.0.28
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.14
+   Compiling keccak v0.2.2
+   Compiling cpufeatures v0.2.17
+   Compiling keccak v0.1.6
+   Compiling cc v1.5.1
+   Compiling cpufeatures v0.3.1
+   Compiling subtle v2.6.1
+   Compiling rand_core v0.10.1
+   Compiling generic-array v0.14.7
+   Compiling rustc_version v0.4.1
+   Compiling q-periapt-core v0.2.0 (/workspace/scratch/c6bfb3dc1522/wei-latency/protocol-source/crates/q-periapt-core)
+   Compiling rand_core v0.6.4
+   Compiling q-periapt-sig v0.2.0 (/workspace/scratch/c6bfb3dc1522/wei-latency/protocol-source/crates/q-periapt-sig)
+   Compiling curve25519-dalek v5.0.0
+   Compiling syn v2.0.119
+   Compiling hybrid-array v0.4.15
+   Compiling q-periapt-mlkem-native-sys v0.2.0 (/workspace/scratch/c6bfb3dc1522/wei-latency/protocol-source/crates/q-periapt-mlkem-native-sys)
+   Compiling crypto-common v0.2.2
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling digest v0.10.7
+   Compiling sha2 v0.10.9
+   Compiling sha3 v0.10.9
+   Compiling zeroize_derive v1.5.0
+   Compiling curve25519-dalek-derive v0.1.1
+   Compiling zeroize v1.9.0
+   Compiling sponge-cursor v0.1.0
+   Compiling digest v0.11.3
+   Compiling fips204 v0.4.6
+   Compiling shake v0.1.0
+   Compiling sha3 v0.12.0
+   Compiling x25519-dalek v3.0.0
+   Compiling q-periapt-backends v0.2.0 (/workspace/scratch/c6bfb3dc1522/wei-latency/protocol-source/crates/q-periapt-backends)
+   Compiling qperiapt-paper-latency-harness v0.1.0 (/workspace/scratch/c6bfb3dc1522/wei-latency/protocol-source/latency-harness)
+    Finished `release` profile [optimized] target(s) in 25.05s

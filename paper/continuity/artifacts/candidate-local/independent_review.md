@@ -1,12 +1,12 @@
-# Candidate-local composition：独立数学审查
+# Candidate-local composition：内部自动化核查记录
 
-状态：**PASS — 已完成并绑定冻结源码。** MD v0.2 与 `candidate-local-accounting.tex` 的独立数学复核通过。作者代理已确认这两份数学源冻结；此记录不编辑证明源或论文正文。
+这份记录来自写作过程中的自动化论证与源码检查，涉及 MD v0.2 和 `candidate-local-accounting.tex`。下面保留当时的推导、检查结果和输入文件标识；它不构成作者确认或独立的人类同行评审。
 
 ## 结论
 
 已核读的 origin-anchored stopping、共同 native experiment 中的精确分解，以及 candidate-local composition 命题在其明示假设下成立。未发现需要撤回等式或放大最终 native residual 的数学错误。连接命题保留真实 stopped-interface 比较为前提，正确地允许各候选使用不同的 real-component 与 ideal-component continuation。
 
-## 独立推导与核对
+## 推导与核对
 
 ### 1. 尚未选定 cut 或另一预约尚未出现
 
@@ -72,7 +72,7 @@ v0.2 新增的时间刻画也成立。定义空集合最大值为 `−∞` 后�
 
 ## 审查边界与冻结信息
 
-本记录审查新连接证明的数学有效性以及其与已写明模型的吻合；没有重新运行 native 实验、符号证明或 CI。最终冻结状态已由理论代理确认。本次数学审查未发现实际错误；一般分数与三值 component step 的范围已在最终稿中明确。
+本记录检查连接证明与已写明模型的吻合；没有重新运行 native 实验、符号证明或 CI。当时的检查未报告数学错误，并记录了一般分数与三值 component step 的范围。下表给出当时读取的输入文件，不表示当前稿件已获作者或外部审稿人认可。
 
 审查完成时间：`2026-11-07T19:59:54Z`。
 
@@ -81,4 +81,4 @@ v0.2 新增的时间刻画也成立。定义空集合最大值为 `−∞` 后�
 | `candidate_local_composition.md` v0.2 | 20195 | `62132fa847d02a92e8a14af6a15d939607c71ef057c4d439888fe51c9ef5122a` |
 | `candidate-local-accounting.tex` | 8913 | `4a38c6bb00c70f2611c2395aec754c0af6b8231a8e3f94e027cf1a17b657865d` |
 
-结构化审查结果及本审查记录本身的 SHA-256 见同目录 `independent_review.json`。冻结后任何数学源修改都需重新绑定；当前结果精确针对上表两个文件。
+结构化检查结果见同目录 `independent_review.json`。其中 `historical_review_record` 保留原始记录的路径、字节数和 SHA-256；该字段标识原始记录，不是本次修订后文件的校验值。上表的输入文件标识保持原值。
