@@ -1757,9 +1757,14 @@ class CodeQLRustQualityTests(unittest.TestCase):
     def test_paper_snapshots_preserve_the_full_extraction_and_current_source_inventory(self) -> None:
         tracked = codeql_rust_quality.tracked_rust_paths()
         pinned = codeql_rust_quality.pinned_archive_sources()
-        self.assertEqual(len(pinned), 68)
+        self.assertEqual(len(pinned), 71)
         self.assertEqual(len(tracked - pinned.keys()), 1174)
-        self.assertEqual(len(tracked), 1242)
+        self.assertEqual(len(tracked), 1245)
+        self.assertEqual(set(codeql_rust_quality.LATENCY_ARCHIVE_SOURCES), {
+            "paper/continuity/artifacts/latency/harness/delivery/src/fixture.rs",
+            "paper/continuity/artifacts/latency/harness/delivery/src/main.rs",
+            "paper/continuity/artifacts/latency/harness/primitives/src/main.rs",
+        })
         umask_test = "services/q-periapt-policy-agent/tests/private_file_umask.rs"
         self.assertIn(umask_test, tracked)
         self.assertEqual(codeql_rust_quality.validate_archive_inventory(codeql_rust_quality.REPOSITORY_ROOT, tracked), frozenset(pinned))
@@ -1790,7 +1795,8 @@ class CodeQLRustQualityTests(unittest.TestCase):
 
     def _copy_paper_archive_fixture(self, root: pathlib.Path) -> frozenset[str]:
         pinned = codeql_rust_quality.pinned_archive_sources()
-        paths = [*pinned, *(f"{codeql_rust_quality.ARCHIVE_ROOT}/{name}/SOURCE_PINS.json"
+        paths = [*pinned, *codeql_rust_quality.LATENCY_ARCHIVE_MANIFESTS,
+                 *(f"{codeql_rust_quality.ARCHIVE_ROOT}/{name}/SOURCE_PINS.json"
                             for name in codeql_rust_quality.PAPER_ARCHIVE_PACKETS)]
         for relative in paths:
             destination = root / relative
@@ -1821,6 +1827,30 @@ class CodeQLRustQualityTests(unittest.TestCase):
                 with self.subTest(packet=name), self.assertRaisesRegex(ValueError, "pin manifest differs"):
                     codeql_rust_quality.validate_archive_inventory(root, tracked)
                 path.write_bytes(original)
+
+    def test_latency_archive_requires_exact_recipes_and_refuses_new_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary).resolve()
+            tracked = self._copy_paper_archive_fixture(root)
+            for relative in codeql_rust_quality.LATENCY_ARCHIVE_MANIFESTS:
+                path = root / relative
+                original = path.read_bytes()
+                for changed in (original + b"\n", b"[workspace]\n"):
+                    path.write_bytes(changed)
+                    with self.subTest(manifest=relative), self.assertRaisesRegex(ValueError, "manifest bytes differ"):
+                        codeql_rust_quality.validate_archive_inventory(root, tracked)
+                path.write_bytes(original)
+            for directory in (codeql_rust_quality.LATENCY_ARCHIVE_ROOT,
+                              codeql_rust_quality.LATENCY_ARCHIVE_ROOT + "/harness",
+                              codeql_rust_quality.LATENCY_ARCHIVE_ROOT + "/harness/delivery/src"):
+                path = root / directory / "Cargo.toml"
+                path.write_text("[workspace]\n")
+                with self.subTest(directory=directory), self.assertRaisesRegex(ValueError, "has a Cargo manifest"):
+                    codeql_rust_quality.validate_archive_inventory(root, tracked)
+                path.unlink()
+            unexpected = codeql_rust_quality.LATENCY_ARCHIVE_ROOT + "/harness/unreviewed.rs"
+            with self.assertRaisesRegex(ValueError, "path inventory differs"):
+                codeql_rust_quality.validate_archive_inventory(root, tracked | {unexpected})
 
     def test_archive_roots_reject_cargo_manifests_and_source_symlinks(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -286,8 +286,9 @@ tail costs carry the additional sum over $\ell$. Common upper bounds give
 \begin{corollary}[Historical activation from the initial source]
 \label{cor:bootstrap-initial-terminal}
 For the initial-surviving profile and the latched event of
-Theorem~\ref{thm:bootstrap-terminal}, let $q_v<2^{256}$ bound distinct
-pre-activation tag guesses. Then
+Theorem~\ref{thm:bootstrap-terminal}, let $q_v<2^{256}$ bound the distinct
+pre-activation verification attempts defined in that theorem, with their
+registered class, complete authenticated ACK string and proposed tag. Then
 \[
  \Pr[\mathsf{Bad}]\le\min\left\{1,
   \Pr[\mathsf{Coll}]+\varepsilon^I_{\rm bs\text{-}schedule}

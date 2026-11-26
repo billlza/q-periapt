@@ -34,8 +34,12 @@ Compile joc-submission.tex with pdfLaTeX and BibTeX, or run:
 The class is the official Springer Nature sn-jnl.cls. joc-basic.bst is a named
 local derivative of sn-basic.bst that retains all bibliography authors while
 preserving its alphabetical sort. The unmodified upstream style is included.
-Full working sources, proof notes and review records are in paper/continuity
-on the paper/joc-persistent-recovery branch of billlza/q-periapt.
+The retained research evidence is fixed at:
+https://github.com/billlza/q-periapt/tree/947297e59be9d7fc8febb5d81a4e2b945e328208/paper/continuity
+
+SHA256SUMS.json binds the manuscript inputs in this archive. The accompanying
+manuscript CI artifact contains the reading copy and source-commit.txt,
+which identifies the exact checked manuscript revision.
 '''
     hashes = {name: hashlib.sha256(data).hexdigest() for name, data in files.items()}
     files['SHA256SUMS.json'] = (json.dumps(hashes, indent=2) + '\n').encode()

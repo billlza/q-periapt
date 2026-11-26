@@ -8,6 +8,17 @@ The repository maintains one manuscript on **`paper/joc-persistent-recovery`**. 
 
 ## Research structure
 
+The current revision makes the bootstrap verification budget and the
+per-nonce record-comparison interface explicit, brings the recovery and
+selection conditions together, and compares the provenance model with
+updatable encryption. It also fixes the complete retained evidence at
+[commit 947297e59be9d7fc8febb5d81a4e2b945e328208](https://github.com/billlza/q-periapt/tree/947297e59be9d7fc8febb5d81a4e2b945e328208/paper/continuity)
+and gives the exact seven-schedule workload rules. The source archive's
+`SHA256SUMS.json` and the manuscript CI artifact's `source-commit.txt`
+identify the revised document separately from those retained inputs.
+[Revision details](notes/REVIEW_RESPONSE.md) map these changes to their
+definitions and reproduction entry points.
+
 The deployment discussion now distinguishes per-device session journals from
 concurrent restoration of one copied endpoint state, and gives a concrete
 SQLite/WAL transaction mapping. It preserves original reservation identities
@@ -18,7 +29,7 @@ and process CPU costs separately from its directed-opportunity service
 counts. Source identities, raw samples and the table reproduction are
 retained with that capture.
 
-The [whole-manuscript argument-flow review](artifacts/editorial-review/argument-flow/validation.json) follows the observed restart through the original-source model, record simulation, computational connections and service experiments. It covers all 40 canonical modules and revises explanatory prose in 36 of them. The formal statements, proofs, displayed and inline mathematics, tables and original evidence retain their identities; the review records the source comparison and the current PDF and standalone-source checks.
+The preceding [whole-manuscript argument-flow review](artifacts/editorial-review/argument-flow/validation.json) followed the observed restart through the original-source model, record simulation, computational connections and service experiments. It covered all 40 canonical modules and revised explanatory prose in 36 of them. At that checkpoint, the formal statements, proofs, displayed and inline mathematics, tables and original evidence retained their identities. Its record binds that source comparison and its PDF and standalone-source checks; the current revision record above identifies the subsequent definition and proof clarifications.
 
 The manuscript follows the random tape saved before a restart through the record model and the proof for a send selected online. The evaluation reports how many messages were delivered alongside how many keys the predictor reconstructed. The [reading-copy review](artifacts/editorial-review/manuscript-narrative/validation.json) identifies the corresponding pages and links the formal-text comparison and independent source build.
 

@@ -1,15 +1,29 @@
 \section{Computational interfaces and composition}
 \label{sec:computation}
 
-The first-message result in Corollary~\ref{cor:live-core-next-rekey}
-leaves a further choice to account for: an observer can see earlier
-message keys and use them to decide which later message to test.
-Theorem~\ref{thm:native-online-message} allows that choice while tying
-the selected send to the records and original draws that supplied its
-root. The confirmation events are evaluated for that same root in
-Theorem~\ref{thm:native-selected-authentication}. We connect these three
-results by following when each choice becomes fixed in the native
-execution and what information remains available afterwards.
+The argument links exact exposure analysis, sufficient recovery conditions
+and constructive record simulation. Theorem~\ref{thm:guarded-normalization}
+characterizes readable original sources within the declared record and
+key-derivation rules. The recovery experiment uses the sufficient eligibility
+condition in~\eqref{eq:eligibility}, which requires every acquired
+target-session version to have been first saved by the cut, including copies
+acquired while encrypted. This acquisition condition supplies the adaptive
+stopping certificate of Lemma~\ref{lem:adaptive-origin-stop}.
+Theorem~\ref{thm:opaque-rendering} couples the materialized
+ideal-commitment experiment to an opaque table simulation, with nonce
+collisions charged explicitly. Corollary~\ref{cor:real-to-opaque} connects
+real records to that simulation by also accounting for the replacement of
+private record digests. These results let the reduction simulate records
+containing an undisclosed tape while using the original operation's public
+outputs.
+
+Corollary~\ref{cor:live-core-next-rekey} establishes the first-message
+result. Theorem~\ref{thm:native-online-message} lets the observer use earlier
+message keys to decide which later message to test, while tying the selected
+send to the records and original draws that supplied its root.
+Theorem~\ref{thm:native-selected-authentication} evaluates confirmation for
+that same root. Their composition follows the points at which each choice
+becomes fixed in the native execution.
 
 \paragraph{The experiment and its selection boundaries.}
 Fix public lifetime budgets $G,C\geq1$ for original generation and
@@ -19,7 +33,12 @@ reserved, including attempts that later fail; replaying or copying retains
 that slot. Unused slots remain unused. These lifetime budgets count work
 across the execution, including operations no longer resident in storage.
 
-Table~\ref{tab:online-selection-boundaries} locates the online choices.
+Table~\ref{tab:online-selection-boundaries} locates three online choices:
+the effective contribution tuple, the traffic entry and direction, and the
+message step. Each becomes fixed before its first private use at any relevant
+alias or endpoint. The terminal selector then names the original reservations
+and a cut for the same marked, accepted send; its score is evaluated against
+these retained allocations and the complete acquisition history.
 The target is one accepted logical send under the next rekey of an established
 session, with the eligibility predicate in~\eqref{eq:eligibility}.
 The live-core interface retains write failures, process loss, exact resumption
@@ -27,9 +46,8 @@ and asynchronous confirmation, including sends after local FinalReady.
 Complete record acquisitions keep their original scope and save time.
 
 \begin{table}[t]
-\caption{Selection boundaries in the native online-message experiment.
-The terminal source-pair and cut selection is evaluated against earlier
-allocation decisions.}
+\caption{Three online selection boundaries and the terminal provenance
+selection in the native online-message experiment.}
 \label{tab:online-selection-boundaries}
 \small
 \begin{tabularx}{\textwidth}{@{}L{0.26\textwidth}Y@{}}

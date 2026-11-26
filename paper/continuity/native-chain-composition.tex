@@ -183,6 +183,21 @@ The confidentiality test and the installation event each have their
 own distinguisher. We use the complete query budget of the
 distinguisher for the test being evaluated.
 
+\paragraph{Interface of the main result.}
+Table~\ref{tab:online-selection-boundaries} fixes the contribution tuple,
+traffic entry and direction before their respective first uses; the
+message index is then selected online within that material, before
+either endpoint computes the step. Application payloads remain private,
+and public Resume preserves the saved ciphertext. Complete-record
+acquisition uses the version's original scope and first-save event.
+For the ordinary-ML-DSA instantiation, the provisioned signer-owner
+interface of Section~\ref{sec:executed-source-attribution} supplies public
+identity and lifecycle metadata, reservations and signatures. Its target
+key and secret owner-file bytes remain private until the declared stop.
+The observations before that stop contain no byte-dependent output of
+the secret owner file, as required by
+Theorem~\ref{thm:native-mldsa-reservation-bridge}.
+
 \begin{theorem}[Native online selected-message security]
 \label{thm:native-online-message}
 In the online native live-core experiment above,

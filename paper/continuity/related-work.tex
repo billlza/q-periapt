@@ -60,6 +60,20 @@ these questions: the peers and the adversary derived traffic keys from
 the same original inputs. The guarded normalization theorem characterizes
 when those inputs become readable in the encrypted-record fragment.
 
+Lehmann and Tackmann model updatable encryption under adaptive key and
+update-token compromise~\cite{lehmann2018updatable}. Their leakage profiles
+distinguish directly acquired keys, tokens and challenge ciphertexts from
+the values those observations allow the adversary to derive; security requires
+the inferred key and challenge-ciphertext epoch sets to be disjoint. This gives
+a related treatment of exposures accumulated across time. Here the acquired
+records retain inputs to protocol operations. A draw, an immutable session
+version and a sealed image have separate identities. Copies and resealings
+preserve the original reservation and first-save times, while acquisition
+history and wrapping keys determine which copies become readable.
+We use this provenance to connect pending writes and exact replay to later
+traffic keys, and to simulate retained records from public operation outputs
+when the original tape is opaque.
+
 \paragraph{Simulation under adaptive compromise.}
 Jaeger and Tyagi give a modular framework for encryption and PRFs under
 adaptive key compromise, including practical symmetric constructions in

@@ -35,8 +35,10 @@ FIXED_CODEQL_DATABASE = pathlib.Path(
 FIXED_RUNNER_TEMP = pathlib.Path("/home/runner/work/_temp")
 # Keep current compiler inputs and pinned paper snapshots in the full extraction.
 EXPECTED_CURRENT_RUST_SOURCE_COUNT = 1174
-EXPECTED_ARCHIVED_RUST_SOURCE_COUNT = 68
+EXPECTED_ARCHIVED_RUST_SOURCE_COUNT = 71
 ARCHIVE_ROOT = "paper/continuity/artifacts/bootstrap"
+LATENCY_ARCHIVE_ROOT = "paper/continuity/artifacts/latency"
+ARCHIVE_ROOTS = (ARCHIVE_ROOT, LATENCY_ARCHIVE_ROOT)
 EXPECTED_TRACKED_RUST_SOURCE_COUNT = EXPECTED_CURRENT_RUST_SOURCE_COUNT + EXPECTED_ARCHIVED_RUST_SOURCE_COUNT
 CODEQL_COMMAND_TIMEOUT_SECONDS = 300
 # Metrics requires a whole-program consistency evaluation. Keep its deadline
@@ -137,6 +139,41 @@ class ArchivedRustSource:
     git_blob: str
 
 
+# These are measurement additions retained at the manuscript snapshot, not
+# upstream files at the measured protocol commit 358b921a. Their Cargo paths
+# only resolve after prepare_sources.py installs a separate reproduction tree.
+LATENCY_ARCHIVE_COMMIT = "947297e59be9d7fc8febb5d81a4e2b945e328208"
+LATENCY_ARCHIVE_SOURCES = {
+    f"{LATENCY_ARCHIVE_ROOT}/harness/delivery/src/fixture.rs": ArchivedRustSource(
+        LATENCY_ARCHIVE_COMMIT, "harness/delivery/src/fixture.rs", 11363,
+        "b53b81ffad4d91de15947b9b9b5a86000168d7ec2b7d697668428216b05bf410",
+        "c43b8a601d60376a9d1790b64edc04add6ffcf43"),
+    f"{LATENCY_ARCHIVE_ROOT}/harness/delivery/src/main.rs": ArchivedRustSource(
+        LATENCY_ARCHIVE_COMMIT, "harness/delivery/src/main.rs", 5695,
+        "6798989c726bb6ead00a66e9ec0206b51e34b007ecde767786940841019e17e9",
+        "ee43186fa805dfaa310f7146f49d63f6ee4a3e56"),
+    f"{LATENCY_ARCHIVE_ROOT}/harness/primitives/src/main.rs": ArchivedRustSource(
+        LATENCY_ARCHIVE_COMMIT, "harness/primitives/src/main.rs", 5369,
+        "ec2e97643e5c48ecf3275872bfd9e7422d6d25915ee905bd7d2ff639a611fd6d",
+        "b88428279624bf4976019729369f8039cfd67f03"),
+}
+LATENCY_ARCHIVE_MANIFESTS = {
+    f"{LATENCY_ARCHIVE_ROOT}/harness/delivery/Cargo.toml": (
+        760, "e7ae8e88d1189e395de35634ddc15fd38525768c21b68261961b4c03ae8d57a2"),
+    f"{LATENCY_ARCHIVE_ROOT}/harness/primitives/Cargo.toml": (
+        367, "71b6987ad8cba939d618d8ddbb1f5feb777215c52245d4e9e3e98270673b72a8"),
+}
+
+
+def validate_latency_archive_manifests(root: pathlib.Path) -> None:
+    """Admit only the two exact retained reproduction recipes."""
+    for relative, (size, digest) in LATENCY_ARCHIVE_MANIFESTS.items():
+        snapshot = read_regular_snapshot(root / relative, maximum=16 * 1024,
+                                         label="archived latency Cargo manifest")
+        if snapshot.size != size or snapshot.sha256 != digest:
+            raise ValueError(f"archived latency Cargo manifest bytes differ: {relative}")
+
+
 def pinned_archive_sources(root: pathlib.Path = REPOSITORY_ROOT) -> dict[str, ArchivedRustSource]:
     """Read the exact reviewed manifests, without accepting changed pin bytes."""
     sources = {}
@@ -174,18 +211,19 @@ def pinned_archive_sources(root: pathlib.Path = REPOSITORY_ROOT) -> dict[str, Ar
             count += 1
         if count != packet.rust_sources:
             raise ValueError(f"paper Rust source packet count differs: {name}")
+    sources.update(LATENCY_ARCHIVE_SOURCES)
     if len(sources) != EXPECTED_ARCHIVED_RUST_SOURCE_COUNT:
         raise ValueError("paper Rust source inventory count differs")
     return sources
 
 
 def validate_archive_inventory(root: pathlib.Path, tracked: frozenset[str]) -> frozenset[str]:
-    """Keep every frozen source extracted and reject executable archive roots."""
+    """Keep every frozen source extracted and bind any reproduction recipes."""
     sources = pinned_archive_sources(root)
-    observed = {path for path in tracked if path.startswith(ARCHIVE_ROOT + "/")}
+    observed = {path for path in tracked if any(path.startswith(prefix + "/") for prefix in ARCHIVE_ROOTS)}
     if observed != sources.keys():
         raise ValueError("paper Rust source path inventory differs")
-    directories = {pathlib.PurePosixPath(ARCHIVE_ROOT)}
+    directories = {pathlib.PurePosixPath(prefix) for prefix in ARCHIVE_ROOTS}
     for relative, expected in sources.items():
         snapshot = read_regular_snapshot(root / relative, maximum=5 * 1024**2,
                                          label="archived paper Rust source")
@@ -194,19 +232,22 @@ def validate_archive_inventory(root: pathlib.Path, tracked: frozenset[str]) -> f
                 or blob != expected.git_blob):
             raise ValueError(f"archived paper Rust source bytes differ: {relative}")
         parent = pathlib.PurePosixPath(relative).parent
-        while parent.as_posix() != ARCHIVE_ROOT:
+        while parent.as_posix() not in ARCHIVE_ROOTS:
             directories.add(parent)
             parent = parent.parent
     for relative in sorted(directories):
         manifest = root / relative / "Cargo.toml"
+        if (relative / "Cargo.toml").as_posix() in LATENCY_ARCHIVE_MANIFESTS:
+            continue
         if manifest.exists() or manifest.is_symlink():
             raise ValueError(f"archived paper Rust source has a Cargo manifest: {relative}")
+    validate_latency_archive_manifests(root)
     return frozenset(sources)
 
 
 def archived_macro_paths(source_sha256: Mapping[str, str]) -> frozenset[str]:
     """Recognize frozen snapshots from exact paths and bytes in a macro profile."""
-    observed = {path for path in source_sha256 if path.startswith(ARCHIVE_ROOT + "/")}
+    observed = {path for path in source_sha256 if any(path.startswith(prefix + "/") for prefix in ARCHIVE_ROOTS)}
     if not observed:
         return frozenset()
     sources = pinned_archive_sources()

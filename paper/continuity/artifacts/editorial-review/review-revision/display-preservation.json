@@ -1,0 +1,72 @@
+{
+  "scope": "Existing displayed formulas in edited canonical TeX modules, normalized whitespace; not a proof correctness check.",
+  "base_commit": "947297e59be9d7fc8febb5d81a4e2b945e328208",
+  "modules": [
+    {
+      "file": "paper/continuity/artifact-map.tex",
+      "original_display_groups": 0,
+      "revised_display_groups": 0,
+      "original_groups_changed_or_removed": 0
+    },
+    {
+      "file": "paper/continuity/bootstrap-authentication.tex",
+      "original_display_groups": 11,
+      "revised_display_groups": 11,
+      "original_groups_changed_or_removed": 0
+    },
+    {
+      "file": "paper/continuity/bootstrap-initial-source.tex",
+      "original_display_groups": 8,
+      "revised_display_groups": 8,
+      "original_groups_changed_or_removed": 0
+    },
+    {
+      "file": "paper/continuity/computational-roadmap.tex",
+      "original_display_groups": 0,
+      "revised_display_groups": 0,
+      "original_groups_changed_or_removed": 0
+    },
+    {
+      "file": "paper/continuity/declarations.tex",
+      "original_display_groups": 0,
+      "revised_display_groups": 0,
+      "original_groups_changed_or_removed": 0
+    },
+    {
+      "file": "paper/continuity/main.tex",
+      "original_display_groups": 0,
+      "revised_display_groups": 0,
+      "original_groups_changed_or_removed": 0
+    },
+    {
+      "file": "paper/continuity/matched-opportunities.tex",
+      "original_display_groups": 0,
+      "revised_display_groups": 0,
+      "original_groups_changed_or_removed": 0
+    },
+    {
+      "file": "paper/continuity/native-chain-composition.tex",
+      "original_display_groups": 5,
+      "revised_display_groups": 5,
+      "original_groups_changed_or_removed": 0
+    },
+    {
+      "file": "paper/continuity/primitive-inputs.tex",
+      "original_display_groups": 7,
+      "revised_display_groups": 9,
+      "original_groups_changed_or_removed": 0
+    },
+    {
+      "file": "paper/continuity/related-work.tex",
+      "original_display_groups": 0,
+      "revised_display_groups": 0,
+      "original_groups_changed_or_removed": 0
+    },
+    {
+      "file": "paper/continuity/security-model.tex",
+      "original_display_groups": 10,
+      "revised_display_groups": 10,
+      "original_groups_changed_or_removed": 0
+    }
+  ]
+}

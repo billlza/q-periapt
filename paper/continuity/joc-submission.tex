@@ -65,7 +65,8 @@ saved before the crash. We study recovery when record acquisition and
 wrapping-key disclosure occur at different times.
 For the next rekey of an established Q-Periapt Continuity session, we
 prove confidentiality and fresh-message integrity for one application
-send selected online. Both original key-generation and encapsulation
+send selected online within a previously designated traffic entry and
+direction. Both original key-generation and encapsulation
 reservations must follow the compromise cut; every acquired target-session
 version must have reached durable storage by the cut, while the target
 signing secrets and designated epoch entropy remain undisclosed.
@@ -288,6 +289,20 @@ when it obtained the keys to open them. Our restart experiment connects
 these questions: the peers and the adversary derived traffic keys from
 the same original inputs. The guarded normalization theorem characterizes
 when those inputs become readable in the encrypted-record fragment.
+
+Lehmann and Tackmann model updatable encryption under adaptive key and
+update-token compromise~\cite{lehmann2018updatable}. Their leakage profiles
+distinguish directly acquired keys, tokens and challenge ciphertexts from
+the values those observations allow the adversary to derive; security requires
+the inferred key and challenge-ciphertext epoch sets to be disjoint. This gives
+a related treatment of exposures accumulated across time. Here the acquired
+records retain inputs to protocol operations. A draw, an immutable session
+version and a sealed image have separate identities. Copies and resealings
+preserve the original reservation and first-save times, while acquisition
+history and wrapping keys determine which copies become readable.
+We use this provenance to connect pending writes and exact replay to later
+traffic keys, and to simulate retained records from public operation outputs
+when the original tape is opaque.
 
 \paragraph{Simulation under adaptive compromise.}
 Jaeger and Tyagi give a modular framework for encryption and PRFs under
@@ -1358,22 +1373,37 @@ The computational composition evaluates accepted operations, eligibility, and
 all public outputs anew in each comparison world. Exact component repeats
 retain one response and one correctness event. The native constructor map in
 Section~\ref{sec:native-correspondence} identifies the storage operations used
-by these interfaces; Section~\ref{sec:discussion} specifies the joint root and
-message continuation to which their bounds connect.
+by these interfaces. Sections~\ref{sec:joint-continuation}
+and~\ref{sec:chain-prefix} construct the joint root and message
+continuation used in Theorem~\ref{thm:native-online-message}.
 % END SECTION SOURCE: security-model.tex
 % BEGIN SECTION SOURCE: computational-roadmap.tex
 \section{Computational interfaces and composition}
 \label{sec:computation}
 
-The first-message result in Corollary~\ref{cor:live-core-next-rekey}
-leaves a further choice to account for: an observer can see earlier
-message keys and use them to decide which later message to test.
-Theorem~\ref{thm:native-online-message} allows that choice while tying
-the selected send to the records and original draws that supplied its
-root. The confirmation events are evaluated for that same root in
-Theorem~\ref{thm:native-selected-authentication}. We connect these three
-results by following when each choice becomes fixed in the native
-execution and what information remains available afterwards.
+The argument links exact exposure analysis, sufficient recovery conditions
+and constructive record simulation. Theorem~\ref{thm:guarded-normalization}
+characterizes readable original sources within the declared record and
+key-derivation rules. The recovery experiment uses the sufficient eligibility
+condition in~\eqref{eq:eligibility}, which requires every acquired
+target-session version to have been first saved by the cut, including copies
+acquired while encrypted. This acquisition condition supplies the adaptive
+stopping certificate of Lemma~\ref{lem:adaptive-origin-stop}.
+Theorem~\ref{thm:opaque-rendering} couples the materialized
+ideal-commitment experiment to an opaque table simulation, with nonce
+collisions charged explicitly. Corollary~\ref{cor:real-to-opaque} connects
+real records to that simulation by also accounting for the replacement of
+private record digests. These results let the reduction simulate records
+containing an undisclosed tape while using the original operation's public
+outputs.
+
+Corollary~\ref{cor:live-core-next-rekey} establishes the first-message
+result. Theorem~\ref{thm:native-online-message} lets the observer use earlier
+message keys to decide which later message to test, while tying the selected
+send to the records and original draws that supplied its root.
+Theorem~\ref{thm:native-selected-authentication} evaluates confirmation for
+that same root. Their composition follows the points at which each choice
+becomes fixed in the native execution.
 
 \paragraph{The experiment and its selection boundaries.}
 Fix public lifetime budgets $G,C\geq1$ for original generation and
@@ -1383,7 +1413,12 @@ reserved, including attempts that later fail; replaying or copying retains
 that slot. Unused slots remain unused. These lifetime budgets count work
 across the execution, including operations no longer resident in storage.
 
-Table~\ref{tab:online-selection-boundaries} locates the online choices.
+Table~\ref{tab:online-selection-boundaries} locates three online choices:
+the effective contribution tuple, the traffic entry and direction, and the
+message step. Each becomes fixed before its first private use at any relevant
+alias or endpoint. The terminal selector then names the original reservations
+and a cut for the same marked, accepted send; its score is evaluated against
+these retained allocations and the complete acquisition history.
 The target is one accepted logical send under the next rekey of an established
 session, with the eligibility predicate in~\eqref{eq:eligibility}.
 The live-core interface retains write failures, process loss, exact resumption
@@ -1391,9 +1426,8 @@ and asynchronous confirmation, including sends after local FinalReady.
 Complete record acquisitions keep their original scope and save time.
 
 \begin{table}[t]
-\caption{Selection boundaries in the native online-message experiment.
-The terminal source-pair and cut selection is evaluated against earlier
-allocation decisions.}
+\caption{Three online selection boundaries and the terminal provenance
+selection in the native online-message experiment.}
 \label{tab:online-selection-boundaries}
 \small
 \begin{tabularx}{\textwidth}{@{}L{0.26\textwidth}Y@{}}
@@ -4480,6 +4514,21 @@ The confidentiality test and the installation event each have their
 own distinguisher. We use the complete query budget of the
 distinguisher for the test being evaluated.
 
+\paragraph{Interface of the main result.}
+Table~\ref{tab:online-selection-boundaries} fixes the contribution tuple,
+traffic entry and direction before their respective first uses; the
+message index is then selected online within that material, before
+either endpoint computes the step. Application payloads remain private,
+and public Resume preserves the saved ciphertext. Complete-record
+acquisition uses the version's original scope and first-save event.
+For the ordinary-ML-DSA instantiation, the provisioned signer-owner
+interface of Section~\ref{sec:executed-source-attribution} supplies public
+identity and lifecycle metadata, reservations and signatures. Its target
+key and secret owner-file bytes remain private until the declared stop.
+The observations before that stop contain no byte-dependent output of
+the secret owner file, as required by
+Theorem~\ref{thm:native-mldsa-reservation-bridge}.
+
 \begin{theorem}[Native online selected-message security]
 \label{thm:native-online-message}
 In the online native live-core experiment above,
@@ -5410,8 +5459,16 @@ proves~\eqref{eq:bootstrap-source-schedule}.
 \label{thm:bootstrap-terminal}
 Let $\mathsf{Bad}$ be the latched event that a registered initiator
 connection succeeds without an earlier durable activation of the same
-$c$ under its expected responder identity. If $q_v<2^{256}$ bounds
-distinct pre-activation tag guesses, then
+$c$ under its expected responder identity. Let $q_v<2^{256}$ be a
+deterministic bound, valid in every comparison below, on the number of
+distinct triples $(c,m,t)$ whose verification reaches the keyed ACK
+comparison before the first matching responder activation of $c$.
+Here $c$ is the registered complete class, $m$ is the complete 107-byte
+authenticated ACK string, and $t$ is the proposed 256-bit tag. Exact
+class aliases share $c$, and a repeated identical triple is counted once.
+Using the same tag with a different class or authenticated string counts
+as a different triple. A keyed comparison followed by a floor rejection
+also enters this count. Then
 \begin{equation}
  \Pr[\mathsf{Bad}]\le\min\left\{1,
   \Pr[\mathsf{Coll}]+\varepsilon_{\rm bs\text{-}schedule}
@@ -5466,12 +5523,20 @@ Before the first matching responder activation, that responder has no
 admitted role-2 message state that can release the direction-1 tag.
 The initiator's ordinary direction-2 ACK has a separately designated key and
 direction string. The client checks the exact session, direction, epoch-zero
-encoding and tag before connection success. The as-yet unreleased
-ideal tag is uniform among at least $2^{256}-q_v+1$ values after
-negative feedback. A union bound over distinct guesses gives the last
-term; the local zero stop cannot introduce a successful guess. Replaying a previously authentic READY proof already supplies
-the matching historical activation. Later global recipe stops preserve the event
-observed on the earlier prefix.
+encoding and tag before connection success. Write $W_c$ for the independent
+MAC function of registered class $c$, and consider the first pre-activation
+keyed equality $t=W_c(m)$, including one followed by a floor rejection.
+Before this equality, an exact repeated triple has the same negative
+outcome. For each new triple, prior negative comparisons at $(c,m)$ exclude
+only the tags already proposed at that pair; other class/message pairs
+have independent table entries. The unreleased value $W_c(m)$ is therefore
+uniform among at least $2^{256}-q_v+1$ values conditional on those misses.
+Summing the conditional first-hit probabilities over at most $q_v$
+distinct triples gives the last term. Connection success before matching
+activation entails such a hit, and the local capture-zero rule only removes
+executions from this event. Replaying a previously authentic READY proof
+already supplies the matching historical activation. Later global recipe
+stops preserve the event observed on the earlier prefix.
 \end{proof}
 
 A READY proof remains evidence of the expected responder's earlier
@@ -5772,8 +5837,9 @@ tail costs carry the additional sum over $\ell$. Common upper bounds give
 \begin{corollary}[Historical activation from the initial source]
 \label{cor:bootstrap-initial-terminal}
 For the initial-surviving profile and the latched event of
-Theorem~\ref{thm:bootstrap-terminal}, let $q_v<2^{256}$ bound distinct
-pre-activation tag guesses. Then
+Theorem~\ref{thm:bootstrap-terminal}, let $q_v<2^{256}$ bound the distinct
+pre-activation verification attempts defined in that theorem, with their
+registered class, complete authenticated ACK string and proposed tag. Then
 \[
  \Pr[\mathsf{Bad}]\le\min\left\{1,
   \Pr[\mathsf{Coll}]+\varepsilon^I_{\rm bs\text{-}schedule}
@@ -6280,6 +6346,37 @@ Uncommitted requests remain in its FIFO queue. A response queued by receipt
 uses a later opportunity in the response direction. Protocol retries consume
 opportunities and retain their exact bytes; network duplication adds only a
 delivery. Terminal draining delivers already emitted frames.
+Table~\ref{tab:matched-schedule-rules} gives the exact sender and network
+rules used here and in the retry-readiness experiment. An immediate
+delivery occurs in the emitting opportunity; a buffered delivery retains
+the original frame. Appendix~\ref{app:matched-comparison} locates the
+fixed generator and its reproduction command.
+
+\begin{table}[tb]
+\caption{Directed-opportunity schedules for the matched and retry
+experiments. Indices $i$ range from 0 to 2,047. Alternating direction
+means $A$ on even $i$ and $B$ on odd $i$.}
+\label{tab:matched-schedule-rules}
+\small
+\begin{tabularx}{\textwidth}{@{}L{0.18\textwidth}L{0.18\textwidth}Y@{}}
+\toprule
+Schedule & Sender & Delivery rule \\
+\midrule
+Alternating & Alternating & Deliver each emitted frame immediately. \\
+Loss & Alternating & Drop the frame when $i\bmod10=4$; deliver the others immediately. \\
+Reordering & Alternating & Buffer each group of seven opportunities; at $i\bmod7=6$, release its frames in reverse order. \\
+Duplication & Alternating & Deliver immediately, with one extra exact delivery when $i\bmod13=0$. \\
+9:1 asymmetry & $B$ if $i\bmod10=9$; otherwise $A$ & Deliver immediately. \\
+Offline prefix & $A$ for $i<256$; then alternating & Buffer the first 256 opportunities. At $i=256$, release them in FIFO order before the current frame; subsequent delivery is immediate. \\
+One-way & $A$ & Deliver immediately. \\
+\bottomrule
+\end{tabularx}
+
+\smallskip
+\parbox{\textwidth}{\small Terminal draining releases the remaining
+buffered frames in FIFO order. It uses only already emitted frames and
+adds no transmission opportunities.}
+\end{table}
 
 Both capture experiments use the cut after opportunity 0's scheduled
 local and network actions and its checkpoint, and before opportunity 1
@@ -6876,11 +6973,14 @@ implemented the system, conducted the experiments, analysed the results,
 and wrote and revised the manuscript.
 
 \subsection*{Data and code availability}
-The protocol source and recorded executions are identified by immutable
-repository revisions in Appendix~\ref{app:artifacts}. The companion artifact
-contains the finite-record checker, expected-result cases, source maps, proof
-notes and complete manuscript sources. Each recorded result retains its source
-identity and execution receipt.
+The \href{https://github.com/billlza/q-periapt/tree/947297e59be9d7fc8febb5d81a4e2b945e328208/paper/continuity}{fixed evidence distribution}
+contains the retained proof notes, source maps, finite checks and execution
+packages used in this manuscript, including the latency and bootstrap
+supplements. Appendix~\ref{app:artifacts} gives its complete commit identity
+and reproduction entry point. Each experiment retains the source identity
+and receipt of its original execution. The accompanying manuscript source
+archive binds its files through \path{SHA256SUMS.json}; the manuscript CI
+artifact records the checked revision in \path{source-commit.txt}.
 
 \subsection*{AI-assisted preparation}
 OpenAI ChatGPT was used for language editing, exploratory proof development,
@@ -6989,14 +7089,26 @@ their own checked formulas, with a separate evidence record for each.
 
 \subsection{Guarded-normalization supplement}
 
-The complete manuscript extends the previously retained source at commit
+The \href{https://github.com/billlza/q-periapt/tree/947297e59be9d7fc8febb5d81a4e2b945e328208/paper/continuity}{complete retained evidence distribution}
+is fixed at commit
 \begin{center}
-\small\texttt{1c68aa666db22d36ee136be1ec712545a9e74f03}
+\small\texttt{947297e59be9d7fc8febb5d81a4e2b945e328208}.
 \end{center}
-under \path{paper/continuity}. The manuscript and its directly used evidence
-are maintained in the repository's
-\href{https://github.com/billlza/q-periapt/pull/200}{manuscript revision}.
-The filenames below are relative to \path{paper/continuity} in that distribution.
+The filenames below are relative to \path{paper/continuity} in this
+snapshot, which includes the latency and both bootstrap source packages.
+The earlier commit \texttt{1c68aa666db22d36ee136be1ec712545a9e74f03}
+identifies the preceding development checkpoint. Each component keeps
+the original source and execution identities recorded in its own packet.
+From the repository root, \texttt{make -C paper/continuity source} runs
+the integrated document and retained-evidence checks and exports the
+single-file manuscript source.
+
+The source archive accompanying this manuscript revision contains
+\path{SHA256SUMS.json}, binding every exported input. Its manuscript CI
+artifact includes the reading copy, source archive and
+\path{source-commit.txt}, which records the exact checked manuscript
+commit. These identifiers connect the revised document to its build
+while the evidence snapshot above fixes the retained research inputs.
 
 The explicit normalization theorem and its proof are in
 \path{guarded-provenance.tex}; the conjunctive-exposure proposition and proof
@@ -7277,6 +7389,13 @@ preparation and executable receipts identify the native driver, SPQR and its
 \path{artifacts/matched-comparison/} retains the complete executed report,
 its 49-row JSON/CSV projection, original public-audit and qualification
 receipts, source digests and deterministic manuscript-table generator.
+The functions \texttt{sender()} and \texttt{schedule()} in
+\path{artifacts/matched-comparison/sources/schedule.py.txt} define the
+seven directed-opportunity schedules in
+Table~\ref{tab:matched-schedule-rules}. Running
+\texttt{python3 artifacts/matched-comparison/sources/schedule.py.txt}
+prints their counts and canonical schedule hashes. The archived native
+drivers retain the corresponding delivery and terminal-drain rules.
 The compressed report preserves the exact original JSON bytes. The generator
 checks complete profile/schedule and capture-owner inventories, admission and
 exposure partitions, frame budgets, full-envelope bytes and the distinction
@@ -7494,23 +7613,81 @@ Exact repeats are cached before that interface is queried. The two budgets
 count private classical queries and all ordinary public-oracle queries;
 public queries may be quantum.
 
+\paragraph{Per-nonce confinement.}
+Use the typed image/intent interface of
+Section~\ref{sec:opaque-rendering}, after its structural-equality comparison
+and with its declared acquisition stop. For fresh seal $i$, the image
+payload, local encryption and intent-authentication keys, and non-nonce
+header fields are fixed before the independent draw
+$N_i\gets\{0,1\}^{192}$. The surrounding computation accesses this image
+family through its immutable handles, available metadata, image head and
+five intent-digest interfaces. Copies, exact retries and pending-target
+application retain the same family. Other records and downstream encodings
+use the returned commitments and their own available inputs; their raw
+inputs are computable without $N_i$, $B_i$ or $W_{i,P}$. This is the
+per-nonce confinement condition for the comparison. It permits adaptive
+creation and prefixes that depend on earlier replies, with every later
+check using the replies of its current execution.
+
+For the native digest framing, put
+\[
+ \operatorname{fr}_d(X)=
+ \operatorname{BE64}(|d|)\Vert d\Vert
+ \operatorname{BE64}(|X|)\Vert X.
+\]
+With the fixed recipe and local keys supplied as available encoding
+parameters, the private maps for image $i$, for
+$\nu\in\{0,1\}^{192}$, are
+\[
+ \begin{split}
+  f_i(\nu,\mathsf{head})&=\operatorname{fr}_{d_0}(B_i(\nu)),\\
+  f_i(\nu,(d,P))&=\operatorname{fr}_{d}(W_{i,P}(\nu)),
+ \end{split}
+\]
+where $d_0$ is the image-head domain and $d$ ranges over the five
+intent-digest domains. The real interface returns
+$H(f_i(N_i,\cdot))$. The complete prefix $P$ includes the image-head
+reply actually returned in that execution. For any fixed effective query,
+its encoded input contains $\nu$ verbatim at a known offset, giving point
+probability at most $2^{-192}$. Distinct domains have disjoint framed
+inputs. Within one intent domain, different tags differ at the start of
+$P$; equal tags fix its length, so distinct prefixes differ before the
+target image for every $\nu$. These facts separate distinct effective
+queries for every nonce value. Exact repeats retain the original cache entry.
+
 For image $i$, let $K_i^{\rm hdr}$ count original intent prefixes and let
-$d_i\le1+5K_i^{\rm hdr}$ count its distinct private digest inputs. There is
-one image-head domain and five intent-digest domains. With an independent
-192-bit seal nonce, the fixed-input encoding and per-nonce confinement
-conditions give the retained record bound
+$d_i\le1+5K_i^{\rm hdr}$ count its distinct private digest inputs, with
+$d_i=0$ for known, atom-free rows. Order the hybrids by fresh sealing
+invocation. In hop $i$, earlier designated families use their ideal cached
+replies and later families use locally sampled independent nonces and
+their real hashes. The reduction runs the complete prefix, supplies the
+fixed encoding parameters when family $i$ is created, and routes only that
+family's private digest queries to its challenge interface. Confinement
+lets it compute the surrounding execution from available inputs and the
+actual returned replies. Local image encryption and intent authentication
+introduce no additional shared SHA3 calls. The cost for family $i$ is
+$\Phi_{192}(d_i,Q_i)$, where $Q_i$ counts the entire derived distinguisher,
+including other real rows, downstream computations and the final test.
+A never-created slot contributes zero. Summing gives
 \[
  \epsilon_{\rm com}
  \le\min\left\{1,\sum_{i=1}^{M}\Phi_{192}(d_i,Q_i)\right\}.
 \]
-Here $d_i=0$ for known, atom-free rows. The budget $Q_i$ includes the
-entire derived distinguisher, all other real rows and the final test.
-The nonce remains private before the declared acquisition stop. Local
-image encryption and intent authentication introduce no additional shared
-SHA3 calls. This comparison is made after private-wire equality has been
-replaced by structural equality; its separate collision term is the one in
-Corollary~\ref{cor:real-to-opaque}. The exact encoding domains and fixed-source
-arguments are identified in Appendix~\ref{app:opaque-artifacts}.
+The hybrids retain the independent nonce distribution, including numerical
+collisions; other real hash queries that reach a selected hidden input are
+included in $Q_i$. The structural-equality comparison has its separate
+collision allowance in Corollary~\ref{cor:real-to-opaque}.
+
+The native paths mapped in Section~\ref{sec:native-correspondence} implement
+these families: \texttt{seal} encodes the bounded record payload before
+sampling the nonce at image offsets $[80,104)$; \texttt{unseal\_image}
+returns decoded fields and the image head; and \texttt{PendingWrite}
+retains its complete original target for exact application. The mapped
+fences and checkpoints encode the returned heads and intent digests with
+available metadata. A sibling write reseals the retained session payload
+with its own fresh nonce. These image/intent paths supply the confinement
+instance used by the record comparison; their digest domains and source
+locations are identified in Appendix~\ref{app:opaque-artifacts}.
 
 \subsection{One immutable HMAC row}
 

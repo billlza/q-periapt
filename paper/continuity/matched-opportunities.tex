@@ -29,6 +29,37 @@ Uncommitted requests remain in its FIFO queue. A response queued by receipt
 uses a later opportunity in the response direction. Protocol retries consume
 opportunities and retain their exact bytes; network duplication adds only a
 delivery. Terminal draining delivers already emitted frames.
+Table~\ref{tab:matched-schedule-rules} gives the exact sender and network
+rules used here and in the retry-readiness experiment. An immediate
+delivery occurs in the emitting opportunity; a buffered delivery retains
+the original frame. Appendix~\ref{app:matched-comparison} locates the
+fixed generator and its reproduction command.
+
+\begin{table}[tb]
+\caption{Directed-opportunity schedules for the matched and retry
+experiments. Indices $i$ range from 0 to 2,047. Alternating direction
+means $A$ on even $i$ and $B$ on odd $i$.}
+\label{tab:matched-schedule-rules}
+\small
+\begin{tabularx}{\textwidth}{@{}L{0.18\textwidth}L{0.18\textwidth}Y@{}}
+\toprule
+Schedule & Sender & Delivery rule \\
+\midrule
+Alternating & Alternating & Deliver each emitted frame immediately. \\
+Loss & Alternating & Drop the frame when $i\bmod10=4$; deliver the others immediately. \\
+Reordering & Alternating & Buffer each group of seven opportunities; at $i\bmod7=6$, release its frames in reverse order. \\
+Duplication & Alternating & Deliver immediately, with one extra exact delivery when $i\bmod13=0$. \\
+9:1 asymmetry & $B$ if $i\bmod10=9$; otherwise $A$ & Deliver immediately. \\
+Offline prefix & $A$ for $i<256$; then alternating & Buffer the first 256 opportunities. At $i=256$, release them in FIFO order before the current frame; subsequent delivery is immediate. \\
+One-way & $A$ & Deliver immediately. \\
+\bottomrule
+\end{tabularx}
+
+\smallskip
+\parbox{\textwidth}{\small Terminal draining releases the remaining
+buffered frames in FIFO order. It uses only already emitted frames and
+adds no transmission opportunities.}
+\end{table}
 
 Both capture experiments use the cut after opportunity 0's scheduled
 local and network actions and its checkpoint, and before opportunity 1

@@ -92,14 +92,26 @@ their own checked formulas, with a separate evidence record for each.
 
 \subsection{Guarded-normalization supplement}
 
-The complete manuscript extends the previously retained source at commit
+The \href{https://github.com/billlza/q-periapt/tree/947297e59be9d7fc8febb5d81a4e2b945e328208/paper/continuity}{complete retained evidence distribution}
+is fixed at commit
 \begin{center}
-\small\texttt{1c68aa666db22d36ee136be1ec712545a9e74f03}
+\small\texttt{947297e59be9d7fc8febb5d81a4e2b945e328208}.
 \end{center}
-under \path{paper/continuity}. The manuscript and its directly used evidence
-are maintained in the repository's
-\href{https://github.com/billlza/q-periapt/pull/200}{manuscript revision}.
-The filenames below are relative to \path{paper/continuity} in that distribution.
+The filenames below are relative to \path{paper/continuity} in this
+snapshot, which includes the latency and both bootstrap source packages.
+The earlier commit \texttt{1c68aa666db22d36ee136be1ec712545a9e74f03}
+identifies the preceding development checkpoint. Each component keeps
+the original source and execution identities recorded in its own packet.
+From the repository root, \texttt{make -C paper/continuity source} runs
+the integrated document and retained-evidence checks and exports the
+single-file manuscript source.
+
+The source archive accompanying this manuscript revision contains
+\path{SHA256SUMS.json}, binding every exported input. Its manuscript CI
+artifact includes the reading copy, source archive and
+\path{source-commit.txt}, which records the exact checked manuscript
+commit. These identifiers connect the revised document to its build
+while the evidence snapshot above fixes the retained research inputs.
 
 The explicit normalization theorem and its proof are in
 \path{guarded-provenance.tex}; the conjunctive-exposure proposition and proof
@@ -380,6 +392,13 @@ preparation and executable receipts identify the native driver, SPQR and its
 \path{artifacts/matched-comparison/} retains the complete executed report,
 its 49-row JSON/CSV projection, original public-audit and qualification
 receipts, source digests and deterministic manuscript-table generator.
+The functions \texttt{sender()} and \texttt{schedule()} in
+\path{artifacts/matched-comparison/sources/schedule.py.txt} define the
+seven directed-opportunity schedules in
+Table~\ref{tab:matched-schedule-rules}. Running
+\texttt{python3 artifacts/matched-comparison/sources/schedule.py.txt}
+prints their counts and canonical schedule hashes. The archived native
+drivers retain the corresponding delivery and terminal-drain rules.
 The compressed report preserves the exact original JSON bytes. The generator
 checks complete profile/schedule and capture-owner inventories, admission and
 exposure partitions, frame budgets, full-envelope bytes and the distinction

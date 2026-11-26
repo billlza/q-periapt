@@ -1,27 +1,74 @@
-# Rust snapshots retained by the bootstrap proof packets
+# Rust snapshots retained by the manuscript evidence
 
 The CodeQL source census at integration commit `0e2ca2d79ab0000bed79130cec97b31181e936ea` contains 1241 tracked Rust files: 1173 current sources and the 68 snapshots below. These snapshots preserve the implementation inputs assessed by the proof packets. They are partial source exports with no Cargo manifests, not additional compilation roots.
 
-The isolated `services/q-periapt-policy-agent/tests/private_file_umask.rs` integration test adds one current source. The live census is now 1242 tracked Rust files: 1174 current sources and the same 68 snapshots. Cargo includes the new test in its existing all-targets compilation.
+The isolated `services/q-periapt-policy-agent/tests/private_file_umask.rs` integration test adds one current source, bringing that census to 1242 tracked Rust files: 1174 current sources and the same 68 snapshots. Cargo includes the new test in its existing all-targets compilation.
 
-`codeql_rust_quality.py` pins the exact five `SOURCE_PINS.json` manifests. Each manifest binds every listed file by original path, byte length, SHA-256 and Git blob identity. Inventory admission checks those identities before extraction and again when publication validates current checkout bytes. The complete 1242-file extraction requirement and its zero-diagnostic/integrity checks remain in force.
+The latency packet at manuscript snapshot `947297e59be9d7fc8febb5d81a4e2b945e328208` adds three retained measurement sources. The current census requires **1245 tracked Rust files: 1174 current sources and 71 archived sources**. The three measurement sources are additions to the measurement setup, not files attributed to the measured protocol commit `358b921ab3469ce49f166633fc9a762ff6ed7e3d`.
+
+`codeql_rust_quality.py` pins the exact five bootstrap `SOURCE_PINS.json` manifests and the three latency paths, byte lengths, SHA-256 values and Git blob identities. Inventory admission checks those identities before extraction and again when publication validates current checkout bytes. The complete 1245-file extraction requirement and its zero-diagnostic/integrity checks remain in force.
 
 The raw macro census retains every snapshot entity and its unresolved state. Paired coverage reports their expanded and unresolved counts separately; only current source macros participate in executable target coverage. A snapshot cannot be admitted as a compiler input, cover an active-source failure, or supply the current-source macro sentinel.
 
-For each table, the retained path is `paper/continuity/artifacts/bootstrap/<packet>/source/` followed by the original path in its first column. The source commit is the historical identity from that packet, not the current build commit.
+For each bootstrap table, the retained path is `paper/continuity/artifacts/bootstrap/<packet>/source/` followed by the original path in its first column. The source commit is the historical identity from that packet, not the current build commit.
 
 ## File loading for the pinned Rust extractor
 
-The Rust 2.27.2 extractor uses rust-analyzer 0.0.352 to load Cargo package file
-roots. The producer explicitly includes this reviewed bootstrap archive directory
-through `CODEQL_EXTRACTOR_RUST_OPTION_EXTRA_INCLUDES`. The value is a JSON array
-containing the original absolute archive path. The existing source-pin check
-authenticates all 68 file paths and bytes before the extraction command.
+The producer explicitly includes both reviewed archive directories through
+`CODEQL_EXTRACTOR_RUST_OPTION_EXTRA_INCLUDES`: the bootstrap packet root and the
+latency packet root, each at its original absolute path. The source-pin check
+authenticates all 71 file paths and bytes before the extraction command.
 
 This inclusion loads the snapshot bytes into the file view. Their existing
 non-module status remains visible in the extractor diagnostics and raw macro
 census. Cargo compilation roots, module declarations and the target coverage
 rules retain their existing roles.
+
+The two latency `Cargo.toml` files are exact reproduction recipes: their relative
+dependencies resolve only after `prepare_sources.py` installs the archived
+protocol tree in a separate work directory. The pinned
+[CodeQL 2.27.4 extractor](https://github.com/github/codeql/blob/codeql-cli/v2.27.4/rust/extractor/src/main.rs)
+selects a source's nearest discovered manifest. During extraction only,
+`retained_latency_manifests` therefore holds each authenticated recipe in an
+exclusive adjacent hard link named `Cargo.toml.codeql-retained` and removes its
+`Cargo.toml` directory entry. Both original entries are restored and verified,
+including inode, mode and SHA-256, on normal and exceptional exits. An existing
+backup or substituted restoration path is refused, rather than overwritten.
+`archived-manifests.json` records successful restoration in the job's evidence.
+This staging step runs in each platform job's dedicated checkout; its manifest
+and backup paths require exclusive access throughout extraction and restoration.
+The three Rust paths and bytes remain in place throughout extraction. No source,
+warning, metric or security query is filtered by this handling.
+
+## Latency: three retained measurement sources
+
+Paths below are relative to `paper/continuity/artifacts/latency/`. The exact
+source identities are pinned in `LATENCY_ARCHIVE_SOURCES`; the two recipe
+lengths and SHA-256 values are pinned in `LATENCY_ARCHIVE_MANIFESTS`.
+
+| Retained path | Role |
+| --- | --- |
+| `harness/delivery/src/fixture.rs` | Provision the measured native session before timed delivery |
+| `harness/delivery/src/main.rs` | Time established-session delivery and check committed plaintext |
+| `harness/primitives/src/main.rs` | Time the six cryptographic backend operations |
+
+Only `harness/delivery/Cargo.toml` (760 bytes, SHA-256 `e7ae8e88d1189e395de35634ddc15fd38525768c21b68261961b4c03ae8d57a2`) and
+`harness/primitives/Cargo.toml` (367 bytes, SHA-256 `71b6987ad8cba939d618d8ddbb1f5feb777215c52245d4e9e3e98270673b72a8`)
+are admitted reproduction recipes. Any other Cargo manifest above a retained
+source fails archive admission. The three sources cannot appear in current
+compiler inputs or supply current-source macro coverage.
+
+The corresponding retained locks are authenticated by `ARCHIVE_LOCKFILES` and
+are not current Cargo fetch roots. Missing or additional live locks, altered
+archive bytes, and an adjacent `Cargo.toml` still fail their existing checks.
+
+| Retained lock path | SHA-256 |
+| --- | --- |
+| `locks/delivery-358b-Cargo.lock` | `31e3a20d5826f5f5e8503101197ce674d6eadae5f305bba65175fc7a3e4be573` |
+| `locks/primitives-358b-Cargo.lock` | `80ee2f22b3dfd7ec76a5824a7b6aa1edd7f27f489a0a9abc3e8b8abd8c95eb5f` |
+| `preliminary-9503/Cargo.lock` | `4d00439bc6b0ec7ce060d12ee583fc6e109486fdbb35beb2853a0fefb9ecc573` |
+
+## Historical bootstrap file-loading observation
 
 The native attempt in
 [run 42982431606](https://github.com/billlza/q-periapt/actions/runs/42982431606/job/130412772905)
@@ -155,4 +202,4 @@ Assessed source commit: `360aa8107aa7df502108627a4dcf89f30d106594`. [Pinned sour
 
 At the stated integration commit, 66 snapshots are byte-identical to their original paths in the current tree. The `initial` and `reply` copies of `crates/q-periapt-backends/src/contextbound_key.rs` retain the earlier key-binding implementation; the current path includes the subsequent staging change. Both historical copies remain pinned and extracted. Their historical role does not stand in for compilation or macro coverage of the current file.
 
-Changes to the retained source set require an explicit review of this inventory and its pinned manifests. Missing, substituted, modified or additional snapshot paths fail admission; adding a Cargo manifest above a retained source also fails. Current source additions continue to require the existing exact inventory update and target coverage.
+Changes to the retained source set require an explicit review of this inventory and its pins. Missing, substituted, modified or additional snapshot paths fail admission; a Cargo manifest other than the two exact latency reproduction recipes above also fails. Current source additions continue to require the existing exact inventory update and target coverage.

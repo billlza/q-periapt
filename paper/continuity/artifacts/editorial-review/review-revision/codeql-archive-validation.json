@@ -1,0 +1,64 @@
+{
+  "schema": "qperiapt-latency-archive-ci-fix-validation-v1",
+  "checkout_base_commit": "947297e59be9d7fc8febb5d81a4e2b945e328208",
+  "modified_files": [
+    "ARTIFACT.md",
+    "artifact/CODEQL_RUST_ARCHIVES.md",
+    "artifact/codeql_rust_profile.py",
+    "artifact/codeql_rust_quality.py",
+    "artifact/codeql_workflows.md",
+    "artifact/test_codeql_rust_profile.py",
+    "artifact/test_codeql_rust_quality.py",
+    "artifact/test_codeql_target_coverage.py"
+  ],
+  "patch_sha256": "b9ad18457548a429ac5f81ff103406c4428ac1fd4daa4dd08e672ec619b02048",
+  "tests": {
+    "command": [
+      "sh",
+      "artifact/python-run.sh",
+      "-m",
+      "unittest",
+      "-v",
+      "test_codeql_rust_quality",
+      "test_codeql_consumer_context",
+      "test_codeql_target_coverage",
+      "test_codeql_compiler_sources",
+      "test_codeql_cargo_metadata",
+      "test_codeql_rust_profile",
+      "test_codeql_rust_publication",
+      "test_codeql_rust_transfer",
+      "test_codeql_rust_plan",
+      "test_codeql_progress"
+    ],
+    "exit_code": 0,
+    "count": 249,
+    "seconds": 6.634,
+    "log": "codeql-archive-tests.txt",
+    "log_sha256": "4bffc8d43b0f34a14a799c987e2a72fca4ba3d86f23249539eed25d3f6bfdbfb"
+  },
+  "source_census": {
+    "current": 1174,
+    "archived": 71,
+    "all_tracked": 1245
+  },
+  "checks_performed": [
+    "CodeQL existing ten-module Python prerequisite suite, with seven added regression tests",
+    "git diff --check for the eight modified files"
+  ],
+  "not_run": [
+    "Rust compilation",
+    "CodeQL engine extraction and security queries",
+    "remote CI"
+  ],
+  "file_sha256": {
+    "ARTIFACT.md": "3103bb4870a0d21ef99b1dc4cadc73fd0ccddbb7bfddbc1c7b10630151076553",
+    "artifact/CODEQL_RUST_ARCHIVES.md": "f1f6463d5b73b19cf50d02eddd63e664233b09ffc0f6a87e978eaa03c60f98b4",
+    "artifact/codeql_rust_profile.py": "8296c75b77914a3914dedeb5f1bf241204d8ebf9303650bafef20971c3acc767",
+    "artifact/codeql_rust_quality.py": "be6b1d5cba55791da87594cc2550e3ee790656e8593e9bdfad71c70a682758f0",
+    "artifact/codeql_workflows.md": "827e72b711e2a370c1e270b1709dfd890b19257cc2f5ae2a9e04344cea62df84",
+    "artifact/test_codeql_rust_profile.py": "c25e8448e4eef92f23d0c66f1f7ed959e6a0fb3ac54a13ff266451d39c81a20d",
+    "artifact/test_codeql_rust_quality.py": "229860241094d076fe50ddd259db618febd4f88e34ea98a04ace3e838895b311",
+    "artifact/test_codeql_target_coverage.py": "3341e38b9970817751256dbd3b2b1b6eeac31ad63f311177c7d2baf64cb12cac"
+  },
+  "execution_precondition": "The manifest staging helper uses the dedicated checkout of each CI job, with no concurrent writers to the manifest or backup paths."
+}

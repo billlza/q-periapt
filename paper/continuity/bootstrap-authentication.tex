@@ -409,8 +409,16 @@ proves~\eqref{eq:bootstrap-source-schedule}.
 \label{thm:bootstrap-terminal}
 Let $\mathsf{Bad}$ be the latched event that a registered initiator
 connection succeeds without an earlier durable activation of the same
-$c$ under its expected responder identity. If $q_v<2^{256}$ bounds
-distinct pre-activation tag guesses, then
+$c$ under its expected responder identity. Let $q_v<2^{256}$ be a
+deterministic bound, valid in every comparison below, on the number of
+distinct triples $(c,m,t)$ whose verification reaches the keyed ACK
+comparison before the first matching responder activation of $c$.
+Here $c$ is the registered complete class, $m$ is the complete 107-byte
+authenticated ACK string, and $t$ is the proposed 256-bit tag. Exact
+class aliases share $c$, and a repeated identical triple is counted once.
+Using the same tag with a different class or authenticated string counts
+as a different triple. A keyed comparison followed by a floor rejection
+also enters this count. Then
 \begin{equation}
  \Pr[\mathsf{Bad}]\le\min\left\{1,
   \Pr[\mathsf{Coll}]+\varepsilon_{\rm bs\text{-}schedule}
@@ -465,12 +473,20 @@ Before the first matching responder activation, that responder has no
 admitted role-2 message state that can release the direction-1 tag.
 The initiator's ordinary direction-2 ACK has a separately designated key and
 direction string. The client checks the exact session, direction, epoch-zero
-encoding and tag before connection success. The as-yet unreleased
-ideal tag is uniform among at least $2^{256}-q_v+1$ values after
-negative feedback. A union bound over distinct guesses gives the last
-term; the local zero stop cannot introduce a successful guess. Replaying a previously authentic READY proof already supplies
-the matching historical activation. Later global recipe stops preserve the event
-observed on the earlier prefix.
+encoding and tag before connection success. Write $W_c$ for the independent
+MAC function of registered class $c$, and consider the first pre-activation
+keyed equality $t=W_c(m)$, including one followed by a floor rejection.
+Before this equality, an exact repeated triple has the same negative
+outcome. For each new triple, prior negative comparisons at $(c,m)$ exclude
+only the tags already proposed at that pair; other class/message pairs
+have independent table entries. The unreleased value $W_c(m)$ is therefore
+uniform among at least $2^{256}-q_v+1$ values conditional on those misses.
+Summing the conditional first-hit probabilities over at most $q_v$
+distinct triples gives the last term. Connection success before matching
+activation entails such a hit, and the local capture-zero rule only removes
+executions from this event. Replaying a previously authentic READY proof
+already supplies the matching historical activation. Later global recipe
+stops preserve the event observed on the earlier prefix.
 \end{proof}
 
 A READY proof remains evidence of the expected responder's earlier
