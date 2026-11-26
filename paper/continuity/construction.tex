@@ -8,6 +8,11 @@ send, receive and confirmed epochs. To carry a reserved operation through
 a crash, an endpoint saves the token for the original draw in a durable
 plan before execution. Recovery reopens that plan and finishes the
 operation with the same token and inputs.
+Here, \emph{native} denotes the pinned Rust implementation and its
+execution interfaces. The computational result instantiates the KEM
+assumption through ML-KEM; its reduction computes X25519 locally.
+An either-component security guarantee for the hybrid would require a
+separate reduction for the case in which only X25519 remains secure.
 
 \paragraph{Fixed cryptographic context.}
 The combiner hashes a length-delimited encoding of the two component secrets,

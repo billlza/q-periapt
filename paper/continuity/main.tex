@@ -32,6 +32,7 @@
 \newtheorem{definition}[theorem]{Definition}
 \theoremstyle{thmstyletwo}
 \newtheorem{remark}[theorem]{Remark}
+\newtheorem{observation}[theorem]{Observation}
 \setlist{topsep=4pt,itemsep=3pt,parsep=0pt}
 \setlength{\emergencystretch}{1.5em}
 \newcommand{\artifact}[1]{\texttt{\small\detokenize{#1}}}
@@ -54,36 +55,32 @@
 
 \begin{document}
 \title[Persistent randomness: exposure and recovery]{Exposure and Recovery with Persistent Randomness Reservations}
-% Author and corresponding address confirmed by the author on 7 November 2026.
 % The alternative address is retained in author-metadata.json.
 \author*[1]{\fnm{Ziang} \sur{Li}}\email{2403871950@qq.com}
 \affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
-\abstract{Our restart experiment shows why an accepted rekey can leave
-later traffic exposed: an endpoint resumed an operation using randomness
-saved before the crash. We study recovery when record acquisition and
-wrapping-key disclosure occur at different times.
-For the next rekey of an established Q-Periapt Continuity session, we
-prove confidentiality and fresh-message integrity for one application
-send selected online within a previously designated traffic entry and
-direction. Both original key-generation and encapsulation
-reservations must follow the compromise cut; every acquired target-session
-version must have reached durable storage by the cut, while the target
-signing secrets and designated epoch entropy remain undisclosed.
-The observer may use earlier message keys to mark the target before
-either endpoint first computes it, learn its successor seed after
-derivation, and select the cut after interaction.
+\abstract{Crash recovery can resume a key exchange with randomness saved
+before compromise. We analyse this persistence policy in Q-Periapt
+Continuity by tracking the operation that reserved each random input and
+the stored versions that contain it. For an executed-slot selection after
+the next rekey of an established session, we derive confidentiality and
+fresh-message integrity for one application send chosen before either
+endpoint computes its key. Both KEM reservations must follow the
+compromise cut; every acquired target-session version must have been
+durably saved by the cut. The target signing secrets and designated
+epoch entropy remain undisclosed throughout the execution. The observer
+may use earlier message keys to select the target, learn its successor
+seed after derivation, and choose the cut after interaction.
 The reduction reproduces commitments and exact retries from public
-operation outputs even when the reserved tape is private. Its bound
-accounts for record simulation, source attribution, ordinary ML-KEM and
+operation outputs while the reserved tape is private. Its bound accounts
+for record simulation, executed-source attribution, ordinary ML-KEM and
 hedged ML-DSA security, shared-oracle key derivation and authenticated
-encryption in the stated quantum random-oracle models. On fixed indexed
-graphs, we track readable sources in total work linear in graph size and
-input history. A mechanized symbolic theorem covers secrecy across
-unbounded epochs under its provenance condition. With 2,048 alternating
-transmission opportunities and a per-epoch, per-direction send budget of
-32, waiting four sender
-turns before retry raised deliveries from 688 to 971; both runs yielded
-63 reconstructible post-capture keys.}
+encryption in the stated quantum random-oracle models. Separately, a
+fixed-graph exposure model tracks readable sources when record acquisition
+and wrapping-key disclosure occur in either order, using indexed Horn
+propagation. A symbolic secrecy theorem covers unbounded epochs under
+its provenance condition. Deterministic executions document reservation
+exposure, admitted service and two retry policies. Component-reference runs
+use different transport, persistence and capture interfaces.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
 

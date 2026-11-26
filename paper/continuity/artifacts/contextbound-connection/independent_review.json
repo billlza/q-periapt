@@ -1,13 +1,11 @@
 {
   "schema": "q-periapt.contextbound-independent-review.v1",
   "review_date": "2026-11-07",
-  "reviewer": "Independent proof-review agent, separate from theory author and source-audit author",
-  "status": "PASS",
   "inclusion_recommendation": "Include the two lemmas and next-rekey theorem under their declared operational component game, native profile and retained primitive assumptions.",
   "source_pin": "228c944fc476e3e57d6c08063cacb19bca5b360e",
   "source_comparison_revision": "1c68aa666db22d36ee136be1ec712545a9e74f03",
   "manuscript_starting_revision": "1cd40686209d68de509d63eab0b77465b8701b54",
-  "review_kind": "Independent mathematical argument review and targeted native-source inspection, with a separately rerun finite Python encoding/router checker.",
+  "review_kind": "Internal automated mathematical argument review and targeted native-source inspection, with a separately rerun finite Python encoding/router checker.",
   "new_results": [
     "lem:cb-hidden-component",
     "lem:cb-native-root-use",
@@ -310,5 +308,7 @@
       "bytes": 10706,
       "sha256": "8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d"
     }
-  ]
+  ],
+  "record_type": "historical internal automated argument review",
+  "historical_assessment": "PASS"
 }

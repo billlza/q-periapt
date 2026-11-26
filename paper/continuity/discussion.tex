@@ -14,13 +14,23 @@ Reporting each newly exposed source once makes the incremental result
 follow the original operation through its copies; exporting the full
 set incurs the additional cost of its output.
 
-The chosen send connects this readability analysis to the recovery
-theorem. Equation~\eqref{eq:eligibility} records when both KEM
-operations were reserved and when each acquired target-session version
-was first saved. The graph closure determines which sources become
-readable, while the native reduction preserves the original reservation
-and first-save events through each comparison. Thus the theorem's cut
-continues to refer to the execution whose storage history is being assessed.
+The recovery condition in Equation~\eqref{eq:eligibility} requires both
+KEM reservations to follow the cut and excludes acquisition of any target-session version first
+saved after that cut. The readable-source closure describes a broader
+storage history, in which acquisition and key disclosure can occur in
+either order. The current reduction preserves reservation and first-save
+events but uses the acquisition condition to stop before simulating a
+protected record. Extending eligibility to the closure's readability
+condition requires a corresponding record-simulation argument.
+
+\paragraph{Replay and resampling before publication.}
+The prototype resumes the saved operation after a crash. Before an
+operation has produced a commitment or public output, an alternative
+design could cancel its saved intent and reserve fresh randomness. Such
+a transition must durably invalidate the old intent and prevent it from
+being replayed later. The reservation-disclosure experiment evaluates the
+prototype's replay policy; a cancel-and-resample state machine would
+require its own execution and recovery analysis.
 
 \paragraph{From a recovered epoch to application security.}
 A recovered root feeds confirmation and the traffic chain before the
@@ -208,8 +218,8 @@ and key-derivation graphs, we track exactly which original sources become
 readable as records and keys arrive, in total work linear in graph size
 and input history (Proposition~\ref{prop:guarded-worklist}).
 
-For a send after the next rekey of an established session, the resulting
-history gives a sufficient recovery condition. Both original KEM
+For a send after the next rekey of an established session, the
+acquisition history gives a sufficient recovery condition. Both original KEM
 reservations must follow the cut. The target signing secrets and
 designated epoch entropy must remain undisclosed, and the first durable
 save of each acquired target-session version must fall on or before the

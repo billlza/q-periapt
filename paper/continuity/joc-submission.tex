@@ -33,6 +33,7 @@
 \newtheorem{definition}[theorem]{Definition}
 \theoremstyle{thmstyletwo}
 \newtheorem{remark}[theorem]{Remark}
+\newtheorem{observation}[theorem]{Observation}
 \setlist{topsep=4pt,itemsep=3pt,parsep=0pt}
 \setlength{\emergencystretch}{1.5em}
 \newcommand{\artifact}[1]{\texttt{\small\detokenize{#1}}}
@@ -55,36 +56,32 @@
 
 \begin{document}
 \title[Persistent randomness: exposure and recovery]{Exposure and Recovery with Persistent Randomness Reservations}
-% Author and corresponding address confirmed by the author on 7 November 2026.
 % The alternative address is retained in author-metadata.json.
 \author*[1]{\fnm{Ziang} \sur{Li}}\email{2403871950@qq.com}
 \affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
-\abstract{Our restart experiment shows why an accepted rekey can leave
-later traffic exposed: an endpoint resumed an operation using randomness
-saved before the crash. We study recovery when record acquisition and
-wrapping-key disclosure occur at different times.
-For the next rekey of an established Q-Periapt Continuity session, we
-prove confidentiality and fresh-message integrity for one application
-send selected online within a previously designated traffic entry and
-direction. Both original key-generation and encapsulation
-reservations must follow the compromise cut; every acquired target-session
-version must have reached durable storage by the cut, while the target
-signing secrets and designated epoch entropy remain undisclosed.
-The observer may use earlier message keys to mark the target before
-either endpoint first computes it, learn its successor seed after
-derivation, and select the cut after interaction.
+\abstract{Crash recovery can resume a key exchange with randomness saved
+before compromise. We analyse this persistence policy in Q-Periapt
+Continuity by tracking the operation that reserved each random input and
+the stored versions that contain it. For an executed-slot selection after
+the next rekey of an established session, we derive confidentiality and
+fresh-message integrity for one application send chosen before either
+endpoint computes its key. Both KEM reservations must follow the
+compromise cut; every acquired target-session version must have been
+durably saved by the cut. The target signing secrets and designated
+epoch entropy remain undisclosed throughout the execution. The observer
+may use earlier message keys to select the target, learn its successor
+seed after derivation, and choose the cut after interaction.
 The reduction reproduces commitments and exact retries from public
-operation outputs even when the reserved tape is private. Its bound
-accounts for record simulation, source attribution, ordinary ML-KEM and
+operation outputs while the reserved tape is private. Its bound accounts
+for record simulation, executed-source attribution, ordinary ML-KEM and
 hedged ML-DSA security, shared-oracle key derivation and authenticated
-encryption in the stated quantum random-oracle models. On fixed indexed
-graphs, we track readable sources in total work linear in graph size and
-input history. A mechanized symbolic theorem covers secrecy across
-unbounded epochs under its provenance condition. With 2,048 alternating
-transmission opportunities and a per-epoch, per-direction send budget of
-32, waiting four sender
-turns before retry raised deliveries from 688 to 971; both runs yielded
-63 reconstructible post-capture keys.}
+encryption in the stated quantum random-oracle models. Separately, a
+fixed-graph exposure model tracks readable sources when record acquisition
+and wrapping-key disclosure occur in either order, using indexed Horn
+propagation. A symbolic secrecy theorem covers unbounded epochs under
+its provenance condition. Deterministic executions document reservation
+exposure, admitted service and two retry policies. Component-reference runs
+use different transport, persistence and capture interfaces.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
 
@@ -114,6 +111,9 @@ can all contain the same draw. The adversary may acquire a copy while
 it is encrypted and learn its wrapping key after the host has deleted
 the original. To decide what recovery means for a particular send, we
 therefore follow both the draw and the records that carry it.
+The restart trace illustrates the consequence of exposing future key
+material under this replay policy. It serves as the motivating execution
+for the storage model and the subsequent conditional recovery argument.
 
 \paragraph{The message we protect.}
 We study the next rekey of an established Q-Periapt Continuity session.
@@ -200,16 +200,19 @@ Theorem~\ref{thm:bootstrap-terminal}).
 The mechanized symbolic theorem covers secrecy across unbounded epochs
 under its provenance condition (Theorem~\ref{thm:symbolic}). It allows
 inherited roots, shared key identities, alternating proposers and
-asynchronous confirmation. In one native execution we recovered six
+asynchronous confirmation. Its main secrecy lemma and dependencies were
+verified in Tamarin; the concrete two-round execution was checked by a
+separate source-derived evaluator. In one implementation execution we recovered six
 epoch-two messages although the peers' confirmed counters still read
 zero and one. Finite-record checks exercise acquisition, deletion and
 late disclosure. Pinned SPQR and whole-KEM snapshots show which
 component keys the specified predictors could reconstruct.
 
 An exposure count needs a service denominator: how many messages did the
-protocol actually send and deliver? Our 49 native and reference
+protocol actually send and deliver? Our 49 implementation and reference
 profile--schedule pairs share a budget of directed transmission
-opportunities. We count first commitments, deliveries, bytes and
+opportunities, with different transport, persistence and capture
+interfaces. We count first commitments, deliveries, bytes and
 persistence work alongside the reconstructed keys. To test whether retry
 timing affects the service delivered within that budget, we change only
 the native retry rule. Across 14 pairs, waiting four sender turns
@@ -419,6 +422,11 @@ send, receive and confirmed epochs. To carry a reserved operation through
 a crash, an endpoint saves the token for the original draw in a durable
 plan before execution. Recovery reopens that plan and finishes the
 operation with the same token and inputs.
+Here, \emph{native} denotes the pinned Rust implementation and its
+execution interfaces. The computational result instantiates the KEM
+assumption through ML-KEM; its reduction computes X25519 locally.
+An either-component security guarantee for the hybrid would require a
+separate reduction for the case in which only X25519 remains secure.
 
 \paragraph{Fixed cryptographic context.}
 The combiner hashes a length-delimited encoding of the two component secrets,
@@ -5909,10 +5917,15 @@ $\mathsf{AcquiredAfterSave}_c(s)$ is false, then $\tau$ contains no adversarial
 knowledge event $\mathsf K(m)$.
 \end{theorem}
 
-The theorem was checked with all 24 reusable dependencies in one Tamarin
-process. An independent replay produced a byte-identical proof certificate.
-Appendix~\ref{app:artifacts} identifies the exact query, source, toolchain,
-replay receipt and complete auxiliary-query inventory.
+Tamarin verified the main secrecy lemma and all 24 reusable dependencies
+in one process. A second replay produced a byte-identical proof certificate.
+The complete inventory contains 27 verified and 13 incomplete queries;
+eleven incomplete queries are multi-round execution witnesses, and two
+are unused historical all-trace queries. A separate source-derived checker
+validates the concrete two-round execution described below. That finite
+witness is recorded separately from the Tamarin proof certificate.
+Appendix~\ref{app:artifacts} identifies the exact queries, source, toolchain,
+replay receipt and auxiliary-query inventory.
 
 The theorem follows actual identity ownership within the modeled
 cryptographic constructors and record interface. Exposing a shared signer
@@ -5923,10 +5936,12 @@ a later aggregate image preserves its first-save history.
 
 \subsection{Executability and the freshness boundary}
 
-The two-round execution establishes that these recovery conditions can
-hold after an ancestor root has been exposed. A separate evaluator
-derived from the model source checks each rule instance and the global
-quantifiers of the original positive existential formula.
+The retained two-round execution provides a concrete witness after an
+ancestor root has been exposed. The source-derived evaluator checks each
+rule instance and the complete positive existential formula, including its
+global quantifiers. This finite construction supplies the current
+executability evidence while the multi-round Tamarin witness queries
+remain incomplete.
 
 The delayed-receipt construction isolates the reservation-time condition.
 It contains a pre-Cut epoch-two generation reservation and a post-Cut
@@ -5967,23 +5982,22 @@ reported each endpoint's last confirmed epoch, while the captured
 reservation fixed inputs for later traffic. The successful decryptions
 establish the resulting exposure beyond those confirmed epochs.
 
-\begin{proposition}[Execution-time and counter-based separation]
+\begin{observation}[Captured reservations in the recorded executions]
 \label{prop:counter-separation}
-In the native executions, computing a KEM after restart, completing
-the target epoch, and subsequently reopening the journal do not make a
-previously disclosed reservation an independent secret contribution.
-Moreover, $\min(c_A,c_B)+1$ is not a universal upper bound on the index of
-an exposed epoch.
-\end{proposition}
-\begin{proof}
-At both process-cut boundaries the captured reservation reconstructs the later
-honest KEM result exactly. Equations~\eqref{eq:root}--\eqref{eq:traffic} then
-reconstruct traffic keys from the captured predecessor root and public wires;
-authenticated decryption verifies the six corresponding plaintexts after
-completion and restart. In the delayed-receipt execution,
-$(c_A,c_B)=(0,1)$ at capture and six epoch-two plaintexts are recovered.
-Thus the proposed counter bound equals one while an exposed epoch equals two.
-\end{proof}
+At both process-cut boundaries, the captured reservation and the subsequent
+public transcript reconstructed the honest KEM result and six post-restart
+application plaintexts. In the delayed-receipt execution, the confirmed
+counters were $(c_A,c_B)=(0,1)$ at capture, while the recovered messages
+belonged to epoch two.
+\end{observation}
+
+Equations~\eqref{eq:root}--\eqref{eq:traffic} explain the reconstruction
+from the captured predecessor root, reservation and public wires; successful
+authenticated decryption checks the recorded plaintexts. This execution
+distinguishes confirmed progress from the origin of retained cryptographic
+inputs. The expression $\min(c_A,c_B)+1$ is a candidate counter-based
+heuristic considered here. The observed epoch-two exposure exceeds its
+value of one in this execution.
 
 \subsection{An aggregate write preserves the target origin}
 
@@ -6020,9 +6034,11 @@ these outcomes. The native runs in Section~\ref{sec:established}
 identify which reservation supplied a rekey. The finite-record checks
 then ask when that source becomes readable, and the pinned reference
 snapshots measure how retained material affects exposure across seven
-schedules. Giving the native and reference protocols the same requests
-and directed opportunities connects these measurements to delivered
-service. Holding the native protocol fixed and varying retry timing
+schedules. A common request stream and opportunity budget provide a
+shared workload for recording each implementation's delivered service;
+the capture, transport and storage interfaces differ as described in
+Section~\ref{sec:matched-opportunities}. Holding the native protocol fixed
+and varying retry timing
 then isolates one cause of its service cost.
 Separate wall-clock and CPU measurements identify the cost of the
 underlying operations on a stated host.
@@ -6049,9 +6065,10 @@ explicit expected cases for key dependencies and later disclosures.\\
 How does retained state interact with communication opportunities? &
 Pinned component snapshots across seven schedules, with reconstructed keys
 indexed by direction, epoch and message number.\\
-How does a recovery budget trade exposure for service? &
-Native and reference runs under common directed opportunities, with separate
-first commitments, logical deliveries, derived sets and full-frame costs.\\
+What service and exposure counts occur under each allocation budget? &
+Continuity budget variants and descriptive reference runs under common
+directed opportunities, with stated capture and persistence interfaces,
+first commitments, logical deliveries, derived sets and frame costs.\\
 How does retry readiness affect completed service? &
 Paired native immediate and age-four policies with the same protocol, send
 budget, request stream and opportunity list; complete frame and durability
@@ -6318,8 +6335,8 @@ session state.
 \subsection{Matched directed opportunities and admitted service}
 \label{sec:matched-opportunities}
 
-The matched comparison asks how much traffic each protocol delivers while
-producing its measured exposure set. We ran native Continuity at
+The matched experiment records delivered traffic and exposure under each
+implementation's stated interfaces. We ran native Continuity at
 per-direction send budgets $b\in\{32,64\}$ and the five reference
 profiles on the same seven schedules. For each of the 49
 configuration--schedule pairs, we measured delivered traffic and the keys
@@ -6329,14 +6346,17 @@ source was \texttt{358b921a}.
 We used the SPQR revision and isolated chunk-width variant identified above.
 
 \paragraph{Comparison target.}
-The common request stream fixes demand, while each protocol's rules
-determine how many turns it spends on authentication, acknowledgements
-and retries, and how it persists state. The cross-profile comparison
-therefore measures the service produced by those complete rule sets.
-Within Continuity, varying the send budget between $b=32$ and $b=64$
-with the driver fixed isolates the effect of the allocation cap.
-Section~\ref{sec:retry-readiness} then fixes the budget and varies the
-first turn on which a saved ciphertext becomes eligible for retry.
+These runs describe the measured implementations under a common request
+stream and directed opportunity budget. Continuity includes authenticated
+control traffic, acknowledgements, retransmission and a durable journal.
+The reference harnesses expose component state without the same transport
+and persistence services, and their snapshot interfaces reveal different
+retained material. The cross-profile rows therefore provide descriptive
+workload and exposure accounting at their stated interfaces; they do not
+isolate the effect of the ratcheting construction. Within Continuity,
+changing the send budget with the driver fixed isolates the allocation-cap
+effect. Section~\ref{sec:retry-readiness} fixes the budget and changes only
+the minimum retry age.
 
 \paragraph{Workload and capture.}
 Each schedule contains 2,048 directed transmission opportunities, indexed
@@ -6473,7 +6493,36 @@ Budget & First & ACK & Control & App. & All exact & Image & \texttt{sync\_data}\
 \caption{Native alternating communication and persistence. First application, ACK, control and application-retry columns partition the 2,048 emitted frames. All exact retries also count repeated control frames and overlap that partition. Image revisions and physical sync calls sum both endpoints.}
 \label{tab:matched-accounting}
 \end{table}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Schedule & \multicolumn{2}{c}{Continuity, $b=32$} & \multicolumn{2}{c}{SPQR, chunk 32}\\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+ & Emitted bytes & Delivered & Emitted bytes & Delivered\\
+\midrule
+Alternating & 565,288 & 688 & 172,339 & 2,048\\
+Lossy & 613,767 & 665 & 171,943 & 1,843\\
+Reordered & 857,999 & 671 & 171,778 & 2,048\\
+Duplicates & 565,288 & 688 & 172,339 & 2,048\\
+9:1 asymmetric & 3,527,883 & 517 & 154,641 & 2,048\\
+Offline then exchange & 1,017,981 & 613 & 173,991 & 2,048\\
+One-way & 4,861,533 & 32 & 186,113 & 2,048\\
+\bottomrule
+\end{tabular}
+\caption{Bytes and deliveries across all seven deterministic schedules for two configurations at the same 2,048 directed opportunities. Continuity includes authenticated control, ACKs, retries and a durable journal; the SPQR harness uses the stated component interface. The figures describe those different interfaces. The complete 49-row CSV includes the other five profiles.}
+\label{tab:matched-schedule-costs}
+\end{table}
 % END SECTION SOURCE: matched-opportunity-tables.tex
+
+Table~\ref{tab:matched-schedule-costs} gives emitted bytes and deliveries
+across all seven schedules for Continuity at $b=32$ and SPQR with 32-byte
+chunks. These two configurations retain the different transport, storage
+and capture interfaces described above. Each condition has one deterministic
+schedule. The complete 49-row CSV also contains the other five profiles.
 
 In the alternating schedule, reducing $b$ from 64 to 32 changes the derived
 set from 127 of 717 post-capture commitments to 63 of 687
@@ -6521,18 +6570,20 @@ Recovery during renewed exchange is assessed through the later admitted
 allocations and their original sources.
 
 The lossy schedule drops the 205 common opportunities whose index is
-congruent to 4 modulo 10. Continuity delivers all 665 or 681 admitted
+congruent to 4 modulo 10. All these indices are even, so this schedule
+drops only $A$'s frames. Continuity delivers all 665 or 681 admitted
 applications, charging retransmissions to the opportunity budget. Each
 reference commits 2,048 component applications and delivers 1,843 under its
 declared workload without application retransmission. Network duplication
 leaves native first commitments, logical deliveries, emitted bytes, final
 epochs and derived sets equal to the alternating execution. Reordering, 9:1
 asymmetry and a 256-opportunity offline prefix complete the seven-schedule
-inventory; their request queues, exact derived sets and work counters are
-retained in the complete 49-row artifact.
+inventory. Table~\ref{tab:matched-schedule-costs} includes these schedules;
+the complete artifact also records request queues, derived sets and
+persistence work for every profile.
 
-The recorded executions generate the tables, and an independent
-calculation from the public evidence checks their entries.
+The recorded executions generate the tables, and a separate calculation
+from the public evidence checks their entries.
 Appendix~\ref{app:matched-comparison} identifies the source revision,
 execution and checks.
 % END SECTION SOURCE: matched-opportunities.tex
@@ -6551,6 +6602,10 @@ four sender turns. Testing both budgets on the seven schedules in
 Section~\ref{sec:matched-opportunities} gave 14 pairs. All 14 new
 immediate-retry runs reproduced the corresponding original rows,
 establishing the baseline for the comparison.
+Each condition uses one deterministic schedule, and the tested minimum
+retry ages are zero and four. The results describe those paired traces;
+an optimal retry age and variability over random schedules require
+additional measurements.
 
 \paragraph{A public retry clock.}
 The clock counts the sender's own turns. Each endpoint advances its
@@ -6627,6 +6682,12 @@ denominator. Under the offline prefix, the derived counts rose from
 and from 652 to 934. The allocation histories changed within the same
 $2b-1$ bound.
 
+The reconstructed-key count also depends on the schedule. Under loss,
+it changed from 63 to 55 at $b=32$ and from 127 to 107 at $b=64$.
+Under reordering, age four still produced 508 and 547 application retries
+after first delivery, respectively. The elimination of such retries in
+the alternating runs therefore applies to that schedule.
+
 With traffic in one direction only, each policy admits and delivers
 exactly 32 or 64 applications. The remaining requests stay queued and
 both confirmed epochs stay at zero. Switching to age four adds one
@@ -6701,13 +6762,16 @@ endpoints in one process. Provisioning, bootstrap, application consumption
 and the acknowledgement exchange occur outside it; no network delay or
 rekey is included.
 
-Table~\ref{tab:delivery-latency} reports mean wall time of 24.531\,ms and
-process CPU time of 18.691\,ms. The sender and receiver portions average
-16.296 and 8.236\,ms of wall time, respectively. All 256 samples are
-retained, including the largest observed wall time of 257.105\,ms. These
-values describe the stated host and native storage path. They do not
-measure mobile scheduling, SQLite/WAL performance or the time spent
-waiting for communication opportunities in the earlier workloads.
+Across the 256 recorded deliveries, wall-clock time had a mean of
+24.531\,ms, a median of 17.007\,ms, a 99th percentile of 200.311\,ms
+and a maximum of 257.105\,ms (Table~\ref{tab:delivery-latency}).
+Process CPU time averaged 18.691\,ms, with a 99th percentile of
+149.392\,ms. The sender and receiver portions averaged 16.296 and
+8.236\,ms of wall time, respectively. All samples are retained.
+These measurements characterize the stated same-host journal path;
+the experiment contains no matched implementation baseline. Mobile
+scheduling, SQLite/WAL performance and waiting for communication
+opportunities lie outside the measured interval.
 
 % BEGIN SECTION SOURCE: delivery-latency-table.tex
 % Statistics recomputed from all 256 retained individual delivery intervals.
@@ -6715,15 +6779,16 @@ waiting for communication opportunities in the earlier workloads.
 \centering
 \small
 \caption{Same-host delivery costs between two native file journals in an
-established session. All times are in milliseconds. The 95th percentile
-uses the nearest rank among all 256 individual message intervals.}
+established session. All times are in milliseconds. The 95th and 99th
+percentiles (P95 and P99) use the nearest rank among all 256 individual
+message intervals.}
 \label{tab:delivery-latency}
-\begin{tabularx}{\linewidth}{@{}Xrrrr@{}}
+\begin{tabularx}{\linewidth}{@{}Xrrrrr@{}}
 \toprule
-Interval & Mean & Median & 95th percentile & Maximum\\
+Interval & Mean & Median & P95 & P99 & Maximum\\
 \midrule
-Wall-clock & 24.531 & 17.007 & 37.046 & 257.105\\
-Process CPU & 18.691 & 13.591 & 27.253 & 178.035\\
+Wall-clock & 24.531 & 17.007 & 37.046 & 200.311 & 257.105\\
+Process CPU & 18.691 & 13.591 & 27.253 & 149.392 & 178.035\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -6747,13 +6812,23 @@ Reporting each newly exposed source once makes the incremental result
 follow the original operation through its copies; exporting the full
 set incurs the additional cost of its output.
 
-The chosen send connects this readability analysis to the recovery
-theorem. Equation~\eqref{eq:eligibility} records when both KEM
-operations were reserved and when each acquired target-session version
-was first saved. The graph closure determines which sources become
-readable, while the native reduction preserves the original reservation
-and first-save events through each comparison. Thus the theorem's cut
-continues to refer to the execution whose storage history is being assessed.
+The recovery condition in Equation~\eqref{eq:eligibility} requires both
+KEM reservations to follow the cut and excludes acquisition of any target-session version first
+saved after that cut. The readable-source closure describes a broader
+storage history, in which acquisition and key disclosure can occur in
+either order. The current reduction preserves reservation and first-save
+events but uses the acquisition condition to stop before simulating a
+protected record. Extending eligibility to the closure's readability
+condition requires a corresponding record-simulation argument.
+
+\paragraph{Replay and resampling before publication.}
+The prototype resumes the saved operation after a crash. Before an
+operation has produced a commitment or public output, an alternative
+design could cancel its saved intent and reserve fresh randomness. Such
+a transition must durably invalidate the old intent and prevent it from
+being replayed later. The reservation-disclosure experiment evaluates the
+prototype's replay policy; a cancel-and-resample state machine would
+require its own execution and recovery analysis.
 
 \paragraph{From a recovered epoch to application security.}
 A recovered root feeds confirmation and the traffic chain before the
@@ -6941,8 +7016,8 @@ and key-derivation graphs, we track exactly which original sources become
 readable as records and keys arrive, in total work linear in graph size
 and input history (Proposition~\ref{prop:guarded-worklist}).
 
-For a send after the next rekey of an established session, the resulting
-history gives a sufficient recovery condition. Both original KEM
+For a send after the next rekey of an established session, the
+acquisition history gives a sufficient recovery condition. Both original KEM
 reservations must follow the cut. The target signing secrets and
 designated epoch entropy must remain undisclosed, and the first durable
 save of each acquired target-session version must fall on or before the
@@ -6987,9 +7062,6 @@ OpenAI ChatGPT was used for language editing, exploratory proof development,
 source-code inspection and \LaTeX{} preparation. The explicit proofs,
 mechanized certificates and executable checks are identified separately
 so that their respective claims and verification records can be inspected.
-% Author identity and corresponding address were confirmed on 7 November 2026.
-% Funding, interests and current contributions were confirmed on 11 November 2026.
-% Final author approval applies to the assembled submission package.
 % END SECTION SOURCE: declarations.tex
 
 \bibliography{references}
@@ -7007,6 +7079,13 @@ certificate and native observations, allowing their claims to be traced
 back to those executions. The manuscript supplies the proofs of the
 record model and computational accounting; the supplements identify
 the source correspondences and executable checks used by those arguments.
+
+Supplementary review notes were produced by internal automated checks.
+Historical filenames containing \texttt{independent\_review} or
+\texttt{author\_check} identify those records; they do not denote
+independent human peer review or author approval. The mathematical
+arguments, executed checks and verifier certificates are the evidence
+to inspect for the corresponding claims.
 
 \begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.25\linewidth}>{\raggedright\arraybackslash}p{0.69\linewidth}@{}}
 \toprule
@@ -7053,7 +7132,7 @@ snapshot above by Git blob and SHA-256 identities in
 \path{analysis.json} in that directory records all 420 snapshot cases and
 the 35 configuration--schedule rows; the generated
 \path{reference-schedule-table.tex} supplies Table~\ref{tab:reference-schedules}.
-The independent review checks every displayed count and decimal mean using
+The separate arithmetic check recomputes every displayed count and decimal mean using
 separate integer arithmetic and rejects eight altered-input controls.
 
 The jointly checked certificate has SHA-256
@@ -7253,7 +7332,7 @@ cryptographic substrate; the original reservation, acquisition and persistent
 simulation results are developed in the present paper.
 
 The connection artifact, \path{artifacts/contextbound-connection/},
-contains the complete proof, independent review and source induction for the
+contains the proof note, internal automated review and source induction for the
 next rekey of one established session. Its source map fixes fourteen files
 at \sourcecommit{} and the inspected development checkpoint. The
 self-contained checker recomputes six retained core vectors and exercises

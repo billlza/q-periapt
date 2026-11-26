@@ -1,6 +1,6 @@
-# Independent review of the joint native continuation
+# Internal automated review of the joint native continuation
 
-Final review: 2026-11-07T21:05:28.711978+00:00. The complete MD v0.3, the core TeX and the primitive appendix have been read and independently checked against the retained source/proof inputs. All three hashes match the theory author's explicit freeze. This is a hand mathematical and interface review, not a machine-checked proof.
+Final review: 2026-11-07T21:05:28.711978+00:00. The complete MD v0.3, the core TeX and the primitive appendix were inputs to an automated mathematical and interface review. The recorded hashes identify those inputs.
 
 ## Result of the completed pass
 

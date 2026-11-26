@@ -11,6 +11,10 @@ four sender turns. Testing both budgets on the seven schedules in
 Section~\ref{sec:matched-opportunities} gave 14 pairs. All 14 new
 immediate-retry runs reproduced the corresponding original rows,
 establishing the baseline for the comparison.
+Each condition uses one deterministic schedule, and the tested minimum
+retry ages are zero and four. The results describe those paired traces;
+an optimal retry age and variability over random schedules require
+additional measurements.
 
 \paragraph{A public retry clock.}
 The clock counts the sender's own turns. Each endpoint advances its
@@ -62,6 +66,12 @@ denominator. Under the offline prefix, the derived counts rose from
 32 to 33 and from 64 to 65 as those denominators rose from 612 to 878
 and from 652 to 934. The allocation histories changed within the same
 $2b-1$ bound.
+
+The reconstructed-key count also depends on the schedule. Under loss,
+it changed from 63 to 55 at $b=32$ and from 127 to 107 at $b=64$.
+Under reordering, age four still produced 508 and 547 application retries
+after first delivery, respectively. The elimination of such retries in
+the alternating runs therefore applies to that schedule.
 
 With traffic in one direction only, each policy admits and delivers
 exactly 32 or 64 applications. The remaining requests stay queued and

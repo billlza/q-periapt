@@ -1,28 +1,23 @@
 {
   "schema": "qperiapt-joint-continuation-independent-review/1",
-  "reviewer_agent": "/root/evidence",
   "reviewed_at_utc": "2026-11-07T21:19:57.815387+00:00",
-  "status": "PASS",
-  "scope": "Retain the completed v0.3 hand review (21 checks); add only targeted check22 for the actual ContextBound bit-gap to score bridge and bind frozen v0.4 MD/core TeX plus unchanged primitive appendix.",
+  "scope": "Retain the completed v0.3 automated argument review (21 checks); add only targeted check22 for the actual ContextBound bit-gap to score bridge and bind frozen v0.4 MD/core TeX plus unchanged primitive appendix.",
   "proof_version": "0.4",
   "proof_files": [
     {
       "path": "joint_continuation.md",
       "sha256": "8f69ae7dc88d378ea31c0a29c4578daf81047a47907dc2b3d4fa28761e2a7a15",
-      "bytes": 36689,
-      "author_freeze_matches": true
+      "bytes": 36689
     },
     {
       "path": "joint-continuation.tex",
       "sha256": "865b128155662d8916ef648a7852a9973e9d24f22287d29c9ec59ca191fee989",
-      "bytes": 18023,
-      "author_freeze_matches": true
+      "bytes": 18023
     },
     {
       "path": "joint-primitive-bounds.tex",
       "sha256": "8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d",
-      "bytes": 10706,
-      "author_freeze_matches": true
+      "bytes": 10706
     }
   ],
   "native_profile_version": "0.3",
@@ -218,20 +213,17 @@
       {
         "path": "joint_continuation.md",
         "sha256": "73898618516188281e5ac6c50ad9bf827c1a000c0ecc66259ba8c703b1e02aef",
-        "bytes": 35527,
-        "author_freeze_matches": true
+        "bytes": 35527
       },
       {
         "path": "joint-continuation.tex",
         "sha256": "f055eb16508e6e410631ee041298209df239bfcf4159363945fa3f7b4c11a225",
-        "bytes": 17161,
-        "author_freeze_matches": true
+        "bytes": 17161
       },
       {
         "path": "joint-primitive-bounds.tex",
         "sha256": "8f7d3cdd7fb314f8c183318667d86e1a8c762ffc5ae513716b1da40769ecd19d",
-        "bytes": 10706,
-        "author_freeze_matches": true
+        "bytes": 10706
       }
     ],
     "preserved_report": {
@@ -242,5 +234,7 @@
       "path": "independent_review_v0.3.json",
       "sha256": "d7d7d43b2491140d1ea1936c0617b9870f6f7aa56f04e408c2d2c9e25b06eda8"
     }
-  }
+  },
+  "record_type": "historical internal automated argument review",
+  "historical_assessment": "PASS"
 }

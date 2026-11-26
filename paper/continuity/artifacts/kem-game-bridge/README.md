@@ -27,9 +27,9 @@ bootstrap compositions.
 
 ## Review and evidence
 
-- `author-check.md` is the retained draft-stage argument and integration map.
+- `author-check.md` is the retained automated draft-stage argument check and integration map.
   Its status text describes the draft before integration.
-- `independent-review.md` records the separate mathematical review, including
+- `independent-review.md` records a separate automated mathematical review, including
   the static-QROM argument, the common-event coefficient and the distinct
   correctness probabilities.
 - `formal-preservation.json` compares all preceding canonical statement, proof
@@ -39,5 +39,5 @@ bootstrap compositions.
   the integrated document and independently compiled submission archive.
 
 The mathematical addition introduces no new native experiment or benchmark.
-The official FIPS 203 algorithm checks are recorded in the independent review;
+The official FIPS 203 algorithm checks are recorded in the internal review;
 historical source and execution packets retain their original identities.

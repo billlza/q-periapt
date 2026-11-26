@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "date_utc": "2026-11-08",
-  "scope": "reviewed signature-bridge proof, manuscript/prose, finite/source controls, frozen text source packet and licenses; historical receipts retain their original execution identities; self-excluding inventory",
+  "scope": "Historical self-excluding artifact inventory; see identity_baseline_commit and identity_scope.",
   "files": [
     {
       "path": "README.md",
@@ -253,5 +253,7 @@
       "bytes": 18994,
       "sha256": "612dfaa0244219602a559cee7e14c5de5dde496d0f2c72e2d86864d39071f5a4"
     }
-  ]
+  ],
+  "identity_baseline_commit": "288133c3c695d773c011d7db1f378b2958180b47",
+  "identity_scope": "The files entries identify the artifact snapshot at identity_baseline_commit, before editorial attribution corrections. These historical digests do not validate later review or README revisions."
 }

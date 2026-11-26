@@ -1,6 +1,6 @@
-# Independent review of the joint native continuation
+# Internal automated review of the joint native continuation
 
-Final targeted update: 2026-11-07T21:19:57.815387+00:00. This v0.4 record retains all 21 completed v0.3 checks and adds only check 22 for the ContextBound score bridge. The two updated mathematical sources and unchanged primitive appendix match the theory author's explicit freeze. The complete earlier hand review and its exact identities are preserved in independent_review_v0.3.md/json.
+Final targeted update: 2026-11-07T21:19:57.815387+00:00. This v0.4 record retains all 21 completed v0.3 checks and adds only check 22 for the ContextBound score bridge. The two updated mathematical sources and unchanged primitive appendix are identified by their recorded hashes. The earlier automated argument review and its input identities are preserved in independent_review_v0.3.md/json.
 
 ## Result of the completed pass
 

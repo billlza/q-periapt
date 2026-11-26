@@ -35,10 +35,15 @@ $\mathsf{AcquiredAfterSave}_c(s)$ is false, then $\tau$ contains no adversarial
 knowledge event $\mathsf K(m)$.
 \end{theorem}
 
-The theorem was checked with all 24 reusable dependencies in one Tamarin
-process. An independent replay produced a byte-identical proof certificate.
-Appendix~\ref{app:artifacts} identifies the exact query, source, toolchain,
-replay receipt and complete auxiliary-query inventory.
+Tamarin verified the main secrecy lemma and all 24 reusable dependencies
+in one process. A second replay produced a byte-identical proof certificate.
+The complete inventory contains 27 verified and 13 incomplete queries;
+eleven incomplete queries are multi-round execution witnesses, and two
+are unused historical all-trace queries. A separate source-derived checker
+validates the concrete two-round execution described below. That finite
+witness is recorded separately from the Tamarin proof certificate.
+Appendix~\ref{app:artifacts} identifies the exact queries, source, toolchain,
+replay receipt and auxiliary-query inventory.
 
 The theorem follows actual identity ownership within the modeled
 cryptographic constructors and record interface. Exposing a shared signer
@@ -49,10 +54,12 @@ a later aggregate image preserves its first-save history.
 
 \subsection{Executability and the freshness boundary}
 
-The two-round execution establishes that these recovery conditions can
-hold after an ancestor root has been exposed. A separate evaluator
-derived from the model source checks each rule instance and the global
-quantifiers of the original positive existential formula.
+The retained two-round execution provides a concrete witness after an
+ancestor root has been exposed. The source-derived evaluator checks each
+rule instance and the complete positive existential formula, including its
+global quantifiers. This finite construction supplies the current
+executability evidence while the multi-round Tamarin witness queries
+remain incomplete.
 
 The delayed-receipt construction isolates the reservation-time condition.
 It contains a pre-Cut epoch-two generation reservation and a post-Cut
@@ -93,23 +100,22 @@ reported each endpoint's last confirmed epoch, while the captured
 reservation fixed inputs for later traffic. The successful decryptions
 establish the resulting exposure beyond those confirmed epochs.
 
-\begin{proposition}[Execution-time and counter-based separation]
+\begin{observation}[Captured reservations in the recorded executions]
 \label{prop:counter-separation}
-In the native executions, computing a KEM after restart, completing
-the target epoch, and subsequently reopening the journal do not make a
-previously disclosed reservation an independent secret contribution.
-Moreover, $\min(c_A,c_B)+1$ is not a universal upper bound on the index of
-an exposed epoch.
-\end{proposition}
-\begin{proof}
-At both process-cut boundaries the captured reservation reconstructs the later
-honest KEM result exactly. Equations~\eqref{eq:root}--\eqref{eq:traffic} then
-reconstruct traffic keys from the captured predecessor root and public wires;
-authenticated decryption verifies the six corresponding plaintexts after
-completion and restart. In the delayed-receipt execution,
-$(c_A,c_B)=(0,1)$ at capture and six epoch-two plaintexts are recovered.
-Thus the proposed counter bound equals one while an exposed epoch equals two.
-\end{proof}
+At both process-cut boundaries, the captured reservation and the subsequent
+public transcript reconstructed the honest KEM result and six post-restart
+application plaintexts. In the delayed-receipt execution, the confirmed
+counters were $(c_A,c_B)=(0,1)$ at capture, while the recovered messages
+belonged to epoch two.
+\end{observation}
+
+Equations~\eqref{eq:root}--\eqref{eq:traffic} explain the reconstruction
+from the captured predecessor root, reservation and public wires; successful
+authenticated decryption checks the recorded plaintexts. This execution
+distinguishes confirmed progress from the origin of retained cryptographic
+inputs. The expression $\min(c_A,c_B)+1$ is a candidate counter-based
+heuristic considered here. The observed epoch-two exposure exceeds its
+value of one in this execution.
 
 \subsection{An aggregate write preserves the target origin}
 

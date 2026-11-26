@@ -31,12 +31,13 @@ DELIVERY_HEADER=r'''% Statistics recomputed from all 256 retained individual del
 \centering
 \small
 \caption{Same-host delivery costs between two native file journals in an
-established session. All times are in milliseconds. The 95th percentile
-uses the nearest rank among all 256 individual message intervals.}
+established session. All times are in milliseconds. The 95th and 99th
+percentiles (P95 and P99) use the nearest rank among all 256 individual
+message intervals.}
 \label{tab:delivery-latency}
-\begin{tabularx}{\linewidth}{@{}Xrrrr@{}}
+\begin{tabularx}{\linewidth}{@{}Xrrrrr@{}}
 \toprule
-Interval & Mean & Median & 95th percentile & Maximum\\
+Interval & Mean & Median & P95 & P99 & Maximum\\
 \midrule
 '''
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
@@ -76,7 +77,7 @@ def derive(base):
     denv=json.loads((base/'delivery-environment.json').read_text());assert denv['exit_code']==0 and denv['raw_sha256']==sha(raw)
     delivery={'schema':'qperiapt-local-delivery-summary-v1','samples':len(rows),'all_samples_retained':True,
               'quantile_rule':'nearest rank, ceil(p*n), one indexed','metrics':{k:stats([int(r[k])/1e6 for r in rows]) for k in ['wall_ns','process_cpu_ns','sender_wall_ns','receiver_wall_ns']}}
-    delivery_tex=DELIVERY_HEADER+''.join(label+' & '+' & '.join(f"{delivery['metrics'][name][k]:.3f}" for k in ['mean_ms','median_ms','p95_ms','max_ms'])+'\\\\\n' for name,label in [('wall_ns','Wall-clock'),('process_cpu_ns','Process CPU')])+FOOTER
+    delivery_tex=DELIVERY_HEADER+''.join(label+' & '+' & '.join(f"{delivery['metrics'][name][k]:.3f}" for k in ['mean_ms','median_ms','p95_ms','p99_ms','max_ms'])+'\\\\\n' for name,label in [('wall_ns','Wall-clock'),('process_cpu_ns','Process CPU')])+FOOTER
     return summary,delivery,tex,delivery_tex
 def verify_inventory():
     manifest=json.loads((ROOT/'MANIFEST.json').read_text())

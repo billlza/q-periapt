@@ -15,9 +15,11 @@ these outcomes. The native runs in Section~\ref{sec:established}
 identify which reservation supplied a rekey. The finite-record checks
 then ask when that source becomes readable, and the pinned reference
 snapshots measure how retained material affects exposure across seven
-schedules. Giving the native and reference protocols the same requests
-and directed opportunities connects these measurements to delivered
-service. Holding the native protocol fixed and varying retry timing
+schedules. A common request stream and opportunity budget provide a
+shared workload for recording each implementation's delivered service;
+the capture, transport and storage interfaces differ as described in
+Section~\ref{sec:matched-opportunities}. Holding the native protocol fixed
+and varying retry timing
 then isolates one cause of its service cost.
 Separate wall-clock and CPU measurements identify the cost of the
 underlying operations on a stated host.
@@ -44,9 +46,10 @@ explicit expected cases for key dependencies and later disclosures.\\
 How does retained state interact with communication opportunities? &
 Pinned component snapshots across seven schedules, with reconstructed keys
 indexed by direction, epoch and message number.\\
-How does a recovery budget trade exposure for service? &
-Native and reference runs under common directed opportunities, with separate
-first commitments, logical deliveries, derived sets and full-frame costs.\\
+What service and exposure counts occur under each allocation budget? &
+Continuity budget variants and descriptive reference runs under common
+directed opportunities, with stated capture and persistence interfaces,
+first commitments, logical deliveries, derived sets and frame costs.\\
 How does retry readiness affect completed service? &
 Paired native immediate and age-four policies with the same protocol, send
 budget, request stream and opportunity list; complete frame and durability

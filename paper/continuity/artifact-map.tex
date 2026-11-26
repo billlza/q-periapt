@@ -11,6 +11,13 @@ back to those executions. The manuscript supplies the proofs of the
 record model and computational accounting; the supplements identify
 the source correspondences and executable checks used by those arguments.
 
+Supplementary review notes were produced by internal automated checks.
+Historical filenames containing \texttt{independent\_review} or
+\texttt{author\_check} identify those records; they do not denote
+independent human peer review or author approval. The mathematical
+arguments, executed checks and verifier certificates are the evidence
+to inspect for the corresponding claims.
+
 \begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.25\linewidth}>{\raggedright\arraybackslash}p{0.69\linewidth}@{}}
 \toprule
 Result & Reproduction source\\
@@ -56,7 +63,7 @@ snapshot above by Git blob and SHA-256 identities in
 \path{analysis.json} in that directory records all 420 snapshot cases and
 the 35 configuration--schedule rows; the generated
 \path{reference-schedule-table.tex} supplies Table~\ref{tab:reference-schedules}.
-The independent review checks every displayed count and decimal mean using
+The separate arithmetic check recomputes every displayed count and decimal mean using
 separate integer arithmetic and rejects eight altered-input controls.
 
 The jointly checked certificate has SHA-256
@@ -256,7 +263,7 @@ cryptographic substrate; the original reservation, acquisition and persistent
 simulation results are developed in the present paper.
 
 The connection artifact, \path{artifacts/contextbound-connection/},
-contains the complete proof, independent review and source induction for the
+contains the proof note, internal automated review and source induction for the
 next rekey of one established session. Its source map fixes fourteen files
 at \sourcecommit{} and the inspected development checkpoint. The
 self-contained checker recomputes six retained core vectors and exercises

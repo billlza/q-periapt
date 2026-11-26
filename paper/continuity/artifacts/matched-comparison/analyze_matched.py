@@ -31,6 +31,8 @@ PROFILES = ("continuity-32", "continuity-64", "spqr-32", "spqr-64",
             "whole-kem-1", "whole-kem-32", "whole-kem-64")
 SCENARIOS = ("alternating", "lossy", "reordered", "duplicates", "asymmetric",
              "offline_then_exchange", "one_way")
+SCENARIO_LABELS = ("Alternating", "Lossy", "Reordered", "Duplicates",
+                   "9:1 asymmetric", "Offline then exchange", "One-way")
 LABELS = ("Continuity, $b=32$", "Continuity, $b=64$", "SPQR, chunk 32",
           "SPQR, chunk 64", "Whole KEM, interval 1", "Whole KEM, interval 32",
           "Whole KEM, interval 64")
@@ -229,6 +231,22 @@ def table(rows: list[dict[str, Any]]) -> str:
     lines += [r"\bottomrule", r"\end{tabular}",
               r"\caption{Native alternating communication and persistence. First application, ACK, control and application-retry columns partition the 2,048 emitted frames. All exact retries also count repeated control frames and overlap that partition. Image revisions and physical sync calls sum both endpoints.}",
               r"\label{tab:matched-accounting}", r"\end{table}", ""]
+    lines += [r"\begin{table}[t]", r"\centering", r"\small",
+              r"\setlength{\tabcolsep}{4pt}", r"\begin{tabular}{@{}lrrrr@{}}",
+              r"\toprule",
+              r"Schedule & \multicolumn{2}{c}{Continuity, $b=32$} & \multicolumn{2}{c}{SPQR, chunk 32}\\",
+              r"\cmidrule(lr){2-3}\cmidrule(lr){4-5}",
+              r" & Emitted bytes & Delivered & Emitted bytes & Delivered\\",
+              r"\midrule"]
+    for scenario, label in zip(SCENARIOS, SCENARIO_LABELS):
+        values = []
+        for profile in ("continuity-32", "spqr-32"):
+            row = by[profile, scenario]
+            values.extend((f'{row["emitted_bytes"]:,}', f'{row["delivered"]:,}'))
+        lines.append(label + " & " + " & ".join(values) + r"\\")
+    lines += [r"\bottomrule", r"\end{tabular}",
+              r"\caption{Bytes and deliveries across all seven deterministic schedules for two configurations at the same 2,048 directed opportunities. Continuity includes authenticated control, ACKs, retries and a durable journal; the SPQR harness uses the stated component interface. The figures describe those different interfaces. The complete 49-row CSV includes the other five profiles.}",
+              r"\label{tab:matched-schedule-costs}", r"\end{table}", ""]
     return "\n".join(lines)
 
 

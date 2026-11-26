@@ -184,7 +184,6 @@
     "url": "https://github.com/billlza/q-periapt/pull/119",
     "snapshot": "Local round-5 validation before updating the continuous draft PR. Manuscript workflow run 42415807123 passed on preceding head 1cd40686209d68de509d63eab0b77465b8701b54. Read subsequent remote results on the actual new head; no new-head CI result is asserted by this precommit receipt."
   },
-  "submission_metadata": "Confirmed Ziang Li and corresponding email; no additional author included; no journal submission performed.",
   "retained_joint_continuation_result": {
     "adaptive_expand": "Lemma 5.9",
     "joint_message_leaf": "Theorem 5.10",

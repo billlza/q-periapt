@@ -1,8 +1,8 @@
 \subsection{Matched directed opportunities and admitted service}
 \label{sec:matched-opportunities}
 
-The matched comparison asks how much traffic each protocol delivers while
-producing its measured exposure set. We ran native Continuity at
+The matched experiment records delivered traffic and exposure under each
+implementation's stated interfaces. We ran native Continuity at
 per-direction send budgets $b\in\{32,64\}$ and the five reference
 profiles on the same seven schedules. For each of the 49
 configuration--schedule pairs, we measured delivered traffic and the keys
@@ -12,14 +12,17 @@ source was \texttt{358b921a}.
 We used the SPQR revision and isolated chunk-width variant identified above.
 
 \paragraph{Comparison target.}
-The common request stream fixes demand, while each protocol's rules
-determine how many turns it spends on authentication, acknowledgements
-and retries, and how it persists state. The cross-profile comparison
-therefore measures the service produced by those complete rule sets.
-Within Continuity, varying the send budget between $b=32$ and $b=64$
-with the driver fixed isolates the effect of the allocation cap.
-Section~\ref{sec:retry-readiness} then fixes the budget and varies the
-first turn on which a saved ciphertext becomes eligible for retry.
+These runs describe the measured implementations under a common request
+stream and directed opportunity budget. Continuity includes authenticated
+control traffic, acknowledgements, retransmission and a durable journal.
+The reference harnesses expose component state without the same transport
+and persistence services, and their snapshot interfaces reveal different
+retained material. The cross-profile rows therefore provide descriptive
+workload and exposure accounting at their stated interfaces; they do not
+isolate the effect of the ratcheting construction. Within Continuity,
+changing the send budget with the driver fixed isolates the allocation-cap
+effect. Section~\ref{sec:retry-readiness} fixes the budget and changes only
+the minimum retry age.
 
 \paragraph{Workload and capture.}
 Each schedule contains 2,048 directed transmission opportunities, indexed
@@ -118,6 +121,12 @@ and queued demand show how much service accompanies those outcomes.
 
 \input{matched-opportunity-tables}
 
+Table~\ref{tab:matched-schedule-costs} gives emitted bytes and deliveries
+across all seven schedules for Continuity at $b=32$ and SPQR with 32-byte
+chunks. These two configurations retain the different transport, storage
+and capture interfaces described above. Each condition has one deterministic
+schedule. The complete 49-row CSV also contains the other five profiles.
+
 In the alternating schedule, reducing $b$ from 64 to 32 changes the derived
 set from 127 of 717 post-capture commitments to 63 of 687
 (Table~\ref{tab:matched-opportunities}). Both counts attain $2b-1$.
@@ -164,17 +173,19 @@ Recovery during renewed exchange is assessed through the later admitted
 allocations and their original sources.
 
 The lossy schedule drops the 205 common opportunities whose index is
-congruent to 4 modulo 10. Continuity delivers all 665 or 681 admitted
+congruent to 4 modulo 10. All these indices are even, so this schedule
+drops only $A$'s frames. Continuity delivers all 665 or 681 admitted
 applications, charging retransmissions to the opportunity budget. Each
 reference commits 2,048 component applications and delivers 1,843 under its
 declared workload without application retransmission. Network duplication
 leaves native first commitments, logical deliveries, emitted bytes, final
 epochs and derived sets equal to the alternating execution. Reordering, 9:1
 asymmetry and a 256-opportunity offline prefix complete the seven-schedule
-inventory; their request queues, exact derived sets and work counters are
-retained in the complete 49-row artifact.
+inventory. Table~\ref{tab:matched-schedule-costs} includes these schedules;
+the complete artifact also records request queues, derived sets and
+persistence work for every profile.
 
-The recorded executions generate the tables, and an independent
-calculation from the public evidence checks their entries.
+The recorded executions generate the tables, and a separate calculation
+from the public evidence checks their entries.
 Appendix~\ref{app:matched-comparison} identifies the source revision,
 execution and checks.

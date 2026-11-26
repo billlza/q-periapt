@@ -38,12 +38,15 @@ endpoints in one process. Provisioning, bootstrap, application consumption
 and the acknowledgement exchange occur outside it; no network delay or
 rekey is included.
 
-Table~\ref{tab:delivery-latency} reports mean wall time of 24.531\,ms and
-process CPU time of 18.691\,ms. The sender and receiver portions average
-16.296 and 8.236\,ms of wall time, respectively. All 256 samples are
-retained, including the largest observed wall time of 257.105\,ms. These
-values describe the stated host and native storage path. They do not
-measure mobile scheduling, SQLite/WAL performance or the time spent
-waiting for communication opportunities in the earlier workloads.
+Across the 256 recorded deliveries, wall-clock time had a mean of
+24.531\,ms, a median of 17.007\,ms, a 99th percentile of 200.311\,ms
+and a maximum of 257.105\,ms (Table~\ref{tab:delivery-latency}).
+Process CPU time averaged 18.691\,ms, with a 99th percentile of
+149.392\,ms. The sender and receiver portions averaged 16.296 and
+8.236\,ms of wall time, respectively. All samples are retained.
+These measurements characterize the stated same-host journal path;
+the experiment contains no matched implementation baseline. Mobile
+scheduling, SQLite/WAL performance and waiting for communication
+opportunities lie outside the measured interval.
 
 \input{delivery-latency-table}

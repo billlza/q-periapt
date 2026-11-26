@@ -9,8 +9,8 @@
     },
     {
       "path": "analysis/delivery-latency-table.tex",
-      "bytes": 608,
-      "sha256": "7233ff3133ae51e65149d6baa9441bcfec00edf4a07fe9365e30d84caa762d92"
+      "bytes": 646,
+      "sha256": "f3b373b76413dc2019a864ffacf545ebbbe378ba17c7b4e747129fe3bd7c53ee"
     },
     {
       "path": "analysis/primitive-table.tex",
@@ -19,8 +19,8 @@
     },
     {
       "path": "analyze_latency.py",
-      "bytes": 7925,
-      "sha256": "6668875aa6c76bba360e79875af46656db3daa64f837597e19a1b1f352e716d9"
+      "bytes": 7952,
+      "sha256": "3f273308eb565e9767a92ac13bc3243e1e13e074649ec67e2a3d77d294b95603"
     },
     {
       "path": "build/build-protocol-delivery.log",
