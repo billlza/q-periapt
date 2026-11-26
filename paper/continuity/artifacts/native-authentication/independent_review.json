@@ -1,6 +1,5 @@
 {
-  "status": "accepted",
-  "review_kind": "Independent formal mathematical composition and reduction-interface review",
+  "review_kind": "Internal automated mathematical-composition and reduction-interface review",
   "reviewed_source": {
     "path": "/workspace/scratch/084f6c1d017a/research-next/native-authentication.tex",
     "bytes": 13617,
@@ -185,5 +184,6 @@
     }
   ],
   "references_checked": 15,
-  "missing_references": []
+  "missing_references": [],
+  "historical_assessment": "accepted"
 }

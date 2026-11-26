@@ -10,7 +10,7 @@ This artifact freezes the fifth manuscript research increment, dated 7 November 
 
 `contextbound-connection.tex` is the exact frozen copy of the integrated module. `contextbound_connection.md` supplies the full experiment, proof, source reasoning, counterexamples and next extension. Its drafting reference `contextbound_source/source_audit.md` resolves here to the adjacent `source_audit.md`; no mathematical text was altered during packaging.
 
-`independent_review.md` and `independent_review.json` record the independent statement-by-statement mathematical and source cross-check, including exact input hashes. This is an independent argument review, not a machine-checked proof. `FREEZE.json` binds the final artifact files. The preceding joint-continuation v0.4 and primitive modules are retained unchanged.
+`independent_review.md` and `independent_review.json` record internal automated mathematical and source checks, including the inspected input hashes. `FREEZE.json` records the artifact identities at repository commit `f70fa0970d7cbe27718309b8da11e7db4288c0e7`, before the attribution wording was corrected. The preceding joint-continuation v0.4 and primitive modules are retained unchanged.
 
 ## Source and executable evidence
 

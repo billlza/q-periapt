@@ -1,6 +1,6 @@
-# Independent review: native selected-root authentication
+# Internal automated review: native selected-root authentication
 
-**Accepted.** The reviewed composition theorem and proof are mathematically consistent with the referenced native simulation and primitive interfaces. No mathematical blocker was identified.
+**Recorded automated assessment.** The reviewed composition theorem and proof are mathematically consistent with the referenced native simulation and primitive interfaces. No mathematical blocker was identified.
 
 Reviewed source: `research-next/native-authentication.tex`, SHA-256 `8fe4b071a27d3ccc58fc4aa37ab9f362f46daf5d0f96df7143c1bbbe957bb170` (13617 bytes). The JSON receipt pins the exact current bytes of all eleven inspected dependency modules. Repository base: `621ae301da5f479fa2401689893c78399512548e`; working-tree dependencies are identified individually.
 

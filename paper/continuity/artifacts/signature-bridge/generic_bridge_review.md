@@ -1,13 +1,13 @@
-# Independent review of the reservation signature bridge
+# Internal automated review of the reservation signature bridge
 
-Independent internal mathematical review
+Historical automated mathematical review
 Date: 2026-11-08 UTC
 
 ## Mathematical assessment
 
 The generic bridge and the direct native shared-XOF bridge have sound reductions under the interfaces stated in the draft. The native result reaches ordinary **native hedged ML-DSA EUF** in the same ROM/QROM. It uses two statistical comparisons of complete experiments; it does not assume that the real FIPS key-generation blocks are independent of their public SHAKE oracle, and it does not insert an unproved native-PRF premise.
 
-The exact reviewed draft and proposed-fragment identities are recorded separately in `independent_bridge_review_identity.json` once author revisions are stable. The draft was read in full. I independently checked the source path from the continuity framing through the backend, `try_sign_with_seed`, `DummyRng`, the internal signing algorithm, and the relevant SHAKE256 inputs. The finite controls below support specific accounting and distribution claims; the ROM/QROM argument was reviewed mathematically.
+The inspected draft and proposed-fragment identities are recorded in `independent_bridge_review_identity.json`. The automated review covered the draft and the source path from the continuity framing through the backend, `try_sign_with_seed`, `DummyRng`, the internal signing algorithm, and the relevant SHAKE256 inputs. The finite controls below support specific accounting and distribution claims; the ROM/QROM argument was reviewed mathematically.
 
 All precision requests are resolved in the reviewed versions. Query caps are fixed worst-case bounds over the relevant complete hybrid experiments; hidden-key independence is stated for the ideal query-register reduced state, with dormant registers removed. The proposed native theorem explicitly constrains the distinct-pair budget, states the companion-oracle independence, and conditions the distribution argument on both seed and key-generation output. These clarifications preserve the formulas.
 

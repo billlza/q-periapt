@@ -2,7 +2,7 @@
   "schema": "qperiapt-joc-single-source/1",
   "input_entry": "main.tex",
   "output": "joc-submission.tex",
-  "output_sha256": "7002978572012da87d2fbca24be5ab105a6836f48e47150481c595f5db30ec34",
+  "output_sha256": "7b5539634b64cc0691ef89ee10f672e7c5fb4e84d761df95044f389bd03ebce7",
   "inputs": {
     "acquisition-nonadditivity.tex": {
       "sha256": "3926d33c2c3571ee325240edf346d677f4e572e97f34607927b88bb339d7eb15",
@@ -53,8 +53,8 @@
       "bytes": 16401
     },
     "declarations.tex": {
-      "sha256": "f5bd2d2e1433dd8ae1fc19ce8a871eb9a663518a54b70d62cdc994cab4fbaf2a",
-      "bytes": 1371
+      "sha256": "99fd3cb0a0ef17638252fb30ba20a51f40c291081f6fa0c93a725cb63ddabb98",
+      "bytes": 1140
     },
     "discussion.tex": {
       "sha256": "dfaa695269f67083043a1c7da176ff24c7c9343f842352587c8b8da757f1a25c",
@@ -93,8 +93,8 @@
       "bytes": 5679
     },
     "main.tex": {
-      "sha256": "6cd59ec3cf8fce94a84579449686d088420a2836e2b86355b31b50631254bd3e",
-      "bytes": 4085
+      "sha256": "976ddab5e02e884157748beda56387ed20e0697eceafeedcbbb8f49354a1ca2b",
+      "bytes": 4006
     },
     "matched-opportunities.tex": {
       "sha256": "ae042652493acb5d0d8328071988867a8eae00e752e02d441eef4f14a800b437",

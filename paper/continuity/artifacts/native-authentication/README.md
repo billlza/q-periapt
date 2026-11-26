@@ -18,9 +18,9 @@ From the repository root:
 sh artifact/python-run.sh paper/continuity/artifacts/native-authentication/review_auth_bit_accounting.py
 ```
 
-The independent control checks 160 compatible pointwise assignments, including free and charged stops. Exact-rational countermodels distinguish the new authentication event from the confidentiality score events, joint from conditional failure probability, Boolean from signed-score costs, and selected-root from other-root histories. The recorded result is `auth_bit_accounting_controls.json`.
+The separate control implementation checks 160 compatible pointwise assignments, including free and charged stops. Exact-rational countermodels distinguish the new authentication event from the confidentiality score events, joint from conditional failure probability, Boolean from signed-score costs, and selected-root from other-root histories. The recorded result is `auth_bit_accounting_controls.json`.
 
-The mathematical review is recorded in `independent_review.json` and `independent_review.md`; it binds the accepted TeX bytes and the invoked manuscript dependencies. `author_identity.json` preserves the author's preceding cross-reference and control check. The executable controls verify finite bookkeeping identities; the theorem's cryptographic comparisons are supplied by its complete proof and referenced results.
+The internal automated review is recorded in `independent_review.json` and `independent_review.md`, with the inspected TeX bytes and manuscript dependencies. The legacy filename `author_identity.json` contains automated cross-reference and finite-control results. The executable controls verify finite bookkeeping identities; the theorem's cryptographic comparisons are supplied by its complete proof and referenced results.
 
 ## Primitive references
 
