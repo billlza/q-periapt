@@ -6,8 +6,8 @@ Which record can the reduction leave opaque? The answer depends on
 which two reservations supplied the accepted send. We therefore localize
 the score in the native experiment first: each eligible send with a unique
 usable pair is assigned to that pair, ineligible runs contribute zero,
-and eligible attribution failures remain in the original game. Each
-candidate can then be compared using the records, protected report rows
+and eligible attribution failures remain in the original game. We can then
+compare each candidate using the records, protected report rows
 and stopping rule determined by its own reservations.
 
 Let $\mathsf G_{\rm nat}$ be the full native experiment and
@@ -49,8 +49,8 @@ has not occurred and the final cut has not been selected.
 In any continuation with $E\land A\land(I=j)$, the selected session is
 $s=\mathsf{session}(o)$ and the selected cut satisfies
 $c<\mathsf{res}(o)\le\mathsf{save}(v)$.  Acquisition has already inserted
-$v$ into the cumulative archive.  Thus the continuation has acquired a version
-of $s$ saved after $c$, contradicting the original acquisition conjunct.
+$v$ into the cumulative archive. Thus the execution has already acquired a
+version of $s$ saved after $c$, contradicting the original acquisition conjunct.
 Copies, resealing, deletion, and recovery preserve this contradiction because
 the subject, original save event, and acquisition are immutable.  If the other
 reservation or challenge send never occurs, the attributed eligible event is
@@ -82,13 +82,13 @@ attributed pair, used only on $A$, and define
  \qquad
  \eta_{\rm proj}^{\rm nat}=\Pr_{\mathsf G_{\rm nat}}[E\land A\land B_I].
 \]
-These are disjoint events in one game.  In particular,
+The two residuals measure disjoint events in one game. In particular,
 \[
  \eta_{\rm proj}^{\rm nat}
  =\sum_{j\in J}\Pr_{\mathsf G_{\rm nat}}
        [E\land A\land(I=j)\land B_j].
 \]
-The native residual counts the charged event for the selected pair. For
+The projection residual counts the charged event for the selected pair. For
 the report construction, $B_j$ is the actual protected-key projection event
 for the closure induced by that candidate's source family. A projection
 affecting only another candidate therefore contributes nothing to this
@@ -121,8 +121,8 @@ $B_j$ later occurs.  On all other runs the executions and candidate scores
 agree.  This proves~\eqref{eq:local-stop-identity}.  Partition the one native
 score by attribution and its unique index; pointwise,
 $\sum_j Z_j\mathbf1_{B_j}=Z\mathbf1_{A\land B_I}$.  Substitution proves
-\eqref{eq:native-local-decomposition}.  The final index is used in this
-identity through retrospective attribution. For a quantum adversary the
+\eqref{eq:native-local-decomposition}. This identity uses the final index
+only to attribute the completed run. For a quantum adversary the
 argument compares identical classical-prefix instruments and their stopped
 continuations, retaining the native quantum-state transformations and
 oracle-query interface up to the local stop.
@@ -152,8 +152,8 @@ for $\sigma\in\{-1,+1\}$,
        -\Pr_{\widetilde{\mathsf V}^{[j]}}[\Psi_j=\sigma]\right|
  \le a_j^\sigma+\delta_j.
 \]
-Here $a_j^\sigma$ includes the complete derived distinguisher and its shared
-oracle work; $\delta_j$ is the selected pair's correctness term.  Write
+Here $a_j^\sigma$ is evaluated for the complete derived distinguisher,
+including its shared-oracle work; $\delta_j$ is the selected pair's correctness term. Write
 $b_j=\mathbb E_{\widetilde{\mathsf V}^{[j]}}\Psi_j$.
 
 \begin{proposition}[Candidate-local native accounting]
@@ -181,7 +181,7 @@ $\operatorname{Adv}_{\rm msg}=\tfrac12|\mathbb E_{\mathsf G_{\rm nat}}Z|$.
 
 The ideal continuations may have different adaptive selectors, so each
 $|b_j|$ belongs to its own continuation and remains a separate term.
-If a genuine common intermediate game and a global
+If a common intermediate game and a global
 comparison have separately been established, that shared error can instead be
 charged once before the common-game accounting. The proposition above uses
 the local comparisons available for each candidate.

@@ -58,7 +58,7 @@ The actual row is the NMAC-form expression
  \bigl(\operatorname{Iter}_h(\alpha(R),\operatorname{pad}_{64}(m))\bigr)
  \right),
 \]
-where $\operatorname{pad}_{64}$ retains the consumed-key-pad length offset.
+where $\operatorname{pad}_{64}$ includes the length offset for the consumed key pad.
 
 For completeness, $E_{F_1}(C,q)$ denotes a valid distinguishing bound for
 \[
@@ -74,7 +74,7 @@ Hosoyamada and Iwata's Proposition~4~\cite{hmacqrom2021} gives
  O\!\left(\sqrt{\frac{q_*^3}{2^{256}}}\right),
  \qquad q_*=\max\{C,q\}=o(2^{256/3}),
 \]
-with the published constants and regime retained.
+with the constants and query regime of that result.
 
 \begin{lemma}[Independent-table shared-root bound]
 \label{lem:appendix-joint-hmac}
@@ -118,7 +118,7 @@ Its restrictions
  f(s)=\mathcal F({\rm msg},s)
 \]
 are independent of one another and $h$. The row is now NMAC with independent
-inner and outer keys $A,D$. The simultaneous column is
+inner and outer keys $A,D$. The column available alongside it is
 $h(B(f(\alpha(a))),\beta(a))$. To replace the row, the NMAC reduction
 samples its own $f$ table and answers a column with three ordinary
 compression calls. Proposition~6 of Hosoyamada and Iwata
@@ -219,8 +219,8 @@ message. Its ideal reply is a fresh uniform root. It can again be
 presampled and withheld until creation, independent of the common
 oracle and all earlier state. All later confirmations, signatures,
 traffic and successor operations are recomputed from this root.
-The proof therefore supplies the initialization for
-Theorem~\ref{thm:joint-message-leaf} to the entire interactive
+This supplies the uniform-root initialization required by
+Theorem~\ref{thm:joint-message-leaf} while preserving the entire interactive
 continuation.
 
 If $B$ bounds all ordinary compression work other than this derivation
@@ -241,7 +241,7 @@ All terms count the complete continuation in their respective reductions.
 The bound retains the published asymptotic constants and their stated
 parameter regimes.
 
-The downstream length budgets are equally explicit: confirmation
+For the downstream calls, information lengths determine the budgets: confirmation
 information lengths $62,58,60$ give row messages $63,59,61$; the
 155-byte traffic information gives $156,188,188,188$; and the
 56-byte first-step information gives $57,89$. Thus the shared root row

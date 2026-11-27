@@ -8,10 +8,10 @@ supplies the public operation outputs and a shared-secret challenge while
 keeping the selected random tape private. The reduction must preserve
 the same observations even when that tape occurs in a saved image.
 
-We retain each private object's identity through a handle, together with
-its known public fields, and let the reduction sample the sealing coins.
-The original-operation adapter supplies the protocol's public computations
-through $F$. Holding $F$ fixed isolates the cost of reproducing the saved
+We represent each private object by a handle and its known public fields,
+and let the reduction sample the sealing coins. We write $F$ for the
+protocol-computation interface supplied by the original-operation adapter.
+Holding $F$ fixed isolates the cost of reproducing the saved
 images and pending intents in
 Proposition~\ref{prop:native-local-accounting}.
 
@@ -40,7 +40,7 @@ The following operations specify the interface.
   $N_i$, $C_i$ and the recipe's private blocks remain private.
   \item \emph{Intent.} A complete canonical prefix $P$ fixes the tag,
   binding, predecessor and the image-head value used in this execution.
-  Its tag determines its length. The intent bytes are
+  The tag determines the prefix length. The intent bytes are
   \[
     W_{i,P}=P\Vert B_i\Vert
        \mathsf{MAC}_{k_i}(P\Vert B_i),
@@ -69,8 +69,8 @@ The following operations specify the interface.
 All other public computation uses these replies, known inputs, $F$, and the
 shared public oracles. This is a classical record interface; the adversary
 may have quantum private state and quantum access to those public oracles.
-The successful-acquisition condition is supplied by the recovery experiment's
-existing event rule. For a fixed target session $s$ and cut $c$, acquisition
+The recovery experiment's acquisition rule supplies the stopping condition.
+For a fixed target session $s$ and cut $c$, acquisition
 of an original version $v$ with $\mathsf{subject}(v)=s$ and
 $c<\mathsf{save}(v)$ supplies such an event. Its original-record provenance
 determines that save time, including when a later aggregate carries the same
@@ -84,15 +84,17 @@ an intent table indexed by image and complete prefix, a commitment cache,
 and the directory with its provenance and acquisition ledgers. Each new
 image entry records the recipe handles, length, known fields and a sampled
 nonce. Each new intent entry records $(i,P)$ and its known length. The
-simulator samples designated-private commitments on first use and retrieves
-them on exact retry; it constructs and hashes atom-free objects normally.
+simulator samples commitments for designated private objects on first use
+and retrieves them on exact retry; it constructs and hashes atom-free
+objects normally.
 Equality is structural: images compare equal exactly when their indices
 match, and intents compare equal exactly when their pairs $(i,P)$ match.
 The storage directory determines the state recovered after a crash, including
-an acknowledged or uncertain write that actually committed. At the stipulated
-permanent-failure acquisition event the computation returns zero. Every other
-transition executes the common public code and $F$. Thus the algorithm uses
-no selected opaque block bytes.
+an acknowledged or uncertain write that actually committed. At an acquisition
+event that permanently invalidates the candidate, the computation returns
+zero. Every other transition executes the common public code and $F$.
+Thus the algorithm uses
+no bytes from the selected opaque blocks.
 
 \begin{lemma}[Structural equality of complete records]
 \label{lem:record-structural-equality}
@@ -148,8 +150,9 @@ Lemma~\ref{lem:record-structural-equality} gives agreement of equality replies.
 The common public computation consequently makes the same transitions and
 oracle calls. Copying, committed or failed writes, deletion, crash and
 resume preserve the directory invariant. An opaque acquisition emits the
-same permanent-failure event before either computation needs to return its
-unknown bytes, and both stopped scores are zero.
+same event in both executions. This event permanently invalidates the
+candidate before either execution needs to return the unknown bytes, so
+both stopped scores are zero.
 
 The next nonce is independent uniform even when the decision to seal is
 adaptive. Across at most $M$ invocations, a union bound charges
@@ -168,7 +171,7 @@ interface. Both games run the same public code, ordinary known-record
 computations, available metadata and declared stopping rule. The comparison
 counts the full distinguishing computation against their shared public oracle.
 It is a cryptographic input to the following composition, separate from the
-explicit table simulation. Appendix~\ref{app:primitive-inputs} records the
+explicit table simulation. Appendix~\ref{app:primitive-inputs} gives the
 concrete multi-record bound under fixed-input injectivity, per-nonce
 confinement and the prescribed local encryption/authentication algorithms.
 
@@ -203,5 +206,6 @@ prefixes, checks and outputs, so those computations follow the reply
 actually returned. For an adaptive origin-pair
 event $E_j$, early stopping is justified only by a computable event making
 $E_j$ false for every continuation and every still-admissible final target
-choice attributed to $j$. The disjoint-event accounting above retains this
-per-pair obligation.
+choice attributed to $j$. The candidate-local accounting in
+Proposition~\ref{prop:native-local-accounting} preserves this per-pair
+obligation.

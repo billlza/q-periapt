@@ -31,11 +31,14 @@ for the storage model and the subsequent conditional recovery argument.
 We study the next rekey of an established Q-Periapt Continuity session.
 Each endpoint maintains one authoritative history and may have passive
 copies. The adversary schedules network traffic and recovery and may
-know the predecessor root and wrapping keys. It can observe earlier
-message keys before choosing a step on the new chain. It must mark
+know the predecessor root and wrapping keys. The experiment designates
+the rekey tuple before its first private ContextBound computation, and
+the traffic entry and direction before that entry's first block allocation.
+Within that entry, the adversary can observe earlier message keys before
+choosing a step on the new chain. It must mark
 that step before either endpoint first computes it, even if the
 computation is a receive attempt that later fails. After marking, the
-observer may learn the designated successor values. It can choose the
+observer may learn the paired successor seed after derivation. It can choose the
 compromise cut at the end of the interaction.
 
 Theorem~\ref{thm:native-online-message} gives confidentiality and
@@ -44,7 +47,7 @@ and primitive assumptions. Equation~\eqref{eq:eligibility} requires
 both original KEM reservations to follow the cut. The target signing
 secrets and designated epoch entropy must remain undisclosed, and each
 version of the target session that the adversary acquires must have
-reached durable storage by the cut. The theorem bounds the unconditional
+first reached durable storage by the cut. The theorem bounds the unconditional
 eligible-message advantage and the probability of an eligible fresh
 installation whose ciphertext and associated data have no matching
 entry in the earlier honest encryption ledger for the selected key.
@@ -72,8 +75,8 @@ events including repeats. Exporting full sets adds their output size
 
 \paragraph{Following the same draw through the proof.}
 Tracking the original draw also creates a problem for the reduction.
-It may know a KEM operation's public outputs while the reserved tape
-inside the saved record remains private. A retry must nevertheless
+It may know a KEM operation's public outputs without receiving the
+reserved tape stored in the record. A retry must nevertheless
 reproduce the commitment exposed on the first attempt. We assign
 immutable handles to images and intents so that equality checks, exact
 writes and durable outcomes remain reproducible
@@ -87,8 +90,9 @@ We then follow each candidate pair through ContextBound, root
 initialization, confirmation and the directional traffic chain.
 Successive Extract and Expand comparisons isolate the marked key while
 leaving the earlier keys, its disclosed successor seed and the real
-suffix available. The allocation order in Section~\ref{sec:computation}
-ties these comparisons to the accepted send.
+suffix available. Section~\ref{sec:computation} connects these comparisons
+to the accepted send by tracking when its source, traffic entry and
+message step are first allocated.
 Table~\ref{tab:native-online-substitutions} collects the resulting costs,
 including record simulation and source attribution. Two further
 connections express those costs through ordinary primitive assumptions:
@@ -121,15 +125,15 @@ late disclosure. Pinned SPQR and whole-KEM snapshots show which
 component keys the specified predictors could reconstruct.
 
 An exposure count needs a service denominator: how many messages did the
-protocol actually send and deliver? Our 49 implementation and reference
-profile--schedule pairs share a budget of directed transmission
-opportunities, with different transport, persistence and capture
-interfaces. We count first commitments, deliveries, bytes and
+protocol actually send and deliver? We evaluate seven profiles on seven
+schedules, each with 2,048 directed transmission opportunities. Their
+transport, persistence and capture interfaces differ as specified in
+Section~\ref{sec:evaluation}. We count first commitments, deliveries, bytes and
 persistence work alongside the reconstructed keys. To test whether retry
 timing affects the service delivered within that budget, we change only
 the native retry rule. Across 14 pairs, waiting four sender turns
 increased deliveries on every bidirectional or resumed schedule tested.
-The alternating schedule retained the same number of reconstructible
+The alternating schedule yielded the same number of reconstructible
 keys. The one-way schedule exhausted the send budget and left the
 remaining requests queued. These observations connect the exposure
 measurement to the traffic the protocol was able to carry.

@@ -14,7 +14,9 @@ Reporting each newly exposed source once makes the incremental result
 follow the original operation through its copies; exporting the full
 set incurs the additional cost of its output.
 
-The recovery condition in Equation~\eqref{eq:eligibility} requires both
+However, the computational recovery result uses a stronger condition on
+record acquisition.
+Equation~\eqref{eq:eligibility} requires both
 KEM reservations to follow the cut and excludes acquisition of any target-session version first
 saved after that cut. The readable-source closure describes a broader
 storage history, in which acquisition and key disclosure can occur in
@@ -58,7 +60,7 @@ Equation~\eqref{eq:root} gives
 \[
  p_e=\operatorname{HMAC}_{R_{e-1}}(S_e).
 \]
-Once the parent root is disclosed, HMAC's key is known. The secret
+Note that disclosing the parent root makes HMAC's key known. The secret
 input available to this extraction step is the new contribution $S_e$,
 which enters HMAC as its message. Extractor and swap-PRF formulations
 study this use of HMAC~\cite{hmacswap2023,rfc5869}.
@@ -90,7 +92,7 @@ ordinary hedged ML-DSA unforgeability, with explicit replay-coupling and
 oracle-query losses
 (Theorem~\ref{thm:native-mldsa-reservation-bridge}). In the final bound the
 key-entry argument supplies recovered secret material, and the
-signature bridge justifies its attribution to the original calls.
+signature bridge justifies its attribution to those calls.
 
 \paragraph{What a delayed bootstrap confirmation establishes.}
 Suppose the initiator receives a READY proof after a restart. The
@@ -121,17 +123,17 @@ fanout~\cite{sesame2017,whatsapp2021multidevice}.
 A natural extension gives each device its own journal, with its fanout
 sessions represented as local siblings. Reservation bindings would identify
 the device, session incarnation and original operation. Each endpoint's
-session history would retain one authoritative journal. A restarted device
-then resumes its retained operation; another device continues its own
+session history would have one authoritative journal. A restarted device
+then resumes its saved operation; another device continues its own
 sessions. Synchronizing message history need not copy these pending
 cryptographic operations. Shared keys would still resolve to the same
 actual-key identity across devices.
 
-If synchronization copies a reserved tape, it keeps its original draw.
+Note that copying a reserved tape does not create a new draw.
 An unchanged copied session version also keeps its first-save event.
 A passive copy can be represented as another physical image, including any
 additional wrapping-key path. Renaming the device, resealing the copy or
-transferring ownership supplies no new randomness. If both devices advance
+transferring ownership supplies no new randomness. However, if both devices advance
 the same copied endpoint state, they introduce a fork absent from our
 current transition system. Such an extension would need exclusive ownership
 transfer or explicit fork semantics; fencing a former owner must still
@@ -174,10 +176,11 @@ not themselves establish protocol ownership, rollback freshness or
 multi-device synchronization. Keeping the application-level sealed objects
 would retain their existing encodings. The adapter work consists of the
 operation schema, recovery phases, durability settings, ownership checks
-and correspondence between physical pages and acquired records. This is an
-implementation mapping; the measured backend remains the native journal.
+and correspondence between physical pages and acquired records. This
+paragraph describes a possible SQLite/WAL implementation; our measurements
+use the native journal.
 
-\paragraph{Exposure budgets and completed service.}
+\paragraph{Exposure budgets and message delivery.}
 On the alternating schedule, reducing the send budget from 64 to 32
 reduced the reconstructed set from 127 to 63 keys. Each direction
 admits at most $b$ first allocations in the captured epoch, and the
@@ -196,7 +199,7 @@ ACKs and 40 control frames within the same 2,048 opportunities
 (Appendix~\ref{app:retry-readiness}).
 
 The extra deliveries required more bytes and persistence work in total.
-In these alternating runs both bytes and \texttt{sync\_data} calls per
+However, in these alternating runs both bytes and \texttt{sync\_data} calls per
 delivery fell. All twelve bidirectional or resumed pairs delivered more
 messages. After the offline prefix at $b=32$, the fraction of keys we
 could reconstruct fell from $32/612$ to $33/878$ because the admission
@@ -226,8 +229,8 @@ save of each acquired target-session version must fall on or before the
 cut. A copy acquired later keeps that save time. Under the assumptions
 of Theorem~\ref{thm:native-online-message}, the observer can use earlier
 keys to choose a step before either endpoint first computes it and can
-subsequently learn its designated successor seed. The selected
-application send retains confidentiality and fresh-message integrity.
+subsequently learn its designated successor seed. The theorem establishes
+confidentiality and fresh-message integrity for this send.
 This connects the recovered send to the original inputs that justify
 it: reservation, persistence and acquisition remain traceable through
 restart and replay. The service measurements then show the traffic

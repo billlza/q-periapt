@@ -2,7 +2,7 @@
 \label{sec:retry-readiness}
 
 The retry experiment tests whether delaying retransmission frees
-opportunities for completed service under the same allocation cap.
+opportunities to deliver more applications under the same allocation cap.
 Within each pair we kept the protocol source, send budget, requests,
 capture cut, cryptographic and durability interfaces, and 2,048
 transmission opportunities fixed. The only change was whether an
@@ -32,7 +32,7 @@ awaited acknowledgement.
 
 \input{retry-readiness-table}
 
-\paragraph{Completed service and frame use.}
+\paragraph{Logical deliveries and frame use.}
 Age four increased logical deliveries by 16.84--43.39\% across the
 twelve bidirectional or resumed budget--schedule pairs
 (Table~\ref{tab:retry-readiness}). On the alternating schedule,
@@ -40,22 +40,22 @@ deliveries rose from 688 to 971 at $b=32$ (41.13\%) and from 718 to
 999 at $b=64$ (39.14\%). Application retries fell from 604 to 16 and
 from 579 to 8. Neither age-four run retried a message after its first
 delivery. The immediate policy had done so 592 and 572 times. With
-requests and opportunities fixed, the paired runs attribute the service
-gain to the changed retry-readiness rule; the frame counts show the
+requests and opportunities fixed, the paired runs attribute the increase
+in deliveries to the changed retry-readiness rule; the frame counts show the
 reduction in retry work through which that gain occurred.
 
 The two age-four runs emitted 706,764 and 455,388 bytes, respectively.
-The extra service increased total byte cost, while bytes per delivery
+These extra deliveries increased total byte cost, while bytes per delivery
 fell by 11.41\% and 19.70\%. Each captured endpoint still yielded 63 or
 127 post-capture keys, out of 970 or 998 post-capture
 first commitments. Physical \texttt{sync\_data} calls rose from 14,219
 to 20,015 and from 14,579 to 20,255. Per delivery, those counts fell
 from 20.67 to 20.61 and from 20.31 to 20.28. The same distinction
-therefore applies to persistence: more completed work required more
+therefore applies to persistence: more deliveries required more
 sync calls in total and slightly fewer per delivery.
 
 \paragraph{Schedule-dependent accounting.}
-The cost of the additional service depends on the schedule. On the lossy
+The cost of the additional deliveries depends on the schedule. On the lossy
 and reordered schedules at $b=32$, the endpoints delivered 36.09\% and
 16.84\% more applications while spending 14.37\% and 3.94\% more bytes
 per delivery. First commitment and completed delivery can also separate
@@ -77,7 +77,7 @@ With traffic in one direction only, each policy admits and delivers
 exactly 32 or 64 applications. The remaining requests stay queued and
 both confirmed epochs stay at zero. Switching to age four adds one
 4,746-byte control frame and saves one 141-byte retry, a net increase
-of 4,605 bytes for the same service.
+of 4,605 bytes without changing the number of deliveries.
 
 Appendix~\ref{app:retry-readiness} identifies the driver and the checks
 that regenerate the table. The artifact records all 14 pairs, their

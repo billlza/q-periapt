@@ -10,7 +10,7 @@ $\mathcal E^{\rm src}_t$ records the identities of the sources whose
 protected values we can derive. We continue to use $\mathcal C_t$ and
 $\mathcal L_t$ for versions and $\mathcal O[v]$ for the payload of $v$.
 
-Here we fix the graph of admitted records and the public key-derivation
+For this result, we fix the graph of admitted records and the public key-derivation
 edges. Key derivation in this fragment is independent of recovered
 plaintext. The preceding interface specifies how to add an explicit
 plaintext-dependent key-extraction rule. The provenance rules supply
@@ -85,9 +85,9 @@ Key derivations depend only on disclosed keys and the fixed relation
 $\mathcal D$, so their least closure is exactly $K_t^*$.
 For the forward inclusion, take a source $o\in \mathcal E^{\rm src}_t$.
 If it was directly disclosed then $o\in \mathcal S^{\rm dir}_t$.
-Otherwise its first derivation decrypts a record $r_\ell$ with the
-matching key.  If that record was not acquired directly, its first
-availability follows by decrypting a parent.  Follow these first
+Otherwise it is first derived by decrypting a record $r_\ell$ with the
+matching key. If that record was not acquired directly, it first became
+available through decryption of a parent. Follow these first
 derivations backwards.  The finite acyclic record graph makes this
 process terminate at an acquired record $r_0$.  Every intervening key
 lies in $K_t^*$, yielding a route satisfying (GP).
@@ -139,7 +139,7 @@ children available and its sources exposed. Direct disclosures insert
 their sources immediately. Drain the queue after each input event.
 
 Every insertion is an instance of a stated derivation rule, so all
-maintained facts belong to the least closure. At an empty queue, every
+maintained facts belong to the least closure. Once the queue is empty, every
 derivation edge with a known parent has been processed. For a record
 whose two premises hold, the later arrival of those premises triggers
 its opening unless it was already opened. Thus every enabled rule has
@@ -158,7 +158,7 @@ output at most once; complete-set exports are charged separately.
 \end{proof}
 
 The graphs are fixed throughout this bound. Local deletion changes future
-acquisition availability and leaves the cumulative closure intact. A new
+acquisition opportunities and leaves the cumulative closure intact. A new
 record or derivation edge changes the indexed input and requires its own
 update accounting. An implementation using dictionaries has the
 corresponding expected bounds under constant expected lookup and insertion
@@ -193,8 +193,8 @@ of $A_t$ and therefore cannot invalidate a satisfied route.
 For a source $o$, readability has a concrete witness: an acquired record,
 a path through its nested wrappers, and the keys that open every wrapper
 on that path. Direct disclosure enters $o$ in
-$\mathcal E^{\rm src}_t$ immediately. Exactness also specifies what absence
-establishes. An absent source has no derivation from the history so far
+$\mathcal E^{\rm src}_t$ immediately. Exactness also tells us what follows
+when a source is absent: it has no derivation from the history so far
 under the declared record-decryption and fixed public key-derivation rules.
 Other ways of learning a secret, including guessing, cryptanalysis,
 timing leakage or access to a quantum decryption oracle, require their
@@ -204,7 +204,7 @@ protocol experiment.
 
 \paragraph{Native shape and finite checks.}
 The native storage nesting gives a concrete instance of these routes.
-At the fixed research source, operation reservations are encrypted under
+In the fixed source revision, operation reservations are encrypted under
 a wrapping key derived from the journal key, and tokens are retained
 within encrypted durable images or pending targets. The route therefore
 includes both the image key and the token key, joined by their actual
@@ -212,8 +212,9 @@ derivation edge. A fresh aggregate image can carry an older token and
 preserve its original source. Public image-head digests remain public
 observations; the decryption rules use the corresponding record objects.
 The executable supplement independently evaluates iterative decryption
-and guarded-route normalization, exhausts all acquisition/key/direct-source
-subsets for its declared finite graphs, and checks histories with late
+and guarded-route normalization, enumerates all subsets of acquisitions,
+key disclosures and direct-source disclosures for its declared finite graphs,
+and checks histories with late
 key disclosure and local deletion.  Its counts and source hash are in
 the accompanying machine-readable result; those checks validate the
 implemented finite model and supplement the general proof above.

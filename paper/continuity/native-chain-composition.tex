@@ -11,7 +11,7 @@ material and step from their first allocations, together with the
 original reservations and the session's acquisition history.
 
 \paragraph{The online native controller.}
-Retain the established-session live core of
+Use the established-session live core of
 Section~\ref{sec:live-core-instantiation}, with one authoritative history
 per endpoint and passive copies, and fix $1\le L\le2^{64}-1$ before
 interaction. For each fixed candidate $j=(g,a)$, designate its original
@@ -19,7 +19,7 @@ effective tuple $m^*$ immediately before its first private ContextBound
 hash computation at any protected alias, as in
 Section~\ref{sec:contextbound-connection}. Designate the complete
 traffic entry $I^*$ and direction before that entry's first block allocation.
-These designations are retained through later acceptance, recovery and
+These designations stay fixed through later acceptance, recovery and
 equal-input aliases.
 
 The controller records each computed step under $(\mathcal M,d,i)$.
@@ -31,13 +31,13 @@ its own handle even if the epoch, index or key bytes coincide.
 Immediately before a new step in the selected direction, the controller
 uses the history so far and the step's public descriptor to choose
 Continue or Mark. It can mark at most once, at an index $i<L$. An exact retry after a
-failed write finds the entry for its original step. This table belongs
+failed write retrieves the entry for the same step. This table belongs
 to the reduction. The endpoints follow their ordinary transitions and
 return their ordinary responses.
 
 For each step passed with Continue before Mark, the observer may obtain
-its message key; the prefix seed and Extract value retain private
-handles. At a marked
+its message key; the prefix seed and Extract value are represented by
+private handles. At a marked
 step $\ell$, the observer may obtain the paired successor seed
 $s_{\ell+1}$ after its derivation. This named projection is bound to
 $(\mathcal M,d,\ell)$, irrespective of subsequent progress at either
@@ -68,7 +68,7 @@ this controller's execution.
 A mark may first occur during receive-side advancement, before the
 target send is reached. Accordingly the one-key AEAD experiments below
 allow classical decryption queries before their at-most-one encryption
-call. Such earlier queries retain their actual replies. After the
+call. These earlier queries receive their actual replies. After the
 left-or-right call, an exact challenge decryption returns the existing
 authenticated marker. This operational convention preserves the
 native receive-before-send order and is included in the stated AEAD
@@ -102,8 +102,8 @@ direction and index therefore repeats the same Extract/Expand inputs.
 Record its result at first computation, including in transaction-private
 receive state. If receive authentication or a later durable update
 fails, the native state may return to an earlier counter, while this
-proof ledger retains the original result. A retried advance obtains
-that result again. Taking an already retained skipped key likewise
+proof ledger keeps the result of the first computation. A retried advance
+obtains that result again. Using a previously stored skipped key likewise
 introduces no new computation or marking opportunity. This is an
 exact representation of the deterministic native computation in
 each comparison world.
@@ -120,17 +120,17 @@ under the marked material and index. This also covers a mark whose
 first step computation occurred at the receiver.
 
 The representation invariant for images and intents carries the same
-material and step handles through their immutable versions. Acquiring
-an intact version of an occurred candidate reservation's session,
-saved at or after that reservation, certifies the existing free stop.
+material and step handles through their immutable versions. Once a candidate
+reservation has occurred, acquiring an intact version of its session
+saved at or after that reservation certifies the existing free stop.
 Lemma~\ref{lem:adaptive-origin-stop} applies before a final cut is chosen:
 every eligible cut precedes both reservations and therefore that
 acquired version's save. This certificate is independent of message
-index or marking time. Complete old or unrelated versions
-retain their ordinary correspondence. The new individual projections
+index or marking time. The established correspondence still applies to
+complete old or unrelated versions. The new individual projections
 return exactly earlier message blocks and the marked pair's successor,
 which the prefix reduction already supplies. They expose no additional
-protected record or report key. Thus the live core retains
+protected record or report key. Thus the live core still has
 $B_j=\varnothing$ and its established real-to-opaque record comparison.
 
 After the ContextBound and root-entry comparisons, the complete native
@@ -146,7 +146,7 @@ Use the original native $E,A,I$ and its residual
 $\eta_{\rm attr}^{\rm nat}=\Pr[E\wedge\neg A]$. Let
 $\varepsilon_{{\rm rec},j}$ be the record event cost in
 \eqref{eq:live-core-record-cost}, now with the complete online controller's
-budgets. The operational component adapters retain their definitions
+budgets. The operational component adapters use the same definitions
 from Section~\ref{sec:contextbound-connection}, with their output events
 evaluated in this expanded experiment. For candidate $j$, set
 \begin{equation}
@@ -279,13 +279,13 @@ partition and capping by one proves~\eqref{eq:native-online-integrity}.
 Finally, the executed-slot association proof is an induction over
 traffic installation and its originating KEM plans. Its signed-body
 and full-wire checks precede the message-index choice. Advancing,
-retaining or reopening the installed traffic entry preserves those
+saving or reopening the installed traffic entry preserves those
 origins, while the earlier-key projections only enlarge the complete
 adversarial continuation. Proposition~\ref{prop:executed-source-attribution}
 therefore gives the stated original-game attribution bound with
 its updated whole-execution resources. This term is charged once,
-and the root, record and component costs retain their displayed
-coefficients; no additional guess of the marked message index is used.
+and the displayed root, record and component coefficients are unchanged;
+no additional guess of the marked message index is used.
 \end{proof}
 
 \paragraph{Reading the bound in ordinary primitives.}
@@ -320,7 +320,7 @@ At most $\min\{1,\operatorname{Adv}^{\rm cca}(B_j^\sigma)
 $\zeta_{{\rm pre},j}^{\sigma}
 =\min\{1,q_{j,\sigma}^{-}2^{-256}+\delta_{{\rm mr},j}^{\sigma}\}$
 by Proposition~\ref{prop:kem-deferred-challenge}.
-The bound retains real prechallenge decapsulation. \\
+The comparison includes real prechallenge decapsulation. \\
 \addlinespace[3pt]
 Correctness $\delta_j$ &
 The selected pair's shared-key correctness cost from

@@ -7,9 +7,9 @@ contains the protocol snapshot used for the established runs at commit
 Each result is tied to the source revision, toolchain and output of
 the run that produced it. The table below locates the mechanized
 certificate and native observations, allowing their claims to be traced
-back to those executions. The manuscript supplies the proofs of the
-record model and computational accounting; the supplements identify
-the source correspondences and executable checks used by those arguments.
+back to those executions. We prove the results for the record model and
+derive the computational bounds in the manuscript; the supplements
+identify the source correspondences and executable checks used by those arguments.
 
 Supplementary review notes were produced by internal automated checks.
 Historical filenames containing \texttt{independent\_review} or
@@ -55,16 +55,17 @@ root-extraction and adaptive-target notes.\\
 \bottomrule
 \end{longtable}
 
-The complete seven-schedule reference comparison is reproduced by
+The complete seven-schedule reference tables can be regenerated and checked
+by running
 \path{artifacts/reference-comparison/analyze_reference.py} with
-\texttt{--check}. Its four retained corpus files are bound to the source
+\texttt{-{}-check}. Its four corpus files are bound to the source
 snapshot above by Git blob and SHA-256 identities in
 \path{artifacts/reference-comparison/source_identity.json}.
 \path{analysis.json} in that directory records all 420 snapshot cases and
 the 35 configuration--schedule rows; the generated
 \path{reference-schedule-table.tex} supplies Table~\ref{tab:reference-schedules}.
-The separate arithmetic check recomputes every displayed count and decimal mean using
-separate integer arithmetic and rejects eight altered-input controls.
+A separate arithmetic check recomputes every displayed count and decimal mean
+with integer arithmetic and rejects eight altered-input controls.
 
 The jointly checked certificate has SHA-256
 \begin{center}
@@ -72,22 +73,22 @@ The jointly checked certificate has SHA-256
 \end{center}
 Its source-base receipt identifies
 \texttt{6084f3bfb09333f6b66291b38809ed512296a27b}.
-The fixed 4 November replay retained all 40 queries and its exact tool,
-resource and output receipts. That replay's certificate and receipts
-supply the mechanized evidence inspected during manuscript preparation.
+The 4 November replay includes all 40 queries and records the exact tools,
+resources and outputs. Its certificate and receipts document the
+mechanized results used in this manuscript.
 
 
 
 \subsection{Mechanization and replay record}
 
-The theorem is the retained query
+Theorem~\ref{thm:symbolic} corresponds to the query
 \path{multi_epoch_fresh_reservations_recover_symbolic_message_secrecy}.
 Its certificate was replayed with all 24 reusable dependencies in the same
 Tamarin process. The independent 4 November replay used Tamarin 1.12.0 and
 Maude 3.5.1, one worker, a 12-GiB heap bound and the unchanged 900-second limit;
 it completed in 816.903 seconds. The output certificate was byte-identical to
-the retained input. Appendix~\ref{app:artifacts} gives its digest and archive
-member, making the theorem's exact formula and proof available for inspection.
+the input certificate. Its digest and archive member are given above,
+allowing the theorem's exact formula and proof to be inspected.
 
 Tamarin verified 27 of the 40 queries in the recorded inventory,
 including the main theorem and its dependency group. Eleven multi-round
@@ -99,7 +100,7 @@ their own checked formulas, with a separate evidence record for each.
 
 \subsection{Guarded-normalization supplement}
 
-The \href{https://github.com/billlza/q-periapt/tree/947297e59be9d7fc8febb5d81a4e2b945e328208/paper/continuity}{complete retained evidence distribution}
+The \href{https://github.com/billlza/q-periapt/tree/947297e59be9d7fc8febb5d81a4e2b945e328208/paper/continuity}{complete evidence distribution}
 is fixed at commit
 \begin{center}
 \small\texttt{947297e59be9d7fc8febb5d81a4e2b945e328208}.
@@ -107,8 +108,8 @@ is fixed at commit
 The filenames below are relative to \path{paper/continuity} in this
 snapshot, which includes the latency and both bootstrap source packages.
 The earlier commit \texttt{1c68aa666db22d36ee136be1ec712545a9e74f03}
-identifies the preceding development checkpoint. Each component keeps
-the original source and execution identities recorded in its own packet.
+identifies the preceding development checkpoint. Each component's package
+records its original source and execution identities.
 From the repository root, \texttt{make -C paper/continuity source} runs
 the integrated document and retained-evidence checks and exports the
 single-file manuscript source.
@@ -118,7 +119,7 @@ The source archive accompanying this manuscript revision contains
 artifact includes the reading copy, source archive and
 \path{source-commit.txt}, which records the exact checked manuscript
 commit. These identifiers connect the revised document to its build
-while the evidence snapshot above fixes the retained research inputs.
+while the evidence snapshot above fixes the research inputs.
 
 The explicit normalization theorem and its proof are in
 \path{guarded-provenance.tex}; the conjunctive-exposure proposition and proof
@@ -143,7 +144,7 @@ rejection. The separately named
 that motivated the guard.
 \item \path{native_source_map.json} records source correspondence for the
 journal-to-wrapping-key derivation, durable image serialization, pending
-targets and the retained aggregate-copy test. It pins five source files
+targets and the aggregate-copy test. It pins five source files
 at commit \texttt{228c944}; this inspection records no new native execution.
 \end{itemize}
 From that artifact directory, the reproduction commands are
@@ -158,9 +159,8 @@ python3 review_indexed_exposure.py --output indexed-review-results.json
 \end{quote}
 These commands reproduce the finite record evaluations and compare their
 outputs with the independent expected cases. They connect the executable
-semantics to the normalization argument. The preceding map identifies
-the source checkpoints for the native observations and Tamarin proof
-that supply the other parts of the evidence.
+semantics to the normalization argument. The preceding map connects
+each native observation and the Tamarin proof to its source checkpoint.
 
 \subsection{Constructive image/intent simulation}
 \label{app:opaque-artifacts}
@@ -168,13 +168,13 @@ that supply the other parts of the evidence.
 Section~\ref{sec:opaque-rendering} integrates the complete finite-interface
 algorithm and proof from \path{artifacts/record-rendering/opaque-renderer-v1.2.md}.
 The corresponding mathematical review is in
-\path{artifacts/record-rendering/independent-review.md}. The retained source
+\path{artifacts/record-rendering/independent-review.md}. The source
 modules defining the commitment experiment are
 \href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/docs/continuity/HIDDEN_RECORD_COMMITMENTS_V1.md}{\nolinkurl{HIDDEN_RECORD_COMMITMENTS_V1.md}}
 and
 \href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/docs/continuity/MULTI_RECORD_COMMITMENTS_V1.md}{\nolinkurl{MULTI_RECORD_COMMITMENTS_V1.md}}.
 Their actual domains and complete oracle budgets define the
-$\epsilon_{\rm com}$ term; the new table construction supplies the
+$\epsilon_{\rm com}$ term; the table construction supplies the
 image/intent implementation after that replacement.
 
 The source correspondence of Section~\ref{sec:native-correspondence} is
@@ -182,10 +182,9 @@ recorded in \path{artifacts/native-interface/native_interface_map.md} and
 \path{artifacts/native-interface/map.json}. The machine-readable map binds
 the source ranges and file identities to the fixed protocol checkpoint.
 \path{artifacts/native-interface/native_map_validation.json} records the
-source checks. The map establishes where the declared interfaces occur
-in the inspected source. The historical execution receipts identify
-the dates and source revisions on which their recorded outcomes were
-obtained.
+source checks. The map locates each declared interface in the inspected
+source. The execution receipts record when, and at which source revision,
+each native result was obtained.
 
 \subsection{Immutable report composition}
 \label{app:report-artifacts}
@@ -226,17 +225,17 @@ Section~\ref{sec:joint-continuation} and Appendix~\ref{app:joint-primitives}
 give the joint schedule and its shared-oracle primitive derivations.
 The complete proof record is
 \path{artifacts/joint-continuation/joint_continuation.md}; its separate
-review and frozen source identities are retained in the same directory.
+review and frozen source identities are in the same directory.
 The live recovery profile in \path{artifacts/live-profile/source_profile.md}
 maps the actual root, confirmation, traffic, message and ACK calls, together
 with the private application and persistent-record interfaces. The map and
 encoding inventory record the exact full information strings and source
 locations. Its 24 source files are byte-identical between the protocol pin
 \sourcecommit{} and the inspected development revision
-\texttt{1c68aa66}; this identity check is separate from the retained native
+\texttt{1c68aa66}; this identity check is separate from the native
 execution receipts.
 
-The live-core instantiation and joint authentication consequence are retained
+The live-core instantiation and joint authentication consequence are documented
 in \path{artifacts/confirmation-traffic/}. Their proof and separate reviews
 record the complete observation surface, the reservation-selector witness,
 the native confirmation cores and the original encryption ledger. The source
@@ -257,7 +256,7 @@ retain the admitted operation and its original tape. The rekey response
 module's \texttt{kem\_context} in
 \href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-identity-candidate/src/durable/messages/rekey/response.rs}{\path{research/continuity-identity-candidate/src/durable/messages/rekey/response.rs}}
 binds the complete retained offer into the application context.
-The artifact also retains an earlier Q-Periapt manuscript on ContextBound
+The artifact also includes an earlier Q-Periapt manuscript on ContextBound
 binding and implementation assurance. Those materials document the reused
 cryptographic substrate; the original reservation, acquisition and persistent
 simulation results are developed in the present paper.
@@ -266,7 +265,7 @@ The connection artifact, \path{artifacts/contextbound-connection/},
 contains the proof note, internal automated review and source induction for the
 next rekey of one established session. Its source map fixes fourteen files
 at \sourcecommit{} and the inspected development checkpoint. The
-self-contained checker recomputes six retained core vectors and exercises
+self-contained checker recomputes six recorded core vectors and exercises
 complete-tuple aliases, original-operation retries and component-challenge
 routing, with explicit incorrect-cache controls. The source audit is a
 separate command requiring the declared native revisions; its receipt records
@@ -299,8 +298,8 @@ permits available unmarked roots to become later salts; the marked root and
 all its aliases use the retained schedule handle. The review checks this
 interface and its composition with the preceding primitive bounds.
 
-The prose correspondence record in \path{artifacts/editorial-review/}
-links the current presentation to the retained mathematical inputs. Historical
+The editorial correspondence in \path{artifacts/editorial-review/}
+maps the manuscript's presentation to its mathematical sources. Historical
 proof snapshots keep their exact identities; the semantic review checks the
 current definitions, hypotheses, interfaces and budgets against them.
 
@@ -308,7 +307,7 @@ current definitions, hypotheses, interfaces and budgets against them.
 
 Section~\ref{sec:sdk-purpose-connection} uses the owned purpose-key API in
 \href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/crates/q-periapt-sdk/src/purpose.rs}{\path{crates/q-periapt-sdk/src/purpose.rs}}.
-Its complete proof and source map are retained in
+Its complete proof and source map are in
 \path{artifacts/sdk-purpose-connection/}. The map checks the effective
 information fields, HKDF calls, owner guards and retained native tests at
 the protocol pin and development checkpoint. The accompanying review
@@ -316,7 +315,7 @@ checks the variable-length compression budgets, complete-input aliases,
 owner transitions and selected-key experiment.
 
 The Rust check job at development revision \texttt{1c68aa66} passed all
-five purpose-key tests on 7 November 2026. The retained receipt lists their
+five purpose-key tests on 7 November 2026. The execution receipt lists their
 outcomes, covering the RFC~5869 vector, domain separation, dual-peer
 derivation, runtime closure, input admission and trust-root binding.
 The source correspondence and mathematical review record the additional
@@ -345,19 +344,19 @@ allocation with unchanged sources and changed complete traffic information.
 The signature checks preserve original randomizers and private-query
 ledgers across unpublished results, and enumerate the generic separation's
 64 small key/randomizer assignments. These are finite interface checks
-and exact source audits. Their receipts keep the native Rust and
-mechanized-proof execution status separate.
+and exact source audits. Their receipts report native Rust execution and
+mechanized-proof execution separately.
 
 \subsection{Reservation-to-ordinary signature connection}
 \label{app:signature-bridge}
 
 Section~\ref{sec:reservation-ordinary-bridge} has its full reduction,
-source identities, finite controls and independent internal argument review
+source identities, finite controls and a separate internal argument review
 in \path{artifacts/signature-bridge/}. The native correspondence uses
 revision \texttt{358b921ab3469ce49f166633fc9a762ff6ed7e3d} and the
 lockfile-authenticated \texttt{fips204} 0.4.6 source archive. Its upstream
 revision is \texttt{8d456d989dce681233ef963d3c3306da8f76d7c7}.
-The retained packet includes the inspected sources and their licenses, so
+The package includes the inspected sources and their licenses, so
 its identity and call-length checks run from the manuscript checkout.
 
 The controls distinguish exact pair caching from per-slot oracle queries,
@@ -375,7 +374,7 @@ controls validate the specified finite distributions and source interfaces.
 
 Section~\ref{sec:native-authentication} gives the complete selected-root
 authentication proof. Its argument review and executable accounting
-controls are retained in \path{artifacts/native-authentication/}.
+controls are in \path{artifacts/native-authentication/}.
 The controls check the native Boolean decomposition on 160 compatible
 assignments, including free and charged stops. Separate finite examples
 distinguish the selected authentication event from the confidentiality
@@ -391,12 +390,12 @@ Section~\ref{sec:matched-opportunities} uses research revision
 \texttt{fec8472060728cc1bb35cf15042c117dda00e336}, executed by GitHub run
 \href{https://github.com/billlza/q-periapt/actions/runs/42537214047}{42537214047}.
 Its checkout is the synthetic merge \texttt{0d12e77d}; preparation archives
-protocol source \texttt{358b921a} into an isolated execution tree. The retained
+protocol source \texttt{358b921a} into an isolated execution tree. The
 preparation and executable receipts identify the native driver, SPQR and its
 64-byte chunk variant, and the whole-KEM reference. The run completed all
 49 profile--schedule pairs.
 
-\path{artifacts/matched-comparison/} retains the complete executed report,
+\path{artifacts/matched-comparison/} contains the complete execution report,
 its 49-row JSON/CSV projection, original public-audit and qualification
 receipts, source digests and deterministic manuscript-table generator.
 The functions \texttt{sender()} and \texttt{schedule()} in
@@ -416,10 +415,10 @@ sets, fabricated physical counters and omitted frame-envelope work.
 The original public audit recomputed 14 native traces, 35 reference
 trace/snapshot cases and 35 public envelope schedules, and checked all 126
 public-evidence manifest entries. The hosted run performed the real native
-plaintext and reference AEAD key checks. The retained qualification receipt
+plaintext and reference AEAD key checks. The qualification receipt
 binds archive 13641008832, its SHA-256, the exact source and execution, and
 these verification outcomes. The manuscript projection preserves those
-execution identities and can be regenerated from the retained packet alone:
+execution identities and can be regenerated from this package alone:
 \begin{samepage}
 \begin{quote}
 \small
@@ -442,14 +441,14 @@ only the addition of the two experiment modules to the native test file;
 the original immediate-policy driver retains its exact bytes. The executed
 test binary is hash-bound before and after both policy runs.
 
-\path{artifacts/retry-readiness/} retains the exact compressed execution
+\path{artifacts/retry-readiness/} contains the exact compressed execution
 report, source and executable identities, fourteen paired result rows, the
 source/readiness control log and the independent public-trace audit. The
 source-bound provenance receipt identifies job 128946601334 and archive
 13650034930, checks all 42 archive members, and records fourteen passing
 source/readiness controls. The trace audit checks 29 public evidence files,
 recounts all 28 executions, and matches all fourteen fresh immediate-policy
-rows to the retained matched comparison.
+rows to the original matched comparison.
 
 The table generator checks the two policies' complete profile/schedule
 inventories, application and exposure partitions, emitted-frame classes and
@@ -470,8 +469,8 @@ python3 artifacts/retry-readiness/analyze_retry.py --check
 
 Section~\ref{sec:latency} uses the native source at
 \path{358b921ab3469ce49f166633fc9a762ff6ed7e3d}, with mlkem-native 2.0.0 and
-fips204 0.4.6. The supporting capture is retained under
-\path{artifacts/latency/}. It identifies the source files, resolved
+fips204 0.4.6. The measurement records are in
+\path{artifacts/latency/}. They identify the source files, resolved
 dependencies, compiler, build options, executable and host environment.
 The primitive harness first checks KEM agreement and signature acceptance
 and rejection on all 64 input cases. It rotates operation order between
@@ -479,21 +478,21 @@ batches and retains all 1,600 measured calls for each operation.
 Wall time uses \texttt{CLOCK\_MONOTONIC\_RAW}; CPU time uses
 \texttt{CLOCK\_PROCESS\_CPUTIME\_ID}. The CPU interval encloses the wall-clock
 reads, and no timer overhead is subtracted. Means divide the accumulated
-batch times by the total number of calls. The retained batch dispersion
+batch times by the total number of calls. The recorded batch dispersion
 does not measure the tail latency of individual calls.
 
-The delivery capture records 16 independent established pairs with two
-distinct file journals each. Its 256 measured intervals contain 128 sends
+The delivery measurements cover 16 independently established pairs with two
+distinct file journals each. The 256 measured intervals contain 128 sends
 in each direction, after two warm-up deliveries per pair. The payload,
 message identifier and returned plaintext are checked for every delivery;
 sender and receiver wall times sum to the complete interval. Provisioning
 and the acknowledgement exchange are outside the measurement. The source
 map follows the public journal calls through pending-intent reservation
 and application to the native file backend's immediate two-phase commits.
-The separate attempted system-call trace was unavailable because the
-capture environment disallowed tracing. No observed synchronization-call
-count is claimed for this timing capture.
-The retained values and both manuscript tables are regenerated and checked
+Our attempt to trace system calls was blocked by the capture environment.
+We therefore report no observed synchronization-call count for this timing
+capture.
+The recorded values and both manuscript tables are regenerated and checked
 with:
 \begin{verbatim}
 python3 artifacts/latency/analyze_latency.py --check
@@ -503,7 +502,7 @@ python3 artifacts/latency/analyze_latency.py --check
 \label{app:chain-prefix}
 
 The complete proof and source correspondence for
-Theorem~\ref{thm:online-chain-leaf} are retained in
+Theorem~\ref{thm:online-chain-leaf} are in
 \path{artifacts/chain-prefix/}. Three native files retain identical
 source identities at the original pin \texttt{228c944f} and inspected
 integration checkpoint \texttt{6a0ac0bb}. They identify the fixed-width
@@ -529,7 +528,7 @@ python3 artifacts/chain-prefix/check_prefix.py
 \label{app:native-online-chain}
 
 The original-experiment composition of
-Theorem~\ref{thm:native-online-message} is retained in
+Theorem~\ref{thm:native-online-message} is in
 \path{artifacts/native-online-chain/}. Its source map binds six native
 files to the original evidence pin \texttt{228c944f} and inspected
 integration checkpoint \texttt{a4c08957}. The identical source blobs
@@ -559,7 +558,7 @@ python3 artifacts/native-online-chain/check_native_chain.py
 
 The complete reduction of
 Proposition~\ref{prop:kem-deferred-challenge}, its source-algorithm
-locators and separate argument review are retained in
+locators and separate argument review are in
 \path{artifacts/kem-game-bridge/}. The ordinary-game adversary withholds
 its challenge through the real decapsulation prefix. A common
 prechallenge intersection event gives one additional cost for each
@@ -574,9 +573,9 @@ timing and classical component calls by a quantum adversary.
 \subsection{Bootstrap source and terminal connection}
 \label{app:bootstrap-artifacts}
 
-The bootstrap supplement is retained in \path{artifacts/bootstrap/}.
-Its entry, terminal-schedule, original reply-source and original initial-source packets retain their
-complete proof notes, source identities, executable controls and original
+The bootstrap supplement is in \path{artifacts/bootstrap/}.
+Its entry, terminal-schedule, original reply-source and original initial-source
+packages contain their complete proof notes, source identities, executable controls and original
 results. The four assessments use \texttt{b1cff2a0}, \texttt{360aa810},
 \texttt{68549dbc} and \texttt{471900bf}, respectively. Each source
 snapshot records the full commit identity, Git blob and SHA-256 checks.

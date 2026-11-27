@@ -28,12 +28,12 @@ state and observations. Let
 For $j\in J$, define $V_j$ as the full experiment with the adapter's random
 component override at pair $j$. Its transcript, eligibility and target choice
 are recomputed in that world. The remaining protocol and oracle calls use
-the same common interfaces.
+the common interfaces.
 
 The application test bit is sampled by the surrounding simulator. Write
 $S=+1$ for a correct guess and $S=-1$ otherwise; invalid tests contribute zero
-through $E$. Every $E=0$ execution is completed by an independent fair guess. Thus the
-usual message-guessing advantage is
+through $E$. Every $E=0$ execution is completed by an independent fair guess.
+Thus the usual message-guessing advantage is
 $\tfrac12|\mathbb E[E S]|$.
 The simulator can evaluate this score without observing the hidden bit of its
 component KEM challenger.
@@ -85,7 +85,7 @@ positive-event probability minus the negative-event probability. Applying
 \eqref{eq:component-hop} to those two events and then the triangle inequality
 bounds its distance from $b_j$ by
 $a_j^++a_j^-+2\delta_j$. Summing gives the virtual score bound.
-The two native/virtual binary-event comparisons contribute at most
+The two binary-event comparisons between the native and virtual games contribute at most
 $2\epsilon_{\rm rec}$ to the score difference. Dividing by two and using the
 maximum bit-guessing advantage proves \eqref{eq:accounting}.
 \end{proof}

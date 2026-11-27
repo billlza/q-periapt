@@ -13,8 +13,8 @@ and replies are classical.
 
 \paragraph{Native transcripts and application interface.}
 Write $\mathcal H_L(x)=H(\operatorname{LP}(D\Vert L)
-\Vert\operatorname{LP}(x))$, with $\operatorname{LP}$ the source's
-eight-byte length prefix. For $d\in\{r,f,a\}$, let $C_d$ be the responder,
+\Vert\operatorname{LP}(x))$, where $\operatorname{LP}$ prefixes each input
+with an eight-byte encoding of its length. For $d\in\{r,f,a\}$, let $C_d$ be the responder,
 final or receipt confirmation key. The tag is
 \begin{equation}
 \begin{aligned}
@@ -29,15 +29,15 @@ session, current and target epochs, sender role, control parent, digest of
 the complete signed offer, and hybrid ciphertext. The final core contains
 its corresponding control prefix, the offer and response wire digests,
 and the old sending-chain length. The receipt additionally contains the
-complete final-wire digest. Their respective source lengths are 1305,
+complete final-wire digest. Their respective encoded lengths are 1305,
 225 and 257 bytes. Every MAC input in~\eqref{eq:native-confirmation-tag}
 has 32 bytes.
 
 The native verifier checks the complete prefix, body width and identity
 signature before the relevant MAC verification. The public result follows
-the actual success, failure, persistence and status transitions. The MAC
-comparison may therefore give the reduction the expected tag internally;
-the verification caller obtains the native result. Every honest tag
+the actual success, failure, persistence and status transitions. For the MAC
+comparison, the reduction may obtain the expected tag internally;
+the verification caller still obtains the native result. Every honest tag
 construction enters a ghost origin ledger at its first private
 computation, before a subsequent write or release. Verification
 computations have their own query ledger. Exact repetitions and matching
@@ -58,8 +58,8 @@ $(\mathit{AAD},\mathit{ciphertext})$ pair and original send identity.
 Retries retrieve its cached result through Resume. Plaintext delivery
 belongs to the private application. A fresh authenticated receive means
 a successful AEAD check followed by installation of the corresponding
-native inbox entry. The source's \texttt{PreviouslyConsumed} result is
-a historical consumption status. An existing inbox entry retains its
+native inbox entry. The native \texttt{PreviouslyConsumed} result reports
+a prior consumption. An existing inbox entry retains its
 original authenticated receive-intent digest and plaintext; a cached
 return refers to that earlier receive.
 
@@ -105,8 +105,8 @@ an admissible bound is
  \chi_H(Q)=\min\{1,C_{\rm col}(Q+2)^3 2^{-256}\},
 \]
 with the universal constant of the quantum collision theorem
-\cite[Theorem~7]{zhandryCollision2015}. The operational notation retains
-that constant.
+\cite[Theorem~7]{zhandryCollision2015}. We keep that constant explicit
+in the operational bound.
 
 Finally, let $\varepsilon_{\rm INT}$ bound a quantum adversary's success
 in the one-key, at-most-one-encryption ciphertext-integrity experiment

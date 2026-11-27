@@ -39,18 +39,18 @@ Compute an online protection flag before using the fresh key:
  \right].
  \label{eq:report-protection}
 \end{equation}
-This is forward closure under raw-key dependencies.  It need not propagate
-through a previously returned tag.  The flag uses origin references, not
+Protection propagates forward through raw-key dependencies. Including only
+a previously returned tag need not propagate protection. The flag uses origin references, not
 actual key equality or the primitive challenger's bit, and is recomputed in
 each comparison world's history.
 
 When the protocol creates a report, it computes
-$t_i=\operatorname{HMAC}_h(K_i,m_i)$ and retains the actual nonzero-ID check,
-encoding errors, and persistence outcomes.  Replay or validation names the
+$t_i=\operatorname{HMAC}_h(K_i,m_i)$, performs the actual nonzero-ID check,
+and preserves encoding errors and persistence outcomes. Replay or validation names the
 original report and uses that same $m_i$; supplied identifiers can be compared
 with its retained tag.  This operation does not submit changed private bytes
 as a new transcript under $K_i$.  Acknowledgement, terminal-tag comparison,
-copying, and crash recovery preserve their ordinary original-handle semantics.
+copying, and crash recovery continue to use the original report handles.
 Private storage uses the explicit recipe tables of the opaque-record
 interface, including its already idealized commitments and its separate error
 accounting.  Public report bodies and other outputs use available inputs or
@@ -69,7 +69,7 @@ selected-session acquisition or a new freshness failure.
 \paragraph{One-row bound and hybrids.}
 Use one public compression oracle $h$ for all rows and quantum queries.
 The one-row experiment draws a uniform hidden 256-bit key $K$, independently
-of $h$ and oracle-independent initial auxiliary state. The algorithm performs
+of $h$ and of the oracle-independent initial auxiliary state. The algorithm performs
 its complete counted preparation and chooses one classical transcript $m$ of
 length at most $L$ without a raw-key input. Its first row query returns either
 $\operatorname{HMAC}_h(K,m)$ or an independent uniform 256-bit tag; at most
@@ -135,7 +135,7 @@ $\mathsf{KeyRef}(i)$.  The transcript $m_i$ is computable: it excludes its own
 key, all referenced earlier keys were locally sampled, and the source atoms
 are still available at this proof stage.  Submit this actual transcript to
 the row oracle when its first MAC call is reached, retain its reply, and run
-the original nonzero and persistence checks.
+the protocol's nonzero and persistence checks.
 
 Maintain the original-report, key-origin, recipe, durable-state, and event
 tables.  Every available output agrees with the selected hybrid.  Earlier
@@ -153,13 +153,14 @@ using the actual returned tags.
 For replay and validation, the selected row is called only on its original
 $m_i$; preserve each counted recomputation and compare supplied identifiers
 with its retained reply.  Copying, failure after a durable commit, and
-crash/resume use the same immutable handles and the actual reached storage
-state. Each report retains its original key and immutable transcript. Public decisions
-use available metadata and common-interface outputs.  Before an outward
-protected-key projection, the same ledger event
-$\mathsf{Bad}_{\rm rep}$ enters the common stopped state with application
-score zero; any allowed terminal-bit postprocessing uses that state.  No
-unavailable key bytes are serialized.  Unprotected-key fragments retain their known bytes.
+crash/resume use the same immutable handles and the storage state actually
+reached. Each report retains its original key and immutable transcript.
+Public decisions use available metadata and common-interface outputs.
+Before an outward protected-key projection, the simulation detects the same
+ledger event $\mathsf{Bad}_{\rm rep}$ and enters the common stopped state
+with application score zero. Any allowed terminal-bit postprocessing uses
+that state. No unavailable key bytes are serialized. Unprotected-key
+fragments use their known bytes.
 This gives an explicit online simulation throughout the continuation.
 
 The selected real row therefore produces $H_i$, and its ideal counterpart
@@ -234,11 +235,10 @@ before KEM embedding. Afterwards every protected row needs only its original
 cached tag, and every unprotected recipe is free of $\mathcal X$ and protected
 raw-key dependencies. This is what lets the report layer generate and
 validate immutable tags using opaque source handles. To connect that
-construction to the native experiment, we first charge the actual
-eligible-exposure residual, then use a private-record correspondence proved
-for the explicitly stopped native interface, and finally apply the report
-hybrids.
-This record hop retains its own comparison error and acquisition rules. For
+construction to the native experiment, we first charge the residual for
+eligible exposures. We then use the private-record correspondence for the
+explicitly stopped native interface and apply the report hybrids.
+This record comparison has its own error and acquisition rules. For
 key-only fragments, that correspondence requires an explicit mapping of
 their actual provenance and justification of every permanent-ineligibility
 premise used by the renderer.

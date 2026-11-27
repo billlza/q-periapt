@@ -8,7 +8,16 @@ The repository maintains one manuscript on **`paper/joc-persistent-recovery`**. 
 
 ## Research structure
 
-The current revision makes the bootstrap verification budget and the
+The latest language revision preserves the author's explanatory voice while
+replacing repetitive archival wording with concrete actions. It also makes
+the existing selection boundaries and experimental measurements easier to
+read. The mathematical expressions, theorem structure, table values and
+research inputs are unchanged. The current 133-page reading copy and its
+independent source-export build are identified in
+[`integration_record.json`](integration_record.json), together with the
+source comparison and rendered-page checks for this revision.
+
+The manuscript makes the bootstrap verification budget and the
 per-nonce record-comparison interface explicit, brings the recovery and
 selection conditions together, and compares the provenance model with
 updatable encryption. It also fixes the complete retained evidence at

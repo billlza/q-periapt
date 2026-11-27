@@ -60,27 +60,29 @@
 \affil[1]{\orgdiv{Department of Engineering}, \orgname{Durham University}, \orgaddress{\city{Durham}, \country{United Kingdom}}}
 \abstract{Crash recovery can resume a key exchange with randomness saved
 before compromise. We analyse this persistence policy in Q-Periapt
-Continuity by tracking the operation that reserved each random input and
-the stored versions that contain it. For an executed-slot selection after
-the next rekey of an established session, we derive confidentiality and
-fresh-message integrity for one application send chosen before either
-endpoint computes its key. Both KEM reservations must follow the
-compromise cut; every acquired target-session version must have been
-durably saved by the cut. The target signing secrets and designated
+Continuity by tracking where each random input was reserved and which
+stored versions contain it. For the next rekey of an established session,
+we identify the source reservations through the private KEM computations that
+first use them.
+We prove confidentiality and fresh-message integrity for one application
+send. The rekey tuple, traffic entry and direction are designated before
+their first protected uses; the message step is selected online before
+its first private computation at either endpoint. Both KEM reservations must occur after
+the compromise cut. Every acquired target-session version must have first
+reached durable storage by that cut; target signing secrets and designated
 epoch entropy remain undisclosed throughout the execution. The observer
 may use earlier message keys to select the target, learn its successor
 seed after derivation, and choose the cut after interaction.
 The reduction reproduces commitments and exact retries from public
-operation outputs while the reserved tape is private. Its bound accounts
-for record simulation, executed-source attribution, ordinary ML-KEM and
+operation outputs without receiving the reserved tape. Its bound connects
+record simulation and source attribution to ordinary ML-KEM and
 hedged ML-DSA security, shared-oracle key derivation and authenticated
-encryption in the stated quantum random-oracle models. Separately, a
-fixed-graph exposure model tracks readable sources when record acquisition
-and wrapping-key disclosure occur in either order, using indexed Horn
-propagation. A symbolic secrecy theorem covers unbounded epochs under
-its provenance condition. Deterministic executions document reservation
-exposure, admitted service and two retry policies. Component-reference runs
-use different transport, persistence and capture interfaces.}
+encryption in the stated quantum random-oracle models. Separately, indexed
+Horn propagation tracks readable sources on a fixed graph when record
+acquisition and wrapping-key disclosure occur in either order. A symbolic
+secrecy theorem covers unbounded epochs under its provenance condition.
+Deterministic executions demonstrate reservation exposure and measure
+message delivery under two retry policies.}
 \keywords{Post-compromise security, Persistent state, Randomness reservations, Ratcheting protocols, Record exposure, Provable security, Post-quantum cryptography}
 \maketitle
 

@@ -1,13 +1,13 @@
-\section{Exposure, communication and admitted service}
+\section{Exposure, communication and message delivery}
 \label{sec:evaluation}
 
-An exposure count acquires its meaning from the traffic admitted under
-the same workload. In our one-way control with a send budget of 32,
-the endpoints delivered 32 of the 2,048 requests. They had committed
+An exposure count needs to be read alongside the traffic committed and
+delivered under the same workload. In our one-way control with a send
+budget of 32, the endpoints delivered 32 of the 2,048 requests. They had committed
 one before capture, and we reconstructed the keys for all 31 committed
 after it. The other 2,016 requests remained queued when the budget ran
-out. This run therefore demonstrates an admission limit with a measured
-backlog; every admitted post-capture message was exposed.
+out. The send budget stopped new commitments and left a measured
+backlog; every message committed after capture was exposed.
 
 We report first commitments and completed deliveries alongside
 reconstructed keys, emitted bytes and persistence work to distinguish
@@ -16,11 +16,11 @@ identify which reservation supplied a rekey. The finite-record checks
 then ask when that source becomes readable, and the pinned reference
 snapshots measure how retained material affects exposure across seven
 schedules. A common request stream and opportunity budget provide a
-shared workload for recording each implementation's delivered service;
+shared workload for counting each implementation's deliveries;
 the capture, transport and storage interfaces differ as described in
 Section~\ref{sec:matched-opportunities}. Holding the native protocol fixed
-and varying retry timing
-then isolates one cause of its service cost.
+and varying retry timing then isolates the retry rule's effect on
+deliveries and costs.
 Separate wall-clock and CPU measurements identify the cost of the
 underlying operations on a stated host.
 Table~\ref{tab:validation-questions} connects each question to its
@@ -28,7 +28,7 @@ measurement.
 
 \begin{table}[t]
 \centering
-\caption{Research questions and their validation objects. Native plaintext
+\caption{Research questions, measurements and checks. Native plaintext
 recovery, finite-model equality and component key derivation are recorded as
 separate outcomes.}
 \label{tab:validation-questions}
@@ -46,11 +46,11 @@ explicit expected cases for key dependencies and later disclosures.\\
 How does retained state interact with communication opportunities? &
 Pinned component snapshots across seven schedules, with reconstructed keys
 indexed by direction, epoch and message number.\\
-What service and exposure counts occur under each allocation budget? &
+What commitment, delivery and reconstructed-key counts occur under each allocation budget? &
 Continuity budget variants and descriptive reference runs under common
 directed opportunities, with stated capture and persistence interfaces,
 first commitments, logical deliveries, derived sets and frame costs.\\
-How does retry readiness affect completed service? &
+How does retry readiness affect logical deliveries? &
 Paired native immediate and age-four policies with the same protocol, send
 budget, request stream and opportunity list; complete frame and durability
 accounting.\\
@@ -139,7 +139,7 @@ execution modes that disable its assertions.
 
 \paragraph{Indexed closure and cumulative histories.}
 The indexed realization of Proposition~\ref{prop:guarded-worklist} agrees
-with both retained evaluators on all 5,360 assignments. This comparison
+with both evaluators on all 5,360 assignments. This comparison
 checks the complete source, record and key sets against iterative decryption,
 and the source set against guarded paths. The incremental implementation
 also agrees with fresh iterative evaluation at 2,189 prefixes: the 360 legal
@@ -153,10 +153,10 @@ model with the indexed result in all three sorts. Every comparison agrees.
 
 The structural-work controls test the mechanism behind the indexed cost
 bound. For a key-derivation chain with $m$ edges listed in reverse order,
-the retained scan performs $m(m+1)$ key-edge visits, while the indexed
+the scan-based evaluator performs $m(m+1)$ key-edge visits, while the indexed
 evaluator visits each edge once. Table~\ref{tab:indexed-key-work} records
 the executed cases. Counting key-derivation incidences isolates the work
-caused by rescanning; the machine-readable result also retains queue and
+caused by rescanning; the machine-readable result also records queue and
 record visits.
 
 \begin{table}[t]
@@ -198,8 +198,10 @@ cases for SPQR at revision
 \path{f2589fef855c10f39d72634dab3d14654dd410bf}. The authenticated
 whole-KEM controls at local-send intervals 1, 32 and 64 contributed
 252 cases. Together these four profiles account for 28 combinations
-and 336 snapshots. An isolated SPQR variant with its own source
-identity contributed the remaining 84. In all, the comparison covers
+and 336 snapshots. The isolated 64-byte SPQR variant, identified as
+\texttt{experimental\_chunk64} in
+\href{https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/research/continuity-spqr-reference/variants/README.md}{the variant specification},
+contributed the remaining 84. In all, the comparison covers
 35 profile--schedule combinations and 420 snapshots. The 32- and
 64-byte SPQR labels specify the polynomial chunk width.
 
@@ -250,14 +252,14 @@ reduced the alternating count from 172 keys to 88. The wider chunks cost
 58.971 component bytes per send on average, up from 32.150. Under 9:1
 traffic the corresponding key counts were 748 and 388
 (Table~\ref{tab:reference-schedules}). The chunk-width comparison thus
-shows the measured exchange between component traffic and the retained
-state's future reach under each schedule.
+shows the measured trade-off between component traffic and the number of
+future keys reconstructed from the snapshot under each schedule.
 
 With the whole-KEM interval fixed at 32, changing the schedule from
 alternating to 9:1 cut the mean component traffic per send from 44.047
 to 21.031 bytes. At the same capture point the predictor recovered 338
-of the next 2,047 keys, up from 66. The bandwidth saving and the larger
-exposed set occurred in the same workload.
+of the next 2,047 keys, up from 66. The lower byte cost and the larger
+reconstructed set occurred in the same workload.
 
 The offline prefix explains why the configured update interval alone is
 insufficient to determine the observed exposure. For the whole-KEM

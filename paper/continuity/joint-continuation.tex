@@ -45,8 +45,8 @@ versus private-random-function bound for one uniform hidden key and
 \emph{multiple adaptive messages}. This differs from the immutable report
 row experiment. Finally, $\varepsilon_{\rm Hcol}(q)$ bounds one distinct
 zero-salt evaluation $F(0,S)$, for hidden uniform $S$, versus an independent
-uniform reply; exact repeats reuse it. The retained compression-QROM
-arguments give admissible bounds for these operational experiments.
+uniform reply; exact repeats reuse it. Appendix~\ref{app:joint-primitives}
+derives admissible bounds for these experiments in the compression QROM.
 
 \paragraph{The finite continuation.}
 The initial root $R$ is sampled independently of $h$ and the initial
@@ -87,7 +87,7 @@ At most $M\ge1$ distinct traffic information strings have the native form
 \end{split}
  \label{eq:joint-traffic-info}
 \end{equation}
-It may be chosen after the response confirmation and its signature: the
+Each string may be chosen after the response confirmation and its signature: the
 native transcript digest hashes the complete offer and response wires.
 Every repeated complete $I_T$ reuses its entry, regardless of endpoint or
 wire representation. At the first allocation of one new string $I^*$,
@@ -118,8 +118,8 @@ A repeated $I^*$ remains the same protected entry.
 Real ACK computation and arbitrary candidate-ACK verification
 remain available. Subsequent chain computations use $s'$ honestly.
 The selected key $K$ has only its declared application encryption/decryption
-use. Current-root, PRK, old selected-seed and message-key bytes have no
-separate public return, comparison or hashing interface. Private persistence
+use. The bytes of the current root, PRKs, old selected seed and message key
+have no separate public return, comparison or hashing interface. Private persistence
 uses an already justified opaque interface; original candidate-local stops
 and projection accounting remain in force.
 
@@ -146,9 +146,9 @@ outputs and public-oracle computation.
 The confirmation information lengths are $62,58,60$ bytes and each traffic
 information length is $155$, so their table entries differ even if the
 zero and session salts share a PRK. The marked $I^*$ is also distinct from
-every earlier traffic entry. Importantly, this exact rewrite removes
+every earlier traffic entry. This exact rewrite also removes
 the internal parent-row inputs containing a preceding secret block.
-Because that row has no other interface, they leave no extra use of the
+Because that row has no other interface, the rewrite leaves no extra use of the
 selected traffic seed. Public quantum-oracle computation is unchanged.
 \end{proof}
 
@@ -188,7 +188,7 @@ $2\Delta_{\rm sched}$. The second PRK-row term is omitted when the interface
 itself rules out a second class.
 \end{theorem}
 \begin{proof}
-First give every current-root column and row call to the joint primitive
+First route every current-root column and row call to the joint primitive
 experiment. Their replies suffice to compute all Expands, confirmations,
 signatures, traffic and successor roots. In particular, disclosed successor
 contributions and roots require no raw current root. This gives the first
@@ -198,8 +198,8 @@ Next replace the at most two column-PRK rows in class-allocation order.
 Preallocate the zero-salt class privately if necessary; a second class
 exists only when $\Gamma(s)\ne\Gamma(0)$. For a designated class, install
 the row primitive's hidden uniform key as its first $V$ reply, withheld
-until allocation. The identifier is computed from known salts and $h$;
-it does not inspect the private reply. Every equal $\Gamma$ reuses this
+until allocation. The class identifier is computed from known salts and $h$;
+it does not depend on the private reply. Equal $\Gamma$ values reuse this
 handle. Answer Expands by querying the challenge row on the actual
 successive messages. Their output blocks are known, so real MACs,
 verifications, signatures and continuation can all be performed.
@@ -213,13 +213,14 @@ $4M$. A never-allocated class causes no challenge call. Their total is at
 most $3+4M$; the separate worst-case budgets avoid conditioning a
 primitive bound on the oracle-dependent class-equality event.
 
-Independent $V$ replies may coincide numerically. No inequality is assumed:
+Independent $V$ replies may coincide numerically. We do not assume distinct values:
 known-key computations are performed through the same $h$, including
 accidental overlap with the challenge key, and are counted by the
 primitive experiment. An ideal row is the declared hybrid replacement.
 Intentional $\Gamma$ aliases share that row in every game.
 
-Apply Lemma~\ref{lem:joint-expand-blocks} exactly. The selected traffic seed
+Use the exact block-table representation of Lemma~\ref{lem:joint-expand-blocks}.
+The selected traffic seed
 is now a fresh independent block, and its parent no longer exposes an
 input containing it. Presample the single-column challenge seed and
 install it at the newly marked entry before its blocks are produced.
@@ -287,7 +288,7 @@ Under the application interface above,
 \begin{proof}
 Theorem~\ref{thm:joint-message-leaf}, applied for each fixed $b$ and
 averaged, changes this score by at most $2\Delta_{\rm sched}$.
-In $G_{\rm leaf}$ give the selected encryption/decryption operations
+In $G_{\rm leaf}$ route the selected encryption/decryption operations
 to the AEAD challenger and sample every other block locally.
 Confirmation, ACK, successor-root and subsequent-chain computation uses
 known material and the same public oracle. Cache the first encryption
@@ -320,8 +321,9 @@ previous root $r$ and public response core, the actual derivation is
 Its information string has 97 bytes and its sole Expand message has 98.
 Suppose this is one original Extract/Expand, with exact repeats cached,
 and $S,P$ have no additional raw-use or disclosure channel.
-The retained root-initialization lemma applies with the entire controller
-above as continuation, at bit cost $\Delta_{\rm init}$. Its ideal reply
+The root-initialization argument in Appendix~\ref{app:joint-root-entry}
+applies with the entire controller above as continuation, at bit cost
+$\Delta_{\rm init}$. Its ideal reply
 can be presampled and withheld, providing precisely the joint uniform
 root initialization required here. Regenerating confirmations, signatures,
 traffic and future epochs preserves their dependence on the replacement
@@ -337,10 +339,10 @@ Consequently,
  +2\Delta_{{\rm sched},j}
  +2\varepsilon_{{\rm AEAD},j}.
 \]
-The native accounting term
+Recall that the native accounting term
 $b_j=\mathbb E_{\widetilde{\mathsf V}^{[j]}}\Psi_j$ belongs instead to
 the random-component game, which may still use the real ContextBound
-combiner. If its actual complete comparison to
+combiner. If a comparison of this full game with
 $\mathsf W_{\rm cont}^{[j]}$ has bit gap at most
 $\varepsilon_{{\rm CB},j}$, then
 \[
@@ -350,8 +352,8 @@ $\varepsilon_{{\rm CB},j}$, then
 \]
 This comparison retains the controller, query interfaces and score/event
 code, counts all shared-oracle preparation and continuation, and recomputes
-events within each game's execution. Its actual tuple and disclosure
-conditions must hold. The randomized test with success probability
+events within each game's execution. Its tuple and disclosure conditions
+must hold. The randomized test with success probability
 $(\Psi_j+1)/2$ gives the first inequality; the second is the triangle
 inequality. Together these comparisons bound the specified continuation
 with known old roots and the allowed later disclosures. Native

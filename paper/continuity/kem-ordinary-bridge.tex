@@ -30,9 +30,8 @@ failure probability on this honest challenge distribution by
  =\Pr[\mathsf{K\mbox{-}PKE.Dec}(sk_{\rm PKE},c^*)\ne m^*].
 \]
 Here failure means that K-PKE decryption does not recover $m^*$.
-The component adapters also have a shared-key correctness term, which
-accounts for agreement on the KEM key. We keep both events in the
-bound.
+The component adapters also have a shared-key correctness term for
+agreement on the KEM key. The bound accounts for both events separately.
 
 \begin{proposition}[Deferred-challenge bridge]
 \label{prop:kem-deferred-challenge}
@@ -95,8 +94,8 @@ Adversarial timing and repeated queries do not enlarge this set bound.
 
 Until the first hit, $B$ and the two-stage game give identical responses
 and apply identical transformations to the adversary's state. On
-$\neg V$ their complete terminal bits agree. Before challenge release
-the two values of $\beta$ have the same experiment, so $\Pr[V]=p$ in
+$\neg V$ their complete terminal bits agree. Before challenge release,
+the experiment is identical for both values of $\beta$, so $\Pr[V]=p$ in
 both branches. Put
 $\gamma_\beta=\Pr[D_\beta=1\land V]$. Since $B$ returns zero on $V$,
 \[
@@ -116,7 +115,7 @@ For each already defined component test $D_j^\sigma$, the term
 $a_j^\sigma$ is bounded by
 $\operatorname{Adv}^{\rm cca}(B_j^\sigma)
  +\zeta_{{\rm pre},j}^{\sigma}$ with that complete test's budget.
-The two signed-event tests consequently retain one such cost each.
+Each of the two signed-event tests consequently incurs one such cost.
 A Boolean authentication test $a_j^{\rm auth}$ or $a_j^{\rm msg}$
 receives one cost, as does each fixed $(r,j,b)$ bootstrap component test
 in either source profile. Equivalently, converting a bounded score
@@ -126,9 +125,9 @@ are unchanged; there is no additional source or message-index guess.
 
 The adapters continue to bind the challenge to the original generation
 and encapsulation slots, cache exact retries, and stop before a selected
-unknown tape or private owner would be returned. These source and record
+unknown tape or private key-owner object would be returned. These source and record
 conditions are supplied by their preceding correspondence arguments.
 The bridge compares their primitive interfaces without changing the
 original reservation events, raw-acquisition rules, or later selected
-message. Bootstrap's fresh honest-encapsulation and restored-owner
-validation monitor remains a separate part of that correspondence.
+message. Bootstrap's monitor for fresh honest encapsulation and
+restored-owner validation remains a separate part of that correspondence.

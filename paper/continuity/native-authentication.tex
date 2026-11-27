@@ -14,14 +14,14 @@ controller of Theorem~\ref{thm:cb-next-rekey} and
 Proposition~\ref{prop:confirmation-message-auth}.  In particular, for each
 fixed candidate its target contribution and marked traffic entry are
 designated at the allocation points required by those interfaces; the
-original terminal selector corresponds to those designated entries whenever
+terminal selector corresponds to those designated entries whenever
 it returns that eligible candidate.  As in
 Definition~\ref{def:recovery-game} and its adaptive version, the experiment
-retains one application challenge.  Its original accepted logical send fixes
+has one application challenge.  Its accepted logical send fixes
 the target root schedule through the send's stored provenance handle.  The
 terminal selector may choose coordinates, reservation handles, and the cut
 adaptively; eligibility requires those coordinates to identify that same
-accepted send.  Let $E$ be its original eligibility event, $A$ its
+accepted send.  Let $E$ be its native eligibility event, $A$ its
 source-attribution event, and $I\in J=[G]\times[C]$ the attributed pair of
 original generation and encapsulation reservations on $A$.
 
@@ -43,20 +43,20 @@ from the earlier honest private-encryption ledger under the marked target
 first-message key.  These are the events of the uniform-root authentication
 proposition restricted to this selected root schedule.  The honest ledgers
 are populated at the first private computation, before persistence or public
-release.  A repeated delivery or a previously consumed inbox result retains
-its original ledger provenance.  Genuine aliases of the selected schedule
-entry share its honest ledger, while independently allocated entries retain
-their own provenance.
+release.  Repeated deliveries and previously consumed inbox results refer
+back to their original ledger entries.  Genuine aliases of the selected
+schedule entry share its honest ledger, while independently allocated
+entries have their own provenance.
 
 The experiment records these event flags as execution proceeds.  Its eventual
 evaluation reads the accepted challenge send's root history, which may
 include confirmation events before that send.  For a fixed pair $j=(g,a)$,
-the original $a$ determines $m^*$ before its first private hash computation
+$a$ determines $m^*$ before its first private hash computation
 at any protected alias, including a computation followed by a failed write,
 as specified in Section~\ref{sec:contextbound-connection}.  Other protected
-tuples retain their own entries.  If the original $a$ never supplies a usable
-target, the candidate event is zero.  The root entry, traffic entry, and
-direction retain their prescribed online marks.  These rules connect the
+tuples have their own entries.  If $a$ never supplies a usable
+target, the candidate event is zero.  The prescribed online marks for the
+root entry, traffic entry, and direction remain fixed.  These rules connect the
 recorded history to the admitted controller throughout the comparisons.
 The probability bounded below is the joint probability
 $\Pr[E\wedge\mathsf{Bad}_{\rm auth}]$ in the original native game.  The
@@ -84,8 +84,9 @@ first actual private invocation, its encapsulation challenge at the original
 encapsulation's first actual private invocation, and every post-challenge decapsulation of
 the selected PQ ciphertext under the selected generation owner returns the
 challenge secret, regardless of the traditional ciphertext or context.
-The native traditional-component validation, its rejections, the original
-prechallenge history, and exact-retry caches are retained.  The selected-pair correctness allowance is
+The adapter preserves the native traditional-component validation and
+rejections, the prechallenge history, and the exact-retry caches.
+The selected-pair correctness allowance is
 $\delta_j$.  Consequently this adapter gives
 \begin{equation}
  \left|\Pr_{V^{[j]}}[W_j=1]
@@ -168,7 +169,7 @@ Boolean variable, gives the exact identity
  \Pr_{G_{\rm nat}}[F\wedge A\wedge I=j\wedge\neg B_j]
  =\Pr_{G_{\rm nat}^{[j]}}[W_j=1].
 \]
-This identity remains valid when a recorded authentication event occurs
+Note that this identity remains valid when a recorded authentication event occurs
 before the challenge send or terminal selection: the stopped predicate is the conjunction
 with final eligibility and attribution, and its free-stop certificate
 concerns every possible continuation.  Consequently
@@ -235,8 +236,8 @@ Each fixed candidate is thus bounded by
 $\min\{1,\varepsilon_{{\rm rec},j}+a_j^{\rm auth}+\delta_j
 +\Omega_j^{\rm auth}\}$.  Substitute these bounds in
 \eqref{eq:native-auth-localization} and cap the result by one.  The partition
-was used only in the original native game.  Ideal continuations retain their
-own selectors and event flags throughout, so no partition of different
+was used only in the original native game.  Each ideal continuation runs its
+own selector and records its own event flags, so no partition of different
 hybrid worlds is required.
 \end{proof}
 

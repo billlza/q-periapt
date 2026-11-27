@@ -2,7 +2,7 @@
 \label{sec:chain-prefix}
 
 Earlier message keys can help an observer decide which step to mark.
-Once either endpoint first computes that step, the choice is fixed.
+The observer must choose before either endpoint first computes that step.
 The observer may then learn the paired successor seed and compute the
 rest of the chain. We ask whether the marked message remains protected
 with both its earlier keys and its suffix available. We use the joint
@@ -42,8 +42,8 @@ Before a mark, the seeds $s_i$ and Extract values $P_i$ are private
 handles with only the uses in~\eqref{eq:prefix-chain}. The message keys
 of steps passed without a mark may be returned and used arbitrarily
 within the finite counted computation. At a marked step $\ell$, $K_\ell$
-has the single-original-encryption, classical-decryption and exact-retry
-interface of Corollary~\ref{cor:joint-first-message}. Its paired successor
+uses the interface of Corollary~\ref{cor:joint-first-message}: one original
+encryption, classical decryption and exact retries. Its paired successor
 $s_{\ell+1}$ becomes an available value, from which subsequent real chain
 computation and disclosure may proceed. Private persistence uses the
 same justified opaque interface. If the execution ends without a mark,
@@ -51,8 +51,8 @@ the selected application event and score are zero.
 
 Deciding before the first computation lets the observer use earlier keys
 to select among steps that have not yet been computed. This order also
-lets the reduction install each protected seed before its first use. The root's other
-traffic entries, the opposite direction, real confirmation and ACK checks,
+lets the reduction install each protected seed before its first use. The
+root's other traffic entries, the opposite direction, real confirmation and ACK checks,
 and successor-root disclosure remain available as in the preceding joint
 continuation.
 
@@ -63,7 +63,7 @@ root uses and the at most two traffic/confirmation PRK rows. For each
 $i<L$, let $q_{s,i}$ and $q_{M,i}$ be deterministic upper bounds on
 all ordinary compression queries in the corresponding complete
 column and row reductions. In particular, these budgets include the
-other real chain steps, known earlier keys, verification, subsequent
+other real chain steps, computations with known earlier keys, verification, subsequent
 chain computation, preparation and terminal testing. Define
 \begin{equation}
 \begin{split}
@@ -95,8 +95,8 @@ The first three comparisons of
 Theorem~\ref{thm:joint-message-leaf} retain the new controller as their
 complete continuation. Their replies suffice to compute every chain
 locally, including keys returned before the mark. They therefore cost
-$\Delta_{\rm traffic}$. Apply
-Lemma~\ref{lem:joint-expand-blocks} exactly to the traffic Expand table.
+$\Delta_{\rm traffic}$. Rewrite the traffic Expand table using the exact
+representation in Lemma~\ref{lem:joint-expand-blocks}.
 The designated $s_0$ is an independent private block; its parent row
 has no remaining internal input containing that block.
 
@@ -113,7 +113,7 @@ uses locally sampled values. It never needs to predict the later mark.
 
 Until step $i$ is first computed, its seed has only an opaque handle.
 All available observations, including $K_{i-1}$ when $i>0$, can be
-generated without its bytes. At the first computation, give $F(0,s_i)$
+generated without the seed's bytes. At the first computation, route $F(0,s_i)$
 to the single-column challenger. Repeated computations use the same
 answer. Its returned $P_i$ lets the reduction perform the real Expand,
 all later steps, marking decisions and the complete public continuation.
@@ -140,8 +140,8 @@ computations through the common public oracle and charge their queries.
 No distinct-value conditioning is introduced.
 
 The $2L$ comparisons use fixed worst-case budgets and recompute the
-mark and terminal test within each game. Their triangle inequality,
-together with the initial three comparisons, gives the bit bound.
+mark and terminal test within each game. Summing their gaps and those of
+the initial three comparisons gives the bit bound.
 The randomized test with success probability $(Z+1)/2$ gives the
 stated score bound.
 \end{proof}
@@ -191,7 +191,7 @@ the selected first-message theorem. A fixed target index $\ell$
 can use $L=\ell+1$; online selection uses a lifetime bound fixed
 before execution.
 
-The native chain source realizes this interface with the stated 56-byte
+The native chain implements this interface with the stated 56-byte
 information strings, constant-width index encoding and zero AEAD nonce.
 It advances a send index once and reuses exact outbox bytes on Resume.
 Transaction-private receive advancement can compute skipped keys before

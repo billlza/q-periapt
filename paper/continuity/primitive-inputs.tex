@@ -17,9 +17,9 @@ For a hidden-input entropy parameter $n$, define
 Don, Fehr and Huang's Theorem~2~\cite{dfh2022} supplies this bound when
 private oracle inputs have point probability at most $2^{-n}$ and distinct
 effective private queries encode distinct inputs for every secret value.
-Exact repeats are cached before that interface is queried. The two budgets
-count private classical queries and all ordinary public-oracle queries;
-public queries may be quantum.
+Exact repeats are cached before that interface is queried. The first budget
+counts private classical queries; the second counts all ordinary
+public-oracle queries, which may be quantum.
 
 \paragraph{Per-nonce confinement.}
 Use the typed image/intent interface of
@@ -31,8 +31,8 @@ $N_i\gets\{0,1\}^{192}$. The surrounding computation accesses this image
 family through its immutable handles, available metadata, image head and
 five intent-digest interfaces. Copies, exact retries and pending-target
 application retain the same family. Other records and downstream encodings
-use the returned commitments and their own available inputs; their raw
-inputs are computable without $N_i$, $B_i$ or $W_{i,P}$. This is the
+use the returned commitments and their own available inputs. Their raw
+inputs must be computable without $N_i$, $B_i$ or $W_{i,P}$. This is the
 per-nonce confinement condition for the comparison. It permits adaptive
 creation and prefixes that depend on earlier replies, with every later
 check using the replies of its current execution.
@@ -43,9 +43,8 @@ For the native digest framing, put
  \operatorname{BE64}(|d|)\Vert d\Vert
  \operatorname{BE64}(|X|)\Vert X.
 \]
-With the fixed recipe and local keys supplied as available encoding
-parameters, the private maps for image $i$, for
-$\nu\in\{0,1\}^{192}$, are
+For image $i$, supply the fixed recipe and local keys as available encoding
+parameters. The private maps, for $\nu\in\{0,1\}^{192}$, are
 \[
  \begin{split}
   f_i(\nu,\mathsf{head})&=\operatorname{fr}_{d_0}(B_i(\nu)),\\
@@ -66,7 +65,7 @@ queries for every nonce value. Exact repeats retain the original cache entry.
 For image $i$, let $K_i^{\rm hdr}$ count original intent prefixes and let
 $d_i\le1+5K_i^{\rm hdr}$ count its distinct private digest inputs, with
 $d_i=0$ for known, atom-free rows. Order the hybrids by fresh sealing
-invocation. In hop $i$, earlier designated families use their ideal cached
+invocation. In comparison $i$, earlier designated families use their ideal cached
 replies and later families use locally sampled independent nonces and
 their real hashes. The reduction runs the complete prefix, supplies the
 fixed encoding parameters when family $i$ is created, and routes only that
@@ -90,8 +89,8 @@ The native paths mapped in Section~\ref{sec:native-correspondence} implement
 these families: \texttt{seal} encodes the bounded record payload before
 sampling the nonce at image offsets $[80,104)$; \texttt{unseal\_image}
 returns decoded fields and the image head; and \texttt{PendingWrite}
-retains its complete original target for exact application. The mapped
-fences and checkpoints encode the returned heads and intent digests with
+retains its complete original target for exact application. The fences
+and checkpoints in this mapping encode the returned heads and intent digests with
 available metadata. A sibling write reseals the retained session payload
 with its own fresh nonce. These image/intent paths supply the confinement
 instance used by the record comparison; their digest domains and source
@@ -109,7 +108,7 @@ chaining-state order. A 32-byte key $K$ determines the two pad blocks
  I(K)=(K\Vert0^{32})\oplus\mathtt{36}^{64},\qquad
  O(K)=(K\Vert0^{32})\oplus\mathtt{5c}^{64}.
 \]
-Zero exponents in these encodings count bytes. The ranges are disjoint and
+Exponents on zero strings in these encodings count bytes. The ranges are disjoint and
 each encoding is injective in $K$. Cache the two evaluations at the fixed
 SHA-256 initial state. All oracle-dependent preparation is executed and
 counted; no oracle-correlated advice is supplied for free.
@@ -119,9 +118,10 @@ Let $L$ be the maximum message length in bytes and put
  L\le2^{61}-65,\qquad
  \ell=1+\left\lceil\frac{L+9}{64}\right\rceil.
 \]
-The SHA-256 padding encodes $8(64+|m|)$ bits, retaining the already consumed
-64-byte key-pad block. Its suffix is determined by $|m|$ and it is injective
-within the stated length domain. The parameter $\ell$ bounds the remaining
+The SHA-256 padding encodes a message length of $8(64+|m|)$ bits, including
+the already consumed 64-byte key-pad block. The padding suffix is determined by $|m|$, and the
+full padded encoding is injective within the stated length domain.
+The parameter $\ell$ bounds the remaining
 row compression work after the two key-pad calls.
 
 Write $E_{\rm NMAC}(T,q,\ell)$ for a valid NMAC distinguishing bound with two
@@ -148,4 +148,4 @@ to one original input. Its first reply is therefore a uniform tag, and
 exact repeats retrieve the same value.
 Report nonzero-ID checks act on that reply in both games. All other real
 HMAC work remains in $q$; the multi-report theorem supplies the dependency
-order and its actual disclosure residual.
+order and the residual for disclosures in the real experiment.

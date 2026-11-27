@@ -45,27 +45,27 @@ witness is recorded separately from the Tamarin proof certificate.
 Appendix~\ref{app:artifacts} identifies the exact queries, source, toolchain,
 replay receipt and auxiliary-query inventory.
 
-The theorem follows actual identity ownership within the modeled
+The theorem's key condition uses actual identity ownership within the modeled
 cryptographic constructors and record interface. Exposing a shared signer
 through another session discloses the target key, so that execution fails
-the stated key condition. The acquisition condition follows the saved
-target projection in the same way: a sibling write that carries it into
+the stated key condition. Likewise, acquisition is evaluated on the saved
+target projection: a sibling write that carries it into
 a later aggregate image preserves its first-save history.
 
 \subsection{Executability and the freshness boundary}
 
-The retained two-round execution provides a concrete witness after an
+The two-round execution provides a concrete witness after an
 ancestor root has been exposed. The source-derived evaluator checks each
 rule instance and the complete positive existential formula, including its
-global quantifiers. This finite construction supplies the current
-executability evidence while the multi-round Tamarin witness queries
+global quantifiers. This finite construction provides executability
+evidence while the multi-round Tamarin witness queries
 remain incomplete.
 
 The delayed-receipt construction isolates the reservation-time condition.
 It contains a pre-Cut epoch-two generation reservation and a post-Cut
 encapsulation, and derives the target payload while satisfying the remaining
-main-theorem antecedents. Its point audit identifies $c<g$ as the sole false
-antecedent. Thus the positive execution and the separating execution locate
+main-theorem antecedents. Checking each hypothesis shows that only $c<g$
+fails. Thus the positive execution and the separating execution locate
 the freshness boundary at the original reservation. Seven countertraces are
 rejected by the witness checker.
 
@@ -86,7 +86,7 @@ filesystem input, and signer files and future private owners are withheld.
 Reconstruction therefore uses the captured inputs and later public traffic.
 A wrong wrapping key is rejected.
 
-At each cut both honest peers finished the rekey and reopened their
+After each cut, both honest peers finished the rekey and reopened their
 journals. The driver then generated fresh 128-byte application
 payloads and checked delivery of three messages in each direction.
 Independently reconstructed traffic owners authenticated and decrypted
@@ -123,10 +123,10 @@ A separate two-session native execution tests whether a new aggregate
 image changes the origin of an unchanged target reservation. It changes a
 sibling session, writes the aggregate image, and checks exact equality of
 the retained target record. After reopening and retrying the original
-operation, it decrypts six subsequent target messages in each build
-profile. The write changes the global revision and outer encryption
-nonce while retaining the original target reservation, instantiating the
-alias/provenance distinction in the record model.
+operation, it decrypts six subsequent target messages in both debug and
+release builds, with all features enabled. The write changes the global
+revision and outer encryption nonce while retaining the original target
+reservation, instantiating the alias/provenance distinction in the record model.
 
 For the target session, the sibling write left us with another copy of the
 same reservation. We therefore count the target source once even though it

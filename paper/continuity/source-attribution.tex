@@ -11,19 +11,19 @@ We assume one authoritative history per endpoint for the selected session,
 keyed by the actual signer, session and epoch, with the admitted context
 and control parent. Passive copies, exact pending-target reconciliation
 and reopening preserve this history. The journal identity is part of the
-operation scope. The signed control prefix omits it. With two independently
-active journals at the same coordinates we would need an additional
+operation scope, but the signed control prefix omits it. Thus two independently
+active journals at the same coordinates would require an additional
 ownership rule.
 
 For each local epoch, register its original generation or encapsulation
 slot immediately before the first actual private KEM computation. The
 registers $\mathsf{ExecG}$ and $\mathsf{ExecA}$ contain the existing
 reservation indices in $[G]$ and $[C]$; the sampling events and their cut
-tests are unchanged. Exact computation retries retrieve the register.
+tests are unchanged. Exact computation retries use the registered slot.
 The \emph{executed-slot selector} chooses the logical challenge send and
 cut as before, then uses these two registered handles. A missing register
-fails the existing reservation-event test. Registration reads retained
-plan identity and public bindings, independently of future acceptance.
+fails the existing reservation-event test. Registration uses the saved
+plan's identity and public bindings, independently of future acceptance.
 
 \begin{lemma}[Stability of executed source slots]
 \label{lem:executed-slot-stability}
@@ -32,23 +32,24 @@ and one executed encapsulation origin. Failed later writes, process loss
 and exact resumptions preserve these origins and their complete bindings.
 \end{lemma}
 \begin{proof}
-Generation follows successful retention of \texttt{Plan::Key};
-encapsulation follows successful retention of the exact offer and
-\texttt{Stage::Encapsulation}. A first-retention error exits before the
-KEM call. If its target became durable, recovery obtains that token; if
-no target became durable, the unused reservation can be followed by a
-new draw. Once a KEM call is reached, its original token is already
-authoritative. Subsequent phases retain that token or its result and
-root. A failed phase update recovers an earlier phase with the same
-source. The responder also rejects a different complete offer while its
-plan exists. Completion clears the plan while advancing the epoch;
-terminal retirement ends the session. Induction over these transitions
+Generation runs only after \texttt{Plan::Key} has been saved successfully;
+encapsulation likewise requires a successful save of the exact offer and
+\texttt{Stage::Encapsulation}. An error on this first save
+exits before the KEM call. If the target became durable, recovery obtains
+that token; otherwise, the unused reservation can be followed by a new
+draw. Note that the reservation token is already authoritative when the
+KEM call begins. Subsequent phases store that token or its result and
+root. After a failed phase update, recovery reopens an earlier phase
+with the same source. The responder also rejects a different complete
+offer while its saved plan for that local epoch exists. Completion clears
+the plan while advancing the epoch; terminal retirement ends the session.
+Induction over these transitions
 establishes both invariants without requiring distinct public-key or
 ciphertext bytes.
 \end{proof}
 
 An honest signing ledger records the actual key, purpose, complete body
-and originating retained plan at the first private signing invocation,
+and the plan that originated the call at the first private signing invocation,
 before any subsequent write or release. The signed string is
 \[
  M=\mathit{signatureContext}\Vert\mathit{purpose}_{1}
@@ -88,11 +89,11 @@ capture, then
 Eligibility excludes both target-identity disclosures throughout the
 execution. A comparison stopped immediately before the first such
 return has the same prefix, including the adversary's quantum-state
-transformation. Retaining whether a fresh-body verification has already
+transformation. Recording whether a fresh-body verification has already
 succeeded gives exactly the event $\mathsf{Bad}_{\rm sig}^{0}$.
 
 Consider a first proposer traffic installation before either bad event.
-Its retained offer $O$ and regenerated private owner carry the unique
+Its saved offer $O$ and regenerated private owner carry the unique
 registered generation $g$. A verified response body has an honest
 signing invocation. Its complete context, session, epoch, role and parent
 locate the responder's same local epoch, hence its unique encapsulation
@@ -103,19 +104,19 @@ ciphertext on $g$'s public key with the exact KEM context used by the
 proposer. Native regeneration checks the public key against the saved
 offer before decapsulation and root confirmation. Source attribution
 identifies these original calls and bindings; their component-output
-correctness keeps its separate $\delta_j$ term.
+correctness is charged separately through $\delta_j$.
 
 A different valid outer response signature can preserve the same body.
 It keeps the source pair and root inputs, while the presented complete
 response supplies its actual traffic information and final-flight
-binding. The joint schedule already retains these information aliases.
+binding. The joint schedule already accounts for these information aliases.
 
 A responder installs traffic after checking a final against both its
 saved offer and ready response. The final's honest signing invocation
 comes from a proposer transition of the preceding kind. Its two checked
 wire digests give the same complete offer and response in the absence
 of $\mathsf{Bad}_H$, and hence the same $g,a$. Receipt acceptance makes
-no additional root allocation. Cached returns and reopened plans retain
+no additional root allocation. Cached returns and reopened plans preserve
 their earlier source association by
 Lemma~\ref{lem:executed-slot-stability}. All association tests use available
 ledger identities and public strings, so the component adapter can
@@ -126,29 +127,31 @@ the probability bound follows by a union bound.
 In the failed-save trace of Section~\ref{sec:live-core-instantiation},
 both draws stay in the history. The executed generation register resolves
 their roles: it names $g_2$ because only $g_2$ reached computation.
-A selector using the metadata alone retains the mismatch in its
+A selector using the metadata alone still carries the mismatch into its
 attribution accounting.
 
 \paragraph{The signing-coin interface.}
 Fix a signature scheme whose internal signing procedure is deterministic
 given key, message and randomizer. A reservation-aware fresh-message
 experiment provides classical Reserve, Open, Execute and Verify calls.
-Reserve samples the original randomizer and binds key, operation, purpose
+Reserve samples the randomizer and binds key, operation, purpose
 and complete body. Open returns that binding and randomizer at any time.
 Execute uses the original tuple, records the message at its first private
 computation and caches the exact signature; retries reuse it. Verify wins
 on a valid message absent from the corresponding signing-query ledger.
-The controlled native calls use their retained original tuples, including
-the proposer's recomputed-body equality check; they expose no arbitrary
-tuple-retarget operation through the hashed reservation binding.
+The controlled native calls use exactly the tuples bound by their
+reservations; the proposer also checks that its recomputed body matches
+the saved body. The hashed reservation binding exposes no arbitrary
+tuple-retarget operation.
 
-The owner interface begins with provisioned keys and supplies public keys,
+The owner interface starts with provisioned keys and supplies public keys,
 public identity and lifecycle metadata, signing reservations and signatures.
-It stops before a target-key or signer-file return and supplies no earlier
-byte-dependent observation of that secret owner file. This keeps the
-owner's serialized key seed outside the simulation, while every permitted
-signing-reservation record is represented exactly. Additional owner-file
-observations require their own correspondence cost.
+It stops before returning a target key or signer file and provides no earlier
+byte-dependent observation of that secret owner file. Note that opening
+a signing reservation is a different operation: its record is represented
+exactly, without requiring the simulator to know the owner's serialized
+key seed. Additional owner-file observations require their own
+correspondence cost.
 
 For $U$ independently generated honest signing owners, use the usual
 per-owner-index message ledgers. Reopening or reusing an owner preserves
@@ -241,6 +244,6 @@ For the executed-slot controller with the declared owner interface,
 \eqref{eq:executed-attribution-cost} replaces the attribution residual
 in Corollary~\ref{cor:live-core-next-rekey}, using the appropriate component
 advantage from Proposition~\ref{prop:reservation-signature-components}.
-The record, KEM-correctness and joint-continuation terms retain their
+The record, KEM-correctness and joint-continuation terms remain in their
 existing positions. The source map, full proof and finite fault/alias
-checks are recorded in Appendix~\ref{app:source-attribution}.
+checks are in the supplement indexed in Appendix~\ref{app:source-attribution}.

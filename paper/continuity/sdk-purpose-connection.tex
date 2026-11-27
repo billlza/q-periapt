@@ -3,7 +3,7 @@
 \label{sec:sdk-purpose-connection}
 
 Repeated SDK derivation raises two questions: which calls share key
-bytes, and how their owners retain separate lifetimes. Calls with the
+bytes, and how each owner's lifetime is managed. Calls with the
 same source and complete derivation inputs share the key bytes. Each
 successful call creates its own \texttt{DerivedKey} owner, which can be
 closed separately. The native
@@ -17,7 +17,7 @@ argument to the SDK's actual information encoding.
 \label{lem:entry-information-length}
 For the finite service $R_{r,I}=F(F(r,S),I\Vert\mathtt{01})$, let the
 complete available information strings in class $i$ have length at most
-$A_i$ bytes. Put $L_i=A_i+1$ and $\lambda_i=\ell(L_i)$, within the retained
+$A_i$ bytes. Put $L_i=A_i+1$ and $\lambda_i=\ell(L_i)$, within the stated
 SHA-256 padding domain. Use the descriptor classes and finite budgets of
 Theorem~\ref{thm:multiple-root-entry}. With the parent contribution used
 through the Extract interface and each PRK through its Expand row, the
@@ -78,7 +78,7 @@ have at most $65536$ bytes. Thus
 \]
 Length parsing recovers every effective field. The descriptor is
 $(\Gamma(r_0),I)$ across all owners of the same protected contribution.
-Runtime identities and owner identifiers retain their separate lifecycle
+Runtime identities and owner identifiers serve their separate lifecycle
 roles. The effective digest bytes determine their respective info fields.
 
 \paragraph{Owner correspondence.}
@@ -88,16 +88,17 @@ by $(\mathit{runtime},\mathit{live},I)$ and a reference to the common key
 entry $K_I$. Every accepted derivation creates an owner, and equal $I$ values refer
 to the same key entry. Closing a derived owner changes its own live
 flag. Closing a source owner prevents subsequent derivation through
-that owner, while previously returned owners keep their keys. Once a
+that owner; however, previously returned owners keep their keys. Once a
 runtime closes, later open checks fail. A derivation or export that
 already passed admission follows its actual completion path. Recipients
 keep any copies they have exported.
 
 These transitions follow directly from the source's separate
-\texttt{Option} fields, shared runtime state and admission checks. The inspected FFI derivation path additionally retains reservation,
-publication and parent-revocation metadata. A first private KDF computation allocates the descriptor
-entry even if its later handle publication fails; a retry retains that key
-entry while obtaining its actual new owner. The Rust in-flight bound and the
+\texttt{Option} fields, shared runtime state and admission checks. The inspected
+FFI derivation path also records reservation, publication and parent-revocation
+metadata. A first private KDF computation allocates the descriptor
+entry even if its later handle publication fails; a retry reuses that key
+entry while obtaining its new owner. The Rust in-flight bound and the
 FFI live-handle bound are preserved as metadata. The proof's lifetime bound
 $N$ counts distinct complete infos.
 
@@ -149,7 +150,7 @@ with at most $N$ total infos, is at most $\min\{1,\binom N2 2^{-256}+\Delta_{\rm
 
 \paragraph{A selected key for one application encryption.}
 An application may mark a new complete descriptor before its first private
-KDF evaluation, retain its key privately, and use it in the one-key,
+KDF evaluation, keep its key private, and use it in the one-key,
 one-encryption AEAD experiment defined in
 Section~\ref{sec:joint-continuation}, with that experiment's nonce,
 equal-length messages, associated data and decryption restriction. Every source owner and derived alias of that descriptor routes

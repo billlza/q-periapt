@@ -68,8 +68,8 @@ operation identifier is reused.
 
 The ideal source in this model draws independent tapes of the prescribed
 lengths.  Explicit entropy-disclosure queries reveal designated tapes.
-Independence is a distributional assumption about the source at sampling.
-Later API calls preserve the sampled tapes. The generation and encapsulation budgets
+Independence is a distributional assumption at sampling; later API calls
+preserve the sampled tapes. The generation and encapsulation budgets
 $G,C$ count original draws, including draws in attempts that subsequently
 fail.  Exact retries consume no new slot.  Independently sampled operations
 retain distinct origins even if some public outputs happen to coincide.
@@ -82,8 +82,8 @@ A record version $v$ has an immutable payload $X_v$ and semantic metadata
 The subject is the session whose state the version records. A sibling
 session writing the enclosing journal preserves that subject. A single
 version may contain several reservations and state derived from earlier
-ones. Preparing a version gives it a handle. Its first durable retention
-is a different event, $\mathsf{Saved}(v)$, at time $\mathsf{save}(v)$.
+ones. Preparing a version assigns its handle. Its first durable retention
+is a separate event, $\mathsf{Saved}(v)$, at time $\mathsf{save}(v)$.
 For example, a pending intent may already hold an intact target before
 the journal installs it. A caller can receive an unknown-outcome error
 after the storage operation has reached this point.
@@ -107,8 +107,8 @@ The following transition rules specify the provenance discipline.
   $\mathsf{Saved}(v)$.  An attempt that retains no such object has no successful
   acquisition event.
   \item \emph{Copy, apply, and reseal.}  An exact copy preserves the complete
-  object and its sealing origin.  Resealing creates a new sealing invocation
-  and its actual new wrapper randomness, while preserving the referenced
+  object and its sealing origin. Resealing creates a new sealing invocation
+  with its own wrapper randomness, while preserving the referenced
   record versions.  Applying an existing pending target copies its retained
   bytes.
   \item \emph{Crash and resume.}  Process loss removes volatile references.
@@ -127,9 +127,8 @@ For an original reservation actually retained in $v$, causality requires
 A later physical object's creation time dates the representation carrying
 the reservation. Both original events in~\eqref{eq:origin-causality} remain
 fixed, so the interval between drawing $\rho_o$ and first retaining it stays
-explicit. The
-symbolic reservation-and-save transition can represent that interval only
-through a separately justified source correspondence.
+explicit. The symbolic reservation-and-save transition can represent that
+interval only through a separately justified source correspondence.
 
 \subsection{Acquisition, delayed readability, and key identity}
 
@@ -198,7 +197,7 @@ Only rules with available inputs fire.  This accounts for nested protection
 without assuming that inaccessible keys have already been learned.
 
 Signer-file capture is a separately typed disclosure.  For correspondence
-with the retained symbolic theorem, it records exposure of the actual signing
+with the multi-epoch symbolic theorem, it records exposure of the actual signing
 key conservatively at acquisition, as does that theorem's signer-file rule.
 The readability ledger can additionally record when the file's contents
 become decryptable.  In particular, a wrapping-key disclosure cannot be
@@ -218,8 +217,9 @@ their own record fields.  For the implemented root schedule, an edge is
  R_e=\mathsf{HKDF}\bigl(R_{e-1},S_e,
        D_{\rm root}\Vert H_{\rm core}(C_e),32\bigr).
 \]
-Closing these edges over the bounded execution yields a computable set of
-message keys, each accompanied by the operations that reconstruct it. These
+Closing the available inputs under these algorithms over the bounded
+execution yields a computable set of message keys, each accompanied by the
+operations that reconstruct it. These
 are positive exposure certificates. For messages outside the declared
 disclosure conditions, the confidentiality game below measures the adversary's
 remaining advantage. Confirmation counters record public progress while the
@@ -228,9 +228,9 @@ graph retains the dependencies of each replay computation.
 \subsection{An original-record implementation of the copy interface}
 
 We can now ask whether each physical copy needs its own private payload.
-The following comparison normalizes copies to the original records they
-carry and concerns record management independently of KEM secrecy.
-The following two storage machines use the same protocol machine
+The comparison below normalizes copies to the original records they
+carry. It concerns record management independently of KEM secrecy.
+The two storage machines use the same protocol machine
 $\mathcal P$, random-tape source, scheduler, and cryptographic interfaces.
 
 The \emph{literal-copy machine} materializes the immutable payload $X_v$ in
@@ -310,8 +310,7 @@ $v$, and from every native object identifier to a rendered-object entry.
 Couple the protocol random tapes, sealing coins, scheduler choices, and public
 cryptographic oracles between the experiments.  The invariant is that
 dereferencing every original-record recipe produces the corresponding
-literal-copy bytes, with the same semantic provenance and physical
-disposition.
+literal-copy bytes, with the same semantic provenance and storage state.
 
 For a new record, register its payload once and extend the occurrence map.
 For a fresh rendering, submit the same recipe and byte-operation sequence to
@@ -422,17 +421,17 @@ named reservation events form the accepted target's unique usable
 generation/encapsulation pair, with an adapter-computable association to the
 original slots.  In particular, it connects the generation public key, the
 encapsulation input, the authenticated response, and the target's subsequent
-key schedule.  This matching is a
-source/authentication obligation: a failure of $\mathsf{Attr}$ can occur while
-$\mathsf{Eligible}_{s,e,c}$ holds and is charged in the computational
-accounting.
+key schedule. Establishing this match is a source/authentication obligation.
+A failure of $\mathsf{Attr}$ can occur while
+$\mathsf{Eligible}_{s,e,c}$ holds; the computational accounting charges
+that event separately.
 
 Consider a journal image sealed after $c$ by a write to another session.
 What does acquiring that image mean for the target session $s$? Read the
 last line of~\eqref{eq:eligibility} using the first save of each version
 of $s$ in the image. If all of them were first saved by $c$, this
 capture adds no post-cut version of $s$. A single version first
-saved after $c$ violates it, even while the bytes are encrypted. The
+saved after $c$ violates this condition, even while the bytes are encrypted. The
 test uses $\mathcal C_T$ across all roles and epochs of $s$.
 $\mathcal L_T$ answers when the acquired versions become readable.
 Other epochs' entropy disclosures keep their usual behavior, and a send
@@ -472,7 +471,7 @@ from each comparison world's own complete history, allowing the
 selection to depend on the transcript.
 
 The record restriction in~\eqref{eq:eligibility} is the one used by the
-retained multi-epoch symbolic theorem: its \textsf{Snapshot} action outputs
+multi-epoch symbolic theorem: its \textsf{Snapshot} action outputs
 a protected record, while \textsf{Cut} separately releases the wrapping keys.
 The theorem establishes symbolic plaintext secrecy with both original
 reservations after the cut, key-scoped identity exclusions, the target
@@ -480,8 +479,8 @@ entropy exclusion, and the stated post-cut saved-record acquisition
 exclusion~\cite{qperiaptSymbolic2026}.  Its joint replay verifies the main
 lemma and all 24 reusable dependencies.  Equation~\eqref{eq:recovery-score}
 specifies the computational message experiment to which the cryptographic
-modules are to be connected; the alias lemma establishes its record-interface
-normalization.
+modules will be connected. The alias lemma establishes the required
+record-interface normalization.
 
 \begin{corollary}[Safe stopping at a forbidden acquisition]
 \label{cor:target-acquisition-stop}
@@ -533,9 +532,9 @@ during the delay.
 
 \subsection{Connection to the cryptographic argument}
 
-The normalization theorem fixes the original objects whose bytes, acquisition,
-and key identities the reduction must represent. The next section gives
-constructive image/intent and report interfaces for a selected KEM operation
+The normalization theorem identifies the original objects whose bytes,
+acquisition history and key identities the reduction must represent. The
+next section gives constructive image/intent and report interfaces for a selected KEM operation
 whose public outputs are available while its original random tape is opaque.
 Their algorithms preserve original-object caches, public commitments, exact
 retries, and actual durable outcomes. The fixed-target stopping rule above
@@ -548,8 +547,8 @@ $[G]\times[C]$: a fresh draw receives a new slot, while copies retain their
 source. Each candidate induces its own protected records and report-key
 closure. Proposition~\ref{prop:native-local-accounting} decomposes the score
 in the native experiment before comparing those local continuations. It
-retains both unattributable eligible executions and permitted key projections
-as explicit native-game terms.
+accounts explicitly for both unattributable eligible executions and permitted
+key projections in the native game.
 
 The computational composition evaluates accepted operations, eligibility, and
 all public outputs anew in each comparison world. Exact component repeats

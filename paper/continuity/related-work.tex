@@ -66,12 +66,12 @@ distinguish directly acquired keys, tokens and challenge ciphertexts from
 the values those observations allow the adversary to derive; security requires
 the inferred key and challenge-ciphertext epoch sets to be disjoint. This gives
 a related treatment of exposures accumulated across time. Here the acquired
-records retain inputs to protocol operations. A draw, an immutable session
+records contain inputs to protocol operations. A draw, an immutable session
 version and a sealed image have separate identities. Copies and resealings
 preserve the original reservation and first-save times, while acquisition
 history and wrapping keys determine which copies become readable.
 We use this provenance to connect pending writes and exact replay to later
-traffic keys, and to simulate retained records from public operation outputs
+traffic keys, and to simulate saved records from public operation outputs
 when the original tape is opaque.
 
 \paragraph{Simulation under adaptive compromise.}
@@ -80,13 +80,13 @@ adaptive key compromise, including practical symmetric constructions in
 ideal models~\cite{jaeger2020adaptive}. Jaeger develops composable variants
 that support multi-user reductions, cascaded PRFs, and constructions
 sharing one ideal primitive~\cite{jaeger2023program}.
-Our retained-state comparison addresses the case in which a simulator
+Our record simulation addresses the case in which a simulator
 receives an original operation's public outputs while its random tape
 remains private. Immutable record identities let the simulator preserve
 equality and retries; replacing dependent reports in reverse causal order
 preserves their dependencies. Candidate-local stopping certificates carry
 the original execution's eligibility event through these simulations.
-The subsequent shared-oracle key-schedule comparisons retain real
+The subsequent shared-oracle key-schedule comparisons include real
 verification operations and disclosed successor values within the same
 continuation, so these dependent uses enter the reduction's accounting.
 
@@ -110,8 +110,10 @@ Grilo et al. give quantum random-oracle analyses of hedged Fiat--Shamir
 security against nonce and fault attacks~\cite{grilo2021reprogramming}.
 Kosuge and Xagawa study the fault security of ML-DSA
 \cite{kosuge2025mldsa}.
-In our setting a signer can reserve randomness before it has published
-a signature. The message ledger records the first private signing call
+Here we account for exact retries and the XOF shared by key generation
+and hedging, alongside exposure of the external randomizer. A signer can
+reserve randomness before it has published a signature. The message ledger
+records the first private signing call
 even if publication fails. Opening the randomizer or retrying the call
 preserves that history. The reduction compares the XOF shared by key
 generation and hedging with a private random function, then relates the
@@ -135,9 +137,9 @@ signing keys and target-session projections through both forms of sharing.
 Fischlin, G\"unther, and Janson formalize robustness for channels over unreliable
 networks and analyze the record layers of QUIC and DTLS~1.3
 \cite{robustchannels2024}. Their correctness and security notions account for
-supported delivery histories. Our model likewise retains delayed receipts and
+supported delivery histories. Our model likewise allows delayed receipts and
 asymmetric progress as ordinary executions. The resulting provenance question
-concerns the secret inputs retained along such a history. In particular, the
+concerns the secret inputs saved along such a history. In particular, the
 delayed-receipt witness is evaluated using both endpoints' state and the
 captured reservation, preserving their separate confirmed-epoch counters.
 
@@ -164,8 +166,8 @@ transitions that implement the original-record model. The SPQR reference
 corpus supplies a separate measurement: from an endpoint snapshot and
 later public traffic, its predictor reconstructs a specified set of
 component keys. We report that set alongside the component's transmitted
-bytes, retaining the source revision and predictor that produced both
-measurements. This relates retained material to the communication history
+bytes, and identify the source revision and predictor that produced both
+measurements. This relates the saved material to the communication history
 that determines its later use.
 
 \paragraph{Key extraction and dependent uses.}

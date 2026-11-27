@@ -40,8 +40,8 @@ acquisition, contradicting $E(\{r,k\})=\{o\}$.
 
 \paragraph{Meaning of exposure.}
 The origin identifier $o$ may be public. Membership in $E(A)$ says that
-the rules let us derive its protected seed. To see what joint
-observations can do to an estimator's success probability, take two
+the rules let us derive its protected seed. To see how combining
+observations can change an estimator's success probability, take two
 independent uniform $\lambda$-bit strings $S,W$ and let
 $C=S\mathbin{\oplus}W$. Assume there is no further observation that
 depends on either string. Then
@@ -51,9 +51,9 @@ depends on either string. Then
 \]
 From either observation alone, any estimator of $S$ succeeds with
 probability at most $2^{-\lambda}$; from both, $S=C\mathbin{\oplus}W$
-recovers it exactly. The XOR construction serves here as an
-information-theoretic illustration of acquisition; the protocol's record
-encryption is handled by its cryptographic record interface.
+recovers it exactly. This XOR construction illustrates acquisition in
+information-theoretic terms. The cryptographic record interface handles
+the protocol's actual record encryption.
 
 \paragraph{Consequence for provenance routes.}
 A fixed origin label identifies the seed carried by a copy. Readability

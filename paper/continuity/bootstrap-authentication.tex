@@ -6,7 +6,7 @@ about the responder? The order in which the peers use the two secrets
 matters. The initiator first encapsulates to the responder's prekeys
 and uses the resulting $S_0$ for Initial confirmation. Only then does
 the responder encapsulate to the initiator's newly reserved reply key
-to obtain $S_1$. The joint schedule retains a pending root and activates
+to obtain $S_1$. The joint schedule holds a pending root and activates
 message state after Final. We follow that order back from connection
 acceptance to the expected responder's earlier activation of the same
 signed transcript.
@@ -86,7 +86,7 @@ classes retain their rank; an unprotected used class stays unprotected.
 A later request that would return an ACK recipe for any registered class,
 or replace its trusted private state, stops before that return. An already
 observed terminal event remains latched. Other observations and classes
-retain their actual algorithms.
+follow their actual algorithms.
 \end{definition}
 
 The closure includes direct ACK material, $K_B$, the seed, both
@@ -109,10 +109,10 @@ original sampling events. The initiator's signing identity may also be
 disclosed. The expected responder's signing owner is protected, with its
 BootstrapResponder purpose used through the authoritative response
 history. The surviving source is the reply PQ generation and response
-encapsulation pair. Its private owner retains the actual bootstrap and
+encapsulation pair. Its private owner provides the actual bootstrap and
 checkpoint-restoration interfaces. Fix lifetime bounds $G,A,R$ for
 reply-key reservations, response-encapsulation reservations and protected
-registrations, counting draws whose retention subsequently fails.
+registrations, counting draws whose subsequent save fails.
 
 \begin{lemma}[Original reply pair and effective family]
 \label{lem:bootstrap-reply-origin}
@@ -134,24 +134,24 @@ its 64-byte entropy contains the 32-byte ML-KEM input $m$ and its
 traditional scalar. The authenticated token binds the kind, policy,
 operation and, for encapsulation, complete peer/context input.
 Restoration consumes that same tape. Failed later writes, pending-target
-reconciliation and exact retries retain the original executed slot.
+reconciliation and exact retries reuse the original executed slot.
 
 Monitor a fresh accepted purpose-6 body immediately after its signature
 verification and before private decapsulation. Otherwise its honest
 signing ledger and checked complete-Initial digest identify the response
 history. Distinct honest owners publishing an equal complete Initial
 require equal independently sampled 32-byte Initial nonces. Charging
-that event identifies $g$, and the authoritative retained response
+that event identifies $g$, and the authoritative saved response
 identifies $a$. Its fixed tape, peer key, context and complete Initial
 determine both ciphertexts and component results and all ten fields of
 the ContextBound tuple. Source correctness supplies the same $S_0$ at
 the two endpoints. Thus $P_B=F(t_1,S_0\Vert S_1)$ is fixed before
 response signing. The framed initial/reply context separation and
-Lemma~\ref{lem:bootstrap-validation}'s monitor retain that selected
+Lemma~\ref{lem:bootstrap-validation}'s monitor preserve that selected
 challenge association at every admitted alias.
 \end{proof}
 
-For each adjacent endpoint used below, write $\alpha_{r,b}$ for this
+For each of the adjacent hybrids below, write $\alpha_{r,b}$ for this
 association cost. A valid choice is the sum, clipped at one, of the
 protected responder's purpose/body signature bound, one complete-query
 framed-hash collision bound, and $\binom G2 2^{-256}$. The ordinary
@@ -163,7 +163,7 @@ the original response already identifies the relevant PRK request.
 
 \paragraph{Opening and original component embedding.}
 Let $H_k$ replace the first $k$ registered ACKs and set
-$H_{r,0}=H_{r-1}$, $H_{r,1}=H_r$. In either endpoint let $J_r$ be
+$H_{r,0}=H_{r-1}$, $H_{r,1}=H_r$. In either hybrid let $J_r$ be
 the pair of the $r$th registration, or $\bot$ if it is absent. For
 an available terminal bit $D$, the $\bot$ terms cancel: the adjacent
 machines are identical until that registration. After the association
@@ -174,13 +174,13 @@ Opening the selected source, $S_1$, PRK or seed before registration
 permanently excludes every future protected class of that family: the
 known $S_0$ and traditional material complete its eventual ACK recipe.
 The fixed-candidate reduction can stop with zero on this branch.
-After $J_r=j$, the global pre-return stop retains the available prefix
+After $J_r=j$, the global pre-return stop preserves the available prefix
 and latched bit. These certificates use public bindings and immutable
 provenance, so they are executable before any unknown bytes are needed.
 
 For fixed $(r,j,b)$, use the two-stage operational ML-KEM game of
 Section~\ref{sec:contextbound-connection}. Associate its public key with
-the original generation slot $g$; retain its PQ tape as an opaque handle
+the original generation slot $g$; represent its PQ tape by an opaque handle
 and generate the traditional leg locally. At $a$'s first private
 encapsulation, check its fixed peer binding, request the challenge once,
 and cache the ciphertext and challenge key before later persistence.
@@ -207,7 +207,7 @@ honest fresh encapsulation has the selected challenge ciphertext is at most
 \begin{proof}
 ML-KEM encrypts the original 32-byte input $m$ using its specified
 K-PKE coins~\cite[Algorithms~14, 15, 17 and 18]{fips203}. Before a
-correctness failure, equal ciphertexts decrypt to equal original $m$.
+correctness failure, equal ciphertexts decrypt to equal values of $m$.
 For each other fixed sampling slot, the later of its draw and the
 selected draw is independent uniform, giving equality probability
 $2^{-256}$. A union bound over the fixed lifetime slots proves the
@@ -234,7 +234,7 @@ Theorem~\ref{thm:bootstrap-joint-entry}.
 Mark the conservative union of private record versions containing a
 value represented by an opaque handle at any stage of this reduction:
 the original tapes, expanded owner, component/contribution, PRK, seed,
-and retained root or activation values. Containing images, pending
+and stored root or activation values. Containing images, pending
 intents and later source-preserving copies inherit the mark. Public
 confirmation tags and fingerprints remain ordinary available outputs.
 A marked version stays marked after deletion or later opening.
@@ -244,7 +244,7 @@ Let $C_j$ be successful raw-byte acquisition of any such object and put
       \Pr_{H_{r,b}}[J_r\ne\bot\ \land\ C_{J_r}].
  \label{eq:bootstrap-capture}
 \end{equation}
-Each endpoint uses its own history. Zeroing the candidate bit before a
+Each hybrid uses its own history. Zeroing the candidate bit before a
 marked return changes its expectation by at most
 $\Pr_{H_{r,b}}[J_r=j\land C_j]$; summing pairs gives
 \eqref{eq:bootstrap-capture}.
@@ -266,7 +266,7 @@ private before the declared raw acquisition stop. This is the actual
 acquisition interface of the constructive record theorem.
 
 Thus the branch with no marked raw acquisition has
-$\eta_{{\rm cap},r}=0$. The general acquisition interface retains the
+$\eta_{{\rm cap},r}=0$. The general acquisition interface includes the
 explicit residual~\eqref{eq:bootstrap-capture}. Replacing it by a
 cryptographic record cost requires a joint comparison for the native
 journal key, its directly encrypted images and its derived operation
@@ -281,7 +281,7 @@ is $e=(p,\Gamma(s_c),I_B)$. Its seed's only raw uses are the root-entry
 Extracts; each PRK's raw uses are its
 three labelled Expand calls. We therefore replace the parent row
 interfaces by private tables before embedding their child keys. The
-source retains $K_B$ in its pending state before activation, leaving
+source stores $K_B$ in its pending state before activation, leaving
 the interval in which online registration can take place.
 
 \begin{lemma}[Deferred roots and full-wire classes]
@@ -341,21 +341,22 @@ ACK-only output-bit gap is at most
 $\min\{1,D_0+D_1+\chi_h(Q_{h,0})+\chi_h(Q_{h,1})\}$.
 \end{proposition}
 \begin{proof}
-In each endpoint stop at the descriptor-collision monitor. Replace its
+In each hybrid, stop at the descriptor-collision monitor. Replace its
 three bootstrap outputs by a private row and its root entries by their
 complete-descriptor table. By Lemma~\ref{lem:bootstrap-deferred}, a
 protected first activation now receives the next independent hidden
 root. Apply one Extract-column and one five-message-row comparison,
 then the exact prefix-consistent Expand-table identity. This yields
 five independent cached blocks per protected class at cost $D_b$;
-unprotected activations retain real computation under their current roots.
+unprotected activations still use real computation under their current roots.
 
-In the two full-table endpoints, couple the fourth block to the independent
-replacement ACK. The other four blocks have the same joint distribution.
+After both hybrids have been converted to full tables, couple the fourth
+block to the independent replacement ACK. The other four blocks have the
+same joint distribution.
 The overwritten table value has no remaining internal use, because the
 Expand-table identity already removed the raw block-5 row input.
 Class aliases, registration, stops and continuation agree. The triangle
-inequality through these common-table endpoints gives the stated bound.
+inequality through these common-table experiments gives the stated bound.
 \end{proof}
 
 \begin{theorem}[Original reply-source schedule connection]
@@ -369,7 +370,7 @@ For the surviving-source profile above, set
         +D_{{\rm tail},rj,b}+\chi_h(Q_{h,rj,b}).
  \end{split}
 \]
-Here $D_{{\rm tail},rj,b}$ is the appropriate one-endpoint cost
+Here $D_{{\rm tail},rj,b}$ is the appropriate cost for one hybrid
 of~\eqref{eq:bootstrap-tail}. The complete online ACK schedule satisfies
 \begin{equation}
  \begin{split}
@@ -393,10 +394,10 @@ events. Cancel absent registrations and decompose each remaining
 terminal bit by its original pair. The pre-opening certificates add
 zero; marked acquisition contributes~\eqref{eq:bootstrap-capture},
 and fresh encapsulation collisions contribute
-\eqref{eq:bootstrap-validation}. In each fixed-candidate endpoint,
+\eqref{eq:bootstrap-validation}. In each fixed-candidate hybrid,
 replace constructible records, install the original component adapter,
 apply the complete-tuple comparison and the hidden-second entry, and
-then use the corresponding endpoint of
+then use the comparison for the corresponding hybrid in
 Proposition~\ref{prop:bootstrap-ack-table}.
 Both resulting full-table experiments couple with the same terminal
 code $D\mathbf1[J_r=j]$, their own source ledgers and registration
@@ -426,7 +427,7 @@ also enters this count. Then
   +\frac{q_v}{2^{256}-q_v+1}\right\}.
  \label{eq:bootstrap-terminal}
 \end{equation}
-In the ACK-only ideal endpoint $H_R$, mark immutable versions containing
+In the ACK-only ideal experiment $H_R$, mark immutable versions containing
 any registered replacement ACK key, including containing images, pending
 intents and exact copies. Marks retain their original typed provenance
 through deletion; public ACK tags are ordinary row outputs. Let
@@ -463,8 +464,8 @@ in registration order using Lemma~\ref{lem:appendix-hmac-instances}.
 Each selected key is unused until its registration, and its only raw
 computation in the defined operation surface is the 107-byte ACK row.
 Other keys and their real operations remain in the complete continuation.
-Exact retries cache the same message; numerical key coincidences retain
-their ordinary shared-oracle treatment. The last experiment has opaque
+Exact retries cache the same message; numerical key coincidences are
+handled through the shared oracle as before. The last experiment has opaque
 records, independent functions on the authenticated strings and its local
 capture-zero rule. This establishes the one-sided cost in
 \eqref{eq:bootstrap-mac-records}.
@@ -496,4 +497,4 @@ checks its current local authority when returning the connection.
 An exact replay of READY refers to the same activation event. The supplement
 records the schedule and durable-order pins, independent HMAC equations,
 short/long alias controls, late registration countermodels and
-both-endpoint acquisition accounting.
+acquisition accounting in both comparison hybrids.

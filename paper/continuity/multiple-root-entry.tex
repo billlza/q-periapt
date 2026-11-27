@@ -5,18 +5,18 @@
 The same recovered contribution may be used with different old roots
 or different root-information strings. An observer who learns one
 result may use it to select the inputs for another. We therefore compare
-the whole family as one interactive service, preserving the original
-root for every repeated request.
+the whole family as one interactive service, returning the same root
+for every repeated request.
 Let $S$ be uniform on 256 bits, initially independent of the public compression
-oracle $h$ and auxiliary state, and retain $F$ and $\Gamma$ from
+oracle $h$ and auxiliary state, and use $F$ and $\Gamma$ as in
 Section~\ref{sec:joint-continuation}. Each root request supplies a 32-byte
 salt $r$ and a complete native 97-byte information string $I$. Its real value is
 \[
  P_r=F(r,S),\qquad R_{r,I}=F(P_r,I\Vert\mathtt{01}).
 \]
 The parent contribution is used through these Extract calls; each resulting
-PRK is used through its root-Expand interface. The controller retains the
-original source ledger and any established local stops.
+PRK is used through its root-Expand interface. The controller uses the
+same source ledger and established local stops.
 
 \paragraph{Descriptors and available data.}
 The root-use descriptor is
@@ -33,13 +33,13 @@ The controller computes salts, information strings and its selection from
 its available state: executed preparation, independent coins, public-oracle
 responses, unmarked roots, and the declared outputs of the marked schedule.
 At most one fresh descriptor is marked before its first root evaluation.
-Its root is installed in one retained schedule handle; every descriptor alias
+Its root is installed in one schedule handle; every descriptor alias
 retrieves that handle. All its uses belong to the same interface of
 Section~\ref{sec:joint-continuation}, including its session salt, confirmation
 and successor calls, complete traffic-information table and budgets. Other
 root entries may be disclosed and used in later available computations,
-including as salts. The retained handle supplies exactly that schedule's
-operations. Locally known salts retain their actual bytes, including any
+including as salts. The handle supplies exactly that schedule's
+operations. Locally known salts use their actual bytes, including any
 numerical coincidence with a protected value.
 
 Fix finite bounds $D,C,N_1,\ldots,N_C$ before execution: at most $D$ distinct
@@ -67,10 +67,10 @@ output-bit test changes by at most
 In the table experiment, an online marked fresh descriptor supplies the
 independent uniform root required by
 Theorem~\ref{thm:joint-message-leaf}, together with the complete interactive
-controller. The marked descriptor may belong to a previously used class.
+controller. The marked descriptor may belong to a previously used salt class.
 \end{theorem}
 \begin{proof}
-Compute $\Gamma(r)$ from available salt bytes and retain its class index.
+Compute $\Gamma(r)$ from available salt bytes and record its class index.
 Use one column call for the first salt in each new class; reuse its reply for
 later equal classes. The descriptor identity makes this an exact rendering
 of the real Extract interface. Lemma~\ref{lem:appendix-joint-hmac} replaces
@@ -89,7 +89,7 @@ Lemma~\ref{lem:appendix-hmac-instances} bounds this step by
 $\varepsilon_{\rm Hrow}(N_i,q_i,98)$. If the class is never allocated, the
 hybrids agree. Summing over the fixed class budget establishes the bound.
 
-Distinct classes remain distinct reduction slots even when their sampled
+Note that distinct classes remain distinct reduction slots even when their sampled
 PRK bytes coincide. In a real row branch, local evaluation under another
 class's key uses the same $h$ and automatically preserves any resulting
 coincidence; these ordinary queries are included in $q_i$. Thus the argument
@@ -100,8 +100,8 @@ interface is therefore exactly the table $\mathcal W(\Gamma(r),I)$.
 At a fresh descriptor, its value is independent of all previously used table
 entries and the oracle. Presample the designated uniform root, withhold it
 during the executed prefix, and assign it when the controller marks that
-fresh descriptor. All other entries retain their independent sampling and
-all aliases retrieve the retained handle. The selection uses the available
+fresh descriptor. All other entries are sampled independently, and
+all aliases retrieve the same handle. The selection uses the available
 prefix, so this deferred assignment has exactly the table distribution.
 It embeds the whole controller in the existing root experiment. The row
 hybrids already covered every class, so target selection adds no class guess.
@@ -146,7 +146,7 @@ established definitions.
 \end{corollary}
 \begin{proof}
 Fix each application challenge bit for the entry comparison and average
-afterwards, as in the retained continuation. The randomized output test
+afterwards, as in the existing continuation. The randomized output test
 with success probability $(Z+1)/2$ converts
 Theorem~\ref{thm:multiple-root-entry}'s bit gap into a score gap of at most
 $2\Delta_{\rm mr}$. Its ideal marked root initializes the entire controller

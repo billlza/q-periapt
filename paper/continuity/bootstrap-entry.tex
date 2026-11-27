@@ -27,11 +27,11 @@ zero extension of the SDK salt and has the same key pads as $\sigma$.
 Sample $S$ uniformly and independently of $h$ and the initial auxiliary
 state. The controller chooses available salts and known halves adaptively,
 uses the hidden contribution through the following classical services,
-and retains the complete downstream computation. The hidden-first service
+and runs the complete downstream computation. The hidden-first service
 provides $P_0=F(\sigma_{32},S)$ and $P_B(a,v)=F(a,S\Vert v)$.
 The hidden-second service provides $P_B(a,u)=F(a,u\Vert S)$;
 initial confirmation from its known first contribution is ordinary local
-computation. Retained secret values have the declared opaque interface.
+computation. Stored secret values have the declared opaque interface.
 All oracle-dependent preparation and the final test are counted.
 
 For hidden first, a raw class is $(v,\alpha(a))$. The short call belongs
@@ -41,8 +41,9 @@ $(u,\alpha(a))$. In either orientation the complete long descriptor is
 $(\textit{known half},\alpha(a),\beta(a))$.
 Number raw classes by first allocation. Fix a lifetime bound $C$ on
 their number and per-slot bounds $A_i,B_i$ on distinct short and long
-outer-state calls. For hidden first, $A_i\le1$ and at most one short
-call occurs in an execution; for hidden second, $A_i=0$. The maxima
+outer-state calls. For hidden first, $A_i\le1$ and at most one distinct
+short entry occurs in an execution; exact retries reuse that entry.
+For hidden second, $A_i=0$. The maxima
 hold uniformly in every derived experiment, even when a raw class
 occupies different slots in different executions.
 
@@ -59,7 +60,7 @@ The hidden-first service is within output-bit gap
 \end{equation}
 of an independent uniform short PRK and a private random table of long
 PRKs indexed by the complete descriptors. The same bound applies to
-hidden second with its known-first continuation retained. Each $q$
+hidden second with its known-first continuation unchanged. Each $q$
 bounds the complete ordinary work in its reduction under the same $h$.
 The extra middle slot can be omitted for a class admitting no long call.
 \end{theorem}

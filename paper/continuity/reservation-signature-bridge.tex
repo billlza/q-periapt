@@ -2,19 +2,19 @@
 \subsection{From signing reservations to ordinary unforgeability}
 \label{sec:reservation-ordinary-bridge}
 
-The native signer can open a reserved randomizer and later use it on
+The native signer can open a reserved randomizer and later reuse it on
 a retry. An ordinary signing query returns a signature, while the
 reservation interface also permits the randomizer to be opened. The
 bridge must therefore reproduce the opened values and preserve the
 dependence between repeated executions. We recognize those repeats by
-the pair consisting of the original randomizer and the complete public
+the pair consisting of that randomizer and the complete public
 message representative. For ML-DSA, the argument also accounts for the
 oracle shared by key generation and hedging.
 
 Use the owner interface of
 Proposition~\ref{prop:reservation-signature-components}. A fresh owner
 generation receives a family index; exact references and imported copies
-retain that index. Independently generated owners remain separate when
+use the same index. Independently generated owners remain separate when
 their public keys coincide. The family ledger records each original
 message at its first private invocation, including failed publication.
 It is contained in the native actual-key ledger. Stopping before a
@@ -58,12 +58,12 @@ the complete simulation, public descriptor work and owner observations.
 \begin{proof}
 Replace the reservation signer's hedging function by a private random
 function, using independence to simulate the remaining key state. This
-costs the first joint-PRF advantage. Simulator $B$ samples all visible
+costs the first joint-PRF advantage. Simulator $B$ samples the visible
 reservation randomizers and caches signatures by the full pair
-$(r,d_{pk}(M))$. A new pair causes one ordinary signing query on its
-original $M$; every first slot execution enters its original message in
-the local ledger, including a failed publication. A repeated pair reuses
-the cached signature.
+$(r,d_{pk}(M))$. For a new pair, it queries the ordinary signer on
+$M$; for a repeated pair, it returns the cached signature. Note that
+every slot records its message in the local ledger at its first private
+execution, even if publication subsequently fails.
 
 Replace the ordinary challenger's hedge by a private random function.
 Until its fresh hidden input repeats, its internal tapes are independent
@@ -76,7 +76,7 @@ Returning the ordinary challenger to its real hedge costs the second
 joint-PRF term. Its signing queries are a subset of the executed-message
 ledger, so a fresh output is an ordinary forgery. Descriptor aliases need
 no separate charge: factorization gives the same signature, while the
-ledger retains every original message.
+ledger records every original message.
 \end{proof}
 
 For several protected families with a global stop before any of their
@@ -96,8 +96,8 @@ blocks $(\rho,\rho',K)$ of lengths $(32,64,32)$ bytes. Signing computes
  c=H(K\Vert r\Vert\mu,64).
 \]
 The remaining signing computation uses the other key components, $\mu$
-and $c$~\cite{fips204}. The pinned native backend passes its retained
-32 bytes to \texttt{try\_sign\_with\_seed}; the checked implementation
+and $c$~\cite{fips204}. The pinned native backend passes the reserved
+32-byte randomizer to \texttt{try\_sign\_with\_seed}; the checked implementation
 uses $K$ only for this hedge in the signature computation. The full source
 map records the fixed crate archive and its upstream commit.
 
@@ -158,8 +158,8 @@ to use those sampled blocks, and every target hedge, including retries,
 to use $R$. These are exact substitutions under $H_*$. Change every
 remaining oracle call to $H_0$. In this ideal experiment the query-register
 distribution is independent of the now-unused $\xi,K$. The remaining
-base state may depend on $\rho,\rho',H_0$, and every non-target owner keeps
-its original algorithm and shared-oracle calls.
+base state may depend on $\rho,\rho',H_0$, and every non-target owner
+runs its unchanged algorithm with the same shared-oracle calls.
 
 For any ideal query, its expected mass on
 $\mathcal D=\{g\}\cup\mathcal S_K$ is at most $2^{-256}$: each relevant
@@ -178,8 +178,8 @@ coupling from Proposition~\ref{prop:independent-hedging-bridge} gives the
 ordinary ideal experiment with loss $\beta_{256}(q)$. Apply the same
 oracle comparison in the reverse direction to the complete ordinary
 experiment. Its signer is now the native ordinary challenger, giving
-\eqref{eq:native-mldsa-reservation-bridge}. The actual reduction $B$ uses
-only that signing oracle and public interfaces; the statistical comparison
+\eqref{eq:native-mldsa-reservation-bridge}. The actual reduction $B$, however,
+uses only that signing oracle and public interfaces; the statistical comparison
 does not require it to know or program $\xi$ or $K$.
 \end{proof}
 
@@ -198,7 +198,7 @@ part of the ordinary-EUF term.
 
 \paragraph{Adaptive owners and the pair signature.}
 For at most $U$ fresh owner families, guess the target's creation index
-uniformly, retaining that index across aliases. Embed the single-user
+uniformly and use that index across aliases. Embed the single-user
 challenger there and generate all other owners locally, answering their
 permitted disclosures. This works for adaptive creation and gives
 \begin{equation}
@@ -212,8 +212,8 @@ permitted disclosures. This works for adaptive creation and gives
 \end{equation}
 The ML-DSA oracle ledger is a subset of the selected native pair owner's
 ledger, hence of its actual-key ledger. No aggregation of distinct pair
-owners with coincident ML-DSA components is assumed. Their original
-generation and disclosure distribution is preserved. Cross-owner seed or
+owners with coincident ML-DSA components is assumed. Their generation
+and disclosure follow the same distribution as before. Cross-owner seed or
 hedge-prefix coincidences are among the remaining shared-oracle queries
 already counted in the selected-target comparison.
 

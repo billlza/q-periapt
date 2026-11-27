@@ -1,8 +1,8 @@
 \subsection{Wall-clock and CPU costs}
 \label{sec:latency}
 
-A directed transmission opportunity is a service budget, not a unit of
-time. We therefore measure execution cost separately using the native
+The opportunity budget counts chances to transmit without assigning them
+a duration. We therefore measure execution cost separately using the native
 source revision \texttt{358b921a} from the retry-readiness experiment.
 The host is a virtualized x86-64 Linux environment reporting an Intel Xeon
 Platinum 8573C processor. The process is pinned to one logical CPU. We use
@@ -43,7 +43,7 @@ Across the 256 recorded deliveries, wall-clock time had a mean of
 and a maximum of 257.105\,ms (Table~\ref{tab:delivery-latency}).
 Process CPU time averaged 18.691\,ms, with a 99th percentile of
 149.392\,ms. The sender and receiver portions averaged 16.296 and
-8.236\,ms of wall time, respectively. All samples are retained.
+8.236\,ms of wall time, respectively. The artifact includes all samples.
 These measurements characterize the stated same-host journal path;
 the experiment contains no matched implementation baseline. Mobile
 scheduling, SQLite/WAL performance and waiting for communication

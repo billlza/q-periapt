@@ -3,8 +3,8 @@
 
 To apply the record argument to Continuity, we trace what the
 implementation retains after a failed write, what it reuses on a retry
-and which bytes it shows its caller. The source audit traces these
-questions through 37 entries in 27 files. It gives the source ranges,
+and which bytes it shows its caller. The source audit follows these
+operations through 37 entries in 27 files. It gives the source ranges,
 Git blob identities and SHA-256 digests for the constructors, state
 transitions, known-input computations and additional public outputs
 discussed here.
@@ -27,12 +27,12 @@ domains. Their callers feed the actual returned digests into fences,
 checkpoints and subsequent validation. Cancellation intents carry known
 descriptors instead of a private target image; selection rows and public
 archive descriptors likewise use their actual known-input computations.
-This variant distinction supplies the real-versus-designated-private split
-used by the commitment table.
+These variants determine which objects the commitment table treats as known
+and which it designates as private.
 
 \paragraph{Reservation and durable identity.}
 Both generation and encapsulation paths persist the reserved operation token
-before invoking the corresponding KEM computation. An original retry opens
+before invoking the corresponding KEM computation. An exact retry opens
 that token and consumes its retained entropy. The write-intent path first
 retains the complete pending wire. Applying it compares the retained original
 wire, checks the expected and next heads, installs its original target bytes,
@@ -54,7 +54,7 @@ Table~\ref{tab:native-report-families} identifies the three report families.
 The resolution key and pending tag are serialized in an epoch's traffic
 entry. A later closure or fanout report can authenticate that complete entry.
 This gives the causal raw-key edge used by the reverse-order report argument.
-The code's exact retry paths retain an original key and tag; a genuinely new
+The code's exact retry paths retain the original key and tag; a fresh
 attempt draws a new key. The nonzero check applies to the returned identifier,
 with a real zero-ID failure branch. Pending keys use the full 256-bit space.
 
@@ -78,15 +78,14 @@ Its pending key is retained in the traffic entry.
 & Includes unconsumed plaintext for the authorized application. \\
 \bottomrule
 \end{tabularx}
-\caption{Source correspondence of the report families. The application's
-authorized plaintext output retains its own audience in the security
-experiment. Report-key fragments use their actual record content and
-origin mapping.}
+\caption{Source correspondence of the report families. In the security
+experiment, plaintext report outputs go to the authorized application.
+Report-key fragments use their actual record content and origin mapping.}
 \label{tab:native-report-families}
 \end{table}
 
-The normal retained-object path reopens a registered image and revalidates
-its original semantic state. The interface mapping assigns those validation
+On the normal path, reopening a registered image revalidates its original
+semantic state. The interface mapping assigns those validation
 calls to known state, the protocol interface $F$, or the immutable report
 row. For arbitrary modified storage inputs and separately returned
 projections, the extended experiment supplies their corresponding parse,

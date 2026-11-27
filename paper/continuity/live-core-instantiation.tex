@@ -1,13 +1,13 @@
 \subsection{A native live-core instantiation}
 \label{sec:live-core-instantiation}
 
-The next-rekey theorem leaves the native record-comparison cost to
-instantiate. We now bound that cost for an authoritative live session.
-The application supplies the plaintext
-to Send and receives the delivered payload. The network can request an
+The next-rekey theorem expresses its bound in terms of the native
+record-comparison cost. We now bound that cost for an authoritative live
+session. The application supplies the plaintext to Send and receives the
+delivered payload. The network can request an
 exact Resume, process control and message traffic, obtain ACKs and
-inspect statuses and public commitments. The journal follows the
-native image and pending intent through write failure, process loss
+inspect statuses and public commitments. We follow the journal's
+image and pending intent through write failure, process loss
 and reopening.
 
 An adversary can still acquire old or unrelated records. An intact
@@ -44,7 +44,7 @@ cover every corresponding comparison world. Define
 \end{split}
 \label{eq:live-core-record-cost}
 \end{equation}
-The second term is the private-wire structural-equality comparison of
+The second term bounds the private-wire structural-equality comparison of
 Corollary~\ref{cor:real-to-opaque}; it is zero when that equality interface
 is absent. Copies and exact pending-target application retain their
 original sealing handles. Atom-free rows have $d_{j,i}=0$.
@@ -82,8 +82,8 @@ facts into~\eqref{eq:cb-native-bound}.
 \end{proof}
 
 \paragraph{Source selection and attribution.}
-The attribution term distinguishes two actual interfaces. In the general
-experiment, the selector may name any original reservation handles with
+The attribution term depends on how the selector identifies its sources.
+In the general experiment, the selector may name any original reservation handles with
 the required session, epoch and role metadata. For example, a generation
 reservation $g_1$ may be installed in a transaction-private
 \texttt{Plan::Key} whose first persistence fails before a complete pending
@@ -104,7 +104,7 @@ Section~\ref{sec:executed-source-attribution} defines an executed-slot
 selector that registers $g,a$ before their first private KEM computations
 return. A retained-plan induction preserves those original slots, and the
 complete signed-body and wire bindings associate an accepted allocation
-with them. Its signature experiment retains original signing randomizers
-and exact resumptions. That selector receives the explicit signature/hash
+with them. The accompanying signature experiment preserves original signing
+randomizers and exact resumptions. The executed-slot selector receives the explicit signature/hash
 bound in~\eqref{eq:executed-attribution-cost}; the general metadata selector
 in~\eqref{eq:live-core-next-rekey} retains its original attribution term.

@@ -29,7 +29,7 @@ becomes fixed in the native execution.
 Fix public lifetime budgets $G,C\geq1$ for original generation and
 encapsulation draws, and $1\le L\le2^{64}-1$ for the selected message chain.
 Write $J=[G]\times[C]$. An invocation receives its slot when its entropy is
-reserved, including attempts that later fail; replaying or copying retains
+reserved, including attempts that later fail; replaying or copying reuses
 that slot. Unused slots remain unused. These lifetime budgets count work
 across the execution, including operations no longer resident in storage.
 
@@ -38,10 +38,10 @@ the effective contribution tuple, the traffic entry and direction, and the
 message step. Each becomes fixed before its first private use at any relevant
 alias or endpoint. The terminal selector then names the original reservations
 and a cut for the same marked, accepted send; its score is evaluated against
-these retained allocations and the complete acquisition history.
+these fixed allocations and the complete acquisition history.
 The target is one accepted logical send under the next rekey of an established
 session, with the eligibility predicate in~\eqref{eq:eligibility}.
-The live-core interface retains write failures, process loss, exact resumption
+The live-core interface includes write failures, process loss, exact resumption
 and asynchronous confirmation, including sends after local FinalReady.
 Complete record acquisitions keep their original scope and save time.
 
@@ -138,8 +138,8 @@ component term by an ordinary ML-KEM IND-CCA advantage and an explicit
 prechallenge ciphertext-intersection cost. This substitution retains the
 real decapsulation prefix and the original source-selection accounting.
 
-The three native results therefore share the same records and original
-sources. Their terminal tests determine the remaining comparisons.
+The three native results therefore share the same source and record
+arguments. They differ in the terminal quantity being bounded.
 For the first message it is the score in~\eqref{eq:live-core-next-rekey}.
 For confirmation and first-message authentication it is the event
 in~\eqref{eq:native-selected-authentication}. For a step selected online
@@ -157,7 +157,7 @@ defines its record-acquisition term in
 Section~\ref{sec:bootstrap-authentication}; the initial-source construction
 charges the complete joint entry before partitioning its adaptive reply families
 (Theorem~\ref{thm:bootstrap-initial-schedule}). Appendix~\ref{app:common-virtual}
-retains the common-virtual-game accounting variant.
+gives the common-virtual-game accounting variant.
 
 \input{opaque-rendering}
 \input{report-composition}

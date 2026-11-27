@@ -36,8 +36,8 @@ Here
                 \Vert\operatorname{LP}(O)\bigr),
 \end{aligned}
 \]
-with $O$ the entire retained signed offer and the policy digest that of the
-verified admitted policy. In the pinned suite the complete encoded input
+Here $O$ is the entire retained signed offer, and the policy digest is that of
+the verified admitted policy. In the pinned suite the complete encoded input
 has 2639 bytes, and the 32-byte $s_M$ field occupies offsets 76--107.
 The reservation's trust-root binding, original-slot identifiers, operation
 identifiers and journal identities are kept in the provenance ledger.
@@ -90,7 +90,7 @@ call to track provenance and the complete tuple to cache the hash
 answer.
 
 \paragraph{Accepted original component calls.}
-Fix $j=(g,a)$ in the existing original-reservation ledger. The component
+Fix $j=(g,a)$ in the original-reservation ledger. The component
 adapter assigns its ML-KEM challenge public key only to generation origin
 $g$, retaining the locally sampled X25519 scalar, runtime admission and
 owner metadata. It obtains its challenge pair $(c_M^*,K_{\rm ch})$ at the
@@ -98,7 +98,7 @@ first actual private encapsulation computation of $a$ on the original
 retained offer from $g$. It computes the X25519 leg locally and caches the
 whole result before subsequent persistence. Exact retries reuse that
 challenge; a fresh entropy reservation, including one after an unsuccessful
-attempt, receives its actual new original slot. Copies and reopenings do
+attempt, receives a new original slot. Copies and reopenings do
 not create a new challenge invocation.
 
 The operational component game has two stages. It first supplies its
@@ -107,9 +107,9 @@ A single challenge is requested at the specified first computation of
 $a$; it returns a fresh encapsulation ciphertext and either its real key
 or an independent uniform 32-byte key. Thereafter its decapsulation
 oracle rejects that challenge ciphertext. Before challenge creation,
-selected-key decapsulation follows the prechallenge interface; a query
-that happens to equal the later sampled $c_M^*$ retains its original
-answer throughout the execution.
+selected-key decapsulation follows the prechallenge interface. Any answer
+returned before that point remains in the transcript, including one for a
+query that happens to equal the later sampled $c_M^*$.
 
 After challenge creation, a PQ decapsulation under the selected generation
 owner with ciphertext $c_M^*$ returns the cached $K_{\rm ch}$, regardless
@@ -117,16 +117,17 @@ of accompanying traditional ciphertext or context. All other PQ
 ciphertexts are routed to the component decapsulation interface. The
 traditional decapsulation and its rejection path remain native; a rejected
 traditional leg produces no ContextBound call. The challenged PQ
-ciphertext is never submitted to the postchallenge CCA oracle. Other
-original owners use their locally known keys, even when public-key bytes
-happen to coincide. The component costs below refer to this two-stage game.
+ciphertext is never submitted to the postchallenge CCA oracle. Decapsulation
+under any other original key-pair handle uses its locally known secret key,
+even when public-key bytes happen to coincide. The component costs below
+refer to this two-stage game.
 
 The immutable admitted binding must show that $a$ consumes the original
 offer from $g$. An immutable contrary binding makes attribution to $j$
 permanently impossible and gives a free stop $U_j$ under
 Section~\ref{sec:candidate-local-accounting}. Provenance follows that
-original binding. Missing or unaccepted operations otherwise retain the
-native execution. Reveal and projection cases use the established free
+original binding. Missing or unaccepted operations otherwise follow their
+native behavior. Reveal and projection cases use the established free
 stops, charged stops and local record correspondence. Thus the existing
 component costs $a_j^+,a_j^-,\delta_j$ retain exactly their meanings.
 Correctness and permitted-projection costs remain at their established
@@ -197,12 +198,12 @@ encapsulation-token stage by the stage retaining the derived root.
 The proposer replaces the generation-token stage before root installation.
 The final/receipt installation sites are the live updates of the rekey
 root. A crash before a transition recovers the same token and old root; a
-committed transition recovers the retained result. Neither resumes an old
-selected token under a newly installed root. This invariant is preserved
+committed transition recovers the retained result. In either case, recovery
+does not resume an old selected token under a newly installed root. This invariant is preserved
 by every supported call, authoritative write outcome and recovery step.
 The source artifact records the corresponding pinned call sites and the
-complete induction. The statement concerns protected-family uses; it
-makes no claim that independently sampled numeric secrets never coincide.
+complete induction. The statement concerns uses in the protected family
+and permits independently sampled secrets to coincide numerically.
 \end{proof}
 
 \paragraph{Fresh allocation and score semantics.}
@@ -228,7 +229,7 @@ Section~\ref{sec:joint-continuation}, including its fresh traffic-entry
 and direction mark, confirmations, ACKs, successors, shared $h$ work and
 private retained state.
 
-Every hop runs the same efficient terminal code $\Psi_j$ on its own actual
+Each comparison runs the same efficient terminal code $\Psi_j$ on its own
 trace. Its value is zero after the established local stops. The qualifying
 predicate in the message game must be computable from the available
 classical view and provenance ledger, as required by
@@ -292,7 +293,7 @@ continuation then give
 $|b_j^{\rm cont}|\le2\Delta_{{\rm init},j}
  +2\Delta_{{\rm sched},j}+2\varepsilon_{{\rm AEAD},j}$.
 All derived distinguishers include the complete preparation and continuation;
-no oracle budget resets at a hop. Combine these inequalities, use
+no oracle budget resets between comparisons. Combine these inequalities, use
 $|b_j|\le1$, and substitute in
 Proposition~\ref{prop:native-local-accounting}.
 \end{proof}
