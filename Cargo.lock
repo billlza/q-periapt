@@ -1530,7 +1530,7 @@ dependencies = [
  "q-periapt-sdk",
  "q-periapt-sig",
  "redb 2.6.4",
- "redb 4.3.0",
+ "redb 5.0.0",
  "rustls",
  "serde_json",
  "tempfile",
@@ -1609,7 +1609,7 @@ dependencies = [
  "q-periapt-policy",
  "q-periapt-sdk",
  "q-periapt-sig",
- "redb 4.3.0",
+ "redb 5.0.0",
  "rustix",
  "sha2 0.11.0",
  "tempfile",
@@ -1669,7 +1669,7 @@ dependencies = [
  "q-periapt-migration",
  "q-periapt-policy",
  "q-periapt-sig",
- "redb 4.3.0",
+ "redb 5.0.0",
  "rustix",
  "tempfile",
 ]
@@ -1857,6 +1857,15 @@ name = "redb"
 version = "4.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fb338a6c67830a61bed824b78c2bb034ab1ff401a20616bd7957524f4fdc2f22"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "redb"
+version = "5.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11175cc688ba1b9d3cec4fe582fd82cb97e2a82e28ccc8101b7b8030a8003280"
 dependencies = [
  "libc",
 ]

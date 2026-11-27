@@ -23,7 +23,7 @@ q-periapt-migration = { version = "=0.2.0", path = "../../models/q-periapt-migra
 q-periapt-policy = { version = "=0.2.0", path = "../../crates/q-periapt-policy" }
 q-periapt-sig = { version = "=0.2.0", path = "../../crates/q-periapt-sig" }
 # Pin the same durable file-format implementation as the host-store boundary.
-redb = "=4.3.0"
+redb = "=5.0.0"
 
 [target.'cfg(unix)'.dependencies]
 # Descriptor-relative opens keep the durable-state boundary beneath an already

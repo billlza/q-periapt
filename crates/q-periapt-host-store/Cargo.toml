@@ -21,7 +21,7 @@ q-periapt-backends = { version = "=0.2.0", path = "../q-periapt-backends" }
 q-periapt-sig = { version = "=0.2.0", path = "../q-periapt-sig" }
 sha2 = { version = "=0.11.0", default-features = false, features = ["zeroize"] }
 # Reuse the workspace's pinned storage implementation and reviewed file format.
-redb = "=4.3.0"
+redb = "=5.0.0"
 getrandom = "0.4"
 
 [target.'cfg(unix)'.dependencies]
