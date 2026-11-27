@@ -1,13 +1,6 @@
 {
-  "schema": "qperiapt-candidate-local-independent-review/1",
+  "schema": "qperiapt-candidate-local-internal-review/1",
   "completed_at_utc": "2026-11-07T19:59:54Z",
-  "reviewer": "/root/evidence",
-  "verdict": "PASS_as_stated_conditional_connection_theorem",
-  "freeze_confirmation": {
-    "agent": "/root/theory",
-    "confirmed": true,
-    "description": "MD v0.2 and candidate-local-accounting.tex frozen; final wording change only retained-version causality to certified time inequality"
-  },
   "reviewed_artifacts": [
     {
       "path": "/workspace/scratch/646fb6c54bf4/work/joc_round3/theory/candidate_local_composition.md",
@@ -22,12 +15,7 @@
       "sha256": "4a38c6bb00c70f2611c2395aec754c0af6b8231a8e3f94e027cf1a17b657865d"
     }
   ],
-  "review_record": {
-    "path": "/workspace/scratch/646fb6c54bf4/work/joc_round3/theory/independent_review.md",
-    "sha256": "dcae97f9a25066fde1d5b525fdeb23aa129fb8b1c179dcd9324b6e2e0a350365",
-    "bytes": 7559
-  },
-  "method": "Independent derivation and source-model cross-check; no CI or native experiment rerun; mathematical review does not rely on a compilation result.",
+  "method": "Automated argument and source-model inspection; no CI or native experiment rerun. This record does not represent author approval or independent human peer review.",
   "checks": [
     {
       "id": "all_continuations_origin_stop",
@@ -136,5 +124,12 @@
       "bytes": 13062,
       "role": "supporting model read; may be subsequently integrated by root"
     }
-  ]
+  ],
+  "record_type": "historical internal automated argument check",
+  "historical_assessment": "PASS_as_stated_conditional_connection_theorem",
+  "historical_review_record": {
+    "path": "/workspace/scratch/646fb6c54bf4/work/joc_round3/theory/independent_review.md",
+    "sha256": "dcae97f9a25066fde1d5b525fdeb23aa129fb8b1c179dcd9324b6e2e0a350365",
+    "bytes": 7559
+  }
 }

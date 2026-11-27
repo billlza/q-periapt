@@ -13,4 +13,4 @@ The retained primitive notes used as inputs are available at the manuscript's im
 - [HKDF block-table normalization](https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/docs/continuity/HKDF_EXPAND_TABLE_V1.md)
 - [Original send and encryption caching](https://github.com/billlza/q-periapt/blob/228c944fc476e3e57d6c08063cacb19bca5b360e/docs/continuity/AEAD_SEND_ORIGIN_V1.md)
 
-The independent review is a mathematical/source cross-check under the declared assumptions. Mechanized protocol results and executed finite-model results retain their separate receipts.
+The internal automated review records a mathematical/source check under the declared assumptions. Mechanized protocol results and executed finite-model results retain their separate receipts.

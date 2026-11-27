@@ -1,10 +1,9 @@
-# Deferred challenge: independent internal mathematical review
+# Deferred challenge: internal automated mathematical review
 
 Reviewed 10 November 2026. Module SHA-256:
 `871a4a3a0a8744f0288a5a9c8adee47dd8738d0c341f333a8ed465d7fafd025f`.
-The draft argument was read separately from its author check, against the
-existing operational adapter and the ordinary challenger interface. This is
-an internal argument review, distinct from journal peer review.
+The draft argument received a separate automated check against the existing
+operational adapter and the ordinary challenger interface.
 
 ## Result
 

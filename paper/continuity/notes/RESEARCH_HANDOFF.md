@@ -2,16 +2,14 @@
 
 ## Current direction
 
-The manuscript is **Exposure and Recovery with Persistent Randomness Reservations**, targeting Journal of Cryptology. Its continuous branch is `paper/joc-persistent-recovery`, with [manuscript PR #119](https://github.com/billlza/q-periapt/pull/119) against `main`. Continue this same PR for manuscript and directly used proof/evidence updates. [WORKFLOW.md](WORKFLOW.md) records the build and update procedure.
+The manuscript is **Exposure and Recovery with Persistent Randomness Reservations**, targeting Journal of Cryptology. Its branch is `paper/joc-persistent-recovery`, with [manuscript PR #200](https://github.com/billlza/q-periapt/pull/200) against `main`. The [manuscript README](../README.md#edit-build-and-review) gives the build commands. The technical notes below describe results at their recorded source revisions; theorem numbers may precede the current draft.
 
-The confirmed author is **Ziang Li (李子昂)**, Department of Engineering, Durham University. Correspondence: **2403871950@qq.com**. Alternative contact: **bhmq03@durham.ac.uk**. The current author list contains one person.
+The author is **Ziang Li (李子昂)**, Department of Engineering, Durham University. Correspondence: **2403871950@qq.com**. Alternative contact: **bhmq03@durham.ac.uk**. The current author list contains one person.
 
-On 11 November 2026, the author confirmed no research funding, no relevant
-financial or non-financial competing interests, and responsibility for all
-current research and manuscript contributions. The Declarations section and
-`author-metadata.json` now record these facts. Any future manuscript review is
-recorded when it occurs. The assembled submission awaits the author's final
-review and approval.
+The Declarations section and `author-metadata.json` contain the funding,
+competing-interest and contribution statements. Final submission approval is
+pending. The [revision status](SUBMISSION_READINESS.md) records the scientific
+and presentation issues raised in the 26 November review.
 
 ## Joint schedule and retained source profile
 
@@ -34,7 +32,7 @@ The attributed-original-operation-to-uniform-contribution connection is establis
 3. **The native root-use lemma** (`lem:cb-native-root-use`) proves that the original target tuple uses one old-root/complete-root-info pair. The induction applies online to every supported continuation of the matching immutable binding, including failed, crashed and ultimately unaccepted executions, independently of future eligibility. The target is allocated at its earliest private computation through any alias.
 4. **The next-rekey connection theorem** (`thm:cb-next-rekey`) substitutes that comparison into the retained candidate-local bound. The random-component score obeys `|b_j| <= min(1, 2 Phi_256(d_j,Q_H,j) + 2 Delta_init,j + 2 Delta_sched,j + 2 epsilon_AEAD,j)`. Original-game attribution/projection residuals, local correspondence, actual component-event gaps and correctness costs retain their previous locations. The labels identify the canonical statements independently of later insertion and renumbering.
 
-The [frozen proof and independent review](../artifacts/contextbound-connection/README.md) include the complete game chain, source induction, counterexamples and exact file hashes. The self-contained checker has 36 format/adapter cases. The separate source audit has 14 files and 12 static assertions at the unchanged native/development pins. These executable checks support concrete interfaces; the mathematical claim is supported by its proof and statement-by-statement review.
+The [frozen proof and internal automated review](../artifacts/contextbound-connection/README.md) include the complete game chain, source induction, counterexamples and exact file hashes. The self-contained checker has 36 format/adapter cases. The separate source audit has 14 files and 12 static assertions at the unchanged native/development pins. These executable checks support concrete interfaces; the mathematical claim is supported by its proof and statement-by-statement review.
 
 The two oracle interfaces are explicit: whole SHA3-256 for ContextBound and independent SHA-256 compression for HMAC/HKDF. Preparation, other native work, continuation and terminal tests are all counted. The operational profile retains private honest application data and plaintext-free public resumption. Raw X25519 is not assumed to be a uniform-256-bit KEM challenge.
 
@@ -46,7 +44,7 @@ One hidden-contribution column comparison and a sequence of adaptive class-row c
 
 A mark selects a descriptor before its first root evaluation. It may select a new information entry in a class that already produced other roots. All aliases of that target share the retained schedule handle. Unmarked roots are available to the controller and may become later salts. **Its first-message corollary** composes this entry with the retained first-message theorem, giving `min(1, 2 Delta_mr + 2 Delta_sched + 2 epsilon_AEAD)`. The ContextBound comparison supplies the preceding `2 Phi_256` term for a candidate whose stopped execution realizes this controller.
 
-The [multiple-root artifact](../artifacts/multiple-root-entry/README.md) contains the integrated theorem, a complete constructive proof, a worked controller and a 25-point independent review. It distinguishes PRK allocation from target-root allocation and preserves numerical key coincidences through the shared oracle. This completes the finite multiple-root mathematical extension proposed after the next-rekey result.
+The [multiple-root artifact](../artifacts/multiple-root-entry/README.md) contains the integrated theorem, a complete constructive proof, a worked controller and a 25-point internal automated review. It distinguishes PRK allocation from target-root allocation and preserves numerical key coincidences through the shared oracle. This completes the finite multiple-root mathematical extension proposed after the next-rekey result.
 
 ## Owned SDK purpose-key correspondence
 
@@ -58,7 +56,7 @@ The entry comparison permits all derived keys to be exported and establishes the
 
 A separate one-key application experiment marks a fresh descriptor before its first private evaluation and routes every target alias through one controlled AEAD interface. Its qualified score bound is `min(1, 2 Delta_sdk + 2 epsilon_AEAD)`. The complete-tuple ContextBound term composes when the stopped contribution family realizes the stated controller. The durable rekey driver retains its established 97-byte root-information profile.
 
-The [SDK correspondence artifact](../artifacts/sdk-purpose-connection/README.md) contains the full proof, native source map, independent review and retained Rust test outcomes. The completed current-source CI already passed the five relevant native tests; the manuscript update performs a separate source and mathematical review.
+The [SDK correspondence artifact](../artifacts/sdk-purpose-connection/README.md) contains the full proof, native source map, internal automated review and retained Rust test outcomes. The completed current-source CI already passed the five relevant native tests; the manuscript update performs a separate source and mathematical review.
 
 ## Native live core and authentication
 
@@ -70,11 +68,11 @@ The confirmation/message proposition starts at the established uniform epoch-roo
 
 The new result uses the actual three next-rekey confirmation keys and the marked traffic allocation. The SDK five-purpose workload retains its established derive/export interpretation. The production bootstrap's separate raw contribution use retains its own construction analysis.
 
-The complete proof, fixed-source map, finite semantic controls and independent reviews are in [the live-core and authentication artifact](../artifacts/confirmation-traffic/README.md). No new native Rust, Tamarin or performance execution is claimed by this mathematical increment.
+The complete proof, fixed-source map, finite semantic controls and internal automated reviews are in [the live-core and authentication artifact](../artifacts/confirmation-traffic/README.md). No new native Rust, Tamarin or performance execution is claimed by this mathematical increment.
 
 ## Executed-source attribution and original signing coins
 
-The focused attribution construction is now integrated in `source-attribution.tex`, with a complete proof and independent review in [the source-attribution artifact](../artifacts/source-attribution/README.md).
+The focused attribution construction is now integrated in `source-attribution.tex`, with a complete proof and internal automated review in [the source-attribution artifact](../artifacts/source-attribution/README.md).
 
 The executed-slot selector records existing original generation/encapsulation indices immediately before first private computation; sampling times and original `[G] x [C]` budgets are unchanged. A persist-before-compute induction gives one executed source of each role per authoritative local epoch. Complete signed-body and wire checks then give `E AND NOT Attr => Bad_sig^0 OR Bad_H`, with `Bad_sig^0` evaluated before the first target key or signer-file disclosure. This yields the explicit attribution cost `min(1, epsilon_sig + chi_H(Q_H))` for this selector. The general metadata selector keeps its existing counterexample and residual.
 
@@ -88,7 +86,7 @@ The related-work addition cites Damm et al.'s 2026 JoC result on leakage of inte
 
 The native original-randomizer bridge is now established in the shared ROM/QROM. The reduction caches by the complete `(r,mu)` pair and records every private original-message invocation before publication. A private-random-function coupling preserves selected visible collisions; its birthday term counts hidden ordinary-challenger draws. A joint comparison of the hidden 34-byte key-generation input and 128-byte hedge slice returns to the original shared-XOF ordinary native signer. Its classical loss is `v / 2^256` per comparison and its quantum loss is `2v / 2^128`, each capped at one. The two complete experiments carry separate worst-case query budgets.
 
-For `U` adaptively created owner families, a random target-family embedding allows other owners to be generated and disclosed locally. Exact aliases retain their family; public-key coincidences remain in the native distribution. The selected ordinary ML-DSA query ledger is contained in the native pair owner's ledger, which gives the fresh-message implication. The resulting bound instantiates the executed-source attribution term. The full proof, exact crate/source identities, finite controls and independent internal mathematical review are retained in [the signature-bridge artifact](../artifacts/signature-bridge/README.md).
+For `U` adaptively created owner families, a random target-family embedding allows other owners to be generated and disclosed locally. Exact aliases retain their family; public-key coincidences remain in the native distribution. The selected ordinary ML-DSA query ledger is contained in the native pair owner's ledger, which gives the fresh-message implication. The resulting bound instantiates the executed-source attribution term. The full proof, exact crate/source identities, finite controls and internal automated reviews are retained in [the signature-bridge artifact](../artifacts/signature-bridge/README.md).
 
 This completes the preceding focused task of replacing the reservation-aware ML-DSA term by ordinary native hedged EUF with explicit losses in the declared shared-XOF model.
 
@@ -98,7 +96,7 @@ The native event composition now connects the original eligible next-rekey execu
 
 For the live core, the bound is `Pr[E AND Bad_auth] <= min(1, eta_attr + sum_j min(1, epsilon_rec,j + a_auth,j + delta_j + Omega_auth,j))`. The component advantage is the output-bit advantage of this event's actual adapter. `Omega_auth` collects the complete-tuple, initialization, schedule, confirmation-row, tag-guessing, framed-collision and one-key integrity costs. The explicit report/projection extension retains its original selected-candidate residual. The executed-slot attribution term uses the completed ordinary-signature connection above.
 
-The complete manuscript proof and independent review are retained with 160 compatible Boolean assignment checks and explicit event/scope countermodels in [the native authentication artifact](../artifacts/native-authentication/README.md). This completes the previously identified authentication-event composition task for the declared marked controller.
+The complete manuscript proof and internal automated review are retained with 160 compatible Boolean assignment checks and explicit event/scope countermodels in [the native authentication artifact](../artifacts/native-authentication/README.md). This completes the previously identified authentication-event composition task for the declared marked controller.
 
 ## Focused continuation
 
@@ -174,7 +172,7 @@ existing KEM shared-key correctness term. Fixing the common static oracle
 functions gives independence of the full real prefix from the unused
 encapsulation message, including a quantum adversary's conditional state.
 The common bad event costs one term per Boolean advantage. The complete proof
-and independent internal mathematical review are in
+and internal automated reviews are in
 [the KEM connection packet](../artifacts/kem-game-bridge/README.md).
 
 The abstract and introduction now organize the contribution around original
@@ -187,11 +185,9 @@ composition context, with explicit per-source reading coverage in
 All four bootstrap checkers are part of `make check`. The current PDF, abstract,
 bibliography, visual review and independently compiled nine-file source export
 are bound by `integration_record.json`. Historical artifact records retain
-their original source and run identities. Engineering release admission
-continues through current-source checks and platform artifacts on PR #121;
-[the submission readiness note](SUBMISSION_READINESS.md) separately records the
-completed editorial review, confirmed author declarations and final submission
-approval.
+their original source and run identities. Engineering release admission has its own source and platform records.
+The [revision status](SUBMISSION_READINESS.md) records the manuscript issues
+that remain after the 26 November review.
 
 ## SkyBridge allocation
 
@@ -201,4 +197,4 @@ approval.
 
 `integration_record.json` is the current local verification snapshot. It binds the PDF, single-file source, proof modules and source profile. The manuscript and exported source are compiled for each integrated update. New mathematical reviews and build checks have separate receipts; executable finite-model checks retain their exact execution identity. Historical native, formal-model and reference-corpus evidence keeps its recorded source and execution dates. Remote workflow outcomes are attached to the dedicated PR's actual head commit.
 
-The manuscript uses one title and stable deliverable filenames. Git commits and artifact hashes identify its updates. [The layout decision](../format/layout_decision.md) records the official JoC instructions and an inspected single-column published example. Connected arguments organize the text; precise interface conditions remain in definitions and theorem hypotheses.
+[The layout decision](../format/layout_decision.md) records the JoC format sources used for the current single-column layout.

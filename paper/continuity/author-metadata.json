@@ -1,6 +1,5 @@
 {
   "schema": "qperiapt-manuscript-authors/1",
-  "confirmed_date": "2026-11-07",
   "authors": [
     {
       "given_name": "Ziang",
@@ -14,7 +13,6 @@
     }
   ],
   "declarations": {
-    "confirmed_date": "2026-11-11",
     "funding": "none",
     "financial_competing_interests": "none relevant to this work",
     "non_financial_competing_interests": "none relevant to this work",

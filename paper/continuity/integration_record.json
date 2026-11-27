@@ -5,7 +5,6 @@
   "bootstrap_ack_source_checkpoint": "471900bfe8070d1021a1feb67481437d599d80ba",
   "author_metadata": "author-metadata.json",
   "author_metadata_sha256": "f8804e0627b9509830905091b2a5aa27f2b7de1fb4c65563e93c2765bf8c4d87",
-  "submission_metadata": "Ziang Li remains the sole named author and corresponding author. Funding, relevant financial/non-financial competing interests and all current contributions were confirmed on 11 November 2026. The assembled submission awaits final author review and approval; no journal submission has been performed.",
   "format": {
     "class": "sn-jnl.cls",
     "class_sha256": "36d0c3273a59d48dc6a9c7b080dfa1ec50dc10229d8751568d1f2e490ffa5ecc",
@@ -229,15 +228,11 @@
       "Main-result entry and selection timing",
       "Integrated consistency across the main native result and both bootstrap source profiles",
       "Journal-facing title, abstract claims, closest-work distinctions and declarations review",
-      "Confirmed author funding, competing interests and contribution declarations",
       "Methodology review and explicit comparison targets for complete profiles and retry-readiness intervention",
       "Concise main-result narrative and adjacent ordinary-primitive substitution entry",
       "Original-source recovery, captured-epoch allocation and completed-service connection; exact retry-opportunity accounting and local terminology consistency",
       "Indexed exposure proposition, structural-work evaluation, independent model oracle and build integration",
       "Established indexed-result positioning and source-readability/original-event connection"
-    ],
-    "remaining_submission_inputs": [
-      "Author review and approval of the assembled submission"
     ],
     "author_submission_approval_asserted": false
   },
@@ -962,5 +957,8 @@
     "artifacts/editorial-review/exposure-result-connection/source-preservation.json": "368c0006d1fffb8b67df9c55283c0576c462305c2eb8088dcc0935008102e805",
     "artifacts/editorial-review/exposure-result-connection/validation.json": "68dc9a02dfd24893abdd7cee46e2151bdf7bdf14969dbaa2abd87ae6a305afe0",
     "artifacts/editorial-review/exposure-result-connection/visual-review.json": "6782a7e4662ac5faf7c2c951ab796f218359758ce9a78522810cbca794cc38c8"
-  }
+  },
+  "record_type": "Historical document and research-check record",
+  "identity_baseline_commit": "f70fa0970d7cbe27718309b8da11e7db4288c0e7",
+  "record_scope": "The document, source hashes and check outcomes in this record describe the baseline commit before metadata-only corrections. No new document build, proof review or author approval is asserted by this cleanup."
 }

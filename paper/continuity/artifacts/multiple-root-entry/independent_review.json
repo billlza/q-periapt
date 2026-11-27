@@ -1,10 +1,8 @@
 {
   "schema": "q-periapt.multiple-root-independent-review.v1",
   "review_date": "2026-11-07",
-  "reviewer": "Independent proof-review agent, separate from the theory author",
-  "status": "PASS",
   "inclusion_recommendation": "Include the finite multiple-root entry theorem and its first-message corollary under the stated available controller and retained primitive inputs.",
-  "review_kind": "Independent mathematical derivation, adversarial interface counterexamples, statement-by-statement final-text review and exact artifact hashing. Not a machine-checked proof or a native test execution.",
+  "review_kind": "Internal automated mathematical derivation, adversarial interface counterexamples, statement-by-statement final-text review and exact artifact hashing. Not a machine-checked proof or a native test execution.",
   "paper_git_revision_observed": "1dd47a20e0605842a5d4217bff04413179d9381f",
   "new_result_labels": [
     "thm:multiple-root-entry",
@@ -321,5 +319,7 @@
       "bytes": 16725,
       "sha256": "97758cda00a7159839b80f6bcc66e78ca4a0d8702ec5d12a687fa64f67ade0a1"
     }
-  ]
+  ],
+  "record_type": "historical internal automated argument review",
+  "historical_assessment": "PASS"
 }

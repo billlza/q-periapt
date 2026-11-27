@@ -2,7 +2,7 @@
 
 This artifact contains the complete proof of the finite multiple-root entry comparison and its first-message consequence.
 
-`multiple-root-entry.tex` is the integrated manuscript module. `multiple_root_entry_proof.md` gives the exact controller, complete query accounting, constructive example and counterexamples. The independent review files record the statement-by-statement argument check and exact input identities. `FREEZE.json` binds this artifact to the integrated source and its reviewed inputs.
+`multiple-root-entry.tex` is the integrated manuscript module. `multiple_root_entry_proof.md` gives the exact controller, complete query accounting, constructive example and counterexamples. The internal automated review files record the argument checks and inspected input identities. `FREEZE.json` records the artifact identities at repository commit `f70fa0970d7cbe27718309b8da11e7db4288c0e7`, before the attribution wording was corrected.
 
 ## Result
 
@@ -20,6 +20,6 @@ The explicit budgets distinguish `D` available salt strings from `C` pad-state c
 
 The result is a mathematical interface composition. It uses the retained operational HMAC bounds in `joint-primitive-bounds.tex` and the retained joint schedule and first-message reduction. The complete-tuple ContextBound comparison provides an optional preceding contribution entry. The source instance in the preceding next-rekey theorem retains its established source induction.
 
-The proof note includes a concrete controller that reveals two roots in a class, marks a fresh third information entry, and uses a disclosed earlier root as a later salt. Counterexamples explain the exact tuple, fresh-allocation and retained-handle conditions. The independent review checks these constructions and the resulting bounds.
+The proof note includes a concrete controller that reveals two roots in a class, marks a fresh third information entry, and uses a disclosed earlier root as a later salt. Counterexamples explain the exact tuple, fresh-allocation and retained-handle conditions. The internal automated review records checks of these constructions and bounds.
 
-The artifact's review is an independent mathematical argument check. Native execution and finite-model receipts retain their respective original identities in the manuscript's evidence map.
+The artifact's review was an internal automated argument check. Native execution and finite-model receipts retain their respective original identities in the manuscript's evidence map.

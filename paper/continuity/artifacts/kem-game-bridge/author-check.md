@@ -1,8 +1,8 @@
-# Deferred ML-KEM challenge bridge: author check and integration map
+# Deferred ML-KEM challenge bridge: internal draft check and integration map
 
 ## Scope and status
 
-This is a proposed new proof module against integration `0e2ca2d79ab0000bed79130cec97b31181e936ea`, whose paper is canonical `4fde471641150c68a08b56e728067c72b39ab346`. No existing manuscript source, theorem, formula, implementation, experiment, or remote branch has been changed by this draft. This file records author checking; it is not an independent-review claim.
+This is a proposed new proof module against integration `0e2ca2d79ab0000bed79130cec97b31181e936ea`, whose paper is canonical `4fde471641150c68a08b56e728067c72b39ab346`. No existing manuscript source, theorem, formula, implementation, experiment, or remote branch has been changed by this draft. This file records an automated draft-stage argument check.
 
 The gap addressed is precise: `paper/continuity/contextbound-connection.tex` defines its component advantage in the actual two-stage experiment, while the inherited ordinary KEM note described an up-front challenge. The present canonical theorem is valid under its stated two-stage advantage. The new proposition gives an ordinary IND-CCA instantiation with an explicit prechallenge collision cost. It does not replace source acquisition stops with corruption access in the primitive game.
 
@@ -60,6 +60,6 @@ Proposed: “An original-operation adapter carries this execution through the ML
 
 No abstract update is mathematically required. No old main bound needs to be rewritten: the substitution paragraph gives exact per-test use for native confidentiality, native Boolean authentication, online message integrity and both bootstrap profiles.
 
-## Independent review requested
+## Argument obligations
 
-Root should verify the full-prefix independence argument with fixed shared oracles, the common-bad-event coefficient, the distinct K-PKE failure definition, and the mapping of selected-tape stops to the already established operational distinguisher. The proposition is short enough to check directly; a new benchmark or finite cryptographic test would not settle these proof obligations.
+The argument depends on full-prefix independence with fixed shared oracles, the common-bad-event coefficient, the distinct K-PKE failure definition, and the mapping of selected-tape stops to the operational distinguisher. These are proof obligations in the proposed reduction.

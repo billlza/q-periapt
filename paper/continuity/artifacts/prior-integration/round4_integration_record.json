@@ -169,6 +169,5 @@
     "base": "main",
     "snapshot": "Local v0.4 verification before updating draft PR #119; the preceding published commit 255560856263f196e462205b7e3e4f73c54367c7 passed manuscript workflow run 42414762155. Remote checks for this revision must be read on its actual new head."
   },
-  "next_connection": "accepted original ContextBound operation -> selected component challenge -> complete-context hash hop -> uniform recovered contribution -> proved joint first-message continuation",
-  "submission_metadata": "Confirmed Ziang Li and corresponding email; no additional author included; no journal submission performed."
+  "next_connection": "accepted original ContextBound operation -> selected component challenge -> complete-context hash hop -> uniform recovered contribution -> proved joint first-message continuation"
 }

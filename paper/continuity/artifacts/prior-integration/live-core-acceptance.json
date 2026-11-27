@@ -320,7 +320,6 @@
     "new_local_finite_receipt": "artifacts/integration-checks/live-core-acceptance/confirmation-traffic-check.json",
     "regression_receipt_scope": "The retained 23-test launcher regression receipt belongs to the prior SDK-purpose update. Android repair execution has its own commit-specific receipt."
   },
-  "submission_metadata": "Confirmed Ziang Li and corresponding email; no additional author included; no journal submission performed.",
   "retained_joint_continuation_result": {
     "adaptive_expand": "Lemma 5.9",
     "joint_message_leaf": "Theorem 5.10",
